@@ -1,10 +1,10 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-primary: #6719FC;
- --color-primary-dark: #5615d2;
+  --color-primary: #6719fc;
+  --color-primary-dark: #5615d2;
   /* 
   --color-success-500: #17B26A;
   --color-warning-25: #FFFCF5;
@@ -17,8 +17,8 @@
 }
 
 html {
-   overflow: hidden auto !important;
-   padding-right: 0px !important;
+  overflow: hidden auto !important;
+  padding-right: 0px !important;
 }
 
 body {
@@ -26,8 +26,8 @@ body {
   font-family: var(--poppins);
 }
 
-.Toastify__toast{
-    font-family: var(--poppins) !important;
+.Toastify__toast {
+  font-family: var(--poppins) !important;
 }
 
 .Toastify__toast-container {
@@ -46,13 +46,12 @@ body {
   @apply m-0! p-0!;
 }
 
-
-button:not(:disabled):not([aria-disabled="true"]) {
+button:not(:disabled):not([aria-disabled='true']) {
   @apply cursor-pointer;
 }
 
 button:disabled,
-button[aria-disabled="true"] {
+button[aria-disabled='true'] {
   @apply cursor-not-allowed;
 }
 

@@ -10,10 +10,7 @@
       "path": "./apps/harperhelp"
     },
     {
-      "path": "./frontend-e2e"
-    },
-    {
-      "path": "./frontend"
+      "path": "./apps/frontend"
     }
   ]
 }
