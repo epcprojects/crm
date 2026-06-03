@@ -56,7 +56,7 @@ export class AuthService {
     const payload = {
       sub: user.id,
       email: user.email,
-      roles: roles.map((r) => r?.key),
+      roles: roles.map((r) => r?.name).filter(Boolean),
       claims: [], // add claims here if needed
     };
 
@@ -188,6 +188,3 @@ export class AuthService {
     };
   }
 }
-
-
-
