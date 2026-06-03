@@ -20,5 +20,9 @@ export function environment() {
       },
     },
     JWT_SECRET: process.env.JWT_SECRET,
+    sendgrid: {
+      apiKey: process.env.SENDGRID_API_KEY,
+      fromEmail: process.env.SENDGRID_FROM_EMAIL,
+    },
   };
 }
