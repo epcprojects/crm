@@ -397,7 +397,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main className="px-4 sm:px-6 lg:px-8">{children}</main>
+        <main className="px-4 sm:px-6 py-4 md:py-8 lg:px-8">{children}</main>
       </div>
     </div>
   );

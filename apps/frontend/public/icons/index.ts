@@ -5,6 +5,7 @@ import TicketsIcon from './TicketsIcon';
 import ProjectsIcon from './ProjectsIcon';
 import UserGroup from './UserGroup';
 import SettingsIcon from './SettingsIcon';
+import ClockIcon from './ClockIcon';
 
 export {
   ToggleIcon,
@@ -14,4 +15,5 @@ export {
   ProjectsIcon,
   UserGroup,
   SettingsIcon,
+  ClockIcon,
 };
