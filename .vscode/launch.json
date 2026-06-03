@@ -4,24 +4,18 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Debug @harperhelp/harperhelp with Nx",
+      "name": "Debug auditi with Nx",
       "runtimeExecutable": "npx",
-      "runtimeArgs": [
-        "nx",
-        "serve",
-        "@harperhelp/harperhelp"
-      ],
+      "runtimeArgs": ["nx", "serve", "auditi"],
       "env": {
         "NODE_OPTIONS": "--inspect=9229"
       },
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
+      "skipFiles": ["<node_internals>/**"],
       "sourceMaps": true,
       "outFiles": [
-        "${workspaceFolder}/apps/harperhelp/dist/**/*.(m|c|)js",
+        "${workspaceFolder}/apps/auditi/dist/**/*.(m|c|)js",
         "!**/node_modules/**"
       ]
     }
