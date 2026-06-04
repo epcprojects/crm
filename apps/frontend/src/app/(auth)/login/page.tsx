@@ -60,7 +60,7 @@ const Page = () => {
       );
 
       if (signInThunk.fulfilled.match(result)) {
-        const profileResult = await dispatch(fetchMyProfileThunk());
+        await dispatch(fetchMyProfileThunk());
         router.replace('/dashboard');
       }
     },
