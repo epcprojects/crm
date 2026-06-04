@@ -6,9 +6,15 @@ import ProjectsIcon from './ProjectsIcon';
 import UserGroup from './UserGroup';
 import SettingsIcon from './SettingsIcon';
 import ClockIcon from './ClockIcon';
+import FolderIcon from './FolderIcon';
+import CheckMarkCircleIcon from './CheckMarkCircleIcon';
+import AlertIcon from './AlertIcon';
 
 export {
   ToggleIcon,
+  CheckMarkCircleIcon,
+  AlertIcon,
+  FolderIcon,
   PlusIcon,
   DashboardIcon,
   TicketsIcon,

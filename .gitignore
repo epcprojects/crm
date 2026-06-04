@@ -46,4 +46,5 @@ Thumbs.db
 # Next.js
 .next
 out
+.env
 test-output
