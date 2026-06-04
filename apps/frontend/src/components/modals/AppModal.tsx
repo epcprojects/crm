@@ -115,12 +115,9 @@ const AppModal: React.FC<AppModalProps> = ({
           {showHeader && (
             <div className="px-4 py-3 bg-white flex sm:rounded-t-xl items-center justify-between border-b border-gray-200">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 shrink-0 border border-gray-200 rounded-lg bg-white flex items-center justify-center">
-                  {icon}
-                </div>
                 <div>
                   <h2
-                    className={`text-base md:text-xl text-gray-900 font-bold`}
+                    className={`text-base md:text-xl text-black font-semibold`}
                   >
                     {title}
                   </h2>
@@ -163,24 +160,25 @@ const AppModal: React.FC<AppModalProps> = ({
             <div
               className={`${
                 btnFullWidth && 'gap-6'
-              } border-t border-gray-200 bg-white  flex gap-2 sm:rounded-b-xl items-center p-2 md:p-4 justify-end`}
+              }  bg-white  flex gap-2 sm:rounded-b-xl items-center p-2 md:p-4 justify-center`}
             >
               {!hideCancelBtn && (
-                <div className="md:w-fit w-full">
+                <div className=" w-full">
                   <ThemeButton
                     className="border w-full border-gray-200"
                     variant="secondary"
                     onClick={onCancel ? onCancel : onClose}
-                    size={isMobile ? 'sm' : 'md'}
+                    size={isMobile ? 'md' : 'lg'}
                   >
                     {cancelLabel}
                   </ThemeButton>
                 </div>
               )}
               {onConfirm && !hideConfirmButton && (
-                <div className="md:w-fit w-full">
+                <div className="w-full">
                   <ThemeButton
-                    size={isMobile ? 'sm' : 'md'}
+                    variant="primary"
+                    size={isMobile ? 'md' : 'lg'}
                     onClick={onConfirm}
                     disabled={confimBtnDisable}
                     className="w-full"

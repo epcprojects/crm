@@ -69,7 +69,7 @@ export default function ThemeInput({
   return (
     <div className={clsx('w-full', wrapperClassName)}>
       {label && (
-        <label className="block text-sm font-normal text-gray-800 md:text-base">
+        <label className="block mb-1.5 text-sm font-normal text-gray-800 md:text-base">
           {label} {required && <span className="text-red-500"> *</span>}
         </label>
       )}
@@ -81,7 +81,7 @@ export default function ThemeInput({
           value={normalizedValue}
           defaultValue={!hasValueProp ? defaultValue : undefined}
           className={clsx(
-            'w-full border-0 border-b border-gray-200 bg-transparent px-0 py-1.5 text-sm font-medium text-gray-700 outline-none placeholder:text-gray-300 focus:border-gray-400 md:text-base',
+            'w-full rounded-lg ps-3.5 pe-2 py-2 border border-gray-200 bg-transparent px-0  text-sm font-medium text-gray-700 outline-none placeholder:text-gray-300 focus:border-gray-400 md:text-base',
             errorText && 'border-red-300 focus:border-red-400',
             isNumberType &&
               `[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${

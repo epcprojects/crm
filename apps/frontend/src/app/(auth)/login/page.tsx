@@ -75,13 +75,13 @@ const Page = () => {
           src={Images.index.logoWithText}
         />
         <div className="md:flex-1 max-w-117 w-full flex items-center justify-center flex-col">
-          <h2 className="text-black text-xl mb-8 md:mb-10.5 md:text-2xl font-bold text-center">
+          <h2 className="text-black text-xl mb-6 md:mb-8 md:text-2xl font-bold text-center">
             Welcome back 👋
           </h2>
 
           <form
             onSubmit={formik.handleSubmit}
-            className="w-full space-y-8 md:space-y-12"
+            className="w-full space-y-6 md:space-y-8"
           >
             <div className="space-y-6">
               <ThemeInput
@@ -89,6 +89,7 @@ const Page = () => {
                 required
                 label="Email Address"
                 name="email"
+                className="py-2.5"
                 value={formik.values.email}
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
@@ -101,6 +102,7 @@ const Page = () => {
                 required
                 label="Password"
                 name="password"
+                className="py-2.5"
                 value={formik.values.password}
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
@@ -109,19 +111,25 @@ const Page = () => {
                 }
                 placeholder="Password"
               />
+            </div>
 
-              <div className="flex items-center flex-wrap gap-2 justify-between">
-                <button
-                  type="button"
-                  onClick={() => setRememberMe((prev) => !prev)}
-                  className="flex items-center gap-2 cursor-pointer"
+            <div className="space-y-3">
+              <div className="space-y-3">
+                <ThemeButton
+                  type="submit"
+                  disabled={authStatus === 'loading'}
+                  className="w-full"
+                  size="lg"
                 >
-                  {rememberMe ? <CheckedBoxIcon /> : <UncheckedBoxIcon />}
-                  <h2 className="text-sm md:text-base text-gray-400">
-                    Remember for 30 days
-                  </h2>
-                </button>
-
+                  {authStatus === 'loading' ? 'Signing in...' : 'Sign in'}
+                </ThemeButton>
+                {authError && (
+                  <p className="text-sm text-red-600 text-center">
+                    {authError}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center flex-wrap gap-2 justify-center">
                 <button
                   type="button"
                   onClick={() => setIsForgotPasswordOpen(true)}
@@ -130,20 +138,6 @@ const Page = () => {
                   Forgot password
                 </button>
               </div>
-            </div>
-
-            <div className="space-y-3">
-              <ThemeButton
-                type="submit"
-                disabled={authStatus === 'loading'}
-                className="w-full"
-                size="lg"
-              >
-                {authStatus === 'loading' ? 'Signing in...' : 'Sign in'}
-              </ThemeButton>
-              {authError && (
-                <p className="text-sm text-red-600 text-center">{authError}</p>
-              )}
             </div>
           </form>
         </div>
