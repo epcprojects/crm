@@ -9,8 +9,20 @@ import ClockIcon from './ClockIcon';
 import FolderIcon from './FolderIcon';
 import CheckMarkCircleIcon from './CheckMarkCircleIcon';
 import AlertIcon from './AlertIcon';
+import EyeClosedIcon from './EyeClosedIcon';
+import EyeOpenedIcon from './EyeOpenedIcon';
+import UncheckedBoxIcon from './UncheckedBoxIcon';
+import CheckedBoxIcon from './CheckedBoxIcon';
+import CloseIcon from './CloseIcon';
+import LockIcon from './LockIcon';
 
 export {
+  CloseIcon,
+  LockIcon,
+  EyeClosedIcon,
+  UncheckedBoxIcon,
+  CheckedBoxIcon,
+  EyeOpenedIcon,
   ToggleIcon,
   CheckMarkCircleIcon,
   AlertIcon,

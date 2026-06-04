@@ -1,10 +1,10 @@
-// import { AppToastProvider } from './components/toast/AppToast';
 import './global.css';
 import { Poppins } from 'next/font/google';
-// import { StoreProvider } from './Redux/storeProvider';
-// import QueryProvider from './providers/QueryProvider';
-// import AuthBootstrap from './components/auth/AuthBootstrap';
-// import AppLoaderProvider from './providers/AppLoaderProvider';
+import { StoreProvider } from './Redux/storeProvider';
+import QueryProvider from './providers/QueryProvider';
+import AppLoaderProvider from './providers/AppLoaderProvider';
+import AuthBootstrap from './providers/AuthBootstrap';
+import { AppToastProvider } from '../components/toast/AppToast';
 
 export const metadata = {
   title: 'Harper Help Desk',
@@ -41,15 +41,15 @@ export default function RootLayout({
       <meta name="apple-mobile-web-app-title" content="MyWebSite" />
       <link rel="manifest" href="images/favicon/site.webmanifest" />
       <body className={`${poppins.variable} bg-white min-h-dvh`}>
-        {/* <StoreProvider>
+        <StoreProvider>
           <QueryProvider>
             <AppLoaderProvider>
-              <AuthBootstrap /> */}
-        {children}
-        {/* <AppToastProvider />
+              <AuthBootstrap />
+              {children}
+              <AppToastProvider />
             </AppLoaderProvider>
           </QueryProvider>
-        </StoreProvider> */}
+        </StoreProvider>
       </body>
     </html>
   );

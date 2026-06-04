@@ -203,8 +203,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     );
   }, [pathname]);
 
-  const sidebarWidth = collapsed ? 'lg:w-24' : 'lg:w-72';
-  const contentOffset = collapsed ? 'lg:pl-24' : 'lg:pl-72';
+  const sidebarWidth = collapsed ? 'lg:w-18' : 'lg:w-72';
+  const contentOffset = collapsed ? 'lg:pl-18' : 'lg:pl-72';
 
   return (
     <div className="min-h-dvh bg-white text-slate-900">
@@ -266,24 +266,24 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             <p
               className={`mb-3 px-2 text-xs sm:text-sm font-medium captilize text-black transition-opacity duration-200 ${
                 collapsed
-                  ? 'opacity-0 lg:h-0 lg:overflow-hidden'
+                  ? 'opacity-0 hidden lg:h-0 lg:overflow-hidden'
                   : 'opacity-100'
               }`}
             >
               Main Menu
             </p>
-            <nav className="space-y-1.5">
+            <nav className={`space-y-1.5 ${collapsed ? 'w-fit' : ''}`}>
               {visibleNavigationItems.map((item) => {
                 const isActive = pathname === item.href;
 
                 return (
                   <Link
                     key={item.href}
-                    className={`group flex items-center gap-2 rounded-lg px-3 py-2 text-sm md:text-base  transition-all duration-200 ${
+                    className={`group flex items-center rounded-lg px-3 py-2 text-sm md:text-base  transition-all duration-200 ${
                       isActive
                         ? 'bg-white text-black shadow ring-1 ring-gray-200 font-medium'
                         : 'text-gray-500 hover:bg-slate-50 hover:text-black font-normal'
-                    } ${collapsed ? 'justify-center lg:px-0' : ''}`}
+                    } ${collapsed ? 'justify-center lg:px-0 w-10 items-center' : 'gap-2'}`}
                     href={item.href}
                     onClick={() => setMobileOpen(false)}
                     title={collapsed ? item.label : undefined}
@@ -316,7 +316,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             <p
               className={`mb-3 px-2 text-xs sm:text-sm font-medium captilize text-black transition-opacity duration-200 ${
                 collapsed
-                  ? 'opacity-0 lg:h-0 lg:overflow-hidden'
+                  ? 'opacity-0 lg:h-0 hidden lg:overflow-hidden'
                   : 'opacity-100'
               }`}
             >
@@ -326,8 +326,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               {sidebarProjects.map((project) => (
                 <button
                   key={project.id}
-                  className={`flex w-full items-center gap-2 rounded-2xl py-1.25 px-3 text-left transition hover:bg-slate-50 ${
-                    collapsed ? 'justify-center lg:px-0' : ''
+                  className={`flex w-full items-center  rounded-2xl py-1.25 px-3 text-left transition hover:bg-slate-50 ${
+                    collapsed ? 'justify-center lg:px-0' : 'gap-2'
                   }`}
                   type="button"
                   title={collapsed ? project.name : undefined}
