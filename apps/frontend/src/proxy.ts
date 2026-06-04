@@ -1,20 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-enum OrgUserRole {
-  ORG_ADMIN = 'ORG_ADMIN',
-  ORG_MEMBER = 'ORG_MEMBER',
-  ORG_VIEWER = 'ORG_VIEWER',
-}
-
-enum AdminRole {
+enum UserRole {
   SUPER_ADMIN = 'SUPER_ADMIN',
   ADMIN = 'ADMIN',
+  PROJECT_MANAGER = 'PROJECT_MANAGER',
+  DEVELOPER = 'DEVELOPER',
   VIEWER = 'VIEWER',
 }
 
 type JwtPayload = {
   exp?: number;
   roles?: string[];
+  user?: {
+    roles?: string[];
+  };
 };
 
 const ACCESS_TOKEN_COOKIE = 'access_token';
@@ -25,9 +24,10 @@ const PUBLIC_ROUTES = [
   '/auth/set-password',
   '/auth/accept-invite',
 ];
-const ADMIN_ROUTES = ['/dashboard', '/organizations', '/ledger', '/users'];
-const USER_ROUTES = ['/score', '/viable'];
-const SUPER_ADMIN_ONLY_ROUTES = ['/users'];
+
+const ADMIN_ROUTES = ['/dashboard', '/tickets', '/projects', '/users', '/settings'];
+const LIMITED_USER_ROUTES = ['/dashboard', '/tickets', '/projects'];
+const ADMIN_ONLY_ROUTES = ['/users', '/settings'];
 
 function isExactOrNested(pathname: string, baseRoute: string) {
   return pathname === baseRoute || pathname.startsWith(`${baseRoute}/`);
@@ -58,6 +58,14 @@ function isTokenExpired(exp?: number) {
   return exp * 1000 <= Date.now();
 }
 
+function getUserRoles(payload: JwtPayload | null) {
+  return payload?.roles ?? payload?.user?.roles ?? [];
+}
+
+function hasAnyRole(roles: string[], allowedRoles: UserRole[]) {
+  return roles.some((role) => allowedRoles.includes(role as UserRole));
+}
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const tokenParam = request.nextUrl.searchParams.get('token')?.trim();
@@ -68,21 +76,22 @@ export function proxy(request: NextRequest) {
 
   const token = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
   const payload = token ? decodeJwtPayload(token) : null;
-  const roles = payload?.roles ?? [];
-  const isAuthenticated = Boolean(token && payload && !isTokenExpired(payload.exp));
-
-  const isAdmin = roles.some((role) =>
-    Object.values(AdminRole).includes(role as AdminRole),
-  );
-  const isOrgUser = roles.some((role) =>
-    Object.values(OrgUserRole).includes(role as OrgUserRole),
+  const roles = getUserRoles(payload);
+  const isAuthenticated = Boolean(
+    token && payload && !isTokenExpired(payload.exp),
   );
 
   const isPublicRoute = isRouteInSet(pathname, PUBLIC_ROUTES);
   const isAdminRoute = isRouteInSet(pathname, ADMIN_ROUTES);
-  const isUserRoute = isRouteInSet(pathname, USER_ROUTES);
-  const isSuperAdminOnlyRoute = isRouteInSet(pathname, SUPER_ADMIN_ONLY_ROUTES);
-  const isSuperAdmin = roles.some((role) => role === AdminRole.SUPER_ADMIN);
+  const isLimitedUserRoute = isRouteInSet(pathname, LIMITED_USER_ROUTES);
+  const isAdminOnlyRoute = isRouteInSet(pathname, ADMIN_ONLY_ROUTES);
+
+  const isAdmin = hasAnyRole(roles, [UserRole.SUPER_ADMIN, UserRole.ADMIN]);
+  const isLimitedUser = hasAnyRole(roles, [
+    UserRole.PROJECT_MANAGER,
+    UserRole.DEVELOPER,
+    UserRole.VIEWER,
+  ]);
 
   if (!isAuthenticated && !isPublicRoute) {
     return NextResponse.redirect(new URL('/login', request.url));
@@ -93,40 +102,33 @@ export function proxy(request: NextRequest) {
       return NextResponse.next();
     }
 
-    if (isAdmin) {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
-    }
-
-    if (isOrgUser) {
-      return NextResponse.redirect(new URL('/viable', request.url));
-    }
-  }
-
-  if (isAuthenticated && isOrgUser && isAdminRoute) {
-    return NextResponse.redirect(new URL('/viable', request.url));
-  }
-
-  if (isAuthenticated && isAdmin && isUserRoute) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  if (isAuthenticated && isSuperAdminOnlyRoute && !isSuperAdmin) {
-    if (isAdmin) {
+  if (isAuthenticated && pathname === '/') {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
+  if (isAuthenticated && isAdmin) {
+    if (isAdminRoute) {
+      return NextResponse.next();
+    }
+
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
+  if (isAuthenticated && isLimitedUser) {
+    if (isAdminOnlyRoute) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
-    return NextResponse.redirect(new URL('/viable', request.url));
+
+    if (isLimitedUserRoute) {
+      return NextResponse.next();
+    }
   }
 
-  if (isAuthenticated && isAdmin && (isAdminRoute || pathname === '/')) {
-    return NextResponse.next();
-  }
-
-  if (isAuthenticated && isOrgUser && (isUserRoute || pathname === '/')) {
-    return NextResponse.next();
-  }
-
-  if (isAuthenticated && !isAdmin && !isOrgUser) {
-    return NextResponse.redirect(new URL('/login', request.url));
+  if (isAuthenticated) {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
   return NextResponse.next();
@@ -135,4 +137,3 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: ['/((?!api|_next/static|_next/image|favicon.ico|images|icons).*)'],
 };
-

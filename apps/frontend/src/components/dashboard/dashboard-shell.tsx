@@ -1,6 +1,7 @@
 'use client';
 
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
+import { useMutation } from '@tanstack/react-query';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -20,8 +21,12 @@ import {
   useAppDispatch,
   useAppSelector,
 } from '../../app/Redux/store';
+import { useAppLoader } from '../../app/providers/AppLoaderProvider';
 import { Images } from '../../app/ui/images';
-import ChangePasswordModal from '../modals/ChangePasswordModal';
+import ChangePasswordModal, {
+  type ChangePasswordFormValues,
+} from '../modals/ChangePasswordModal';
+import { appToast } from '../toast/AppToast';
 import ThemeButton from '../ui/ThemeButton';
 
 type NavItem = {
@@ -197,6 +202,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
+  const { setLoading } = useAppLoader();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
@@ -234,6 +240,41 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       initials: getAccountInitials(name),
     };
   }, [user]);
+
+  const changePasswordMutation = useMutation({
+    onMutate: () => {
+      setLoading(true);
+    },
+    mutationFn: async (values: ChangePasswordFormValues) => {
+      const response = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(values),
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to change password.');
+      }
+
+      return payload;
+    },
+    onSuccess: () => {
+      appToast.success('Password changed successfully.');
+    },
+    onError: (error) => {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to change password.',
+      );
+    },
+    onSettled: () => {
+      setLoading(false);
+    },
+  });
 
   const handleLogout = async () => {
     await dispatch(logoutThunk());
@@ -505,8 +546,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       <ChangePasswordModal
         isOpen={changePasswordOpen}
         onClose={() => setChangePasswordOpen(false)}
-        onConfirm={() => {
-          console.log('Change password submitted');
+        onConfirm={async (values) => {
+          await changePasswordMutation.mutateAsync(values);
         }}
       />
     </div>

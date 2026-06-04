@@ -13,8 +13,8 @@ const Page = () => {
       <div className="grid grid-cols-4 gap-3 md:gap-5">
         <StatusCard
           icon={<FolderIcon fill="currentColor" />}
-          title="In Progress"
-          count={83}
+          title="Open"
+          count={608}
         />
         <StatusCard
           icon={<ClockIcon fill="currentColor" />}
@@ -23,13 +23,13 @@ const Page = () => {
         />
         <StatusCard
           icon={<CheckMarkCircleIcon fill="currentColor" />}
-          title="In Progress"
-          count={83}
+          title="Resolved"
+          count={106}
         />
         <StatusCard
           icon={<AlertIcon fill="currentColor" />}
-          title="In Progress"
-          count={83}
+          title="Critical"
+          count={28}
         />
       </div>
     </div>
