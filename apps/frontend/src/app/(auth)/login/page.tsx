@@ -3,7 +3,6 @@
 import Image from 'next/image';
 import React, { useState } from 'react';
 import { Images } from '../../ui/images';
-import { CheckedBoxIcon, UncheckedBoxIcon } from '../../../../public/icons';
 import { useRouter } from 'next/navigation';
 import { useFormik } from 'formik';
 import * as yup from 'yup';
@@ -41,7 +40,6 @@ const loginSchema = yup.object({
 const Page = () => {
   const dispatch = useAppDispatch();
   const router = useRouter();
-  const [rememberMe, setRememberMe] = useState(false);
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
   const authStatus = useAppSelector(selectAuthStatus);
   const authError = useAppSelector(selectAuthError);

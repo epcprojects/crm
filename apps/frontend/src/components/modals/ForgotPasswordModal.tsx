@@ -6,7 +6,6 @@ import * as yup from 'yup';
 import AppModal from './AppModal';
 import ThemeInput from '../ui/ThemeInput';
 import { useAppLoader } from '../../app/providers/AppLoaderProvider';
-import { LockIcon } from '../../../public/icons';
 
 export type ForgotPasswordFormValues = {
   email: string;
