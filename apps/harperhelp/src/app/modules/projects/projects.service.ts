@@ -34,6 +34,15 @@ export class ProjectsService {
     return this.projectRepo.findOne({ where: { id } });
   }
 
+  async findProjectMembers(projectId: string) {
+    return this.projectRepo
+      .createQueryBuilder('project')
+      .innerJoin('project.members', 'member')
+      .where('project.id = :projectId', { projectId })
+      .select(['member.id AS id', 'member.fullName AS "fullName"'])
+      .getRawMany();
+  }
+
   update(id: string, updateProjectDto: UpdateProjectDto) {
     this.projectRepo.update(id, updateProjectDto);
     return this.projectRepo.findOne({ where: { id } });

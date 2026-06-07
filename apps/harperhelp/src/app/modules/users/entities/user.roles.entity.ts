@@ -1,7 +1,5 @@
-import { CreatedBaseEntity } from '@harperhelp/interfaces';
 import {
   Column,
-  CreateDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
@@ -9,9 +7,10 @@ import {
 } from 'typeorm';
 import { User } from './user.entity';
 import { Role } from '../../roles/entities/role.entity';
+import { JoinEntity } from '@harperhelp/interfaces';
 
 @Entity('user_roles')
-export class UserRole extends CreatedBaseEntity {
+export class UserRole extends JoinEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -31,7 +30,4 @@ export class UserRole extends CreatedBaseEntity {
 
   @Column({ type: 'uuid', nullable: true })
   assignedBy: string;
-
-  @CreateDateColumn()
-  assignedAt: Date;
 }

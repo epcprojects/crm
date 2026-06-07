@@ -1,28 +1,57 @@
-import { Column, CreateDateColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  DeleteDateColumn,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
-export class CreatedBaseEntity {
-  @CreateDateColumn()
-  createdAt: Date;
-
-  @Column({ type: 'uuid', nullable: true })
-  createdBy: string;
+// ATOMIC
+export abstract class HasPrimaryKey {
+  @PrimaryGeneratedColumn('uuid') id: string;
 }
 
-export class UpdatedBaseEntity {
-  @CreateDateColumn()
-  updatedAt: Date;
-
-  @Column({ type: 'uuid', nullable: true })
-  updatedBy: string;
+export abstract class HasTimestamps {
+  @CreateDateColumn() createdAt: Date;
+  @UpdateDateColumn() updatedAt: Date;
 }
 
-export class BaseEntity extends CreatedBaseEntity {
-  @Column({ default: true })
-  isActive: boolean;
+export abstract class HasSoftDelete {
+  @DeleteDateColumn({ nullable: true })
+  deletedAt: Date | null;
+}
 
-  @CreateDateColumn()
-  updatedAt: Date;
+export abstract class HasIsActive {
+  @Column({ default: true }) isActive: boolean;
+}
 
-  @Column({ type: 'uuid', nullable: true })
-  updatedBy: string;
+export abstract class HasAuditUser {
+  @Column({ type: 'uuid', nullable: true }) createdBy: string | null;
+  @Column({ type: 'uuid', nullable: true }) updatedBy: string | null;
+}
+
+export abstract class BaseEntity extends HasPrimaryKey {
+  @CreateDateColumn() createdAt: Date;
+  @UpdateDateColumn() updatedAt: Date;
+  @DeleteDateColumn({ nullable: true })
+  deletedAt: Date | null;
+  @Column({ default: true }) isActive: boolean;
+  @Column({ type: 'uuid', nullable: true }) createdBy: string | null;
+  @Column({ type: 'uuid', nullable: true }) updatedBy: string | null;
+}
+
+export abstract class AuditableEntity extends HasPrimaryKey {
+  @CreateDateColumn() createdAt: Date;
+  @UpdateDateColumn() updatedAt: Date;
+  @Column({ type: 'uuid', nullable: true }) createdBy: string | null;
+  @Column({ type: 'uuid', nullable: true }) updatedBy: string | null;
+}
+
+export abstract class TimestampEntity extends HasPrimaryKey {
+  @CreateDateColumn() createdAt: Date;
+  @UpdateDateColumn() updatedAt: Date;
+}
+
+export abstract class JoinEntity {
+  @CreateDateColumn() assignedAt: Date;
 }

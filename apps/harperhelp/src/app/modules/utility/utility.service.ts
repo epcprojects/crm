@@ -1,0 +1,167 @@
+import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+  ListObjectsV2Command,
+  ListObjectsV2CommandOutput,
+} from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+
+type PresignedUrlAction = 'upload' | 'download';
+
+interface PresignedUrlOptions {
+  key: string;
+  action: PresignedUrlAction;
+  expiresInSeconds?: number;
+  contentType?: string;
+}
+
+@Injectable()
+export class UtilityService {
+  private s3Client: S3Client;
+  private bucketName = process.env.AWS_S3_BUCKET;
+
+  constructor() {
+    this.s3Client = new S3Client({
+      region: process.env.AWS_REGION,
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      },
+    });
+  }
+
+  /**
+   *
+   * @param file
+   * @param key
+   * @returns
+   */
+  async uploadFile(file: Express.Multer.File, key: string): Promise<string> {
+    const command = new PutObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+      Body: file.buffer,
+      ContentType: file.mimetype,
+    });
+
+    await this.s3Client.send(command);
+    return key;
+  }
+
+  /**
+   *
+   * @param key
+   * @returns
+   */
+  async deleteFile(key: string) {
+    try {
+      await this.s3Client.send(
+        new DeleteObjectCommand({
+          Bucket: this.bucketName,
+          Key: key,
+        }),
+      );
+    } catch (err) {
+      console.debug('error deleteting utility:', err);
+      return false;
+    }
+  }
+
+  /**
+   *
+   * @param key
+   * @returns
+   */
+  async getPresignedUrl(key: string, expiresInSeconds = 3600): Promise<string> {
+    if (!key) return null;
+
+    const command = new GetObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+    });
+
+    // The URL will expire in 3600 seconds (1 hour)
+    return await getSignedUrl(this.s3Client, command, {
+      expiresIn: expiresInSeconds,
+    });
+  }
+
+  async generatePresignedUrl({
+    key,
+    action,
+    expiresInSeconds = 3600,
+    contentType,
+  }: PresignedUrlOptions): Promise<string> {
+    console.debug('Generating presigned URL with options:', {
+      key,
+      action,
+      expiresInSeconds,
+      contentType,
+    });
+    if (!key) {
+      throw new BadRequestException('Key is required.');
+    }
+
+    let command;
+
+    switch (action) {
+      case 'upload':
+        command = new PutObjectCommand({
+          Bucket: this.bucketName,
+          Key: key,
+          ContentType: contentType,
+        });
+        break;
+
+      case 'download':
+        command = new GetObjectCommand({
+          Bucket: this.bucketName,
+          Key: key,
+        });
+        break;
+
+      default:
+        throw new BadRequestException('Invalid action.');
+    }
+
+    return getSignedUrl(this.s3Client, command, {
+      expiresIn: expiresInSeconds,
+    });
+  }
+
+  /**
+   * List objects in an S3 bucket filtered by a key prefix
+   * @param bucketName - The name of the S3 bucket
+   * @param keyPrefix - The prefix (folder path or partial key) to filter objects
+   */
+  async listObjectsByKey(
+    bucketName: string,
+    keyPrefix: string,
+  ): Promise<string[]> {
+    if (!bucketName || !keyPrefix) {
+      throw new BadRequestException('Bucket name and key prefix are required.');
+    }
+
+    try {
+      const command = new ListObjectsV2Command({
+        Bucket: bucketName,
+        Prefix: keyPrefix,
+        MaxKeys: 100,
+      });
+
+      const result: ListObjectsV2CommandOutput =
+        await this.s3Client.send(command);
+
+      // Return only the object keys
+      return (result.Contents || [])
+        .map((obj) => obj.Key || '')
+        .filter(Boolean);
+    } catch (error) {
+      console.error('Error listing objects from S3:', error);
+      throw new BadRequestException('Failed to list objects from S3.');
+    }
+  }
+}

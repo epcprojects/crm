@@ -10,6 +10,8 @@ import { RolesModule } from './modules/roles/roles.module';
 import { TicketsModule } from './modules/tickets/tickets.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { UtilityModule } from './modules/utility/utility.module';
+import { FilesModule } from './modules/files/files.module';
 
 @Module({
   imports: [
@@ -36,6 +38,8 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     NotificationsModule,
     ProjectsModule,
     TicketsModule,
+    UtilityModule,
+    FilesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -70,4 +70,17 @@ export class ProjectsController {
   remove(@Param('id') id: string) {
     return this.projectsService.remove(id);
   }
+
+  @Get(':id/members')
+  @Roles(
+    SystemRoles.SUPER_ADMIN,
+    SystemRoles.ADMIN,
+    SystemRoles.PROJECT_MANAGER,
+    SystemRoles.DEVELOPER,
+    SystemRoles.VIEWER,
+  )
+  @ApiOperation({ summary: 'Get list of project members.' })
+  findProjectMembers(@Param('id') id: string) {
+    return this.projectsService.findProjectMembers(id);
+  }
 }
