@@ -15,8 +15,29 @@ import UncheckedBoxIcon from './UncheckedBoxIcon';
 import CheckedBoxIcon from './CheckedBoxIcon';
 import CloseIcon from './CloseIcon';
 import LockIcon from './LockIcon';
+import ProfileIcon from './ProfileIcon';
+import ArrowUpRightIcon from './ArrowUpRightIcon';
+import APIIcon from './APIIcon';
+import BetaPhone from './BetaPhone';
+import FileSearchIcon from './FileSearchIcon';
+import PaintBoardIcon from './PaintBoardIcon';
+import ReloadIcon from './ReloadIcon';
+import SmartPhoneIcon from './SmartPhoneIcon';
+import ArrowDownIcon from './ArrowDownIcon';
+import TrashIcon from './TrashIcon';
+import SearchIcon from './SearchIcon';
 
 export {
+  SearchIcon,
+  APIIcon,
+  ArrowDownIcon,
+  TrashIcon,
+  FileSearchIcon,
+  BetaPhone,
+  PaintBoardIcon,
+  ReloadIcon,
+  SmartPhoneIcon,
+  ArrowUpRightIcon,
   CloseIcon,
   LockIcon,
   EyeClosedIcon,
@@ -34,4 +55,5 @@ export {
   UserGroup,
   SettingsIcon,
   ClockIcon,
+  ProfileIcon,
 };

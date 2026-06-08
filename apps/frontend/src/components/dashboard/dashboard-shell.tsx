@@ -5,7 +5,13 @@ import { useMutation } from '@tanstack/react-query';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import {
   PlusIcon,
   ToggleIcon,
@@ -61,6 +67,13 @@ type UserProjectResponse = {
 type SidebarProject = UserProjectResponse & {
   initials: string;
 };
+
+type DashboardHeaderActionContextValue = {
+  setHeaderActionOverride: (action: (() => void) | null) => void;
+};
+
+const DashboardHeaderActionContext =
+  createContext<DashboardHeaderActionContextValue | null>(null);
 
 const currentUserRole: UserRole = 'admin';
 
@@ -206,6 +219,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [headerActionOverride, setHeaderActionOverrideState] = useState<
+    (() => void) | null
+  >(null);
 
   const visibleNavigationItems = useMemo(() => {
     return navigationItems
@@ -286,11 +302,27 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     setChangePasswordOpen(true);
   };
 
+  const handleHeaderAction = () => {
+    headerActionOverride?.() ?? currentHeader.action?.onClick();
+  };
+
+  const setHeaderActionOverride = (action: (() => void) | null) => {
+    setHeaderActionOverrideState(() => action);
+  };
+
+  const headerActionContextValue = useMemo(
+    () => ({
+      setHeaderActionOverride,
+    }),
+    [],
+  );
+
   const sidebarWidth = collapsed ? 'lg:w-18' : 'lg:w-72';
   const contentOffset = collapsed ? 'lg:pl-18' : 'lg:pl-72';
 
   return (
-    <div className="min-h-dvh bg-white text-slate-900">
+    <DashboardHeaderActionContext.Provider value={headerActionContextValue}>
+      <div className="min-h-dvh bg-white text-slate-900">
       {mobileOpen ? (
         <button
           aria-label="Close navigation"
@@ -499,7 +531,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       <div
         className={`min-h-dvh transition-all flex flex-col duration-300 ease-out ${contentOffset}`}
       >
-        <header className="sticky top-0 z-20 border-b border-gray-200 bg-white backdrop-blur">
+        <header
+          className={`fixed ${collapsed ? 'w-[calc(100%-72px)]' : 'w-[calc(100%-290px)]'} top-0 z-20 border-b border-gray-200 bg-white backdrop-blur`}
+        >
           <div className="flex py-4 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-3">
               <button
@@ -531,7 +565,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               {currentHeader.action ? (
                 <ThemeButton
                   icon={<PlusIcon />}
-                  onClick={currentHeader.action.onClick}
+                  onClick={handleHeaderAction}
                 >
                   {currentHeader.action.label}
                 </ThemeButton>
@@ -540,18 +574,33 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main className="px-4 sm:px-6 py-4 md:py-8 lg:px-8">{children}</main>
+        <main className="px-4 sm:px-6 py-4 md:py-8 lg:px-8 md:pt-32">
+          {children}
+        </main>
       </div>
 
-      <ChangePasswordModal
-        isOpen={changePasswordOpen}
-        onClose={() => setChangePasswordOpen(false)}
-        onConfirm={async (values) => {
-          await changePasswordMutation.mutateAsync(values);
-        }}
-      />
-    </div>
+        <ChangePasswordModal
+          isOpen={changePasswordOpen}
+          onClose={() => setChangePasswordOpen(false)}
+          onConfirm={async (values) => {
+            await changePasswordMutation.mutateAsync(values);
+          }}
+        />
+      </div>
+    </DashboardHeaderActionContext.Provider>
   );
+}
+
+export function useDashboardHeaderAction() {
+  const context = useContext(DashboardHeaderActionContext);
+
+  if (!context) {
+    throw new Error(
+      'useDashboardHeaderAction must be used within DashboardShell',
+    );
+  }
+
+  return context;
 }
 
 function MenuIcon() {

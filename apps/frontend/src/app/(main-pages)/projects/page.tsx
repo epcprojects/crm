@@ -1,6 +1,6 @@
 import ProjectCard from '../../../components/projects/ProjectCard';
 
-const projects = [
+export const projects = [
   {
     id: 'acme-corp',
     initials: 'AC',

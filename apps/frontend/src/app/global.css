@@ -5,15 +5,14 @@
   --color-foreground: var(--foreground);
   --color-primary: #6719fc;
   --color-primary-dark: #020F52;
-  /* 
+   --color-warning-200: #FEDF89;  
   --color-success-500: #17B26A;
   --color-warning-25: #FFFCF5;
   --color-warning-100: #FEF0C7;
-  --color-warning-200: #FEDF89;
     --color-warning-500: #F79009;
   --color-warning-600: #DC6803;
   --color-warning-800: #93370D;
-   --color-warning-900: #7A2E0E; */
+   --color-warning-900: #7A2E0E;
 }
 
 html {

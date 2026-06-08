@@ -1,6 +1,11 @@
 import React from 'react';
 
-const ClockIcon = ({ width = '24', height = '24', fill = '#6719FC' }) => {
+const ClockIcon = ({
+  width = '24',
+  height = '24',
+  fill = '#6719FC',
+  opacity = 0.4,
+}) => {
   return (
     <svg
       width="24"
@@ -9,7 +14,7 @@ const ClockIcon = ({ width = '24', height = '24', fill = '#6719FC' }) => {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <circle opacity="0.4" cx="12" cy="12" r="10" fill={fill} />
+      <circle opacity={opacity} cx="12" cy="12" r="10" fill={fill} />
       <path
         d="M12.75 8C12.75 7.58579 12.4142 7.25 12 7.25C11.5858 7.25 11.25 7.58579 11.25 8V12C11.25 12.1989 11.329 12.3897 11.4697 12.5303L13.4697 14.5303C13.7626 14.8232 14.2374 14.8232 14.5303 14.5303C14.8232 14.2374 14.8232 13.7626 14.5303 13.4697L12.75 11.6893V8Z"
         fill={fill}
