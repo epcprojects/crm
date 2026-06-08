@@ -319,7 +319,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   const sidebarWidth = collapsed ? 'lg:w-18' : 'lg:w-72';
   const contentOffset = collapsed ? 'lg:pl-18' : 'lg:pl-72';
-  const shouldHideHeader = pathname?.startsWith('/tickets/');
+  const shouldHideHeader =
+    pathname?.startsWith('/tickets/') || pathname?.startsWith('/projects/');
 
   return (
     <DashboardHeaderActionContext.Provider value={headerActionContextValue}>

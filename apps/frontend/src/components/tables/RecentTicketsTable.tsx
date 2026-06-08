@@ -44,7 +44,7 @@ const priorityStyles: Record<TicketPriority, string> = {
   Critical: 'bg-primary',
 };
 
-const columns: ColumnDef<RecentTicket>[] = [
+const baseColumns: ColumnDef<RecentTicket>[] = [
   {
     accessorKey: 'id',
     header: '#',
@@ -126,6 +126,7 @@ type RecentTicketsTableProps = {
   initialPageSize?: number;
   pageSizeOptions?: number[];
   onRowClick?: (ticket: RecentTicket) => void;
+  hideProjectColumn?: boolean;
 };
 
 export default function RecentTicketsTable({
@@ -135,7 +136,12 @@ export default function RecentTicketsTable({
   initialPageSize = 12,
   pageSizeOptions = [12, 24, 48],
   onRowClick,
+  hideProjectColumn = false,
 }: RecentTicketsTableProps) {
+  const columns = hideProjectColumn
+    ? baseColumns.filter((_, index) => index !== 2)
+    : baseColumns;
+
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: initialPageSize,

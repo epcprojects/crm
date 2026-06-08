@@ -16,7 +16,7 @@ import {
   ReloadIcon,
   SmartPhoneIcon,
 } from '../../../../public/icons';
-import { projects } from '../projects/page';
+import { baseProjects as projects } from '../projects/projects.data';
 import TicketsTabs, {
   type TicketTab,
 } from '../../../components/dashboard/TicketsTabs';
@@ -215,12 +215,15 @@ export default function Page() {
           {projects.map((project) => (
             <ProjectCard
               key={project.id}
+              id={project.id}
               initials={project.initials}
               name={project.name}
               category={project.category}
               totalCount={project.totalCount}
               openCount={project.openCount}
               criticalCount={project.criticalCount}
+              colorHex={project.colorHex}
+              onClick={() => router.push(`/projects/${project.id}`)}
             />
           ))}
         </div>

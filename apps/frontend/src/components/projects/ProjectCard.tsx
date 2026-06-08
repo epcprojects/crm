@@ -1,10 +1,13 @@
 type ProjectCardProps = {
+  id?: string;
   initials: string;
   name: string;
   category: string;
   totalCount: number;
   openCount: number;
   criticalCount: number;
+  colorHex?: string;
+  onClick?: () => void;
 };
 
 function ProjectMetric({
@@ -29,17 +32,31 @@ function ProjectMetric({
 }
 
 export default function ProjectCard({
+  id,
   initials,
   name,
   category,
   totalCount,
   openCount,
   criticalCount,
+  colorHex = '#A855F7',
+  onClick,
 }: ProjectCardProps) {
   return (
-    <article className="rounded-2xl border border-purple-200 hover:drop-shadow cursor-pointer bg-purple-50 p-4 shadow-xs">
+    <article
+      className="cursor-pointer rounded-2xl border p-4 shadow-xs transition hover:drop-shadow"
+      onClick={onClick}
+      style={{
+        borderColor: `${colorHex}33`,
+        backgroundColor: `${colorHex}12`,
+      }}
+      data-project-id={id}
+    >
       <div className="flex items-center gap-3 md:gap-4">
-        <span className="flex h-10.5 w-10.5 shrink-0 items-center drop-shadow justify-center rounded-full bg-white text-sm md:text-base font-semibold text-purple-500">
+        <span
+          className="flex h-10.5 w-10.5 shrink-0 items-center justify-center rounded-full bg-white text-sm font-semibold drop-shadow md:text-base"
+          style={{ color: colorHex }}
+        >
           {initials}
         </span>
         <div className="min-w-0">
@@ -52,7 +69,7 @@ export default function ProjectCard({
         </div>
       </div>
 
-      <div className="my-4 h-px bg-purple-200" />
+      <div className="my-4 h-px" style={{ backgroundColor: `${colorHex}33` }} />
 
       <div className="grid grid-cols-3 gap-2">
         <ProjectMetric label="Total" value={totalCount} tone="bg-cyan-100" />

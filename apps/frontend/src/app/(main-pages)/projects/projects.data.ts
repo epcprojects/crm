@@ -1,0 +1,112 @@
+import { ticketsData } from '../tickets/tickets.data';
+
+export type ProjectRecord = {
+  id: string;
+  initials: string;
+  name: string;
+  category: string;
+  totalCount: number;
+  openCount: number;
+  criticalCount: number;
+  colorHex: string;
+  threadPosts: number;
+  filesCount: number;
+};
+
+export type ProjectFileRecord = {
+  id: string;
+  name: string;
+  type: 'pdf' | 'docx' | 'file';
+  size?: string;
+  uploadedBy?: string;
+  uploadedAt?: string;
+};
+
+export const baseProjects: ProjectRecord[] = [
+  {
+    id: 'acme-corp',
+    initials: 'AC',
+    name: 'Acme Corp',
+    category: 'Marketing',
+    totalCount: 2,
+    openCount: 1,
+    criticalCount: 0,
+    colorHex: '#F79009',
+    threadPosts: 2,
+    filesCount: 5,
+  },
+  {
+    id: 'stellar-tech',
+    initials: 'ST',
+    name: 'Stellar Tech',
+    category: 'Technology',
+    totalCount: 2,
+    openCount: 1,
+    criticalCount: 0,
+    colorHex: '#6172F3',
+    threadPosts: 2,
+    filesCount: 4,
+  },
+  {
+    id: 'greenleaf-co',
+    initials: 'GC',
+    name: 'GreenLeaf Co',
+    category: 'Agriculture',
+    totalCount: 2,
+    openCount: 1,
+    criticalCount: 0,
+    colorHex: '#17B26A',
+    threadPosts: 1,
+    filesCount: 3,
+  },
+];
+
+export function getProjectById(projectId: string) {
+  return baseProjects.find((project) => project.id === projectId);
+}
+
+export function getProjectTickets(projectName: string) {
+  return ticketsData.filter((ticket) => ticket.project.name === projectName);
+}
+
+const projectFilesByProjectId: Record<string, ProjectFileRecord[]> = {
+  'acme-corp': [
+    {
+      id: 'acme-file-1',
+      name: 'API_Spec_v2.md',
+      type: 'pdf',
+      size: '48 KB',
+      uploadedBy: 'Bob Lee',
+      uploadedAt: '2026-05-06',
+    },
+    {
+      id: 'acme-file-2',
+      name: 'Invoice PDF export fails',
+      type: 'docx',
+    },
+  ],
+  'stellar-tech': [
+    {
+      id: 'stellar-file-1',
+      name: 'Rate_Limit_Investigation.pdf',
+      type: 'pdf',
+      size: '96 KB',
+      uploadedBy: 'Jane Smith',
+      uploadedAt: '2026-05-02',
+    },
+  ],
+  'greenleaf-co': [
+    {
+      id: 'greenleaf-file-1',
+      name: 'Sync_Status_Report.docx',
+      type: 'docx',
+      size: '56 KB',
+      uploadedBy: 'Sara Ngo',
+      uploadedAt: '2026-05-01',
+    },
+  ],
+};
+
+export function getProjectFiles(projectId: string) {
+  return projectFilesByProjectId[projectId] ?? [];
+}
