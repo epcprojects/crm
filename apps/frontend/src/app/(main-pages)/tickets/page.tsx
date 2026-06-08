@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { projects } from '../projects/page';
 import { useDashboardHeaderAction } from '../../../components/dashboard/dashboard-shell';
 import CreateTicketModal, {
@@ -12,124 +13,13 @@ import {
   createTicketProjectOptions,
 } from '../../../components/modals/create-ticket-modal.data';
 import RecentTicketsTable, {
-  type RecentTicket,
   type TicketPriority,
   type TicketStatus,
 } from '../../../components/tables/RecentTicketsTable';
 import { appToast } from '../../../components/toast/AppToast';
 import Dropdown from '../../../components/ui/ThemeDropDown';
 import { SearchIcon } from '../../../../public/icons';
-
-const allTickets: RecentTicket[] = [
-  {
-    id: 't1',
-    title: 'Login page broken',
-    project: { initials: 'AC', name: 'Acme Corp' },
-    status: 'Open',
-    priority: 'High',
-    assignee: { name: 'Jane', initials: 'JA' },
-    date: '2026-02-28',
-  },
-  {
-    id: 't2',
-    title: 'Invoice PDF export fails',
-    project: { initials: 'AC', name: 'Acme Corp' },
-    status: 'In Progress',
-    priority: 'Medium',
-    assignee: { name: 'Jane', initials: 'JA' },
-    date: '2026-03-01',
-  },
-  {
-    id: 't3',
-    title: 'API rate limit too low',
-    project: { initials: 'ST', name: 'Stellar Tech' },
-    status: 'Open',
-    priority: 'High',
-    assignee: { name: 'Bob', initials: 'BO' },
-    date: '2026-02-27',
-  },
-  {
-    id: 't4',
-    title: 'Dashboard charts not loading',
-    project: { initials: 'ST', name: 'Stellar Tech' },
-    status: 'Resolved',
-    priority: 'Low',
-    assignee: { name: 'Bob', initials: 'BO' },
-    date: '2026-02-20',
-  },
-  {
-    id: 't5',
-    title: 'Sensor data sync delay',
-    project: { initials: 'GC', name: 'GreenLeaf Co' },
-    status: 'Open',
-    priority: 'Critical',
-    assignee: { name: 'Bob', initials: 'BO' },
-    date: '2026-03-02',
-  },
-  {
-    id: 't7',
-    title: 'Mobile app crash on iOS 17',
-    project: { initials: 'GC', name: 'GreenLeaf Co' },
-    status: 'In Progress',
-    priority: 'High',
-    assignee: { name: 'Bob', initials: 'BO' },
-    date: '2026-03-01',
-  },
-  {
-    id: 't8',
-    title: 'User registration email not received',
-    project: { initials: 'AC', name: 'Acme Corp' },
-    status: 'Open',
-    priority: 'Medium',
-    assignee: { name: 'Jane', initials: 'JA' },
-    date: '2026-03-01',
-  },
-  {
-    id: 't6',
-    title: 'Payment gateway timeout',
-    project: { initials: 'AC', name: 'Acme Corp' },
-    status: 'In Progress',
-    priority: 'High',
-    assignee: { name: 'Jane', initials: 'JA' },
-    date: '2026-03-02',
-  },
-  {
-    id: 't9',
-    title: 'Search results not relevant',
-    project: { initials: 'ST', name: 'Stellar Tech' },
-    status: 'Open',
-    priority: 'Low',
-    assignee: { name: 'Bob', initials: 'BO' },
-    date: '2026-03-02',
-  },
-  {
-    id: 't10',
-    title: 'Notifications delayed',
-    project: { initials: 'ST', name: 'Stellar Tech' },
-    status: 'In Progress',
-    priority: 'Medium',
-    assignee: { name: 'Bob', initials: 'BO' },
-    date: '2026-02-27',
-  },
-  {
-    id: 't11',
-    title: 'Profile image upload fails',
-    project: { initials: 'GC', name: 'GreenLeaf Co' },
-    status: 'Resolved',
-    priority: 'Medium',
-    assignee: { name: 'Bob', initials: 'BO' },
-    date: '2026-02-28',
-  },
-  {
-    id: 't12',
-    title: 'Data export CSV corrupted',
-    project: { initials: 'GC', name: 'GreenLeaf Co' },
-    status: 'Open',
-    priority: 'High',
-    assignee: { name: 'Bob', initials: 'BO' },
-    date: '2026-03-02',
-  },
-];
+import { ticketsData } from './tickets.data';
 
 const statusFilterOptions = [
   { label: 'All Status', value: 'all' },
@@ -195,12 +85,14 @@ const priorityFilterOptions = [
   },
 ];
 
-const Page = () => {
+export default function Page() {
+  const router = useRouter();
   const { setHeaderActionOverride } = useDashboardHeaderAction();
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedPriority, setSelectedPriority] = useState('all');
+
   const projectOptions = useMemo(
     () => createTicketProjectOptions(projects),
     [],
@@ -222,7 +114,7 @@ const Page = () => {
   const filteredTickets = useMemo(() => {
     const normalizedSearch = searchValue.trim().toLowerCase();
 
-    return allTickets.filter((ticket) => {
+    return ticketsData.filter((ticket) => {
       const matchesSearch =
         !normalizedSearch ||
         ticket.id.toLowerCase().includes(normalizedSearch) ||
@@ -245,7 +137,7 @@ const Page = () => {
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
-        <div className="w-full md:max-w-xs relative flex items-center">
+        <div className="relative flex w-full items-center md:max-w-xs">
           <input
             value={searchValue}
             onChange={(event) => setSearchValue(event.target.value)}
@@ -282,6 +174,7 @@ const Page = () => {
         enablePagination
         initialPageSize={12}
         pageSizeOptions={[12, 24, 48]}
+        onRowClick={(ticket) => router.push(`/tickets/${ticket.id}`)}
       />
 
       <CreateTicketModal
@@ -294,6 +187,4 @@ const Page = () => {
       />
     </div>
   );
-};
-
-export default Page;
+}

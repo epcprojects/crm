@@ -34,99 +34,9 @@ import RecentTicketsTable, {
   type RecentTicket,
 } from '../../../components/tables/RecentTicketsTable';
 import { appToast } from '../../../components/toast/AppToast';
+import { ticketsData } from '../tickets/tickets.data';
 
-const recentTickets: RecentTicket[] = [
-  {
-    id: 't1',
-    title: 'Login page broken',
-    project: {
-      initials: 'AC',
-      name: 'Acme Corp',
-    },
-    status: 'Open',
-    priority: 'High',
-    assignee: {
-      name: 'Jane',
-      initials: 'JA',
-    },
-    date: '2026-02-28',
-  },
-  {
-    id: 't2',
-    title: 'Invoice PDF export fails',
-    project: {
-      initials: 'AC',
-      name: 'Acme Corp',
-    },
-    status: 'In Progress',
-    priority: 'Medium',
-    assignee: {
-      name: 'Jane',
-      initials: 'JA',
-    },
-    date: '2026-03-01',
-  },
-  {
-    id: 't3',
-    title: 'API rate limit too low',
-    project: {
-      initials: 'ST',
-      name: 'Stellar Tech',
-    },
-    status: 'Open',
-    priority: 'High',
-    assignee: {
-      name: 'Bob',
-      initials: 'BO',
-    },
-    date: '2026-02-27',
-  },
-  {
-    id: 't4',
-    title: 'Dashboard charts not loading',
-    project: {
-      initials: 'ST',
-      name: 'Stellar Tech',
-    },
-    status: 'Resolved',
-    priority: 'Low',
-    assignee: {
-      name: 'Bob',
-      initials: 'BO',
-    },
-    date: '2026-02-20',
-  },
-  {
-    id: 't5',
-    title: 'Sensor data sync delay',
-    project: {
-      initials: 'GC',
-      name: 'GreenLeaf Co',
-    },
-    status: 'Open',
-    priority: 'Critical',
-    assignee: {
-      name: 'Bob',
-      initials: 'BO',
-    },
-    date: '2026-03-02',
-  },
-  {
-    id: 't6',
-    title: 'Mobile app crash on iOS 17',
-    project: {
-      initials: 'GC',
-      name: 'GreenLeaf Co',
-    },
-    status: 'In Progress',
-    priority: 'High',
-    assignee: {
-      name: 'Bob',
-      initials: 'BO',
-    },
-    date: '2026-03-01',
-  },
-];
+const recentTickets: RecentTicket[] = ticketsData.slice(0, 6);
 
 const ticketTabs: TicketTab[] = [
   {
@@ -242,7 +152,7 @@ const ticketTabs: TicketTab[] = [
   },
 ];
 
-const Page = () => {
+export default function Page() {
   const router = useRouter();
   const { setHeaderActionOverride } = useDashboardHeaderAction();
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
@@ -270,7 +180,7 @@ const Page = () => {
   }, [setHeaderActionOverride]);
 
   return (
-    <div className=" space-y-6">
+    <div className="space-y-6">
       <div className="grid grid-cols-4 gap-3 md:gap-5">
         <StatusCard
           icon={<FolderIcon fill="currentColor" />}
@@ -315,8 +225,9 @@ const Page = () => {
           ))}
         </div>
       </div>
+
       <div className="grid grid-cols-14 gap-4 md:gap-6">
-        <div className="space-y-4 col-span-10">
+        <div className="col-span-10 space-y-4">
           <div className="flex items-center gap-2 md:gap-2.5">
             <ClockIcon opacity={0} />
             <h2 className="text-base md:text-xl font-semibold text-black">
@@ -326,12 +237,14 @@ const Page = () => {
           <RecentTicketsTable
             tickets={recentTickets}
             onViewAll={handleViewAllTickets}
+            onRowClick={(ticket) => router.push(`/tickets/${ticket.id}`)}
           />
         </div>
         <div className="col-span-4">
           <TicketsTabs tabs={ticketTabs} />
         </div>
       </div>
+
       <CreateTicketModal
         isOpen={createTicketOpen}
         onClose={() => setCreateTicketOpen(false)}
@@ -342,6 +255,4 @@ const Page = () => {
       />
     </div>
   );
-};
-
-export default Page;
+}

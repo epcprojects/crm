@@ -125,6 +125,7 @@ type RecentTicketsTableProps = {
   enablePagination?: boolean;
   initialPageSize?: number;
   pageSizeOptions?: number[];
+  onRowClick?: (ticket: RecentTicket) => void;
 };
 
 export default function RecentTicketsTable({
@@ -133,6 +134,7 @@ export default function RecentTicketsTable({
   enablePagination = false,
   initialPageSize = 12,
   pageSizeOptions = [12, 24, 48],
+  onRowClick,
 }: RecentTicketsTableProps) {
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -192,7 +194,10 @@ export default function RecentTicketsTable({
               table.getRowModel().rows.map((row) => (
                 <tr
                   key={row.id}
-                  className="border-b border-gray-200 last:border-0"
+                  className={`border-b border-gray-200 last:border-0 ${
+                    onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''
+                  }`}
+                  onClick={() => onRowClick?.(row.original)}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id} className="px-4 py-3 text-sm">

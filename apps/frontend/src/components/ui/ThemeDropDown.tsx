@@ -150,13 +150,7 @@ const Dropdown = ({
               } ${disabled ? 'cursor-not-allowed opacity-60' : ''}
             `}
         >
-          <span
-          // className={
-          //   (isMulti ? selectedLabels.length > 0 : selectedOption)
-          //     ? 'text-gray-900'
-          //     : 'text-gray-400'
-          // }
-          >
+          <span className="truncate">
             {isMulti
               ? selectedLabels.length > 0
                 ? selectedLabels.join(', ')
