@@ -117,6 +117,14 @@ const navigationItems: NavItem[] = [
     roles: ['admin'],
   },
   {
+    href: '/roles',
+    label: 'Roles',
+    icon: (isActive) => (
+      <RolesIcon opacity={isActive ? '0.4' : '0'} fill="currentColor" />
+    ),
+    roles: ['admin'],
+  },
+  {
     href: '/settings',
     label: 'Settings',
     icon: (isActive) => (
@@ -164,6 +172,15 @@ const pageHeaderConfigs: PageHeaderConfig[] = [
     action: {
       label: 'Add User',
       onClick: () => console.log('Add user'),
+    },
+  },
+  {
+    href: '/roles',
+    title: 'Roles',
+    subtitle: 'Manage system roles and permission access across the workspace.',
+    action: {
+      label: 'Add Role',
+      onClick: () => console.log('Add role'),
     },
   },
   {
@@ -688,6 +705,53 @@ function AccountChevronIcon() {
       <path
         d="M5.40033 11.1868L4.6001 12.1471L10.0002 16.6472L15.4003 12.1471L14.6001 11.1868L10.0002 15.02L5.40033 11.1868Z"
         fill="black"
+      />
+    </svg>
+  );
+}
+
+function RolesIcon({
+  fill = 'currentColor',
+  opacity = '0',
+}: {
+  fill?: string;
+  opacity?: string;
+}) {
+  return (
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <circle cx="8" cy="8" r="3" fill={fill} opacity={opacity} />
+      <circle cx="16" cy="9" r="2.5" fill={fill} opacity={opacity} />
+      <path
+        d="M3.75 17C3.75 14.9289 5.42893 13.25 7.5 13.25H8.5C10.5711 13.25 12.25 14.9289 12.25 17V17.5H3.75V17Z"
+        stroke={fill}
+        strokeWidth="1.5"
+        fill={fill}
+        fillOpacity={opacity}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M13.25 17.5V16.75C13.25 15.2312 14.4812 14 16 14H16.5C18.0188 14 19.25 15.2312 19.25 16.75V17.5"
+        stroke={fill}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M6 8C6 6.89543 6.89543 6 8 6C9.10457 6 10 6.89543 10 8C10 9.10457 9.10457 10 8 10C6.89543 10 6 9.10457 6 8Z"
+        stroke={fill}
+        strokeWidth="1.5"
+      />
+      <path
+        d="M13.5 9C13.5 7.89543 14.3954 7 15.5 7C16.6046 7 17.5 7.89543 17.5 9C17.5 10.1046 16.6046 11 15.5 11C14.3954 11 13.5 10.1046 13.5 9Z"
+        stroke={fill}
+        strokeWidth="1.5"
       />
     </svg>
   );

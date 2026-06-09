@@ -25,9 +25,16 @@ const PUBLIC_ROUTES = [
   '/auth/accept-invite',
 ];
 
-const ADMIN_ROUTES = ['/dashboard', '/tickets', '/projects', '/users', '/settings'];
+const ADMIN_ROUTES = [
+  '/dashboard',
+  '/tickets',
+  '/projects',
+  '/users',
+  '/roles',
+  '/settings',
+];
 const LIMITED_USER_ROUTES = ['/dashboard', '/tickets', '/projects'];
-const ADMIN_ONLY_ROUTES = ['/users', '/settings'];
+const ADMIN_ONLY_ROUTES = ['/users', '/roles', '/settings'];
 
 function isExactOrNested(pathname: string, baseRoute: string) {
   return pathname === baseRoute || pathname.startsWith(`${baseRoute}/`);

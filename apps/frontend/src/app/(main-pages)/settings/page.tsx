@@ -96,7 +96,7 @@ export default function Page() {
   };
 
   return (
-    <div className="min-h-[calc(100dvh-97px)] space-y-6">
+    <div className="space-y-6">
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <SettingsConfigCard
           title="Ticket Statuses"
