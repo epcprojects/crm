@@ -35,7 +35,7 @@ export default function ThemeButton({
           ' px-4 py-2 text-xs': size === 'xs',
           ' px-6 py-3 text-xs': size === 'sm',
           'px-2.5 py-2 text-sm': size === 'md',
-          'px-6 py-2.5 text-base': size === 'lg',
+          'px-6 py-2.5 text-sm md:text-base': size === 'lg',
         },
 
         // // Button with icon sizes
@@ -43,7 +43,7 @@ export default function ThemeButton({
           ' px-4 py-2 text-xs': size === 'xs',
           ' px-6 py-3 text-xs': size === 'sm',
           'px-2.5 py-2 text-sm': size === 'md',
-          'px-6 py-2.5 text-base': size === 'lg',
+          'px-6 py-2.5 text-sm md:text-base': size === 'lg',
         },
 
         // Variants

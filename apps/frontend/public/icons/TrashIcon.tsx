@@ -1,10 +1,10 @@
 import React from 'react';
 
-const TrashIcon = () => {
+const TrashIcon = ({ width = '18', height = '18' }) => {
   return (
     <svg
-      width="18"
-      height="18"
+      width={width}
+      height={height}
       viewBox="0 0 18 18"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"

@@ -1,7 +1,8 @@
 'use client';
 
 import ThemeButton from '../ui/ThemeButton';
-import { PlusIcon, SearchIcon } from '../../../public/icons';
+import { ArrowDownIcon, PlusIcon, SearchIcon } from '../../../public/icons';
+import { UploadIcon } from '../modals/CreateTicketModal';
 
 export type ProjectFileRecord = {
   id: string;
@@ -49,8 +50,8 @@ export default function ProjectFilesPanel({
         </ThemeButton>
       </div>
 
-      <div className="overflow-hidden rounded-2xl flex-1 border border-gray-200 bg-white">
-        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+      <div className="overflow-hidden rounded-xl sm:rounded-2xl flex-1 border border-gray-200 bg-white">
+        <div className="flex items-center justify-between border-b border-gray-200 px-3 sm:px-4 py-3">
           <h3 className="text-sm md:text-base font-semibold text-gray-900">
             {title}
           </h3>
@@ -82,7 +83,28 @@ export default function ProjectFilesPanel({
                   )}
                 </div>
               </div>
-              <ThemeButton variant="secondary">Download</ThemeButton>
+              <ThemeButton
+                variant="secondary"
+                className="sm:inline-block hidden"
+              >
+                <div>
+                  <span className="sm:inline-block hidden">Download</span>
+                </div>
+              </ThemeButton>
+              <button className="inline-block sm:hidden">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 640 640"
+                  width={24}
+                  height={24}
+                  fill="currentColor"
+                >
+                  <path
+                    stroke="currentColor"
+                    d="M320 96C443.7 96 544 196.3 544 320C544 443.7 443.7 544 320 544C196.3 544 96 443.7 96 320C96 196.3 196.3 96 320 96zM320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM308.7 411.3C314.9 417.5 325.1 417.5 331.3 411.3L403.3 339.3C409.5 333.1 409.5 322.9 403.3 316.7C397.1 310.5 386.9 310.5 380.7 316.7L336 361.4L336 240C336 231.2 328.8 224 320 224C311.2 224 304 231.2 304 240L304 361.4L259.3 316.7C253.1 310.5 242.9 310.5 236.7 316.7C230.5 322.9 230.5 333.1 236.7 339.3L308.7 411.3z"
+                  />
+                </svg>
+              </button>
             </div>
           ))}
         </div>

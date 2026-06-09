@@ -67,7 +67,7 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     accessorKey: 'project.name',
     header: 'Project',
     cell: ({ row }) => (
-      <span className="inline-flex items-center gap-2 rounded-full bg-purple-100 py-0.75 pr-2.5 pl-0.75 text-sm font-medium text-purple-700">
+      <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-purple-100 py-0.75 pr-2.5 pl-0.75 text-sm font-medium text-purple-700">
         <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-medium">
           {row.original.project.initials}
         </span>
@@ -80,7 +80,7 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     header: 'Status',
     cell: ({ row }) => (
       <span
-        className={`inline-flex rounded-full border px-2 py-1 text-xs font-semibold ${statusStyles[row.original.status]}`}
+        className={`inline-flex rounded-full border px-2  whitespace-nowrap py-1 text-xs font-semibold ${statusStyles[row.original.status]}`}
       >
         {row.original.status}
       </span>
@@ -114,7 +114,9 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     accessorKey: 'date',
     header: 'Date',
     cell: ({ row }) => (
-      <span className="text-gray-900 text-sm">{row.original.date}</span>
+      <span className="text-gray-900 text-sm  whitespace-nowrap">
+        {row.original.date}
+      </span>
     ),
   },
 ];
@@ -173,9 +175,9 @@ export default function RecentTicketsTable({
   const visiblePages = getVisiblePageNumbers(currentPage, totalPages);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+    <div className="overflow-hidden rounded-xl w-[calc(100dvw-32px)] sm:w-full border border-gray-200 bg-white">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[880px] text-left">
+        <table className="w-full  min-w-[880px] text-left">
           <thead className="bg-gray-50">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
@@ -230,9 +232,9 @@ export default function RecentTicketsTable({
       </div>
 
       {enablePagination ? (
-        <div className="flex flex-col gap-3 border-t border-gray-200 px-4 py-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex justify-between sm:flex-col gap-3 border-t border-gray-200 px-4 py-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-2 text-sm text-gray-600">
-            <span>Showing per page</span>
+            <span className="sm:inline-block hidden">Showing per page</span>
             <select
               value={pagination.pageSize}
               onChange={(event) =>
@@ -249,7 +251,7 @@ export default function RecentTicketsTable({
           </div>
 
           <div className="flex flex-col gap-3 text-sm text-gray-600 md:flex-row md:items-center">
-            <span>
+            <span className="sm:inline-block hidden">
               {startRow}-{endRow} of {totalRows}
             </span>
 

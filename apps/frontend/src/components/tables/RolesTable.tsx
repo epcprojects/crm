@@ -38,84 +38,84 @@ function getColumns({
   onDelete,
 }: Pick<RolesTableProps, 'onEdit' | 'onDelete'>): ColumnDef<RoleRecord>[] {
   return [
-  {
-    accessorKey: 'id',
-    header: '#',
-    cell: ({ row }) => (
-      <span className="text-sm font-semibold text-gray-900">
-        {row.original.id}
-      </span>
-    ),
-  },
-  {
-    accessorKey: 'name',
-    header: 'Role',
-    cell: ({ row }) => (
-      <span className="text-sm font-medium text-gray-900">
-        {row.original.name}
-      </span>
-    ),
-  },
-  {
-    accessorKey: 'type',
-    header: 'Type',
-    cell: ({ row }) => (
-      <span
-        className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${typeStyles[row.original.type]}`}
-      >
-        {row.original.type}
-      </span>
-    ),
-  },
-  {
-    accessorKey: 'usersCount',
-    header: 'Users',
-    cell: ({ row }) => (
-      <span className="text-sm text-gray-800">{row.original.usersCount}</span>
-    ),
-  },
-  {
-    accessorKey: 'projectsCount',
-    header: 'Projects',
-    cell: ({ row }) => (
-      <span className="text-sm text-gray-800">
-        {row.original.projectsCount}
-      </span>
-    ),
-  },
-  {
-    accessorKey: 'updatedAt',
-    header: 'Updated',
-    cell: ({ row }) => (
-      <span className="text-sm text-gray-800">{row.original.updatedAt}</span>
-    ),
-  },
-  {
-    id: 'actions',
-    header: 'Actions',
-    cell: ({ row }) => (
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => onEdit?.(row.original)}
-          className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-gray-200 text-primary-dark transition hover:bg-gray-50"
-          aria-label={`Edit ${row.original.name}`}
+    {
+      accessorKey: 'id',
+      header: '#',
+      cell: ({ row }) => (
+        <span className="text-sm font-semibold text-gray-900">
+          {row.original.id}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'name',
+      header: 'Role',
+      cell: ({ row }) => (
+        <span className="text-sm font-medium text-gray-900">
+          {row.original.name}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'type',
+      header: 'Type',
+      cell: ({ row }) => (
+        <span
+          className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${typeStyles[row.original.type]}`}
         >
-          <EditIcon />
-        </button>
+          {row.original.type}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'usersCount',
+      header: 'Users',
+      cell: ({ row }) => (
+        <span className="text-sm text-gray-800">{row.original.usersCount}</span>
+      ),
+    },
+    {
+      accessorKey: 'projectsCount',
+      header: 'Projects',
+      cell: ({ row }) => (
+        <span className="text-sm text-gray-800">
+          {row.original.projectsCount}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'updatedAt',
+      header: 'Updated',
+      cell: ({ row }) => (
+        <span className="text-sm text-gray-800">{row.original.updatedAt}</span>
+      ),
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => (
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => onEdit?.(row.original)}
+            className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-gray-200 text-primary-dark transition hover:bg-gray-50"
+            aria-label={`Edit ${row.original.name}`}
+          >
+            <EditIcon />
+          </button>
 
-        <button
-          type="button"
-          onClick={() => onDelete?.(row.original)}
-          className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-red-500 text-red-500 transition hover:bg-red-50"
-          aria-label={`Delete ${row.original.name}`}
-        >
-          <TrashIcon />
-        </button>
-      </div>
-    ),
-  },
-];
+          <button
+            type="button"
+            onClick={() => onDelete?.(row.original)}
+            className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-red-500 text-red-500 transition hover:bg-red-50"
+            aria-label={`Delete ${row.original.name}`}
+          >
+            <TrashIcon />
+          </button>
+        </div>
+      ),
+    },
+  ];
 }
 
 export default function RolesTable({
@@ -145,7 +145,10 @@ export default function RolesTable({
   const totalPages = table.getPageCount();
   const startRow =
     totalRows === 0 ? 0 : pagination.pageIndex * pagination.pageSize + 1;
-  const endRow = Math.min((pagination.pageIndex + 1) * pagination.pageSize, totalRows);
+  const endRow = Math.min(
+    (pagination.pageIndex + 1) * pagination.pageSize,
+    totalRows,
+  );
   const visiblePages = getVisiblePageNumbers(currentPage, totalPages);
 
   return (
@@ -174,7 +177,10 @@ export default function RolesTable({
           <tbody>
             {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
-                <tr key={row.id} className="border-b border-gray-200 last:border-0">
+                <tr
+                  key={row.id}
+                  className="border-b border-gray-200 last:border-0"
+                >
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id} className="px-4 py-3 text-sm">
                       {flexRender(
@@ -199,9 +205,9 @@ export default function RolesTable({
         </table>
       </div>
 
-      <div className="flex flex-col gap-3 border-t border-gray-200 px-4 py-3 md:flex-row md:items-center md:justify-between">
+      <div className="flex justify-between sm:flex-col gap-3 border-t border-gray-200 px-4 py-3 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2 text-sm text-gray-600">
-          <span>Showing per page</span>
+          <span className="sm:inline-block hidden">Showing per page</span>
           <select
             value={pagination.pageSize}
             onChange={(event) => table.setPageSize(Number(event.target.value))}
@@ -216,7 +222,7 @@ export default function RolesTable({
         </div>
 
         <div className="flex flex-col gap-3 text-sm text-gray-600 md:flex-row md:items-center">
-          <span>
+          <span className="sm:inline-block hidden">
             {startRow}-{endRow} of {totalRows}
           </span>
 
@@ -233,7 +239,10 @@ export default function RolesTable({
 
             {visiblePages.map((pageNumber, index) =>
               pageNumber === 'ellipsis' ? (
-                <span key={`ellipsis-${index}`} className="px-2 text-sm text-gray-500">
+                <span
+                  key={`ellipsis-${index}`}
+                  className="px-2 text-sm text-gray-500"
+                >
                   ...
                 </span>
               ) : (
@@ -307,24 +316,63 @@ function getVisiblePageNumbers(currentPage: number, totalPages: number) {
   }
 
   if (currentPage >= totalPages - 2) {
-    return [1, 2, 'ellipsis', totalPages - 2, totalPages - 1, totalPages] as const;
+    return [
+      1,
+      2,
+      'ellipsis',
+      totalPages - 2,
+      totalPages - 1,
+      totalPages,
+    ] as const;
   }
 
-  return [1, 'ellipsis', currentPage - 1, currentPage, currentPage + 1, 'ellipsis', totalPages] as const;
+  return [
+    1,
+    'ellipsis',
+    currentPage - 1,
+    currentPage,
+    currentPage + 1,
+    'ellipsis',
+    totalPages,
+  ] as const;
 }
 
 function ChevronLeftIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M10 12L6 8L10 4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 
 function ChevronRightIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M6 12L10 8L6 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M6 12L10 8L6 4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }

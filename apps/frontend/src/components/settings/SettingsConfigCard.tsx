@@ -33,8 +33,8 @@ export default function SettingsConfigCard({
   onDelete,
 }: SettingsConfigCardProps) {
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5">
-      <div className="flex items-start justify-between gap-4">
+    <section className="rounded-2xl border border-gray-200 bg-white p-2.5 md:p-5">
+      <div className="flex items-start flex-col sm:flex-row sm:justify-between gap-4">
         <div>
           <h2 className="text-base md:text-lg font-semibold text-gray-900">
             {title}
@@ -53,14 +53,16 @@ export default function SettingsConfigCard({
             key={item.id}
             className="flex items-center justify-between gap-3 border-b border-gray-200 py-3 last:border-b-0 last:pb-0"
           >
-            <div className="grid min-w-0 flex-1 grid-cols-4 items-center gap-3">
+            <div className="grid min-w-0 flex-1 grid-cols-3 items-center gap-3">
               <SettingsBadge
                 label={item.label}
                 colorHex={item.colorHex}
                 variant={badgeVariant}
               />
-              <p className="truncate text-sm text-gray-800">{item.value}</p>
-              <p className="text-sm text-gray-800">{item.countLabel}</p>
+              {/* <p className="truncate text-sm text-gray-800">{item.value}</p> */}
+              <p className="text-sm text-gray-800 text-end">
+                {item.countLabel}
+              </p>
 
               <div className="flex items-center justify-end gap-3">
                 <button
@@ -100,7 +102,7 @@ function SettingsBadge({
 }) {
   return (
     <span
-      className={`inline-flex w-fit items-center gap-1.5 border text-sm ${
+      className={`inline-flex w-fit whitespace-nowrap items-center gap-1.5 border text-sm ${
         variant === 'priority'
           ? 'rounded-md bg-white px-2 py-1 font-semibold shadow-xs'
           : 'rounded-full px-2 py-1 font-medium'

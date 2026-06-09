@@ -34,6 +34,7 @@ import ChangePasswordModal, {
 } from '../modals/ChangePasswordModal';
 import { appToast } from '../toast/AppToast';
 import ThemeButton from '../ui/ThemeButton';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 type NavItem = {
   href: string;
@@ -339,6 +340,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const shouldHideHeader =
     pathname?.startsWith('/tickets/') || pathname?.startsWith('/projects/');
 
+  const isMobile = useIsMobile();
+
   return (
     <DashboardHeaderActionContext.Provider value={headerActionContextValue}>
       <div className="min-h-dvh bg-white text-slate-900">
@@ -520,25 +523,31 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
               <MenuItems
                 anchor="top start"
-                className="z-50 mb-3 w-66 origin-bottom-left rounded-xl bg-white p-1 ring-1 ring-gray-200 focus:outline-none"
+                className="z-50 mb-3 w-52 sm:w-66 origin-bottom-left rounded-xl bg-white p-1 ring-1 ring-gray-200 focus:outline-none"
               >
                 <MenuItem>
                   <button
-                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm md:text-base font-medium text-black transition data-focus:bg-gray-50"
+                    className="flex w-full items-center gap-2 sm:gap-3 rounded-lg px-3 py-2 text-left text-sm md:text-base font-medium text-black transition data-focus:bg-gray-50"
                     onClick={handleChangePassword}
                     type="button"
                   >
-                    <PasswordMenuIcon />
+                    <PasswordMenuIcon
+                      height={isMobile ? '20' : '24'}
+                      width={isMobile ? '20' : '24'}
+                    />
                     Change Password
                   </button>
                 </MenuItem>
                 <MenuItem>
                   <button
-                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm md:text-base font-medium text-red-500 transition data-focus:bg-red-50"
+                    className="flex w-full items-center gap-2 sm:gap-3 rounded-lg px-3 py-2 text-left text-sm md:text-base font-medium text-red-500 transition data-focus:bg-red-50"
                     onClick={handleLogout}
                     type="button"
                   >
-                    <LogoutMenuIcon />
+                    <LogoutMenuIcon
+                      height={isMobile ? '20' : '24'}
+                      width={isMobile ? '20' : '24'}
+                    />
                     Logout
                   </button>
                 </MenuItem>
@@ -552,19 +561,19 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         >
           {!shouldHideHeader ? (
             <header
-              className={`fixed ${collapsed ? 'w-[calc(100%-72px)]' : 'w-[calc(100%-290px)]'} top-0 z-20 border-b border-gray-200 bg-white backdrop-blur`}
+              className={`fixed ${collapsed ? 'sm:max-w-[calc(100%-72px)]' : 'sm:max-w-[calc(100%-290px)]'} top-0 z-20 border-b border-gray-200 bg-white w-full backdrop-blur`}
             >
               <div className="flex py-4 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center gap-3">
                   <button
                     aria-label="Open navigation"
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-violet-200 hover:text-violet-600 lg:hidden"
+                    className="inline-flex h-10 min-w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-violet-200 hover:text-violet-600 lg:hidden"
                     onClick={() => setMobileOpen(true)}
                     type="button"
                   >
                     <MenuIcon />
                   </button>
-                  <div>
+                  <div className="sm:inline-block hidden">
                     <div className="flex items-center gap-2">
                       <p className="text-lg md:text-3xl font-semibold text-black">
                         {currentHeader.title}
@@ -641,11 +650,11 @@ function MenuIcon() {
   );
 }
 
-function LogoutMenuIcon() {
+function LogoutMenuIcon({ width = '24', height = '24' }) {
   return (
     <svg
-      width="24"
-      height="24"
+      width={width}
+      height={height}
       viewBox="0 0 24 24"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -662,11 +671,11 @@ function LogoutMenuIcon() {
   );
 }
 
-function PasswordMenuIcon() {
+function PasswordMenuIcon({ width = '24', height = '24' }) {
   return (
     <svg
-      width="24"
-      height="24"
+      width={width}
+      height={height}
       viewBox="0 0 24 24"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"

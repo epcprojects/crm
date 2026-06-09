@@ -30,7 +30,7 @@ type TicketsTabsProps = {
 
 export default function TicketsTabs({ tabs }: TicketsTabsProps) {
   return (
-    <TabGroup className="rounded-xl bg-white space-y-2">
+    <TabGroup className="rounded-xl w-[calc(100dvw-32px)] sm:w-full bg-white space-y-2">
       <TabList className="flex border-b  border-gray-200">
         {tabs.map((tab) => (
           <Tab

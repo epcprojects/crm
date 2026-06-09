@@ -286,7 +286,7 @@ export default function CreateTicketModal({
   );
 }
 
-function UploadIcon() {
+export function UploadIcon() {
   return (
     <svg
       width="20"

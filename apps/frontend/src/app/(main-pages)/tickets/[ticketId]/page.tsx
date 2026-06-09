@@ -25,7 +25,7 @@ export default function TicketDetailPage() {
 
   if (!ticket) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 -mt-16 sm:mt-0">
         <button
           type="button"
           onClick={() => router.back()}
@@ -52,7 +52,7 @@ export default function TicketDetailPage() {
   );
 
   return (
-    <div className="space-y-4 flex-1 w-full flex flex-col items-start">
+    <div className="space-y-4 flex-1 w-full flex flex-col items-start -mt-16 sm:mt-0">
       <button
         type="button"
         onClick={() => router.back()}
@@ -64,8 +64,8 @@ export default function TicketDetailPage() {
 
       <div className="grid grid-cols-1 flex-1 w-full  gap-4 xl:grid-cols-12">
         <div className="space-y-4 xl:col-span-9 flex flex-col">
-          <section className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5">
-            <div className="grid grid-cols-1 gap-4 border-b border-gray-200 pb-5 md:grid-cols-3">
+          <section className="rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-3 md:p-5">
+            <div className="sm:grid flex flex-wrap gap-4 border-b border-gray-200 pb-5 grid-cols-3">
               <MetaItem label="Ticket ID" value={`#${ticket.id}`} />
               <MetaItem label="Created" value={ticket.date} />
               <div>
@@ -79,11 +79,11 @@ export default function TicketDetailPage() {
               </div>
             </div>
 
-            <div className="pt-5">
+            <div className="pt-2 sm:pt-5">
               <h2 className="text-base md:text-xl leading-8 font-semibold text-gray-900">
                 {ticket.title}
               </h2>
-              <p className="mt-2  text-sm leading-7 text-gray-700">
+              <p className=" sm:mt-2  text-sm text-gray-700">
                 {ticket.description}
               </p>
             </div>
@@ -93,11 +93,11 @@ export default function TicketDetailPage() {
         </div>
 
         <aside className="space-y-4 xl:col-span-3">
-          <section className="rounded-2xl border border-gray-200 bg-white">
-            <h3 className="border-b border-gray-200 px-4 py-3 text-sm md:text-base font-semibold text-gray-900">
+          <section className="rounded-xl sm:rounded-2xl border border-gray-200 bg-white">
+            <h3 className="border-b border-gray-200 px-3 py-3 text-sm md:text-base font-semibold text-gray-900">
               Status & Priority
             </h3>
-            <div className="space-y-4 p-4">
+            <div className="space-y-4 p-3 sm:p-4">
               <Dropdown
                 label="Status"
                 options={ticketStatusDropdownOptions}
@@ -126,11 +126,11 @@ export default function TicketDetailPage() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-gray-200 bg-white">
-            <h3 className="border-b border-gray-200 px-4 py-3 text-sm md:text-base font-semibold text-gray-900">
+          <section className="rounded-xl sm:rounded-2xl border border-gray-200 bg-white">
+            <h3 className="border-b border-gray-200 px-3 sm:px-4 py-3 text-sm md:text-base font-semibold text-gray-900">
               Attachments
             </h3>
-            <div className="space-y-3 p-4">
+            <div className="space-y-3 sm:p-4 p-3">
               {ticket.attachments.length ? (
                 ticket.attachments.map((attachment) => (
                   <div
@@ -154,8 +154,8 @@ export default function TicketDetailPage() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-gray-200 bg-white">
-            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+          <section className="rounded-xl sm:rounded-2xl border border-gray-200 bg-white">
+            <div className="flex items-center justify-between border-b border-gray-200 px-3 sm:px-4 py-3">
               <h3 className="text-sm md:text-base font-semibold text-gray-900">
                 Due Date
               </h3>
@@ -166,7 +166,7 @@ export default function TicketDetailPage() {
                 Clear
               </button>
             </div>
-            <div className="p-4">
+            <div className="p-3 sm:p-4">
               <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
                 Overdue
               </p>
@@ -178,10 +178,10 @@ export default function TicketDetailPage() {
           </section>
 
           <section className="rounded-2xl border border-gray-200 bg-white">
-            <h3 className="border-b border-gray-200 px-4 py-3 text-sm md:text-base font-semibold text-gray-900">
+            <h3 className="border-b border-gray-200 px-3 sm:px-4 py-3 text-sm md:text-base font-semibold text-gray-900">
               People
             </h3>
-            <div className="space-y-4 p-4">
+            <div className="space-y-4 p-3 sm:p-4">
               <PersonCard person={ticket.reporter} />
               <PersonCard person={ticket.assigneeDetail} />
             </div>
@@ -195,8 +195,10 @@ export default function TicketDetailPage() {
 function MetaItem({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <span className="block text-sm text-gray-500">{label}</span>
-      <p className="mt-1 text-xl font-semibold text-gray-900">{value}</p>
+      <span className="block text-xs sm:text-sm text-gray-500">{label}</span>
+      <p className="sm:mt-1 text-base sm:text-xl font-semibold text-gray-900">
+        {value}
+      </p>
     </div>
   );
 }
@@ -204,12 +206,12 @@ function MetaItem({ label, value }: { label: string; value: string }) {
 function PersonCard({ person }: { person: TicketPerson }) {
   return (
     <div className="flex items-center gap-3 border-b border-purple-200 pb-4 last:border-b-0 last:pb-0">
-      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 text-sm md:text-base font-semibold text-purple-700">
+      <span className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-purple-100 text-sm md:text-base font-semibold text-purple-700">
         {person.initials}
       </span>
       <div>
-        <p className="text-sm text-gray-900">{person.role}</p>
-        <p className="text-base md:text-lg font-semibold text-gray-900">
+        <p className="text-xs sm:text-sm text-gray-900">{person.role}</p>
+        <p className="text-sm md:text-lg font-semibold text-gray-900">
           {person.name}
         </p>
       </div>
@@ -233,7 +235,6 @@ function BackArrowIcon() {
     </svg>
   );
 }
-
 
 function CalendarIcon() {
   return (

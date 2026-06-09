@@ -28,15 +28,15 @@ export default function DiscussionPanel({
   composerPlaceholder = 'Write a reply...',
 }: DiscussionPanelProps) {
   return (
-    <section className="rounded-2xl border flex-1 bg-white flex flex-col border-gray-200 ">
-      <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 md:px-5">
+    <section className="rounded-xl sm:rounded-2xl border flex-1 bg-white flex flex-col border-gray-200 ">
+      <div className="flex items-center justify-between border-b border-gray-200 px-3 py-2 sm:py-3 md:px-5">
         <h3 className="text-sm md:text-base font-semibold text-gray-900">
           {title}
         </h3>
         <p className="text-sm text-gray-900">{subtitle}</p>
       </div>
 
-      <div className="min-h-96 px-4 flex-1 py-5 md:px-5">
+      <div className="min-h-96 px-3 flex-1 py-5 md:px-5">
         {replies.length ? (
           <div className="space-y-4">
             {replies.map((reply) => (
@@ -61,15 +61,17 @@ export default function DiscussionPanel({
         ) : (
           <div className="flex min-h-80 flex-col h-full items-center justify-center text-center">
             <EmptyRepliesIcon />
-            <p className="mt-4 text-base md:text-lg font-semibold text-gray-600">
+            <p className="mt-2 sm:mt-4 text-base md:text-lg font-semibold text-gray-600">
               {emptyTitle}
             </p>
-            <p className="mt-2 text-xs text-gray-500">{emptyDescription}</p>
+            <p className="mt-1 sm:mt-2 text-xs text-gray-500">
+              {emptyDescription}
+            </p>
           </div>
         )}
       </div>
 
-      <div className="px-4 py-4 md:px-5">
+      <div className="px-2 py-4 md:px-5">
         <div className="rounded-sm bg-gray-100 px-3 py-2">
           <textarea
             rows={3}
@@ -81,13 +83,13 @@ export default function DiscussionPanel({
         <div className="mt-3 flex items-center justify-end gap-3">
           <button
             type="button"
-            className="flex h-11 w-11 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700"
+            className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700"
           >
             <PaperclipIcon />
           </button>
           <button
             type="button"
-            className="rounded-lg bg-[#10175A] px-5 py-3 text-sm font-semibold text-white"
+            className="rounded-lg bg-[#10175A] px-5 py-2.5 sm:py-3 text-sm font-semibold text-white"
           >
             Reply
           </button>

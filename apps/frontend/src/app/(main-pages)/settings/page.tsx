@@ -7,6 +7,7 @@ import SettingsItemModal, {
 import SettingsConfigCard from '../../../components/settings/SettingsConfigCard';
 import { appToast } from '../../../components/toast/AppToast';
 import { prioritySettingsItems, statusSettingsItems } from './settings.data';
+import { useIsMobile } from '../../../components/hooks/useIsMobile';
 
 export default function Page() {
   const [statusItems, setStatusItems] = useState(statusSettingsItems);
@@ -95,6 +96,8 @@ export default function Page() {
     appToast.success('Priority updated successfully.');
   };
 
+  const isMobile = useIsMobile();
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
@@ -138,8 +141,16 @@ export default function Page() {
       </div>
 
       <div className="flex items-start gap-3 rounded-xl border border-warning-200 bg-[#FFFAEB] px-4 py-3 text-[#69410A]">
-        <TipIcon />
+        <span className="hidden sm:inline-block">
+          <TipIcon />
+        </span>
         <p className="text-sm leading-6">
+          <span className="inline-block pe-2">
+            <TipIcon
+              height={isMobile ? '16' : '20'}
+              width={isMobile ? '16' : '20'}
+            />
+          </span>
           <span className="font-semibold">Tip:</span> Statuses and priorities
           defined here appear in every dropdown across the app — new tickets,
           ticket detail editors, and list filters. You can&apos;t delete one
@@ -199,11 +210,11 @@ export default function Page() {
   );
 }
 
-function TipIcon() {
+function TipIcon({ width = '20', height = '20' }) {
   return (
     <svg
-      width="20"
-      height="20"
+      width={width}
+      height={height}
       viewBox="0 0 20 20"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"

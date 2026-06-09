@@ -35,6 +35,7 @@ import RecentTicketsTable, {
 } from '../../../components/tables/RecentTicketsTable';
 import { appToast } from '../../../components/toast/AppToast';
 import { ticketsData } from '../tickets/tickets.data';
+import { useIsMobile } from '../../../components/hooks/useIsMobile';
 
 const recentTickets: RecentTicket[] = ticketsData.slice(0, 6);
 
@@ -179,26 +180,52 @@ export default function Page() {
     };
   }, [setHeaderActionOverride]);
 
+  const isMobile = useIsMobile();
+
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-4 gap-3 md:gap-5">
+      <div className="grid md:grid-cols-4 gap-3 md:gap-5">
         <StatusCard
-          icon={<FolderIcon fill="currentColor" />}
+          icon={
+            <FolderIcon
+              width={isMobile ? '20' : '24'}
+              height={isMobile ? '20' : '24'}
+              fill="currentColor"
+            />
+          }
           title="Open"
           count={608}
         />
         <StatusCard
-          icon={<ClockIcon fill="currentColor" />}
+          icon={
+            <ClockIcon
+              width={isMobile ? '20' : '24'}
+              height={isMobile ? '20' : '24'}
+              fill="currentColor"
+            />
+          }
           title="In Progress"
           count={83}
         />
         <StatusCard
-          icon={<CheckMarkCircleIcon fill="currentColor" />}
+          icon={
+            <CheckMarkCircleIcon
+              width={isMobile ? '20' : '24'}
+              height={isMobile ? '20' : '24'}
+              fill="currentColor"
+            />
+          }
           title="Resolved"
           count={106}
         />
         <StatusCard
-          icon={<AlertIcon fill="currentColor" />}
+          icon={
+            <AlertIcon
+              width={isMobile ? '20' : '24'}
+              height={isMobile ? '20' : '24'}
+              fill="currentColor"
+            />
+          }
           title="Critical"
           count={28}
         />
@@ -229,8 +256,8 @@ export default function Page() {
         </div>
       </div>
 
-      <div className="grid grid-cols-14 gap-4 md:gap-6">
-        <div className="col-span-10 space-y-4">
+      <div className="grid md:grid-cols-14 gap-4 md:gap-6">
+        <div className="md:col-span-10 space-y-4">
           <div className="flex items-center gap-2 md:gap-2.5">
             <ClockIcon opacity={0} />
             <h2 className="text-base md:text-xl font-semibold text-black">

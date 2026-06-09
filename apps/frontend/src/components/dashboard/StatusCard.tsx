@@ -16,8 +16,8 @@ export default function StatusCard({
   return (
     <div
       className="
-        group relative flex cursor-pointer items-center gap-2 overflow-hidden
-        rounded-2xl border border-gray-200 bg-gray-50 px-5.5 py-7
+        group relative flex cursor-pointer items-center gap-3 overflow-hidden
+        rounded-xl md:rounded-2xl border border-gray-200 bg-gray-50 px-4 md:px-5.5 py-4 md:py-7
         transition-all duration-500 ease-out
         hover:border-transparent hover:shadow-lg hover:shadow-primary/20
         md:gap-4
@@ -36,7 +36,7 @@ export default function StatusCard({
       {/* Icon */}
       <div
         className="
-          relative z-10 flex h-9 w-9 items-center justify-center rounded-full
+          relative z-10 flex h-10 w-10 items-center justify-center rounded-full
           bg-white text-primary drop-shadow
           transition-all duration-500 ease-out
           group-hover:scale-110 group-hover:bg-white/15 group-hover:text-white

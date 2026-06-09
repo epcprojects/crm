@@ -106,7 +106,7 @@ export default function ProjectDetailPage() {
 
   if (!project) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 -mt-16 sm:mt-0">
         <button
           type="button"
           onClick={() => router.back()}
@@ -123,7 +123,7 @@ export default function ProjectDetailPage() {
   }
 
   return (
-    <div className="space-y-4 flex flex-col flex-1 items-start w-full">
+    <div className="space-y-4 flex flex-col flex-1 items-start w-full -mt-16 sm:mt-0">
       <button
         type="button"
         onClick={() => router.back()}
@@ -135,9 +135,9 @@ export default function ProjectDetailPage() {
 
       <section className="w-full">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
             <span
-              className="flex h-19 w-19 items-center justify-center rounded-full text-lg md:text-3xl font-semibold"
+              className="flex h-12 min-w-12 sm:h-19 sm:w-19 items-center justify-center rounded-full text-lg md:text-3xl font-semibold"
               style={{
                 backgroundColor: `${project.colorHex}22`,
                 color: project.colorHex,
@@ -155,7 +155,7 @@ export default function ProjectDetailPage() {
                 </span>
               </div>
 
-              <div className="mt-2.5 flex items-center gap-8">
+              <div className="mt-1.5 sm:mt-2.5 flex-wrap flex items-center gap-4 sm:gap-8">
                 <Metric
                   label="Tickets"
                   value={String(projectTickets.length).padStart(2, '0')}
@@ -282,8 +282,8 @@ export default function ProjectDetailPage() {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-16 border-r border-gray-200 pr-6 last:border-r-0 last:pr-0">
-      <p className="text-sm text-gray-500">{label}</p>
+    <div className="sm:min-w-16 border-r border-gray-200 pr-4 sm:pr-6 last:border-r-0 last:pr-0">
+      <p className="text-sm text-gray-500 whitespace-nowrap">{label}</p>
       <p className="text-sm font-semibold text-gray-800">{value}</p>
     </div>
   );

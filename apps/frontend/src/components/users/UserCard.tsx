@@ -1,6 +1,7 @@
 'use client';
 
 import { TrashIcon } from '../../../public/icons';
+import { useIsMobile } from '../hooks/useIsMobile';
 import ThemeButton from '../ui/ThemeButton';
 
 export type UserCardProject = {
@@ -33,11 +34,13 @@ type UserCardProps = {
 };
 
 export default function UserCard({ user, onEdit, onDelete }: UserCardProps) {
+  const isMobile = useIsMobile();
+
   return (
     <article
-      className="rounded-2xl border border-gray-100 bg-white p-4 drop-shadow-sm"
+      className="rounded-2xl sm:border border-gray-100 bg-white p-4 drop-shadow-sm"
       style={{
-        boxShadow: `inset 4px 0 0 ${user.accentColor}, 0px 8px 24px rgba(16,24,40,0.08)`,
+        boxShadow: `inset ${isMobile ? '2px' : '4px'} 0 0 ${user.accentColor}, 0px 8px 24px rgba(16,24,40,0.08)`,
       }}
     >
       <div className="flex items-start gap-3 md:gap-4">
@@ -57,7 +60,7 @@ export default function UserCard({ user, onEdit, onDelete }: UserCardProps) {
         ))}
       </div>
 
-      <div className="my-4 h-px bg-gray-200" />
+      <div className="my-3 md:my-4 h-px bg-gray-200" />
 
       <div className="flex flex-wrap gap-2">
         {user.projects.map((project) => (
@@ -71,8 +74,13 @@ export default function UserCard({ user, onEdit, onDelete }: UserCardProps) {
           onClick={() => onEdit?.(user)}
           variant="secondary"
           className="w-full"
-          size="lg"
-          icon={<EditUserIcon />}
+          size={isMobile ? 'md' : 'lg'}
+          icon={
+            <EditUserIcon
+              height={isMobile ? '14' : '18'}
+              width={isMobile ? '14' : '18'}
+            />
+          }
         >
           Edit User
         </ThemeButton>
@@ -80,10 +88,13 @@ export default function UserCard({ user, onEdit, onDelete }: UserCardProps) {
         <button
           type="button"
           onClick={() => onDelete?.(user)}
-          className="flex h-11 min-w-11 items-center justify-center rounded-lg border border-red-500 text-red-500 transition hover:bg-red-50"
+          className="flex md:h-11 h-9 min-w-9 md:min-w-11 items-center justify-center rounded-lg border border-red-500 text-red-500 transition hover:bg-red-50"
           aria-label={`Delete ${user.name}`}
         >
-          <TrashIcon />
+          <TrashIcon
+            height={isMobile ? '16' : '18'}
+            width={isMobile ? '16' : '18'}
+          />
         </button>
       </div>
     </article>
@@ -121,7 +132,7 @@ function Pill({ label, tone }: { label: string; tone: UserCardRole['tone'] }) {
 
   return (
     <span
-      className={`rounded-full border px-2 py-1 text-sm font-medium ${toneClasses[tone]}`}
+      className={`rounded-full border px-2 py-1 text-xs md:text-sm font-medium ${toneClasses[tone]}`}
     >
       {label}
     </span>
@@ -131,7 +142,7 @@ function Pill({ label, tone }: { label: string; tone: UserCardRole['tone'] }) {
 function ProjectPill({ project }: { project: UserCardProject }) {
   return (
     <span
-      className="inline-flex items-center gap-2 rounded-full pe-2.5 ps-0.5 py-0.5 text-sm font-medium"
+      className="inline-flex items-center gap-2 rounded-full pe-2.5 ps-0.5 py-0.5  text-xs md:text-sm font-medium"
       style={{
         color: project.colorHex,
         backgroundColor: `${project.colorHex}1A`,
@@ -145,11 +156,11 @@ function ProjectPill({ project }: { project: UserCardProject }) {
   );
 }
 
-function EditUserIcon() {
+function EditUserIcon({ width = '18', height = '18' }) {
   return (
     <svg
-      width="18"
-      height="18"
+      width={width}
+      height={height}
       viewBox="0 0 18 18"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
