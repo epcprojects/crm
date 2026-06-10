@@ -11,6 +11,8 @@ import { TicketRepliesService } from './services/tickets.reply.service';
 import { TicketReply } from './entities/ticket.reply.entity';
 import { TicketPriority } from './entities/ticket.priority.entity';
 import { TicketStatus } from './entities/ticket.statuses.entity';
+import { TicketStatusesController } from './ticket.statuses.controller';
+import { TicketStatusesService } from './services/ticket.statuses.service';
 
 @Module({
   imports: [
@@ -22,12 +24,17 @@ import { TicketStatus } from './entities/ticket.statuses.entity';
       TicketReply,
     ]),
   ],
-  controllers: [TicketsController, TicketRepliesController],
+  controllers: [
+    TicketsController,
+    TicketRepliesController,
+    TicketStatusesController,
+  ],
   providers: [
     TicketsService,
     FilesService,
     UtilityService,
     TicketRepliesService,
+    TicketStatusesService,
   ],
 })
 export class TicketsModule {}

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -7,7 +11,7 @@ import { Repository } from 'typeorm';
 import { FilesService } from '../files/files.service';
 import { UtilityService } from '../utility/utility.service';
 import { GetTicketsQueryDto } from './dto/get-tickets.dto';
-import { FileSource, SYSTEM_TICKET_STATUS } from '@harperhelp/types';
+import { FileSource, FileStatus } from '@harperhelp/types';
 
 @Injectable()
 export class TicketsService {
@@ -26,21 +30,44 @@ export class TicketsService {
     userId: string,
     files?: Express.Multer.File[],
   ) {
-    const ticket = this.ticketRepo.create({
-      ...dto,
-      projectId,
-      reporterId: userId,
-      createdBy: userId,
-      statusKey: dto.statusKey ?? SYSTEM_TICKET_STATUS.OPEN,
-    });
+    try {
+      const ticket = this.ticketRepo.create({
+        ...dto,
+        projectId,
+        reporterId: userId,
+        createdBy: userId,
+      });
 
-    const saved = await this.ticketRepo.save(ticket);
+      const saved = await this.ticketRepo.save(ticket);
 
-    if (files?.length) {
-      await this.handleAttachments(saved.id, projectId, files, userId);
+      if (files?.length) {
+        await this.handleAttachments(saved.id, projectId, files, userId);
+      }
+
+      return this.findOne(projectId, saved.id);
+    } catch (error) {
+      if (error.code === '23503') {
+        // PostgreSQL foreign key violation
+
+        if (error.constraint?.includes('status')) {
+          throw new BadRequestException(
+            `Status '${dto.statusKey}' does not exist`,
+          );
+        }
+
+        if (error.constraint?.includes('priority')) {
+          throw new BadRequestException(
+            `Priority '${dto.priorityKey}' does not exist`,
+          );
+        }
+
+        throw new BadRequestException(
+          'Invalid statusKey or priorityKey:' + error.constraint.toString(),
+        );
+      }
+
+      throw new BadRequestException(error.message);
     }
-
-    return this.findOne(projectId, saved.id);
   }
 
   // ---------------- FIND ALL ----------------
@@ -152,6 +179,7 @@ export class TicketsService {
         mimeType: file.mimetype,
         source: FileSource.TICKET,
         sourceId: ticketId,
+        status: FileStatus.ACTIVE,
       });
     }
   }

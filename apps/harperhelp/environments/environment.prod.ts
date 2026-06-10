@@ -8,7 +8,7 @@ export function environment() {
       type: 'postgres',
       url: process.env.DATABASE_URL || '',
       autoLoadEntities: true,
-      synchronize: false,
+      synchronize: true,
       logging: true,
       ssl: {
         rejectUnauthorized: false,

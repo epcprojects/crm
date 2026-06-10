@@ -3,7 +3,8 @@ import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Project } from './entities/project.entity';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
+import { User } from '../users/entities/user.entity';
 
 @Injectable()
 export class ProjectsService {
@@ -41,6 +42,27 @@ export class ProjectsService {
       .where('project.id = :projectId', { projectId })
       .select(['member.id AS id', 'member.fullName AS "fullName"'])
       .getRawMany();
+  }
+
+  async findMembersWithProjects() {
+    const users = await this.projectRepo.manager.getRepository(User).find({
+      relations: {
+        projects: true,
+      },
+      select: {
+        id: true,
+        fullName: true,
+        projects: {
+          id: true,
+          name: true,
+        },
+      },
+      where: {
+        fullName: Not('Super Admin'),
+      },
+    });
+
+    return users;
   }
 
   update(id: string, updateProjectDto: UpdateProjectDto) {

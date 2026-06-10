@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
   IsString,
   MaxLength,
@@ -18,11 +19,10 @@ export class CreateTicketDto {
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
   @IsString()
-  statusKey?: string;
+  statusKey: string;
 
+  @Transform(({ value }) => (value === '' ? null : value))
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

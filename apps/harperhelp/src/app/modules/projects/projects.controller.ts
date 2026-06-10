@@ -44,6 +44,15 @@ export class ProjectsController {
     return this.projectsService.findAllNames();
   }
 
+  @Get('members')
+  @Roles(SystemRoles.SUPER_ADMIN)
+  @ApiOperation({
+    summary: 'Get list of all members with their assigned projects.',
+  })
+  findMembersWithProjects() {
+    return this.projectsService.findMembersWithProjects();
+  }
+
   @Get(':id')
   @Roles(
     SystemRoles.SUPER_ADMIN,

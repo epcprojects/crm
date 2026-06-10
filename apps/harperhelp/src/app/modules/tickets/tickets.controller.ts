@@ -46,6 +46,9 @@ export class TicketsController {
         description: {
           type: 'string',
         },
+        statusKey: {
+          type: 'string',
+        },
         priorityKey: {
           type: 'string',
         },
