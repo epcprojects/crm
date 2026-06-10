@@ -27,6 +27,7 @@ import {
   useAppDispatch,
   useAppSelector,
 } from '../../app/Redux/store';
+import { useProjectsQuery } from '../../app/(main-pages)/projects/projects.queries';
 import { useAppLoader } from '../../app/providers/AppLoaderProvider';
 import { Images } from '../../app/ui/images';
 import ChangePasswordModal, {
@@ -62,7 +63,8 @@ type UserRole = 'admin' | 'developer' | 'pm' | 'external';
 type UserProjectResponse = {
   id: string;
   name: string;
-  textColor: string;
+  initials: string;
+  colorHex?: string;
 };
 
 type SidebarProject = UserProjectResponse & {
@@ -191,24 +193,6 @@ const pageHeaderConfigs: PageHeaderConfig[] = [
   },
 ];
 
-const currentUserProjects: UserProjectResponse[] = [
-  {
-    id: 'acme-corp',
-    name: 'Acme Corp',
-    textColor: 'text-orange-500',
-  },
-  {
-    id: 'stellar-tech',
-    name: 'Stellar Tech',
-    textColor: 'text-sky-500',
-  },
-  {
-    id: 'greenleaf-co',
-    name: 'GreenLeaf Co',
-    textColor: 'text-emerald-500',
-  },
-];
-
 const fallbackAccount = {
   name: 'Admin',
   email: 'admin@gmail.com',
@@ -240,6 +224,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const [headerActionOverride, setHeaderActionOverrideState] = useState<
     (() => void) | null
   >(null);
+  const projectsQuery = useProjectsQuery();
 
   const visibleNavigationItems = useMemo(() => {
     return navigationItems
@@ -251,18 +236,28 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   }, []);
 
   const sidebarProjects = useMemo<SidebarProject[]>(() => {
-    return currentUserProjects.map((project) => ({
-      ...project,
-      initials: getProjectInitials(project.name),
+    return (projectsQuery.data ?? []).map((project) => ({
+      id: project.id,
+      name: project.name,
+      initials: project.initials || getProjectInitials(project.name),
+      colorHex: project.colorHex,
     }));
-  }, []);
+  }, [projectsQuery.data]);
 
   const currentHeader = useMemo(() => {
-    return (
+    const matchedHeader =
       pageHeaderConfigs.find((item) => pathname?.startsWith(item.href)) ??
-      pageHeaderConfigs[0]
-    );
-  }, [pathname]);
+      pageHeaderConfigs[0];
+
+    if (matchedHeader.href === '/projects') {
+      return {
+        ...matchedHeader,
+        count: projectsQuery.data?.length,
+      };
+    }
+
+    return matchedHeader;
+  }, [pathname, projectsQuery.data?.length]);
 
   const currentAccount = useMemo(() => {
     const name = user?.fullName || fallbackAccount.name;
@@ -460,31 +455,54 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                 Projects
               </p>
               <div className="space-y-1.5">
-                {sidebarProjects.map((project) => (
-                  <button
-                    key={project.id}
-                    className={`flex w-full items-center  rounded-2xl py-1.25 px-3 text-left transition hover:bg-slate-50 ${
-                      collapsed ? 'justify-center lg:px-0' : 'gap-2'
-                    }`}
-                    type="button"
-                    title={collapsed ? project.name : undefined}
-                  >
-                    <span
-                      className={`flex h-7.5 w-7.5 border border-gray-200 drop-shadow-xs bg-white shrink-0 items-center justify-center rounded-full bg-linear-to-br ${project.textColor} text-xs font-normal`}
+                {sidebarProjects.map((project) => {
+                  const projectHref = `/projects/${project.id}`;
+                  const isProjectActive = pathname === projectHref;
+
+                  return (
+                    <Link
+                      key={project.id}
+                      className={`flex w-full items-center rounded-lg border py-1.25 px-3 text-left transition ${
+                        isProjectActive
+                          ? 'border-gray-200 bg-white shadow-sm'
+                          : 'border-transparent hover:bg-slate-50'
+                      } ${collapsed ? 'justify-center lg:px-0' : 'gap-2'}`}
+                      href={projectHref}
+                      onClick={() => setMobileOpen(false)}
+                      title={collapsed ? project.name : undefined}
                     >
-                      {project.initials}
-                    </span>
-                    <span
-                      className={`truncate text-sm md:text-base font-normal text-gray-600 transition-all duration-300 ${
-                        collapsed
-                          ? 'w-0 overflow-hidden opacity-0'
-                          : 'opacity-100'
-                      }`}
-                    >
-                      {project.name}
-                    </span>
-                  </button>
-                ))}
+                      <span
+                        className="flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-xs font-normal drop-shadow-xs"
+                        style={{
+                          color: !isProjectActive
+                            ? (project.colorHex ?? '#6172F3')
+                            : '#ffffff',
+                          backgroundColor: isProjectActive
+                            ? (project.colorHex ?? '#6172F3')
+                            : '',
+                          borderColor: project.colorHex
+                            ? `${project.colorHex}33`
+                            : undefined,
+                        }}
+                      >
+                        {project.initials}
+                      </span>
+                      <span
+                        className={`truncate text-sm md:text-base transition-all duration-300 ${
+                          isProjectActive
+                            ? 'font-medium text-gray-900'
+                            : 'font-normal text-gray-600'
+                        } ${
+                          collapsed
+                            ? 'w-0 overflow-hidden opacity-0'
+                            : 'opacity-100'
+                        }`}
+                      >
+                        {project.name}
+                      </span>
+                    </Link>
+                  );
+                })}
               </div>
             </div>
           </div>

@@ -6,7 +6,7 @@ import * as yup from 'yup';
 import AppModal from './AppModal';
 import ThemeInput from '../ui/ThemeInput';
 import Dropdown from '../ui/ThemeDropDown';
-import { baseProjects } from '../../app/(main-pages)/projects/projects.data';
+import type { ProjectRecord } from '../../app/(main-pages)/projects/projects.data';
 
 export type AddUserType = 'internal' | 'external';
 
@@ -24,6 +24,7 @@ type AddUserModalProps = {
   onConfirm?: (values: AddUserFormValues) => Promise<void> | void;
   mode?: 'create' | 'edit';
   initialValues?: AddUserFormValues;
+  projects?: ProjectRecord[];
 };
 
 const internalRoleOptions = [
@@ -59,6 +60,7 @@ export default function AddUserModal({
   onConfirm,
   mode = 'create',
   initialValues,
+  projects = [],
 }: AddUserModalProps) {
   const formik = useFormik<AddUserFormValues>({
     initialValues: initialValues ?? {
@@ -167,7 +169,7 @@ export default function AddUserModal({
           </label>
 
           <div className="flex flex-wrap gap-2">
-            {baseProjects.map((project) => {
+            {projects.map((project) => {
               const isSelected = formik.values.projectAccess.includes(project.id);
 
               return (
@@ -185,9 +187,18 @@ export default function AddUserModal({
                   }}
                   className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-sm transition ${
                     isSelected
-                      ? 'border-primary text-primary-dark bg-violet-50'
+                      ? ''
                       : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                   }`}
+                  style={
+                    isSelected
+                      ? {
+                          borderColor: `${project.colorHex}66`,
+                          color: project.colorHex,
+                          backgroundColor: `${project.colorHex}12`,
+                        }
+                      : undefined
+                  }
                 >
                   <span>{project.initials}</span>
                   <span>{project.name}</span>

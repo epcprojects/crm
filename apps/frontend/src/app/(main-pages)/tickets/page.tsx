@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { projects } from '../projects/page';
 import { useDashboardHeaderAction } from '../../../components/dashboard/dashboard-shell';
 import CreateTicketModal, {
   type CreateTicketFormValues,
@@ -19,6 +18,7 @@ import RecentTicketsTable, {
 import { appToast } from '../../../components/toast/AppToast';
 import Dropdown from '../../../components/ui/ThemeDropDown';
 import { SearchIcon } from '../../../../public/icons';
+import { baseProjects } from '../projects/projects.data';
 import { ticketsData } from './tickets.data';
 
 const statusFilterOptions = [
@@ -94,7 +94,7 @@ export default function Page() {
   const [selectedPriority, setSelectedPriority] = useState('all');
 
   const projectOptions = useMemo(
-    () => createTicketProjectOptions(projects),
+    () => createTicketProjectOptions(baseProjects),
     [],
   );
 

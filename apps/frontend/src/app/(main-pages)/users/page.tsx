@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { useDashboardHeaderAction } from '../../../components/dashboard/dashboard-shell';
 import AddUserModal, {
   type AddUserFormValues,
@@ -10,8 +11,9 @@ import { appToast } from '../../../components/toast/AppToast';
 import UserCard, {
   type UserCardUser,
 } from '../../../components/users/UserCard';
+import type { ProjectRecord } from '../projects/projects.data';
+import { useProjectsQuery } from '../projects/projects.queries';
 import { usersData } from './users.data';
-import { baseProjects } from '../projects/projects.data';
 
 export default function Page() {
   const { setHeaderActionOverride } = useDashboardHeaderAction();
@@ -19,6 +21,41 @@ export default function Page() {
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [userList, setUserList] = useState(usersData);
+  const projectsQuery = useProjectsQuery();
+  const projects = useMemo(() => projectsQuery.data ?? [], [projectsQuery.data]);
+  const inviteUserMutation = useMutation({
+    mutationFn: async (values: AddUserFormValues) => {
+      const response = await fetch('/api/users/invite/project', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          email: values.email,
+          fullName: values.fullName,
+          userType: values.userType === 'internal' ? 'INTERNAL' : 'EXTERNAL',
+          roleKey:
+            values.userType === 'external'
+              ? 'VIEWER'
+              : values.role === 'admin'
+                ? 'PROJECT_ADMIN'
+                : values.role === 'pm'
+                  ? 'PROJECT_MANAGER'
+                  : 'DEVELOPER',
+          projectIds: values.projectAccess,
+        }),
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to invite user.');
+      }
+
+      return payload;
+    },
+  });
 
   useEffect(() => {
     setHeaderActionOverride(() => setAddUserOpen(true));
@@ -29,15 +66,16 @@ export default function Page() {
   }, [setHeaderActionOverride]);
 
   const handleCreateUser = async (values: AddUserFormValues) => {
-    const nextUser = mapFormValuesToUser(values);
+    await inviteUserMutation.mutateAsync(values);
+    const nextUser = mapFormValuesToUser(values, projects);
     setUserList((currentUsers) => [nextUser, ...currentUsers]);
-    appToast.success('User created successfully.');
+    appToast.success('User invited successfully.');
   };
 
   const handleEditUser = async (values: AddUserFormValues) => {
     if (!editingUserId) return;
 
-    const nextUser = mapFormValuesToUser(values, editingUserId);
+    const nextUser = mapFormValuesToUser(values, projects, editingUserId);
 
     setUserList((currentUsers) =>
       currentUsers.map((user) => (user.id === editingUserId ? nextUser : user)),
@@ -78,6 +116,7 @@ export default function Page() {
         isOpen={addUserOpen}
         onClose={() => setAddUserOpen(false)}
         onConfirm={handleCreateUser}
+        projects={projects}
       />
 
       <AddUserModal
@@ -88,6 +127,7 @@ export default function Page() {
         initialValues={
           editingUser ? mapUserToFormValues(editingUser) : undefined
         }
+        projects={projects}
       />
 
       <DeleteUserModal
@@ -102,6 +142,7 @@ export default function Page() {
 
 function mapFormValuesToUser(
   values: AddUserFormValues,
+  projects: ProjectRecord[],
   userId?: string,
 ): UserCardUser {
   const nameParts = values.fullName.split(' ').filter(Boolean);
@@ -132,7 +173,7 @@ function mapFormValuesToUser(
             },
           ]
         : [{ label: 'External', tone: 'teal' }],
-    projects: baseProjects
+    projects: projects
       .filter((project) => values.projectAccess.includes(project.id))
       .map((project) => ({
         id: project.id,

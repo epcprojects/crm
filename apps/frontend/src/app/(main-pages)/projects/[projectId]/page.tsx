@@ -1,7 +1,7 @@
 'use client';
 
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import clsx from 'clsx';
 import CreateTicketModal, {
@@ -22,11 +22,10 @@ import { appToast } from '../../../../components/toast/AppToast';
 import { SearchIcon, PlusIcon } from '../../../../../public/icons';
 import ThemeButton from '../../../../components/ui/ThemeButton';
 import {
-  baseProjects,
   getProjectFiles,
-  getProjectById,
   getProjectTickets,
 } from '../projects.data';
+import { useProjectDetailQuery, useProjectsQuery } from '../projects.queries';
 
 const projectTabs = ['Tickets', 'Thread', 'Files', 'Calendar'] as const;
 
@@ -37,25 +36,41 @@ export default function ProjectDetailPage() {
   const [uploadFileOpen, setUploadFileOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [fileSearchValue, setFileSearchValue] = useState('');
-  const project = useMemo(
-    () => getProjectById(String(params?.projectId ?? '')),
-    [params?.projectId],
-  );
+  const projectId = String(params?.projectId ?? '');
+  const hasShownError = useRef(false);
+  const projectDetailQuery = useProjectDetailQuery(projectId);
+  const projectsQuery = useProjectsQuery();
+  const project = projectDetailQuery.data;
 
   const projectOptions = useMemo(
-    () => createTicketProjectOptions(baseProjects),
-    [],
+    () => createTicketProjectOptions(projectsQuery.data ?? []),
+    [projectsQuery.data],
   );
 
   const [projectFilesState, setProjectFilesState] = useState(() =>
-    project ? getProjectFiles(project.id) : [],
+    project ? getProjectFiles(project.id, project.name) : [],
   );
 
   useEffect(() => {
     if (project) {
-      setProjectFilesState(getProjectFiles(project.id));
+      setProjectFilesState(getProjectFiles(project.id, project.name));
     }
   }, [project]);
+
+  useEffect(() => {
+    if (projectDetailQuery.isError && !hasShownError.current) {
+      hasShownError.current = true;
+      appToast.error(
+        projectDetailQuery.error instanceof Error
+          ? projectDetailQuery.error.message
+          : 'Failed to load project.',
+      );
+    }
+
+    if (!projectDetailQuery.isError) {
+      hasShownError.current = false;
+    }
+  }, [projectDetailQuery.error, projectDetailQuery.isError]);
 
   const projectTickets = useMemo(() => {
     if (!project) return [];
@@ -103,6 +118,10 @@ export default function ProjectDetailPage() {
     ]);
     appToast.success('File uploaded successfully.');
   };
+
+  if (projectDetailQuery.isLoading) {
+    return <ProjectDetailSkeleton onBack={() => router.back()} />;
+  }
 
   if (!project) {
     return (
@@ -318,5 +337,38 @@ function BackArrowIcon() {
         fill="black"
       />
     </svg>
+  );
+}
+
+function ProjectDetailSkeleton({ onBack }: { onBack: () => void }) {
+  return (
+    <div className="flex w-full flex-1 flex-col items-start space-y-4 -mt-16 sm:mt-0">
+      <button
+        type="button"
+        onClick={onBack}
+        className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
+      >
+        <BackArrowIcon />
+        Back
+      </button>
+
+      <div className="w-full animate-pulse space-y-4">
+        <div className="flex items-center gap-4">
+          <div className="h-19 w-19 rounded-full bg-gray-200" />
+          <div className="space-y-3">
+            <div className="h-5 w-40 rounded bg-gray-200" />
+            <div className="h-4 w-24 rounded-full bg-gray-100" />
+            <div className="flex gap-4">
+              <div className="h-9 w-16 rounded bg-gray-100" />
+              <div className="h-9 w-16 rounded bg-gray-100" />
+              <div className="h-9 w-16 rounded bg-gray-100" />
+            </div>
+          </div>
+        </div>
+
+        <div className="h-12 w-full rounded bg-gray-100" />
+        <div className="h-96 w-full rounded-2xl border border-gray-200 bg-white" />
+      </div>
+    </div>
   );
 }

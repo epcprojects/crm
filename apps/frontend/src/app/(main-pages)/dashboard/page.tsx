@@ -16,7 +16,6 @@ import {
   ReloadIcon,
   SmartPhoneIcon,
 } from '../../../../public/icons';
-import { baseProjects as projects } from '../projects/projects.data';
 import TicketsTabs, {
   type TicketTab,
 } from '../../../components/dashboard/TicketsTabs';
@@ -34,8 +33,10 @@ import RecentTicketsTable, {
   type RecentTicket,
 } from '../../../components/tables/RecentTicketsTable';
 import { appToast } from '../../../components/toast/AppToast';
+import { useProjectsQuery } from '../projects/projects.queries';
 import { ticketsData } from '../tickets/tickets.data';
 import { useIsMobile } from '../../../components/hooks/useIsMobile';
+import Link from 'next/link';
 
 const recentTickets: RecentTicket[] = ticketsData.slice(0, 6);
 
@@ -157,10 +158,11 @@ export default function Page() {
   const router = useRouter();
   const { setHeaderActionOverride } = useDashboardHeaderAction();
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
+  const projectsQuery = useProjectsQuery();
 
   const projectOptions = useMemo(
-    () => createTicketProjectOptions(projects),
-    [],
+    () => createTicketProjectOptions(projectsQuery.data ?? []),
+    [projectsQuery.data],
   );
 
   const handleViewAllTickets = () => {
@@ -232,27 +234,40 @@ export default function Page() {
       </div>
 
       <div className="space-y-4">
-        <div className="flex items-center gap-2 md:gap-2.5">
-          <ProfileIcon />
-          <h2 className="text-base md:text-xl font-semibold text-black">
-            Projects
-          </h2>
+        <div className="flex items-center gap-2 justify-between">
+          <div className="flex items-center gap-2 md:gap-2.5">
+            <ProfileIcon />
+            <h2 className="text-base md:text-xl font-semibold text-black">
+              Projects
+            </h2>
+          </div>
+
+          <Link
+            href={'/projects'}
+            className="text-primary font-medium text-base hover:underline underline-offset-2"
+          >
+            View All
+          </Link>
         </div>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          {projects.map((project) => (
-            <ProjectCard
-              key={project.id}
-              id={project.id}
-              initials={project.initials}
-              name={project.name}
-              category={project.category}
-              totalCount={project.totalCount}
-              openCount={project.openCount}
-              criticalCount={project.criticalCount}
-              colorHex={project.colorHex}
-              onClick={() => router.push(`/projects/${project.id}`)}
-            />
-          ))}
+          {projectsQuery.isLoading
+            ? Array.from({ length: 3 }).map((_, index) => (
+                <ProjectCardSkeleton key={index} />
+              ))
+            : (projectsQuery.data?.slice(0, 3) ?? []).map((project) => (
+                <ProjectCard
+                  key={project.id}
+                  id={project.id}
+                  initials={project.initials}
+                  name={project.name}
+                  category={project.category}
+                  totalCount={project.totalCount}
+                  openCount={project.openCount}
+                  criticalCount={project.criticalCount}
+                  colorHex={project.colorHex}
+                  onClick={() => router.push(`/projects/${project.id}`)}
+                />
+              ))}
         </div>
       </div>
 
@@ -283,6 +298,34 @@ export default function Page() {
         assigneeOptions={createTicketAssigneeOptions}
         priorityOptions={createTicketPriorityOptions}
       />
+    </div>
+  );
+}
+
+function ProjectCardSkeleton() {
+  return (
+    <div className="animate-pulse rounded-xl border border-gray-200 bg-white p-2.5 shadow-xs md:rounded-2xl md:p-4">
+      <div className="flex items-center gap-3 md:gap-4">
+        <div className="h-9 w-9 rounded-full bg-gray-200 md:h-10.5 md:w-10.5" />
+        <div className="flex-1 space-y-2">
+          <div className="h-4 w-32 rounded bg-gray-200" />
+          <div className="h-3 w-20 rounded bg-gray-100" />
+        </div>
+      </div>
+
+      <div className="my-3 h-px bg-gray-200 md:my-4" />
+
+      <div className="grid grid-cols-3 gap-2">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div
+            key={index}
+            className="flex items-center justify-between rounded-full bg-gray-50 px-3 py-1.5"
+          >
+            <div className="h-3 w-10 rounded bg-gray-200" />
+            <div className="h-5 w-6 rounded-full bg-gray-200" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

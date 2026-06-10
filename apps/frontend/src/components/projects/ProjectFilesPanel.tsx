@@ -1,9 +1,7 @@
 'use client';
 
 import ThemeButton from '../ui/ThemeButton';
-import { ArrowDownIcon, PlusIcon, SearchIcon } from '../../../public/icons';
-import { UploadIcon } from '../modals/CreateTicketModal';
-
+import { PlusIcon, SearchIcon } from '../../../public/icons';
 export type ProjectFileRecord = {
   id: string;
   name: string;

@@ -13,6 +13,20 @@ export type ProjectRecord = {
   filesCount: number;
 };
 
+export type ApiProjectRecord = {
+  id: string;
+  name: string;
+  category: string;
+  brandColor: string;
+  logoLetter: string;
+  createdAt?: string;
+  updatedAt?: string;
+  deletedAt?: string | null;
+  isActive?: boolean;
+  createdBy?: string | null;
+  updatedBy?: string | null;
+};
+
 export type ProjectFileRecord = {
   id: string;
   name: string;
@@ -107,6 +121,61 @@ const projectFilesByProjectId: Record<string, ProjectFileRecord[]> = {
   ],
 };
 
-export function getProjectFiles(projectId: string) {
-  return projectFilesByProjectId[projectId] ?? [];
+export function getProjectFiles(projectId: string, projectName?: string) {
+  const projectKey = normalizeProjectLookupKey(projectId);
+  const projectNameKey = normalizeProjectLookupKey(projectName);
+
+  return (
+    projectFilesByProjectId[projectKey] ??
+    (projectNameKey ? projectFilesByProjectId[projectNameKey] : []) ??
+    []
+  );
+}
+
+export function mapApiProjectToProjectRecord(
+  project: ApiProjectRecord,
+): ProjectRecord {
+  const projectTickets = getProjectTickets(project.name);
+
+  return {
+    id: project.id,
+    initials: getProjectInitials(project),
+    name: project.name,
+    category: toTitleCase(project.category),
+    totalCount: projectTickets.length,
+    openCount: projectTickets.filter((ticket) => ticket.status === 'Open').length,
+    criticalCount: projectTickets.filter((ticket) => ticket.priority === 'Critical')
+      .length,
+    colorHex: project.brandColor,
+    threadPosts: 0,
+    filesCount: getProjectFiles(project.id, project.name).length,
+  };
+}
+
+function getProjectInitials(project: Pick<ApiProjectRecord, 'logoLetter' | 'name'>) {
+  const normalizedLogoLetter = project.logoLetter?.trim();
+
+  if (normalizedLogoLetter) {
+    return normalizedLogoLetter.slice(0, 2).toUpperCase();
+  }
+
+  return project.name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+}
+
+function toTitleCase(value: string) {
+  return value
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function normalizeProjectLookupKey(value?: string) {
+  return value?.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') ?? '';
 }
