@@ -26,8 +26,10 @@ import SmartPhoneIcon from './SmartPhoneIcon';
 import ArrowDownIcon from './ArrowDownIcon';
 import TrashIcon from './TrashIcon';
 import SearchIcon from './SearchIcon';
+import TicketIcon2 from './TicketIcon2';
 
 export {
+  TicketIcon2,
   SearchIcon,
   APIIcon,
   ArrowDownIcon,

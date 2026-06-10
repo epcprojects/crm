@@ -19,7 +19,9 @@ import { appToast } from '../../../components/toast/AppToast';
 import Dropdown from '../../../components/ui/ThemeDropDown';
 import { SearchIcon } from '../../../../public/icons';
 import { baseProjects } from '../projects/projects.data';
-import { ticketsData } from './tickets.data';
+// import { ticketsData } from './tickets.data';
+
+const ticketsData: any[] = [];
 
 const statusFilterOptions = [
   { label: 'All Status', value: 'all' },

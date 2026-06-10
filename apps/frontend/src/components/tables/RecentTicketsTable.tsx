@@ -175,8 +175,26 @@ export default function RecentTicketsTable({
   const visiblePages = getVisiblePageNumbers(currentPage, totalPages);
 
   return (
-    <div className="overflow-hidden rounded-xl w-[calc(100dvw-32px)] sm:w-full border border-gray-200 bg-white">
-      <div className="overflow-x-auto">
+    <div className="overflow-hidden rounded-xl w-[calc(100dvw-32px)] sm:w-full md:border md:border-gray-200 bg-white">
+      <div className="space-y-3 md:p-3 md:hidden">
+        {table.getRowModel().rows.length ? (
+          table
+            .getRowModel()
+            .rows.map((row) => (
+              <TicketMobileCard
+                key={row.id}
+                ticket={row.original}
+                onClick={onRowClick}
+              />
+            ))
+        ) : (
+          <div className="rounded-xl border border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500">
+            No tickets found.
+          </div>
+        )}
+      </div>
+
+      <div className="hidden overflow-x-auto md:block">
         <table className="w-full  min-w-[880px] text-left">
           <thead className="bg-gray-50">
             {table.getHeaderGroups().map((headerGroup) => (
@@ -232,7 +250,7 @@ export default function RecentTicketsTable({
       </div>
 
       {enablePagination ? (
-        <div className="flex justify-between sm:flex-col gap-3 border-t border-gray-200 px-4 py-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex justify-between sm:flex-col gap-3 md:border-t border-gray-200 md:px-4 py-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <span className="sm:inline-block hidden">Showing per page</span>
             <select
@@ -312,6 +330,70 @@ export default function RecentTicketsTable({
         </div>
       )}
     </div>
+  );
+}
+
+function TicketMobileCard({
+  ticket,
+  onClick,
+}: {
+  ticket: RecentTicket;
+  onClick?: (ticket: RecentTicket) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onClick?.(ticket)}
+      className={`w-full rounded-xl border border-gray-200 bg-white p-3 text-left transition ${
+        onClick ? 'hover:border-gray-300' : ''
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-orange-200 to-slate-800 text-base font-medium text-white">
+            {ticket.assignee.initials}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-base font-semibold text-gray-900">
+              {ticket.assignee.name}
+            </p>
+            <p className=" text-xs text-gray-600">{ticket.date}</p>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          <span
+            className={`inline-flex rounded-full border px-2 py-1 text-xs font-semibold ${statusStyles[ticket.status]}`}
+          >
+            {ticket.status}
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2 py-1 text-sm font-semibold text-gray-700 shadow-xs">
+            <span
+              className={`h-2 w-2 rounded-full ${priorityStyles[ticket.priority]}`}
+            />
+            {ticket.priority}
+          </span>
+        </div>
+      </div>
+
+      <div className="my-3 h-px bg-gray-200" />
+
+      <div className="flex items-center gap-3">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100 border border-gray-100 text-sm font-semibold text-gray-900">
+          {ticket.id}
+        </span>
+        <p className="truncate text-sm text-gray-800">{ticket.title}</p>
+      </div>
+
+      <div className="mt-2">
+        <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-purple-100 py-0.5 pr-3 pl-0.5 text-sm font-medium text-purple-700">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-medium">
+            {ticket.project.initials}
+          </span>
+          {ticket.project.name}
+        </span>
+      </div>
+    </button>
   );
 }
 

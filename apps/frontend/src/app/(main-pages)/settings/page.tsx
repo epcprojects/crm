@@ -4,14 +4,15 @@ import { useState } from 'react';
 import SettingsItemModal, {
   type SettingsItemFormValues,
 } from '../../../components/modals/SettingsItemModal';
-import SettingsConfigCard from '../../../components/settings/SettingsConfigCard';
+import SettingsConfigCard, {
+  type SettingsConfigItem,
+} from '../../../components/settings/SettingsConfigCard';
 import { appToast } from '../../../components/toast/AppToast';
-import { prioritySettingsItems, statusSettingsItems } from './settings.data';
 import { useIsMobile } from '../../../components/hooks/useIsMobile';
 
 export default function Page() {
-  const [statusItems, setStatusItems] = useState(statusSettingsItems);
-  const [priorityItems, setPriorityItems] = useState(prioritySettingsItems);
+  const [statusItems, setStatusItems] = useState<SettingsConfigItem[]>([]);
+  const [priorityItems, setPriorityItems] = useState<SettingsConfigItem[]>([]);
   const [statusModalMode, setStatusModalMode] = useState<'create' | 'edit'>(
     'create',
   );
@@ -141,11 +142,11 @@ export default function Page() {
       </div>
 
       <div className="flex items-start gap-3 rounded-xl border border-warning-200 bg-[#FFFAEB] px-4 py-3 text-[#69410A]">
-        <span className="hidden sm:inline-block">
+        <span className="hidden mt-1 sm:inline-block">
           <TipIcon />
         </span>
         <p className="text-sm leading-6">
-          <span className="inline-block pe-2">
+          <span className="inline-block sm:hidden pe-2">
             <TipIcon
               height={isMobile ? '16' : '20'}
               width={isMobile ? '16' : '20'}

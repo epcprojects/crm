@@ -29,6 +29,8 @@ type CreateTicketModalProps = {
   projectOptions: CreateTicketDropdownOption[];
   assigneeOptions: CreateTicketDropdownOption[];
   priorityOptions: CreateTicketDropdownOption[];
+  preselectedProjectId?: string;
+  disableProjectSelection?: boolean;
 };
 
 const createTicketSchema = yup.object({
@@ -47,6 +49,8 @@ export default function CreateTicketModal({
   projectOptions,
   assigneeOptions,
   priorityOptions,
+  preselectedProjectId,
+  disableProjectSelection = false,
 }: CreateTicketModalProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -78,6 +82,12 @@ export default function CreateTicketModal({
       setAttachmentError('');
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (preselectedProjectId) {
+      formik.setFieldValue('project', preselectedProjectId);
+    }
+  }, [preselectedProjectId]);
 
   const setAttachments = (files: FileList | File[]) => {
     const nextFiles = Array.from(files);
@@ -137,6 +147,7 @@ export default function CreateTicketModal({
           onChange={(value) => formik.setFieldValue('project', value)}
           error={Boolean(formik.touched.project && formik.errors.project)}
           errorMessage={formik.touched.project ? formik.errors.project : ''}
+          disabled={disableProjectSelection}
         />
 
         <ThemeInput

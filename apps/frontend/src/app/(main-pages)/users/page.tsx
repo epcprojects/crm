@@ -22,7 +22,10 @@ export default function Page() {
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [userList, setUserList] = useState(usersData);
   const projectsQuery = useProjectsQuery();
-  const projects = useMemo(() => projectsQuery.data ?? [], [projectsQuery.data]);
+  const projects = useMemo(
+    () => projectsQuery.data ?? [],
+    [projectsQuery.data],
+  );
   const inviteUserMutation = useMutation({
     mutationFn: async (values: AddUserFormValues) => {
       const response = await fetch('/api/users/invite/project', {
@@ -101,16 +104,31 @@ export default function Page() {
 
   return (
     <div className="">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {userList.map((user) => (
-          <UserCard
-            key={user.id}
-            user={user}
-            onEdit={(selectedUser) => setEditingUserId(selectedUser.id)}
-            onDelete={(selectedUser) => setDeletingUserId(selectedUser.id)}
-          />
-        ))}
-      </div>
+      {userList.length ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {userList.map((user) => (
+            <UserCard
+              key={user.id}
+              user={user}
+              onEdit={(selectedUser) => setEditingUserId(selectedUser.id)}
+              onDelete={(selectedUser) => setDeletingUserId(selectedUser.id)}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="flex min-h-80 flex-col items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 py-10 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-400">
+            <UsersEmptyIcon />
+          </div>
+          <h2 className="mt-4 text-lg font-semibold text-gray-900">
+            No users yet.
+          </h2>
+          <p className="mt-2 max-w-md text-sm text-gray-500">
+            Invite team members or clients to give them access to projects,
+            tickets, and collaboration spaces.
+          </p>
+        </div>
+      )}
 
       <AddUserModal
         isOpen={addUserOpen}
@@ -204,4 +222,24 @@ function mapUserToFormValues(user: UserCardUser): AddUserFormValues {
             : 'admin',
     projectAccess: user.projects.map((project) => project.id),
   };
+}
+
+function UsersEmptyIcon() {
+  return (
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M16 21V19C16 17.1362 14.2091 15.5 12 15.5H7C4.79086 15.5 3 17.1362 3 19V21M21 21V19.5C21 18.0876 19.9704 16.8585 18.5 16.402M15.5 3.40198C16.9704 3.85853 18 5.08765 18 6.5C18 7.91235 16.9704 9.14147 15.5 9.59802M13.5 6.5C13.5 8.15685 12.1569 9.5 10.5 9.5C8.84315 9.5 7.5 8.15685 7.5 6.5C7.5 4.84315 8.84315 3.5 10.5 3.5C12.1569 3.5 13.5 4.84315 13.5 6.5Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }

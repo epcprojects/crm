@@ -1,11 +1,19 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDashboardHeaderAction } from '../../../components/dashboard/dashboard-shell';
 import CreateProjectModal, {
   type CreateProjectFormValues,
 } from '../../../components/modals/CreateProjectModal';
+import CreateTicketModal, {
+  type CreateTicketFormValues,
+} from '../../../components/modals/CreateTicketModal';
+import {
+  createTicketAssigneeOptions,
+  createTicketPriorityOptions,
+  createTicketProjectOptions,
+} from '../../../components/modals/create-ticket-modal.data';
 import ProjectCard from '../../../components/projects/ProjectCard';
 import { appToast } from '../../../components/toast/AppToast';
 import { useCreateProjectMutation, useProjectsQuery } from './projects.queries';
@@ -14,9 +22,17 @@ export default function ProjectsPage() {
   const router = useRouter();
   const { setHeaderActionOverride } = useDashboardHeaderAction();
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
+  const [createTicketOpen, setCreateTicketOpen] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
+    null,
+  );
   const hasShownLoadError = useRef(false);
   const projectsQuery = useProjectsQuery();
   const createProjectMutation = useCreateProjectMutation();
+  const projectOptions = useMemo(
+    () => createTicketProjectOptions(projectsQuery.data ?? []),
+    [projectsQuery.data],
+  );
 
   useEffect(() => {
     setHeaderActionOverride(() => setCreateProjectOpen(true));
@@ -53,6 +69,10 @@ export default function ProjectsPage() {
     }
   };
 
+  const handleCreateTicket = async (_values: CreateTicketFormValues) => {
+    appToast.success('Ticket created successfully.');
+  };
+
   return (
     <div className="">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -72,6 +92,10 @@ export default function ProjectsPage() {
                 criticalCount={project.criticalCount}
                 colorHex={project.colorHex}
                 onClick={() => router.push(`/projects/${project.id}`)}
+                onAddTicket={() => {
+                  setSelectedProjectId(project.id);
+                  setCreateTicketOpen(true);
+                }}
               />
             ))}
       </div>
@@ -80,6 +104,20 @@ export default function ProjectsPage() {
         isOpen={createProjectOpen}
         onClose={() => setCreateProjectOpen(false)}
         onConfirm={handleCreateProject}
+      />
+
+      <CreateTicketModal
+        isOpen={createTicketOpen}
+        onClose={() => {
+          setCreateTicketOpen(false);
+          setSelectedProjectId(null);
+        }}
+        onConfirm={handleCreateTicket}
+        projectOptions={projectOptions}
+        assigneeOptions={createTicketAssigneeOptions}
+        priorityOptions={createTicketPriorityOptions}
+        preselectedProjectId={selectedProjectId ?? undefined}
+        disableProjectSelection={Boolean(selectedProjectId)}
       />
     </div>
   );

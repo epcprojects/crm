@@ -6,17 +6,18 @@ import AddRoleModal, {
   type AddRoleFormValues,
 } from '../../../components/modals/AddRoleModal';
 import DeleteRoleModal from '../../../components/modals/DeleteRoleModal';
-import RolesTable from '../../../components/tables/RolesTable';
+import RolesTable, {
+  type RoleRecord,
+} from '../../../components/tables/RolesTable';
 import { SearchIcon } from '../../../../public/icons';
 import { appToast } from '../../../components/toast/AppToast';
-import { rolesData } from './roles.data';
 
 export default function RolesPage() {
   const { setHeaderActionOverride } = useDashboardHeaderAction();
   const [addRoleOpen, setAddRoleOpen] = useState(false);
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
   const [deletingRoleId, setDeletingRoleId] = useState<string | null>(null);
-  const [roleList, setRoleList] = useState(rolesData);
+  const [roleList, setRoleList] = useState<RoleRecord[]>([]);
   const [searchValue, setSearchValue] = useState('');
 
   useEffect(() => {
@@ -106,13 +107,28 @@ export default function RolesPage() {
         </div>
       </div>
 
-      <RolesTable
-        roles={filteredRoles}
-        initialPageSize={10}
-        pageSizeOptions={[10, 20, 30]}
-        onEdit={(role) => setEditingRoleId(role.id)}
-        onDelete={(role) => setDeletingRoleId(role.id)}
-      />
+      {roleList.length ? (
+        <RolesTable
+          roles={filteredRoles}
+          initialPageSize={10}
+          pageSizeOptions={[10, 20, 30]}
+          onEdit={(role) => setEditingRoleId(role.id)}
+          onDelete={(role) => setDeletingRoleId(role.id)}
+        />
+      ) : (
+        <div className="flex min-h-80 flex-col items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 py-10 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-400">
+            <RolesEmptyIcon />
+          </div>
+          <h2 className="mt-4 text-lg font-semibold text-gray-900">
+            No roles yet.
+          </h2>
+          <p className="mt-2 max-w-md text-sm text-gray-500">
+            Create roles to organize access levels for internal team members and
+            external users.
+          </p>
+        </div>
+      )}
 
       <AddRoleModal
         isOpen={addRoleOpen}
@@ -142,5 +158,46 @@ export default function RolesPage() {
         roleName={deletingRole?.name}
       />
     </div>
+  );
+}
+
+function RolesEmptyIcon() {
+  return (
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <circle
+        cx="8"
+        cy="8"
+        r="2.75"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <circle
+        cx="16"
+        cy="9"
+        r="2.25"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M3.75 18C3.75 15.9289 5.42893 14.25 7.5 14.25H8.5C10.5711 14.25 12.25 15.9289 12.25 18V18.25H3.75V18Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M13.25 18.25V17.75C13.25 16.2312 14.4812 15 16 15H16.5C18.0188 15 19.25 16.2312 19.25 17.75V18.25"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

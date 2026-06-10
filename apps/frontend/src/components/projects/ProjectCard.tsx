@@ -1,3 +1,5 @@
+import { TicketIcon2 } from '../../../public/icons';
+
 type ProjectCardProps = {
   id?: string;
   initials: string;
@@ -8,6 +10,7 @@ type ProjectCardProps = {
   criticalCount: number;
   colorHex?: string;
   onClick?: () => void;
+  onAddTicket?: () => void;
 };
 
 function ProjectMetric({
@@ -41,6 +44,7 @@ export default function ProjectCard({
   criticalCount,
   colorHex = '#A855F7',
   onClick,
+  onAddTicket,
 }: ProjectCardProps) {
   return (
     <article
@@ -52,21 +56,39 @@ export default function ProjectCard({
       }}
       data-project-id={id}
     >
-      <div className="flex items-center gap-3 md:gap-4">
-        <span
-          className="flex md:h-10.5 w-9 h-9 md:w-10.5 shrink-0 items-center justify-center rounded-full bg-white text-sm font-semibold drop-shadow md:text-base"
-          style={{ color: colorHex }}
-        >
-          {initials}
-        </span>
-        <div className="min-w-0">
-          <h2 className="truncate text-sm md:text-base font-medium text-gray-900">
-            {name}
-          </h2>
-          <p className="truncate text-[10px] md:text-xs font-normal text-gray-600">
-            {category}
-          </p>
+      <div className="flex items-start justify-between gap-3 md:gap-4">
+        <div className="flex min-w-0 items-center gap-3 md:gap-4">
+          <span
+            className="flex md:h-10.5 w-9 h-9 md:w-10.5 shrink-0 items-center justify-center rounded-full bg-white text-sm font-semibold drop-shadow md:text-base"
+            style={{ color: colorHex }}
+          >
+            {initials}
+          </span>
+          <div className="min-w-0">
+            <h2 className="truncate text-sm md:text-base font-medium text-gray-900">
+              {name}
+            </h2>
+            <p className="truncate text-[10px] md:text-xs font-normal text-gray-600">
+              {category}
+            </p>
+          </div>
         </div>
+        {onAddTicket ? (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onAddTicket();
+            }}
+            className="flex  shrink-0 items-center justify-center rounded-full border py-0.5 ps-0.5 pe-2.5 text-xs md:text-sm gap-1 border-white/70 bg-white/90 text-primary-dark shadow-sm transition hover:bg-white"
+            aria-label={`Add ticket for ${name}`}
+          >
+            <span className="w-5.5 h-5.5 md:w-6.5 md:h-6.5 rounded-full bg-[#E1E5FF] flex items-center justify-center">
+              <TicketIcon2 />
+            </span>
+            Add
+          </button>
+        ) : null}
       </div>
 
       <div
