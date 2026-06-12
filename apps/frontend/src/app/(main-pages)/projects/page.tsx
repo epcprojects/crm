@@ -16,6 +16,7 @@ import {
 } from '../../../components/modals/create-ticket-modal.data';
 import ProjectCard from '../../../components/projects/ProjectCard';
 import { appToast } from '../../../components/toast/AppToast';
+import { createTicket } from '../../../lib/tickets';
 import { useCreateProjectMutation, useProjectsQuery } from './projects.queries';
 
 export default function ProjectsPage() {
@@ -69,8 +70,24 @@ export default function ProjectsPage() {
     }
   };
 
-  const handleCreateTicket = async (_values: CreateTicketFormValues) => {
-    appToast.success('Ticket created successfully.');
+  const handleCreateTicket = async (values: CreateTicketFormValues) => {
+    try {
+      await createTicket({
+        projectId: values.project,
+        title: values.title,
+        description: values.description,
+        statusKey: values.status,
+        assigneeId: values.assignee,
+        dueDate: values.dueDate,
+        attachments: values.attachments,
+      });
+      appToast.success('Ticket created successfully.');
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to create ticket.',
+      );
+      throw error;
+    }
   };
 
   return (

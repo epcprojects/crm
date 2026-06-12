@@ -18,6 +18,8 @@ export type TicketAttachment = {
   id: string;
   name: string;
   sizeLabel: string;
+  extension?: string;
+  storageKey?: string;
 };
 
 export type TicketPerson = {
@@ -29,6 +31,8 @@ export type TicketPerson = {
 export type TicketDetailRecord = RecentTicket & {
   description: string;
   dueDate: string;
+  dueDateValue?: string;
+  assigneeId?: string;
   attachments: TicketAttachment[];
   reporter: TicketPerson;
   assigneeDetail: TicketPerson;

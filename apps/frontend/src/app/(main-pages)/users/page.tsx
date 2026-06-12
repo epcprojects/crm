@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useDashboardHeaderAction } from '../../../components/dashboard/dashboard-shell';
 import AddUserModal, {
   type AddUserFormValues,
@@ -13,19 +13,23 @@ import UserCard, {
 } from '../../../components/users/UserCard';
 import type { ProjectRecord } from '../projects/projects.data';
 import { useProjectsQuery } from '../projects/projects.queries';
-import { usersData } from './users.data';
 
 export default function Page() {
   const { setHeaderActionOverride } = useDashboardHeaderAction();
   const [addUserOpen, setAddUserOpen] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
-  const [userList, setUserList] = useState(usersData);
+  const [userList, setUserList] = useState<UserCardUser[]>([]);
   const projectsQuery = useProjectsQuery();
   const projects = useMemo(
     () => projectsQuery.data ?? [],
     [projectsQuery.data],
   );
+  const membersQuery = useQuery({
+    queryKey: ['project-members'],
+    queryFn: () => fetchProjectMembers(projects),
+    enabled: projectsQuery.isSuccess,
+  });
   const inviteUserMutation = useMutation({
     mutationFn: async (values: AddUserFormValues) => {
       const response = await fetch('/api/users/invite/project', {
@@ -68,6 +72,12 @@ export default function Page() {
     };
   }, [setHeaderActionOverride]);
 
+  useEffect(() => {
+    if (membersQuery.data) {
+      setUserList(membersQuery.data);
+    }
+  }, [membersQuery.data]);
+
   const handleCreateUser = async (values: AddUserFormValues) => {
     await inviteUserMutation.mutateAsync(values);
     const nextUser = mapFormValuesToUser(values, projects);
@@ -104,7 +114,11 @@ export default function Page() {
 
   return (
     <div className="">
-      {userList.length ? (
+      {membersQuery.isLoading ? (
+        <div className="flex min-h-80 items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 py-10 text-center text-sm text-gray-500">
+          Loading users...
+        </div>
+      ) : userList.length ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {userList.map((user) => (
             <UserCard
@@ -200,6 +214,79 @@ function mapFormValuesToUser(
         colorHex: project.colorHex,
       })),
   };
+}
+
+async function fetchProjectMembers(projects: ProjectRecord[]) {
+  const response = await fetch('/api/projects/members', {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiProjectMember[]
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !Array.isArray(payload)) {
+    throw new Error(
+      !Array.isArray(payload) ? payload?.message : 'Failed to fetch users.',
+    );
+  }
+
+  return payload.map((member) => mapApiMemberToUserCard(member, projects));
+}
+
+type ApiProjectMember = {
+  id: string;
+  fullName: string;
+  projects: Array<{
+    id: string;
+    name: string;
+  }>;
+};
+
+function mapApiMemberToUserCard(
+  member: ApiProjectMember,
+  projects: ProjectRecord[],
+): UserCardUser {
+  const nameParts = member.fullName.split(' ').filter(Boolean);
+  const initials = nameParts
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+
+  return {
+    id: member.id,
+    name: member.fullName,
+    email: '',
+    initials: initials || 'NU',
+    accentColor: '#875BF7',
+    roles: [],
+    projects: member.projects.map((project) => {
+      const matchedProject = projects.find((item) => item.id === project.id);
+
+      return {
+        id: project.id,
+        initials: getProjectInitials(project.name),
+        name: project.name,
+        colorHex: matchedProject?.colorHex ?? '#6172F3',
+      };
+    }),
+  };
+}
+
+function getProjectInitials(name: string) {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
 }
 
 function mapUserToFormValues(user: UserCardUser): AddUserFormValues {

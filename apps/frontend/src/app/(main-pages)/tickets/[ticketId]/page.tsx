@@ -1,27 +1,142 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import DiscussionPanel from '../../../../components/discussion/DiscussionPanel';
 import Dropdown from '../../../../components/ui/ThemeDropDown';
+import { appToast } from '../../../../components/toast/AppToast';
 import {
   getTicketById,
   ticketPriorityDropdownOptions,
-  ticketStatusDropdownOptions,
   type TicketPerson,
 } from '../tickets.data';
-import type {
-  TicketPriority,
-  TicketStatus,
-} from '../../../../components/tables/RecentTicketsTable';
+import type { TicketPriority } from '../../../../components/tables/RecentTicketsTable';
 
 export default function TicketDetailPage() {
   const params = useParams<{ ticketId: string }>();
   const router = useRouter();
-  const ticket = useMemo(
-    () => getTicketById(String(params?.ticketId ?? '')),
-    [params?.ticketId],
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+  const ticketId = String(params?.ticketId ?? '');
+  const projectId = searchParams.get('projectId') ?? '';
+
+  const fallbackTicket = useMemo(() => getTicketById(ticketId), [ticketId]);
+
+  const ticketDetailQuery = useQuery({
+    queryKey: ['ticket-detail', projectId, ticketId],
+    queryFn: () => fetchTicketDetail(projectId, ticketId),
+    enabled: Boolean(projectId && ticketId),
+  });
+
+  const membersQuery = useQuery({
+    queryKey: ['project-members', projectId],
+    queryFn: () => fetchProjectMembers(projectId),
+    enabled: Boolean(projectId),
+  });
+
+  const ticketRepliesQuery = useQuery({
+    queryKey: ['ticket-replies', ticketId],
+    queryFn: () => fetchTicketReplies(ticketId),
+    enabled: Boolean(ticketId),
+  });
+
+  const statusListQuery = useQuery({
+    queryKey: ['ticket-statuses'],
+    queryFn: fetchTicketStatuses,
+  });
+
+  const updateTicketMutation = useMutation({
+    mutationFn: async (payload: UpdateTicketRequest) => {
+      const response = await fetch(`/api/projects/${projectId}/tickets/${ticketId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message =
+          Array.isArray(data?.message) && data.message.length
+            ? data.message.join(', ')
+            : data?.message || 'Failed to update ticket.';
+        throw new Error(message);
+      }
+
+      return data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ['ticket-detail', projectId, ticketId],
+      });
+      appToast.success('Ticket updated successfully.');
+    },
+    onError: (error) => {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to update ticket.',
+      );
+    },
+  });
+
+  const ticket = ticketDetailQuery.data ?? fallbackTicket;
+  const [selectedStatus, setSelectedStatus] = useState('Open');
+  const [selectedPriority, setSelectedPriority] =
+    useState<TicketPriority>('Low');
+  const [selectedAssignee, setSelectedAssignee] = useState('');
+
+  const statusOptions = useMemo(
+    () =>
+      (statusListQuery.data ?? []).map((status) => ({
+        label: status.label,
+        value: status.label,
+        icon: (
+          <span
+            className="inline-block h-2.25 w-2.5 rounded-full"
+            style={{ backgroundColor: status.color }}
+          />
+        ),
+      })),
+    [statusListQuery.data],
   );
+
+  const assigneeOptions = useMemo(
+    () =>
+      (membersQuery.data ?? []).map((member) => ({
+        label: member.fullName,
+        value: member.id,
+      })),
+    [membersQuery.data],
+  );
+
+  const selectedAssigneeId = useMemo(() => {
+    if (!ticket) {
+      return '';
+    }
+
+    return (
+      assigneeOptions.find((option) => option.label === selectedAssignee)?.value ??
+      ticket.assigneeId ??
+      ''
+    );
+  }, [assigneeOptions, selectedAssignee, ticket]);
+
+  useEffect(() => {
+    if (!ticket) {
+      return;
+    }
+
+    setSelectedStatus(ticket.status);
+    setSelectedPriority(ticket.priority);
+    setSelectedAssignee(ticket.assigneeDetail.name);
+  }, [ticket]);
 
   if (!ticket) {
     return (
@@ -41,15 +156,41 @@ export default function TicketDetailPage() {
     );
   }
 
-  const [selectedStatus, setSelectedStatus] = useState<TicketStatus>(
-    ticket.status,
-  );
-  const [selectedPriority, setSelectedPriority] = useState<TicketPriority>(
-    ticket.priority,
-  );
-  const [selectedAssignee, setSelectedAssignee] = useState(
-    ticket.assigneeDetail.name,
-  );
+  const handlePriorityChange = async (value: string) => {
+    const nextPriority = value as TicketPriority;
+    setSelectedPriority(nextPriority);
+
+    await updateTicketMutation.mutateAsync({
+      title: ticket.title,
+      description: ticket.description,
+      priorityKey: nextPriority,
+      assigneeId: selectedAssigneeId,
+      dueDate: ticket.dueDateValue ?? '',
+    });
+  };
+
+  const handleAssigneeChange = async (value: string) => {
+    const selectedOption = assigneeOptions.find((option) => option.value === value);
+    setSelectedAssignee(selectedOption?.label ?? '');
+
+    await updateTicketMutation.mutateAsync({
+      title: ticket.title,
+      description: ticket.description,
+      priorityKey: selectedPriority,
+      assigneeId: value,
+      dueDate: ticket.dueDateValue ?? '',
+    });
+  };
+
+  const handleClearDueDate = async () => {
+    await updateTicketMutation.mutateAsync({
+      title: ticket.title,
+      description: ticket.description,
+      priorityKey: selectedPriority,
+      assigneeId: selectedAssigneeId,
+      dueDate: '',
+    });
+  };
 
   return (
     <div className="space-y-4 flex-1 w-full flex flex-col items-start -mt-16 sm:mt-0">
@@ -62,7 +203,7 @@ export default function TicketDetailPage() {
         Back
       </button>
 
-      <div className="grid grid-cols-1 flex-1 w-full  gap-4 xl:grid-cols-12">
+      <div className="grid grid-cols-1 flex-1 w-full gap-4 xl:grid-cols-12">
         <div className="space-y-4 xl:col-span-9 flex flex-col">
           <section className="rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-3 md:p-5">
             <div className="sm:grid flex flex-wrap gap-4 border-b border-gray-200 pb-5 grid-cols-3">
@@ -83,13 +224,21 @@ export default function TicketDetailPage() {
               <h2 className="text-base md:text-xl leading-8 font-semibold text-gray-900">
                 {ticket.title}
               </h2>
-              <p className=" sm:mt-2  text-sm text-gray-700">
-                {ticket.description}
-              </p>
+              <p className="sm:mt-2 text-sm text-gray-700">{ticket.description}</p>
             </div>
           </section>
 
-          <DiscussionPanel replies={ticket.replies} />
+          <DiscussionPanel
+            replies={ticketRepliesQuery.data ?? ticket.replies}
+            emptyTitle={
+              ticketRepliesQuery.isLoading ? 'Loading replies...' : 'No replies yet.'
+            }
+            emptyDescription={
+              ticketRepliesQuery.isLoading
+                ? 'Fetching ticket replies.'
+                : 'No responses have been added to this ticket yet.'
+            }
+          />
         </div>
 
         <aside className="space-y-4 xl:col-span-3">
@@ -100,28 +249,24 @@ export default function TicketDetailPage() {
             <div className="space-y-4 p-3 sm:p-4">
               <Dropdown
                 label="Status"
-                options={ticketStatusDropdownOptions}
+                options={statusOptions}
                 value={selectedStatus}
-                onChange={(value) => setSelectedStatus(value as TicketStatus)}
+                disabled={updateTicketMutation.isPending}
+                onChange={setSelectedStatus}
               />
               <Dropdown
                 label="Priority"
                 options={ticketPriorityDropdownOptions}
                 value={selectedPriority}
-                onChange={(value) =>
-                  setSelectedPriority(value as TicketPriority)
-                }
+                disabled={updateTicketMutation.isPending}
+                onChange={handlePriorityChange}
               />
               <Dropdown
                 label="Assignee"
-                options={[
-                  { label: 'Admin User', value: 'Admin User' },
-                  { label: 'Jane Smith', value: 'Jane Smith' },
-                  { label: 'Bob Lee', value: 'Bob Lee' },
-                  { label: 'Sara Ngo', value: 'Sara Ngo' },
-                ]}
-                value={selectedAssignee}
-                onChange={setSelectedAssignee}
+                options={assigneeOptions}
+                value={selectedAssigneeId}
+                disabled={updateTicketMutation.isPending}
+                onChange={handleAssigneeChange}
               />
             </div>
           </section>
@@ -133,11 +278,14 @@ export default function TicketDetailPage() {
             <div className="space-y-3 sm:p-4 p-3">
               {ticket.attachments.length ? (
                 ticket.attachments.map((attachment) => (
-                  <div
+                  <a
                     key={attachment.id}
+                    href={getAttachmentUrl(attachment.storageKey)}
+                    target="_blank"
+                    rel="noreferrer"
                     className="flex items-center gap-3 rounded-xl border border-gray-200 p-3"
                   >
-                    <FileBadgeIcon />
+                    <FileBadgeIcon extension={attachment.extension} />
                     <div>
                       <p className="text-sm font-semibold text-gray-800">
                         {attachment.name}
@@ -146,7 +294,7 @@ export default function TicketDetailPage() {
                         {attachment.sizeLabel}
                       </p>
                     </div>
-                  </div>
+                  </a>
                 ))
               ) : (
                 <p className="text-sm text-gray-500">No attachments added.</p>
@@ -161,7 +309,9 @@ export default function TicketDetailPage() {
               </h3>
               <button
                 type="button"
-                className="text-sm font-semibold text-red-500"
+                onClick={handleClearDueDate}
+                disabled={updateTicketMutation.isPending}
+                className="text-sm font-semibold text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Clear
               </button>
@@ -190,6 +340,325 @@ export default function TicketDetailPage() {
       </div>
     </div>
   );
+}
+
+async function fetchTicketDetail(projectId: string, ticketId: string) {
+  const response = await fetch(`/api/projects/${projectId}/tickets/${ticketId}`, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiTicketDetail
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !isApiTicketDetail(payload)) {
+    const message =
+      payload && typeof payload === 'object' && 'message' in payload
+        ? payload.message || 'Failed to fetch ticket details.'
+        : 'Failed to fetch ticket details.';
+    throw new Error(message);
+  }
+
+  return mapApiTicketDetailToRecord(payload);
+}
+
+async function fetchProjectMembers(projectId: string) {
+  const response = await fetch(`/api/projects/${projectId}/members`, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiProjectMember[]
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !Array.isArray(payload)) {
+    throw new Error(
+      !Array.isArray(payload)
+        ? payload?.message || 'Failed to fetch members.'
+        : 'Failed to fetch members.',
+    );
+  }
+
+  return payload;
+}
+
+async function fetchTicketStatuses() {
+  const response = await fetch('/api/ticket-statuses', {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiTicketStatus[]
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !Array.isArray(payload)) {
+    throw new Error(
+      !Array.isArray(payload)
+        ? payload?.message || 'Failed to fetch ticket statuses.'
+        : 'Failed to fetch ticket statuses.',
+    );
+  }
+
+  return payload;
+}
+
+async function fetchTicketReplies(ticketId: string) {
+  const response = await fetch(`/api/tickets/${ticketId}/replies`, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiTicketReply[]
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !Array.isArray(payload)) {
+    throw new Error(
+      !Array.isArray(payload)
+        ? payload?.message || 'Failed to fetch ticket replies.'
+        : 'Failed to fetch ticket replies.',
+    );
+  }
+
+  return payload.map(mapApiTicketReplyToDiscussionReply);
+}
+
+type ApiProjectMember = {
+  id: string;
+  fullName: string;
+};
+
+type ApiTicketStatus = {
+  id: string;
+  key: string;
+  label: string;
+  color: string;
+};
+
+type ApiTicketReply = {
+  id: string;
+  createdAt?: string;
+  updatedAt?: string;
+  authorId?: string | null;
+  createdBy?: string | null;
+  message?: string;
+};
+
+type ApiTicketAttachment = {
+  id: string;
+  originalName: string;
+  storageKey: string;
+  sizeBytes: string;
+  extension: string;
+};
+
+type ApiTicketDetail = {
+  id: string;
+  createdAt: string;
+  projectId: string;
+  title: string;
+  description: string;
+  statusKey: string | null;
+  priorityKey: string | null;
+  reporterId: string | null;
+  assigneeId: string | null;
+  dueDate: string | null;
+  attachments: ApiTicketAttachment[];
+};
+
+type UpdateTicketRequest = {
+  title: string;
+  description: string;
+  priorityKey: string;
+  assigneeId: string;
+  dueDate: string;
+};
+
+function isApiTicketDetail(value: unknown): value is ApiTicketDetail {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      'id' in value &&
+      'title' in value &&
+      'description' in value,
+  );
+}
+
+function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
+  return {
+    id: ticket.id,
+    title: ticket.title,
+    project: {
+      initials: 'PR',
+      name: 'Project',
+    },
+    status: mapTicketStatus(ticket.statusKey),
+    priority: mapTicketPriority(ticket.priorityKey),
+    assignee: {
+      name: ticket.assigneeId ? `User ${ticket.assigneeId.slice(-4)}` : 'Unassigned',
+      initials: ticket.assigneeId
+        ? ticket.assigneeId.slice(-2).toUpperCase()
+        : 'NA',
+    },
+    date: formatTicketDate(ticket.createdAt),
+    description: ticket.description,
+    dueDate: formatTicketDate(ticket.dueDate ?? ticket.createdAt),
+    dueDateValue: ticket.dueDate ?? '',
+    assigneeId: ticket.assigneeId ?? '',
+    attachments: ticket.attachments.map((attachment) => ({
+      id: attachment.id,
+      name: attachment.originalName,
+      sizeLabel: formatBytes(attachment.sizeBytes),
+      extension: attachment.extension,
+      storageKey: attachment.storageKey,
+    })),
+    reporter: {
+      role: 'Reporter',
+      name: ticket.reporterId ? `User ${ticket.reporterId.slice(-4)}` : 'Reporter',
+      initials: ticket.reporterId
+        ? ticket.reporterId.slice(-2).toUpperCase()
+        : 'RP',
+    },
+    assigneeDetail: {
+      role: 'Assignee',
+      name: ticket.assigneeId ? `User ${ticket.assigneeId.slice(-4)}` : 'Unassigned',
+      initials: ticket.assigneeId
+        ? ticket.assigneeId.slice(-2).toUpperCase()
+        : 'NA',
+    },
+    replies: [],
+  };
+}
+
+function mapApiTicketReplyToDiscussionReply(reply: ApiTicketReply) {
+  const authorId = reply.authorId ?? reply.createdBy ?? '';
+
+  return {
+    id: reply.id,
+    author: {
+      name: authorId ? `User ${authorId.slice(-4)}` : 'User',
+      initials: authorId ? authorId.slice(-2).toUpperCase() : 'US',
+    },
+    createdAt: formatReplyDate(reply.createdAt ?? reply.updatedAt ?? ''),
+    message: reply.message?.trim() || '',
+  };
+}
+
+function mapTicketStatus(value: string | null) {
+  const normalizedValue = value?.trim().toLowerCase();
+
+  if (normalizedValue === 'closed') {
+    return 'Closed';
+  }
+
+  if (normalizedValue === 'resolved') {
+    return 'Resolved';
+  }
+
+  if (normalizedValue === 'in progress' || normalizedValue === 'inprogress') {
+    return 'In Progress';
+  }
+
+  return 'Open';
+}
+
+function mapTicketPriority(value: string | null): TicketPriority {
+  const normalizedValue = value?.trim().toLowerCase();
+
+  if (normalizedValue === 'critical') {
+    return 'Critical';
+  }
+
+  if (normalizedValue === 'high') {
+    return 'High';
+  }
+
+  if (normalizedValue === 'medium') {
+    return 'Medium';
+  }
+
+  return 'Low';
+}
+
+function formatTicketDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date);
+}
+
+function formatReplyDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date);
+}
+
+function formatBytes(sizeBytes: string) {
+  const bytes = Number(sizeBytes);
+
+  if (Number.isNaN(bytes) || bytes <= 0) {
+    return sizeBytes;
+  }
+
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getAttachmentUrl(storageKey?: string) {
+  if (!storageKey) {
+    return '#';
+  }
+
+  const cloudfrontUrl = process.env.NEXT_PUBLIC_CLOUDFRONT_URL?.trim() ?? '';
+  const normalizedBaseUrl = cloudfrontUrl.replace(/\/+$/, '');
+  const normalizedStorageKey = storageKey.replace(/^\/+/, '');
+
+  return normalizedBaseUrl
+    ? `${normalizedBaseUrl}/${normalizedStorageKey}`
+    : '#';
 }
 
 function MetaItem({ label, value }: { label: string; value: string }) {
@@ -275,10 +744,10 @@ function CalendarIcon() {
   );
 }
 
-function FileBadgeIcon() {
+function FileBadgeIcon({ extension }: { extension?: string }) {
   return (
     <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-violet-50 text-[10px] font-bold text-violet-600">
-      PDF
+      {(extension ?? 'file').slice(0, 3).toUpperCase()}
     </span>
   );
 }

@@ -50,7 +50,9 @@ export default function UserCard({ user, onEdit, onDelete }: UserCardProps) {
           <h2 className="truncate text-sm md:text-base font-semibold text-gray-900">
             {user.name}
           </h2>
-          <p className="truncate text-xs text-gray-600">{user.email}</p>
+          {user.email ? (
+            <p className="truncate text-xs text-gray-600">{user.email}</p>
+          ) : null}
         </div>
       </div>
 

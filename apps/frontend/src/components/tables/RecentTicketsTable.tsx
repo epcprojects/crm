@@ -2,6 +2,7 @@
 
 import {
   flexRender,
+  functionalUpdate,
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
@@ -12,7 +13,7 @@ import { useState } from 'react';
 import ThemeButton from '../ui/ThemeButton';
 import { ArrowUpRightIcon } from '../../../public/icons';
 
-export type TicketStatus = 'Open' | 'In Progress' | 'Resolved';
+export type TicketStatus = 'Open' | 'In Progress' | 'Resolved' | 'Closed';
 export type TicketPriority = 'High' | 'Medium' | 'Low' | 'Critical';
 
 export type RecentTicket = {
@@ -23,6 +24,7 @@ export type RecentTicket = {
     name: string;
   };
   status: TicketStatus;
+  statusColor?: string;
   priority: TicketPriority;
   assignee: {
     name: string;
@@ -35,6 +37,7 @@ const statusStyles: Record<TicketStatus, string> = {
   Open: 'border-red-200 bg-red-50 text-red-500',
   'In Progress': 'border-warning-200 bg-warning-50 text-warning-500',
   Resolved: 'border-green-200 bg-green-50 text-green-600',
+  Closed: 'border-sky-200 bg-sky-50 text-sky-600',
 };
 
 const priorityStyles: Record<TicketPriority, string> = {
@@ -78,13 +81,7 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
   {
     accessorKey: 'status',
     header: 'Status',
-    cell: ({ row }) => (
-      <span
-        className={`inline-flex rounded-full border px-2  whitespace-nowrap py-1 text-xs font-semibold ${statusStyles[row.original.status]}`}
-      >
-        {row.original.status}
-      </span>
-    ),
+    cell: ({ row }) => renderStatusBadge(row.original),
   },
   {
     accessorKey: 'priority',
@@ -129,6 +126,10 @@ type RecentTicketsTableProps = {
   pageSizeOptions?: number[];
   onRowClick?: (ticket: RecentTicket) => void;
   hideProjectColumn?: boolean;
+  pagination?: PaginationState;
+  totalRows?: number;
+  manualPagination?: boolean;
+  onPaginationChange?: (pagination: PaginationState) => void;
 };
 
 export default function RecentTicketsTable({
@@ -139,6 +140,10 @@ export default function RecentTicketsTable({
   pageSizeOptions = [12, 24, 48],
   onRowClick,
   hideProjectColumn = false,
+  pagination: controlledPagination,
+  totalRows: controlledTotalRows,
+  manualPagination = false,
+  onPaginationChange,
 }: RecentTicketsTableProps) {
   const columns = hideProjectColumn
     ? baseColumns.filter((_, index) => index !== 2)
@@ -148,29 +153,56 @@ export default function RecentTicketsTable({
     pageIndex: 0,
     pageSize: initialPageSize,
   });
+  const activePagination = controlledPagination ?? pagination;
+  const totalRows = controlledTotalRows ?? tickets.length;
+  const pageCount = Math.max(
+    1,
+    Math.ceil(totalRows / Math.max(activePagination.pageSize, 1)),
+  );
+
+  const handlePaginationChange = (
+    updater: PaginationState | ((old: PaginationState) => PaginationState),
+  ) => {
+    const nextPagination = functionalUpdate(updater, activePagination);
+
+    onPaginationChange?.(nextPagination);
+
+    if (!controlledPagination) {
+      setPagination(nextPagination);
+    }
+  };
 
   const table = useReactTable({
     data: tickets,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    ...(enablePagination
+    ...(enablePagination && !manualPagination
       ? { getPaginationRowModel: getPaginationRowModel() }
       : {}),
     ...(enablePagination
       ? {
-          state: { pagination },
-          onPaginationChange: setPagination,
+          state: { pagination: activePagination },
+          onPaginationChange: handlePaginationChange,
+          ...(manualPagination ? { manualPagination: true, pageCount } : {}),
         }
       : {}),
   });
 
-  const totalRows = tickets.length;
-  const currentPage = pagination.pageIndex + 1;
-  const totalPages = enablePagination ? table.getPageCount() : 1;
+  const currentPage = activePagination.pageIndex + 1;
+  const totalPages = enablePagination
+    ? manualPagination
+      ? pageCount
+      : table.getPageCount()
+    : 1;
   const startRow =
-    totalRows === 0 ? 0 : pagination.pageIndex * pagination.pageSize + 1;
+    totalRows === 0
+      ? 0
+      : activePagination.pageIndex * activePagination.pageSize + 1;
   const endRow = enablePagination
-    ? Math.min((pagination.pageIndex + 1) * pagination.pageSize, totalRows)
+    ? Math.min(
+        (activePagination.pageIndex + 1) * activePagination.pageSize,
+        totalRows,
+      )
     : totalRows;
   const visiblePages = getVisiblePageNumbers(currentPage, totalPages);
 
@@ -254,7 +286,7 @@ export default function RecentTicketsTable({
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <span className="sm:inline-block hidden">Showing per page</span>
             <select
-              value={pagination.pageSize}
+              value={activePagination.pageSize}
               onChange={(event) =>
                 table.setPageSize(Number(event.target.value))
               }
@@ -362,11 +394,7 @@ function TicketMobileCard({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <span
-            className={`inline-flex rounded-full border px-2 py-1 text-xs font-semibold ${statusStyles[ticket.status]}`}
-          >
-            {ticket.status}
-          </span>
+          {renderStatusBadge(ticket)}
           <span className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2 py-1 text-sm font-semibold text-gray-700 shadow-xs">
             <span
               className={`h-2 w-2 rounded-full ${priorityStyles[ticket.priority]}`}
@@ -395,6 +423,55 @@ function TicketMobileCard({
       </div>
     </button>
   );
+}
+
+function renderStatusBadge(ticket: RecentTicket) {
+  const style = ticket.statusColor
+    ? getStatusBadgeStyle(ticket.statusColor)
+    : undefined;
+
+  return (
+    <span
+      className={`inline-flex rounded-full border px-2 whitespace-nowrap py-1 text-xs font-semibold ${
+        ticket.statusColor ? '' : statusStyles[ticket.status]
+      }`}
+      style={style}
+    >
+      {ticket.status}
+    </span>
+  );
+}
+
+function getStatusBadgeStyle(color: string) {
+  const normalizedColor = color.trim();
+
+  return {
+    color: normalizedColor,
+    borderColor: withAlpha(normalizedColor, 0.28),
+    backgroundColor: withAlpha(normalizedColor, 0.12),
+  };
+}
+
+function withAlpha(color: string, alpha: number) {
+  const normalizedColor = color.trim();
+
+  if (/^#([0-9a-f]{6}|[0-9a-f]{3})$/i.test(normalizedColor)) {
+    const hex = normalizedColor.slice(1);
+    const expandedHex =
+      hex.length === 3
+        ? hex
+            .split('')
+            .map((part) => part + part)
+            .join('')
+        : hex;
+    const red = Number.parseInt(expandedHex.slice(0, 2), 16);
+    const green = Number.parseInt(expandedHex.slice(2, 4), 16);
+    const blue = Number.parseInt(expandedHex.slice(4, 6), 16);
+
+    return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+  }
+
+  return normalizedColor;
 }
 
 function getVisiblePageNumbers(currentPage: number, totalPages: number) {

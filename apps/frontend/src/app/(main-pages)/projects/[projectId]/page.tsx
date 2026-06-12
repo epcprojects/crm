@@ -1,6 +1,7 @@
 'use client';
 
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import clsx from 'clsx';
@@ -21,11 +22,16 @@ import RecentTicketsTable from '../../../../components/tables/RecentTicketsTable
 import { appToast } from '../../../../components/toast/AppToast';
 import { SearchIcon, PlusIcon } from '../../../../../public/icons';
 import ThemeButton from '../../../../components/ui/ThemeButton';
+import { createTicket } from '../../../../lib/tickets';
+import { getProjectFiles } from '../projects.data';
 import {
-  getProjectFiles,
-  getProjectTickets,
-} from '../projects.data';
-import { useProjectDetailQuery, useProjectsQuery } from '../projects.queries';
+  projectTicketsQueryKey,
+  projectThreadQueryKey,
+  useProjectDetailQuery,
+  useProjectTicketsQuery,
+  useProjectThreadQuery,
+  useProjectsQuery,
+} from '../projects.queries';
 
 const projectTabs = ['Tickets', 'Thread', 'Files', 'Calendar'] as const;
 
@@ -36,11 +42,73 @@ export default function ProjectDetailPage() {
   const [uploadFileOpen, setUploadFileOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [fileSearchValue, setFileSearchValue] = useState('');
+  const [ticketsPagination, setTicketsPagination] = useState({
+    pageIndex: 0,
+    pageSize: 12,
+  });
   const projectId = String(params?.projectId ?? '');
   const hasShownError = useRef(false);
+  const queryClient = useQueryClient();
   const projectDetailQuery = useProjectDetailQuery(projectId);
+  const projectThreadQuery = useProjectThreadQuery(projectId);
+  const projectTicketsQuery = useProjectTicketsQuery(
+    projectId,
+    ticketsPagination.pageIndex + 1,
+    ticketsPagination.pageSize,
+  );
   const projectsQuery = useProjectsQuery();
+  const ticketStatusesQuery = useQuery({
+    queryKey: ['ticket-statuses'],
+    queryFn: fetchTicketStatuses,
+  });
   const project = projectDetailQuery.data;
+
+  const createProjectThreadMutation = useMutation({
+    mutationFn: async ({
+      message,
+      attachment,
+    }: {
+      message: string;
+      attachment: File | null;
+    }) => {
+      const formData = new FormData();
+      formData.append('message', message);
+
+      if (attachment) {
+        formData.append('attachments', attachment);
+      }
+
+      const response = await fetch(`/api/projects/${projectId}/thread`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message =
+          Array.isArray(data?.message) && data.message.length
+            ? data.message.join(', ')
+            : data?.message || 'Failed to post project thread message.';
+        throw new Error(message);
+      }
+
+      return data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: [...projectThreadQueryKey, projectId],
+      });
+      appToast.success('Reply posted successfully.');
+    },
+    onError: (error) => {
+      appToast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to post project thread message.',
+      );
+    },
+  });
 
   const projectOptions = useMemo(
     () => createTicketProjectOptions(projectsQuery.data ?? []),
@@ -58,6 +126,13 @@ export default function ProjectDetailPage() {
   }, [project]);
 
   useEffect(() => {
+    setTicketsPagination((current) => ({
+      ...current,
+      pageIndex: 0,
+    }));
+  }, [projectId]);
+
+  useEffect(() => {
     if (projectDetailQuery.isError && !hasShownError.current) {
       hasShownError.current = true;
       appToast.error(
@@ -73,17 +148,22 @@ export default function ProjectDetailPage() {
   }, [projectDetailQuery.error, projectDetailQuery.isError]);
 
   const projectTickets = useMemo(() => {
-    if (!project) return [];
     const normalizedSearch = searchValue.trim().toLowerCase();
-    return getProjectTickets(project.name).filter((ticket) => {
+    const tickets = (projectTicketsQuery.data?.items ?? []).map((ticket) => ({
+      ...ticket,
+      statusColor: getTicketStatusColor(ticket.status, ticketStatusesQuery.data),
+    }));
+
+    return tickets.filter((ticket) => {
       if (!normalizedSearch) return true;
+
       return (
         ticket.id.toLowerCase().includes(normalizedSearch) ||
         ticket.title.toLowerCase().includes(normalizedSearch) ||
         ticket.assignee.name.toLowerCase().includes(normalizedSearch)
       );
     });
-  }, [project, searchValue]);
+  }, [projectTicketsQuery.data?.items, searchValue]);
 
   const projectFiles = useMemo(() => {
     const normalizedSearch = fileSearchValue.trim().toLowerCase();
@@ -100,8 +180,26 @@ export default function ProjectDetailPage() {
   }, [fileSearchValue, projectFilesState]);
 
   const handleCreateTicket = async (values: CreateTicketFormValues) => {
-    console.log('Create project ticket payload', values);
-    appToast.success('Ticket created successfully.');
+    try {
+      await createTicket({
+        projectId: values.project,
+        title: values.title,
+        description: values.description,
+        statusKey: values.status,
+        assigneeId: values.assignee,
+        dueDate: values.dueDate,
+        attachments: values.attachments,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: [...projectTicketsQueryKey, projectId],
+      });
+      appToast.success('Ticket created successfully.');
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to create ticket.',
+      );
+      throw error;
+    }
   };
 
   const handleUploadFile = async (values: UploadFileFormValues) => {
@@ -117,6 +215,16 @@ export default function ProjectDetailPage() {
       ...currentFiles,
     ]);
     appToast.success('File uploaded successfully.');
+  };
+
+  const handleSubmitReply = async ({
+    message,
+    attachment,
+  }: {
+    message: string;
+    attachment: File | null;
+  }) => {
+    await createProjectThreadMutation.mutateAsync({ message, attachment });
   };
 
   if (projectDetailQuery.isLoading) {
@@ -177,11 +285,17 @@ export default function ProjectDetailPage() {
               <div className="mt-1.5 sm:mt-2.5 flex-wrap flex items-center gap-4 sm:gap-8">
                 <Metric
                   label="Tickets"
-                  value={String(projectTickets.length).padStart(2, '0')}
+                  value={String(projectTicketsQuery.data?.meta.total ?? 0).padStart(
+                    2,
+                    '0',
+                  )}
                 />
                 <Metric
                   label="Thread posts"
-                  value={String(project.threadPosts).padStart(2, '0')}
+                  value={String(projectThreadQuery.data?.length ?? 0).padStart(
+                    2,
+                    '0',
+                  )}
                 />
                 <Metric
                   label="Files"
@@ -238,9 +352,14 @@ export default function ProjectDetailPage() {
             <RecentTicketsTable
               tickets={projectTickets}
               enablePagination
-              initialPageSize={12}
               pageSizeOptions={[12, 24, 48]}
-              onRowClick={(ticket) => router.push(`/tickets/${ticket.id}`)}
+              pagination={ticketsPagination}
+              onPaginationChange={setTicketsPagination}
+              totalRows={projectTicketsQuery.data?.meta.total ?? 0}
+              manualPagination
+              onRowClick={(ticket) =>
+                router.push(`/tickets/${ticket.id}?projectId=${projectId}`)
+              }
               hideProjectColumn
             />
           </TabPanel>
@@ -248,16 +367,20 @@ export default function ProjectDetailPage() {
           <TabPanel className={'flex flex-col flex-1 '}>
             <DiscussionPanel
               title="Discussion"
-              replies={[
-                {
-                  id: 'project-thread-1',
-                  author: { name: 'Admin User', initials: 'AU' },
-                  createdAt: 'Feb 10, 2026 - 4:39 PM',
-                  message:
-                    'Investigating now — looks like an env variable issue.',
-                },
-              ]}
+              replies={projectThreadQuery.data ?? []}
+              emptyTitle={
+                projectThreadQuery.isLoading
+                  ? 'Loading discussion...'
+                  : 'No replies yet.'
+              }
+              emptyDescription={
+                projectThreadQuery.isLoading
+                  ? 'Fetching project discussion messages.'
+                  : 'No discussion messages have been added to this project yet.'
+              }
               composerPlaceholder="Post the project thread..."
+              onSubmitReply={handleSubmitReply}
+              isSubmittingReply={createProjectThreadMutation.isPending}
             />
           </TabPanel>
 
@@ -283,11 +406,11 @@ export default function ProjectDetailPage() {
         isOpen={createTicketOpen}
         onClose={() => setCreateTicketOpen(false)}
         onConfirm={handleCreateTicket}
-        projectOptions={projectOptions.filter(
-          (option) => option.value === project.id,
-        )}
+        projectOptions={projectOptions}
         assigneeOptions={createTicketAssigneeOptions}
         priorityOptions={createTicketPriorityOptions}
+        preselectedProjectId={project.id}
+        disableProjectSelection
       />
 
       <UploadFileModal
@@ -297,6 +420,56 @@ export default function ProjectDetailPage() {
       />
     </div>
   );
+}
+
+type ApiTicketStatus = {
+  id: string;
+  key: string;
+  label: string;
+  color: string;
+};
+
+async function fetchTicketStatuses() {
+  const response = await fetch('/api/ticket-statuses', {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiTicketStatus[]
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !Array.isArray(payload)) {
+    throw new Error(
+      !Array.isArray(payload)
+        ? payload?.message || 'Failed to fetch ticket statuses.'
+        : 'Failed to fetch ticket statuses.',
+    );
+  }
+
+  return payload;
+}
+
+function getTicketStatusColor(
+  status: string,
+  statuses?: ApiTicketStatus[],
+) {
+  const normalizedStatus = normalizeStatusValue(status);
+
+  return statuses?.find((item) => {
+    return (
+      normalizeStatusValue(item.label) === normalizedStatus ||
+      normalizeStatusValue(item.key) === normalizedStatus
+    );
+  })?.color;
+}
+
+function normalizeStatusValue(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, '');
 }
 
 function Metric({ label, value }: { label: string; value: string }) {

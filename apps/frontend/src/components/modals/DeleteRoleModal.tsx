@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import AppModal from './AppModal';
 import ThemeButton from '../ui/ThemeButton';
+import { useAppLoader } from '../../app/providers/AppLoaderProvider';
 
 type DeleteRoleModalProps = {
   isOpen: boolean;
@@ -16,6 +18,20 @@ export default function DeleteRoleModal({
   roleName,
   onConfirm,
 }: DeleteRoleModalProps) {
+  const { setLoading } = useAppLoader();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleConfirm = async () => {
+    try {
+      setIsSubmitting(true);
+      setLoading(true);
+      await onConfirm?.();
+    } finally {
+      setLoading(false);
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <AppModal
       isOpen={isOpen}
@@ -55,15 +71,17 @@ export default function DeleteRoleModal({
             variant="secondary"
             className="w-full border-gray-200"
             onClick={onClose}
+            disabled={isSubmitting}
           >
             Cancel
           </ThemeButton>
           <button
             type="button"
-            onClick={() => void onConfirm?.()}
+            onClick={() => void handleConfirm()}
+            disabled={isSubmitting}
             className="w-full rounded-lg bg-[#F04438] px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
           >
-            Yes, Delete
+            {isSubmitting ? 'Deleting...' : 'Yes, Delete'}
           </button>
         </div>
       </div>

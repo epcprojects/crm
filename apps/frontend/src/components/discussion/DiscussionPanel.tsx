@@ -1,6 +1,8 @@
 'use client';
 
-type DiscussionReply = {
+import { useRef, useState } from 'react';
+
+export type DiscussionReply = {
   id: string;
   author: {
     name: string;
@@ -17,6 +19,11 @@ type DiscussionPanelProps = {
   emptyTitle?: string;
   emptyDescription?: string;
   composerPlaceholder?: string;
+  onSubmitReply?: (payload: {
+    message: string;
+    attachment: File | null;
+  }) => Promise<void> | void;
+  isSubmittingReply?: boolean;
 };
 
 export default function DiscussionPanel({
@@ -26,7 +33,31 @@ export default function DiscussionPanel({
   emptyTitle = 'No replies yet.',
   emptyDescription = 'No responses have been added to this ticket yet.',
   composerPlaceholder = 'Write a reply...',
+  onSubmitReply,
+  isSubmittingReply = false,
 }: DiscussionPanelProps) {
+  const [message, setMessage] = useState('');
+  const [attachment, setAttachment] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleSubmit = async () => {
+    const trimmedMessage = message.trim();
+
+    if (!trimmedMessage || isSubmittingReply || !onSubmitReply) {
+      return;
+    }
+
+    await onSubmitReply({
+      message: trimmedMessage,
+      attachment,
+    });
+    setMessage('');
+    setAttachment(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <section className="rounded-xl sm:rounded-2xl border flex-1 bg-white flex flex-col border-gray-200 ">
       <div className="flex items-center justify-between border-b border-gray-200 px-3 py-2 sm:py-3 md:px-5">
@@ -75,23 +106,58 @@ export default function DiscussionPanel({
         <div className="rounded-sm bg-gray-100 px-3 py-2">
           <textarea
             rows={3}
+            value={message}
+            onChange={(event) => setMessage(event.target.value)}
             placeholder={composerPlaceholder}
+            disabled={isSubmittingReply}
             className="w-full resize-none bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
           />
         </div>
 
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          onChange={(event) =>
+            setAttachment(event.target.files?.[0] ?? null)
+          }
+        />
+
+        {attachment ? (
+          <div className="mt-2 flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2">
+            <p className="truncate text-sm text-gray-700">{attachment.name}</p>
+            <button
+              type="button"
+              onClick={() => {
+                setAttachment(null);
+                if (fileInputRef.current) {
+                  fileInputRef.current.value = '';
+                }
+              }}
+              disabled={isSubmittingReply}
+              className="text-xs font-medium text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Remove
+            </button>
+          </div>
+        ) : null}
+
         <div className="mt-3 flex items-center justify-end gap-3">
           <button
             type="button"
-            className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isSubmittingReply}
+            className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <PaperclipIcon />
           </button>
           <button
             type="button"
-            className="rounded-lg bg-[#10175A] px-5 py-2.5 sm:py-3 text-sm font-semibold text-white"
+            onClick={handleSubmit}
+            disabled={!message.trim() || isSubmittingReply}
+            className="rounded-lg bg-[#10175A] px-5 py-2.5 sm:py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Reply
+            {isSubmittingReply ? 'Posting...' : 'Reply'}
           </button>
         </div>
       </div>

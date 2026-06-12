@@ -14,15 +14,11 @@ import { TrashIcon } from '../../../public/icons';
 export type RoleRecord = {
   id: string;
   name: string;
-  type: 'Internal' | 'External';
-  usersCount: number;
-  projectsCount: number;
+  normalizedName: string;
+  description: string;
+  roleClaims: unknown[];
+  createdAt: string;
   updatedAt: string;
-};
-
-const typeStyles: Record<RoleRecord['type'], string> = {
-  Internal: 'border-[#B2DDFF] bg-[#F0F9FF] text-[#0BA5EC]',
-  External: 'border-[#99F6E4] bg-[#ECFDF3] text-[#14B8A6]',
 };
 
 type RolesTableProps = {
@@ -43,77 +39,69 @@ function getColumns({
       header: '#',
       cell: ({ row }) => (
         <span className="text-sm font-semibold text-gray-900">
-          {row.original.id}
+          {row.original.id.slice(-5)}
         </span>
       ),
     },
     {
-      accessorKey: 'name',
-      header: 'Role',
-      cell: ({ row }) => (
-        <span className="text-sm font-medium text-gray-900">
-          {row.original.name}
-        </span>
-      ),
-    },
-    {
-      accessorKey: 'type',
-      header: 'Type',
-      cell: ({ row }) => (
-        <span
-          className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${typeStyles[row.original.type]}`}
-        >
-          {row.original.type}
-        </span>
-      ),
-    },
-    {
-      accessorKey: 'usersCount',
-      header: 'Users',
-      cell: ({ row }) => (
-        <span className="text-sm text-gray-800">{row.original.usersCount}</span>
-      ),
-    },
-    {
-      accessorKey: 'projectsCount',
-      header: 'Projects',
+      accessorKey: 'normalizedName',
+      header: 'Normalized Name',
       cell: ({ row }) => (
         <span className="text-sm text-gray-800">
-          {row.original.projectsCount}
+          {row.original.normalizedName}
         </span>
       ),
     },
     {
-      accessorKey: 'updatedAt',
-      header: 'Updated',
+      accessorKey: 'description',
+      header: 'Description',
       cell: ({ row }) => (
-        <span className="text-sm text-gray-800">{row.original.updatedAt}</span>
+        <span className="text-sm text-gray-800">{row.original.description}</span>
+      ),
+    },
+    {
+      accessorKey: 'roleClaims',
+      header: 'Role Claims',
+      cell: ({ row }) => (
+        <span className="text-sm text-gray-800">
+          {row.original.roleClaims.length}
+        </span>
       ),
     },
     {
       id: 'actions',
       header: 'Actions',
-      cell: ({ row }) => (
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => onEdit?.(row.original)}
-            className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-gray-200 text-primary-dark transition hover:bg-gray-50"
-            aria-label={`Edit ${row.original.name}`}
-          >
-            <EditIcon />
-          </button>
+      cell: ({ row }) => {
+        const isProtectedRole = ['SUPER_ADMIN', 'ADMIN'].includes(
+          row.original.normalizedName,
+        );
 
-          <button
-            type="button"
-            onClick={() => onDelete?.(row.original)}
-            className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-red-500 text-red-500 transition hover:bg-red-50"
-            aria-label={`Delete ${row.original.name}`}
-          >
-            <TrashIcon />
-          </button>
-        </div>
-      ),
+        if (isProtectedRole) {
+          return <span className="text-sm text-gray-400">—</span>;
+        }
+
+        return (
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => onEdit?.(row.original)}
+              className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-gray-200 text-primary-dark transition hover:bg-gray-50"
+              aria-label={`Edit ${row.original.name}`}
+            >
+              <EditIcon />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onDelete?.(row.original)}
+              className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-red-500 text-red-500 transition hover:bg-red-50"
+              aria-label={`Delete ${row.original.name}`}
+            >
+              <TrashIcon />
+            </button>
+          </div>
+        );
+      },
     },
   ];
 }
@@ -154,7 +142,7 @@ export default function RolesTable({
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-left">
+        <table className="w-full min-w-[860px] text-left">
           <thead className="bg-gray-50">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>

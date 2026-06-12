@@ -18,7 +18,8 @@ import RecentTicketsTable, {
 import { appToast } from '../../../components/toast/AppToast';
 import Dropdown from '../../../components/ui/ThemeDropDown';
 import { SearchIcon } from '../../../../public/icons';
-import { baseProjects } from '../projects/projects.data';
+import { createTicket } from '../../../lib/tickets';
+import { useProjectsQuery } from '../projects/projects.queries';
 // import { ticketsData } from './tickets.data';
 
 const ticketsData: any[] = [];
@@ -94,15 +95,31 @@ export default function Page() {
   const [searchValue, setSearchValue] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedPriority, setSelectedPriority] = useState('all');
+  const projectsQuery = useProjectsQuery();
 
   const projectOptions = useMemo(
-    () => createTicketProjectOptions(baseProjects),
-    [],
+    () => createTicketProjectOptions(projectsQuery.data ?? []),
+    [projectsQuery.data],
   );
 
   const handleCreateTicket = async (values: CreateTicketFormValues) => {
-    console.log('Create ticket payload', values);
-    appToast.success('Ticket created successfully.');
+    try {
+      await createTicket({
+        projectId: values.project,
+        title: values.title,
+        description: values.description,
+        statusKey: values.status,
+        assigneeId: values.assignee,
+        dueDate: values.dueDate,
+        attachments: values.attachments,
+      });
+      appToast.success('Ticket created successfully.');
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to create ticket.',
+      );
+      throw error;
+    }
   };
 
   useEffect(() => {

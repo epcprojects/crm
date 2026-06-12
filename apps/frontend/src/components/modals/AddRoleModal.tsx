@@ -5,12 +5,11 @@ import { useFormik } from 'formik';
 import * as yup from 'yup';
 import AppModal from './AppModal';
 import ThemeInput from '../ui/ThemeInput';
-
-export type AddRoleType = 'Internal' | 'External';
+import { useAppLoader } from '../../app/providers/AppLoaderProvider';
 
 export type AddRoleFormValues = {
   name: string;
-  type: AddRoleType;
+  description: string;
 };
 
 type AddRoleModalProps = {
@@ -23,10 +22,7 @@ type AddRoleModalProps = {
 
 const addRoleSchema = yup.object({
   name: yup.string().required('Role name is required'),
-  type: yup
-    .mixed<AddRoleType>()
-    .oneOf(['Internal', 'External'])
-    .required('Role type is required'),
+  description: yup.string().required('Description is required'),
 });
 
 export default function AddRoleModal({
@@ -36,17 +32,24 @@ export default function AddRoleModal({
   mode = 'create',
   initialValues,
 }: AddRoleModalProps) {
+  const { setLoading } = useAppLoader();
+
   const formik = useFormik<AddRoleFormValues>({
     initialValues: initialValues ?? {
       name: '',
-      type: 'Internal',
+      description: '',
     },
     enableReinitialize: true,
     validationSchema: addRoleSchema,
     onSubmit: async (values, { resetForm }) => {
-      await onConfirm?.(values);
-      resetForm();
-      onClose();
+      try {
+        setLoading(true);
+        await onConfirm?.(values);
+        resetForm();
+        onClose();
+      } finally {
+        setLoading(false);
+      }
     },
   });
 
@@ -62,7 +65,15 @@ export default function AddRoleModal({
       onClose={onClose}
       title={mode === 'edit' ? 'Edit Role' : 'Add Role'}
       showFooter
-      confirmLabel={mode === 'edit' ? 'Save Changes' : 'Create Role'}
+      confirmLabel={
+        formik.isSubmitting
+          ? mode === 'edit'
+            ? 'Saving...'
+            : 'Creating...'
+          : mode === 'edit'
+            ? 'Save Changes'
+            : 'Create Role'
+      }
       cancelLabel="Cancel"
       onCancel={onClose}
       onConfirm={() => formik.submitForm()}
@@ -83,55 +94,31 @@ export default function AddRoleModal({
           placeholder="Enter role name"
         />
 
-        <div className="space-y-2">
-          <label className="block text-sm font-normal text-gray-800 md:text-base">
-            Role Type
+        <div>
+          <label className="mb-1.5 block text-sm font-normal text-gray-800 md:text-base">
+            Description <span className="text-red-500">*</span>
           </label>
-
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <RoleTypeCard
-              title="Internal"
-              description="For admins, PMs, and developers"
-              isSelected={formik.values.type === 'Internal'}
-              onClick={() => formik.setFieldValue('type', 'Internal')}
-            />
-
-            <RoleTypeCard
-              title="External"
-              description="For clients and limited-access users"
-              isSelected={formik.values.type === 'External'}
-              onClick={() => formik.setFieldValue('type', 'External')}
-            />
-          </div>
+          <textarea
+            name="description"
+            value={formik.values.description}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+            placeholder="Enter role description"
+            rows={4}
+            className={`w-full rounded-lg border bg-transparent px-3.5 py-2 text-sm font-medium text-gray-700 outline-none placeholder:text-gray-300 focus:border-gray-400 md:text-base ${
+              formik.touched.description && formik.errors.description
+                ? 'border-red-300 focus:border-red-400'
+                : 'border-gray-200'
+            }`}
+          />
+          {formik.touched.description && formik.errors.description ? (
+            <p className="mt-1 text-xs text-red-600">
+              {formik.errors.description}
+            </p>
+          ) : null}
         </div>
+
       </div>
     </AppModal>
-  );
-}
-
-function RoleTypeCard({
-  title,
-  description,
-  isSelected,
-  onClick,
-}: {
-  title: string;
-  description: string;
-  isSelected: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-lg border p-3 text-left transition ${
-        isSelected
-          ? 'border-primary bg-violet-50 shadow-[inset_0_0_0_1px_#7F56D9]'
-          : 'border-gray-200 bg-white hover:border-gray-300'
-      }`}
-    >
-      <p className="text-sm font-semibold text-gray-900">{title}</p>
-      <p className="mt-1 text-xs text-gray-700">{description}</p>
-    </button>
   );
 }

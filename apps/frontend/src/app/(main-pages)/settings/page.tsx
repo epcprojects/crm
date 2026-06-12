@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import SettingsItemModal, {
   type SettingsItemFormValues,
 } from '../../../components/modals/SettingsItemModal';
@@ -10,9 +11,99 @@ import SettingsConfigCard, {
 import { appToast } from '../../../components/toast/AppToast';
 import { useIsMobile } from '../../../components/hooks/useIsMobile';
 
+type ApiTicketStatus = {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  key: string;
+  label: string;
+  color: string;
+  sortOrder: number;
+};
+
 export default function Page() {
+  const queryClient = useQueryClient();
   const [statusItems, setStatusItems] = useState<SettingsConfigItem[]>([]);
   const [priorityItems, setPriorityItems] = useState<SettingsConfigItem[]>([]);
+  const ticketStatusesQuery = useQuery({
+    queryKey: ['ticket-statuses'],
+    queryFn: fetchTicketStatuses,
+  });
+  const createTicketStatusMutation = useMutation({
+    mutationFn: async ({
+      body,
+    }: {
+      body: Pick<ApiTicketStatus, 'key' | 'label' | 'color' | 'sortOrder'>;
+    }) => {
+      const response = await fetch('/api/ticket-statuses', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to create ticket status.');
+      }
+
+      return payload;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['ticket-statuses'] });
+    },
+  });
+  const deleteTicketStatusMutation = useMutation({
+    mutationFn: async (statusId: string) => {
+      const response = await fetch(`/api/ticket-statuses/${statusId}`, {
+        method: 'DELETE',
+        headers: {
+          Accept: 'application/json',
+        },
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to delete ticket status.');
+      }
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['ticket-statuses'] });
+    },
+  });
+  const updateTicketStatusMutation = useMutation({
+    mutationFn: async ({
+      statusId,
+      body,
+    }: {
+      statusId: string;
+      body: Pick<ApiTicketStatus, 'label' | 'color'>;
+    }) => {
+      const response = await fetch(`/api/ticket-statuses/${statusId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to update ticket status.');
+      }
+
+      return payload;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['ticket-statuses'] });
+    },
+  });
   const [statusModalMode, setStatusModalMode] = useState<'create' | 'edit'>(
     'create',
   );
@@ -23,39 +114,77 @@ export default function Page() {
   const [editingPriorityId, setEditingPriorityId] = useState<string | null>(
     null,
   );
+  const ticketStatusDetailQuery = useQuery({
+    queryKey: ['ticket-statuses', editingStatusId],
+    queryFn: () => fetchTicketStatusDetail(editingStatusId!),
+    enabled:
+      statusModalMode === 'edit' &&
+      Boolean(editingStatusId) &&
+      editingStatusId !== 'new-status',
+  });
 
   const editingStatus =
     statusItems.find((item) => item.id === editingStatusId) ?? null;
   const editingPriority =
     priorityItems.find((item) => item.id === editingPriorityId) ?? null;
 
+  useEffect(() => {
+    if (ticketStatusesQuery.data) {
+      setStatusItems(ticketStatusesQuery.data);
+    }
+  }, [ticketStatusesQuery.data]);
+
   const handleCreateStatus = async (values: SettingsItemFormValues) => {
-    setStatusItems((currentItems) => [
-      {
-        id: values.value,
+    const payload = await createTicketStatusMutation.mutateAsync({
+      body: {
+        key: values.value,
         label: values.label,
-        value: values.value,
-        countLabel: '0 tickets',
-        colorHex: values.colorHex,
+        color: values.colorHex,
+        sortOrder: statusItems.length,
       },
-      ...currentItems,
-    ]);
+    });
+
+    const createdStatus = mapTicketStatusToSettingsItem(
+      isApiTicketStatus(payload)
+        ? payload
+        : {
+            ...createFallbackTicketStatus(values.value),
+            key: values.value,
+            label: values.label,
+            color: values.colorHex,
+          },
+    );
+
+    setStatusItems((currentItems) => [createdStatus, ...currentItems]);
     appToast.success('Status created successfully.');
   };
 
   const handleEditStatus = async (values: SettingsItemFormValues) => {
     if (!editingStatusId) return;
 
+    const payload = await updateTicketStatusMutation.mutateAsync({
+      statusId: editingStatusId,
+      body: {
+        label: values.label,
+        color: values.colorHex,
+      },
+    });
+
+    const updatedStatus = mapTicketStatusToSettingsItem(
+      isApiTicketStatus(payload)
+        ? payload
+        : {
+            ...createFallbackTicketStatus(editingStatusId),
+            key: values.value,
+            label: values.label,
+            color: values.colorHex,
+          },
+    );
+
     setStatusItems((currentItems) =>
       currentItems.map((item) =>
         item.id === editingStatusId
-          ? {
-              ...item,
-              id: values.value,
-              label: values.label,
-              value: values.value,
-              colorHex: values.colorHex,
-            }
+          ? updatedStatus
           : item,
       ),
     );
@@ -116,9 +245,13 @@ export default function Page() {
             setStatusModalMode('edit');
             setEditingStatusId(item.id);
           }}
-          onDelete={(item) =>
-            appToast.info(`Delete ${item.label} flow comes next.`)
-          }
+          onDelete={async (item) => {
+            await deleteTicketStatusMutation.mutateAsync(item.id);
+            setStatusItems((currentItems) =>
+              currentItems.filter((statusItem) => statusItem.id !== item.id),
+            );
+            appToast.success('Status deleted successfully.');
+          }}
         />
 
         <SettingsConfigCard
@@ -142,11 +275,11 @@ export default function Page() {
       </div>
 
       <div className="flex items-start gap-3 rounded-xl border border-warning-200 bg-[#FFFAEB] px-4 py-3 text-[#69410A]">
-        <span className="hidden mt-1 sm:inline-block">
+        <span className="mt-1 hidden sm:inline-block">
           <TipIcon />
         </span>
         <p className="text-sm leading-6">
-          <span className="inline-block sm:hidden pe-2">
+          <span className="inline-block pe-2 sm:hidden">
             <TipIcon
               height={isMobile ? '16' : '20'}
               width={isMobile ? '16' : '20'}
@@ -164,18 +297,22 @@ export default function Page() {
         isOpen={
           statusModalMode === 'create'
             ? editingStatusId === 'new-status'
-            : Boolean(editingStatus)
+            : Boolean(editingStatusId)
         }
         onClose={() => setEditingStatusId(null)}
         kind="status"
         mode={statusModalMode}
         initialValues={
-          statusModalMode === 'edit' && editingStatus
-            ? {
-                label: editingStatus.label,
-                value: editingStatus.value,
-                colorHex: editingStatus.colorHex,
-              }
+          statusModalMode === 'edit'
+            ? ticketStatusDetailQuery.data
+              ? mapTicketStatusDetailToFormValues(ticketStatusDetailQuery.data)
+              : editingStatus
+                ? {
+                    label: editingStatus.label,
+                    value: editingStatus.value,
+                    colorHex: editingStatus.colorHex,
+                  }
+                : undefined
             : undefined
         }
         onConfirm={
@@ -209,6 +346,107 @@ export default function Page() {
       />
     </div>
   );
+}
+
+async function fetchTicketStatuses() {
+  const response = await fetch('/api/ticket-statuses', {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiTicketStatus[]
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !Array.isArray(payload)) {
+    throw new Error(
+      !Array.isArray(payload)
+        ? payload?.message
+        : 'Failed to fetch ticket statuses.',
+    );
+  }
+
+  return payload
+    .slice()
+    .sort((first, second) => first.sortOrder - second.sortOrder)
+    .map(mapTicketStatusToSettingsItem);
+}
+
+async function fetchTicketStatusDetail(statusId: string) {
+  const response = await fetch(`/api/ticket-statuses/${statusId}`, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiTicketStatus
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !isApiTicketStatus(payload)) {
+    throw new Error(
+      isErrorPayload(payload)
+        ? payload.message || 'Failed to fetch ticket status.'
+        : 'Failed to fetch ticket status.',
+    );
+  }
+
+  return payload;
+}
+
+function mapTicketStatusToSettingsItem(status: ApiTicketStatus): SettingsConfigItem {
+  return {
+    id: status.id,
+    label: status.label,
+    value: status.key,
+    countLabel: status.key,
+    colorHex: status.color,
+  };
+}
+
+function mapTicketStatusDetailToFormValues(
+  status: ApiTicketStatus,
+): SettingsItemFormValues {
+  return {
+    label: status.label,
+    value: status.key,
+    colorHex: status.color,
+  };
+}
+
+function isApiTicketStatus(value: unknown): value is ApiTicketStatus {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      'id' in value &&
+      'key' in value &&
+      'label' in value &&
+      'color' in value &&
+      'sortOrder' in value,
+  );
+}
+
+function isErrorPayload(value: unknown): value is { message?: string } {
+  return Boolean(value && typeof value === 'object' && 'message' in value);
+}
+
+function createFallbackTicketStatus(statusId: string): ApiTicketStatus {
+  return {
+    id: statusId,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    key: '',
+    label: '',
+    color: '#17B26A',
+    sortOrder: 0,
+  };
 }
 
 function TipIcon({ width = '20', height = '20' }) {

@@ -254,9 +254,22 @@ function PreviewBadge({
 }
 
 function slugifyLabel(label: string) {
-  return label
+  const parts = label
     .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .split(/[^a-zA-Z0-9]+/)
+    .filter(Boolean);
+
+  if (!parts.length) {
+    return '';
+  }
+
+  return parts
+    .map((part) => {
+      const normalizedPart = part.toLowerCase();
+
+      return (
+        normalizedPart.charAt(0).toUpperCase() + normalizedPart.slice(1)
+      );
+    })
+    .join('');
 }

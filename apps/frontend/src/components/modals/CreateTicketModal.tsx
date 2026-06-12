@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFormik } from 'formik';
+import { useQuery } from '@tanstack/react-query';
 import * as yup from 'yup';
 import AppModal from './AppModal';
 import ThemeInput from '../ui/ThemeInput';
@@ -13,22 +14,21 @@ export type CreateTicketFormValues = {
   project: string;
   title: string;
   description: string;
-  priority: string;
+  status: string;
   assignee: string;
   dueDate: string;
   attachments: File[];
 };
 
 const MAX_ATTACHMENT_SIZE_BYTES = 15 * 1024 * 1024;
-const ALLOWED_ATTACHMENT_TYPES = ['image/svg+xml', 'image/png', 'image/jpeg'];
 
 type CreateTicketModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onConfirm?: (values: CreateTicketFormValues) => Promise<void> | void;
   projectOptions: CreateTicketDropdownOption[];
-  assigneeOptions: CreateTicketDropdownOption[];
-  priorityOptions: CreateTicketDropdownOption[];
+  assigneeOptions?: CreateTicketDropdownOption[];
+  priorityOptions?: CreateTicketDropdownOption[];
   preselectedProjectId?: string;
   disableProjectSelection?: boolean;
 };
@@ -36,9 +36,9 @@ type CreateTicketModalProps = {
 const createTicketSchema = yup.object({
   project: yup.string().required('Project is required'),
   title: yup.string().required('Title is required'),
-  description: yup.string().required('Description is required'),
-  priority: yup.string().required('Priority is required'),
-  assignee: yup.string().required('Assignee is required'),
+  description: yup.string().optional(),
+  status: yup.string().required('Status is required'),
+  assignee: yup.string().optional(),
   dueDate: yup.string().optional(),
 });
 
@@ -47,8 +47,7 @@ export default function CreateTicketModal({
   onClose,
   onConfirm,
   projectOptions,
-  assigneeOptions,
-  priorityOptions,
+  assigneeOptions = [],
   preselectedProjectId,
   disableProjectSelection = false,
 }: CreateTicketModalProps) {
@@ -58,11 +57,11 @@ export default function CreateTicketModal({
 
   const formik = useFormik<CreateTicketFormValues>({
     initialValues: {
-      project: projectOptions[0]?.value ?? '',
+      project: preselectedProjectId ?? projectOptions[0]?.value ?? '',
       title: '',
       description: '',
-      priority: priorityOptions[1]?.value ?? priorityOptions[0]?.value ?? '',
-      assignee: assigneeOptions[0]?.value ?? '',
+      status: '',
+      assignee: '',
       dueDate: '',
       attachments: [],
     },
@@ -74,6 +73,43 @@ export default function CreateTicketModal({
       onClose();
     },
   });
+
+  const ticketStatusesQuery = useQuery({
+    queryKey: ['ticket-statuses'],
+    queryFn: fetchTicketStatuses,
+  });
+
+  const projectMembersQuery = useQuery({
+    queryKey: ['project-members', formik.values.project],
+    queryFn: () => fetchProjectMembers(formik.values.project),
+    enabled: Boolean(formik.values.project),
+  });
+
+  const statusOptions = useMemo(
+    () =>
+      (ticketStatusesQuery.data ?? []).map((status) => ({
+        label: status.label,
+        value: status.key,
+        icon: (
+          <span
+            className="inline-block h-2.25 w-2.5 rounded-full"
+            style={{ backgroundColor: status.color }}
+          />
+        ),
+      })),
+    [ticketStatusesQuery.data],
+  );
+
+  const resolvedAssigneeOptions = useMemo(() => {
+    if (projectMembersQuery.data?.length) {
+      return projectMembersQuery.data.map((member) => ({
+        label: member.fullName,
+        value: member.id,
+      }));
+    }
+
+    return assigneeOptions;
+  }, [assigneeOptions, projectMembersQuery.data]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -89,20 +125,34 @@ export default function CreateTicketModal({
     }
   }, [preselectedProjectId]);
 
+  useEffect(() => {
+    if (!formik.values.status && statusOptions[0]?.value) {
+      formik.setFieldValue('status', statusOptions[0].value);
+    }
+  }, [formik.values.status, statusOptions]);
+
+  useEffect(() => {
+    if (!resolvedAssigneeOptions.length) {
+      if (formik.values.assignee) {
+        formik.setFieldValue('assignee', '');
+      }
+      return;
+    }
+
+    const hasSelectedAssignee = resolvedAssigneeOptions.some(
+      (option) => option.value === formik.values.assignee,
+    );
+
+    if (!hasSelectedAssignee) {
+      formik.setFieldValue('assignee', '');
+    }
+  }, [formik.values.assignee, resolvedAssigneeOptions]);
+
   const setAttachments = (files: FileList | File[]) => {
     const nextFiles = Array.from(files);
-    const hasInvalidType = nextFiles.some(
-      (file) => !ALLOWED_ATTACHMENT_TYPES.includes(file.type),
-    );
     const hasInvalidSize = nextFiles.some(
       (file) => file.size > MAX_ATTACHMENT_SIZE_BYTES,
     );
-
-    if (hasInvalidType) {
-      setAttachmentError('Only SVG, PNG or JPG files are allowed.');
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
-    }
 
     if (hasInvalidSize) {
       setAttachmentError('Each file must be 15MB or smaller.');
@@ -163,7 +213,7 @@ export default function CreateTicketModal({
 
         <div className="w-full">
           <label className="mb-1.5 block text-sm font-normal text-gray-800 md:text-base">
-            Description <span className="text-red-500"> *</span>
+            Description
           </label>
           <textarea
             name="description"
@@ -172,38 +222,27 @@ export default function CreateTicketModal({
             onBlur={formik.handleBlur}
             placeholder="Describe the issue in detail..."
             rows={4}
-            className={`w-full resize-none rounded-lg border bg-transparent px-3.5 py-2 text-sm font-medium text-gray-700 outline-none placeholder:text-gray-300 focus:border-gray-400 md:text-base ${
-              formik.touched.description && formik.errors.description
-                ? 'border-red-300 focus:border-red-400'
-                : 'border-gray-200'
-            }`}
+            className="w-full resize-none rounded-lg border border-gray-200 bg-transparent px-3.5 py-2 text-sm font-medium text-gray-700 outline-none placeholder:text-gray-300 focus:border-gray-400 md:text-base"
           />
-          {formik.touched.description && formik.errors.description ? (
-            <p className="mt-1 text-xs text-red-600">
-              {formik.errors.description}
-            </p>
-          ) : null}
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Dropdown
-            label="Priority"
+            label="Status"
             required
-            options={priorityOptions}
-            value={formik.values.priority}
-            onChange={(value) => formik.setFieldValue('priority', value)}
-            error={Boolean(formik.touched.priority && formik.errors.priority)}
-            errorMessage={formik.touched.priority ? formik.errors.priority : ''}
+            options={statusOptions}
+            value={formik.values.status}
+            onChange={(value) => formik.setFieldValue('status', value)}
+            error={Boolean(formik.touched.status && formik.errors.status)}
+            errorMessage={formik.touched.status ? formik.errors.status : ''}
           />
 
           <Dropdown
             label="Assignee"
-            required
-            options={assigneeOptions}
+            options={resolvedAssigneeOptions}
             value={formik.values.assignee}
             onChange={(value) => formik.setFieldValue('assignee', value)}
-            error={Boolean(formik.touched.assignee && formik.errors.assignee)}
-            errorMessage={formik.touched.assignee ? formik.errors.assignee : ''}
+            placeholder="Select assignee"
           />
         </div>
 
@@ -225,7 +264,6 @@ export default function CreateTicketModal({
             type="file"
             className="hidden"
             multiple
-            accept=".svg,.png,.jpg,.jpeg"
             onChange={(event) => {
               if (event.target.files) setAttachments(event.target.files);
             }}
@@ -263,7 +301,7 @@ export default function CreateTicketModal({
               </span>
             </div>
             <span className="mt-1 text-xs text-gray-700">
-              SVG, PNG or JPG (max. 15MB)
+              Any file up to 15MB
             </span>
           </button>
 
@@ -295,6 +333,68 @@ export default function CreateTicketModal({
       </div>
     </AppModal>
   );
+}
+
+type ApiTicketStatus = {
+  id: string;
+  key: string;
+  label: string;
+  color: string;
+};
+
+type ApiProjectMember = {
+  id: string;
+  fullName: string;
+};
+
+async function fetchTicketStatuses() {
+  const response = await fetch('/api/ticket-statuses', {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiTicketStatus[]
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !Array.isArray(payload)) {
+    throw new Error(
+      !Array.isArray(payload)
+        ? payload?.message || 'Failed to fetch ticket statuses.'
+        : 'Failed to fetch ticket statuses.',
+    );
+  }
+
+  return payload;
+}
+
+async function fetchProjectMembers(projectId: string) {
+  const response = await fetch(`/api/projects/${projectId}/members`, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiProjectMember[]
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !Array.isArray(payload)) {
+    throw new Error(
+      !Array.isArray(payload)
+        ? payload?.message || 'Failed to fetch project members.'
+        : 'Failed to fetch project members.',
+    );
+  }
+
+  return payload;
 }
 
 export function UploadIcon() {
