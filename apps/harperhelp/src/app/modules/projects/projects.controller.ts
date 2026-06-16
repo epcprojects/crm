@@ -7,21 +7,38 @@ import {
   Param,
   Delete,
   UseGuards,
+  UseInterceptors,
+  UploadedFiles,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
-import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { SystemRoles } from '@harperhelp/types';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { GetUser } from 'apps/harperhelp/src/common/decorators/get-user.decorator';
+import { ProjectsFilesService } from './services/project-files.service';
 
 @Controller('projects')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ProjectsController {
-  constructor(private readonly projectsService: ProjectsService) {}
+  constructor(
+    private readonly projectsService: ProjectsService,
+
+    private readonly projectsFilesService: ProjectsFilesService,
+  ) {}
 
   @Post()
   @Roles(SystemRoles.SUPER_ADMIN)
@@ -91,5 +108,86 @@ export class ProjectsController {
   @ApiOperation({ summary: 'Get list of project members.' })
   findProjectMembers(@Param('id') id: string) {
     return this.projectsService.findProjectMembers(id);
+  }
+
+  // ---------------- UPLOAD FILES ----------------
+  @Post('files')
+  @UseInterceptors(FilesInterceptor('files'))
+  @ApiOperation({ summary: 'Upload files to a project' })
+  @ApiConsumes('multipart/form-data')
+  @ApiParam({
+    name: 'projectId',
+    description: 'Project ID',
+    type: String,
+  })
+  @ApiBody({
+    description: 'Project file upload',
+    schema: {
+      type: 'object',
+      properties: {
+        files: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Files uploaded successfully',
+  })
+  async uploadFiles(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @UploadedFiles() files: Express.Multer.File[],
+    @GetUser() user,
+  ) {
+    return this.projectsFilesService.uploadProjectFiles(
+      projectId,
+      files,
+      user.id,
+    );
+  }
+
+  // ---------------- GET FILES ----------------
+  @Get('files')
+  @ApiOperation({ summary: 'Get all project files' })
+  @ApiParam({
+    name: 'projectId',
+    description: 'Project ID',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of project files',
+  })
+  async getFiles(@Param('projectId', ParseUUIDPipe) projectId: string) {
+    return this.projectsFilesService.getProjectFiles(projectId);
+  }
+
+  // ---------------- DELETE FILE ----------------
+  @Delete('files/:fileId')
+  @ApiOperation({ summary: 'Delete a project file' })
+  @ApiParam({
+    name: 'projectId',
+    description: 'Project ID',
+    type: String,
+  })
+  @ApiParam({
+    name: 'fileId',
+    description: 'File ID',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'File deleted successfully',
+  })
+  async deleteFile(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('fileId', ParseUUIDPipe) fileId: string,
+  ) {
+    return this.projectsFilesService.deleteFile(fileId, projectId);
   }
 }

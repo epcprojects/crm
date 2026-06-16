@@ -9,26 +9,45 @@ import { Repository } from 'typeorm';
 import { Role } from './entities/role.entity';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
+import { RoleClaim } from './entities/role.claim.entity';
 
 @Injectable()
 export class RolesService {
   constructor(
     @InjectRepository(Role)
     private readonly roleRepository: Repository<Role>,
+
+    @InjectRepository(RoleClaim)
+    private readonly roleClaimRepository: Repository<RoleClaim>,
   ) {}
 
-  async create(createRoleDto: CreateRoleDto): Promise<Role> {
-    const existingRole = await this.roleRepository.findOne({
-      where: [{ name: createRoleDto.name }],
+  async create(dto: CreateRoleDto): Promise<Role> {
+    const exists = await this.roleRepository.findOne({
+      where: { normalizedName: dto.name.toUpperCase() },
     });
 
-    if (existingRole) {
+    if (exists) {
       throw new ConflictException('Role already exists');
     }
 
-    const role = this.roleRepository.create(createRoleDto);
+    const role = await this.roleRepository.save(
+      this.roleRepository.create({
+        name: dto.name,
+        description: dto.description,
+      }),
+    );
 
-    return this.roleRepository.save(role);
+    const claims = dto.permissions.map((permission) =>
+      this.roleClaimRepository.create({
+        roleId: role.id,
+        claimType: 'permission',
+        claimValue: permission,
+      }),
+    );
+
+    await this.roleClaimRepository.save(claims);
+
+    return this.findOne(role.id);
   }
 
   async findAll(): Promise<Role[]> {
@@ -57,12 +76,37 @@ export class RolesService {
     return role;
   }
 
-  async update(id: string, updateRoleDto: UpdateRoleDto): Promise<Role> {
+  async update(id: string, dto: UpdateRoleDto): Promise<Role> {
     const role = await this.findOne(id);
 
-    Object.assign(role, updateRoleDto);
+    if (dto.name) {
+      role.name = dto.name;
+    }
 
-    return this.roleRepository.save(role);
+    if (dto.description !== undefined) {
+      role.description = dto.description;
+    }
+
+    await this.roleRepository.save(role);
+
+    if (dto.permissions) {
+      await this.roleClaimRepository.delete({
+        roleId: role.id,
+        claimType: 'permission',
+      });
+
+      const claims = dto.permissions.map((permission) =>
+        this.roleClaimRepository.create({
+          roleId: role.id,
+          claimType: 'permission',
+          claimValue: permission,
+        }),
+      );
+
+      await this.roleClaimRepository.save(claims);
+    }
+
+    return this.findOne(id);
   }
 
   async remove(id: string): Promise<void> {

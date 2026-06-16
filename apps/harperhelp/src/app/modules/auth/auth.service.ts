@@ -49,15 +49,9 @@ export class AuthService {
   async login(user: any) {
     await this.usersService.updateLastLogin(user.id);
 
-    const roles = user.roles || [];
-
-    // TODO: get user claims and add to payload if needed
-
     const payload = {
       sub: user.id,
       email: user.email,
-      roles: roles.map((r) => r?.name).filter(Boolean),
-      claims: [], // add claims here if needed
     };
 
     return {
@@ -68,8 +62,8 @@ export class AuthService {
         email: user.email,
         fullName: user.fullName,
 
-        roles: payload.roles,
-        claims: payload.claims,
+        roles: user.roles,
+        permissions: user.permissions,
       },
     };
   }

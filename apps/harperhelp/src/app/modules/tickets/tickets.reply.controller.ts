@@ -11,7 +11,8 @@ import {
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { CreateReplyDto } from './dto/create-reply.dto';
 import { TicketRepliesService } from './services/tickets.reply.service';
-import { ApiOperation } from '@nestjs/swagger';
+import { ApiBody, ApiConsumes, ApiOperation } from '@nestjs/swagger';
+import { GetUser } from 'apps/harperhelp/src/common/decorators/get-user.decorator';
 
 @Controller('tickets/:ticketId/replies')
 export class TicketRepliesController {
@@ -26,6 +27,25 @@ export class TicketRepliesController {
   }
 
   @Post()
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+        },
+        attachments: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
+        },
+      },
+      required: ['message'],
+    },
+  })
   @UseInterceptors(FilesInterceptor('attachments', 10))
   @ApiOperation({
     description: 'Creates a reply for a ticket. it also accepts attachments.',
@@ -34,8 +54,8 @@ export class TicketRepliesController {
     @Param('ticketId') ticketId: string,
     @Body() dto: CreateReplyDto,
     @UploadedFiles() files: Express.Multer.File[],
-    @Req() req: any,
+    @GetUser() user,
   ) {
-    return this.service.create(ticketId, dto, req.user.id, files);
+    return this.service.create(ticketId, dto, user.id, files);
   }
 }

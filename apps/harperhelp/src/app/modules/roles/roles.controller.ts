@@ -17,6 +17,7 @@ import { JwtAuthGuard } from 'apps/harperhelp/src/common/guards/jwt-auth.guard';
 import { RolesGuard } from 'apps/harperhelp/src/common/guards/roles.guard';
 import { SystemRoles } from '@harperhelp/types';
 import { Roles } from '../../../common/decorators/roles.decorator';
+import { MODULE_DEFINITIONS } from '@harperhelp/utils';
 
 @Controller('roles')
 @ApiBearerAuth('JWT-auth')
@@ -35,6 +36,17 @@ export class RolesController {
   @ApiOperation({ summary: 'Get All Roles' })
   findAll() {
     return this.rolesService.findAll();
+  }
+
+  @Get('permissions/catalog')
+  @Roles(SystemRoles.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get All Permissions of the system' })
+  getPermissionCatalog() {
+    return MODULE_DEFINITIONS.map((module) => ({
+      module: module.key,
+      label: module.label,
+      permissions: module.actions.map((action) => `${module.key}.${action}`),
+    }));
   }
 
   @Get(':id')

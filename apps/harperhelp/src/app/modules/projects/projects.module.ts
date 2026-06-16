@@ -6,10 +6,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThreadController } from './thread.controller';
 import { ThreadService } from './services/thread.service';
 import { ThreadMessage } from './entities/thread-messages.entity';
-import { FilesService } from '../files/files.service';
-import { UtilityService } from '../utility/utility.service';
+
 import { UtilityModule } from '../utility/utility.module';
 import { FilesModule } from '../files/files.module';
+import { ProjectsFilesService } from './services/project-files.service';
 
 @Module({
   imports: [
@@ -18,6 +18,6 @@ import { FilesModule } from '../files/files.module';
     FilesModule,
   ],
   controllers: [ProjectsController, ThreadController],
-  providers: [ProjectsService, ThreadService],
+  providers: [ProjectsService, ThreadService, ProjectsFilesService],
 })
 export class ProjectsModule {}

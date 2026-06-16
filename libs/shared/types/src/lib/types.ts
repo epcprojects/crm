@@ -21,6 +21,8 @@ export enum UserType {
 export enum FileSource {
   DIRECT = 'direct',
 
+  PROJECT = 'project',
+
   TICKET = 'ticket',
   TICKET_REPLY = 'ticket_reply',
 

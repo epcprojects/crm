@@ -44,14 +44,31 @@ export class UsersService {
 
     if (!user) return null;
 
-    const roles = await this.userRoleRepo.find({
+    const userRoles = await this.userRoleRepo.find({
       where: { userId: user.id },
-      relations: { role: true },
+      relations: {
+        role: {
+          roleClaims: true,
+        },
+      },
     });
+
+    const roles = userRoles.map((ur) => ur.role.name);
+
+    const permissions = [
+      ...new Set(
+        userRoles.flatMap((ur) =>
+          ur.role.roleClaims
+            .filter((c) => c.claimType === 'permission')
+            .map((c) => c.claimValue),
+        ),
+      ),
+    ];
 
     return {
       ...user,
-      roles: roles.map((r) => r.role),
+      roles,
+      permissions,
     };
   }
 
@@ -64,14 +81,31 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    const roles = await this.userRoleRepo.find({
+    const userRoles = await this.userRoleRepo.find({
       where: { userId: id },
-      relations: { role: true },
+      relations: {
+        role: {
+          roleClaims: true,
+        },
+      },
     });
+
+    const roles = userRoles.map((ur) => ur.role.name);
+
+    const permissions = [
+      ...new Set(
+        userRoles.flatMap((ur) =>
+          ur.role.roleClaims
+            .filter((c) => c.claimType === 'permission')
+            .map((c) => c.claimValue),
+        ),
+      ),
+    ];
 
     return {
       ...user,
-      roles: roles.map((ur) => ur.role.name),
+      roles,
+      permissions,
     };
   }
 

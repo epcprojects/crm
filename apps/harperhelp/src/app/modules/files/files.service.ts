@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { FileSource } from '@harperhelp/types';
+import { FileSource, FileStatus } from '@harperhelp/types';
 import { FileRecord } from './entities/file.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -21,5 +21,19 @@ export class FilesService {
       where: { source, sourceId },
       order: { createdAt: 'ASC' },
     });
+  }
+
+  async findOne(id: string) {
+    return this.fileRepository.findOne({
+      where: { id },
+    });
+  }
+
+  async delete(fileId: string) {
+    await this.fileRepository.update(fileId, {
+      status: FileStatus.DELETED,
+    });
+
+    return { success: true };
   }
 }
