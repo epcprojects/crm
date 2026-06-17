@@ -9,6 +9,7 @@ import {
   mapApiProjectToProjectRecord,
   type ProjectRecord,
   type ApiProjectRecord,
+  type ProjectFileRecord,
 } from './projects.data';
 import type { CreateProjectFormValues } from '../../../components/modals/CreateProjectModal';
 import type { DiscussionReply } from '../../../components/discussion/DiscussionPanel';
@@ -21,6 +22,7 @@ import type {
 export const projectsQueryKey = ['projects'];
 export const projectThreadQueryKey = ['project-thread'];
 export const projectTicketsQueryKey = ['project-tickets'];
+export const projectFilesQueryKey = ['project-files'];
 
 export function useProjectsQuery() {
   return useQuery({
@@ -70,6 +72,14 @@ export function useProjectTicketsQuery(
   return useQuery({
     queryKey: [...projectTicketsQueryKey, projectId, page, limit],
     queryFn: () => fetchProjectTickets(projectId, page, limit),
+    enabled: Boolean(projectId),
+  });
+}
+
+export function useProjectFilesQuery(projectId: string) {
+  return useQuery({
+    queryKey: [...projectFilesQueryKey, projectId],
+    queryFn: () => fetchProjectFiles(projectId),
     enabled: Boolean(projectId),
   });
 }
@@ -196,6 +206,20 @@ type ApiProjectTicket = {
   dueDate: string | null;
 };
 
+type ApiProjectFile = {
+  id?: string;
+  name?: string;
+  fileName?: string;
+  originalName?: string;
+  type?: string;
+  mimeType?: string;
+  size?: string | number | null;
+  uploadedBy?: string | null;
+  createdBy?: string | null;
+  uploadedAt?: string | null;
+  createdAt?: string | null;
+};
+
 type ApiProjectTicketsResponse = {
   items: ApiProjectTicket[];
   meta: {
@@ -266,6 +290,31 @@ async function fetchProjectTickets(projectId: string, page: number, limit: numbe
   };
 }
 
+async function fetchProjectFiles(projectId: string) {
+  const response = await fetch(`/api/projects/${projectId}/files`, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiProjectFile[]
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !Array.isArray(payload)) {
+    throw new Error(
+      !Array.isArray(payload)
+        ? payload?.message
+        : 'Failed to fetch project files.',
+    );
+  }
+
+  return payload.map(mapApiProjectFileToProjectFileRecord);
+}
+
 function mapApiProjectThreadMessageToReply(
   message: ApiProjectThreadMessage,
 ): DiscussionReply {
@@ -297,6 +346,26 @@ function mapApiProjectTicketToRecentTicket(ticket: ApiProjectTicket): RecentTick
         : 'NA',
     },
     date: formatTicketDate(ticket.dueDate ?? ticket.createdAt),
+  };
+}
+
+function mapApiProjectFileToProjectFileRecord(
+  file: ApiProjectFile,
+): ProjectFileRecord {
+  const name =
+    getNonEmptyString(file.name) ??
+    getNonEmptyString(file.fileName) ??
+    getNonEmptyString(file.originalName) ??
+    'Untitled file';
+
+  return {
+    id: getNonEmptyString(file.id) ?? `${name}-${file.createdAt ?? Date.now()}`,
+    name,
+    type: mapProjectFileType(file.type ?? file.mimeType ?? name),
+    size: formatFileSize(file.size),
+    uploadedBy:
+      getNonEmptyString(file.uploadedBy) ?? getNonEmptyString(file.createdBy),
+    uploadedAt: formatProjectFileDate(file.uploadedAt ?? file.createdAt),
   };
 }
 
@@ -376,4 +445,70 @@ function formatThreadDate(value: string) {
     hour: 'numeric',
     minute: '2-digit',
   }).format(date);
+}
+
+function mapProjectFileType(value: string): ProjectFileRecord['type'] {
+  const normalizedValue = value.trim().toLowerCase();
+
+  if (normalizedValue.includes('pdf') || normalizedValue.endsWith('.pdf')) {
+    return 'pdf';
+  }
+
+  if (
+    normalizedValue.includes('word') ||
+    normalizedValue.includes('docx') ||
+    normalizedValue.endsWith('.doc') ||
+    normalizedValue.endsWith('.docx')
+  ) {
+    return 'docx';
+  }
+
+  return 'file';
+}
+
+function formatFileSize(value: string | number | null | undefined) {
+  if (typeof value === 'string' && value.trim()) {
+    return value;
+  }
+
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return undefined;
+  }
+
+  if (value < 1024) {
+    return `${value} B`;
+  }
+
+  const units = ['KB', 'MB', 'GB'];
+  let size = value / 1024;
+  let unitIndex = 0;
+
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${size.toFixed(size >= 10 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+function formatProjectFileDate(value: string | null | undefined) {
+  if (!value) {
+    return undefined;
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date);
+}
+
+function getNonEmptyString(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value : undefined;
 }

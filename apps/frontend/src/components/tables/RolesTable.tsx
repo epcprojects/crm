@@ -9,7 +9,8 @@ import {
   type PaginationState,
 } from '@tanstack/react-table';
 import { useState } from 'react';
-import { TrashIcon } from '../../../public/icons';
+import { EyeOpenedIcon, TrashIcon } from '../../../public/icons';
+import Tooltip from '../tooltip';
 
 export type RoleRecord = {
   id: string;
@@ -35,14 +36,19 @@ type RolesTableProps = {
   roles: RoleRecord[];
   initialPageSize?: number;
   pageSizeOptions?: number[];
+  onViewClaims?: (role: RoleRecord) => void;
   onEdit?: (role: RoleRecord) => void;
   onDelete?: (role: RoleRecord) => void;
 };
 
 function getColumns({
+  onViewClaims,
   onEdit,
   onDelete,
-}: Pick<RolesTableProps, 'onEdit' | 'onDelete'>): ColumnDef<RoleRecord>[] {
+}: Pick<
+  RolesTableProps,
+  'onViewClaims' | 'onEdit' | 'onDelete'
+>): ColumnDef<RoleRecord>[] {
   return [
     {
       accessorKey: 'id',
@@ -66,7 +72,9 @@ function getColumns({
       accessorKey: 'description',
       header: 'Description',
       cell: ({ row }) => (
-        <span className="text-sm text-gray-800">{row.original.description}</span>
+        <span className="text-sm text-gray-800">
+          {row.original.description}
+        </span>
       ),
     },
     {
@@ -86,29 +94,54 @@ function getColumns({
           row.original.normalizedName,
         );
 
-        if (isProtectedRole) {
+        // eslint-disable-next-line no-constant-condition, no-constant-binary-expression
+        if (false && isProtectedRole) {
           return <span className="text-sm text-gray-400">—</span>;
         }
 
         return (
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => onEdit?.(row.original)}
-              className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-gray-200 text-primary-dark transition hover:bg-gray-50"
-              aria-label={`Edit ${row.original.name}`}
+          <div className="flex items-end  gap-3  w-fit justify-end">
+            <Tooltip
+              hide={row.original.roleClaims.length < 1}
+              content=""
+              heading="View Claims"
             >
-              <EditIcon />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onDelete?.(row.original)}
-              className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-red-500 text-red-500 transition hover:bg-red-50"
-              aria-label={`Delete ${row.original.name}`}
-            >
-              <TrashIcon />
-            </button>
+              <button
+                type="button"
+                disabled={row.original.roleClaims.length < 1}
+                onClick={() => onViewClaims?.(row.original)}
+                className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-gray-200 text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label={`View ${row.original.name} role claims`}
+              >
+                <EyeOpenedIcon fill="currentColor" />
+              </button>
+            </Tooltip>
+            <Tooltip hide={isProtectedRole} content="" heading="Edit Role">
+              <button
+                type="button"
+                disabled={isProtectedRole}
+                onClick={() => {
+                  if (!isProtectedRole) onEdit?.(row.original);
+                }}
+                className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-gray-200 text-primary-dark transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label={`Edit ${row.original.name}`}
+              >
+                <EditIcon />
+              </button>
+            </Tooltip>
+            <Tooltip hide={isProtectedRole} content="" heading="Delete Role">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isProtectedRole) onDelete?.(row.original);
+                }}
+                disabled={isProtectedRole}
+                className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-red-500 text-red-500 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label={`Delete ${row.original.name}`}
+              >
+                <TrashIcon />
+              </button>
+            </Tooltip>
           </div>
         );
       },
@@ -120,6 +153,7 @@ export default function RolesTable({
   roles,
   initialPageSize = 10,
   pageSizeOptions = [10, 20, 30],
+  onViewClaims,
   onEdit,
   onDelete,
 }: RolesTableProps) {
@@ -127,7 +161,7 @@ export default function RolesTable({
     pageIndex: 0,
     pageSize: initialPageSize,
   });
-  const columns = getColumns({ onEdit, onDelete });
+  const columns = getColumns({ onViewClaims, onEdit, onDelete });
 
   const table = useReactTable({
     data: roles,
@@ -152,7 +186,7 @@ export default function RolesTable({
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[860px] text-left">
+        <table className="w-full min-w-215 text-left">
           <thead className="bg-gray-50">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>

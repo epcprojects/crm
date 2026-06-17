@@ -23,11 +23,13 @@ import { appToast } from '../../../../components/toast/AppToast';
 import { SearchIcon, PlusIcon } from '../../../../../public/icons';
 import ThemeButton from '../../../../components/ui/ThemeButton';
 import { createTicket } from '../../../../lib/tickets';
-import { getProjectFiles } from '../projects.data';
+import type { ProjectFileRecord } from '../projects.data';
 import {
+  projectFilesQueryKey,
   projectTicketsQueryKey,
   projectThreadQueryKey,
   useProjectDetailQuery,
+  useProjectFilesQuery,
   useProjectTicketsQuery,
   useProjectThreadQuery,
   useProjectsQuery,
@@ -42,6 +44,9 @@ export default function ProjectDetailPage() {
   const [uploadFileOpen, setUploadFileOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [fileSearchValue, setFileSearchValue] = useState('');
+  const [uploadedFilesState, setUploadedFilesState] = useState<ProjectFileRecord[]>(
+    [],
+  );
   const [ticketsPagination, setTicketsPagination] = useState({
     pageIndex: 0,
     pageSize: 12,
@@ -51,6 +56,7 @@ export default function ProjectDetailPage() {
   const queryClient = useQueryClient();
   const projectDetailQuery = useProjectDetailQuery(projectId);
   const projectThreadQuery = useProjectThreadQuery(projectId);
+  const projectFilesQuery = useProjectFilesQuery(projectId);
   const projectTicketsQuery = useProjectTicketsQuery(
     projectId,
     ticketsPagination.pageIndex + 1,
@@ -115,21 +121,12 @@ export default function ProjectDetailPage() {
     [projectsQuery.data],
   );
 
-  const [projectFilesState, setProjectFilesState] = useState(() =>
-    project ? getProjectFiles(project.id, project.name) : [],
-  );
-
-  useEffect(() => {
-    if (project) {
-      setProjectFilesState(getProjectFiles(project.id, project.name));
-    }
-  }, [project]);
-
   useEffect(() => {
     setTicketsPagination((current) => ({
       ...current,
       pageIndex: 0,
     }));
+    setUploadedFilesState([]);
   }, [projectId]);
 
   useEffect(() => {
@@ -167,8 +164,9 @@ export default function ProjectDetailPage() {
 
   const projectFiles = useMemo(() => {
     const normalizedSearch = fileSearchValue.trim().toLowerCase();
+    const files = [...uploadedFilesState, ...(projectFilesQuery.data ?? [])];
 
-    return projectFilesState.filter((file) => {
+    return files.filter((file) => {
       if (!normalizedSearch) return true;
 
       return (
@@ -177,7 +175,7 @@ export default function ProjectDetailPage() {
         file.uploadedAt?.toLowerCase().includes(normalizedSearch)
       );
     });
-  }, [fileSearchValue, projectFilesState]);
+  }, [fileSearchValue, projectFilesQuery.data, uploadedFilesState]);
 
   const handleCreateTicket = async (values: CreateTicketFormValues) => {
     try {
@@ -203,7 +201,7 @@ export default function ProjectDetailPage() {
   };
 
   const handleUploadFile = async (values: UploadFileFormValues) => {
-    setProjectFilesState((currentFiles) => [
+    setUploadedFilesState((currentFiles) => [
       {
         id: `project-file-${Date.now()}`,
         name: values.name,
@@ -214,6 +212,9 @@ export default function ProjectDetailPage() {
       },
       ...currentFiles,
     ]);
+    await queryClient.invalidateQueries({
+      queryKey: [...projectFilesQueryKey, projectId],
+    });
     appToast.success('File uploaded successfully.');
   };
 
@@ -299,7 +300,9 @@ export default function ProjectDetailPage() {
                 />
                 <Metric
                   label="Files"
-                  value={String(project.filesCount).padStart(2, '0')}
+                  value={String(
+                    uploadedFilesState.length + (projectFilesQuery.data?.length ?? 0),
+                  ).padStart(2, '0')}
                 />
               </div>
             </div>
@@ -390,6 +393,11 @@ export default function ProjectDetailPage() {
               searchValue={fileSearchValue}
               onSearchChange={setFileSearchValue}
               onUploadClick={() => setUploadFileOpen(true)}
+              subtitle={
+                projectFilesQuery.isLoading
+                  ? 'Loading files...'
+                  : `${uploadedFilesState.length + (projectFilesQuery.data?.length ?? 0)} files`
+              }
             />
           </TabPanel>
 

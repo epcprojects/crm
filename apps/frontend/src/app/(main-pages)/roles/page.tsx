@@ -12,6 +12,7 @@ import AddRoleModal, {
   type PermissionCatalogItem,
 } from '../../../components/modals/AddRoleModal';
 import DeleteRoleModal from '../../../components/modals/DeleteRoleModal';
+import RoleClaimsModal from '../../../components/modals/RoleClaimsModal';
 import RolesTable, {
   type RoleClaimRecord,
   type RoleRecord,
@@ -25,6 +26,8 @@ export default function RolesPage() {
   const [addRoleOpen, setAddRoleOpen] = useState(false);
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
   const [deletingRoleId, setDeletingRoleId] = useState<string | null>(null);
+  const [viewingClaimsRole, setViewingClaimsRole] =
+    useState<RoleRecord | null>(null);
   const [roleList, setRoleList] = useState<RoleRecord[]>([]);
   const [searchValue, setSearchValue] = useState('');
   const rolesQuery = useQuery({
@@ -235,6 +238,7 @@ export default function RolesPage() {
           roles={filteredRoles}
           initialPageSize={10}
           pageSizeOptions={[10, 20, 30]}
+          onViewClaims={(role) => setViewingClaimsRole(role)}
           onEdit={(role) => setEditingRoleId(role.id)}
           onDelete={(role) => setDeletingRoleId(role.id)}
         />
@@ -282,6 +286,12 @@ export default function RolesPage() {
         onClose={() => setDeletingRoleId(null)}
         onConfirm={handleDeleteRole}
         roleName={deletingRole?.name}
+      />
+
+      <RoleClaimsModal
+        isOpen={Boolean(viewingClaimsRole)}
+        onClose={() => setViewingClaimsRole(null)}
+        role={viewingClaimsRole}
       />
     </div>
   );
