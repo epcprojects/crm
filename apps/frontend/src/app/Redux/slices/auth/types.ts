@@ -3,6 +3,7 @@ export type UserProfile = {
   email: string;
   fullName: string;
   roles: UserRole[];
+  permissions: string[];
   organizationId?: string;
   organization?: {
     id: string;

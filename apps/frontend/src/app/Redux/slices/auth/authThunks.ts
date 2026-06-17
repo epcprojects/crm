@@ -39,6 +39,12 @@ function toUserProfile(payload: any): UserProfile | null {
     email: candidate.email,
     fullName: candidate.fullName,
     roles: Array.isArray(candidate.roles) ? candidate.roles : [],
+    permissions: Array.isArray(candidate.permissions)
+      ? candidate.permissions.filter(
+          (permission: unknown): permission is string =>
+            typeof permission === 'string',
+        )
+      : [],
     organizationId: candidate.organizationId || organization?.id,
     organization: organization
       ? {
