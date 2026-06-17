@@ -9,7 +9,6 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFiles,
-  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
@@ -111,7 +110,7 @@ export class ProjectsController {
   }
 
   // ---------------- UPLOAD FILES ----------------
-  @Post('files')
+  @Post(':projectId/files')
   @UseInterceptors(FilesInterceptor('files'))
   @ApiOperation({ summary: 'Upload files to a project' })
   @ApiConsumes('multipart/form-data')
@@ -140,7 +139,7 @@ export class ProjectsController {
     description: 'Files uploaded successfully',
   })
   async uploadFiles(
-    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('projectId') projectId: string,
     @UploadedFiles() files: Express.Multer.File[],
     @GetUser() user,
   ) {
@@ -152,7 +151,7 @@ export class ProjectsController {
   }
 
   // ---------------- GET FILES ----------------
-  @Get('files')
+  @Get(':projectId/files')
   @ApiOperation({ summary: 'Get all project files' })
   @ApiParam({
     name: 'projectId',
@@ -163,12 +162,12 @@ export class ProjectsController {
     status: 200,
     description: 'List of project files',
   })
-  async getFiles(@Param('projectId', ParseUUIDPipe) projectId: string) {
+  async getFiles(@Param('projectId') projectId: string) {
     return this.projectsFilesService.getProjectFiles(projectId);
   }
 
   // ---------------- DELETE FILE ----------------
-  @Delete('files/:fileId')
+  @Delete(':projectId/files/:fileId')
   @ApiOperation({ summary: 'Delete a project file' })
   @ApiParam({
     name: 'projectId',
@@ -185,8 +184,8 @@ export class ProjectsController {
     description: 'File deleted successfully',
   })
   async deleteFile(
-    @Param('projectId', ParseUUIDPipe) projectId: string,
-    @Param('fileId', ParseUUIDPipe) fileId: string,
+    @Param('projectId') projectId: string,
+    @Param('fileId') fileId: string,
   ) {
     return this.projectsFilesService.deleteFile(fileId, projectId);
   }

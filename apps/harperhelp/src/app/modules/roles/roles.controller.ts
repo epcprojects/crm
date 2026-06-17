@@ -18,6 +18,7 @@ import { RolesGuard } from 'apps/harperhelp/src/common/guards/roles.guard';
 import { SystemRoles } from '@harperhelp/types';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { MODULE_DEFINITIONS } from '@harperhelp/utils';
+import { GetUser } from 'apps/harperhelp/src/common/decorators/get-user.decorator';
 
 @Controller('roles')
 @ApiBearerAuth('JWT-auth')
@@ -47,6 +48,12 @@ export class RolesController {
       label: module.label,
       permissions: module.actions.map((action) => `${module.key}.${action}`),
     }));
+  }
+
+  @Get('permissions/user')
+  @ApiOperation({ summary: 'Get all permissions of the auth user' })
+  getUserPermission(@GetUser() user) {
+    return this.rolesService.getUserPermissions(user.id);
   }
 
   @Get(':id')

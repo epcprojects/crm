@@ -10,6 +10,7 @@ import { Role } from './entities/role.entity';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { RoleClaim } from './entities/role.claim.entity';
+import { UserRole } from '../users/entities/user.roles.entity';
 
 @Injectable()
 export class RolesService {
@@ -74,6 +75,20 @@ export class RolesService {
     }
 
     return role;
+  }
+
+  async getUserPermissions(userId: string): Promise<string[]> {
+    const claims = await this.roleClaimRepository
+      .createQueryBuilder('rc')
+      .innerJoin(UserRole, 'ur', 'ur.roleId = rc.roleId')
+      .where('ur.userId = :userId', { userId })
+      .andWhere('rc.claimType = :claimType', {
+        claimType: 'permission',
+      })
+      .select('DISTINCT rc.claimValue', 'permission')
+      .getRawMany();
+
+    return claims.map((c) => c?.permission);
   }
 
   async update(id: string, dto: UpdateRoleDto): Promise<Role> {

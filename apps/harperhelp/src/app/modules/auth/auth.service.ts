@@ -49,9 +49,12 @@ export class AuthService {
   async login(user: any) {
     await this.usersService.updateLastLogin(user.id);
 
+    const roles = user.roles || [];
+
     const payload = {
       sub: user.id,
       email: user.email,
+      roles: roles,
     };
 
     return {
@@ -62,7 +65,7 @@ export class AuthService {
         email: user.email,
         fullName: user.fullName,
 
-        roles: user.roles,
+        roles: roles,
         permissions: user.permissions,
       },
     };
