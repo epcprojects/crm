@@ -1,30 +1,22 @@
 import React from 'react';
 
-const UncheckedBoxIcon = ({ fill = '#E5E7EB' }) => {
+const UncheckedBoxIcon = ({
+  fill = '#E5E7EB',
+  bgFill = 'none',
+  width = '16',
+  height = '16',
+}) => {
   return (
     <svg
-      width="18"
-      height="18"
-      viewBox="0 0 18 18"
-      fill="none"
+      width={width}
+      height={height}
+      viewBox="0 0 16 16"
+      fill={bgFill}
       xmlns="http://www.w3.org/2000/svg"
     >
-      <rect
-        x="0.45"
-        y="0.45"
-        width="17.1"
-        height="17.1"
-        rx="3.55"
-        fill="white"
-      />
-      <rect
-        x="0.45"
-        y="0.45"
-        width="17.1"
-        height="17.1"
-        rx="3.55"
-        stroke={fill}
-        strokeWidth="0.9"
+      <path
+        d="M4 0.5H12C13.933 0.5 15.5 2.067 15.5 4V12C15.5 13.933 13.933 15.5 12 15.5H4C2.067 15.5 0.5 13.933 0.5 12V4C0.5 2.067 2.067 0.5 4 0.5Z"
+        stroke="#E5E7EB"
       />
     </svg>
   );

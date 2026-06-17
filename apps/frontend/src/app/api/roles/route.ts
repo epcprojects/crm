@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 type CreateRolePayload = {
   name?: string;
   description?: string;
+  permissions?: string[];
 };
 
 type RolePayload = {
@@ -15,6 +16,35 @@ type RolePayload = {
   updatedAt?: string;
   roleClaims?: unknown[];
 };
+
+function isRolePayload(value: unknown): value is RolePayload {
+  return Boolean(value) && typeof value === 'object';
+}
+
+function extractRolesPayload(payload: unknown): RolePayload[] {
+  if (Array.isArray(payload)) {
+    return payload.filter(isRolePayload);
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    return [];
+  }
+
+  const payloadRecord = payload as Record<string, unknown>;
+  const nestedCandidates = [
+    payloadRecord.roles,
+    payloadRecord.data,
+    payloadRecord.items,
+  ];
+
+  for (const candidate of nestedCandidates) {
+    if (Array.isArray(candidate)) {
+      return candidate.filter(isRolePayload);
+    }
+  }
+
+  return [];
+}
 
 function getApiBaseUrl() {
   const baseUrl = process.env.API_BASE_URL?.trim();
@@ -56,6 +86,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         name: body.name,
         description: body.description,
+        permissions: Array.isArray(body.permissions) ? body.permissions : [],
       }),
     });
 
@@ -107,19 +138,23 @@ export async function GET() {
     const data = (await response.json().catch(() => null)) as
       | RolePayload[]
       | { message?: string }
+      | Record<string, unknown>
       | null;
+    const roles = extractRolesPayload(data);
 
     if (!response.ok) {
       return NextResponse.json(
         {
           message:
-            !Array.isArray(data) ? data?.message : 'Failed to fetch roles.',
+            !Array.isArray(data) && data && 'message' in data
+              ? String(data.message || 'Failed to fetch roles.')
+              : 'Failed to fetch roles.',
         },
         { status: response.status },
       );
     }
 
-    return NextResponse.json(Array.isArray(data) ? data : [], { status: 200 });
+    return NextResponse.json(roles, { status: 200 });
   } catch {
     return NextResponse.json(
       { message: 'Something went wrong while fetching roles.' },

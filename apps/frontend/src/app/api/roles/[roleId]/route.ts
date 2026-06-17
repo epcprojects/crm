@@ -11,6 +11,56 @@ function getApiBaseUrl() {
   return baseUrl.replace(/\/docs\/?$/, '');
 }
 
+export async function GET(
+  _request: Request,
+  context: { params: Promise<{ roleId: string }> },
+) {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('access_token')?.value;
+
+    if (!token) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+
+    const apiBaseUrl = getApiBaseUrl();
+
+    if (!apiBaseUrl) {
+      return NextResponse.json(
+        { message: 'API_BASE_URL is not configured.' },
+        { status: 500 },
+      );
+    }
+
+    const { roleId } = await context.params;
+
+    const response = await fetch(`${apiBaseUrl}/roles/${roleId}`, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      cache: 'no-store',
+    });
+
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { message: data?.message || 'Failed to fetch role details.' },
+        { status: response.status },
+      );
+    }
+
+    return NextResponse.json(data, { status: response.status });
+  } catch {
+    return NextResponse.json(
+      { message: 'Something went wrong while fetching role details.' },
+      { status: 500 },
+    );
+  }
+}
+
 export async function PATCH(
   request: Request,
   context: { params: Promise<{ roleId: string }> },

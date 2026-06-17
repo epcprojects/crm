@@ -9,9 +9,11 @@ import {
 import { useDashboardHeaderAction } from '../../../components/dashboard/dashboard-shell';
 import AddRoleModal, {
   type AddRoleFormValues,
+  type PermissionCatalogItem,
 } from '../../../components/modals/AddRoleModal';
 import DeleteRoleModal from '../../../components/modals/DeleteRoleModal';
 import RolesTable, {
+  type RoleClaimRecord,
   type RoleRecord,
 } from '../../../components/tables/RolesTable';
 import { SearchIcon } from '../../../../public/icons';
@@ -29,6 +31,16 @@ export default function RolesPage() {
     queryKey: ['roles'],
     queryFn: fetchRoles,
   });
+  const permissionCatalogQuery = useQuery({
+    queryKey: ['roles', 'permission-catalog'],
+    queryFn: fetchPermissionCatalog,
+  });
+  const roleDetailQuery = useQuery({
+    queryKey: ['roles', 'detail', editingRoleId],
+    queryFn: () => fetchRoleById(editingRoleId ?? ''),
+    enabled: Boolean(editingRoleId),
+    staleTime: 0,
+  });
   const createRoleMutation = useMutation({
     mutationFn: async (values: AddRoleFormValues) => {
       const response = await fetch('/api/roles', {
@@ -40,6 +52,7 @@ export default function RolesPage() {
         body: JSON.stringify({
           name: values.name,
           description: values.description,
+          permissions: values.permissions,
         }),
       });
 
@@ -61,7 +74,7 @@ export default function RolesPage() {
       body,
     }: {
       roleId: string;
-      body: Pick<ApiRoleRecord, 'name' | 'description'>;
+      body: Pick<ApiRoleRecord, 'name' | 'description' | 'permissions'>;
     }) => {
       const response = await fetch(`/api/roles/${roleId}`, {
         method: 'PATCH',
@@ -135,8 +148,22 @@ export default function RolesPage() {
     });
   }, [roleList, searchValue]);
 
-  const editingRole =
-    roleList.find((role) => role.id === editingRoleId) ?? null;
+  const editingRole = roleDetailQuery.data ?? null;
+  const editInitialValues = useMemo(() => {
+    if (!editingRole || !permissionCatalogQuery.data?.length) {
+      return undefined;
+    }
+
+    return {
+      name: editingRole.name,
+      description: editingRole.description ?? '',
+      permissions: getMatchedRoleClaimPermissions(
+        editingRole.roleClaims,
+        permissionCatalogQuery.data ?? [],
+      ),
+    };
+  }, [editingRole, permissionCatalogQuery.data]);
+  const isEditRoleModalOpen = Boolean(editingRoleId && editInitialValues);
   const deletingRole =
     roleList.find((role) => role.id === deletingRoleId) ?? null;
 
@@ -159,6 +186,7 @@ export default function RolesPage() {
       body: {
         name: values.name,
         description: values.description,
+        permissions: values.permissions,
       },
     });
 
@@ -226,25 +254,28 @@ export default function RolesPage() {
       )}
 
       <AddRoleModal
+        key="create-role-modal"
         isOpen={addRoleOpen}
         onClose={() => setAddRoleOpen(false)}
         onConfirm={handleCreateRole}
+        permissionCatalog={permissionCatalogQuery.data}
+        permissionCatalogLoading={permissionCatalogQuery.isLoading}
       />
 
-      <AddRoleModal
-        isOpen={Boolean(editingRole)}
-        onClose={() => setEditingRoleId(null)}
-        onConfirm={handleEditRole}
-        mode="edit"
-        initialValues={
-          editingRole
-            ? {
-                name: editingRole.name,
-                description: editingRole.description ?? '',
-              }
-            : undefined
-        }
-      />
+      {editingRoleId ? (
+        <AddRoleModal
+          key={`edit-role-${editingRoleId}-${editInitialValues?.permissions.join('|') ?? 'loading'}`}
+          isOpen={isEditRoleModalOpen}
+          onClose={() => setEditingRoleId(null)}
+          onConfirm={handleEditRole}
+          mode="edit"
+          initialValues={editInitialValues}
+          permissionCatalog={permissionCatalogQuery.data}
+          permissionCatalogLoading={
+            permissionCatalogQuery.isLoading || roleDetailQuery.isLoading
+          }
+        />
+      ) : null}
 
       <DeleteRoleModal
         isOpen={Boolean(deletingRole)}
@@ -273,7 +304,8 @@ function getCreatedRoleRecord(
     normalizedName:
       getString(roleSource?.normalizedName) ?? values.name.toUpperCase(),
     description: getString(roleSource?.description) ?? values.description,
-    roleClaims: getArray(roleSource?.roleClaims),
+    permissions: extractPermissions(roleSource, values.permissions),
+    roleClaims: mapRoleClaims(roleSource?.roleClaims),
     createdAt: formatRoleDate(roleSource?.createdAt),
     updatedAt: formatRoleDate(roleSource?.updatedAt),
   };
@@ -303,10 +335,6 @@ function getString(value: unknown) {
   return typeof value === 'string' && value.trim() ? value : null;
 }
 
-function getArray(value: unknown) {
-  return Array.isArray(value) ? value : [];
-}
-
 function formatRoleDate(value: unknown) {
   const rawValue = getString(value);
 
@@ -328,37 +356,115 @@ async function fetchRoles() {
 
   const payload = (await response.json().catch(() => null)) as
     | ApiRoleRecord[]
+    | { roles?: ApiRoleRecord[]; data?: ApiRoleRecord[]; items?: ApiRoleRecord[] }
+    | { message?: string }
+    | null;
+  const roles = extractApiRoles(payload);
+
+  if (!response.ok) {
+    throw new Error(
+      payload && !Array.isArray(payload) && 'message' in payload
+        ? payload.message
+        : 'Failed to fetch roles.',
+    );
+  }
+
+  return roles.map(mapApiRoleToRoleRecord);
+}
+
+async function fetchPermissionCatalog() {
+  const response = await fetch('/api/roles/permissions/catalog', {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | PermissionCatalogItem[]
     | { message?: string }
     | null;
 
   if (!response.ok || !Array.isArray(payload)) {
     throw new Error(
-      !Array.isArray(payload) ? payload?.message : 'Failed to fetch roles.',
+      !Array.isArray(payload) ? payload?.message : 'Failed to fetch permission catalog.',
     );
   }
 
-  return payload.map(mapApiRoleToRoleRecord);
+  return payload.map((item) => ({
+    module: getString(item.module) ?? '',
+    label: getString(item.label) ?? getString(item.module) ?? 'Unknown',
+    permissions: Array.isArray(item.permissions)
+      ? item.permissions
+          .filter((permission): permission is string => typeof permission === 'string')
+          .map(normalizePermission)
+      : [],
+  }));
+}
+
+async function fetchRoleById(roleId: string) {
+  const response = await fetch(`/api/roles/${roleId}`, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiRoleRecord
+    | { role?: ApiRoleRecord; data?: ApiRoleRecord; message?: string }
+    | null;
+
+  if (!response.ok) {
+    throw new Error(
+      payload && typeof payload === 'object' && 'message' in payload
+        ? payload.message
+        : 'Failed to fetch role details.',
+    );
+  }
+
+  const roleSource = getRoleSource(payload);
+
+  if (!roleSource) {
+    throw new Error('Failed to parse role details.');
+  }
+
+  return mapApiRoleToRoleRecord(roleSource as ApiRoleRecord);
 }
 
 type ApiRoleRecord = {
-  id: string;
-  name: string;
-  normalizedName: string;
-  description: string;
-  createdAt: string;
-  updatedAt: string;
-  roleClaims: unknown[];
+  id?: string;
+  name?: string;
+  normalizedName?: string;
+  description?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  permissions?: string[];
+  roleClaims?: ApiRoleClaimRecord[];
+};
+
+type ApiRoleClaimRecord = {
+  id?: string;
+  roleId?: string;
+  claimType?: string;
+  claimValue?: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 function mapApiRoleToRoleRecord(role: ApiRoleRecord): RoleRecord {
   return {
-    id: role.id,
-    name: role.name,
-    normalizedName: role.normalizedName,
-    description: role.description,
-    roleClaims: Array.isArray(role.roleClaims) ? role.roleClaims : [],
-    createdAt: role.createdAt,
-    updatedAt: role.updatedAt,
+    id: getString(role.id) ?? crypto.randomUUID(),
+    name: getString(role.name) ?? 'Unknown Role',
+    normalizedName:
+      getString(role.normalizedName) ?? getString(role.name)?.toUpperCase() ?? 'UNKNOWN_ROLE',
+    description: getString(role.description) ?? '',
+    permissions: extractPermissions(role),
+    roleClaims: mapRoleClaims(role.roleClaims),
+    createdAt: formatRoleDate(role.createdAt),
+    updatedAt: formatRoleDate(role.updatedAt),
   };
 }
 
@@ -374,10 +480,135 @@ function getApiRoleRecord(
     normalizedName:
       getString(roleSource?.normalizedName) ?? values.name.toUpperCase(),
     description: getString(roleSource?.description) ?? values.description,
+    permissions: extractPermissions(roleSource, values.permissions),
     createdAt: formatRoleDate(roleSource?.createdAt),
     updatedAt: formatRoleDate(roleSource?.updatedAt),
-    roleClaims: getArray(roleSource?.roleClaims),
+    roleClaims: mapRoleClaims(roleSource?.roleClaims),
   };
+}
+
+function extractApiRoles(payload: unknown): ApiRoleRecord[] {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    return [];
+  }
+
+  const payloadRecord = payload as Record<string, unknown>;
+  const nestedCandidates = [payloadRecord.roles, payloadRecord.data, payloadRecord.items];
+
+  for (const candidate of nestedCandidates) {
+    if (Array.isArray(candidate)) {
+      return candidate as ApiRoleRecord[];
+    }
+  }
+
+  return [];
+}
+
+function mapRoleClaims(value: unknown): RoleClaimRecord[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map((claim) => {
+    const claimRecord =
+      claim && typeof claim === 'object' ? (claim as Record<string, unknown>) : {};
+
+    return {
+      id: getString(claimRecord.id) ?? crypto.randomUUID(),
+      roleId: getString(claimRecord.roleId) ?? '',
+      claimType: getString(claimRecord.claimType) ?? '',
+      claimValue: getClaimValue(claimRecord.claimValue),
+      createdAt: formatRoleDate(claimRecord.createdAt),
+      updatedAt: formatRoleDate(claimRecord.updatedAt),
+    };
+  });
+}
+
+function extractPermissions(
+  source: unknown,
+  fallbackPermissions: string[] = [],
+) {
+  if (!source || typeof source !== 'object') {
+    return fallbackPermissions;
+  }
+
+  const sourceRecord = source as Record<string, unknown>;
+  const permissionsFromPayload = Array.isArray(sourceRecord.permissions)
+    ? sourceRecord.permissions
+        .filter((permission): permission is string => typeof permission === 'string')
+        .map(normalizePermission)
+    : [];
+
+  if (permissionsFromPayload.length) {
+    return Array.from(new Set(permissionsFromPayload));
+  }
+
+  const permissionsFromClaims = mapRoleClaims(sourceRecord.roleClaims)
+    .map(getPermissionFromRoleClaim)
+    .filter(Boolean);
+
+  if (permissionsFromClaims.length) {
+    return Array.from(new Set(permissionsFromClaims));
+  }
+
+  return fallbackPermissions;
+}
+
+function getMatchedRoleClaimPermissions(
+  roleClaims: RoleClaimRecord[],
+  permissionCatalog: PermissionCatalogItem[],
+) {
+  const catalogPermissions = new Set(
+    permissionCatalog.flatMap((catalogItem) =>
+      catalogItem.permissions.map(normalizePermission),
+    ),
+  );
+
+  return Array.from(
+    new Set(
+      roleClaims
+        .map(getPermissionFromRoleClaim)
+        .filter((permission) => catalogPermissions.has(permission)),
+    ),
+  );
+}
+
+function getPermissionFromRoleClaim(claim: RoleClaimRecord) {
+  if (normalizePermission(claim.claimType) === 'permission') {
+    return normalizePermission(claim.claimValue);
+  }
+
+  if (isTruthyClaimValue(claim.claimValue)) {
+    return normalizePermission(claim.claimType);
+  }
+
+  return '';
+}
+
+function normalizePermission(permission: string) {
+  return permission.replace(/:/g, '.').trim();
+}
+
+function isTruthyClaimValue(value: string) {
+  const normalizedValue = value.trim().toLowerCase();
+
+  return normalizedValue === 'true' || normalizedValue === '1' || normalizedValue === 'yes';
+}
+
+function getClaimValue(value: unknown) {
+  if (typeof value === 'boolean') {
+    return String(value);
+  }
+
+  if (typeof value === 'number') {
+    return String(value);
+  }
+
+  return getString(value) ?? '';
 }
 
 function RolesEmptyIcon() {

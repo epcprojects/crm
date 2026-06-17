@@ -16,7 +16,17 @@ export type RoleRecord = {
   name: string;
   normalizedName: string;
   description: string;
-  roleClaims: unknown[];
+  permissions: string[];
+  roleClaims: RoleClaimRecord[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RoleClaimRecord = {
+  id: string;
+  roleId: string;
+  claimType: string;
+  claimValue: string;
   createdAt: string;
   updatedAt: string;
 };
