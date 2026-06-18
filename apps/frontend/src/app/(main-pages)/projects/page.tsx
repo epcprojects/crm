@@ -6,6 +6,7 @@ import { useDashboardHeaderAction } from '../../../components/dashboard/dashboar
 import CreateProjectModal, {
   type CreateProjectFormValues,
 } from '../../../components/modals/CreateProjectModal';
+import ConfirmActionModal from '../../../components/modals/ConfirmActionModal';
 import CreateTicketModal, {
   type CreateTicketFormValues,
 } from '../../../components/modals/CreateTicketModal';
@@ -17,7 +18,13 @@ import {
 import ProjectCard from '../../../components/projects/ProjectCard';
 import { appToast } from '../../../components/toast/AppToast';
 import { createTicket } from '../../../lib/tickets';
-import { useCreateProjectMutation, useProjectsQuery } from './projects.queries';
+import {
+  useCreateProjectMutation,
+  useDeleteProjectMutation,
+  useUpdateProjectMutation,
+  useProjectsQuery,
+} from './projects.queries';
+import type { ProjectRecord } from './projects.data';
 
 export default function ProjectsPage() {
   const router = useRouter();
@@ -27,9 +34,16 @@ export default function ProjectsPage() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     null,
   );
+  const [projectToDelete, setProjectToDelete] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [projectToEdit, setProjectToEdit] = useState<ProjectRecord | null>(null);
   const hasShownLoadError = useRef(false);
   const projectsQuery = useProjectsQuery();
   const createProjectMutation = useCreateProjectMutation();
+  const updateProjectMutation = useUpdateProjectMutation();
+  const deleteProjectMutation = useDeleteProjectMutation();
   const projectOptions = useMemo(
     () => createTicketProjectOptions(projectsQuery.data ?? []),
     [projectsQuery.data],
@@ -60,11 +74,25 @@ export default function ProjectsPage() {
 
   const handleCreateProject = async (values: CreateProjectFormValues) => {
     try {
+      if (projectToEdit) {
+        await updateProjectMutation.mutateAsync({
+          projectId: projectToEdit.id,
+          values,
+        });
+        appToast.success('Project updated successfully.');
+        setProjectToEdit(null);
+        return;
+      }
+
       await createProjectMutation.mutateAsync(values);
       appToast.success('Project created successfully.');
     } catch (error) {
       appToast.error(
-        error instanceof Error ? error.message : 'Failed to create project.',
+        error instanceof Error
+          ? error.message
+          : projectToEdit
+            ? 'Failed to update project.'
+            : 'Failed to create project.',
       );
       throw error;
     }
@@ -87,6 +115,22 @@ export default function ProjectsPage() {
         error instanceof Error ? error.message : 'Failed to create ticket.',
       );
       throw error;
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!projectToDelete) {
+      return;
+    }
+
+    try {
+      await deleteProjectMutation.mutateAsync(projectToDelete.id);
+      appToast.success('Project deleted successfully.');
+      setProjectToDelete(null);
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to delete project.',
+      );
     }
   };
 
@@ -113,14 +157,59 @@ export default function ProjectsPage() {
                   setSelectedProjectId(project.id);
                   setCreateTicketOpen(true);
                 }}
+                onEdit={() => {
+                  setProjectToEdit(project);
+                  setCreateProjectOpen(true);
+                }}
+                onDelete={() =>
+                  setProjectToDelete({ id: project.id, name: project.name })
+                }
+                isDeleting={
+                  deleteProjectMutation.isPending &&
+                  deleteProjectMutation.variables === project.id
+                }
               />
             ))}
       </div>
 
       <CreateProjectModal
         isOpen={createProjectOpen}
-        onClose={() => setCreateProjectOpen(false)}
+        onClose={() => {
+          setCreateProjectOpen(false);
+          setProjectToEdit(null);
+        }}
         onConfirm={handleCreateProject}
+        initialValues={
+          projectToEdit
+            ? {
+                name: projectToEdit.name,
+                category: projectToEdit.category,
+                colorHex: projectToEdit.colorHex,
+              }
+            : undefined
+        }
+        title={projectToEdit ? 'Edit Project' : 'Create Project'}
+        confirmLabel={projectToEdit ? 'Update Project' : 'Create Project'}
+      />
+
+      <ConfirmActionModal
+        isOpen={Boolean(projectToDelete)}
+        onClose={() => setProjectToDelete(null)}
+        title="Delete Project?"
+        message={
+          <>
+            Are you sure you want to delete{' '}
+            <span className="font-semibold">
+              “{projectToDelete?.name ?? 'this project'}”
+            </span>
+            ? This action cannot be undone.
+          </>
+        }
+        confirmLabel="Yes, Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isSubmitting={deleteProjectMutation.isPending}
+        onConfirm={handleDeleteProject}
       />
 
       <CreateTicketModal

@@ -4,6 +4,7 @@ import { StoreProvider } from './Redux/storeProvider';
 import QueryProvider from './providers/QueryProvider';
 import AppLoaderProvider from './providers/AppLoaderProvider';
 import AuthBootstrap from './providers/AuthBootstrap';
+import PermissionProvider from './providers/PermissionProvider';
 import { AppToastProvider } from '../components/toast/AppToast';
 
 export const metadata = {
@@ -44,9 +45,11 @@ export default function RootLayout({
         <StoreProvider>
           <QueryProvider>
             <AppLoaderProvider>
-              <AuthBootstrap />
-              {children}
-              <AppToastProvider />
+              <PermissionProvider>
+                <AuthBootstrap />
+                {children}
+                <AppToastProvider />
+              </PermissionProvider>
             </AppLoaderProvider>
           </QueryProvider>
         </StoreProvider>

@@ -1,4 +1,5 @@
-import { TicketIcon2 } from '../../../public/icons';
+import { EditIcon, TicketIcon2, TrashIcon } from '../../../public/icons';
+import Tooltip from '../tooltip';
 
 type ProjectCardProps = {
   id?: string;
@@ -11,6 +12,9 @@ type ProjectCardProps = {
   colorHex?: string;
   onClick?: () => void;
   onAddTicket?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  isDeleting?: boolean;
 };
 
 function ProjectMetric({
@@ -45,10 +49,13 @@ export default function ProjectCard({
   colorHex = '#A855F7',
   onClick,
   onAddTicket,
+  onEdit,
+  onDelete,
+  isDeleting = false,
 }: ProjectCardProps) {
   return (
     <article
-      className="cursor-pointer rounded-xl md:rounded-2xl border p-2.5 md:p-4 shadow-xs transition hover:drop-shadow"
+      className="cursor-pointer rounded-xl group md:rounded-2xl border p-2.5 md:p-4 shadow-xs transition hover:drop-shadow"
       onClick={onClick}
       style={{
         borderColor: `${colorHex}33`,
@@ -56,7 +63,7 @@ export default function ProjectCard({
       }}
       data-project-id={id}
     >
-      <div className="flex items-start justify-between gap-3 md:gap-4">
+      <div className="flex items-start flex-wrap justify-between gap-3 md:gap-4">
         <div className="flex min-w-0 items-center gap-3 md:gap-4">
           <span
             className="flex md:h-10.5 w-9 h-9 md:w-10.5 shrink-0 items-center justify-center rounded-full bg-white text-sm font-semibold drop-shadow md:text-base"
@@ -73,22 +80,52 @@ export default function ProjectCard({
             </p>
           </div>
         </div>
-        {onAddTicket ? (
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onAddTicket();
-            }}
-            className="flex  shrink-0 items-center justify-center rounded-full border py-0.5 ps-0.5 pe-2.5 text-xs md:text-sm gap-1 border-white/70 bg-white/90 text-primary-dark shadow-sm transition hover:bg-white"
-            aria-label={`Add ticket for ${name}`}
-          >
-            <span className="w-5.5 h-5.5 md:w-6.5 md:h-6.5 rounded-full bg-[#E1E5FF] flex items-center justify-center">
-              <TicketIcon2 />
-            </span>
-            Add
-          </button>
-        ) : null}
+        <div className="group-hover:flex hidden gap-2">
+          {onAddTicket ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onAddTicket();
+              }}
+              className="flex  shrink-0 items-center justify-center rounded-full border py-0.5 ps-0.5 pe-2.5 text-xs md:text-sm gap-1 border-white/70 bg-white/90 text-primary-dark shadow-sm transition hover:bg-white"
+              aria-label={`Add ticket for ${name}`}
+            >
+              <span className="w-5.5 h-5.5 md:w-6.5 md:h-6.5 rounded-full bg-[#E1E5FF] flex items-center justify-center">
+                <TicketIcon2 />
+              </span>
+              Add Ticket
+            </button>
+          ) : null}
+
+          <Tooltip heading="Edit Project" content="">
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onEdit?.();
+              }}
+              className="flex  shrink-0 items-center justify-center rounded-full border min-w-8 h-8  text-xs md:text-sm gap-1 border-white/70 bg-white/90 text-primary-dark shadow-sm transition hover:bg-white"
+              aria-label={`Edit ${name}`}
+            >
+              <EditIcon />
+            </button>
+          </Tooltip>
+          <Tooltip heading="Delete Project" content="">
+            <button
+              type="button"
+              disabled={isDeleting}
+              onClick={(event) => {
+                event.stopPropagation();
+                onDelete?.();
+              }}
+              className="flex  shrink-0 items-center justify-center rounded-full border min-w-8 h-8  text-xs md:text-sm gap-1 border-white/70 bg-white/90 text-primary-dark shadow-sm transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label={`Delete ${name}`}
+            >
+              <TrashIcon />
+            </button>
+          </Tooltip>
+        </div>
       </div>
 
       <div

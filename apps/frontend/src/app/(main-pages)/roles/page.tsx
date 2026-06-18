@@ -19,10 +19,12 @@ import RolesTable, {
 } from '../../../components/tables/RolesTable';
 import { SearchIcon } from '../../../../public/icons';
 import { appToast } from '../../../components/toast/AppToast';
+import { useAppSelector } from '../../Redux/store';
 
 export default function RolesPage() {
   const { setHeaderActionOverride } = useDashboardHeaderAction();
   const queryClient = useQueryClient();
+  const currentUserRoles = useAppSelector((state) => state.auth.user?.roles ?? []);
   const [addRoleOpen, setAddRoleOpen] = useState(false);
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
   const [deletingRoleId, setDeletingRoleId] = useState<string | null>(null);
@@ -236,6 +238,7 @@ export default function RolesPage() {
       ) : roleList.length ? (
         <RolesTable
           roles={filteredRoles}
+          currentUserRoles={currentUserRoles}
           initialPageSize={10}
           pageSizeOptions={[10, 20, 30]}
           onViewClaims={(role) => setViewingClaimsRole(role)}

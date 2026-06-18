@@ -4,14 +4,12 @@ import { useEffect, useRef, useState } from 'react';
 import { useFormik } from 'formik';
 import * as yup from 'yup';
 import AppModal from './AppModal';
-import ThemeInput from '../ui/ThemeInput';
-import Dropdown from '../ui/ThemeDropDown';
 import { CloseIcon } from '../../../public/icons';
 
 export type UploadFileFormValues = {
   name: string;
   size: string;
-  type: 'pdf' | 'docx';
+  type: 'pdf' | 'docx' | 'file';
   attachments: File[];
 };
 
@@ -21,18 +19,20 @@ type UploadFileModalProps = {
   onConfirm?: (values: UploadFileFormValues) => Promise<void> | void;
 };
 
-const fileTypeOptions = [
-  { label: 'PDF', value: 'pdf' },
-  { label: 'DOCX', value: 'docx' },
-] as const;
-
 const MAX_ATTACHMENT_SIZE_BYTES = 15 * 1024 * 1024;
-const ALLOWED_ATTACHMENT_TYPES = ['image/svg+xml', 'image/png', 'image/jpeg'];
+const ALLOWED_ATTACHMENT_TYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'image/svg+xml',
+  'image/png',
+  'image/jpeg',
+];
 
 const uploadFileSchema = yup.object({
   name: yup.string().required('File name is required'),
   size: yup.string(),
-  type: yup.string().oneOf(['pdf', 'docx']).required('Type is required'),
+  type: yup.string().oneOf(['pdf', 'docx', 'file']).required('Type is required'),
   attachments: yup
     .array()
     .of(yup.mixed<File>().required())
@@ -82,7 +82,7 @@ export default function UploadFileModal({
     );
 
     if (hasInvalidType) {
-      setAttachmentError('Only SVG, PNG or JPG files are allowed.');
+      setAttachmentError('Only PDF, DOC, DOCX, SVG, PNG or JPG files are allowed.');
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
@@ -132,7 +132,7 @@ export default function UploadFileModal({
       onClose={onClose}
       title="Upload File"
       showFooter
-      confirmLabel="Upload"
+      confirmLabel={formik.isSubmitting ? 'Uploading...' : 'Upload'}
       cancelLabel="Cancel"
       onCancel={onClose}
       onConfirm={() => formik.submitForm()}
@@ -143,40 +143,6 @@ export default function UploadFileModal({
       size="medium"
     >
       <div className="space-y-4 p-4 md:p-6">
-        <ThemeInput
-          label="File name"
-          name="name"
-          value={formik.values.name}
-          onChange={formik.handleChange}
-          onBlur={formik.handleBlur}
-          errorText={formik.touched.name ? formik.errors.name : ''}
-          placeholder="Enter file name"
-        />
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <ThemeInput
-            label="Size"
-            name="size"
-            value={formik.values.size}
-            readOnly
-            placeholder="Auto calculated"
-          />
-
-          <Dropdown
-            label="Type"
-            options={fileTypeOptions.map((option) => ({
-              label: option.label,
-              value: option.value,
-            }))}
-            value={formik.values.type}
-            onChange={(value) =>
-              formik.setFieldValue('type', value as UploadFileFormValues['type'])
-            }
-            error={Boolean(formik.touched.type && formik.errors.type)}
-            errorMessage={formik.touched.type ? formik.errors.type : ''}
-          />
-        </div>
-
         <div className="w-full">
           <label className="mb-1.5 block text-sm font-normal text-gray-800 md:text-base">
             Attachments <span className="text-red-500"> *</span>
@@ -186,7 +152,7 @@ export default function UploadFileModal({
             type="file"
             className="hidden"
             multiple
-            accept=".svg,.png,.jpg,.jpeg"
+            accept=".pdf,.doc,.docx,.svg,.png,.jpg,.jpeg"
             onChange={(event) => {
               if (event.target.files) setAttachments(event.target.files);
             }}
@@ -224,7 +190,7 @@ export default function UploadFileModal({
               </span>
             </div>
             <span className="mt-1 text-xs text-gray-700">
-              SVG, PNG or JPG (max. 15MB)
+              PDF, DOC, DOCX, SVG, PNG or JPG (max. 15MB)
             </span>
           </button>
 
@@ -284,7 +250,9 @@ function getFileTypeFromName(
   fileName: string,
 ): UploadFileFormValues['type'] {
   const extension = fileName.split('.').pop()?.toLowerCase();
-  return extension === 'docx' ? 'docx' : 'pdf';
+  if (extension === 'pdf') return 'pdf';
+  if (extension === 'doc' || extension === 'docx') return 'docx';
+  return 'file';
 }
 
 function UploadIcon() {

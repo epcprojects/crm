@@ -11,6 +11,7 @@ import CreateTicketModal, {
 import UploadFileModal, {
   type UploadFileFormValues,
 } from '../../../../components/modals/UploadFileModal';
+import ConfirmActionModal from '../../../../components/modals/ConfirmActionModal';
 import DiscussionPanel from '../../../../components/discussion/DiscussionPanel';
 import ProjectFilesPanel from '../../../../components/projects/ProjectFilesPanel';
 import {
@@ -22,16 +23,18 @@ import RecentTicketsTable from '../../../../components/tables/RecentTicketsTable
 import { appToast } from '../../../../components/toast/AppToast';
 import { SearchIcon, PlusIcon } from '../../../../../public/icons';
 import ThemeButton from '../../../../components/ui/ThemeButton';
+import { useAppLoader } from '../../../providers/AppLoaderProvider';
 import { createTicket } from '../../../../lib/tickets';
 import type { ProjectFileRecord } from '../projects.data';
 import {
-  projectFilesQueryKey,
   projectTicketsQueryKey,
   projectThreadQueryKey,
+  useDeleteProjectFileMutation,
   useProjectDetailQuery,
   useProjectFilesQuery,
   useProjectTicketsQuery,
   useProjectThreadQuery,
+  useUploadProjectFilesMutation,
   useProjectsQuery,
 } from '../projects.queries';
 
@@ -40,6 +43,7 @@ const projectTabs = ['Tickets', 'Thread', 'Files', 'Calendar'] as const;
 export default function ProjectDetailPage() {
   const params = useParams<{ projectId: string }>();
   const router = useRouter();
+  const { setLoading } = useAppLoader();
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [uploadFileOpen, setUploadFileOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
@@ -47,6 +51,7 @@ export default function ProjectDetailPage() {
   const [uploadedFilesState, setUploadedFilesState] = useState<ProjectFileRecord[]>(
     [],
   );
+  const [fileToDelete, setFileToDelete] = useState<ProjectFileRecord | null>(null);
   const [ticketsPagination, setTicketsPagination] = useState({
     pageIndex: 0,
     pageSize: 12,
@@ -62,6 +67,8 @@ export default function ProjectDetailPage() {
     ticketsPagination.pageIndex + 1,
     ticketsPagination.pageSize,
   );
+  const uploadProjectFilesMutation = useUploadProjectFilesMutation();
+  const deleteProjectFileMutation = useDeleteProjectFileMutation();
   const projectsQuery = useProjectsQuery();
   const ticketStatusesQuery = useQuery({
     queryKey: ['ticket-statuses'],
@@ -201,21 +208,40 @@ export default function ProjectDetailPage() {
   };
 
   const handleUploadFile = async (values: UploadFileFormValues) => {
-    setUploadedFilesState((currentFiles) => [
-      {
-        id: `project-file-${Date.now()}`,
-        name: values.name,
-        size: values.size,
-        type: values.type,
-        uploadedBy: 'Admin User',
-        uploadedAt: new Date().toISOString().slice(0, 10),
-      },
-      ...currentFiles,
-    ]);
-    await queryClient.invalidateQueries({
-      queryKey: [...projectFilesQueryKey, projectId],
-    });
-    appToast.success('File uploaded successfully.');
+    try {
+      setLoading(true);
+      await uploadProjectFilesMutation.mutateAsync({ projectId, values });
+      appToast.success('File uploaded successfully.');
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to upload file.',
+      );
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteFile = async () => {
+    if (!fileToDelete) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await deleteProjectFileMutation.mutateAsync({
+        projectId,
+        fileId: fileToDelete.id,
+      });
+      appToast.success('File deleted successfully.');
+      setFileToDelete(null);
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to delete file.',
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmitReply = async ({
@@ -393,6 +419,12 @@ export default function ProjectDetailPage() {
               searchValue={fileSearchValue}
               onSearchChange={setFileSearchValue}
               onUploadClick={() => setUploadFileOpen(true)}
+              onDeleteFile={setFileToDelete}
+              deletingFileId={
+                deleteProjectFileMutation.isPending
+                  ? deleteProjectFileMutation.variables?.fileId
+                  : undefined
+              }
               subtitle={
                 projectFilesQuery.isLoading
                   ? 'Loading files...'
@@ -425,6 +457,26 @@ export default function ProjectDetailPage() {
         isOpen={uploadFileOpen}
         onClose={() => setUploadFileOpen(false)}
         onConfirm={handleUploadFile}
+      />
+
+      <ConfirmActionModal
+        isOpen={Boolean(fileToDelete)}
+        onClose={() => setFileToDelete(null)}
+        title="Delete File?"
+        message={
+          <>
+            Are you sure you want to delete{' '}
+            <span className="font-semibold">
+              “{fileToDelete?.name ?? 'this file'}”
+            </span>
+            ? This action cannot be undone.
+          </>
+        }
+        confirmLabel="Yes, Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isSubmitting={deleteProjectFileMutation.isPending}
+        onConfirm={handleDeleteFile}
       />
     </div>
   );

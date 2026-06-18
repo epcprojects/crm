@@ -34,6 +34,7 @@ export type ProjectFileRecord = {
   size?: string;
   uploadedBy?: string;
   uploadedAt?: string;
+  storageKey?: string;
 };
 
 export const baseProjects: ProjectRecord[] = [

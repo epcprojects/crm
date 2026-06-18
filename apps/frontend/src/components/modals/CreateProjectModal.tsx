@@ -16,6 +16,9 @@ type CreateProjectModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onConfirm?: (values: CreateProjectFormValues) => Promise<void> | void;
+  initialValues?: CreateProjectFormValues;
+  title?: string;
+  confirmLabel?: string;
 };
 
 const projectColors = [
@@ -42,6 +45,9 @@ export default function CreateProjectModal({
   isOpen,
   onClose,
   onConfirm,
+  initialValues,
+  title = 'Create Project',
+  confirmLabel = 'Create Project',
 }: CreateProjectModalProps) {
   const colorInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -62,16 +68,21 @@ export default function CreateProjectModal({
   useEffect(() => {
     if (!isOpen) {
       formik.resetForm();
+      return;
     }
-  }, [isOpen]);
+
+    if (initialValues) {
+      formik.resetForm({ values: initialValues });
+    }
+  }, [initialValues, isOpen]);
 
   return (
     <AppModal
       isOpen={isOpen}
       onClose={onClose}
-      title="Create Project"
+      title={title}
       showFooter
-      confirmLabel="Create Project"
+      confirmLabel={confirmLabel}
       cancelLabel="Cancel"
       onCancel={onClose}
       onConfirm={() => formik.submitForm()}

@@ -34,6 +34,7 @@ export type RoleClaimRecord = {
 
 type RolesTableProps = {
   roles: RoleRecord[];
+  currentUserRoles?: Array<string | { key?: string; name?: string }>;
   initialPageSize?: number;
   pageSizeOptions?: number[];
   onViewClaims?: (role: RoleRecord) => void;
@@ -42,13 +43,18 @@ type RolesTableProps = {
 };
 
 function getColumns({
+  currentUserRoles = [],
   onViewClaims,
   onEdit,
   onDelete,
 }: Pick<
   RolesTableProps,
-  'onViewClaims' | 'onEdit' | 'onDelete'
+  'currentUserRoles' | 'onViewClaims' | 'onEdit' | 'onDelete'
 >): ColumnDef<RoleRecord>[] {
+  const currentUserRoleSet = new Set(
+    currentUserRoles.map(getNormalizedUserRole).filter(Boolean),
+  );
+
   return [
     {
       accessorKey: 'id',
@@ -93,6 +99,10 @@ function getColumns({
         const isProtectedRole = ['SUPER_ADMIN', 'ADMIN'].includes(
           row.original.normalizedName,
         );
+        const hasCurrentUserRole = currentUserRoleSet.has(
+          normalizeRoleValue(row.original.normalizedName),
+        );
+        const shouldHideMutations = isProtectedRole || hasCurrentUserRole;
 
         // eslint-disable-next-line no-constant-condition, no-constant-binary-expression
         if (false && isProtectedRole) {
@@ -116,32 +126,36 @@ function getColumns({
                 <EyeOpenedIcon fill="currentColor" />
               </button>
             </Tooltip>
-            <Tooltip hide={isProtectedRole} content="" heading="Edit Role">
-              <button
-                type="button"
-                disabled={isProtectedRole}
-                onClick={() => {
-                  if (!isProtectedRole) onEdit?.(row.original);
-                }}
-                className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-gray-200 text-primary-dark transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-                aria-label={`Edit ${row.original.name}`}
-              >
-                <EditIcon />
-              </button>
-            </Tooltip>
-            <Tooltip hide={isProtectedRole} content="" heading="Delete Role">
-              <button
-                type="button"
-                onClick={() => {
-                  if (!isProtectedRole) onDelete?.(row.original);
-                }}
-                disabled={isProtectedRole}
-                className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-red-500 text-red-500 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
-                aria-label={`Delete ${row.original.name}`}
-              >
-                <TrashIcon />
-              </button>
-            </Tooltip>
+            {!shouldHideMutations && (
+              <Tooltip hide={shouldHideMutations} content="" heading="Edit Role">
+                <button
+                  type="button"
+                  disabled={shouldHideMutations}
+                  onClick={() => {
+                    if (!shouldHideMutations) onEdit?.(row.original);
+                  }}
+                  className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-gray-200 text-primary-dark transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-label={`Edit ${row.original.name}`}
+                >
+                  <EditIcon />
+                </button>
+              </Tooltip>
+            )}
+            {!shouldHideMutations && (
+              <Tooltip hide={shouldHideMutations} content="" heading="Delete Role">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!shouldHideMutations) onDelete?.(row.original);
+                  }}
+                  disabled={shouldHideMutations}
+                  className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-red-500 text-red-500 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-label={`Delete ${row.original.name}`}
+                >
+                  <TrashIcon />
+                </button>
+              </Tooltip>
+            )}
           </div>
         );
       },
@@ -151,6 +165,7 @@ function getColumns({
 
 export default function RolesTable({
   roles,
+  currentUserRoles = [],
   initialPageSize = 10,
   pageSizeOptions = [10, 20, 30],
   onViewClaims,
@@ -161,7 +176,12 @@ export default function RolesTable({
     pageIndex: 0,
     pageSize: initialPageSize,
   });
-  const columns = getColumns({ onViewClaims, onEdit, onDelete });
+  const columns = getColumns({
+    currentUserRoles,
+    onViewClaims,
+    onEdit,
+    onDelete,
+  });
 
   const table = useReactTable({
     data: roles,
@@ -367,6 +387,18 @@ function getVisiblePageNumbers(currentPage: number, totalPages: number) {
     'ellipsis',
     totalPages,
   ] as const;
+}
+
+function getNormalizedUserRole(role: string | { key?: string; name?: string }) {
+  if (typeof role === 'string') {
+    return normalizeRoleValue(role);
+  }
+
+  return normalizeRoleValue(role.key ?? role.name ?? '');
+}
+
+function normalizeRoleValue(role: string) {
+  return role.trim().toUpperCase().replace(/[\s-]+/g, '_');
 }
 
 function ChevronLeftIcon() {

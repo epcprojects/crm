@@ -12,6 +12,7 @@ import {
   type ProjectFileRecord,
 } from './projects.data';
 import type { CreateProjectFormValues } from '../../../components/modals/CreateProjectModal';
+import type { UploadFileFormValues } from '../../../components/modals/UploadFileModal';
 import type { DiscussionReply } from '../../../components/discussion/DiscussionPanel';
 import type {
   RecentTicket,
@@ -56,6 +57,33 @@ export function useCreateProjectMutation() {
   });
 }
 
+export function useUpdateProjectMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateProject,
+    onSuccess: async (_data, variables) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
+        queryClient.invalidateQueries({
+          queryKey: [...projectsQueryKey, variables.projectId],
+        }),
+      ]);
+    },
+  });
+}
+
+export function useDeleteProjectMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteProject,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: projectsQueryKey });
+    },
+  });
+}
+
 export function useProjectThreadQuery(projectId: string) {
   return useQuery({
     queryKey: [...projectThreadQueryKey, projectId],
@@ -81,6 +109,32 @@ export function useProjectFilesQuery(projectId: string) {
     queryKey: [...projectFilesQueryKey, projectId],
     queryFn: () => fetchProjectFiles(projectId),
     enabled: Boolean(projectId),
+  });
+}
+
+export function useUploadProjectFilesMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: uploadProjectFiles,
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({
+        queryKey: [...projectFilesQueryKey, variables.projectId],
+      });
+    },
+  });
+}
+
+export function useDeleteProjectFileMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteProjectFile,
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({
+        queryKey: [...projectFilesQueryKey, variables.projectId],
+      });
+    },
   });
 }
 
@@ -155,6 +209,53 @@ async function createProject(values: CreateProjectFormValues) {
   return payload;
 }
 
+async function updateProject({
+  projectId,
+  values,
+}: {
+  projectId: string;
+  values: CreateProjectFormValues;
+}) {
+  const response = await fetch(`/api/projects/${projectId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({
+      name: values.name,
+      category: values.category.toLowerCase(),
+      brandColor: values.colorHex,
+      logoLetter: getProjectLogoLetter(values.name),
+    }),
+  });
+
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(payload?.message || 'Failed to update project.');
+  }
+
+  return payload;
+}
+
+async function deleteProject(projectId: string) {
+  const response = await fetch(`/api/projects/${projectId}`, {
+    method: 'DELETE',
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(payload?.message || 'Failed to delete project.');
+  }
+
+  return payload;
+}
+
 function getProjectLogoLetter(name: string) {
   return name.replace(/\s+/g, '').slice(0, 2).toLowerCase();
 }
@@ -214,10 +315,13 @@ type ApiProjectFile = {
   type?: string;
   mimeType?: string;
   size?: string | number | null;
+  sizeBytes?: string | number | null;
+  extension?: string | null;
   uploadedBy?: string | null;
   createdBy?: string | null;
   uploadedAt?: string | null;
   createdAt?: string | null;
+  storageKey?: string | null;
 };
 
 type ApiProjectTicketsResponse = {
@@ -315,6 +419,56 @@ async function fetchProjectFiles(projectId: string) {
   return payload.map(mapApiProjectFileToProjectFileRecord);
 }
 
+async function uploadProjectFiles({
+  projectId,
+  values,
+}: {
+  projectId: string;
+  values: UploadFileFormValues;
+}) {
+  const formData = new FormData();
+
+  values.attachments.forEach((file) => {
+    formData.append('files', file);
+  });
+
+  const response = await fetch(`/api/projects/${projectId}/files`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(payload?.message || 'Failed to upload project files.');
+  }
+
+  return payload;
+}
+
+async function deleteProjectFile({
+  projectId,
+  fileId,
+}: {
+  projectId: string;
+  fileId: string;
+}) {
+  const response = await fetch(`/api/projects/${projectId}/files/${fileId}`, {
+    method: 'DELETE',
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(payload?.message || 'Failed to delete project file.');
+  }
+
+  return payload;
+}
+
 function mapApiProjectThreadMessageToReply(
   message: ApiProjectThreadMessage,
 ): DiscussionReply {
@@ -361,11 +515,12 @@ function mapApiProjectFileToProjectFileRecord(
   return {
     id: getNonEmptyString(file.id) ?? `${name}-${file.createdAt ?? Date.now()}`,
     name,
-    type: mapProjectFileType(file.type ?? file.mimeType ?? name),
-    size: formatFileSize(file.size),
+    type: mapProjectFileType(file.type ?? file.mimeType ?? file.extension ?? name),
+    size: formatFileSize(file.size ?? file.sizeBytes),
     uploadedBy:
       getNonEmptyString(file.uploadedBy) ?? getNonEmptyString(file.createdBy),
     uploadedAt: formatProjectFileDate(file.uploadedAt ?? file.createdAt),
+    storageKey: getNonEmptyString(file.storageKey),
   };
 }
 
@@ -468,13 +623,23 @@ function mapProjectFileType(value: string): ProjectFileRecord['type'] {
 
 function formatFileSize(value: string | number | null | undefined) {
   if (typeof value === 'string' && value.trim()) {
-    return value;
+    const parsedValue = Number(value);
+
+    if (Number.isNaN(parsedValue)) {
+      return value;
+    }
+
+    return formatBytes(parsedValue);
   }
 
   if (typeof value !== 'number' || Number.isNaN(value)) {
     return undefined;
   }
 
+  return formatBytes(value);
+}
+
+function formatBytes(value: number) {
   if (value < 1024) {
     return `${value} B`;
   }

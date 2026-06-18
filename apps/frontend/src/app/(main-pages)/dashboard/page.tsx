@@ -31,6 +31,7 @@ import { createTicket } from '../../../lib/tickets';
 import { useProjectsQuery } from '../projects/projects.queries';
 import { useIsMobile } from '../../../components/hooks/useIsMobile';
 import Link from 'next/link';
+import { PermissionGuard } from '../../providers/PermissionProvider';
 
 // const recentTickets: RecentTicket[] = ticketsData.slice(0, 6);
 const recentTickets: RecentTicket[] = [];
@@ -196,108 +197,116 @@ export default function Page() {
 
   return (
     <div className="space-y-6">
-      <div className="grid md:grid-cols-4 gap-3 md:gap-5">
-        <StatusCard
-          icon={
-            <FolderIcon
-              width={isMobile ? '20' : '24'}
-              height={isMobile ? '20' : '24'}
-              fill="currentColor"
-            />
-          }
-          title="Open"
-          count={0}
-        />
-        <StatusCard
-          icon={
-            <ClockIcon
-              width={isMobile ? '20' : '24'}
-              height={isMobile ? '20' : '24'}
-              fill="currentColor"
-            />
-          }
-          title="In Progress"
-          count={0}
-        />
-        <StatusCard
-          icon={
-            <CheckMarkCircleIcon
-              width={isMobile ? '20' : '24'}
-              height={isMobile ? '20' : '24'}
-              fill="currentColor"
-            />
-          }
-          title="Resolved"
-          count={0}
-        />
-        <StatusCard
-          icon={
-            <AlertIcon
-              width={isMobile ? '20' : '24'}
-              height={isMobile ? '20' : '24'}
-              fill="currentColor"
-            />
-          }
-          title="Critical"
-          count={0}
-        />
-      </div>
-
-      <div className="space-y-4">
-        <div className="flex items-center gap-2 justify-between">
-          <div className="flex items-center gap-2 md:gap-2.5">
-            <ProfileIcon />
-            <h2 className="text-base md:text-xl font-semibold text-black">
-              Projects
-            </h2>
-          </div>
-
-          <Link
-            href={'/projects'}
-            className="text-primary font-medium text-base hover:underline underline-offset-2"
-          >
-            View All
-          </Link>
-        </div>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          {projectsQuery.isLoading
-            ? Array.from({ length: 3 }).map((_, index) => (
-                <ProjectCardSkeleton key={index} />
-              ))
-            : (projectsQuery.data?.slice(0, 3) ?? []).map((project) => (
-                <ProjectCard
-                  key={project.id}
-                  id={project.id}
-                  initials={project.initials}
-                  name={project.name}
-                  category={project.category}
-                  totalCount={project.totalCount}
-                  openCount={project.openCount}
-                  criticalCount={project.criticalCount}
-                  colorHex={project.colorHex}
-                  onClick={() => router.push(`/projects/${project.id}`)}
-                />
-              ))}
-        </div>
-      </div>
-
-      <div className="grid md:grid-cols-14 gap-4 md:gap-6">
-        <div className="md:col-span-10 space-y-4">
-          <div className="flex items-center gap-2 md:gap-2.5">
-            <ClockIcon opacity={0} />
-            <h2 className="text-base md:text-xl font-semibold text-black">
-              Recent Tickets
-            </h2>
-          </div>
-          <RecentTicketsTable
-            tickets={recentTickets}
-            onViewAll={handleViewAllTickets}
-            onRowClick={(ticket) => router.push(`/tickets/${ticket.id}`)}
+      <PermissionGuard permission="dashboard.view_stats">
+        <div className="grid md:grid-cols-4 gap-3 md:gap-5">
+          <StatusCard
+            icon={
+              <FolderIcon
+                width={isMobile ? '20' : '24'}
+                height={isMobile ? '20' : '24'}
+                fill="currentColor"
+              />
+            }
+            title="Open"
+            count={0}
+          />
+          <StatusCard
+            icon={
+              <ClockIcon
+                width={isMobile ? '20' : '24'}
+                height={isMobile ? '20' : '24'}
+                fill="currentColor"
+              />
+            }
+            title="In Progress"
+            count={0}
+          />
+          <StatusCard
+            icon={
+              <CheckMarkCircleIcon
+                width={isMobile ? '20' : '24'}
+                height={isMobile ? '20' : '24'}
+                fill="currentColor"
+              />
+            }
+            title="Resolved"
+            count={0}
+          />
+          <StatusCard
+            icon={
+              <AlertIcon
+                width={isMobile ? '20' : '24'}
+                height={isMobile ? '20' : '24'}
+                fill="currentColor"
+              />
+            }
+            title="Critical"
+            count={0}
           />
         </div>
-        <div className="col-span-4">
-          <TicketsTabs tabs={ticketTabs} />
+      </PermissionGuard>
+
+      <PermissionGuard permission="dashboard.view_project_cards">
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 justify-between">
+            <div className="flex items-center gap-2 md:gap-2.5">
+              <ProfileIcon />
+              <h2 className="text-base md:text-xl font-semibold text-black">
+                Projects
+              </h2>
+            </div>
+
+            <Link
+              href={'/projects'}
+              className="text-primary font-medium text-base hover:underline underline-offset-2"
+            >
+              View All
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            {projectsQuery.isLoading
+              ? Array.from({ length: 3 }).map((_, index) => (
+                  <ProjectCardSkeleton key={index} />
+                ))
+              : (projectsQuery.data?.slice(0, 3) ?? []).map((project) => (
+                  <ProjectCard
+                    key={project.id}
+                    id={project.id}
+                    initials={project.initials}
+                    name={project.name}
+                    category={project.category}
+                    totalCount={project.totalCount}
+                    openCount={project.openCount}
+                    criticalCount={project.criticalCount}
+                    colorHex={project.colorHex}
+                    onClick={() => router.push(`/projects/${project.id}`)}
+                  />
+                ))}
+          </div>
         </div>
+      </PermissionGuard>
+
+      <div className="grid md:grid-cols-14 gap-4 md:gap-6">
+        <PermissionGuard permission="dashboard.view_recent_tickets">
+          <div className="md:col-span-10 space-y-4">
+            <div className="flex items-center gap-2 md:gap-2.5">
+              <ClockIcon opacity={0} />
+              <h2 className="text-base md:text-xl font-semibold text-black">
+                Recent Tickets
+              </h2>
+            </div>
+            <RecentTicketsTable
+              tickets={recentTickets}
+              onViewAll={handleViewAllTickets}
+              onRowClick={(ticket) => router.push(`/tickets/${ticket.id}`)}
+            />
+          </div>
+        </PermissionGuard>
+        <PermissionGuard permission="dashboard.view_upcoming">
+          <div className="col-span-4">
+            <TicketsTabs tabs={ticketTabs} />
+          </div>
+        </PermissionGuard>
       </div>
 
       <CreateTicketModal

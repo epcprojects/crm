@@ -27,9 +27,11 @@ import ArrowDownIcon from './ArrowDownIcon';
 import TrashIcon from './TrashIcon';
 import SearchIcon from './SearchIcon';
 import TicketIcon2 from './TicketIcon2';
+import EditIcon from './EditIcon';
 
 export {
   TicketIcon2,
+  EditIcon,
   SearchIcon,
   APIIcon,
   ArrowDownIcon,
