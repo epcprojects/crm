@@ -11,6 +11,10 @@ import SettingsConfigCard, {
 import { appToast } from '../../../components/toast/AppToast';
 import { useIsMobile } from '../../../components/hooks/useIsMobile';
 import { useAppLoader } from '../../providers/AppLoaderProvider';
+import {
+  PermissionGuard,
+  usePermissions,
+} from '../../providers/PermissionProvider';
 
 type ApiTicketStatus = {
   id: string;
@@ -27,15 +31,30 @@ type ApiTicketPriority = ApiTicketStatus;
 export default function Page() {
   const queryClient = useQueryClient();
   const { setLoading } = useAppLoader();
+  const { hasPermission, hasAnyPermission } = usePermissions();
+  const canViewStatuses = hasPermission('settings.view_statuses');
+  const canCreateStatus = hasPermission('settings.create_status');
+  const canEditStatus = hasPermission('settings.edit_status');
+  const canDeleteStatus = hasPermission('settings.delete_status');
+  const canViewPriorities = hasPermission('settings.view_priorities');
+  const canCreatePriority = hasPermission('settings.create_priority');
+  const canEditPriority = hasPermission('settings.edit_priority');
+  const canDeletePriority = hasPermission('settings.delete_priority');
+  const canViewSettings = hasAnyPermission([
+    'settings.view_statuses',
+    'settings.view_priorities',
+  ]);
   const [statusItems, setStatusItems] = useState<SettingsConfigItem[]>([]);
   const [priorityItems, setPriorityItems] = useState<SettingsConfigItem[]>([]);
   const ticketStatusesQuery = useQuery({
     queryKey: ['ticket-statuses'],
     queryFn: fetchTicketStatuses,
+    enabled: canViewStatuses,
   });
   const ticketPrioritiesQuery = useQuery({
     queryKey: ['ticket-priorities'],
     queryFn: fetchTicketPriorities,
+    enabled: canViewPriorities,
   });
   const createTicketPriorityMutation = useMutation({
     mutationFn: async ({
@@ -203,7 +222,8 @@ export default function Page() {
     enabled:
       statusModalMode === 'edit' &&
       Boolean(editingStatusId) &&
-      editingStatusId !== 'new-status',
+      editingStatusId !== 'new-status' &&
+      canEditStatus,
   });
   const ticketPriorityDetailQuery = useQuery({
     queryKey: ['ticket-priorities', editingPriorityId],
@@ -211,7 +231,8 @@ export default function Page() {
     enabled:
       priorityModalMode === 'edit' &&
       Boolean(editingPriorityId) &&
-      editingPriorityId !== 'new-priority',
+      editingPriorityId !== 'new-priority' &&
+      canEditPriority,
   });
 
   const editingStatus =
@@ -232,6 +253,10 @@ export default function Page() {
   }, [ticketPrioritiesQuery.data]);
 
   const handleCreateStatus = async (values: SettingsItemFormValues) => {
+    if (!canCreateStatus) {
+      return;
+    }
+
     try {
       setLoading(true);
       const payload = await createTicketStatusMutation.mutateAsync({
@@ -262,7 +287,7 @@ export default function Page() {
   };
 
   const handleEditStatus = async (values: SettingsItemFormValues) => {
-    if (!editingStatusId) return;
+    if (!editingStatusId || !canEditStatus) return;
 
     try {
       setLoading(true);
@@ -300,6 +325,10 @@ export default function Page() {
   };
 
   const handleCreatePriority = async (values: SettingsItemFormValues) => {
+    if (!canCreatePriority) {
+      return;
+    }
+
     const payload = await createTicketPriorityMutation.mutateAsync({
       body: {
         key: values.value,
@@ -325,7 +354,7 @@ export default function Page() {
   };
 
   const handleEditPriority = async (values: SettingsItemFormValues) => {
-    if (!editingPriorityId) return;
+    if (!editingPriorityId || !canEditPriority) return;
 
     const payload = await updateTicketPriorityMutation.mutateAsync({
       priorityId: editingPriorityId,
@@ -359,53 +388,91 @@ export default function Page() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+      {canViewSettings ? (
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <PermissionGuard permission="settings.view_statuses">
         <SettingsConfigCard
           title="Ticket Statuses"
           subtitle={`${statusItems.length} statuses · used across all projects`}
           buttonLabel="Add Status"
           items={statusItems}
           badgeVariant="status"
-          onAdd={() => {
-            setStatusModalMode('create');
-            setEditingStatusId('new-status');
-          }}
-          onEdit={(item) => {
-            setStatusModalMode('edit');
-            setEditingStatusId(item.id);
-          }}
-          onDelete={async (item) => {
-            await deleteTicketStatusMutation.mutateAsync(item.id);
-            setStatusItems((currentItems) =>
-              currentItems.filter((statusItem) => statusItem.id !== item.id),
-            );
-            appToast.success('Status deleted successfully.');
-          }}
+          onAdd={
+            canCreateStatus
+              ? () => {
+                  setStatusModalMode('create');
+                  setEditingStatusId('new-status');
+                }
+              : undefined
+          }
+          onEdit={
+            canEditStatus
+              ? (item) => {
+                  setStatusModalMode('edit');
+                  setEditingStatusId(item.id);
+                }
+              : undefined
+          }
+          onDelete={
+            canDeleteStatus
+              ? async (item) => {
+                  await deleteTicketStatusMutation.mutateAsync(item.id);
+                  setStatusItems((currentItems) =>
+                    currentItems.filter(
+                      (statusItem) => statusItem.id !== item.id,
+                    ),
+                  );
+                  appToast.success('Status deleted successfully.');
+                }
+              : undefined
+          }
         />
+          </PermissionGuard>
 
+          <PermissionGuard permission="settings.view_priorities">
         <SettingsConfigCard
           title="Priority Levels"
           subtitle={`${priorityItems.length} levels · used across all projects`}
           buttonLabel="Add Priority"
           items={priorityItems}
           badgeVariant="priority"
-          onAdd={() => {
-            setPriorityModalMode('create');
-            setEditingPriorityId('new-priority');
-          }}
-          onEdit={(item) => {
-            setPriorityModalMode('edit');
-            setEditingPriorityId(item.id);
-          }}
-          onDelete={async (item) => {
-            await deleteTicketPriorityMutation.mutateAsync(item.id);
-            setPriorityItems((currentItems) =>
-              currentItems.filter((priorityItem) => priorityItem.id !== item.id),
-            );
-            appToast.success('Priority deleted successfully.');
-          }}
+          onAdd={
+            canCreatePriority
+              ? () => {
+                  setPriorityModalMode('create');
+                  setEditingPriorityId('new-priority');
+                }
+              : undefined
+          }
+          onEdit={
+            canEditPriority
+              ? (item) => {
+                  setPriorityModalMode('edit');
+                  setEditingPriorityId(item.id);
+                }
+              : undefined
+          }
+          onDelete={
+            canDeletePriority
+              ? async (item) => {
+                  await deleteTicketPriorityMutation.mutateAsync(item.id);
+                  setPriorityItems((currentItems) =>
+                    currentItems.filter(
+                      (priorityItem) => priorityItem.id !== item.id,
+                    ),
+                  );
+                  appToast.success('Priority deleted successfully.');
+                }
+              : undefined
+          }
         />
-      </div>
+          </PermissionGuard>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
+          You do not have permission to view settings.
+        </div>
+      )}
 
       <div className="flex items-start gap-3 rounded-xl border border-warning-200 bg-[#FFFAEB] px-4 py-3 text-[#69410A]">
         <span className="mt-1 hidden sm:inline-block">
@@ -428,9 +495,9 @@ export default function Page() {
 
       <SettingsItemModal
         isOpen={
-          statusModalMode === 'create'
+          canCreateStatus && statusModalMode === 'create'
             ? editingStatusId === 'new-status'
-            : Boolean(editingStatusId)
+            : canEditStatus && Boolean(editingStatusId)
         }
         onClose={() => setEditingStatusId(null)}
         kind="status"
@@ -455,9 +522,9 @@ export default function Page() {
 
       <SettingsItemModal
         isOpen={
-          priorityModalMode === 'create'
+          canCreatePriority && priorityModalMode === 'create'
             ? editingPriorityId === 'new-priority'
-            : Boolean(editingPriority)
+            : canEditPriority && Boolean(editingPriority)
         }
         onClose={() => setEditingPriorityId(null)}
         kind="priority"

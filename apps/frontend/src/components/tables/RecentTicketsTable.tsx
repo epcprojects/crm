@@ -352,7 +352,7 @@ export default function RecentTicketsTable({
             </div>
           </div>
         </div>
-      ) : (
+      ) : onViewAll ? (
         <div className="flex justify-center border-t border-gray-200 py-4.5">
           <ThemeButton onClick={onViewAll}>
             <div className="flex items-center gap-1.5">
@@ -360,7 +360,7 @@ export default function RecentTicketsTable({
             </div>
           </ThemeButton>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

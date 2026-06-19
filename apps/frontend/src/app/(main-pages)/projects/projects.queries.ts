@@ -25,20 +25,21 @@ export const projectThreadQueryKey = ['project-thread'];
 export const projectTicketsQueryKey = ['project-tickets'];
 export const projectFilesQueryKey = ['project-files'];
 
-export function useProjectsQuery() {
+export function useProjectsQuery(enabled = true) {
   return useQuery({
     queryKey: projectsQueryKey,
     queryFn: fetchProjects,
+    enabled,
   });
 }
 
-export function useProjectDetailQuery(projectId: string) {
+export function useProjectDetailQuery(projectId: string, enabled = true) {
   const queryClient = useQueryClient();
 
   return useQuery({
     queryKey: [...projectsQueryKey, projectId],
     queryFn: () => fetchProjectById(projectId),
-    enabled: Boolean(projectId),
+    enabled: Boolean(projectId && enabled),
     initialData: () => {
       const projects = queryClient.getQueryData<ProjectRecord[]>(projectsQueryKey);
       return projects?.find((project) => project.id === projectId);
@@ -84,11 +85,11 @@ export function useDeleteProjectMutation() {
   });
 }
 
-export function useProjectThreadQuery(projectId: string) {
+export function useProjectThreadQuery(projectId: string, enabled = true) {
   return useQuery({
     queryKey: [...projectThreadQueryKey, projectId],
     queryFn: () => fetchProjectThread(projectId),
-    enabled: Boolean(projectId),
+    enabled: Boolean(projectId && enabled),
   });
 }
 
@@ -96,19 +97,20 @@ export function useProjectTicketsQuery(
   projectId: string,
   page: number,
   limit: number,
+  enabled = true,
 ) {
   return useQuery({
     queryKey: [...projectTicketsQueryKey, projectId, page, limit],
     queryFn: () => fetchProjectTickets(projectId, page, limit),
-    enabled: Boolean(projectId),
+    enabled: Boolean(projectId && enabled),
   });
 }
 
-export function useProjectFilesQuery(projectId: string) {
+export function useProjectFilesQuery(projectId: string, enabled = true) {
   return useQuery({
     queryKey: [...projectFilesQueryKey, projectId],
     queryFn: () => fetchProjectFiles(projectId),
-    enabled: Boolean(projectId),
+    enabled: Boolean(projectId && enabled),
   });
 }
 

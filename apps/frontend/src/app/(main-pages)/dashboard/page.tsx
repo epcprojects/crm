@@ -72,6 +72,17 @@ export default function Page() {
   const { setHeaderActionOverride } = useDashboardHeaderAction();
   const { setLoading } = useAppLoader();
   const { hasPermission } = usePermissions();
+  const canViewStats = hasPermission('dashboard.view_stats');
+  const canViewProjectCards = hasPermission('dashboard.view_project_cards');
+  const canViewUpcoming = hasPermission('dashboard.view_upcoming');
+  const canViewRecentTickets = hasPermission('dashboard.view_recent_tickets');
+  const canCreateTicket = hasPermission('tickets.create');
+  const canViewTicketsList = hasPermission('tickets.view_list');
+  const canViewTicketDetail = hasPermission('tickets.view_detail');
+  const canViewProjectsList = hasPermission('projects.view_list');
+  const canViewProjectDetail = hasPermission('projects.view_detail');
+  const canEditProject = hasPermission('projects.edit');
+  const canDeleteProject = hasPermission('projects.delete');
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [projectToEdit, setProjectToEdit] = useState<ProjectRecord | null>(
     null,
@@ -80,10 +91,11 @@ export default function Page() {
     id: string;
     name: string;
   } | null>(null);
-  const projectsQuery = useProjectsQuery();
+  const projectsQuery = useProjectsQuery(canViewProjectCards || canCreateTicket);
   const ticketSummaryQuery = useQuery({
     queryKey: ['dashboard', 'ticket-summary'],
     queryFn: fetchTicketSummary,
+    enabled: canViewStats,
   });
   const updateProjectMutation = useUpdateProjectMutation();
   const deleteProjectMutation = useDeleteProjectMutation();
@@ -94,10 +106,18 @@ export default function Page() {
   );
 
   const handleViewAllTickets = () => {
+    if (!canViewTicketsList) {
+      return;
+    }
+
     router.push('/tickets');
   };
 
   const handleCreateTicket = async (values: CreateTicketFormValues) => {
+    if (!canCreateTicket) {
+      return;
+    }
+
     try {
       await createTicket({
         projectId: values.project,
@@ -157,20 +177,19 @@ export default function Page() {
   };
 
   useEffect(() => {
-    setHeaderActionOverride(() => setCreateTicketOpen(true));
+    if (canCreateTicket) {
+      setHeaderActionOverride(() => setCreateTicketOpen(true));
+    } else {
+      setHeaderActionOverride(null);
+    }
 
     return () => {
       setHeaderActionOverride(null);
     };
-  }, [setHeaderActionOverride]);
+  }, [canCreateTicket, setHeaderActionOverride]);
 
   const isMobile = useIsMobile();
   const ticketSummary = ticketSummaryQuery.data;
-  const canViewUpcoming = hasPermission('dashboard.view_upcoming');
-  const canViewRecentTickets = hasPermission('dashboard.view_recent_tickets');
-  const canViewProjectDetail = hasPermission('projects.view_detail');
-  const canEditProject = hasPermission('projects.edit');
-  const canDeleteProject = hasPermission('projects.delete');
 
   return (
     <div className="space-y-6">
@@ -233,12 +252,14 @@ export default function Page() {
               </h2>
             </div>
 
-            <Link
-              href={'/projects'}
-              className="text-primary font-medium text-base hover:underline underline-offset-2"
-            >
-              View All
-            </Link>
+            {canViewProjectsList ? (
+              <Link
+                href={'/projects'}
+                className="text-primary font-medium text-base hover:underline underline-offset-2"
+              >
+                View All
+              </Link>
+            ) : null}
           </div>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             {projectsQuery.isLoading
@@ -298,8 +319,12 @@ export default function Page() {
             </div>
             <RecentTicketsTable
               tickets={recentTickets}
-              onViewAll={handleViewAllTickets}
-              onRowClick={(ticket) => router.push(`/tickets/${ticket.id}`)}
+              onViewAll={canViewTicketsList ? handleViewAllTickets : undefined}
+              onRowClick={
+                canViewTicketDetail
+                  ? (ticket) => router.push(`/tickets/${ticket.id}`)
+                  : undefined
+              }
             />
           </div>
         </PermissionGuard>
@@ -315,7 +340,7 @@ export default function Page() {
       </div>
 
       <CreateTicketModal
-        isOpen={createTicketOpen}
+        isOpen={createTicketOpen && canCreateTicket}
         onClose={() => setCreateTicketOpen(false)}
         onConfirm={handleCreateTicket}
         projectOptions={projectOptions}
@@ -323,7 +348,7 @@ export default function Page() {
       />
 
       <CreateProjectModal
-        isOpen={Boolean(projectToEdit)}
+        isOpen={Boolean(projectToEdit) && canEditProject}
         onClose={() => setProjectToEdit(null)}
         onConfirm={handleEditProject}
         initialValues={
@@ -340,7 +365,7 @@ export default function Page() {
       />
 
       <ConfirmActionModal
-        isOpen={Boolean(projectToDelete)}
+        isOpen={Boolean(projectToDelete) && canDeleteProject}
         onClose={() => setProjectToDelete(null)}
         title="Delete Project?"
         message={

@@ -36,6 +36,10 @@ import {
   useUploadProjectFilesMutation,
   useProjectsQuery,
 } from '../projects.queries';
+import {
+  PermissionGuard,
+  usePermissions,
+} from '../../../providers/PermissionProvider';
 
 const projectTabs = ['Tickets', 'Thread', 'Files', 'Calendar'] as const;
 
@@ -43,6 +47,19 @@ export default function ProjectDetailPage() {
   const params = useParams<{ projectId: string }>();
   const router = useRouter();
   const { setLoading } = useAppLoader();
+  const { hasPermission } = usePermissions();
+  const canViewProjectDetail = hasPermission('projects.view_detail');
+  const canViewTickets = hasPermission('tickets.view_list');
+  const canViewTicketDetail = hasPermission('tickets.view_detail');
+  const canCreateTicket = hasPermission('tickets.create');
+  const canFilterTickets = hasPermission('tickets.filter');
+  const canViewThread = hasPermission('thread.view');
+  const canPostThreadMessage = hasPermission('thread.post_message');
+  const canAttachThreadFile = hasPermission('thread.attach_file');
+  const canViewFiles = hasPermission('files.view');
+  const canUploadFiles = hasPermission('files.upload');
+  const canDownloadFiles = hasPermission('files.download');
+  const canViewCalendar = hasPermission('calendar.view_grid');
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [uploadFileOpen, setUploadFileOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
@@ -58,20 +75,22 @@ export default function ProjectDetailPage() {
   const projectId = String(params?.projectId ?? '');
   const hasShownError = useRef(false);
   const queryClient = useQueryClient();
-  const projectDetailQuery = useProjectDetailQuery(projectId);
-  const projectThreadQuery = useProjectThreadQuery(projectId);
-  const projectFilesQuery = useProjectFilesQuery(projectId);
+  const projectDetailQuery = useProjectDetailQuery(projectId, canViewProjectDetail);
+  const projectThreadQuery = useProjectThreadQuery(projectId, canViewThread);
+  const projectFilesQuery = useProjectFilesQuery(projectId, canViewFiles);
   const projectTicketsQuery = useProjectTicketsQuery(
     projectId,
     ticketsPagination.pageIndex + 1,
     ticketsPagination.pageSize,
+    canViewTickets,
   );
   const uploadProjectFilesMutation = useUploadProjectFilesMutation();
   const deleteProjectFileMutation = useDeleteProjectFileMutation();
-  const projectsQuery = useProjectsQuery();
+  const projectsQuery = useProjectsQuery(canCreateTicket);
   const ticketStatusesQuery = useQuery({
     queryKey: ['ticket-statuses'],
     queryFn: fetchTicketStatuses,
+    enabled: canViewTickets,
   });
   const project = projectDetailQuery.data;
 
@@ -184,6 +203,10 @@ export default function ProjectDetailPage() {
   }, [fileSearchValue, projectFilesQuery.data, uploadedFilesState]);
 
   const handleCreateTicket = async (values: CreateTicketFormValues) => {
+    if (!canCreateTicket) {
+      return;
+    }
+
     try {
       await createTicket({
         projectId: values.project,
@@ -207,6 +230,10 @@ export default function ProjectDetailPage() {
   };
 
   const handleUploadFile = async (values: UploadFileFormValues) => {
+    if (!canUploadFiles) {
+      return;
+    }
+
     try {
       setLoading(true);
       await uploadProjectFilesMutation.mutateAsync({ projectId, values });
@@ -250,11 +277,41 @@ export default function ProjectDetailPage() {
     message: string;
     attachment: File | null;
   }) => {
+    if (!canPostThreadMessage) {
+      return;
+    }
+
     await createProjectThreadMutation.mutateAsync({ message, attachment });
   };
 
+  const visibleProjectTabs = projectTabs.filter((tab) => {
+    if (tab === 'Tickets') return canViewTickets;
+    if (tab === 'Thread') return canViewThread;
+    if (tab === 'Files') return canViewFiles;
+    if (tab === 'Calendar') return canViewCalendar;
+    return false;
+  });
+
   if (projectDetailQuery.isLoading) {
     return <ProjectDetailSkeleton onBack={() => router.back()} />;
+  }
+
+  if (!canViewProjectDetail) {
+    return (
+      <div className="space-y-4 -mt-16 sm:mt-0">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
+        >
+          <BackArrowIcon />
+          Back
+        </button>
+        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
+          You do not have permission to view project details.
+        </div>
+      </div>
+    );
   }
 
   if (!project) {
@@ -309,26 +366,32 @@ export default function ProjectDetailPage() {
               </div>
 
               <div className="mt-1.5 sm:mt-2.5 flex-wrap flex items-center gap-4 sm:gap-8">
-                <Metric
-                  label="Tickets"
-                  value={String(projectTicketsQuery.data?.meta.total ?? 0).padStart(
-                    2,
-                    '0',
-                  )}
-                />
-                <Metric
-                  label="Thread posts"
-                  value={String(projectThreadQuery.data?.length ?? 0).padStart(
-                    2,
-                    '0',
-                  )}
-                />
-                <Metric
-                  label="Files"
-                  value={String(
-                    uploadedFilesState.length + (projectFilesQuery.data?.length ?? 0),
-                  ).padStart(2, '0')}
-                />
+                {canViewTickets ? (
+                  <Metric
+                    label="Tickets"
+                    value={String(
+                      projectTicketsQuery.data?.meta.total ?? 0,
+                    ).padStart(2, '0')}
+                  />
+                ) : null}
+                {canViewThread ? (
+                  <Metric
+                    label="Thread posts"
+                    value={String(projectThreadQuery.data?.length ?? 0).padStart(
+                      2,
+                      '0',
+                    )}
+                  />
+                ) : null}
+                {canViewFiles ? (
+                  <Metric
+                    label="Files"
+                    value={String(
+                      uploadedFilesState.length +
+                        (projectFilesQuery.data?.length ?? 0),
+                    ).padStart(2, '0')}
+                  />
+                ) : null}
               </div>
             </div>
           </div>
@@ -337,7 +400,7 @@ export default function ProjectDetailPage() {
 
       <TabGroup className="space-y-4 flex flex-1 flex-col w-full">
         <TabList className="flex border-y border-gray-200">
-          {projectTabs.map((tab) => (
+          {visibleProjectTabs.map((tab) => (
             <Tab
               key={tab}
               className={({ selected }) =>
@@ -355,26 +418,31 @@ export default function ProjectDetailPage() {
         </TabList>
 
         <TabPanels className={'flex-1 flex flex-col'}>
-          <TabPanel className="space-y-4">
+          <PermissionGuard permission="tickets.view_list">
+            <TabPanel className="space-y-4">
             <div className="flex flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
-              <div className="relative flex w-full items-center md:max-w-xs">
-                <input
-                  value={searchValue}
-                  onChange={(event) => setSearchValue(event.target.value)}
-                  placeholder="Search..."
-                  className="h-10.5 w-full rounded-lg border border-gray-200 bg-white ps-7 px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
-                />
-                <span className="absolute inset-s-2">
-                  <SearchIcon />
-                </span>
-              </div>
+              {canFilterTickets ? (
+                <div className="relative flex w-full items-center md:max-w-xs">
+                  <input
+                    value={searchValue}
+                    onChange={(event) => setSearchValue(event.target.value)}
+                    placeholder="Search..."
+                    className="h-10.5 w-full rounded-lg border border-gray-200 bg-white ps-7 px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
+                  />
+                  <span className="absolute inset-s-2">
+                    <SearchIcon />
+                  </span>
+                </div>
+              ) : null}
 
-              <ThemeButton
-                icon={<PlusIcon />}
-                onClick={() => setCreateTicketOpen(true)}
-              >
-                New Ticket
-              </ThemeButton>
+              {canCreateTicket ? (
+                <ThemeButton
+                  icon={<PlusIcon />}
+                  onClick={() => setCreateTicketOpen(true)}
+                >
+                  New Ticket
+                </ThemeButton>
+              ) : null}
             </div>
 
             <RecentTicketsTable
@@ -385,14 +453,19 @@ export default function ProjectDetailPage() {
               onPaginationChange={setTicketsPagination}
               totalRows={projectTicketsQuery.data?.meta.total ?? 0}
               manualPagination
-              onRowClick={(ticket) =>
-                router.push(`/tickets/${ticket.id}?projectId=${projectId}`)
+              onRowClick={
+                canViewTicketDetail
+                  ? (ticket) =>
+                      router.push(`/tickets/${ticket.id}?projectId=${projectId}`)
+                  : undefined
               }
               hideProjectColumn
             />
-          </TabPanel>
+            </TabPanel>
+          </PermissionGuard>
 
-          <TabPanel className={'flex flex-col flex-1 '}>
+          <PermissionGuard permission="thread.view">
+            <TabPanel className={'flex flex-col flex-1 '}>
             <DiscussionPanel
               title="Discussion"
               replies={projectThreadQuery.data ?? []}
@@ -407,18 +480,27 @@ export default function ProjectDetailPage() {
                   : 'No discussion messages have been added to this project yet.'
               }
               composerPlaceholder="Post the project thread..."
-              onSubmitReply={handleSubmitReply}
+              onSubmitReply={
+                canPostThreadMessage ? handleSubmitReply : undefined
+              }
               isSubmittingReply={createProjectThreadMutation.isPending}
+              canCompose={canPostThreadMessage}
+              canAttachFile={canAttachThreadFile}
             />
-          </TabPanel>
+            </TabPanel>
+          </PermissionGuard>
 
-          <TabPanel className={'flex flex-col flex-1 '}>
+          <PermissionGuard permission="files.view">
+            <TabPanel className={'flex flex-col flex-1 '}>
             <ProjectFilesPanel
               files={projectFiles}
               searchValue={fileSearchValue}
               onSearchChange={setFileSearchValue}
-              onUploadClick={() => setUploadFileOpen(true)}
+              onUploadClick={
+                canUploadFiles ? () => setUploadFileOpen(true) : undefined
+              }
               onDeleteFile={setFileToDelete}
+              canDownloadFile={canDownloadFiles}
               deletingFileId={
                 deleteProjectFileMutation.isPending
                   ? deleteProjectFileMutation.variables?.fileId
@@ -430,19 +512,22 @@ export default function ProjectDetailPage() {
                   : `${uploadedFilesState.length + (projectFilesQuery.data?.length ?? 0)} files`
               }
             />
-          </TabPanel>
+            </TabPanel>
+          </PermissionGuard>
 
-          <TabPanel>
+          <PermissionGuard permission="calendar.view_grid">
+            <TabPanel>
             <PlaceholderCard
               title="Calendar"
               description="Project milestones and due dates will appear here."
             />
-          </TabPanel>
+            </TabPanel>
+          </PermissionGuard>
         </TabPanels>
       </TabGroup>
 
       <CreateTicketModal
-        isOpen={createTicketOpen}
+        isOpen={createTicketOpen && canCreateTicket}
         onClose={() => setCreateTicketOpen(false)}
         onConfirm={handleCreateTicket}
         projectOptions={projectOptions}
@@ -452,7 +537,7 @@ export default function ProjectDetailPage() {
       />
 
       <UploadFileModal
-        isOpen={uploadFileOpen}
+        isOpen={uploadFileOpen && canUploadFiles}
         onClose={() => setUploadFileOpen(false)}
         onConfirm={handleUploadFile}
       />

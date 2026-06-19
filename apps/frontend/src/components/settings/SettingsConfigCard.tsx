@@ -42,9 +42,11 @@ export default function SettingsConfigCard({
           <p className="text-sm text-gray-700">{subtitle}</p>
         </div>
 
-        <ThemeButton icon={<PlusIcon />} onClick={onAdd}>
-          {buttonLabel}
-        </ThemeButton>
+        {onAdd ? (
+          <ThemeButton icon={<PlusIcon />} onClick={onAdd}>
+            {buttonLabel}
+          </ThemeButton>
+        ) : null}
       </div>
 
       <div className="mt-3 space-y-0">
@@ -64,25 +66,31 @@ export default function SettingsConfigCard({
                   {item.countLabel}
                 </p>
 
-                <div className="flex items-center justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={() => onEdit?.(item)}
-                    className="flex md:h-10 md:w-10 h-8.5 w-8.5 items-center justify-center rounded-lg border border-gray-200 text-primary-dark transition hover:bg-gray-50"
-                    aria-label={`Edit ${item.label}`}
-                  >
-                    <EditIcon />
-                  </button>
+                {onEdit || onDelete ? (
+                  <div className="flex items-center justify-end gap-3">
+                    {onEdit ? (
+                      <button
+                        type="button"
+                        onClick={() => onEdit(item)}
+                        className="flex md:h-10 md:w-10 h-8.5 w-8.5 items-center justify-center rounded-lg border border-gray-200 text-primary-dark transition hover:bg-gray-50"
+                        aria-label={`Edit ${item.label}`}
+                      >
+                        <EditIcon />
+                      </button>
+                    ) : null}
 
-                  <button
-                    type="button"
-                    onClick={() => onDelete?.(item)}
-                    className="flex md:h-10 md:w-10 h-8.5 w-8.5 items-center justify-center rounded-lg border border-red-500 text-red-500 transition hover:bg-red-50"
-                    aria-label={`Delete ${item.label}`}
-                  >
-                    <TrashIcon />
-                  </button>
-                </div>
+                    {onDelete ? (
+                      <button
+                        type="button"
+                        onClick={() => onDelete(item)}
+                        className="flex md:h-10 md:w-10 h-8.5 w-8.5 items-center justify-center rounded-lg border border-red-500 text-red-500 transition hover:bg-red-50"
+                        aria-label={`Delete ${item.label}`}
+                      >
+                        <TrashIcon />
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             </div>
           ))

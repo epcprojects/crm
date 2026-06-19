@@ -24,6 +24,7 @@ type ProjectFilesPanelProps = {
   onSearchChange: (value: string) => void;
   onUploadClick?: () => void;
   onDeleteFile?: (file: ProjectFileRecord) => void;
+  canDownloadFile?: boolean;
   deletingFileId?: string;
   title?: string;
   subtitle?: string;
@@ -35,6 +36,7 @@ export default function ProjectFilesPanel({
   onSearchChange,
   onUploadClick,
   onDeleteFile,
+  canDownloadFile = true,
   deletingFileId,
   title = 'Project Files',
   subtitle = 'Internal team only',
@@ -81,9 +83,11 @@ export default function ProjectFilesPanel({
           </span>
         </div>
 
-        <ThemeButton icon={<PlusIcon />} onClick={onUploadClick}>
-          Upload File
-        </ThemeButton>
+        {onUploadClick ? (
+          <ThemeButton icon={<PlusIcon />} onClick={onUploadClick}>
+            Upload File
+          </ThemeButton>
+        ) : null}
       </div>
 
       <div className="flex min-h-0 max-h-[calc(100dvh-360px)] flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white sm:rounded-2xl">
@@ -117,14 +121,16 @@ export default function ProjectFilesPanel({
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <ThemeButton
-                  variant="secondary"
-                  className=" bg-white! hover:bg-gray-100! h-9 w-9 items-center justify-center"
-                  onClick={() => handleDownloadFile(file)}
-                  disabled={!file.storageKey}
-                >
-                  <DownloadIcon />
-                </ThemeButton>
+                {canDownloadFile ? (
+                  <ThemeButton
+                    variant="secondary"
+                    className=" bg-white! hover:bg-gray-100! h-9 w-9 items-center justify-center"
+                    onClick={() => handleDownloadFile(file)}
+                    disabled={!file.storageKey}
+                  >
+                    <DownloadIcon />
+                  </ThemeButton>
+                ) : null}
                 <ThemeButton
                   variant="secondary"
                   className=" bg-white! hover:bg-gray-100! h-9 w-9 items-center justify-center"
