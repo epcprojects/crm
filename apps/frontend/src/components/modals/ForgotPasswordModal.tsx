@@ -58,7 +58,6 @@ export default function ForgotPasswordModal({
       isOpen={isOpen}
       onClose={onClose}
       title="Forgot Password"
-      // icon={<LockIcon />}
       showFooter
       confirmLabel={formik.isSubmitting ? 'Sending...' : 'Continue'}
       cancelLabel="Cancel"

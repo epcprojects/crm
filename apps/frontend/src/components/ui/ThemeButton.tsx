@@ -1,5 +1,3 @@
-// components/ui/Button.tsx
-
 'use client';
 
 import { ButtonHTMLAttributes, ReactNode } from 'react';
@@ -29,24 +27,18 @@ export default function ThemeButton({
     <button
       className={clsx(
         'flex items-center cursor-pointer justify-center rounded-lg font-medium transition-all duration-300',
-
-        // Normal button sizes
         !hasIcon && {
           ' px-4 py-2 text-xs': size === 'xs',
           ' px-6 py-3 text-xs': size === 'sm',
           'px-2.5 py-2 text-sm': size === 'md',
           'px-6 py-2.5 text-sm md:text-base': size === 'lg',
         },
-
-        // // Button with icon sizes
         hasIcon && {
           ' px-4 py-2 text-xs': size === 'xs',
           ' px-6 py-3 text-xs': size === 'sm',
           'px-2.5 py-2 text-sm': size === 'md',
           'px-6 py-2.5 text-sm md:text-base': size === 'lg',
         },
-
-        // Variants
         {
           'bg-linear-to-r from-primary-dark via-[#6719FC]  to-[#3165F6] text-white hover:opacity-90':
             variant === 'primaryGradient',
