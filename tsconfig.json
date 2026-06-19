@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compileOnSave": false,
+  "files": [],
+  "references": [
+    {
+      "path": "./apps/harperhelp-e2e"
+    },
+    {
+      "path": "./apps/harperhelp"
+    },
+    {
+      "path": "./apps/frontend"
+    }
+  ]
+}

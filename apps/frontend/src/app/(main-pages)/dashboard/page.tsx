@@ -1,0 +1,350 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import StatusCard from '../../../components/dashboard/StatusCard';
+import {
+  AlertIcon,
+  CheckMarkCircleIcon,
+  ClockIcon,
+  FolderIcon,
+  ProfileIcon,
+} from '../../../../public/icons';
+import TicketsTabs, {
+  type TicketTab,
+} from '../../../components/dashboard/TicketsTabs';
+import { useDashboardHeaderAction } from '../../../components/dashboard/dashboard-shell';
+import CreateTicketModal, {
+  type CreateTicketFormValues,
+} from '../../../components/modals/CreateTicketModal';
+import {
+  createTicketAssigneeOptions,
+  createTicketPriorityOptions,
+  createTicketProjectOptions,
+} from '../../../components/modals/create-ticket-modal.data';
+import ProjectCard from '../../../components/projects/ProjectCard';
+import RecentTicketsTable, {
+  type RecentTicket,
+} from '../../../components/tables/RecentTicketsTable';
+import { appToast } from '../../../components/toast/AppToast';
+import { createTicket } from '../../../lib/tickets';
+import { useProjectsQuery } from '../projects/projects.queries';
+import { useIsMobile } from '../../../components/hooks/useIsMobile';
+import Link from 'next/link';
+import { PermissionGuard } from '../../providers/PermissionProvider';
+
+// const recentTickets: RecentTicket[] = ticketsData.slice(0, 6);
+const recentTickets: RecentTicket[] = [];
+
+const ticketTabs: TicketTab[] = [
+  {
+    key: 'upcoming',
+    label: 'Upcoming',
+    tickets: [
+      // {
+      //     id: 'design-review',
+      //     title: 'Design Review',
+      //     date: '2026-05-22',
+      //     owner: 'AR',
+      //     ownerColor: 'text-warning-600 bg-warning-50 border-warning-200',
+      //     tag: 'Meeting',
+      //     tagClassName: 'text-sky-600 bg-sky-50 border-sky-200',
+      //     icon: <FileSearchIcon />,
+      //     iconClassName: 'bg-sky-50 text-sky-500 border-sky-200',
+      //   },
+      //   {
+      //     id: 'mobile-app-crash',
+      //     title: 'Mobile app crash on iOS 17',
+      //     date: '2026-05-23',
+      //     owner: 'GM',
+      //     ownerColor: 'text-green-600 bg-green-50 border-green-200',
+      //     tag: 'High ticket',
+      //     tagClassName: 'text-red-500 bg-red-50 border-red-200',
+      //     icon: <SmartPhoneIcon />,
+      //     iconClassName: 'bg-red-50 text-red-400 border-red-200',
+      //   },
+      //   {
+      //     id: 'color-palette',
+      //     title: 'Color palette inconsistency on web',
+      //     date: '2026-05-24',
+      //     owner: 'AR',
+      //     ownerColor: 'text-warning-600 bg-warning-50 border-warning-200',
+      //     tag: 'Medium ticket',
+      //     tagClassName: 'text-orange-500 bg-orange-50 border-orange-200',
+      //     icon: <PaintBoardIcon />,
+      //     iconClassName: 'bg-warning-50 text-warning-500 border-warning-200',
+      //   },
+      //   {
+      //     id: 'beta-release',
+      //     title: 'Beta Release',
+      //     date: '2026-05-25',
+      //     owner: 'SP',
+      //     ownerColor: 'text-sky-600 bg-sky-50 border-sky-200',
+      //     tag: 'Milestone',
+      //     tagClassName: 'text-green-600 bg-green-50 border-green-200',
+      //     icon: <BetaPhone />,
+      //     iconClassName: 'bg-green-50 text-green-500 border-green-200',
+      //   },
+      //   {
+      //     id: 'api-rate-limit',
+      //     title: 'API rate limit too low',
+      //     date: '2026-05-26',
+      //     owner: 'SP',
+      //     ownerColor: 'text-sky-600 bg-sky-50 border-sky-200',
+      //     tag: 'High ticket',
+      //     tagClassName: 'text-red-500 bg-red-50 border-red-200',
+      //     icon: <APIIcon />,
+      //     iconClassName: 'bg-red-50 text-red-400 border-red-200',
+      //   },
+      //   {
+      //     id: 'brand-assets',
+      //     title: 'Brand Assets Due',
+      //     date: '2026-05-28',
+      //     owner: 'AR',
+      //     ownerColor: 'text-warning-600 bg-warning-50 border-warning-200',
+      //     tag: 'Due Date',
+      //     tagClassName: 'text-red-500 bg-red-50 border-red-200',
+      //     icon: <ReloadIcon />,
+      //     iconClassName: 'bg-red-50 text-red-400 border-red-200',
+      //   },
+    ],
+  },
+  {
+    key: 'critical',
+    label: 'Critical',
+    tickets: [
+      // {
+      //   id: 'login-outage',
+      //   title: 'Login outage impacting all users',
+      //   date: '2026-05-29',
+      //   owner: 'JA',
+      //   ownerColor: 'text-violet-600 bg-violet-50 border-violet-200',
+      //   tag: 'P1 ticket',
+      //   tagClassName: 'text-red-500 bg-red-50 border-red-200',
+      //   icon: <APIIcon />,
+      //   iconClassName: 'bg-red-50 text-red-500 border-red-200',
+      // },
+      // {
+      //   id: 'payment-failure',
+      //   title: 'Payment webhook retries failing',
+      //   date: '2026-05-30',
+      //   owner: 'BO',
+      //   ownerColor: 'text-sky-600 bg-sky-50 border-sky-200',
+      //   tag: 'Escalated',
+      //   tagClassName: 'text-orange-500 bg-orange-50 border-orange-200',
+      //   icon: <APIIcon />,
+      //   iconClassName: 'bg-orange-50 text-orange-500 border-orange-200',
+      // },
+      // {
+      //   id: 'data-sync',
+      //   title: 'Sensor sync delay above SLA',
+      //   date: '2026-06-01',
+      //   owner: 'GC',
+      //   ownerColor: 'text-green-600 bg-green-50 border-green-200',
+      //   tag: 'Ops blocker',
+      //   tagClassName: 'text-red-500 bg-red-50 border-red-200',
+      //   icon: <APIIcon />,
+      //   iconClassName: 'bg-violet-50 text-violet-500 border-violet-200',
+      // },
+    ],
+  },
+];
+
+export default function Page() {
+  const router = useRouter();
+  const { setHeaderActionOverride } = useDashboardHeaderAction();
+  const [createTicketOpen, setCreateTicketOpen] = useState(false);
+  const projectsQuery = useProjectsQuery();
+
+  const projectOptions = useMemo(
+    () => createTicketProjectOptions(projectsQuery.data ?? []),
+    [projectsQuery.data],
+  );
+
+  const handleViewAllTickets = () => {
+    router.push('/tickets');
+  };
+
+  const handleCreateTicket = async (values: CreateTicketFormValues) => {
+    try {
+      await createTicket({
+        projectId: values.project,
+        title: values.title,
+        description: values.description,
+        statusKey: values.status,
+        assigneeId: values.assignee,
+        dueDate: values.dueDate,
+        attachments: values.attachments,
+      });
+      appToast.success('Ticket created successfully.');
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to create ticket.',
+      );
+      throw error;
+    }
+  };
+
+  useEffect(() => {
+    setHeaderActionOverride(() => setCreateTicketOpen(true));
+
+    return () => {
+      setHeaderActionOverride(null);
+    };
+  }, [setHeaderActionOverride]);
+
+  const isMobile = useIsMobile();
+
+  return (
+    <div className="space-y-6">
+      <PermissionGuard permission="dashboard.view_stats">
+        <div className="grid md:grid-cols-4 gap-3 md:gap-5">
+          <StatusCard
+            icon={
+              <FolderIcon
+                width={isMobile ? '20' : '24'}
+                height={isMobile ? '20' : '24'}
+                fill="currentColor"
+              />
+            }
+            title="Open"
+            count={0}
+          />
+          <StatusCard
+            icon={
+              <ClockIcon
+                width={isMobile ? '20' : '24'}
+                height={isMobile ? '20' : '24'}
+                fill="currentColor"
+              />
+            }
+            title="In Progress"
+            count={0}
+          />
+          <StatusCard
+            icon={
+              <CheckMarkCircleIcon
+                width={isMobile ? '20' : '24'}
+                height={isMobile ? '20' : '24'}
+                fill="currentColor"
+              />
+            }
+            title="Resolved"
+            count={0}
+          />
+          <StatusCard
+            icon={
+              <AlertIcon
+                width={isMobile ? '20' : '24'}
+                height={isMobile ? '20' : '24'}
+                fill="currentColor"
+              />
+            }
+            title="Critical"
+            count={0}
+          />
+        </div>
+      </PermissionGuard>
+
+      <PermissionGuard permission="dashboard.view_project_cards">
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 justify-between">
+            <div className="flex items-center gap-2 md:gap-2.5">
+              <ProfileIcon />
+              <h2 className="text-base md:text-xl font-semibold text-black">
+                Projects
+              </h2>
+            </div>
+
+            <Link
+              href={'/projects'}
+              className="text-primary font-medium text-base hover:underline underline-offset-2"
+            >
+              View All
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            {projectsQuery.isLoading
+              ? Array.from({ length: 3 }).map((_, index) => (
+                  <ProjectCardSkeleton key={index} />
+                ))
+              : (projectsQuery.data?.slice(0, 3) ?? []).map((project) => (
+                  <ProjectCard
+                    key={project.id}
+                    id={project.id}
+                    initials={project.initials}
+                    name={project.name}
+                    category={project.category}
+                    totalCount={project.totalCount}
+                    openCount={project.openCount}
+                    criticalCount={project.criticalCount}
+                    colorHex={project.colorHex}
+                    onClick={() => router.push(`/projects/${project.id}`)}
+                  />
+                ))}
+          </div>
+        </div>
+      </PermissionGuard>
+
+      <div className="grid md:grid-cols-14 gap-4 md:gap-6">
+        <PermissionGuard permission="dashboard.view_recent_tickets">
+          <div className="md:col-span-10 space-y-4">
+            <div className="flex items-center gap-2 md:gap-2.5">
+              <ClockIcon opacity={0} />
+              <h2 className="text-base md:text-xl font-semibold text-black">
+                Recent Tickets
+              </h2>
+            </div>
+            <RecentTicketsTable
+              tickets={recentTickets}
+              onViewAll={handleViewAllTickets}
+              onRowClick={(ticket) => router.push(`/tickets/${ticket.id}`)}
+            />
+          </div>
+        </PermissionGuard>
+        <PermissionGuard permission="dashboard.view_upcoming">
+          <div className="col-span-4">
+            <TicketsTabs tabs={ticketTabs} />
+          </div>
+        </PermissionGuard>
+      </div>
+
+      <CreateTicketModal
+        isOpen={createTicketOpen}
+        onClose={() => setCreateTicketOpen(false)}
+        onConfirm={handleCreateTicket}
+        projectOptions={projectOptions}
+        assigneeOptions={createTicketAssigneeOptions}
+        priorityOptions={createTicketPriorityOptions}
+      />
+    </div>
+  );
+}
+
+function ProjectCardSkeleton() {
+  return (
+    <div className="animate-pulse rounded-xl border border-gray-200 bg-white p-2.5 shadow-xs md:rounded-2xl md:p-4">
+      <div className="flex items-center gap-3 md:gap-4">
+        <div className="h-9 w-9 rounded-full bg-gray-200 md:h-10.5 md:w-10.5" />
+        <div className="flex-1 space-y-2">
+          <div className="h-4 w-32 rounded bg-gray-200" />
+          <div className="h-3 w-20 rounded bg-gray-100" />
+        </div>
+      </div>
+
+      <div className="my-3 h-px bg-gray-200 md:my-4" />
+
+      <div className="grid grid-cols-3 gap-2">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div
+            key={index}
+            className="flex items-center justify-between rounded-full bg-gray-50 px-3 py-1.5"
+          >
+            <div className="h-3 w-10 rounded bg-gray-200" />
+            <div className="h-5 w-6 rounded-full bg-gray-200" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,83 @@
+@import 'tailwindcss';
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: #6719fc;
+  --color-primary-dark: #020F52;
+   --color-warning-200: #FEDF89;  
+  --color-success-500: #17B26A;
+  --color-warning-25: #FFFCF5;
+  --color-warning-100: #FEF0C7;
+    --color-warning-500: #F79009;
+  --color-warning-600: #DC6803;
+  --color-warning-800: #93370D;
+   --color-warning-900: #7A2E0E;
+}
+
+html {
+  overflow: hidden auto !important;
+  padding-right: 0px !important;
+}
+
+body {
+  color: var(--foreground);
+  font-family: var(--poppins);
+}
+
+.Toastify__toast {
+  font-family: var(--poppins) !important;
+}
+
+.Toastify__toast-container {
+  @apply w-fit max-w-[calc(100vw-32px)] p-0!;
+}
+
+.Toastify__toast-container--top-center {
+  @apply top-2! left-2! md:left-1/2! md:translate-x-[15%]! md:top-22!;
+}
+
+.app-toast-shell {
+  @apply min-h-auto! mb-3! rounded-[10px]! bg-transparent! p-0! shadow-none!;
+}
+
+.app-toast-body {
+  @apply m-0! p-0!;
+}
+
+button:not(:disabled):not([aria-disabled='true']) {
+  @apply cursor-pointer;
+}
+
+button:disabled,
+button[aria-disabled='true'] {
+  @apply cursor-not-allowed;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.tiny-scrollbar {
+  scrollbar-width: thin; /* Firefox */
+}
+
+.tiny-scrollbar::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+.tiny-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tiny-scrollbar::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 999px;
+}
+
