@@ -29,6 +29,7 @@ import {
 } from '../../app/Redux/store';
 import { useProjectsQuery } from '../../app/(main-pages)/projects/projects.queries';
 import { useAppLoader } from '../../app/providers/AppLoaderProvider';
+import { usePermissions } from '../../app/providers/PermissionProvider';
 import { Images } from '../../app/ui/images';
 import ChangePasswordModal, {
   type ChangePasswordFormValues,
@@ -42,12 +43,14 @@ type NavItem = {
   label: string;
   icon: (isActive: boolean) => ReactNode;
   roles: UserRole[];
+  anyPermissions?: string[];
   roleLabels?: Partial<Record<UserRole, string>>;
 };
 
 type HeaderAction = {
   label: string;
   onClick: () => void;
+  permission?: string;
 };
 
 type PageHeaderConfig = {
@@ -89,6 +92,12 @@ const navigationItems: NavItem[] = [
       <DashboardIcon opacity={isActive ? '0.4' : '0'} fill="currentColor" />
     ),
     roles: ['admin', 'developer', 'pm', 'external'],
+    anyPermissions: [
+      'dashboard.view_stats',
+      'dashboard.view_project_cards',
+      'dashboard.view_recent_tickets',
+      'dashboard.view_upcoming',
+    ],
   },
   {
     href: '/tickets',
@@ -97,6 +106,7 @@ const navigationItems: NavItem[] = [
       <TicketsIcon opacity={isActive ? '0.4' : '0'} fill="currentColor" />
     ),
     roles: ['admin', 'developer', 'pm', 'external'],
+    anyPermissions: ['tickets.view_list'],
     roleLabels: {
       external: 'My Tickets',
     },
@@ -108,6 +118,7 @@ const navigationItems: NavItem[] = [
       <ProjectsIcon opacity={isActive ? '0.4' : '0'} fill="currentColor" />
     ),
     roles: ['admin', 'developer', 'pm', 'external'],
+    anyPermissions: ['projects.view_list'],
     roleLabels: {
       external: 'My Projects',
     },
@@ -119,6 +130,7 @@ const navigationItems: NavItem[] = [
       <UserGroup opacity={isActive ? '0.4' : '0'} fill="currentColor" />
     ),
     roles: ['admin'],
+    anyPermissions: ['users.view_list'],
   },
   {
     href: '/roles',
@@ -127,6 +139,7 @@ const navigationItems: NavItem[] = [
       <RolesIcon opacity={isActive ? '0.4' : '0'} fill="currentColor" />
     ),
     roles: ['admin'],
+    anyPermissions: ['roles.view_list'],
   },
   {
     href: '/settings',
@@ -135,6 +148,7 @@ const navigationItems: NavItem[] = [
       <SettingsIcon opacity={isActive ? '0.4' : '0'} fill="currentColor" />
     ),
     roles: ['admin'],
+    anyPermissions: ['settings.view_statuses', 'settings.view_priorities'],
   },
 ];
 
@@ -146,6 +160,7 @@ const pageHeaderConfigs: PageHeaderConfig[] = [
     action: {
       label: 'New Ticket',
       onClick: () => console.log('Create ticket from dashboard'),
+      permission: 'tickets.create',
     },
   },
   {
@@ -155,6 +170,7 @@ const pageHeaderConfigs: PageHeaderConfig[] = [
     action: {
       label: 'New Ticket',
       onClick: () => console.log('Create ticket from tickets'),
+      permission: 'tickets.create',
     },
   },
   {
@@ -165,6 +181,7 @@ const pageHeaderConfigs: PageHeaderConfig[] = [
     action: {
       label: 'New Project',
       onClick: () => console.log('Create project'),
+      permission: 'projects.create',
     },
   },
   {
@@ -176,6 +193,7 @@ const pageHeaderConfigs: PageHeaderConfig[] = [
     action: {
       label: 'Add User',
       onClick: () => console.log('Add user'),
+      permission: 'users.create',
     },
   },
   {
@@ -185,6 +203,7 @@ const pageHeaderConfigs: PageHeaderConfig[] = [
     action: {
       label: 'Add Role',
       onClick: () => console.log('Add role'),
+      permission: 'roles.create',
     },
   },
   {
@@ -219,6 +238,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
   const { setLoading } = useAppLoader();
+  const { hasPermission, hasAnyPermission } = usePermissions();
+  const canViewProjectsList = hasPermission('projects.view_list');
+  const canViewProjectDetail = hasPermission('projects.view_detail');
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
@@ -227,16 +249,23 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   >(null);
   const [headerCountOverride, setHeaderCountOverrideState] =
     useState<number | null>(null);
-  const projectsQuery = useProjectsQuery();
+  const projectsQuery = useProjectsQuery(
+    canViewProjectsList || canViewProjectDetail,
+  );
 
   const visibleNavigationItems = useMemo(() => {
     return navigationItems
-      .filter((item) => item.roles.includes(currentUserRole))
+      .filter(
+        (item) =>
+          item.roles.includes(currentUserRole) &&
+          (!item.anyPermissions?.length ||
+            hasAnyPermission(item.anyPermissions)),
+      )
       .map((item) => ({
         ...item,
         label: item.roleLabels?.[currentUserRole] ?? item.label,
       }));
-  }, []);
+  }, [hasAnyPermission]);
 
   const sidebarProjects = useMemo<SidebarProject[]>(() => {
     return (projectsQuery.data ?? []).map((project) => ({
@@ -361,6 +390,13 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const contentOffset = collapsed ? 'lg:pl-18' : 'lg:pl-72';
   const shouldHideHeader =
     pathname?.startsWith('/tickets/') || pathname?.startsWith('/projects/');
+  const canUseCurrentHeaderAction = currentHeader.action?.permission
+    ? hasPermission(currentHeader.action.permission)
+    : Boolean(currentHeader.action);
+  const shouldShowHeaderAction = Boolean(
+    headerActionOverride || (currentHeader.action && canUseCurrentHeaderAction),
+  );
+  const headerActionLabel = currentHeader.action?.label ?? '';
 
   const isMobile = useIsMobile();
 
@@ -471,67 +507,84 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               </nav>
             </div>
 
-            <div className=" border-t border-gray-200 pt-5 px-4 pb-4">
-              <p
-                className={`mb-3 px-2 text-xs sm:text-sm font-medium captilize text-black transition-opacity duration-200 ${
-                  collapsed
-                    ? 'opacity-0 lg:h-0 hidden lg:overflow-hidden'
-                    : 'opacity-100'
-                }`}
-              >
-                Projects
-              </p>
-              <div className="space-y-1.5">
-                {sidebarProjects.map((project) => {
-                  const projectHref = `/projects/${project.id}`;
-                  const isProjectActive = pathname === projectHref;
+            {canViewProjectsList ? (
+              <div className=" border-t border-gray-200 pt-5 px-4 pb-4">
+                <p
+                  className={`mb-3 px-2 text-xs sm:text-sm font-medium captilize text-black transition-opacity duration-200 ${
+                    collapsed
+                      ? 'opacity-0 lg:h-0 hidden lg:overflow-hidden'
+                      : 'opacity-100'
+                  }`}
+                >
+                  Projects
+                </p>
+                <div className="space-y-1.5">
+                  {sidebarProjects.map((project) => {
+                    const projectHref = `/projects/${project.id}`;
+                    const isProjectActive = pathname === projectHref;
+                    const projectContent = (
+                      <>
+                        <span
+                          className="flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-xs font-normal drop-shadow-xs"
+                          style={{
+                            color: !isProjectActive
+                              ? (project.colorHex ?? '#6172F3')
+                              : '#ffffff',
+                            backgroundColor: isProjectActive
+                              ? (project.colorHex ?? '#6172F3')
+                              : '',
+                            borderColor: project.colorHex
+                              ? `${project.colorHex}33`
+                              : undefined,
+                          }}
+                        >
+                          {project.initials}
+                        </span>
+                        <span
+                          className={`truncate text-sm md:text-base transition-all duration-300 ${
+                            isProjectActive
+                              ? 'font-medium text-gray-900'
+                              : 'font-normal text-gray-600'
+                          } ${
+                            collapsed
+                              ? 'w-0 overflow-hidden opacity-0'
+                              : 'opacity-100'
+                          }`}
+                        >
+                          {project.name}
+                        </span>
+                      </>
+                    );
 
-                  return (
-                    <Link
-                      key={project.id}
-                      className={`flex w-full items-center rounded-lg border py-1.25 px-3 text-left transition ${
-                        isProjectActive
-                          ? 'border-gray-200 bg-white shadow-sm'
-                          : 'border-transparent hover:bg-slate-50'
-                      } ${collapsed ? 'justify-center lg:px-0' : 'gap-2'}`}
-                      href={projectHref}
-                      onClick={() => setMobileOpen(false)}
-                      title={collapsed ? project.name : undefined}
-                    >
-                      <span
-                        className="flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-xs font-normal drop-shadow-xs"
-                        style={{
-                          color: !isProjectActive
-                            ? (project.colorHex ?? '#6172F3')
-                            : '#ffffff',
-                          backgroundColor: isProjectActive
-                            ? (project.colorHex ?? '#6172F3')
-                            : '',
-                          borderColor: project.colorHex
-                            ? `${project.colorHex}33`
-                            : undefined,
-                        }}
-                      >
-                        {project.initials}
-                      </span>
-                      <span
-                        className={`truncate text-sm md:text-base transition-all duration-300 ${
+                    return canViewProjectDetail ? (
+                      <Link
+                        key={project.id}
+                        className={`flex w-full items-center rounded-lg border py-1.25 px-3 text-left transition ${
                           isProjectActive
-                            ? 'font-medium text-gray-900'
-                            : 'font-normal text-gray-600'
-                        } ${
-                          collapsed
-                            ? 'w-0 overflow-hidden opacity-0'
-                            : 'opacity-100'
-                        }`}
+                            ? 'border-gray-200 bg-white shadow-sm'
+                            : 'border-transparent hover:bg-slate-50'
+                        } ${collapsed ? 'justify-center lg:px-0' : 'gap-2'}`}
+                        href={projectHref}
+                        onClick={() => setMobileOpen(false)}
+                        title={collapsed ? project.name : undefined}
                       >
-                        {project.name}
-                      </span>
-                    </Link>
-                  );
-                })}
+                        {projectContent}
+                      </Link>
+                    ) : (
+                      <div
+                        key={project.id}
+                        className={`flex w-full cursor-not-allowed items-center rounded-lg border border-transparent py-1.25 px-3 text-left opacity-70 ${
+                          collapsed ? 'justify-center lg:px-0' : 'gap-2'
+                        }`}
+                        title={collapsed ? project.name : undefined}
+                      >
+                        {projectContent}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            ) : null}
           </div>
 
           <div className="mt-auto px-3 pb-3 pt-3.5">
@@ -636,12 +689,12 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  {currentHeader.action ? (
+                  {shouldShowHeaderAction ? (
                     <ThemeButton
                       icon={<PlusIcon />}
                       onClick={handleHeaderAction}
                     >
-                      {currentHeader.action.label}
+                      {headerActionLabel}
                     </ThemeButton>
                   ) : null}
                 </div>
