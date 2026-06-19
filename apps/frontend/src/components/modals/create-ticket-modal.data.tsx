@@ -13,25 +13,6 @@ type ProjectOptionSource = {
   name: string;
 };
 
-export const createTicketAssigneeOptions: CreateTicketDropdownOption[] = [
-  {
-    label: 'Admin User',
-    value: 'admin-user',
-  },
-  {
-    label: 'Jane Smith',
-    value: 'jane-smith',
-  },
-  {
-    label: 'Bob Lee',
-    value: 'bob-lee',
-  },
-  {
-    label: 'Sara Ngo',
-    value: 'sara-ngo',
-  },
-];
-
 export const createTicketPriorityOptions: CreateTicketDropdownOption[] = [
   {
     label: 'Critical',

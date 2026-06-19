@@ -28,9 +28,11 @@ import TrashIcon from './TrashIcon';
 import SearchIcon from './SearchIcon';
 import TicketIcon2 from './TicketIcon2';
 import EditIcon from './EditIcon';
+import DownloadIcon from './DownloadIcon';
 
 export {
   TicketIcon2,
+  DownloadIcon,
   EditIcon,
   SearchIcon,
   APIIcon,

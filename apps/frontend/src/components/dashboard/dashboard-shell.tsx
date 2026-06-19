@@ -160,7 +160,7 @@ const pageHeaderConfigs: PageHeaderConfig[] = [
     href: '/projects',
     title: 'Projects',
     subtitle: 'Manage and monitor all your projects.',
-    count: 3,
+    count: 0,
     action: {
       label: 'New Project',
       onClick: () => console.log('Create project'),
@@ -171,7 +171,7 @@ const pageHeaderConfigs: PageHeaderConfig[] = [
     title: 'Users',
     subtitle:
       'Manage team members, roles, and company access permissions from one place.',
-    count: 3,
+    count: 0,
     action: {
       label: 'Add User',
       onClick: () => console.log('Add user'),
@@ -244,21 +244,6 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     }));
   }, [projectsQuery.data]);
 
-  const currentHeader = useMemo(() => {
-    const matchedHeader =
-      pageHeaderConfigs.find((item) => pathname?.startsWith(item.href)) ??
-      pageHeaderConfigs[0];
-
-    if (matchedHeader.href === '/projects') {
-      return {
-        ...matchedHeader,
-        count: projectsQuery.data?.length,
-      };
-    }
-
-    return matchedHeader;
-  }, [pathname, projectsQuery.data?.length]);
-
   const currentAccount = useMemo(() => {
     const name = user?.fullName || fallbackAccount.name;
     const email = user?.email || fallbackAccount.email;
@@ -269,6 +254,28 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       initials: getAccountInitials(name),
     };
   }, [user]);
+
+  const currentHeader = useMemo(() => {
+    const matchedHeader =
+      pageHeaderConfigs.find((item) => pathname?.startsWith(item.href)) ??
+      pageHeaderConfigs[0];
+
+    if (matchedHeader.href === '/dashboard') {
+      return {
+        ...matchedHeader,
+        title: `Good day, ${currentAccount.name} 👋`,
+      };
+    }
+
+    if (matchedHeader.href === '/projects') {
+      return {
+        ...matchedHeader,
+        count: projectsQuery.data?.length,
+      };
+    }
+
+    return matchedHeader;
+  }, [currentAccount.name, pathname, projectsQuery.data?.length]);
 
   const changePasswordMutation = useMutation({
     onMutate: () => {
@@ -423,7 +430,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                       <span
                         className={`flex items-center justify-center rounded-xl transition ${
                           isActive
-                            ? 'bg-white text-violet-600 shadow-sm'
+                            ? 'bg-white text-violet-600'
                             : 'bg-slate-100 text-gray-500 group-hover:bg-white group-hover:text-slate-700'
                         }`}
                       >

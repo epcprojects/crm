@@ -15,7 +15,6 @@ import ConfirmActionModal from '../../../../components/modals/ConfirmActionModal
 import DiscussionPanel from '../../../../components/discussion/DiscussionPanel';
 import ProjectFilesPanel from '../../../../components/projects/ProjectFilesPanel';
 import {
-  createTicketAssigneeOptions,
   createTicketPriorityOptions,
   createTicketProjectOptions,
 } from '../../../../components/modals/create-ticket-modal.data';
@@ -447,7 +446,6 @@ export default function ProjectDetailPage() {
         onClose={() => setCreateTicketOpen(false)}
         onConfirm={handleCreateTicket}
         projectOptions={projectOptions}
-        assigneeOptions={createTicketAssigneeOptions}
         priorityOptions={createTicketPriorityOptions}
         preselectedProjectId={project.id}
         disableProjectSelection

@@ -27,7 +27,6 @@ type CreateTicketModalProps = {
   onClose: () => void;
   onConfirm?: (values: CreateTicketFormValues) => Promise<void> | void;
   projectOptions: CreateTicketDropdownOption[];
-  assigneeOptions?: CreateTicketDropdownOption[];
   priorityOptions?: CreateTicketDropdownOption[];
   preselectedProjectId?: string;
   disableProjectSelection?: boolean;
@@ -47,7 +46,6 @@ export default function CreateTicketModal({
   onClose,
   onConfirm,
   projectOptions,
-  assigneeOptions = [],
   preselectedProjectId,
   disableProjectSelection = false,
 }: CreateTicketModalProps) {
@@ -108,8 +106,8 @@ export default function CreateTicketModal({
       }));
     }
 
-    return assigneeOptions;
-  }, [assigneeOptions, projectMembersQuery.data]);
+    return [];
+  }, [projectMembersQuery.data]);
 
   useEffect(() => {
     if (!isOpen) {

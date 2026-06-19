@@ -241,10 +241,18 @@ async function fetchProjectMembers(projects: ProjectRecord[]) {
 
 type ApiProjectMember = {
   id: string;
+  email: string;
   fullName: string;
   projects: Array<{
     id: string;
     name: string;
+  }>;
+  userRoles?: Array<{
+    id: string;
+    role?: {
+      id: string;
+      name: string;
+    };
   }>;
 };
 
@@ -262,10 +270,10 @@ function mapApiMemberToUserCard(
   return {
     id: member.id,
     name: member.fullName,
-    email: '',
+    email: member.email,
     initials: initials || 'NU',
     accentColor: '#875BF7',
-    roles: [],
+    roles: mapApiMemberRoles(member.userRoles),
     projects: member.projects.map((project) => {
       const matchedProject = projects.find((item) => item.id === project.id);
 
@@ -277,6 +285,40 @@ function mapApiMemberToUserCard(
       };
     }),
   };
+}
+
+function mapApiMemberRoles(
+  userRoles: ApiProjectMember['userRoles'],
+): UserCardUser['roles'] {
+  if (!Array.isArray(userRoles)) {
+    return [];
+  }
+
+  return userRoles
+    .map((userRole) => userRole.role?.name?.trim())
+    .filter((roleName): roleName is string => Boolean(roleName))
+    .map((roleName) => ({
+      label: roleName,
+      tone: getRoleTone(roleName),
+    }));
+}
+
+function getRoleTone(roleName: string): UserCardUser['roles'][number]['tone'] {
+  const normalizedRoleName = roleName.trim().toLowerCase();
+
+  if (normalizedRoleName.includes('admin')) {
+    return 'orange';
+  }
+
+  if (normalizedRoleName.includes('external') || normalizedRoleName.includes('viewer')) {
+    return 'teal';
+  }
+
+  if (normalizedRoleName.includes('internal')) {
+    return 'blue';
+  }
+
+  return 'purple';
 }
 
 function getProjectInitials(name: string) {

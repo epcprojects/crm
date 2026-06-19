@@ -2,6 +2,7 @@
 
 import ThemeButton from '../ui/ThemeButton';
 import {
+  DownloadIcon,
   EyeOpenedIcon,
   PlusIcon,
   SearchIcon,
@@ -48,6 +49,23 @@ export default function ProjectFilesPanel({
     window.open(fileUrl, '_blank', 'noopener,noreferrer');
   };
 
+  const handleDownloadFile = (file: ProjectFileRecord) => {
+    if (!file.storageKey) {
+      return;
+    }
+
+    const link = document.createElement('a');
+    const searchParams = new URLSearchParams({
+      storageKey: file.storageKey,
+      fileName: file.name,
+    });
+
+    link.href = `/api/projects/files/download?${searchParams.toString()}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-4 flex flex-col flex-1">
       <div className="flex flex-col gap-3 rounded-2xl md:flex-row md:items-center md:justify-between">
@@ -84,8 +102,11 @@ export default function ProjectFilesPanel({
             >
               <div className="flex items-center gap-4">
                 <FileTypeIcon type={file.type} />
-                <div>
-                  <p className="text-sm md:text-base leading-[1.2] font-medium text-gray-900">
+                <div className="">
+                  <p
+                    onClick={() => handleViewFile(file.storageKey)}
+                    className="text-sm cursor-pointer md:text-base truncate sm:w-full w-36 line-clamp-1 leading-[1.2] font-medium text-gray-900"
+                  >
                     {file.name}
                   </p>
                   {(file.size || file.uploadedAt) && (
@@ -95,28 +116,36 @@ export default function ProjectFilesPanel({
                   )}
                 </div>
               </div>
-              <div className="hidden items-center gap-2 sm:flex">
+              <div className="flex items-center gap-2">
                 <ThemeButton
                   variant="secondary"
-                  className="sm:flex hidden h-9 w-9 items-center justify-center"
+                  className=" bg-white! hover:bg-gray-100! h-9 w-9 items-center justify-center"
+                  onClick={() => handleDownloadFile(file)}
+                  disabled={!file.storageKey}
+                >
+                  <DownloadIcon />
+                </ThemeButton>
+                <ThemeButton
+                  variant="secondary"
+                  className=" bg-white! hover:bg-gray-100! h-9 w-9 items-center justify-center"
                   onClick={() => handleViewFile(file.storageKey)}
                   disabled={!getFileUrl(file.storageKey)}
                 >
                   <EyeOpenedIcon />
                 </ThemeButton>
-                {onDeleteFile ? (
-                  <button
-                    type="button"
+
+                {onDeleteFile && (
+                  <ThemeButton
+                    variant="secondary"
+                    className=" bg-white! hover:bg-red-50! h-9 w-9 items-center justify-center"
                     onClick={() => onDeleteFile(file)}
                     disabled={deletingFileId === file.id}
-                    className="rounded-lg bg-red-50 h-9 w-9 flex items-center justify-center text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    {/* {deletingFileId === file.id ? 'Deleting...' : 'Delete'} */}
                     <TrashIcon />
-                  </button>
-                ) : null}
+                  </ThemeButton>
+                )}
               </div>
-              <button
+              {/* <button
                 type="button"
                 className="inline-block disabled:cursor-not-allowed disabled:opacity-50 sm:hidden"
                 onClick={() => handleViewFile(file.storageKey)}
@@ -153,7 +182,7 @@ export default function ProjectFilesPanel({
                 >
                   Delete
                 </button>
-              ) : null}
+              ) : null} */}
             </div>
           ))}
         </div>

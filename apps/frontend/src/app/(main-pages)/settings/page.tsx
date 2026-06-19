@@ -10,6 +10,7 @@ import SettingsConfigCard, {
 } from '../../../components/settings/SettingsConfigCard';
 import { appToast } from '../../../components/toast/AppToast';
 import { useIsMobile } from '../../../components/hooks/useIsMobile';
+import { useAppLoader } from '../../providers/AppLoaderProvider';
 
 type ApiTicketStatus = {
   id: string;
@@ -21,13 +22,95 @@ type ApiTicketStatus = {
   sortOrder: number;
 };
 
+type ApiTicketPriority = ApiTicketStatus;
+
 export default function Page() {
   const queryClient = useQueryClient();
+  const { setLoading } = useAppLoader();
   const [statusItems, setStatusItems] = useState<SettingsConfigItem[]>([]);
   const [priorityItems, setPriorityItems] = useState<SettingsConfigItem[]>([]);
   const ticketStatusesQuery = useQuery({
     queryKey: ['ticket-statuses'],
     queryFn: fetchTicketStatuses,
+  });
+  const ticketPrioritiesQuery = useQuery({
+    queryKey: ['ticket-priorities'],
+    queryFn: fetchTicketPriorities,
+  });
+  const createTicketPriorityMutation = useMutation({
+    mutationFn: async ({
+      body,
+    }: {
+      body: Pick<ApiTicketPriority, 'key' | 'label' | 'color' | 'sortOrder'>;
+    }) => {
+      const response = await fetch('/api/ticket-priorities', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to create ticket priority.');
+      }
+
+      return payload;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['ticket-priorities'] });
+    },
+  });
+  const updateTicketPriorityMutation = useMutation({
+    mutationFn: async ({
+      priorityId,
+      body,
+    }: {
+      priorityId: string;
+      body: Pick<ApiTicketPriority, 'label' | 'color'>;
+    }) => {
+      const response = await fetch(`/api/ticket-priorities/${priorityId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to update ticket priority.');
+      }
+
+      return payload;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['ticket-priorities'] });
+    },
+  });
+  const deleteTicketPriorityMutation = useMutation({
+    mutationFn: async (priorityId: string) => {
+      const response = await fetch(`/api/ticket-priorities/${priorityId}`, {
+        method: 'DELETE',
+        headers: {
+          Accept: 'application/json',
+        },
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to delete ticket priority.');
+      }
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['ticket-priorities'] });
+    },
   });
   const createTicketStatusMutation = useMutation({
     mutationFn: async ({
@@ -122,6 +205,14 @@ export default function Page() {
       Boolean(editingStatusId) &&
       editingStatusId !== 'new-status',
   });
+  const ticketPriorityDetailQuery = useQuery({
+    queryKey: ['ticket-priorities', editingPriorityId],
+    queryFn: () => fetchTicketPriorityDetail(editingPriorityId!),
+    enabled:
+      priorityModalMode === 'edit' &&
+      Boolean(editingPriorityId) &&
+      editingPriorityId !== 'new-priority',
+  });
 
   const editingStatus =
     statusItems.find((item) => item.id === editingStatusId) ?? null;
@@ -134,92 +225,130 @@ export default function Page() {
     }
   }, [ticketStatusesQuery.data]);
 
+  useEffect(() => {
+    if (ticketPrioritiesQuery.data) {
+      setPriorityItems(ticketPrioritiesQuery.data);
+    }
+  }, [ticketPrioritiesQuery.data]);
+
   const handleCreateStatus = async (values: SettingsItemFormValues) => {
-    const payload = await createTicketStatusMutation.mutateAsync({
-      body: {
-        key: values.value,
-        label: values.label,
-        color: values.colorHex,
-        sortOrder: statusItems.length,
-      },
-    });
+    try {
+      setLoading(true);
+      const payload = await createTicketStatusMutation.mutateAsync({
+        body: {
+          key: values.value,
+          label: values.label,
+          color: values.colorHex,
+          sortOrder: statusItems.length,
+        },
+      });
 
-    const createdStatus = mapTicketStatusToSettingsItem(
-      isApiTicketStatus(payload)
-        ? payload
-        : {
-            ...createFallbackTicketStatus(values.value),
-            key: values.value,
-            label: values.label,
-            color: values.colorHex,
-          },
-    );
+      const createdStatus = mapTicketStatusToSettingsItem(
+        isApiTicketStatus(payload)
+          ? payload
+          : {
+              ...createFallbackTicketStatus(values.value),
+              key: values.value,
+              label: values.label,
+              color: values.colorHex,
+            },
+      );
 
-    setStatusItems((currentItems) => [createdStatus, ...currentItems]);
-    appToast.success('Status created successfully.');
+      setStatusItems((currentItems) => [createdStatus, ...currentItems]);
+      appToast.success('Status created successfully.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEditStatus = async (values: SettingsItemFormValues) => {
     if (!editingStatusId) return;
 
-    const payload = await updateTicketStatusMutation.mutateAsync({
-      statusId: editingStatusId,
+    try {
+      setLoading(true);
+      const payload = await updateTicketStatusMutation.mutateAsync({
+        statusId: editingStatusId,
+        body: {
+          label: values.label,
+          color: values.colorHex,
+        },
+      });
+
+      const updatedStatus = mapTicketStatusToSettingsItem(
+        isApiTicketStatus(payload)
+          ? payload
+          : {
+              ...createFallbackTicketStatus(editingStatusId),
+              key: values.value,
+              label: values.label,
+              color: values.colorHex,
+            },
+      );
+
+      setStatusItems((currentItems) =>
+        currentItems.map((item) =>
+          item.id === editingStatusId
+            ? updatedStatus
+            : item,
+        ),
+      );
+      setEditingStatusId(null);
+      appToast.success('Status updated successfully.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreatePriority = async (values: SettingsItemFormValues) => {
+    const payload = await createTicketPriorityMutation.mutateAsync({
       body: {
+        key: values.value,
         label: values.label,
         color: values.colorHex,
+        sortOrder: priorityItems.length,
       },
     });
 
-    const updatedStatus = mapTicketStatusToSettingsItem(
-      isApiTicketStatus(payload)
+    const createdPriority = mapTicketPriorityToSettingsItem(
+      isApiTicketPriority(payload)
         ? payload
         : {
-            ...createFallbackTicketStatus(editingStatusId),
+            ...createFallbackTicketPriority(values.value),
             key: values.value,
             label: values.label,
             color: values.colorHex,
           },
     );
 
-    setStatusItems((currentItems) =>
-      currentItems.map((item) =>
-        item.id === editingStatusId
-          ? updatedStatus
-          : item,
-      ),
-    );
-    setEditingStatusId(null);
-    appToast.success('Status updated successfully.');
-  };
-
-  const handleCreatePriority = async (values: SettingsItemFormValues) => {
-    setPriorityItems((currentItems) => [
-      {
-        id: values.value,
-        label: values.label,
-        value: values.value,
-        countLabel: '0 tickets',
-        colorHex: values.colorHex,
-      },
-      ...currentItems,
-    ]);
+    setPriorityItems((currentItems) => [createdPriority, ...currentItems]);
     appToast.success('Priority created successfully.');
   };
 
   const handleEditPriority = async (values: SettingsItemFormValues) => {
     if (!editingPriorityId) return;
 
+    const payload = await updateTicketPriorityMutation.mutateAsync({
+      priorityId: editingPriorityId,
+      body: {
+        label: values.label,
+        color: values.colorHex,
+      },
+    });
+
+    const updatedPriority = mapTicketPriorityToSettingsItem(
+      isApiTicketPriority(payload)
+        ? payload
+        : {
+            ...createFallbackTicketPriority(editingPriorityId),
+            key: values.value,
+            label: values.label,
+            color: values.colorHex,
+          },
+    );
+
     setPriorityItems((currentItems) =>
       currentItems.map((item) =>
-        item.id === editingPriorityId
-          ? {
-              ...item,
-              id: values.value,
-              label: values.label,
-              value: values.value,
-              colorHex: values.colorHex,
-            }
-          : item,
+        item.id === editingPriorityId ? updatedPriority : item,
       ),
     );
     setEditingPriorityId(null);
@@ -268,9 +397,13 @@ export default function Page() {
             setPriorityModalMode('edit');
             setEditingPriorityId(item.id);
           }}
-          onDelete={(item) =>
-            appToast.info(`Delete ${item.label} flow comes next.`)
-          }
+          onDelete={async (item) => {
+            await deleteTicketPriorityMutation.mutateAsync(item.id);
+            setPriorityItems((currentItems) =>
+              currentItems.filter((priorityItem) => priorityItem.id !== item.id),
+            );
+            appToast.success('Priority deleted successfully.');
+          }}
         />
       </div>
 
@@ -330,12 +463,16 @@ export default function Page() {
         kind="priority"
         mode={priorityModalMode}
         initialValues={
-          priorityModalMode === 'edit' && editingPriority
+          priorityModalMode === 'edit'
+            ? ticketPriorityDetailQuery.data
+              ? mapTicketPriorityDetailToFormValues(ticketPriorityDetailQuery.data)
+              : editingPriority
             ? {
                 label: editingPriority.label,
                 value: editingPriority.value,
                 colorHex: editingPriority.colorHex,
               }
+                : undefined
             : undefined
         }
         onConfirm={
@@ -401,6 +538,59 @@ async function fetchTicketStatusDetail(statusId: string) {
   return payload;
 }
 
+async function fetchTicketPriorities() {
+  const response = await fetch('/api/ticket-priorities', {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiTicketPriority[]
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !Array.isArray(payload)) {
+    throw new Error(
+      !Array.isArray(payload)
+        ? payload?.message
+        : 'Failed to fetch ticket priorities.',
+    );
+  }
+
+  return payload
+    .slice()
+    .sort((first, second) => first.sortOrder - second.sortOrder)
+    .map(mapTicketPriorityToSettingsItem);
+}
+
+async function fetchTicketPriorityDetail(priorityId: string) {
+  const response = await fetch(`/api/ticket-priorities/${priorityId}`, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiTicketPriority
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !isApiTicketPriority(payload)) {
+    throw new Error(
+      isErrorPayload(payload)
+        ? payload.message || 'Failed to fetch ticket priority.'
+        : 'Failed to fetch ticket priority.',
+    );
+  }
+
+  return payload;
+}
+
 function mapTicketStatusToSettingsItem(status: ApiTicketStatus): SettingsConfigItem {
   return {
     id: status.id,
@@ -411,6 +601,18 @@ function mapTicketStatusToSettingsItem(status: ApiTicketStatus): SettingsConfigI
   };
 }
 
+function mapTicketPriorityToSettingsItem(
+  priority: ApiTicketPriority,
+): SettingsConfigItem {
+  return {
+    id: priority.id,
+    label: priority.label,
+    value: priority.key,
+    countLabel: priority.key,
+    colorHex: priority.color,
+  };
+}
+
 function mapTicketStatusDetailToFormValues(
   status: ApiTicketStatus,
 ): SettingsItemFormValues {
@@ -418,6 +620,16 @@ function mapTicketStatusDetailToFormValues(
     label: status.label,
     value: status.key,
     colorHex: status.color,
+  };
+}
+
+function mapTicketPriorityDetailToFormValues(
+  priority: ApiTicketPriority,
+): SettingsItemFormValues {
+  return {
+    label: priority.label,
+    value: priority.key,
+    colorHex: priority.color,
   };
 }
 
@@ -433,6 +645,10 @@ function isApiTicketStatus(value: unknown): value is ApiTicketStatus {
   );
 }
 
+function isApiTicketPriority(value: unknown): value is ApiTicketPriority {
+  return isApiTicketStatus(value);
+}
+
 function isErrorPayload(value: unknown): value is { message?: string } {
   return Boolean(value && typeof value === 'object' && 'message' in value);
 }
@@ -445,6 +661,18 @@ function createFallbackTicketStatus(statusId: string): ApiTicketStatus {
     key: '',
     label: '',
     color: '#17B26A',
+    sortOrder: 0,
+  };
+}
+
+function createFallbackTicketPriority(priorityId: string): ApiTicketPriority {
+  return {
+    id: priorityId,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    key: '',
+    label: '',
+    color: '#875BF7',
     sortOrder: 0,
   };
 }

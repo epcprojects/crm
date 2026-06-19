@@ -7,7 +7,6 @@ import CreateTicketModal, {
   type CreateTicketFormValues,
 } from '../../../components/modals/CreateTicketModal';
 import {
-  createTicketAssigneeOptions,
   createTicketPriorityOptions,
   createTicketProjectOptions,
 } from '../../../components/modals/create-ticket-modal.data';
@@ -201,7 +200,6 @@ export default function Page() {
         onClose={() => setCreateTicketOpen(false)}
         onConfirm={handleCreateTicket}
         projectOptions={projectOptions}
-        assigneeOptions={createTicketAssigneeOptions}
         priorityOptions={createTicketPriorityOptions}
       />
     </div>

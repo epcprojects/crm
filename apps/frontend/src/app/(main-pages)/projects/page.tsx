@@ -11,12 +11,12 @@ import CreateTicketModal, {
   type CreateTicketFormValues,
 } from '../../../components/modals/CreateTicketModal';
 import {
-  createTicketAssigneeOptions,
   createTicketPriorityOptions,
   createTicketProjectOptions,
 } from '../../../components/modals/create-ticket-modal.data';
 import ProjectCard from '../../../components/projects/ProjectCard';
 import { appToast } from '../../../components/toast/AppToast';
+import { useAppLoader } from '../../providers/AppLoaderProvider';
 import { createTicket } from '../../../lib/tickets';
 import {
   useCreateProjectMutation,
@@ -29,6 +29,7 @@ import type { ProjectRecord } from './projects.data';
 export default function ProjectsPage() {
   const router = useRouter();
   const { setHeaderActionOverride } = useDashboardHeaderAction();
+  const { setLoading } = useAppLoader();
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
@@ -75,6 +76,7 @@ export default function ProjectsPage() {
   const handleCreateProject = async (values: CreateProjectFormValues) => {
     try {
       if (projectToEdit) {
+        setLoading(true);
         await updateProjectMutation.mutateAsync({
           projectId: projectToEdit.id,
           values,
@@ -95,6 +97,8 @@ export default function ProjectsPage() {
             : 'Failed to create project.',
       );
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -220,7 +224,6 @@ export default function ProjectsPage() {
         }}
         onConfirm={handleCreateTicket}
         projectOptions={projectOptions}
-        assigneeOptions={createTicketAssigneeOptions}
         priorityOptions={createTicketPriorityOptions}
         preselectedProjectId={selectedProjectId ?? undefined}
         disableProjectSelection={Boolean(selectedProjectId)}

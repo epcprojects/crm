@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import StatusCard from '../../../components/dashboard/StatusCard';
 import {
@@ -17,8 +18,11 @@ import { useDashboardHeaderAction } from '../../../components/dashboard/dashboar
 import CreateTicketModal, {
   type CreateTicketFormValues,
 } from '../../../components/modals/CreateTicketModal';
+import ConfirmActionModal from '../../../components/modals/ConfirmActionModal';
+import CreateProjectModal, {
+  type CreateProjectFormValues,
+} from '../../../components/modals/CreateProjectModal';
 import {
-  createTicketAssigneeOptions,
   createTicketPriorityOptions,
   createTicketProjectOptions,
 } from '../../../components/modals/create-ticket-modal.data';
@@ -28,13 +32,26 @@ import RecentTicketsTable, {
 } from '../../../components/tables/RecentTicketsTable';
 import { appToast } from '../../../components/toast/AppToast';
 import { createTicket } from '../../../lib/tickets';
-import { useProjectsQuery } from '../projects/projects.queries';
+import type { ProjectRecord } from '../projects/projects.data';
+import {
+  useDeleteProjectMutation,
+  useProjectsQuery,
+  useUpdateProjectMutation,
+} from '../projects/projects.queries';
 import { useIsMobile } from '../../../components/hooks/useIsMobile';
 import Link from 'next/link';
 import { PermissionGuard } from '../../providers/PermissionProvider';
+import { useAppLoader } from '../../providers/AppLoaderProvider';
 
 // const recentTickets: RecentTicket[] = ticketsData.slice(0, 6);
 const recentTickets: RecentTicket[] = [];
+
+type TicketSummary = {
+  open: number | null;
+  inProgress: number | null;
+  resolved: number | null;
+  critical: number | null;
+};
 
 const ticketTabs: TicketTab[] = [
   {
@@ -153,8 +170,22 @@ const ticketTabs: TicketTab[] = [
 export default function Page() {
   const router = useRouter();
   const { setHeaderActionOverride } = useDashboardHeaderAction();
+  const { setLoading } = useAppLoader();
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
+  const [projectToEdit, setProjectToEdit] = useState<ProjectRecord | null>(
+    null,
+  );
+  const [projectToDelete, setProjectToDelete] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const projectsQuery = useProjectsQuery();
+  const ticketSummaryQuery = useQuery({
+    queryKey: ['dashboard', 'ticket-summary'],
+    queryFn: fetchTicketSummary,
+  });
+  const updateProjectMutation = useUpdateProjectMutation();
+  const deleteProjectMutation = useDeleteProjectMutation();
 
   const projectOptions = useMemo(
     () => createTicketProjectOptions(projectsQuery.data ?? []),
@@ -185,6 +216,45 @@ export default function Page() {
     }
   };
 
+  const handleEditProject = async (values: CreateProjectFormValues) => {
+    if (!projectToEdit) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await updateProjectMutation.mutateAsync({
+        projectId: projectToEdit.id,
+        values,
+      });
+      appToast.success('Project updated successfully.');
+      setProjectToEdit(null);
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to update project.',
+      );
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!projectToDelete) {
+      return;
+    }
+
+    try {
+      await deleteProjectMutation.mutateAsync(projectToDelete.id);
+      appToast.success('Project deleted successfully.');
+      setProjectToDelete(null);
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to delete project.',
+      );
+    }
+  };
+
   useEffect(() => {
     setHeaderActionOverride(() => setCreateTicketOpen(true));
 
@@ -194,6 +264,7 @@ export default function Page() {
   }, [setHeaderActionOverride]);
 
   const isMobile = useIsMobile();
+  const ticketSummary = ticketSummaryQuery.data;
 
   return (
     <div className="space-y-6">
@@ -208,7 +279,7 @@ export default function Page() {
               />
             }
             title="Open"
-            count={0}
+            count={formatSummaryCount(ticketSummary?.open)}
           />
           <StatusCard
             icon={
@@ -219,7 +290,7 @@ export default function Page() {
               />
             }
             title="In Progress"
-            count={0}
+            count={formatSummaryCount(ticketSummary?.inProgress)}
           />
           <StatusCard
             icon={
@@ -230,7 +301,7 @@ export default function Page() {
               />
             }
             title="Resolved"
-            count={0}
+            count={formatSummaryCount(ticketSummary?.resolved)}
           />
           <StatusCard
             icon={
@@ -241,7 +312,7 @@ export default function Page() {
               />
             }
             title="Critical"
-            count={0}
+            count={formatSummaryCount(ticketSummary?.critical)}
           />
         </div>
       </PermissionGuard>
@@ -280,6 +351,14 @@ export default function Page() {
                     criticalCount={project.criticalCount}
                     colorHex={project.colorHex}
                     onClick={() => router.push(`/projects/${project.id}`)}
+                    onEdit={() => setProjectToEdit(project)}
+                    onDelete={() =>
+                      setProjectToDelete({ id: project.id, name: project.name })
+                    }
+                    isDeleting={
+                      deleteProjectMutation.isPending &&
+                      deleteProjectMutation.variables === project.id
+                    }
                   />
                 ))}
           </div>
@@ -314,8 +393,44 @@ export default function Page() {
         onClose={() => setCreateTicketOpen(false)}
         onConfirm={handleCreateTicket}
         projectOptions={projectOptions}
-        assigneeOptions={createTicketAssigneeOptions}
         priorityOptions={createTicketPriorityOptions}
+      />
+
+      <CreateProjectModal
+        isOpen={Boolean(projectToEdit)}
+        onClose={() => setProjectToEdit(null)}
+        onConfirm={handleEditProject}
+        initialValues={
+          projectToEdit
+            ? {
+                name: projectToEdit.name,
+                category: projectToEdit.category,
+                colorHex: projectToEdit.colorHex,
+              }
+            : undefined
+        }
+        title="Edit Project"
+        confirmLabel="Update Project"
+      />
+
+      <ConfirmActionModal
+        isOpen={Boolean(projectToDelete)}
+        onClose={() => setProjectToDelete(null)}
+        title="Delete Project?"
+        message={
+          <>
+            Are you sure you want to delete{' '}
+            <span className="font-semibold">
+              “{projectToDelete?.name ?? 'this project'}”
+            </span>
+            ? This action cannot be undone.
+          </>
+        }
+        confirmLabel="Yes, Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isSubmitting={deleteProjectMutation.isPending}
+        onConfirm={handleDeleteProject}
       />
     </div>
   );
@@ -347,4 +462,44 @@ function ProjectCardSkeleton() {
       </div>
     </div>
   );
+}
+
+async function fetchTicketSummary(): Promise<TicketSummary> {
+  const response = await fetch('/api/dashboard/ticket-summary', {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | TicketSummary
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !isTicketSummary(payload)) {
+    throw new Error(
+      !isTicketSummary(payload)
+        ? payload?.message || 'Failed to fetch ticket summary.'
+        : 'Failed to fetch ticket summary.',
+    );
+  }
+
+  return payload;
+}
+
+function isTicketSummary(value: unknown): value is TicketSummary {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      'open' in value &&
+      'inProgress' in value &&
+      'resolved' in value &&
+      'critical' in value,
+  );
+}
+
+function formatSummaryCount(value: number | null | undefined) {
+  return value ?? 0;
 }

@@ -96,7 +96,7 @@ function getColumns({
       id: 'actions',
       header: 'Actions',
       cell: ({ row }) => {
-        const isProtectedRole = ['SUPER_ADMIN', 'ADMIN'].includes(
+        const isProtectedRole = ['SUPER_ADMIN'].includes(
           row.original.normalizedName,
         );
         const hasCurrentUserRole = currentUserRoleSet.has(
@@ -127,7 +127,11 @@ function getColumns({
               </button>
             </Tooltip>
             {!shouldHideMutations && (
-              <Tooltip hide={shouldHideMutations} content="" heading="Edit Role">
+              <Tooltip
+                hide={shouldHideMutations}
+                content=""
+                heading="Edit Role"
+              >
                 <button
                   type="button"
                   disabled={shouldHideMutations}
@@ -142,7 +146,11 @@ function getColumns({
               </Tooltip>
             )}
             {!shouldHideMutations && (
-              <Tooltip hide={shouldHideMutations} content="" heading="Delete Role">
+              <Tooltip
+                hide={shouldHideMutations}
+                content=""
+                heading="Delete Role"
+              >
                 <button
                   type="button"
                   onClick={() => {
@@ -398,7 +406,10 @@ function getNormalizedUserRole(role: string | { key?: string; name?: string }) {
 }
 
 function normalizeRoleValue(role: string) {
-  return role.trim().toUpperCase().replace(/[\s-]+/g, '_');
+  return role
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, '_');
 }
 
 function ChevronLeftIcon() {
