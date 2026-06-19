@@ -40,7 +40,10 @@ import {
 } from '../projects/projects.queries';
 import { useIsMobile } from '../../../components/hooks/useIsMobile';
 import Link from 'next/link';
-import { PermissionGuard } from '../../providers/PermissionProvider';
+import {
+  PermissionGuard,
+  usePermissions,
+} from '../../providers/PermissionProvider';
 import { useAppLoader } from '../../providers/AppLoaderProvider';
 const recentTickets: RecentTicket[] = [];
 
@@ -68,6 +71,7 @@ export default function Page() {
   const router = useRouter();
   const { setHeaderActionOverride } = useDashboardHeaderAction();
   const { setLoading } = useAppLoader();
+  const { hasPermission } = usePermissions();
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [projectToEdit, setProjectToEdit] = useState<ProjectRecord | null>(
     null,
@@ -114,7 +118,7 @@ export default function Page() {
   };
 
   const handleEditProject = async (values: CreateProjectFormValues) => {
-    if (!projectToEdit) {
+    if (!projectToEdit || !hasPermission('projects.edit')) {
       return;
     }
 
@@ -137,7 +141,7 @@ export default function Page() {
   };
 
   const handleDeleteProject = async () => {
-    if (!projectToDelete) {
+    if (!projectToDelete || !hasPermission('projects.delete')) {
       return;
     }
 
@@ -162,6 +166,11 @@ export default function Page() {
 
   const isMobile = useIsMobile();
   const ticketSummary = ticketSummaryQuery.data;
+  const canViewUpcoming = hasPermission('dashboard.view_upcoming');
+  const canViewRecentTickets = hasPermission('dashboard.view_recent_tickets');
+  const canViewProjectDetail = hasPermission('projects.view_detail');
+  const canEditProject = hasPermission('projects.edit');
+  const canDeleteProject = hasPermission('projects.delete');
 
   return (
     <div className="space-y-6">
@@ -247,10 +256,22 @@ export default function Page() {
                     openCount={project.openCount}
                     criticalCount={project.criticalCount}
                     colorHex={project.colorHex}
-                    onClick={() => router.push(`/projects/${project.id}`)}
-                    onEdit={() => setProjectToEdit(project)}
-                    onDelete={() =>
-                      setProjectToDelete({ id: project.id, name: project.name })
+                    onClick={
+                      canViewProjectDetail
+                        ? () => router.push(`/projects/${project.id}`)
+                        : undefined
+                    }
+                    onEdit={
+                      canEditProject ? () => setProjectToEdit(project) : undefined
+                    }
+                    onDelete={
+                      canDeleteProject
+                        ? () =>
+                            setProjectToDelete({
+                              id: project.id,
+                              name: project.name,
+                            })
+                        : undefined
                     }
                     isDeleting={
                       deleteProjectMutation.isPending &&
@@ -264,7 +285,11 @@ export default function Page() {
 
       <div className="grid md:grid-cols-14 gap-4 md:gap-6">
         <PermissionGuard permission="dashboard.view_recent_tickets">
-          <div className="md:col-span-10 space-y-4">
+          <div
+            className={`space-y-4 ${
+              canViewUpcoming ? 'md:col-span-10' : 'md:col-span-14'
+            }`}
+          >
             <div className="flex items-center gap-2 md:gap-2.5">
               <ClockIcon opacity={0} />
               <h2 className="text-base md:text-xl font-semibold text-black">
@@ -279,7 +304,11 @@ export default function Page() {
           </div>
         </PermissionGuard>
         <PermissionGuard permission="dashboard.view_upcoming">
-          <div className="col-span-4">
+          <div
+            className={` ${
+              canViewRecentTickets ? 'md:col-span-4' : 'md:col-span-14'
+            }`}
+          >
             <TicketsTabs tabs={ticketTabs} />
           </div>
         </PermissionGuard>

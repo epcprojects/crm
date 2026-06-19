@@ -11,9 +11,9 @@ function getApiBaseUrl() {
   return baseUrl.replace(/\/docs\/?$/, '');
 }
 
-export async function GET(
+export async function DELETE(
   _request: Request,
-  context: { params: Promise<{ projectId: string; ticketId: string }> },
+  context: { params: Promise<{ userId: string }> },
 ) {
   try {
     const cookieStore = await cookies();
@@ -32,50 +32,41 @@ export async function GET(
       );
     }
 
-    const { projectId, ticketId } = await context.params;
+    const { userId } = await context.params;
 
-    const response = await fetch(
-      `${apiBaseUrl}/projects/${projectId}/tickets/${ticketId}`,
-      {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        cache: 'no-store',
+    const response = await fetch(`${apiBaseUrl}/users/${userId}`, {
+      method: 'DELETE',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
       },
-    );
+    });
 
     const data = await response.json().catch(() => null);
 
     if (!response.ok) {
       return NextResponse.json(
-        { message: data?.message || 'Failed to fetch ticket details.' },
+        { message: data?.message || 'Failed to delete user.' },
         { status: response.status },
       );
     }
 
-    return NextResponse.json(data, { status: 200 });
+    if (response.status === 204) {
+      return new NextResponse(null, { status: 204 });
+    }
+
+    return NextResponse.json(data, { status: response.status });
   } catch {
     return NextResponse.json(
-      { message: 'Something went wrong while fetching the ticket details.' },
+      { message: 'Something went wrong while deleting the user.' },
       { status: 500 },
     );
   }
 }
 
-type UpdateTicketPayload = {
-  title?: string;
-  description?: string;
-  statusKey?: string;
-  priorityKey?: string;
-  assigneeId?: string;
-  dueDate?: string;
-};
-
-export async function PATCH(
+export async function PUT(
   request: Request,
-  context: { params: Promise<{ projectId: string; ticketId: string }> },
+  context: { params: Promise<{ userId: string }> },
 ) {
   try {
     const cookieStore = await cookies();
@@ -94,30 +85,24 @@ export async function PATCH(
       );
     }
 
-    const { projectId, ticketId } = await context.params;
-    const body = (await request.json().catch(() => null)) as
-      | UpdateTicketPayload
-      | null;
+    const { userId } = await context.params;
+    const body = await request.json();
 
-    const response = await fetch(
-      `${apiBaseUrl}/projects/${projectId}/tickets/${ticketId}`,
-      {
-        method: 'PATCH',
-        headers: {
-          Accept: 'application/json',
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body ?? {}),
-        cache: 'no-store',
+    const response = await fetch(`${apiBaseUrl}/users/${userId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
       },
-    );
+      body: JSON.stringify(body),
+    });
 
     const data = await response.json().catch(() => null);
 
     if (!response.ok) {
       return NextResponse.json(
-        { message: data?.message || 'Failed to update ticket.' },
+        { message: data?.message || 'Failed to update user.' },
         { status: response.status },
       );
     }
@@ -125,7 +110,7 @@ export async function PATCH(
     return NextResponse.json(data, { status: response.status });
   } catch {
     return NextResponse.json(
-      { message: 'Something went wrong while updating the ticket.' },
+      { message: 'Something went wrong while updating the user.' },
       { status: 500 },
     );
   }

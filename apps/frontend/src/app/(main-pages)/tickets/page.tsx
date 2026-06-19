@@ -19,7 +19,10 @@ import Dropdown from '../../../components/ui/ThemeDropDown';
 import { SearchIcon } from '../../../../public/icons';
 import { createTicket } from '../../../lib/tickets';
 import { useProjectsQuery } from '../projects/projects.queries';
-// import { ticketsData } from './tickets.data';
+import {
+  PermissionGuard,
+  usePermissions,
+} from '../../providers/PermissionProvider';
 
 const ticketsData: any[] = [];
 
@@ -95,6 +98,10 @@ export default function Page() {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedPriority, setSelectedPriority] = useState('all');
   const projectsQuery = useProjectsQuery();
+  const { hasPermission } = usePermissions();
+  const canCreateTicket = hasPermission('tickets.create');
+  const canFilterTickets = hasPermission('tickets.filter');
+  const canViewTicketDetail = hasPermission('tickets.view_detail');
 
   const projectOptions = useMemo(
     () => createTicketProjectOptions(projectsQuery.data ?? []),
@@ -102,6 +109,10 @@ export default function Page() {
   );
 
   const handleCreateTicket = async (values: CreateTicketFormValues) => {
+    if (!canCreateTicket) {
+      return;
+    }
+
     try {
       await createTicket({
         projectId: values.project,
@@ -122,12 +133,16 @@ export default function Page() {
   };
 
   useEffect(() => {
-    setHeaderActionOverride(() => setCreateTicketOpen(true));
+    if (canCreateTicket) {
+      setHeaderActionOverride(() => setCreateTicketOpen(true));
+    } else {
+      setHeaderActionOverride(null);
+    }
 
     return () => {
       setHeaderActionOverride(null);
     };
-  }, [setHeaderActionOverride]);
+  }, [canCreateTicket, setHeaderActionOverride]);
 
   const filteredTickets = useMemo(() => {
     const normalizedSearch = searchValue.trim().toLowerCase();
@@ -154,49 +169,65 @@ export default function Page() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
-        <div className="relative flex w-full items-center md:max-w-xs">
-          <input
-            value={searchValue}
-            onChange={(event) => setSearchValue(event.target.value)}
-            placeholder="Search..."
-            className="h-10.5 w-full rounded-lg border border-gray-200 bg-white ps-7 px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
-          />
-          <span className="absolute start-2">
-            <SearchIcon />
-          </span>
+      <PermissionGuard
+        permission="tickets.view_list"
+        fallback={
+          <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
+            You do not have permission to view tickets.
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
+          {canFilterTickets ? (
+            <>
+              <div className="relative flex w-full items-center md:max-w-xs">
+                <input
+                  value={searchValue}
+                  onChange={(event) => setSearchValue(event.target.value)}
+                  placeholder="Search..."
+                  className="h-10.5 w-full rounded-lg border border-gray-200 bg-white ps-7 px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
+                />
+                <span className="absolute start-2">
+                  <SearchIcon />
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                <div className="w-full md:w-38">
+                  <Dropdown
+                    options={statusFilterOptions}
+                    value={selectedStatus}
+                    onChange={setSelectedStatus}
+                    placeholder="All Status"
+                  />
+                </div>
+                <div className="w-full md:w-38">
+                  <Dropdown
+                    options={priorityFilterOptions}
+                    value={selectedPriority}
+                    onChange={setSelectedPriority}
+                    placeholder="All Priority"
+                  />
+                </div>
+              </div>
+            </>
+          ) : null}
         </div>
 
-        <div className="flex flex-col gap-3 md:flex-row md:items-center">
-          <div className="w-full md:w-38">
-            <Dropdown
-              options={statusFilterOptions}
-              value={selectedStatus}
-              onChange={setSelectedStatus}
-              placeholder="All Status"
-            />
-          </div>
-          <div className="w-full md:w-38">
-            <Dropdown
-              options={priorityFilterOptions}
-              value={selectedPriority}
-              onChange={setSelectedPriority}
-              placeholder="All Priority"
-            />
-          </div>
-        </div>
-      </div>
-
-      <RecentTicketsTable
-        tickets={filteredTickets}
-        enablePagination
-        initialPageSize={12}
-        pageSizeOptions={[12, 24, 48]}
-        onRowClick={(ticket) => router.push(`/tickets/${ticket.id}`)}
-      />
-
+        <RecentTicketsTable
+          tickets={filteredTickets}
+          enablePagination
+          initialPageSize={12}
+          pageSizeOptions={[12, 24, 48]}
+          onRowClick={
+            canViewTicketDetail
+              ? (ticket) => router.push(`/tickets/${ticket.id}`)
+              : undefined
+          }
+        />
+      </PermissionGuard>
       <CreateTicketModal
-        isOpen={createTicketOpen}
+        isOpen={createTicketOpen && canCreateTicket}
         onClose={() => setCreateTicketOpen(false)}
         onConfirm={handleCreateTicket}
         projectOptions={projectOptions}

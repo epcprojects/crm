@@ -102,6 +102,8 @@ function getColumns({
         const hasCurrentUserRole = currentUserRoleSet.has(
           normalizeRoleValue(row.original.normalizedName),
         );
+        const canEdit = Boolean(onEdit);
+        const canDelete = Boolean(onDelete);
         const shouldHideMutations = isProtectedRole || hasCurrentUserRole;
 
         // eslint-disable-next-line no-constant-condition, no-constant-binary-expression
@@ -126,7 +128,7 @@ function getColumns({
                 <EyeOpenedIcon fill="currentColor" />
               </button>
             </Tooltip>
-            {!shouldHideMutations && (
+            {canEdit && !shouldHideMutations && (
               <Tooltip
                 hide={shouldHideMutations}
                 content=""
@@ -145,7 +147,7 @@ function getColumns({
                 </button>
               </Tooltip>
             )}
-            {!shouldHideMutations && (
+            {canDelete && !shouldHideMutations && (
               <Tooltip
                 hide={shouldHideMutations}
                 content=""

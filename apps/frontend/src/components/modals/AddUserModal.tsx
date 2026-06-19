@@ -25,13 +25,8 @@ type AddUserModalProps = {
   mode?: 'create' | 'edit';
   initialValues?: AddUserFormValues;
   projects?: ProjectRecord[];
+  roleOptions?: Array<{ label: string; value: string }>;
 };
-
-const internalRoleOptions = [
-  { label: 'Admin User', value: 'admin' },
-  { label: 'Project Manager', value: 'pm' },
-  { label: 'Developer', value: 'developer' },
-];
 
 const addUserSchema = yup.object({
   fullName: yup.string().required('Full name is required'),
@@ -43,11 +38,7 @@ const addUserSchema = yup.object({
     .mixed<AddUserType>()
     .oneOf(['internal', 'external'])
     .required('User type is required'),
-  role: yup.string().when('userType', {
-    is: 'internal',
-    then: (schema) => schema.required('Role is required'),
-    otherwise: (schema) => schema.optional(),
-  }),
+  role: yup.string().required('Role is required'),
   projectAccess: yup
     .array()
     .of(yup.string().required())
@@ -61,13 +52,14 @@ export default function AddUserModal({
   mode = 'create',
   initialValues,
   projects = [],
+  roleOptions = [],
 }: AddUserModalProps) {
   const formik = useFormik<AddUserFormValues>({
     initialValues: initialValues ?? {
       fullName: '',
       email: '',
       userType: 'internal',
-      role: 'admin',
+      role: roleOptions[0]?.value ?? '',
       projectAccess: [],
     },
     enableReinitialize: true,
@@ -84,6 +76,16 @@ export default function AddUserModal({
       formik.resetForm();
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (
+      isOpen &&
+      !formik.values.role &&
+      roleOptions[0]?.value
+    ) {
+      formik.setFieldValue('role', roleOptions[0].value);
+    }
+  }, [formik.values.role, formik.values.userType, isOpen, roleOptions]);
 
   return (
     <AppModal
@@ -118,6 +120,8 @@ export default function AddUserModal({
           value={formik.values.email}
           onChange={formik.handleChange}
           onBlur={formik.handleBlur}
+          disabled={mode === 'edit'}
+          inputClassName={mode === 'edit' ? 'cursor-not-allowed bg-gray-50' : ''}
           errorText={formik.touched.email ? formik.errors.email : ''}
           placeholder="Enter email address"
         />
@@ -132,10 +136,12 @@ export default function AddUserModal({
               title="Internal"
               description="Devs & PMs — full project access"
               isSelected={formik.values.userType === 'internal'}
+              disabled={mode === 'edit'}
               onClick={() => {
+                if (mode === 'edit') return;
                 formik.setFieldValue('userType', 'internal');
                 if (!formik.values.role) {
-                  formik.setFieldValue('role', 'admin');
+                  formik.setFieldValue('role', roleOptions[0]?.value ?? '');
                 }
               }}
             />
@@ -144,24 +150,26 @@ export default function AddUserModal({
               title="External"
               description="Clients — limited to their tickets + calendar"
               isSelected={formik.values.userType === 'external'}
+              disabled={mode === 'edit'}
               onClick={() => {
+                if (mode === 'edit') return;
                 formik.setFieldValue('userType', 'external');
-                formik.setFieldValue('role', '');
+                if (!formik.values.role) {
+                  formik.setFieldValue('role', roleOptions[0]?.value ?? '');
+                }
               }}
             />
           </div>
         </div>
 
-        {formik.values.userType === 'internal' ? (
-          <Dropdown
-            label="Role"
-            options={internalRoleOptions}
-            value={formik.values.role}
-            onChange={(value) => formik.setFieldValue('role', value)}
-            error={Boolean(formik.touched.role && formik.errors.role)}
-            errorMessage={formik.touched.role ? formik.errors.role : ''}
-          />
-        ) : null}
+        <Dropdown
+          label="Role"
+          options={roleOptions}
+          value={formik.values.role}
+          onChange={(value) => formik.setFieldValue('role', value)}
+          error={Boolean(formik.touched.role && formik.errors.role)}
+          errorMessage={formik.touched.role ? formik.errors.role : ''}
+        />
 
         <div className="space-y-2">
           <label className="block text-sm font-normal text-gray-800 md:text-base">
@@ -225,22 +233,25 @@ function UserTypeCard({
   title,
   description,
   isSelected,
+  disabled = false,
   onClick,
 }: {
   title: string;
   description: string;
   isSelected: boolean;
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={`rounded-lg border p-3 text-left transition ${
         isSelected
           ? 'border-primary bg-violet-50 shadow-[inset_0_0_0_1px_#7F56D9]'
           : 'border-gray-200 bg-white hover:border-gray-300'
-      }`}
+      } ${disabled ? 'cursor-not-allowed opacity-70' : ''}`}
     >
       <p className="text-sm font-semibold text-gray-900">{title}</p>
       <p className="mt-1 text-xs text-gray-700">{description}</p>

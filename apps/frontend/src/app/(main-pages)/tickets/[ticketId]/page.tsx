@@ -16,6 +16,10 @@ import {
   type TicketPerson,
 } from '../tickets.data';
 import type { TicketPriority } from '../../../../components/tables/RecentTicketsTable';
+import {
+  PermissionGuard,
+  usePermissions,
+} from '../../../providers/PermissionProvider';
 
 export default function TicketDetailPage() {
   const params = useParams<{ ticketId: string }>();
@@ -24,13 +28,22 @@ export default function TicketDetailPage() {
   const queryClient = useQueryClient();
   const ticketId = String(params?.ticketId ?? '');
   const projectId = searchParams.get('projectId') ?? '';
+  const { hasPermission } = usePermissions();
+  const canViewTicketDetail = hasPermission('tickets.view_detail');
+  const canViewReplies = hasPermission('ticket_replies.view');
+  const canPostReplies = hasPermission('ticket_replies.post');
+  const canAttachReplyFiles = hasPermission('ticket_replies.attach_file');
+  const canEditStatus = hasPermission('tickets.edit_status');
+  const canEditPriority = hasPermission('tickets.edit_priority');
+  const canEditAssignee = hasPermission('tickets.edit_assignee');
+  const canEditDueDate = hasPermission('tickets.edit_due_date');
 
   const fallbackTicket = useMemo(() => getTicketById(ticketId), [ticketId]);
 
   const ticketDetailQuery = useQuery({
     queryKey: ['ticket-detail', projectId, ticketId],
     queryFn: () => fetchTicketDetail(projectId, ticketId),
-    enabled: Boolean(projectId && ticketId),
+    enabled: Boolean(projectId && ticketId && canViewTicketDetail),
   });
 
   const membersQuery = useQuery({
@@ -42,7 +55,7 @@ export default function TicketDetailPage() {
   const ticketRepliesQuery = useQuery({
     queryKey: ['ticket-replies', ticketId],
     queryFn: () => fetchTicketReplies(ticketId),
-    enabled: Boolean(ticketId),
+    enabled: Boolean(ticketId && canViewReplies),
   });
 
   const statusListQuery = useQuery({
@@ -138,6 +151,24 @@ export default function TicketDetailPage() {
     setSelectedAssignee(ticket.assigneeDetail.name);
   }, [ticket]);
 
+  if (!canViewTicketDetail) {
+    return (
+      <div className="space-y-4 -mt-16 sm:mt-0">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
+        >
+          <BackArrowIcon />
+          Back
+        </button>
+        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
+          You do not have permission to view ticket details.
+        </div>
+      </div>
+    );
+  }
+
   if (!ticket) {
     return (
       <div className="space-y-4 -mt-16 sm:mt-0">
@@ -157,12 +188,17 @@ export default function TicketDetailPage() {
   }
 
   const handlePriorityChange = async (value: string) => {
+    if (!canEditPriority) {
+      return;
+    }
+
     const nextPriority = value as TicketPriority;
     setSelectedPriority(nextPriority);
 
     await updateTicketMutation.mutateAsync({
       title: ticket.title,
       description: ticket.description,
+      statusKey: selectedStatus,
       priorityKey: nextPriority,
       assigneeId: selectedAssigneeId,
       dueDate: ticket.dueDateValue ?? '',
@@ -170,22 +206,49 @@ export default function TicketDetailPage() {
   };
 
   const handleAssigneeChange = async (value: string) => {
+    if (!canEditAssignee) {
+      return;
+    }
+
     const selectedOption = assigneeOptions.find((option) => option.value === value);
     setSelectedAssignee(selectedOption?.label ?? '');
 
     await updateTicketMutation.mutateAsync({
       title: ticket.title,
       description: ticket.description,
+      statusKey: selectedStatus,
       priorityKey: selectedPriority,
       assigneeId: value,
       dueDate: ticket.dueDateValue ?? '',
     });
   };
 
-  const handleClearDueDate = async () => {
+  const handleStatusChange = async (value: string) => {
+    if (!canEditStatus) {
+      return;
+    }
+
+    setSelectedStatus(value);
+
     await updateTicketMutation.mutateAsync({
       title: ticket.title,
       description: ticket.description,
+      statusKey: value,
+      priorityKey: selectedPriority,
+      assigneeId: selectedAssigneeId,
+      dueDate: ticket.dueDateValue ?? '',
+    });
+  };
+
+  const handleClearDueDate = async () => {
+    if (!canEditDueDate) {
+      return;
+    }
+
+    await updateTicketMutation.mutateAsync({
+      title: ticket.title,
+      description: ticket.description,
+      statusKey: selectedStatus,
       priorityKey: selectedPriority,
       assigneeId: selectedAssigneeId,
       dueDate: '',
@@ -228,17 +291,23 @@ export default function TicketDetailPage() {
             </div>
           </section>
 
-          <DiscussionPanel
-            replies={ticketRepliesQuery.data ?? ticket.replies}
-            emptyTitle={
-              ticketRepliesQuery.isLoading ? 'Loading replies...' : 'No replies yet.'
-            }
-            emptyDescription={
-              ticketRepliesQuery.isLoading
-                ? 'Fetching ticket replies.'
-                : 'No responses have been added to this ticket yet.'
-            }
-          />
+          <PermissionGuard permission="ticket_replies.view">
+            <DiscussionPanel
+              replies={canViewReplies ? ticketRepliesQuery.data ?? ticket.replies : []}
+              emptyTitle={
+                ticketRepliesQuery.isLoading
+                  ? 'Loading replies...'
+                  : 'No replies yet.'
+              }
+              emptyDescription={
+                ticketRepliesQuery.isLoading
+                  ? 'Fetching ticket replies.'
+                  : 'No responses have been added to this ticket yet.'
+              }
+              canCompose={canPostReplies}
+              canAttachFile={canAttachReplyFiles}
+            />
+          </PermissionGuard>
         </div>
 
         <aside className="space-y-4 xl:col-span-3">
@@ -251,21 +320,21 @@ export default function TicketDetailPage() {
                 label="Status"
                 options={statusOptions}
                 value={selectedStatus}
-                disabled={updateTicketMutation.isPending}
-                onChange={setSelectedStatus}
+                disabled={updateTicketMutation.isPending || !canEditStatus}
+                onChange={handleStatusChange}
               />
               <Dropdown
                 label="Priority"
                 options={ticketPriorityDropdownOptions}
                 value={selectedPriority}
-                disabled={updateTicketMutation.isPending}
+                disabled={updateTicketMutation.isPending || !canEditPriority}
                 onChange={handlePriorityChange}
               />
               <Dropdown
                 label="Assignee"
                 options={assigneeOptions}
                 value={selectedAssigneeId}
-                disabled={updateTicketMutation.isPending}
+                disabled={updateTicketMutation.isPending || !canEditAssignee}
                 onChange={handleAssigneeChange}
               />
             </div>
@@ -310,7 +379,7 @@ export default function TicketDetailPage() {
               <button
                 type="button"
                 onClick={handleClearDueDate}
-                disabled={updateTicketMutation.isPending}
+                disabled={updateTicketMutation.isPending || !canEditDueDate}
                 className="text-sm font-semibold text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Clear
@@ -488,6 +557,7 @@ type ApiTicketDetail = {
 type UpdateTicketRequest = {
   title: string;
   description: string;
+  statusKey: string;
   priorityKey: string;
   assigneeId: string;
   dueDate: string;

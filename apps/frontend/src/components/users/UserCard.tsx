@@ -14,6 +14,7 @@ export type UserCardProject = {
 export type UserCardRole = {
   label: string;
   tone: 'blue' | 'orange' | 'purple' | 'teal';
+  value?: string;
 };
 
 export type UserCardUser = {
@@ -70,35 +71,41 @@ export default function UserCard({ user, onEdit, onDelete }: UserCardProps) {
         ))}
       </div>
 
-      <div className="mt-5 flex items-center gap-3">
-        <ThemeButton
-          type="button"
-          onClick={() => onEdit?.(user)}
-          variant="secondary"
-          className="w-full"
-          size={isMobile ? 'md' : 'lg'}
-          icon={
-            <EditUserIcon
-              height={isMobile ? '14' : '18'}
-              width={isMobile ? '14' : '18'}
-            />
-          }
-        >
-          Edit User
-        </ThemeButton>
+      {onEdit || onDelete ? (
+        <div className="mt-5 flex items-center gap-3">
+          {onEdit ? (
+            <ThemeButton
+              type="button"
+              onClick={() => onEdit(user)}
+              variant="secondary"
+              className="w-full"
+              size={isMobile ? 'md' : 'lg'}
+              icon={
+                <EditUserIcon
+                  height={isMobile ? '14' : '18'}
+                  width={isMobile ? '14' : '18'}
+                />
+              }
+            >
+              Edit User
+            </ThemeButton>
+          ) : null}
 
-        <button
-          type="button"
-          onClick={() => onDelete?.(user)}
-          className="flex md:h-11 h-9 min-w-9 md:min-w-11 items-center justify-center rounded-lg border border-red-500 text-red-500 transition hover:bg-red-50"
-          aria-label={`Delete ${user.name}`}
-        >
-          <TrashIcon
-            height={isMobile ? '16' : '18'}
-            width={isMobile ? '16' : '18'}
-          />
-        </button>
-      </div>
+          {onDelete ? (
+            <button
+              type="button"
+              onClick={() => onDelete(user)}
+              className="flex md:h-11 h-9 min-w-9 md:min-w-11 items-center justify-center rounded-lg border border-red-500 text-red-500 transition hover:bg-red-50"
+              aria-label={`Delete ${user.name}`}
+            >
+              <TrashIcon
+                height={isMobile ? '16' : '18'}
+                width={isMobile ? '16' : '18'}
+              />
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </article>
   );
 }

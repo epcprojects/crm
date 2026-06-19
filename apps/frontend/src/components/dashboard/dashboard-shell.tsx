@@ -73,6 +73,7 @@ type SidebarProject = UserProjectResponse & {
 
 type DashboardHeaderActionContextValue = {
   setHeaderActionOverride: (action: (() => void) | null) => void;
+  setHeaderCountOverride: (count: number | null) => void;
 };
 
 const DashboardHeaderActionContext =
@@ -224,6 +225,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const [headerActionOverride, setHeaderActionOverrideState] = useState<
     (() => void) | null
   >(null);
+  const [headerCountOverride, setHeaderCountOverrideState] =
+    useState<number | null>(null);
   const projectsQuery = useProjectsQuery();
 
   const visibleNavigationItems = useMemo(() => {
@@ -274,8 +277,20 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       };
     }
 
+    if (headerCountOverride !== null) {
+      return {
+        ...matchedHeader,
+        count: headerCountOverride,
+      };
+    }
+
     return matchedHeader;
-  }, [currentAccount.name, pathname, projectsQuery.data?.length]);
+  }, [
+    currentAccount.name,
+    headerCountOverride,
+    pathname,
+    projectsQuery.data?.length,
+  ]);
 
   const changePasswordMutation = useMutation({
     onMutate: () => {
@@ -330,9 +345,14 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     setHeaderActionOverrideState(() => action);
   };
 
+  const setHeaderCountOverride = (count: number | null) => {
+    setHeaderCountOverrideState(count);
+  };
+
   const headerActionContextValue = useMemo(
     () => ({
       setHeaderActionOverride,
+      setHeaderCountOverride,
     }),
     [],
   );

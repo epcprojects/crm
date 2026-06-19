@@ -55,7 +55,9 @@ export default function ProjectCard({
 }: ProjectCardProps) {
   return (
     <article
-      className="cursor-pointer rounded-xl group md:rounded-2xl border p-2.5 md:p-4 shadow-xs transition hover:drop-shadow"
+      className={`rounded-xl group md:rounded-2xl border p-2.5 md:p-4 shadow-xs transition hover:drop-shadow ${
+        onClick ? 'cursor-pointer' : ''
+      }`}
       onClick={onClick}
       style={{
         borderColor: `${colorHex}33`,
@@ -98,33 +100,37 @@ export default function ProjectCard({
             </button>
           ) : null}
 
-          <Tooltip heading="Edit Project" content="">
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onEdit?.();
-              }}
-              className="flex  shrink-0 items-center justify-center rounded-full border min-w-8 h-8  text-xs md:text-sm gap-1 border-white/70 bg-white/90 text-primary-dark shadow-sm transition hover:bg-white"
-              aria-label={`Edit ${name}`}
-            >
-              <EditIcon />
-            </button>
-          </Tooltip>
-          <Tooltip heading="Delete Project" content="">
-            <button
-              type="button"
-              disabled={isDeleting}
-              onClick={(event) => {
-                event.stopPropagation();
-                onDelete?.();
-              }}
-              className="flex  shrink-0 items-center justify-center rounded-full border min-w-8 h-8  text-xs md:text-sm gap-1 border-white/70 bg-white/90 text-primary-dark shadow-sm transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
-              aria-label={`Delete ${name}`}
-            >
-              <TrashIcon />
-            </button>
-          </Tooltip>
+          {onEdit ? (
+            <Tooltip heading="Edit Project" content="">
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onEdit();
+                }}
+                className="flex  shrink-0 items-center justify-center rounded-full border min-w-8 h-8  text-xs md:text-sm gap-1 border-white/70 bg-white/90 text-primary-dark shadow-sm transition hover:bg-white"
+                aria-label={`Edit ${name}`}
+              >
+                <EditIcon />
+              </button>
+            </Tooltip>
+          ) : null}
+          {onDelete ? (
+            <Tooltip heading="Delete Project" content="">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onDelete();
+                }}
+                className="flex  shrink-0 items-center justify-center rounded-full border min-w-8 h-8  text-xs md:text-sm gap-1 border-white/70 bg-white/90 text-primary-dark shadow-sm transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label={`Delete ${name}`}
+              >
+                <TrashIcon />
+              </button>
+            </Tooltip>
+          ) : null}
         </div>
       </div>
 
