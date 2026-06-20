@@ -8,7 +8,7 @@ export type SettingsConfigItem = {
   label: string;
   value: string;
   countLabel: string;
-  colorHex: string;
+  colorHex?: string;
 };
 
 type SettingsConfigCardProps = {
@@ -59,7 +59,7 @@ export default function SettingsConfigCard({
               <div className="grid min-w-0 flex-1 grid-cols-3 items-center gap-3">
                 <SettingsBadge
                   label={item.label}
-                  colorHex={item.colorHex}
+                  colorHex={item.colorHex ?? '#667085'}
                   variant={badgeVariant}
                 />
                 <p className="text-sm text-gray-800 text-end">
@@ -120,26 +120,57 @@ function SettingsBadge({
   colorHex: string;
   variant: 'status' | 'priority';
 }) {
+  const color = normalizeHexColor(colorHex);
+
   return (
     <span
       className={`inline-flex w-fit whitespace-nowrap items-center gap-1.5 border text-sm ${
         variant === 'priority'
-          ? 'rounded-md bg-white px-2 py-1 font-semibold shadow-xs'
+          ? 'rounded-md px-2 py-1 font-semibold shadow-xs'
           : 'rounded-full px-2 py-1 font-medium'
       }`}
       style={{
-        color: variant === 'priority' ? '#344054' : colorHex,
-        backgroundColor: variant === 'priority' ? '#FFFFFF' : `${colorHex}12`,
-        borderColor: variant === 'priority' ? '#D0D5DD' : `${colorHex}55`,
+        color: variant === 'priority' ? '#344054' : color,
+        backgroundColor:
+          variant === 'priority' ? '#FFFFFF' : withAlpha(color, 0.075),
+        borderColor:
+          variant === 'priority' ? '#D0D5DD' : withAlpha(color, 0.34),
       }}
     >
-      <span
-        className="inline-block h-2 w-2 rounded-full"
-        style={{ backgroundColor: colorHex }}
-      />
+      {variant === 'priority' ? (
+        <span
+          className="inline-block h-2 w-2 rounded-full"
+          style={{ backgroundColor: color }}
+        />
+      ) : null}
       {label}
     </span>
   );
+}
+
+function normalizeHexColor(colorHex: string | undefined) {
+  const trimmedColor = colorHex?.trim() || '#667085';
+  const color = trimmedColor.startsWith('#')
+    ? trimmedColor
+    : `#${trimmedColor}`;
+
+  return /^#([0-9a-f]{6}|[0-9a-f]{3})$/i.test(color) ? color : '#667085';
+}
+
+function withAlpha(colorHex: string, alpha: number) {
+  const hex = colorHex.slice(1);
+  const expandedHex =
+    hex.length === 3
+      ? hex
+          .split('')
+          .map((part) => part + part)
+          .join('')
+      : hex;
+  const red = Number.parseInt(expandedHex.slice(0, 2), 16);
+  const green = Number.parseInt(expandedHex.slice(2, 4), 16);
+  const blue = Number.parseInt(expandedHex.slice(4, 6), 16);
+
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 
 function EditIcon() {

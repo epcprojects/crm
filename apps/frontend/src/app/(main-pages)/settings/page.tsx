@@ -47,12 +47,12 @@ export default function Page() {
   const [statusItems, setStatusItems] = useState<SettingsConfigItem[]>([]);
   const [priorityItems, setPriorityItems] = useState<SettingsConfigItem[]>([]);
   const ticketStatusesQuery = useQuery({
-    queryKey: ['ticket-statuses'],
+    queryKey: ['settings', 'ticket-statuses'],
     queryFn: fetchTicketStatuses,
     enabled: canViewStatuses,
   });
   const ticketPrioritiesQuery = useQuery({
-    queryKey: ['ticket-priorities'],
+    queryKey: ['settings', 'ticket-priorities'],
     queryFn: fetchTicketPriorities,
     enabled: canViewPriorities,
   });
@@ -80,6 +80,7 @@ export default function Page() {
       return payload;
     },
     onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['settings', 'ticket-priorities'] });
       await queryClient.invalidateQueries({ queryKey: ['ticket-priorities'] });
     },
   });
@@ -109,6 +110,7 @@ export default function Page() {
       return payload;
     },
     onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['settings', 'ticket-priorities'] });
       await queryClient.invalidateQueries({ queryKey: ['ticket-priorities'] });
     },
   });
@@ -128,6 +130,7 @@ export default function Page() {
       }
     },
     onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['settings', 'ticket-priorities'] });
       await queryClient.invalidateQueries({ queryKey: ['ticket-priorities'] });
     },
   });
@@ -155,6 +158,7 @@ export default function Page() {
       return payload;
     },
     onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['settings', 'ticket-statuses'] });
       await queryClient.invalidateQueries({ queryKey: ['ticket-statuses'] });
     },
   });
@@ -174,6 +178,7 @@ export default function Page() {
       }
     },
     onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['settings', 'ticket-statuses'] });
       await queryClient.invalidateQueries({ queryKey: ['ticket-statuses'] });
     },
   });
@@ -203,6 +208,7 @@ export default function Page() {
       return payload;
     },
     onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['settings', 'ticket-statuses'] });
       await queryClient.invalidateQueries({ queryKey: ['ticket-statuses'] });
     },
   });
@@ -259,7 +265,7 @@ export default function Page() {
 
     try {
       setLoading(true);
-      const payload = await createTicketStatusMutation.mutateAsync({
+      await createTicketStatusMutation.mutateAsync({
         body: {
           key: values.value,
           label: values.label,
@@ -268,18 +274,7 @@ export default function Page() {
         },
       });
 
-      const createdStatus = mapTicketStatusToSettingsItem(
-        isApiTicketStatus(payload)
-          ? payload
-          : {
-              ...createFallbackTicketStatus(values.value),
-              key: values.value,
-              label: values.label,
-              color: values.colorHex,
-            },
-      );
-
-      setStatusItems((currentItems) => [createdStatus, ...currentItems]);
+      await ticketStatusesQuery.refetch();
       appToast.success('Status created successfully.');
     } finally {
       setLoading(false);
@@ -291,7 +286,7 @@ export default function Page() {
 
     try {
       setLoading(true);
-      const payload = await updateTicketStatusMutation.mutateAsync({
+      await updateTicketStatusMutation.mutateAsync({
         statusId: editingStatusId,
         body: {
           label: values.label,
@@ -299,24 +294,7 @@ export default function Page() {
         },
       });
 
-      const updatedStatus = mapTicketStatusToSettingsItem(
-        isApiTicketStatus(payload)
-          ? payload
-          : {
-              ...createFallbackTicketStatus(editingStatusId),
-              key: values.value,
-              label: values.label,
-              color: values.colorHex,
-            },
-      );
-
-      setStatusItems((currentItems) =>
-        currentItems.map((item) =>
-          item.id === editingStatusId
-            ? updatedStatus
-            : item,
-        ),
-      );
+      await ticketStatusesQuery.refetch();
       setEditingStatusId(null);
       appToast.success('Status updated successfully.');
     } finally {
@@ -329,59 +307,43 @@ export default function Page() {
       return;
     }
 
-    const payload = await createTicketPriorityMutation.mutateAsync({
-      body: {
-        key: values.value,
-        label: values.label,
-        color: values.colorHex,
-        sortOrder: priorityItems.length,
-      },
-    });
+    try {
+      setLoading(true);
+      await createTicketPriorityMutation.mutateAsync({
+        body: {
+          key: values.value,
+          label: values.label,
+          color: values.colorHex,
+          sortOrder: priorityItems.length,
+        },
+      });
 
-    const createdPriority = mapTicketPriorityToSettingsItem(
-      isApiTicketPriority(payload)
-        ? payload
-        : {
-            ...createFallbackTicketPriority(values.value),
-            key: values.value,
-            label: values.label,
-            color: values.colorHex,
-          },
-    );
-
-    setPriorityItems((currentItems) => [createdPriority, ...currentItems]);
-    appToast.success('Priority created successfully.');
+      await ticketPrioritiesQuery.refetch();
+      appToast.success('Priority created successfully.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEditPriority = async (values: SettingsItemFormValues) => {
     if (!editingPriorityId || !canEditPriority) return;
 
-    const payload = await updateTicketPriorityMutation.mutateAsync({
-      priorityId: editingPriorityId,
-      body: {
-        label: values.label,
-        color: values.colorHex,
-      },
-    });
+    try {
+      setLoading(true);
+      await updateTicketPriorityMutation.mutateAsync({
+        priorityId: editingPriorityId,
+        body: {
+          label: values.label,
+          color: values.colorHex,
+        },
+      });
 
-    const updatedPriority = mapTicketPriorityToSettingsItem(
-      isApiTicketPriority(payload)
-        ? payload
-        : {
-            ...createFallbackTicketPriority(editingPriorityId),
-            key: values.value,
-            label: values.label,
-            color: values.colorHex,
-          },
-    );
-
-    setPriorityItems((currentItems) =>
-      currentItems.map((item) =>
-        item.id === editingPriorityId ? updatedPriority : item,
-      ),
-    );
-    setEditingPriorityId(null);
-    appToast.success('Priority updated successfully.');
+      await ticketPrioritiesQuery.refetch();
+      setEditingPriorityId(null);
+      appToast.success('Priority updated successfully.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const isMobile = useIsMobile();
@@ -416,13 +378,14 @@ export default function Page() {
           onDelete={
             canDeleteStatus
               ? async (item) => {
+                  setLoading(true);
+                  try {
                   await deleteTicketStatusMutation.mutateAsync(item.id);
-                  setStatusItems((currentItems) =>
-                    currentItems.filter(
-                      (statusItem) => statusItem.id !== item.id,
-                    ),
-                  );
+                  await ticketStatusesQuery.refetch();
                   appToast.success('Status deleted successfully.');
+                  } finally {
+                    setLoading(false);
+                  }
                 }
               : undefined
           }
@@ -455,13 +418,14 @@ export default function Page() {
           onDelete={
             canDeletePriority
               ? async (item) => {
+                  setLoading(true);
+                  try {
                   await deleteTicketPriorityMutation.mutateAsync(item.id);
-                  setPriorityItems((currentItems) =>
-                    currentItems.filter(
-                      (priorityItem) => priorityItem.id !== item.id,
-                    ),
-                  );
+                  await ticketPrioritiesQuery.refetch();
                   appToast.success('Priority deleted successfully.');
+                  } finally {
+                    setLoading(false);
+                  }
                 }
               : undefined
           }
@@ -510,7 +474,7 @@ export default function Page() {
                 ? {
                     label: editingStatus.label,
                     value: editingStatus.value,
-                    colorHex: editingStatus.colorHex,
+                    colorHex: editingStatus.colorHex ?? '#17B26A',
                   }
                 : undefined
             : undefined
@@ -537,7 +501,7 @@ export default function Page() {
             ? {
                 label: editingPriority.label,
                 value: editingPriority.value,
-                colorHex: editingPriority.colorHex,
+                colorHex: editingPriority.colorHex ?? '#875BF7',
               }
                 : undefined
             : undefined
@@ -718,30 +682,6 @@ function isApiTicketPriority(value: unknown): value is ApiTicketPriority {
 
 function isErrorPayload(value: unknown): value is { message?: string } {
   return Boolean(value && typeof value === 'object' && 'message' in value);
-}
-
-function createFallbackTicketStatus(statusId: string): ApiTicketStatus {
-  return {
-    id: statusId,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    key: '',
-    label: '',
-    color: '#17B26A',
-    sortOrder: 0,
-  };
-}
-
-function createFallbackTicketPriority(priorityId: string): ApiTicketPriority {
-  return {
-    id: priorityId,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    key: '',
-    label: '',
-    color: '#875BF7',
-    sortOrder: 0,
-  };
 }
 
 function TipIcon({ width = '20', height = '20' }) {
