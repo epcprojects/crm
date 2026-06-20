@@ -67,7 +67,7 @@ function getColumns({
     // },
     {
       accessorKey: 'normalizedName',
-      header: 'Normalized Name',
+      header: 'Role Name',
       cell: ({ row }) => (
         <span className="text-sm text-gray-800">
           {row.original.normalizedName}
