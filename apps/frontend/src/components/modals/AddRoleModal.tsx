@@ -190,7 +190,7 @@ export default function AddRoleModal({
                         <div>
                           <input
                             type="checkbox"
-                            checked={allSelected}
+                            checked={someSelected}
                             ref={(input) => {
                               if (input) {
                                 input.indeterminate =
@@ -210,7 +210,7 @@ export default function AddRoleModal({
                             }
                             className="h-4 w-4 rounded border-gray-300 accent-[#7F56D9] hidden"
                           />
-                          {allSelected ? (
+                          {someSelected ? (
                             <CheckedBoxIcon width="18" height="18" />
                           ) : (
                             <UncheckedBoxIcon

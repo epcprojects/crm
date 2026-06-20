@@ -1,10 +1,6 @@
 'use client';
 
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import DiscussionPanel from '../../../../components/discussion/DiscussionPanel';
@@ -36,7 +32,6 @@ export default function TicketDetailPage() {
   const canEditStatus = hasPermission('tickets.edit_status');
   const canEditPriority = hasPermission('tickets.edit_priority');
   const canEditAssignee = hasPermission('tickets.edit_assignee');
-  const canEditDueDate = hasPermission('tickets.edit_due_date');
 
   const fallbackTicket = useMemo(() => getTicketById(ticketId), [ticketId]);
 
@@ -65,14 +60,17 @@ export default function TicketDetailPage() {
 
   const updateTicketMutation = useMutation({
     mutationFn: async (payload: UpdateTicketRequest) => {
-      const response = await fetch(`/api/projects/${projectId}/tickets/${ticketId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
+      const response = await fetch(
+        `/api/projects/${projectId}/tickets/${ticketId}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify(payload),
         },
-        body: JSON.stringify(payload),
-      });
+      );
 
       const data = await response.json().catch(() => null);
 
@@ -101,8 +99,9 @@ export default function TicketDetailPage() {
 
   const ticket = ticketDetailQuery.data ?? fallbackTicket;
   const [selectedStatus, setSelectedStatus] = useState('Open');
-  const [selectedPriority, setSelectedPriority] =
-    useState<TicketPriority>('Low');
+  const [selectedPriority, setSelectedPriority] = useState<TicketPriority | ''>(
+    'Low',
+  );
   const [selectedAssignee, setSelectedAssignee] = useState('');
 
   const statusOptions = useMemo(
@@ -135,7 +134,8 @@ export default function TicketDetailPage() {
     }
 
     return (
-      assigneeOptions.find((option) => option.label === selectedAssignee)?.value ??
+      assigneeOptions.find((option) => option.label === selectedAssignee)
+        ?.value ??
       ticket.assigneeId ??
       ''
     );
@@ -147,7 +147,7 @@ export default function TicketDetailPage() {
     }
 
     setSelectedStatus(ticket.status);
-    setSelectedPriority(ticket.priority);
+    setSelectedPriority(ticket.priority ?? '');
     setSelectedAssignee(ticket.assigneeDetail.name);
   }, [ticket]);
 
@@ -210,7 +210,9 @@ export default function TicketDetailPage() {
       return;
     }
 
-    const selectedOption = assigneeOptions.find((option) => option.value === value);
+    const selectedOption = assigneeOptions.find(
+      (option) => option.value === value,
+    );
     setSelectedAssignee(selectedOption?.label ?? '');
 
     await updateTicketMutation.mutateAsync({
@@ -237,21 +239,6 @@ export default function TicketDetailPage() {
       priorityKey: selectedPriority,
       assigneeId: selectedAssigneeId,
       dueDate: ticket.dueDateValue ?? '',
-    });
-  };
-
-  const handleClearDueDate = async () => {
-    if (!canEditDueDate) {
-      return;
-    }
-
-    await updateTicketMutation.mutateAsync({
-      title: ticket.title,
-      description: ticket.description,
-      statusKey: selectedStatus,
-      priorityKey: selectedPriority,
-      assigneeId: selectedAssigneeId,
-      dueDate: '',
     });
   };
 
@@ -287,13 +274,19 @@ export default function TicketDetailPage() {
               <h2 className="text-base md:text-xl leading-8 font-semibold text-gray-900">
                 {ticket.title}
               </h2>
-              <p className="sm:mt-2 text-sm text-gray-700">{ticket.description}</p>
+              <p className="sm:mt-2 text-sm text-gray-700">
+                {ticket.description}
+              </p>
             </div>
           </section>
 
           <PermissionGuard permission="ticket_replies.view">
             <DiscussionPanel
-              replies={canViewReplies ? ticketRepliesQuery.data ?? ticket.replies : []}
+              replies={
+                canViewReplies
+                  ? (ticketRepliesQuery.data ?? ticket.replies)
+                  : []
+              }
               emptyTitle={
                 ticketRepliesQuery.isLoading
                   ? 'Loading replies...'
@@ -376,14 +369,14 @@ export default function TicketDetailPage() {
               <h3 className="text-sm md:text-base font-semibold text-gray-900">
                 Due Date
               </h3>
-              <button
+              {/* <button
                 type="button"
                 onClick={handleClearDueDate}
                 disabled={updateTicketMutation.isPending || !canEditDueDate}
                 className="text-sm font-semibold text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Clear
-              </button>
+              </button> */}
             </div>
             <div className="p-3 sm:p-4">
               <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
@@ -412,13 +405,16 @@ export default function TicketDetailPage() {
 }
 
 async function fetchTicketDetail(projectId: string, ticketId: string) {
-  const response = await fetch(`/api/projects/${projectId}/tickets/${ticketId}`, {
-    method: 'GET',
-    headers: {
-      Accept: 'application/json',
+  const response = await fetch(
+    `/api/projects/${projectId}/tickets/${ticketId}`,
+    {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
     },
-    cache: 'no-store',
-  });
+  );
 
   const payload = (await response.json().catch(() => null)) as
     | ApiTicketDetail
@@ -584,7 +580,9 @@ function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
     status: mapTicketStatus(ticket.statusKey),
     priority: mapTicketPriority(ticket.priorityKey),
     assignee: {
-      name: ticket.assigneeId ? `User ${ticket.assigneeId.slice(-4)}` : 'Unassigned',
+      name: ticket.assigneeId
+        ? `User ${ticket.assigneeId.slice(-4)}`
+        : 'Unassigned',
       initials: ticket.assigneeId
         ? ticket.assigneeId.slice(-2).toUpperCase()
         : 'NA',
@@ -603,14 +601,18 @@ function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
     })),
     reporter: {
       role: 'Reporter',
-      name: ticket.reporterId ? `User ${ticket.reporterId.slice(-4)}` : 'Reporter',
+      name: ticket.reporterId
+        ? `User ${ticket.reporterId.slice(-4)}`
+        : 'Reporter',
       initials: ticket.reporterId
         ? ticket.reporterId.slice(-2).toUpperCase()
         : 'RP',
     },
     assigneeDetail: {
       role: 'Assignee',
-      name: ticket.assigneeId ? `User ${ticket.assigneeId.slice(-4)}` : 'Unassigned',
+      name: ticket.assigneeId
+        ? `User ${ticket.assigneeId.slice(-4)}`
+        : 'Unassigned',
       initials: ticket.assigneeId
         ? ticket.assigneeId.slice(-2).toUpperCase()
         : 'NA',

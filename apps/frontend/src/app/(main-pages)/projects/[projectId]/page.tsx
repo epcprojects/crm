@@ -26,6 +26,7 @@ import { useAppLoader } from '../../../providers/AppLoaderProvider';
 import { createTicket } from '../../../../lib/tickets';
 import type { ProjectFileRecord } from '../projects.data';
 import {
+  projectsQueryKey,
   projectTicketsQueryKey,
   projectThreadQueryKey,
   useDeleteProjectFileMutation,
@@ -220,6 +221,14 @@ export default function ProjectDetailPage() {
       await queryClient.invalidateQueries({
         queryKey: [...projectTicketsQueryKey, projectId],
       });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['dashboard-project-tickets'] }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'recent-tickets'],
+        }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard', 'ticket-summary'] }),
+        queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
+      ]);
       appToast.success('Ticket created successfully.');
     } catch (error) {
       appToast.error(

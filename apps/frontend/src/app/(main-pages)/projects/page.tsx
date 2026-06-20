@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useDashboardHeaderAction } from '../../../components/dashboard/dashboard-shell';
 import CreateProjectModal, {
@@ -27,11 +28,13 @@ import {
   useDeleteProjectMutation,
   useUpdateProjectMutation,
   useProjectsInfiniteQuery,
+  projectsQueryKey,
 } from './projects.queries';
 import type { ProjectRecord } from './projects.data';
 
 export default function ProjectsPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { setHeaderActionOverride } = useDashboardHeaderAction();
   const { setLoading } = useAppLoader();
   const { hasPermission } = usePermissions();
@@ -162,6 +165,14 @@ export default function ProjectsPage() {
         dueDate: values.dueDate,
         attachments: values.attachments,
       });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['dashboard-project-tickets'] }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'recent-tickets'],
+        }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard', 'ticket-summary'] }),
+        queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
+      ]);
       appToast.success('Ticket created successfully.');
     } catch (error) {
       appToast.error(

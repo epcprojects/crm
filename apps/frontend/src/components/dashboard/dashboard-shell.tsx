@@ -188,7 +188,7 @@ const pageHeaderConfigs: PageHeaderConfig[] = [
   {
     href: '/users',
     title: 'Users',
-    subtitle: 'Manage users roles and assgn projects.',
+    subtitle: 'Manage users roles and assign projects.',
     count: 0,
     action: {
       label: 'Add User',

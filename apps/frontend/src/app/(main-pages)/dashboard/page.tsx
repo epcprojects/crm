@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import StatusCard from '../../../components/dashboard/StatusCard';
 import {
@@ -35,6 +35,7 @@ import { createTicket } from '../../../lib/tickets';
 import type { ProjectRecord } from '../projects/projects.data';
 import {
   useDeleteProjectMutation,
+  projectsQueryKey,
   useProjectsQuery,
   useUpdateProjectMutation,
 } from '../projects/projects.queries';
@@ -45,7 +46,6 @@ import {
   usePermissions,
 } from '../../providers/PermissionProvider';
 import { useAppLoader } from '../../providers/AppLoaderProvider';
-const recentTickets: RecentTicket[] = [];
 
 type TicketSummary = {
   open: number | null;
@@ -69,6 +69,7 @@ const ticketTabs: TicketTab[] = [
 
 export default function Page() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { setHeaderActionOverride } = useDashboardHeaderAction();
   const { setLoading } = useAppLoader();
   const { hasPermission } = usePermissions();
@@ -98,6 +99,15 @@ export default function Page() {
     queryKey: ['dashboard', 'ticket-summary'],
     queryFn: fetchTicketSummary,
     enabled: canViewStats,
+  });
+  const recentTicketsQuery = useQuery({
+    queryKey: ['dashboard', 'recent-tickets'],
+    queryFn: () =>
+      fetchDashboardTickets({
+        page: 1,
+        limit: 10,
+      }),
+    enabled: canViewRecentTickets,
   });
   const updateProjectMutation = useUpdateProjectMutation();
   const deleteProjectMutation = useDeleteProjectMutation();
@@ -130,6 +140,14 @@ export default function Page() {
         dueDate: values.dueDate,
         attachments: values.attachments,
       });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'recent-tickets'],
+        }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard-project-tickets'] }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard', 'ticket-summary'] }),
+        queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
+      ]);
       appToast.success('Ticket created successfully.');
     } catch (error) {
       appToast.error(
@@ -320,11 +338,14 @@ export default function Page() {
               </h2>
             </div>
             <RecentTicketsTable
-              tickets={recentTickets}
+              tickets={recentTicketsQuery.data?.items ?? []}
               onViewAll={canViewTicketsList ? handleViewAllTickets : undefined}
               onRowClick={
                 canViewTicketDetail
-                  ? (ticket) => router.push(`/tickets/${ticket.id}`)
+                  ? (ticket) =>
+                      router.push(
+                        `/tickets/${ticket.id}?projectId=${ticket.project.id}`,
+                      )
                   : undefined
               }
             />
@@ -455,4 +476,160 @@ function isTicketSummary(value: unknown): value is TicketSummary {
 
 function formatSummaryCount(value: number | null | undefined) {
   return value ?? 0;
+}
+
+type DashboardTicketsResponse = {
+  items: RecentTicket[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrevious: boolean;
+  };
+};
+
+type ApiDashboardTicket = {
+  id: string;
+  createdAt: string;
+  title: string;
+  project: {
+    id: string;
+    name: string;
+  };
+  status: {
+    key: string;
+    label: string;
+    color?: string;
+  } | null;
+  priority: {
+    key: string;
+    label: string;
+    color?: string;
+  } | null;
+  assignee: {
+    id?: string;
+    fullName?: string;
+    name?: string;
+  } | null;
+};
+
+type ApiDashboardTicketsResponse = {
+  items: ApiDashboardTicket[];
+  meta: DashboardTicketsResponse['meta'];
+};
+
+async function fetchDashboardTickets({
+  page,
+  limit,
+}: {
+  page: number;
+  limit: number;
+}): Promise<DashboardTicketsResponse> {
+  const searchParams = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+
+  const response = await fetch(
+    `/api/dashboard/projects?${searchParams.toString()}`,
+    {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+    },
+  );
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiDashboardTicketsResponse
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !isApiDashboardTicketsResponse(payload)) {
+    throw new Error(
+      payload && typeof payload === 'object' && 'message' in payload
+        ? payload.message || 'Failed to fetch recent tickets.'
+        : 'Failed to fetch recent tickets.',
+    );
+  }
+
+  return {
+    items: payload.items.map(mapApiDashboardTicketToRecentTicket),
+    meta: payload.meta,
+  };
+}
+
+function isApiDashboardTicketsResponse(
+  value: unknown,
+): value is ApiDashboardTicketsResponse {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      Array.isArray((value as ApiDashboardTicketsResponse).items) &&
+      (value as ApiDashboardTicketsResponse).meta &&
+      typeof (value as ApiDashboardTicketsResponse).meta === 'object',
+  );
+}
+
+function mapApiDashboardTicketToRecentTicket(
+  ticket: ApiDashboardTicket,
+): RecentTicket {
+  const assigneeName =
+    ticket.assignee?.fullName ?? ticket.assignee?.name ?? 'Unassigned';
+  const statusLabel = ticket.status?.label ?? ticket.status?.key ?? 'Unknown';
+  const priorityLabel =
+    ticket.priority?.label ?? ticket.priority?.key ?? null;
+
+  return {
+    id: ticket.id,
+    title: ticket.title,
+    project: {
+      id: ticket.project.id,
+      name: ticket.project.name,
+      initials: getInitials(ticket.project.name),
+    },
+    status: statusLabel,
+    statusColor: ticket.status?.color,
+    priority: priorityLabel,
+    priorityColor: ticket.priority?.color,
+    assignee: {
+      name: assigneeName,
+      initials: getInitials(assigneeName),
+    },
+    date: formatTicketDate(ticket.createdAt),
+  };
+}
+
+function getInitials(value: string) {
+  const words = value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (!words.length) {
+    return 'NA';
+  }
+
+  return words
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join('')
+    .toUpperCase();
+}
+
+function formatTicketDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return '-';
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date);
 }

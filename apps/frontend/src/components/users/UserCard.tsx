@@ -44,28 +44,31 @@ export default function UserCard({ user, onEdit, onDelete }: UserCardProps) {
         boxShadow: `inset ${isMobile ? '2px' : '4px'} 0 0 ${user.accentColor}, 0px 8px 24px rgba(16,24,40,0.08)`,
       }}
     >
-      <div className="flex items-start gap-3 md:gap-4">
-        <Avatar user={user} />
+      <div className="flex gap-2 flex-wrap items-start justify-between">
+        <div className="flex items-start gap-3 md:gap-4">
+          <Avatar user={user} />
 
-        <div className="min-w-0">
-          <h2 className="truncate text-sm md:text-base font-semibold text-gray-900">
-            {user.name}
-          </h2>
-          {user.email ? (
-            <p className="truncate text-xs text-gray-600">{user.email}</p>
-          ) : null}
+          <div className="min-w-0">
+            <h2 className="truncate text-sm md:text-base font-semibold text-gray-900">
+              {user.name}
+            </h2>
+            {user.email ? (
+              <p className="truncate text-xs text-gray-600">{user.email}</p>
+            ) : null}
+          </div>
         </div>
-      </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        {user.roles.map((role) => (
-          <Pill key={role.label} label={role.label} tone={role.tone} />
-        ))}
+        <div className="flex flex-wrap gap-2">
+          {user.roles.map((role) => (
+            <Pill key={role.label} label={role.label} tone={role.tone} />
+          ))}
+        </div>
       </div>
 
       <div className="my-3 md:my-4 h-px bg-gray-200" />
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col flex-wrap gap-2">
+        <span className="block">Assigned Projects</span>
         {user.projects.map((project) => (
           <ProjectPill key={project.id} project={project} />
         ))}
@@ -151,7 +154,7 @@ function Pill({ label, tone }: { label: string; tone: UserCardRole['tone'] }) {
 function ProjectPill({ project }: { project: UserCardProject }) {
   return (
     <span
-      className="inline-flex items-center gap-2 rounded-full pe-2.5 ps-0.5 py-0.5  text-xs md:text-sm font-medium"
+      className="inline-flex w-fit items-center gap-2 rounded-full pe-2.5 ps-0.5 py-0.5  text-xs md:text-sm font-medium"
       style={{
         color: project.colorHex,
         backgroundColor: `${project.colorHex}1A`,

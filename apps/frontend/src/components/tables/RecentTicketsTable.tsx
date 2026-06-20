@@ -13,19 +13,21 @@ import { useState } from 'react';
 import ThemeButton from '../ui/ThemeButton';
 import { ArrowUpRightIcon } from '../../../public/icons';
 
-export type TicketStatus = 'Open' | 'In Progress' | 'Resolved' | 'Closed';
-export type TicketPriority = 'High' | 'Medium' | 'Low' | 'Critical';
+export type TicketStatus = string;
+export type TicketPriority = string;
 
 export type RecentTicket = {
   id: string;
   title: string;
   project: {
+    id?: string;
     initials: string;
     name: string;
   };
   status: TicketStatus;
   statusColor?: string;
-  priority: TicketPriority;
+  priority: TicketPriority | null;
+  priorityColor?: string;
   assignee: {
     name: string;
     initials: string;
@@ -33,14 +35,14 @@ export type RecentTicket = {
   date: string;
 };
 
-const statusStyles: Record<TicketStatus, string> = {
+const statusStyles: Record<string, string> = {
   Open: 'border-red-200 bg-red-50 text-red-500',
   'In Progress': 'border-warning-200 bg-warning-50 text-warning-500',
   Resolved: 'border-green-200 bg-green-50 text-green-600',
   Closed: 'border-sky-200 bg-sky-50 text-sky-600',
 };
 
-const priorityStyles: Record<TicketPriority, string> = {
+const priorityStyles: Record<string, string> = {
   High: 'bg-red-500',
   Medium: 'bg-warning-500',
   Low: 'bg-green-500',
@@ -50,7 +52,7 @@ const priorityStyles: Record<TicketPriority, string> = {
 const baseColumns: ColumnDef<RecentTicket>[] = [
   {
     accessorKey: 'id',
-    header: '#',
+    header: 'Reference No',
     cell: ({ row }) => (
       <span className="font-semibold text-gray-900 text-sm">
         {row.original.id}
@@ -89,9 +91,18 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     cell: ({ row }) => (
       <span className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2 py-1 text-sm font-semibold text-gray-700 shadow-xs">
         <span
-          className={`h-1.5 w-1.5 rounded-full ${priorityStyles[row.original.priority]}`}
+          className={`h-1.5 w-1.5 rounded-full ${
+            row.original.priorityColor
+              ? ''
+              : priorityStyles[row.original.priority ?? ''] ?? 'bg-gray-400'
+          }`}
+          style={
+            row.original.priorityColor
+              ? { backgroundColor: row.original.priorityColor }
+              : undefined
+          }
         />
-        {row.original.priority}
+        {row.original.priority ?? 'No Priority'}
       </span>
     ),
   },
@@ -397,9 +408,18 @@ function TicketMobileCard({
           {renderStatusBadge(ticket)}
           <span className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2 py-1 text-sm font-semibold text-gray-700 shadow-xs">
             <span
-              className={`h-2 w-2 rounded-full ${priorityStyles[ticket.priority]}`}
+              className={`h-2 w-2 rounded-full ${
+                ticket.priorityColor
+                  ? ''
+                  : priorityStyles[ticket.priority ?? ''] ?? 'bg-gray-400'
+              }`}
+              style={
+                ticket.priorityColor
+                  ? { backgroundColor: ticket.priorityColor }
+                  : undefined
+              }
             />
-            {ticket.priority}
+            {ticket.priority ?? 'No Priority'}
           </span>
         </div>
       </div>
@@ -433,7 +453,10 @@ function renderStatusBadge(ticket: RecentTicket) {
   return (
     <span
       className={`inline-flex rounded-full border px-2 whitespace-nowrap py-1 text-xs font-semibold ${
-        ticket.statusColor ? '' : statusStyles[ticket.status]
+        ticket.statusColor
+          ? ''
+          : statusStyles[ticket.status] ??
+            'border-gray-200 bg-gray-50 text-gray-600'
       }`}
       style={style}
     >
