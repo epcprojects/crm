@@ -5,6 +5,11 @@ import { useFormik } from 'formik';
 import * as yup from 'yup';
 import AppModal from './AppModal';
 import { CloseIcon } from '../../../public/icons';
+import {
+  ALLOWED_ATTACHMENT_ACCEPT,
+  ALLOWED_ATTACHMENT_HELPER_TEXT,
+  validateAttachments,
+} from '../../lib/attachments';
 
 export type UploadFileFormValues = {
   name: string;
@@ -18,16 +23,6 @@ type UploadFileModalProps = {
   onClose: () => void;
   onConfirm?: (values: UploadFileFormValues) => Promise<void> | void;
 };
-
-const MAX_ATTACHMENT_SIZE_BYTES = 15 * 1024 * 1024;
-const ALLOWED_ATTACHMENT_TYPES = [
-  'application/pdf',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'image/svg+xml',
-  'image/png',
-  'image/jpeg',
-];
 
 const uploadFileSchema = yup.object({
   name: yup.string().required('File name is required'),
@@ -73,22 +68,14 @@ export default function UploadFileModal({
   }, [isOpen]);
 
   const setAttachments = (files: FileList | File[]) => {
-    const nextFiles = Array.from(files);
-    const hasInvalidType = nextFiles.some(
-      (file) => !ALLOWED_ATTACHMENT_TYPES.includes(file.type),
+    const nextFiles = mergeAttachmentFiles(
+      formik.values.attachments,
+      Array.from(files),
     );
-    const hasInvalidSize = nextFiles.some(
-      (file) => file.size > MAX_ATTACHMENT_SIZE_BYTES,
-    );
+    const validationError = validateAttachments(nextFiles);
 
-    if (hasInvalidType) {
-      setAttachmentError('Only PDF, DOC, DOCX, SVG, PNG or JPG files are allowed.');
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
-    }
-
-    if (hasInvalidSize) {
-      setAttachmentError('Each file must be 15MB or smaller.');
+    if (validationError) {
+      setAttachmentError(validationError);
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
@@ -152,7 +139,7 @@ export default function UploadFileModal({
             type="file"
             className="hidden"
             multiple
-            accept=".pdf,.doc,.docx,.svg,.png,.jpg,.jpeg"
+            accept={ALLOWED_ATTACHMENT_ACCEPT}
             onChange={(event) => {
               if (event.target.files) setAttachments(event.target.files);
             }}
@@ -190,7 +177,7 @@ export default function UploadFileModal({
               </span>
             </div>
             <span className="mt-1 text-xs text-gray-700">
-              PDF, DOC, DOCX, SVG, PNG or JPG (max. 15MB)
+              {ALLOWED_ATTACHMENT_HELPER_TEXT}
             </span>
           </button>
 
@@ -253,6 +240,20 @@ function getFileTypeFromName(
   if (extension === 'pdf') return 'pdf';
   if (extension === 'doc' || extension === 'docx') return 'docx';
   return 'file';
+}
+
+function mergeAttachmentFiles(currentFiles: File[], newFiles: File[]) {
+  const fileMap = new Map<string, File>();
+
+  [...currentFiles, ...newFiles].forEach((file) => {
+    fileMap.set(getAttachmentFileKey(file), file);
+  });
+
+  return Array.from(fileMap.values());
+}
+
+function getAttachmentFileKey(file: File) {
+  return `${file.name}-${file.size}-${file.lastModified}`;
 }
 
 function UploadIcon() {

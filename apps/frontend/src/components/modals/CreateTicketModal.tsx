@@ -9,6 +9,12 @@ import ThemeInput from '../ui/ThemeInput';
 import Dropdown from '../ui/ThemeDropDown';
 import { type CreateTicketDropdownOption } from './create-ticket-modal.data';
 import { CloseIcon } from '../../../public/icons';
+import { useAppSelector } from '../../app/Redux/store';
+import {
+  ALLOWED_ATTACHMENT_ACCEPT,
+  ALLOWED_ATTACHMENT_HELPER_TEXT,
+  validateAttachments,
+} from '../../lib/attachments';
 
 export type CreateTicketFormValues = {
   project: string;
@@ -20,7 +26,7 @@ export type CreateTicketFormValues = {
   attachments: File[];
 };
 
-const MAX_ATTACHMENT_SIZE_BYTES = 15 * 1024 * 1024;
+const MAX_DESCRIPTION_LENGTH = 4000;
 
 type CreateTicketModalProps = {
   isOpen: boolean;
@@ -35,10 +41,23 @@ type CreateTicketModalProps = {
 const createTicketSchema = yup.object({
   project: yup.string().required('Project is required'),
   title: yup.string().required('Title is required'),
-  description: yup.string().optional(),
+  description: yup
+    .string()
+    .max(
+      MAX_DESCRIPTION_LENGTH,
+      `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less`,
+    )
+    .optional(),
   status: yup.string().required('Status is required'),
   assignee: yup.string().optional(),
-  dueDate: yup.string().optional(),
+  dueDate: yup
+    .string()
+    .test(
+      'not-in-past',
+      'Due date cannot be less than current date',
+      (value) => !value || value >= getTodayInputValue(),
+    )
+    .optional(),
 });
 
 export default function CreateTicketModal({
@@ -50,6 +69,8 @@ export default function CreateTicketModal({
   disableProjectSelection = false,
 }: CreateTicketModalProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const userType = useAppSelector((state) => state.auth.user?.userType);
+  const isExternalUser = userType === 'EXTERNAL';
   const [isDragOver, setIsDragOver] = useState(false);
   const [attachmentError, setAttachmentError] = useState('');
 
@@ -97,6 +118,17 @@ export default function CreateTicketModal({
       })),
     [ticketStatusesQuery.data],
   );
+  const openStatusValue = useMemo(
+    () =>
+      statusOptions.find(
+        (option) =>
+          option.value.trim().toLowerCase() === 'open' ||
+          option.label.trim().toLowerCase() === 'open',
+      )?.value ??
+      statusOptions[0]?.value ??
+      '',
+    [statusOptions],
+  );
 
   const resolvedAssigneeOptions = useMemo(() => {
     if (projectMembersQuery.data?.length) {
@@ -124,12 +156,34 @@ export default function CreateTicketModal({
   }, [preselectedProjectId]);
 
   useEffect(() => {
+    if (isExternalUser) {
+      if (formik.values.status !== openStatusValue) {
+        formik.setFieldValue('status', openStatusValue);
+      }
+
+      if (formik.values.assignee) {
+        formik.setFieldValue('assignee', '');
+      }
+
+      return;
+    }
+
     if (!formik.values.status && statusOptions[0]?.value) {
       formik.setFieldValue('status', statusOptions[0].value);
     }
-  }, [formik.values.status, statusOptions]);
+  }, [
+    formik.values.assignee,
+    formik.values.status,
+    isExternalUser,
+    openStatusValue,
+    statusOptions,
+  ]);
 
   useEffect(() => {
+    if (isExternalUser) {
+      return;
+    }
+
     if (!resolvedAssigneeOptions.length) {
       if (formik.values.assignee) {
         formik.setFieldValue('assignee', '');
@@ -144,16 +198,17 @@ export default function CreateTicketModal({
     if (!hasSelectedAssignee) {
       formik.setFieldValue('assignee', '');
     }
-  }, [formik.values.assignee, resolvedAssigneeOptions]);
+  }, [formik.values.assignee, isExternalUser, resolvedAssigneeOptions]);
 
   const setAttachments = (files: FileList | File[]) => {
-    const nextFiles = Array.from(files);
-    const hasInvalidSize = nextFiles.some(
-      (file) => file.size > MAX_ATTACHMENT_SIZE_BYTES,
+    const nextFiles = mergeAttachmentFiles(
+      formik.values.attachments,
+      Array.from(files),
     );
+    const validationError = validateAttachments(nextFiles);
 
-    if (hasInvalidSize) {
-      setAttachmentError('Each file must be 15MB or smaller.');
+    if (validationError) {
+      setAttachmentError(validationError);
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
@@ -181,7 +236,7 @@ export default function CreateTicketModal({
       onCancel={onClose}
       onConfirm={() => formik.submitForm()}
       confimBtnDisable={formik.isSubmitting}
-      scrollNeeded={false}
+      scrollNeeded={true}
       roundedCustom
       outSideClickClose={false}
       size="medium"
@@ -220,29 +275,42 @@ export default function CreateTicketModal({
             onBlur={formik.handleBlur}
             placeholder="Describe the issue in detail..."
             rows={4}
-            className="w-full resize-none rounded-lg border border-gray-200 bg-transparent px-3.5 py-2 text-sm font-medium text-gray-700 outline-none placeholder:text-gray-300 focus:border-gray-400 md:text-base"
+            maxLength={MAX_DESCRIPTION_LENGTH}
+            className="w-full  rounded-lg border border-gray-200 bg-transparent px-3.5 py-2 text-sm font-medium text-gray-700 outline-none placeholder:text-gray-300 focus:border-gray-400 md:text-base"
           />
+          <div className="mt-1 flex items-center justify-between gap-3">
+            <p className="text-xs text-red-600">
+              {formik.touched.description && formik.errors.description
+                ? formik.errors.description
+                : ''}
+            </p>
+            <p className="shrink-0 text-xs text-gray-500">
+              {formik.values.description.length}/{MAX_DESCRIPTION_LENGTH}
+            </p>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Dropdown
-            label="Status"
-            required
-            options={statusOptions}
-            value={formik.values.status}
-            onChange={(value) => formik.setFieldValue('status', value)}
-            error={Boolean(formik.touched.status && formik.errors.status)}
-            errorMessage={formik.touched.status ? formik.errors.status : ''}
-          />
+        {isExternalUser ? null : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Dropdown
+              label="Status"
+              required
+              options={statusOptions}
+              value={formik.values.status}
+              onChange={(value) => formik.setFieldValue('status', value)}
+              error={Boolean(formik.touched.status && formik.errors.status)}
+              errorMessage={formik.touched.status ? formik.errors.status : ''}
+            />
 
-          <Dropdown
-            label="Assignee"
-            options={resolvedAssigneeOptions}
-            value={formik.values.assignee}
-            onChange={(value) => formik.setFieldValue('assignee', value)}
-            placeholder="Select assignee"
-          />
-        </div>
+            <Dropdown
+              label="Assignee"
+              options={resolvedAssigneeOptions}
+              value={formik.values.assignee}
+              onChange={(value) => formik.setFieldValue('assignee', value)}
+              placeholder="Select assignee"
+            />
+          </div>
+        )}
 
         <ThemeInput
           label="Due Date (optional)"
@@ -251,6 +319,8 @@ export default function CreateTicketModal({
           value={formik.values.dueDate}
           onChange={formik.handleChange}
           onBlur={formik.handleBlur}
+          min={getTodayInputValue()}
+          errorText={formik.touched.dueDate ? formik.errors.dueDate : ''}
         />
 
         <div className="w-full">
@@ -262,6 +332,7 @@ export default function CreateTicketModal({
             type="file"
             className="hidden"
             multiple
+            accept={ALLOWED_ATTACHMENT_ACCEPT}
             onChange={(event) => {
               if (event.target.files) setAttachments(event.target.files);
             }}
@@ -299,7 +370,7 @@ export default function CreateTicketModal({
               </span>
             </div>
             <span className="mt-1 text-xs text-gray-700">
-              Any file up to 15MB
+              {ALLOWED_ATTACHMENT_HELPER_TEXT}
             </span>
           </button>
 
@@ -414,4 +485,22 @@ export function UploadIcon() {
       />
     </svg>
   );
+}
+
+function getTodayInputValue() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function mergeAttachmentFiles(currentFiles: File[], newFiles: File[]) {
+  const fileMap = new Map<string, File>();
+
+  [...currentFiles, ...newFiles].forEach((file) => {
+    fileMap.set(getAttachmentFileKey(file), file);
+  });
+
+  return Array.from(fileMap.values());
+}
+
+function getAttachmentFileKey(file: File) {
+  return `${file.name}-${file.size}-${file.lastModified}`;
 }

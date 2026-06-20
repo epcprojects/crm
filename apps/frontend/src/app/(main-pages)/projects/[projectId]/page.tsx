@@ -209,6 +209,7 @@ export default function ProjectDetailPage() {
     }
 
     try {
+      setLoading(true);
       await createTicket({
         projectId: values.project,
         title: values.title,
@@ -235,6 +236,8 @@ export default function ProjectDetailPage() {
         error instanceof Error ? error.message : 'Failed to create ticket.',
       );
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 

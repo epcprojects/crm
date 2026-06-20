@@ -6,12 +6,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import DiscussionPanel from '../../../../components/discussion/DiscussionPanel';
 import Dropdown from '../../../../components/ui/ThemeDropDown';
 import { appToast } from '../../../../components/toast/AppToast';
-import {
-  getTicketById,
-  ticketPriorityDropdownOptions,
-  type TicketPerson,
-} from '../tickets.data';
-import type { TicketPriority } from '../../../../components/tables/RecentTicketsTable';
+import { getTicketById, type TicketPerson } from '../tickets.data';
 import {
   PermissionGuard,
   usePermissions,
@@ -29,9 +24,9 @@ export default function TicketDetailPage() {
   const canViewReplies = hasPermission('ticket_replies.view');
   const canPostReplies = hasPermission('ticket_replies.post');
   const canAttachReplyFiles = hasPermission('ticket_replies.attach_file');
-  const canEditStatus = hasPermission('tickets.edit_status');
   const canEditPriority = hasPermission('tickets.edit_priority');
   const canEditAssignee = hasPermission('tickets.edit_assignee');
+  const canEditDueDate = hasPermission('tickets.edit_due_date');
 
   const fallbackTicket = useMemo(() => getTicketById(ticketId), [ticketId]);
 
@@ -56,6 +51,10 @@ export default function TicketDetailPage() {
   const statusListQuery = useQuery({
     queryKey: ['ticket-statuses'],
     queryFn: fetchTicketStatuses,
+  });
+  const priorityListQuery = useQuery({
+    queryKey: ['ticket-priorities'],
+    queryFn: fetchTicketPriorities,
   });
 
   const updateTicketMutation = useMutation({
@@ -85,9 +84,16 @@ export default function TicketDetailPage() {
       return data;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: ['ticket-detail', projectId, ticketId],
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['ticket-detail', projectId, ticketId],
+        }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard-project-tickets'] }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'recent-tickets'],
+        }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard', 'ticket-summary'] }),
+      ]);
       appToast.success('Ticket updated successfully.');
     },
     onError: (error) => {
@@ -96,13 +102,56 @@ export default function TicketDetailPage() {
       );
     },
   });
+  const createReplyMutation = useMutation({
+    mutationFn: async ({
+      message,
+      attachment,
+    }: {
+      message: string;
+      attachment: File | null;
+    }) => {
+      const formData = new FormData();
+      formData.append('message', message);
+
+      if (attachment) {
+        formData.append('attachments', attachment);
+      }
+
+      const response = await fetch(`/api/tickets/${ticketId}/replies`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message =
+          Array.isArray(data?.message) && data.message.length
+            ? data.message.join(', ')
+            : data?.message || 'Failed to create reply.';
+        throw new Error(message);
+      }
+
+      return data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ['ticket-replies', ticketId],
+      });
+      appToast.success('Reply posted successfully.');
+    },
+    onError: (error) => {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to create reply.',
+      );
+    },
+  });
 
   const ticket = ticketDetailQuery.data ?? fallbackTicket;
   const [selectedStatus, setSelectedStatus] = useState('Open');
-  const [selectedPriority, setSelectedPriority] = useState<TicketPriority | ''>(
-    'Low',
-  );
+  const [selectedPriority, setSelectedPriority] = useState('');
   const [selectedAssignee, setSelectedAssignee] = useState('');
+  const [selectedDueDate, setSelectedDueDate] = useState('');
 
   const statusOptions = useMemo(
     () =>
@@ -127,6 +176,20 @@ export default function TicketDetailPage() {
       })),
     [membersQuery.data],
   );
+  const priorityOptions = useMemo(
+    () =>
+      (priorityListQuery.data ?? []).map((priority) => ({
+        label: priority.label,
+        value: priority.id,
+        icon: (
+          <span
+            className="inline-block h-2.25 w-2.5 rounded-full"
+            style={{ backgroundColor: priority.color }}
+          />
+        ),
+      })),
+    [priorityListQuery.data],
+  );
 
   const selectedAssigneeId = useMemo(() => {
     if (!ticket) {
@@ -147,8 +210,9 @@ export default function TicketDetailPage() {
     }
 
     setSelectedStatus(ticket.status);
-    setSelectedPriority(ticket.priority ?? '');
-    setSelectedAssignee(ticket.assigneeDetail.name);
+    setSelectedPriority(ticket.priorityKey ?? '');
+    setSelectedAssignee(ticket.assigneeDetail?.name ?? '');
+    setSelectedDueDate(toDateInputValue(ticket.dueDateValue ?? ''));
   }, [ticket]);
 
   if (!canViewTicketDetail) {
@@ -192,16 +256,14 @@ export default function TicketDetailPage() {
       return;
     }
 
-    const nextPriority = value as TicketPriority;
-    setSelectedPriority(nextPriority);
+    setSelectedPriority(value);
 
     await updateTicketMutation.mutateAsync({
       title: ticket.title,
       description: ticket.description,
-      statusKey: selectedStatus,
-      priorityKey: nextPriority,
+      priorityKey: value || null,
       assigneeId: selectedAssigneeId,
-      dueDate: ticket.dueDateValue ?? '',
+      dueDate: selectedDueDate,
     });
   };
 
@@ -218,27 +280,42 @@ export default function TicketDetailPage() {
     await updateTicketMutation.mutateAsync({
       title: ticket.title,
       description: ticket.description,
-      statusKey: selectedStatus,
-      priorityKey: selectedPriority,
+      priorityKey: selectedPriority || null,
       assigneeId: value,
-      dueDate: ticket.dueDateValue ?? '',
+      dueDate: selectedDueDate,
     });
   };
 
-  const handleStatusChange = async (value: string) => {
-    if (!canEditStatus) {
+  const handleDueDateChange = async (value: string) => {
+    if (!canEditDueDate) {
       return;
     }
 
-    setSelectedStatus(value);
+    setSelectedDueDate(value);
 
     await updateTicketMutation.mutateAsync({
       title: ticket.title,
       description: ticket.description,
-      statusKey: value,
-      priorityKey: selectedPriority,
+      priorityKey: selectedPriority || null,
       assigneeId: selectedAssigneeId,
-      dueDate: ticket.dueDateValue ?? '',
+      dueDate: value,
+    });
+  };
+
+  const handleSubmitReply = async ({
+    message,
+    attachment,
+  }: {
+    message: string;
+    attachment: File | null;
+  }) => {
+    if (!canPostReplies) {
+      return;
+    }
+
+    await createReplyMutation.mutateAsync({
+      message,
+      attachment,
     });
   };
 
@@ -299,6 +376,8 @@ export default function TicketDetailPage() {
               }
               canCompose={canPostReplies}
               canAttachFile={canAttachReplyFiles}
+              isSubmittingReply={createReplyMutation.isPending}
+              onSubmitReply={canPostReplies ? handleSubmitReply : undefined}
             />
           </PermissionGuard>
         </div>
@@ -313,12 +392,12 @@ export default function TicketDetailPage() {
                 label="Status"
                 options={statusOptions}
                 value={selectedStatus}
-                disabled={updateTicketMutation.isPending || !canEditStatus}
-                onChange={handleStatusChange}
+                disabled
+                onChange={setSelectedStatus}
               />
               <Dropdown
                 label="Priority"
-                options={ticketPriorityDropdownOptions}
+                options={priorityOptions}
                 value={selectedPriority}
                 disabled={updateTicketMutation.isPending || !canEditPriority}
                 onChange={handlePriorityChange}
@@ -369,23 +448,21 @@ export default function TicketDetailPage() {
               <h3 className="text-sm md:text-base font-semibold text-gray-900">
                 Due Date
               </h3>
-              {/* <button
-                type="button"
-                onClick={handleClearDueDate}
-                disabled={updateTicketMutation.isPending || !canEditDueDate}
-                className="text-sm font-semibold text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Clear
-              </button> */}
             </div>
             <div className="p-3 sm:p-4">
               <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
-                Overdue
+                {selectedDueDate ? 'Selected date' : 'No due date'}
               </p>
-              <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2.5">
-                <span className="text-sm text-gray-900">{ticket.dueDate}</span>
+              <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2.5">
+                <input
+                  type="date"
+                  value={selectedDueDate}
+                  disabled={updateTicketMutation.isPending || !canEditDueDate}
+                  onChange={(event) => handleDueDateChange(event.target.value)}
+                  className="w-full bg-transparent text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:text-gray-400"
+                />
                 <CalendarIcon />
-              </div>
+              </label>
             </div>
           </section>
 
@@ -395,7 +472,9 @@ export default function TicketDetailPage() {
             </h3>
             <div className="space-y-4 p-3 sm:p-4">
               <PersonCard person={ticket.reporter} />
-              <PersonCard person={ticket.assigneeDetail} />
+              {ticket.assigneeDetail ? (
+                <PersonCard person={ticket.assigneeDetail} />
+              ) : null}
             </div>
           </section>
         </aside>
@@ -482,6 +561,33 @@ async function fetchTicketStatuses() {
   return payload;
 }
 
+async function fetchTicketPriorities() {
+  const response = await fetch('/api/ticket-priorities', {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiTicketPriority[]
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !Array.isArray(payload)) {
+    throw new Error(
+      !Array.isArray(payload)
+        ? payload?.message || 'Failed to fetch ticket priorities.'
+        : 'Failed to fetch ticket priorities.',
+    );
+  }
+
+  return payload
+    .slice()
+    .sort((first, second) => first.sortOrder - second.sortOrder);
+}
+
 async function fetchTicketReplies(ticketId: string) {
   const response = await fetch(`/api/tickets/${ticketId}/replies`, {
     method: 'GET',
@@ -519,6 +625,10 @@ type ApiTicketStatus = {
   color: string;
 };
 
+type ApiTicketPriority = ApiTicketStatus & {
+  sortOrder: number;
+};
+
 type ApiTicketReply = {
   id: string;
   createdAt?: string;
@@ -532,13 +642,24 @@ type ApiTicketAttachment = {
   id: string;
   originalName: string;
   storageKey: string;
-  sizeBytes: string;
-  extension: string;
+  sizeBytes?: string | number | null;
+  extension?: string | null;
+};
+
+type ApiTicketPerson = {
+  id: string;
+  fullName?: string | null;
+  name?: string | null;
 };
 
 type ApiTicketDetail = {
   id: string;
   createdAt: string;
+  updatedAt?: string;
+  deletedAt?: string | null;
+  isActive?: boolean;
+  createdBy?: string | null;
+  updatedBy?: string | null;
   projectId: string;
   title: string;
   description: string;
@@ -547,14 +668,20 @@ type ApiTicketDetail = {
   reporterId: string | null;
   assigneeId: string | null;
   dueDate: string | null;
+  project?: {
+    id: string;
+    name: string;
+    brandColor?: string | null;
+  } | null;
+  assignee?: ApiTicketPerson | null;
+  reporter?: ApiTicketPerson | null;
   attachments: ApiTicketAttachment[];
 };
 
 type UpdateTicketRequest = {
   title: string;
   description: string;
-  statusKey: string;
-  priorityKey: string;
+  priorityKey: string | null;
   assigneeId: string;
   dueDate: string;
 };
@@ -570,53 +697,51 @@ function isApiTicketDetail(value: unknown): value is ApiTicketDetail {
 }
 
 function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
+  const projectName = ticket.project?.name ?? 'Project';
+  const assigneeName =
+    ticket.assignee?.fullName ?? ticket.assignee?.name ?? 'Unassigned';
+  const reporterName =
+    ticket.reporter?.fullName ?? ticket.reporter?.name ?? 'Reporter';
+
   return {
     id: ticket.id,
     title: ticket.title,
     project: {
-      initials: 'PR',
-      name: 'Project',
+      id: ticket.project?.id ?? ticket.projectId,
+      initials: getInitials(projectName),
+      name: projectName,
     },
     status: mapTicketStatus(ticket.statusKey),
     priority: mapTicketPriority(ticket.priorityKey),
     assignee: {
-      name: ticket.assigneeId
-        ? `User ${ticket.assigneeId.slice(-4)}`
-        : 'Unassigned',
-      initials: ticket.assigneeId
-        ? ticket.assigneeId.slice(-2).toUpperCase()
-        : 'NA',
+      name: assigneeName,
+      initials: getInitials(assigneeName),
     },
     date: formatTicketDate(ticket.createdAt),
     description: ticket.description,
-    dueDate: formatTicketDate(ticket.dueDate ?? ticket.createdAt),
+    dueDate: ticket.dueDate ? formatTicketDate(ticket.dueDate) : 'No due date',
     dueDateValue: ticket.dueDate ?? '',
     assigneeId: ticket.assigneeId ?? '',
+    priorityKey: ticket.priorityKey,
     attachments: ticket.attachments.map((attachment) => ({
       id: attachment.id,
       name: attachment.originalName,
-      sizeLabel: formatBytes(attachment.sizeBytes),
-      extension: attachment.extension,
+      sizeLabel: formatBytes(attachment.sizeBytes ?? 0),
+      extension: attachment.extension ?? undefined,
       storageKey: attachment.storageKey,
     })),
     reporter: {
       role: 'Reporter',
-      name: ticket.reporterId
-        ? `User ${ticket.reporterId.slice(-4)}`
-        : 'Reporter',
-      initials: ticket.reporterId
-        ? ticket.reporterId.slice(-2).toUpperCase()
-        : 'RP',
+      name: reporterName,
+      initials: getInitials(reporterName),
     },
-    assigneeDetail: {
-      role: 'Assignee',
-      name: ticket.assigneeId
-        ? `User ${ticket.assigneeId.slice(-4)}`
-        : 'Unassigned',
-      initials: ticket.assigneeId
-        ? ticket.assigneeId.slice(-2).toUpperCase()
-        : 'NA',
-    },
+    assigneeDetail: ticket.assignee
+      ? {
+          role: 'Assignee',
+          name: assigneeName,
+          initials: getInitials(assigneeName),
+        }
+      : null,
     replies: [],
   };
 }
@@ -653,8 +778,12 @@ function mapTicketStatus(value: string | null) {
   return 'Open';
 }
 
-function mapTicketPriority(value: string | null): TicketPriority {
+function mapTicketPriority(value: string | null): string | null {
   const normalizedValue = value?.trim().toLowerCase();
+
+  if (!normalizedValue) {
+    return null;
+  }
 
   if (normalizedValue === 'critical') {
     return 'Critical';
@@ -671,6 +800,23 @@ function mapTicketPriority(value: string | null): TicketPriority {
   return 'Low';
 }
 
+function getInitials(value: string) {
+  const words = value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (!words.length) {
+    return 'NA';
+  }
+
+  return words
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join('')
+    .toUpperCase();
+}
+
 function formatTicketDate(value: string) {
   const date = new Date(value);
 
@@ -683,6 +829,20 @@ function formatTicketDate(value: string) {
     day: 'numeric',
     year: 'numeric',
   }).format(date);
+}
+
+function toDateInputValue(value: string) {
+  if (!value) {
+    return '';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toISOString().slice(0, 10);
 }
 
 function formatReplyDate(value: string) {
@@ -701,11 +861,11 @@ function formatReplyDate(value: string) {
   }).format(date);
 }
 
-function formatBytes(sizeBytes: string) {
+function formatBytes(sizeBytes: string | number | null | undefined) {
   const bytes = Number(sizeBytes);
 
   if (Number.isNaN(bytes) || bytes <= 0) {
-    return sizeBytes;
+    return '0 B';
   }
 
   if (bytes < 1024) {

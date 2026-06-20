@@ -1,6 +1,11 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import {
+  ALLOWED_ATTACHMENT_ACCEPT,
+  ALLOWED_ATTACHMENT_HELPER_TEXT,
+  validateAttachments,
+} from '../../lib/attachments';
 
 export type DiscussionReply = {
   id: string;
@@ -42,6 +47,7 @@ export default function DiscussionPanel({
 }: DiscussionPanelProps) {
   const [message, setMessage] = useState('');
   const [attachment, setAttachment] = useState<File | null>(null);
+  const [attachmentError, setAttachmentError] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleSubmit = async () => {
@@ -57,9 +63,32 @@ export default function DiscussionPanel({
     });
     setMessage('');
     setAttachment(null);
+    setAttachmentError('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const handleAttachmentChange = (file: File | null) => {
+    if (!file) {
+      setAttachment(null);
+      setAttachmentError('');
+      return;
+    }
+
+    const validationError = validateAttachments([file]);
+
+    if (validationError) {
+      setAttachment(null);
+      setAttachmentError(validationError);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
+    setAttachment(file);
+    setAttachmentError('');
   };
 
   return (
@@ -123,8 +152,9 @@ export default function DiscussionPanel({
             ref={fileInputRef}
             type="file"
             className="hidden"
+            accept={ALLOWED_ATTACHMENT_ACCEPT}
             onChange={(event) =>
-              setAttachment(event.target.files?.[0] ?? null)
+              handleAttachmentChange(event.target.files?.[0] ?? null)
             }
           />
 
@@ -134,7 +164,7 @@ export default function DiscussionPanel({
               <button
                 type="button"
                 onClick={() => {
-                  setAttachment(null);
+                  handleAttachmentChange(null);
                   if (fileInputRef.current) {
                     fileInputRef.current.value = '';
                   }
@@ -145,6 +175,14 @@ export default function DiscussionPanel({
                 Remove
               </button>
             </div>
+          ) : null}
+
+          {attachmentError ? (
+            <p className="mt-2 text-xs text-red-600">{attachmentError}</p>
+          ) : canAttachFile ? (
+            <p className="mt-2 text-xs text-gray-500">
+              {ALLOWED_ATTACHMENT_HELPER_TEXT}
+            </p>
           ) : null}
 
           <div className="mt-3 flex items-center justify-end gap-3">

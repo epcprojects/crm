@@ -156,6 +156,7 @@ export default function ProjectsPage() {
 
   const handleCreateTicket = async (values: CreateTicketFormValues) => {
     try {
+      setLoading(true);
       await createTicket({
         projectId: values.project,
         title: values.title,
@@ -179,6 +180,8 @@ export default function ProjectsPage() {
         error instanceof Error ? error.message : 'Failed to create ticket.',
       );
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 

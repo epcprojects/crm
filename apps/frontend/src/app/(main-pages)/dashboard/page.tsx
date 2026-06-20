@@ -92,9 +92,12 @@ export default function Page() {
     id: string;
     name: string;
   } | null>(null);
-  const projectsQuery = useProjectsQuery(canViewProjectCards || canCreateTicket, {
-    limit: 3,
-  });
+  const projectsQuery = useProjectsQuery(
+    canViewProjectCards || canCreateTicket,
+    {
+      limit: 3,
+    },
+  );
   const ticketSummaryQuery = useQuery({
     queryKey: ['dashboard', 'ticket-summary'],
     queryFn: fetchTicketSummary,
@@ -105,7 +108,7 @@ export default function Page() {
     queryFn: () =>
       fetchDashboardTickets({
         page: 1,
-        limit: 10,
+        limit: 5,
       }),
     enabled: canViewRecentTickets,
   });
@@ -131,6 +134,7 @@ export default function Page() {
     }
 
     try {
+      setLoading(true);
       await createTicket({
         projectId: values.project,
         title: values.title,
@@ -144,8 +148,12 @@ export default function Page() {
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'recent-tickets'],
         }),
-        queryClient.invalidateQueries({ queryKey: ['dashboard-project-tickets'] }),
-        queryClient.invalidateQueries({ queryKey: ['dashboard', 'ticket-summary'] }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard-project-tickets'],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'ticket-summary'],
+        }),
         queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
       ]);
       appToast.success('Ticket created successfully.');
@@ -154,6 +162,8 @@ export default function Page() {
         error instanceof Error ? error.message : 'Failed to create ticket.',
       );
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -303,7 +313,9 @@ export default function Page() {
                         : undefined
                     }
                     onEdit={
-                      canEditProject ? () => setProjectToEdit(project) : undefined
+                      canEditProject
+                        ? () => setProjectToEdit(project)
+                        : undefined
                     }
                     onDelete={
                       canDeleteProject
@@ -580,8 +592,7 @@ function mapApiDashboardTicketToRecentTicket(
   const assigneeName =
     ticket.assignee?.fullName ?? ticket.assignee?.name ?? 'Unassigned';
   const statusLabel = ticket.status?.label ?? ticket.status?.key ?? 'Unknown';
-  const priorityLabel =
-    ticket.priority?.label ?? ticket.priority?.key ?? null;
+  const priorityLabel = ticket.priority?.label ?? ticket.priority?.key ?? null;
 
   return {
     id: ticket.id,
@@ -604,10 +615,7 @@ function mapApiDashboardTicketToRecentTicket(
 }
 
 function getInitials(value: string) {
-  const words = value
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
+  const words = value.trim().split(/\s+/).filter(Boolean);
 
   if (!words.length) {
     return 'NA';

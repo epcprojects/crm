@@ -24,10 +24,12 @@ import {
   PermissionGuard,
   usePermissions,
 } from '../../providers/PermissionProvider';
+import { useAppLoader } from '../../providers/AppLoaderProvider';
 
 export default function Page() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { setLoading } = useAppLoader();
   const { setHeaderActionOverride } = useDashboardHeaderAction();
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
@@ -97,6 +99,7 @@ export default function Page() {
     }
 
     try {
+      setLoading(true);
       await createTicket({
         projectId: values.project,
         title: values.title,
@@ -120,6 +123,8 @@ export default function Page() {
         error instanceof Error ? error.message : 'Failed to create ticket.',
       );
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 

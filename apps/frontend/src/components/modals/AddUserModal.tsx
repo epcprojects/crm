@@ -114,18 +114,28 @@ export default function AddUserModal({
           placeholder="Enter full name"
         />
 
-        <ThemeInput
-          label="Email"
-          name="email"
-          value={formik.values.email}
-          onChange={formik.handleChange}
-          onBlur={formik.handleBlur}
-          disabled={mode === 'edit'}
-          inputClassName={mode === 'edit' ? 'cursor-not-allowed bg-gray-50' : ''}
-          errorText={formik.touched.email ? formik.errors.email : ''}
-          placeholder="Enter email address"
-        />
+        {mode === 'edit' ? (
+          <div>
+            <p className="mb-1.5 block text-sm font-normal text-gray-800 md:text-base">
+              Email
+            </p>
+            <p className="rounded-lg border border-gray-200 bg-gray-50 px-3.5 py-2 text-sm font-medium text-gray-700 md:text-base">
+              {formik.values.email || '-'}
+            </p>
+          </div>
+        ) : (
+          <ThemeInput
+            label="Email"
+            name="email"
+            value={formik.values.email}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+            errorText={formik.touched.email ? formik.errors.email : ''}
+            placeholder="Enter email address"
+          />
+        )}
 
+        {mode === 'create' ? (
         <div className="space-y-2">
           <label className="block text-sm font-normal text-gray-800 md:text-base">
             User Type
@@ -136,9 +146,7 @@ export default function AddUserModal({
               title="Internal"
               description="Devs & PMs — full project access"
               isSelected={formik.values.userType === 'internal'}
-              disabled={mode === 'edit'}
               onClick={() => {
-                if (mode === 'edit') return;
                 formik.setFieldValue('userType', 'internal');
                 if (!formik.values.role) {
                   formik.setFieldValue('role', roleOptions[0]?.value ?? '');
@@ -150,9 +158,7 @@ export default function AddUserModal({
               title="External"
               description="Clients — limited to their tickets + calendar"
               isSelected={formik.values.userType === 'external'}
-              disabled={mode === 'edit'}
               onClick={() => {
-                if (mode === 'edit') return;
                 formik.setFieldValue('userType', 'external');
                 if (!formik.values.role) {
                   formik.setFieldValue('role', roleOptions[0]?.value ?? '');
@@ -161,6 +167,7 @@ export default function AddUserModal({
             />
           </div>
         </div>
+        ) : null}
 
         <Dropdown
           label="Role"

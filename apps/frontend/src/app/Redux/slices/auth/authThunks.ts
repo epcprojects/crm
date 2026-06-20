@@ -3,6 +3,7 @@ import type {
   registerRequest,
   SignInRequest,
   SignInSuccessResponse,
+  UserType,
   UserProfile,
 } from './types';
 
@@ -38,6 +39,7 @@ function toUserProfile(payload: any): UserProfile | null {
     id: candidate.id,
     email: candidate.email,
     fullName: candidate.fullName,
+    userType: toUserType(candidate.userType),
     roles: Array.isArray(candidate.roles) ? candidate.roles : [],
     permissions: Array.isArray(candidate.permissions)
       ? candidate.permissions.filter(
@@ -53,6 +55,10 @@ function toUserProfile(payload: any): UserProfile | null {
         }
       : null,
   };
+}
+
+function toUserType(value: unknown): UserType | undefined {
+  return value === 'INTERNAL' || value === 'EXTERNAL' ? value : undefined;
 }
 
 export const signInThunk = createAsyncThunk<
