@@ -188,8 +188,7 @@ const pageHeaderConfigs: PageHeaderConfig[] = [
   {
     href: '/users',
     title: 'Users',
-    subtitle:
-      'Manage team members, roles, and company access permissions from one place.',
+    subtitle: 'Manage users roles and assgn projects.',
     count: 0,
     action: {
       label: 'Add User',
@@ -200,7 +199,7 @@ const pageHeaderConfigs: PageHeaderConfig[] = [
   {
     href: '/roles',
     title: 'Roles',
-    subtitle: 'Manage system roles and permission access across the workspace.',
+    subtitle: 'Manage system roles and permission access across the system.',
     action: {
       label: 'Add Role',
       onClick: () => console.log('Add role'),
@@ -249,8 +248,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const [headerActionOverride, setHeaderActionOverrideState] = useState<
     (() => void) | null
   >(null);
-  const [headerCountOverride, setHeaderCountOverrideState] =
-    useState<number | null>(null);
+  const [headerCountOverride, setHeaderCountOverrideState] = useState<
+    number | null
+  >(null);
   const projectsQuery = useProjectsQuery(
     canViewProjectsList || canViewProjectDetail,
   );
