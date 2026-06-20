@@ -91,7 +91,9 @@ export default function Page() {
     id: string;
     name: string;
   } | null>(null);
-  const projectsQuery = useProjectsQuery(canViewProjectCards || canCreateTicket);
+  const projectsQuery = useProjectsQuery(canViewProjectCards || canCreateTicket, {
+    limit: 3,
+  });
   const ticketSummaryQuery = useQuery({
     queryKey: ['dashboard', 'ticket-summary'],
     queryFn: fetchTicketSummary,
@@ -266,7 +268,7 @@ export default function Page() {
               ? Array.from({ length: 3 }).map((_, index) => (
                   <ProjectCardSkeleton key={index} />
                 ))
-              : (projectsQuery.data?.slice(0, 3) ?? []).map((project) => (
+              : (projectsQuery.data ?? []).map((project) => (
                   <ProjectCard
                     key={project.id}
                     id={project.id}

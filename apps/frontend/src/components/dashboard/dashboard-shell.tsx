@@ -8,6 +8,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -238,7 +239,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
   const { setLoading } = useAppLoader();
-  const { hasPermission, hasAnyPermission } = usePermissions();
+  const { hasPermission, hasAnyPermission, isLoadingCatalog } =
+    usePermissions();
   const canViewProjectsList = hasPermission('projects.view_list');
   const canViewProjectDetail = hasPermission('projects.view_detail');
   const [collapsed, setCollapsed] = useState(false);
@@ -266,6 +268,24 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         label: item.roleLabels?.[currentUserRole] ?? item.label,
       }));
   }, [hasAnyPermission]);
+
+  useEffect(() => {
+    const currentMainRoute = navigationItems.find(
+      (item) => pathname === item.href,
+    );
+
+    if (!currentMainRoute || visibleNavigationItems.length === 0) {
+      return;
+    }
+
+    const canAccessCurrentRoute = visibleNavigationItems.some(
+      (item) => item.href === currentMainRoute.href,
+    );
+
+    if (!canAccessCurrentRoute) {
+      router.replace(visibleNavigationItems[0].href);
+    }
+  }, [pathname, router, visibleNavigationItems]);
 
   const sidebarProjects = useMemo<SidebarProject[]>(() => {
     return (projectsQuery.data ?? []).map((project) => ({
@@ -388,8 +408,12 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   const sidebarWidth = collapsed ? 'lg:w-18' : 'lg:w-72';
   const contentOffset = collapsed ? 'lg:pl-18' : 'lg:pl-72';
+  const shouldShowNoAccessPage =
+    !isLoadingCatalog && visibleNavigationItems.length === 0;
   const shouldHideHeader =
-    pathname?.startsWith('/tickets/') || pathname?.startsWith('/projects/');
+    shouldShowNoAccessPage ||
+    pathname?.startsWith('/tickets/') ||
+    pathname?.startsWith('/projects/');
   const canUseCurrentHeaderAction = currentHeader.action?.permission
     ? hasPermission(currentHeader.action.permission)
     : Boolean(currentHeader.action);
@@ -707,7 +731,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               shouldHideHeader ? '' : 'md:pt-32'
             }`}
           >
-            {children}
+            {shouldShowNoAccessPage ? <NoAccessPage /> : children}
           </main>
         </div>
 
@@ -745,6 +769,50 @@ function MenuIcon() {
         strokeWidth="1.8"
       />
     </svg>
+  );
+}
+
+function NoAccessIcon() {
+  return (
+    <svg
+      width="28"
+      height="28"
+      viewBox="0 0 28 28"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M14 25.6667C20.4433 25.6667 25.6667 20.4433 25.6667 14C25.6667 7.55668 20.4433 2.33334 14 2.33334C7.55672 2.33334 2.33337 7.55668 2.33337 14C2.33337 20.4433 7.55672 25.6667 14 25.6667Z"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="M9.91663 9.91666L18.0833 18.0833M18.0833 9.91666L9.91663 18.0833"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function NoAccessPage() {
+  return (
+    <div className="flex min-h-[calc(100dvh-2rem)] flex-1 items-center justify-center">
+      <section className="w-full max-w-xl rounded-2xl border border-gray-200 bg-white px-6 py-10 text-center shadow-sm">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-500">
+          <NoAccessIcon />
+        </div>
+        <h1 className="mt-5 text-xl font-semibold text-gray-900">
+          No page permissions available
+        </h1>
+        <p className="mt-3 text-sm leading-6 text-gray-600">
+          Your account does not currently have access to any page in this
+          workspace. Please contact your administrator to assign the required
+          permissions.
+        </p>
+      </section>
+    </div>
   );
 }
 

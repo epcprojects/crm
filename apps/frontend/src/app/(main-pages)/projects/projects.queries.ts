@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
@@ -25,11 +26,46 @@ export const projectThreadQueryKey = ['project-thread'];
 export const projectTicketsQueryKey = ['project-tickets'];
 export const projectFilesQueryKey = ['project-files'];
 
-export function useProjectsQuery(enabled = true) {
+type ProjectsQueryOptions = {
+  page?: number;
+  limit?: number;
+};
+
+type ProjectsPaginationMeta = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+};
+
+type ProjectsResponse = {
+  items: ProjectRecord[];
+  meta: ProjectsPaginationMeta;
+};
+
+export function useProjectsQuery(
+  enabled = true,
+  { page = 1, limit = 100 }: ProjectsQueryOptions = {},
+) {
   return useQuery({
-    queryKey: projectsQueryKey,
-    queryFn: fetchProjects,
+    queryKey: [...projectsQueryKey, page, limit],
+    queryFn: () => fetchProjects({ page, limit }),
     enabled,
+    select: (data) => data.items,
+  });
+}
+
+export function useProjectsInfiniteQuery(enabled = true, limit = 12) {
+  return useInfiniteQuery({
+    queryKey: [...projectsQueryKey, 'infinite', limit],
+    queryFn: ({ pageParam }) =>
+      fetchProjects({ page: Number(pageParam), limit }),
+    enabled,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.meta.hasNext ? lastPage.meta.page + 1 : undefined,
   });
 }
 
@@ -41,8 +77,13 @@ export function useProjectDetailQuery(projectId: string, enabled = true) {
     queryFn: () => fetchProjectById(projectId),
     enabled: Boolean(projectId && enabled),
     initialData: () => {
-      const projects = queryClient.getQueryData<ProjectRecord[]>(projectsQueryKey);
-      return projects?.find((project) => project.id === projectId);
+      const projectQueries = queryClient.getQueriesData<ProjectRecord[]>({
+        queryKey: projectsQueryKey,
+      });
+
+      return projectQueries
+        .flatMap(([, projects]) => (Array.isArray(projects) ? projects : []))
+        .find((project) => project.id === projectId);
     },
   });
 }
@@ -140,8 +181,18 @@ export function useDeleteProjectFileMutation() {
   });
 }
 
-async function fetchProjects() {
-  const response = await fetch('/api/projects', {
+async function fetchProjects({
+  page,
+  limit,
+}: {
+  page: number;
+  limit: number;
+}): Promise<ProjectsResponse> {
+  const searchParams = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+  const response = await fetch(`/api/projects?${searchParams.toString()}`, {
     method: 'GET',
     headers: {
       Accept: 'application/json',
@@ -151,16 +202,70 @@ async function fetchProjects() {
 
   const payload = (await response.json().catch(() => null)) as
     | ApiProjectRecord[]
+    | {
+        items?: ApiProjectRecord[];
+        meta?: Partial<ProjectsPaginationMeta>;
+      }
     | { message?: string }
     | null;
+  const projectsResponse = normalizeProjectsResponse(payload, page, limit);
 
-  if (!response.ok || !Array.isArray(payload)) {
+  if (!response.ok || !projectsResponse) {
     throw new Error(
-      !Array.isArray(payload) ? payload?.message : 'Failed to fetch projects.',
+      payload && !Array.isArray(payload) && 'message' in payload
+        ? payload.message || 'Failed to fetch projects.'
+        : 'Failed to fetch projects.',
     );
   }
 
-  return payload.map(mapApiProjectToProjectRecord);
+  return projectsResponse;
+}
+
+function normalizeProjectsResponse(
+  payload:
+    | ApiProjectRecord[]
+    | {
+        items?: ApiProjectRecord[];
+        meta?: Partial<ProjectsPaginationMeta>;
+      }
+    | { message?: string }
+    | null,
+  page: number,
+  limit: number,
+): ProjectsResponse | null {
+  if (Array.isArray(payload)) {
+    return {
+      items: payload.map(mapApiProjectToProjectRecord),
+      meta: {
+        page,
+        limit,
+        total: payload.length,
+        totalPages: 1,
+        hasNext: false,
+        hasPrevious: page > 1,
+      },
+    };
+  }
+
+  if (!payload || typeof payload !== 'object' || !('items' in payload)) {
+    return null;
+  }
+
+  if (!Array.isArray(payload.items)) {
+    return null;
+  }
+
+  return {
+    items: payload.items.map(mapApiProjectToProjectRecord),
+    meta: {
+      page: payload.meta?.page ?? page,
+      limit: payload.meta?.limit ?? limit,
+      total: payload.meta?.total ?? payload.items.length,
+      totalPages: payload.meta?.totalPages ?? 1,
+      hasNext: payload.meta?.hasNext ?? false,
+      hasPrevious: payload.meta?.hasPrevious ?? page > 1,
+    },
+  };
 }
 
 async function fetchProjectById(projectId: string) {

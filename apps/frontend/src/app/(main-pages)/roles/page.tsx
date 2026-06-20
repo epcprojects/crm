@@ -39,7 +39,6 @@ export default function RolesPage() {
   const [deletingRoleId, setDeletingRoleId] = useState<string | null>(null);
   const [viewingClaimsRole, setViewingClaimsRole] =
     useState<RoleRecord | null>(null);
-  const [roleList, setRoleList] = useState<RoleRecord[]>([]);
   const [searchValue, setSearchValue] = useState('');
   const rolesQuery = useQuery({
     queryKey: ['roles'],
@@ -147,14 +146,9 @@ export default function RolesPage() {
     };
   }, [canCreateRole, setHeaderActionOverride]);
 
-  useEffect(() => {
-    if (rolesQuery.data) {
-      setRoleList(rolesQuery.data);
-    }
-  }, [rolesQuery.data]);
-
   const filteredRoles = useMemo(() => {
     const normalizedSearch = searchValue.trim().toLowerCase();
+    const roleList = rolesQuery.data ?? [];
 
     return roleList.filter((role) => {
       if (!normalizedSearch) return true;
@@ -166,7 +160,7 @@ export default function RolesPage() {
         role.description.toLowerCase().includes(normalizedSearch)
       );
     });
-  }, [roleList, searchValue]);
+  }, [rolesQuery.data, searchValue]);
 
   const editingRole = roleDetailQuery.data ?? null;
   const editInitialValues = useMemo(() => {
@@ -185,27 +179,21 @@ export default function RolesPage() {
   }, [editingRole, permissionCatalogQuery.data]);
   const isEditRoleModalOpen = Boolean(editingRoleId && editInitialValues);
   const deletingRole =
-    roleList.find((role) => role.id === deletingRoleId) ?? null;
+    rolesQuery.data?.find((role) => role.id === deletingRoleId) ?? null;
 
   const handleCreateRole = async (values: AddRoleFormValues) => {
     if (!canCreateRole) {
       return;
     }
 
-    const payload = await createRoleMutation.mutateAsync(values);
-    const createdRole = getCreatedRoleRecord(payload, values);
-
-    setRoleList((currentRoles) => [
-      createdRole,
-      ...currentRoles,
-    ]);
+    await createRoleMutation.mutateAsync(values);
     appToast.success('Role created successfully.');
   };
 
   const handleEditRole = async (values: AddRoleFormValues) => {
     if (!editingRoleId || !editingRole || !canEditRole) return;
 
-    const payload = await updateRoleMutation.mutateAsync({
+    await updateRoleMutation.mutateAsync({
       roleId: editingRoleId,
       body: {
         name: values.name,
@@ -214,11 +202,6 @@ export default function RolesPage() {
       },
     });
 
-    const updatedRole = mapApiRoleToRoleRecord(getApiRoleRecord(payload, values));
-
-    setRoleList((currentRoles) =>
-      currentRoles.map((role) => (role.id === editingRoleId ? updatedRole : role)),
-    );
     setEditingRoleId(null);
     appToast.success('Role updated successfully.');
   };
@@ -227,9 +210,6 @@ export default function RolesPage() {
     if (!deletingRoleId || !canDeleteRole) return;
 
     await deleteRoleMutation.mutateAsync(deletingRoleId);
-    setRoleList((currentRoles) =>
-      currentRoles.filter((role) => role.id !== deletingRoleId),
-    );
     setDeletingRoleId(null);
     appToast.success('Role deleted successfully.');
   };
@@ -262,7 +242,7 @@ export default function RolesPage() {
           <div className="flex min-h-80 items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 py-10 text-center text-sm text-gray-500">
             Loading roles...
           </div>
-        ) : roleList.length ? (
+        ) : (rolesQuery.data?.length ?? 0) ? (
           <RolesTable
             roles={filteredRoles}
             currentUserRoles={currentUserRoles}
@@ -328,30 +308,6 @@ export default function RolesPage() {
       />
     </div>
   );
-}
-
-function getCreatedRoleRecord(
-  payload: unknown,
-  values: AddRoleFormValues,
-): RoleRecord {
-  const roleSource = getRoleSource(payload);
-  const resolvedId =
-    getString(roleSource?.id) ??
-    getString(roleSource?._id) ??
-    getString(roleSource?.roleId) ??
-    crypto.randomUUID();
-
-  return {
-    id: resolvedId,
-    name: getString(roleSource?.name) ?? values.name,
-    normalizedName:
-      getString(roleSource?.normalizedName) ?? values.name.toUpperCase(),
-    description: getString(roleSource?.description) ?? values.description,
-    permissions: extractPermissions(roleSource, values.permissions),
-    roleClaims: mapRoleClaims(roleSource?.roleClaims),
-    createdAt: formatRoleDate(roleSource?.createdAt),
-    updatedAt: formatRoleDate(roleSource?.updatedAt),
-  };
 }
 
 function getRoleSource(payload: unknown): Record<string, unknown> | null {
@@ -508,25 +464,6 @@ function mapApiRoleToRoleRecord(role: ApiRoleRecord): RoleRecord {
     roleClaims: mapRoleClaims(role.roleClaims),
     createdAt: formatRoleDate(role.createdAt),
     updatedAt: formatRoleDate(role.updatedAt),
-  };
-}
-
-function getApiRoleRecord(
-  payload: unknown,
-  values: AddRoleFormValues,
-): ApiRoleRecord {
-  const roleSource = getRoleSource(payload);
-
-  return {
-    id: getString(roleSource?.id) ?? crypto.randomUUID(),
-    name: getString(roleSource?.name) ?? values.name,
-    normalizedName:
-      getString(roleSource?.normalizedName) ?? values.name.toUpperCase(),
-    description: getString(roleSource?.description) ?? values.description,
-    permissions: extractPermissions(roleSource, values.permissions),
-    createdAt: formatRoleDate(roleSource?.createdAt),
-    updatedAt: formatRoleDate(roleSource?.updatedAt),
-    roleClaims: mapRoleClaims(roleSource?.roleClaims),
   };
 }
 

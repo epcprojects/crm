@@ -26,7 +26,7 @@ import {
   useCreateProjectMutation,
   useDeleteProjectMutation,
   useUpdateProjectMutation,
-  useProjectsQuery,
+  useProjectsInfiniteQuery,
 } from './projects.queries';
 import type { ProjectRecord } from './projects.data';
 
@@ -46,19 +46,25 @@ export default function ProjectsPage() {
   } | null>(null);
   const [projectToEdit, setProjectToEdit] = useState<ProjectRecord | null>(null);
   const hasShownLoadError = useRef(false);
-  const projectsQuery = useProjectsQuery();
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const createProjectMutation = useCreateProjectMutation();
   const updateProjectMutation = useUpdateProjectMutation();
   const deleteProjectMutation = useDeleteProjectMutation();
-  const projectOptions = useMemo(
-    () => createTicketProjectOptions(projectsQuery.data ?? []),
-    [projectsQuery.data],
-  );
+  const canViewProjectList = hasPermission('projects.view_list');
   const canCreateProject = hasPermission('projects.create');
   const canViewProjectDetail = hasPermission('projects.view_detail');
   const canCreateTicket = hasPermission('tickets.create');
   const canEditProject = hasPermission('projects.edit');
   const canDeleteProject = hasPermission('projects.delete');
+  const projectsQuery = useProjectsInfiniteQuery(canViewProjectList, 12);
+  const projects = useMemo(
+    () => projectsQuery.data?.pages.flatMap((page) => page.items) ?? [],
+    [projectsQuery.data],
+  );
+  const projectOptions = useMemo(
+    () => createTicketProjectOptions(projects),
+    [projects],
+  );
 
   useEffect(() => {
     setHeaderActionOverride(
@@ -84,6 +90,35 @@ export default function ProjectsPage() {
       hasShownLoadError.current = false;
     }
   }, [projectsQuery.error, projectsQuery.isError]);
+
+  useEffect(() => {
+    const loadMoreElement = loadMoreRef.current;
+
+    if (!loadMoreElement || !projectsQuery.hasNextPage) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (
+          entries[0]?.isIntersecting &&
+          projectsQuery.hasNextPage &&
+          !projectsQuery.isFetchingNextPage
+        ) {
+          void projectsQuery.fetchNextPage();
+        }
+      },
+      { rootMargin: '240px' },
+    );
+
+    observer.observe(loadMoreElement);
+
+    return () => observer.disconnect();
+  }, [
+    projectsQuery.fetchNextPage,
+    projectsQuery.hasNextPage,
+    projectsQuery.isFetchingNextPage,
+  ]);
 
   const handleCreateProject = async (values: CreateProjectFormValues) => {
     try {
@@ -167,7 +202,7 @@ export default function ProjectsPage() {
             ? Array.from({ length: 6 }).map((_, index) => (
                 <ProjectCardSkeleton key={index} />
               ))
-            : (projectsQuery.data ?? []).map((project) => (
+            : projects.map((project) => (
                 <ProjectCard
                   key={project.id}
                   id={project.id}
@@ -215,6 +250,17 @@ export default function ProjectsPage() {
                 />
               ))}
         </div>
+        {projectsQuery.hasNextPage ? (
+          <div ref={loadMoreRef} className="py-6">
+            {projectsQuery.isFetchingNextPage ? (
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <ProjectCardSkeleton key={`next-page-${index}`} />
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </PermissionGuard>
 
       <CreateProjectModal

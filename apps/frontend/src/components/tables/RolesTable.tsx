@@ -56,15 +56,15 @@ function getColumns({
   );
 
   return [
-    {
-      accessorKey: 'id',
-      header: '#',
-      cell: ({ row }) => (
-        <span className="text-sm font-semibold text-gray-900">
-          {row.original.id.slice(-5)}
-        </span>
-      ),
-    },
+    // {
+    //   accessorKey: 'id',
+    //   header: '#',
+    //   cell: ({ row }) => (
+    //     <span className="text-sm font-semibold text-gray-900">
+    //       {row.original.id.slice(-5)}
+    //     </span>
+    //   ),
+    // },
     {
       accessorKey: 'normalizedName',
       header: 'Normalized Name',
@@ -85,7 +85,7 @@ function getColumns({
     },
     {
       accessorKey: 'roleClaims',
-      header: 'Role Claims',
+      header: 'Permissions',
       cell: ({ row }) => (
         <span className="text-sm text-gray-800">
           {row.original.roleClaims.length}

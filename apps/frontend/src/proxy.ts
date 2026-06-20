@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 enum UserRole {
   SUPER_ADMIN = 'SUPER_ADMIN',
-  ADMIN = 'Admin',
+  ADMIN = 'ADMIN',
   PROJECT_MANAGER = 'PROJECT_MANAGER',
   DEVELOPER = 'DEVELOPER',
   VIEWER = 'VIEWER',
