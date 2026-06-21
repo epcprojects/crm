@@ -177,7 +177,7 @@ export default function RolesTable({
   roles,
   currentUserRoles = [],
   initialPageSize = 10,
-  pageSizeOptions = [10, 20, 30],
+  pageSizeOptions = [10, 25, 50, 100],
   onViewClaims,
   onEdit,
   onDelete,

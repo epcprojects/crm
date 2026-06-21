@@ -97,18 +97,22 @@ export async function POST(
     const attachment = formData?.get('attachments');
     const message =
       typeof messageValue === 'string' ? messageValue.trim() : undefined;
+    const hasAttachment = attachment instanceof File && attachment.size > 0;
 
-    if (!message) {
+    if (!message && !hasAttachment) {
       return NextResponse.json(
-        { message: 'Message is required.' },
+        { message: 'Message or attachment is required.' },
         { status: 400 },
       );
     }
 
     const upstreamFormData = new FormData();
-    upstreamFormData.append('message', message);
 
-    if (attachment instanceof File && attachment.size > 0) {
+    if (message) {
+      upstreamFormData.append('message', message);
+    }
+
+    if (hasAttachment) {
       upstreamFormData.append('attachments', attachment, attachment.name);
     }
 

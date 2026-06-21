@@ -17,11 +17,13 @@ import {
   PermissionGuard,
   usePermissions,
 } from '../../providers/PermissionProvider';
+import { useAppLoader } from '../../providers/AppLoaderProvider';
 
 export default function Page() {
   const { setHeaderActionOverride, setHeaderCountOverride } =
     useDashboardHeaderAction();
   const queryClient = useQueryClient();
+  const { setLoading } = useAppLoader();
   const [addUserOpen, setAddUserOpen] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
@@ -55,7 +57,7 @@ export default function Page() {
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
-        body: JSON.stringify(getInviteUserPayload(values)),
+        body: JSON.stringify(getInviteUserPayload(values, roleOptions)),
       });
 
       const payload = await response.json().catch(() => null);
@@ -147,28 +149,58 @@ export default function Page() {
       return;
     }
 
-    await inviteUserMutation.mutateAsync(values);
-    await queryClient.invalidateQueries({ queryKey: ['project-members'] });
-    appToast.success('User invited successfully.');
+    try {
+      setLoading(true);
+      await inviteUserMutation.mutateAsync(values);
+      await queryClient.invalidateQueries({ queryKey: ['project-members'] });
+      appToast.success('User invited successfully.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEditUser = async (values: AddUserFormValues) => {
     if (!editingUserId || !canEditUser) return;
 
-    await updateUserMutation.mutateAsync({
-      userId: editingUserId,
-      values,
-    });
-    setEditingUserId(null);
-    appToast.success('User updated successfully.');
+    try {
+      setLoading(true);
+      await updateUserMutation.mutateAsync({
+        userId: editingUserId,
+        values,
+      });
+      setEditingUserId(null);
+      appToast.success('User updated successfully.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDeleteUser = async () => {
     if (!deletingUserId || !canDeleteUser) return;
 
-    await deleteUserMutation.mutateAsync(deletingUserId);
-    setDeletingUserId(null);
-    appToast.success('User deleted successfully.');
+    try {
+      setLoading(true);
+      await deleteUserMutation.mutateAsync(deletingUserId);
+      setDeletingUserId(null);
+      appToast.success('User deleted successfully.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendInvite = async (user: UserCardUser) => {
+    if (!canCreateUser) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await inviteUserMutation.mutateAsync(mapUserToFormValues(user));
+      await queryClient.invalidateQueries({ queryKey: ['project-members'] });
+      appToast.success('Invitation resent successfully.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const editingUser =
@@ -197,13 +229,18 @@ export default function Page() {
                 key={user.id}
                 user={user}
                 onEdit={
-                  canEditUser
+                  user.isInvitationAccepted && canEditUser
                     ? (selectedUser) => setEditingUserId(selectedUser.id)
                     : undefined
                 }
                 onDelete={
                   canDeleteUser
                     ? (selectedUser) => setDeletingUserId(selectedUser.id)
+                    : undefined
+                }
+                onResendInvite={
+                  !user.isInvitationAccepted && canCreateUser
+                    ? handleResendInvite
                     : undefined
                 }
               />
@@ -255,10 +292,18 @@ export default function Page() {
   );
 }
 
-function getInviteUserPayload(values: AddUserFormValues) {
+function getInviteUserPayload(
+  values: AddUserFormValues,
+  roleOptions: Array<{ id?: string; value: string }>,
+) {
   return {
     email: values.email,
-    ...getUpdateUserPayload(values),
+    ...getUpdateUserPayload({
+      ...values,
+      role:
+        roleOptions.find((role) => role.value === values.role)?.id ??
+        values.role,
+    }),
   };
 }
 
@@ -298,6 +343,7 @@ type ApiProjectMember = {
   id: string;
   email: string;
   fullName: string;
+  isInvitationAccepted: boolean;
   projects: Array<{
     id: string;
     name: string;
@@ -345,6 +391,7 @@ async function fetchRoleOptions() {
       (role) => normalizeRoleName(role.normalizedName ?? role.name) !== 'SUPER_ADMIN',
     )
     .map((role) => ({
+      id: role.id,
       label: role.name ?? 'Unknown Role',
       value: getRoleKey(role),
     }))
@@ -376,6 +423,7 @@ function mapApiMemberToUserCard(
     id: member.id,
     name: member.fullName,
     email: member.email,
+    isInvitationAccepted: member.isInvitationAccepted,
     initials: initials || 'NU',
     accentColor: mappedProjects[0]?.colorHex ?? '#875BF7',
     roles: mapApiMemberRoles(member.userRoles),

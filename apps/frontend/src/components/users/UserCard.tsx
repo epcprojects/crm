@@ -21,6 +21,7 @@ export type UserCardUser = {
   id: string;
   name: string;
   email: string;
+  isInvitationAccepted: boolean;
   initials: string;
   accentColor: string;
   avatarUrl?: string;
@@ -32,16 +33,23 @@ type UserCardProps = {
   user: UserCardUser;
   onEdit?: (user: UserCardUser) => void;
   onDelete?: (user: UserCardUser) => void;
+  onResendInvite?: (user: UserCardUser) => void;
 };
 
-export default function UserCard({ user, onEdit, onDelete }: UserCardProps) {
+export default function UserCard({
+  user,
+  onEdit,
+  onDelete,
+  onResendInvite,
+}: UserCardProps) {
   const isMobile = useIsMobile();
 
   return (
     <article
-      className="rounded-2xl sm:border border-gray-100 bg-white p-4 drop-shadow-sm"
+      className="rounded-2xl sm:border border-gray-100 p-4 drop-shadow-sm"
       style={{
         boxShadow: `inset ${isMobile ? '2px' : '4px'} 0 0 ${user.accentColor}, 0px 8px 24px rgba(16,24,40,0.08)`,
+        backgroundColor: onResendInvite ? '#e5e7eb ' : 'white',
       }}
     >
       <div className="flex gap-2 flex-wrap items-start justify-between">
@@ -76,9 +84,19 @@ export default function UserCard({ user, onEdit, onDelete }: UserCardProps) {
         </div>
       </div>
 
-      {onEdit || onDelete ? (
+      {onResendInvite || onEdit || onDelete ? (
         <div className="mt-5 flex items-center gap-3">
-          {onEdit ? (
+          {onResendInvite ? (
+            <ThemeButton
+              type="button"
+              variant="secondary"
+              onClick={() => onResendInvite(user)}
+              className="w-full"
+              size={isMobile ? 'md' : 'lg'}
+            >
+              Resend Invite
+            </ThemeButton>
+          ) : onEdit ? (
             <ThemeButton
               type="button"
               onClick={() => onEdit(user)}

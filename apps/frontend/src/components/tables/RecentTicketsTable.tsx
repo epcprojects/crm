@@ -94,7 +94,7 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
           className={`h-1.5 w-1.5 rounded-full ${
             row.original.priorityColor
               ? ''
-              : priorityStyles[row.original.priority ?? ''] ?? 'bg-gray-400'
+              : (priorityStyles[row.original.priority ?? ''] ?? 'bg-gray-400')
           }`}
           style={
             row.original.priorityColor
@@ -148,7 +148,7 @@ export default function RecentTicketsTable({
   onViewAll,
   enablePagination = false,
   initialPageSize = 12,
-  pageSizeOptions = [12, 24, 48],
+  pageSizeOptions = [10, 25, 50, 100],
   onRowClick,
   hideProjectColumn = false,
   pagination: controlledPagination,
@@ -411,7 +411,7 @@ function TicketMobileCard({
               className={`h-2 w-2 rounded-full ${
                 ticket.priorityColor
                   ? ''
-                  : priorityStyles[ticket.priority ?? ''] ?? 'bg-gray-400'
+                  : (priorityStyles[ticket.priority ?? ''] ?? 'bg-gray-400')
               }`}
               style={
                 ticket.priorityColor
@@ -455,8 +455,8 @@ function renderStatusBadge(ticket: RecentTicket) {
       className={`inline-flex rounded-full border px-2 whitespace-nowrap py-1 text-xs font-semibold ${
         ticket.statusColor
           ? ''
-          : statusStyles[ticket.status] ??
-            'border-gray-200 bg-gray-50 text-gray-600'
+          : (statusStyles[ticket.status] ??
+            'border-gray-200 bg-gray-50 text-gray-600')
       }`}
       style={style}
     >

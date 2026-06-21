@@ -138,6 +138,7 @@ export default function ProjectsPage() {
       }
 
       if (!canCreateProject) return;
+      setLoading(true);
       await createProjectMutation.mutateAsync(values);
       appToast.success('Project created successfully.');
     } catch (error) {
@@ -191,6 +192,7 @@ export default function ProjectsPage() {
     }
 
     try {
+      setLoading(true);
       await deleteProjectMutation.mutateAsync(projectToDelete.id);
       appToast.success('Project deleted successfully.');
       setProjectToDelete(null);
@@ -198,6 +200,8 @@ export default function ProjectsPage() {
       appToast.error(
         error instanceof Error ? error.message : 'Failed to delete project.',
       );
+    } finally {
+      setLoading(false);
     }
   };
 

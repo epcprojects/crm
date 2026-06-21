@@ -417,6 +417,7 @@ export default function TicketDetailPage() {
               canAttachFile={canAttachReplyFiles}
               isSubmittingReply={createReplyMutation.isPending}
               onSubmitReply={canPostReplies ? handleSubmitReply : undefined}
+              requireMessage={false}
             />
           </PermissionGuard>
         </div>
