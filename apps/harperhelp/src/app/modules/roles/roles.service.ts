@@ -41,8 +41,8 @@ export class RolesService {
     const claims = dto.permissions.map((permission) =>
       this.roleClaimRepository.create({
         roleId: role.id,
-        claimType: 'permission',
-        claimValue: permission,
+        claimType: permission,
+        claimValue: 'true',
       }),
     );
 
@@ -82,13 +82,13 @@ export class RolesService {
       .createQueryBuilder('rc')
       .innerJoin(UserRole, 'ur', 'ur.roleId = rc.roleId')
       .where('ur.userId = :userId', { userId })
-      .andWhere('rc.claimType = :claimType', {
-        claimType: 'permission',
+      .andWhere('rc.claimValue = :value', {
+        value: 'true',
       })
-      .select('DISTINCT rc.claimValue', 'permission')
+      .select('DISTINCT rc.claimType', 'permission')
       .getRawMany();
 
-    return claims.map((c) => c?.permission);
+    return claims.map((c) => c.permission);
   }
 
   async update(id: string, dto: UpdateRoleDto): Promise<Role> {
@@ -107,14 +107,13 @@ export class RolesService {
     if (dto.permissions) {
       await this.roleClaimRepository.delete({
         roleId: role.id,
-        claimType: 'permission',
       });
 
       const claims = dto.permissions.map((permission) =>
         this.roleClaimRepository.create({
           roleId: role.id,
-          claimType: 'permission',
-          claimValue: permission,
+          claimType: permission,
+          claimValue: 'true',
         }),
       );
 

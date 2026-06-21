@@ -43,6 +43,21 @@ export class ThreadService {
     return this.repo.find({
       where: { projectId },
       order: { createdAt: 'ASC' },
+      relations: {
+        author: true,
+      },
+      select: {
+        id: true,
+        message: true,
+        createdAt: true,
+        createdBy: true,
+        updatedAt: true,
+        updatedBy: true,
+        author: {
+          fullName: true,
+          email: true,
+        },
+      },
     });
   }
 

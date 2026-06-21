@@ -79,7 +79,7 @@ export class FileRecord extends AuditableEntity {
   @Column({
     type: 'enum',
     enum: FileStatus,
-    default: FileStatus.PENDING,
+    default: FileStatus.ACTIVE,
   })
   status: FileStatus;
 

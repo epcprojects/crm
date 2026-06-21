@@ -1,10 +1,10 @@
-import { FileSource, FileStatus } from "@harperhelp/types";
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { FilesService } from "../../files/files.service";
-import { UtilityService } from "../../utility/utility.service";
-import { Project } from "../entities/project.entity";
+import { FileSource, FileStatus } from '@harperhelp/types';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { FilesService } from '../../files/files.service';
+import { UtilityService } from '../../utility/utility.service';
+import { Project } from '../entities/project.entity';
 
 @Injectable()
 export class ProjectsFilesService {
@@ -54,13 +54,19 @@ export class ProjectsFilesService {
   }
 
   async getProjectFiles(projectId: string) {
-    return this.filesService.findBySource(FileSource.PROJECT, projectId);
+    const files = await this.filesService.findByProject(projectId);
+
+    return files;
   }
 
   async deleteFile(fileId: string, projectId: string) {
     const file = await this.filesService.findOne(fileId);
 
-    if (!file || file.source !== FileSource.PROJECT || file.sourceId !== projectId) {
+    if (
+      !file ||
+      file.source !== FileSource.PROJECT ||
+      file.sourceId !== projectId
+    ) {
       throw new NotFoundException('File not found');
     }
 

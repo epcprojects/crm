@@ -10,10 +10,12 @@ import { ThreadMessage } from './entities/thread-messages.entity';
 import { UtilityModule } from '../utility/utility.module';
 import { FilesModule } from '../files/files.module';
 import { ProjectsFilesService } from './services/project-files.service';
+import { UserRole } from '../users/entities/user.roles.entity';
+import { Ticket } from '../tickets/entities/ticket.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Project, ThreadMessage]),
+    TypeOrmModule.forFeature([Project, Ticket, ThreadMessage, UserRole]),
     UtilityModule,
     FilesModule,
   ],

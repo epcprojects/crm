@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TicketsService } from './tickets.service';
-import { TicketsController } from './tickets.controller';
+import { DashboardController, TicketsController } from './tickets.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FileRecord } from '../files/entities/file.entity';
 import { FilesService } from '../files/files.service';
@@ -13,6 +13,8 @@ import { TicketPriority } from './entities/ticket.priority.entity';
 import { TicketStatus } from './entities/ticket.statuses.entity';
 import { TicketStatusesController } from './ticket.statuses.controller';
 import { TicketStatusesService } from './services/ticket.statuses.service';
+import { TicketPrioritiesController } from './ticket.priorities.controller';
+import { TicketPrioritiesService } from './services/ticket.priorities.service';
 
 @Module({
   imports: [
@@ -28,6 +30,8 @@ import { TicketStatusesService } from './services/ticket.statuses.service';
     TicketsController,
     TicketRepliesController,
     TicketStatusesController,
+    TicketPrioritiesController,
+    DashboardController,
   ],
   providers: [
     TicketsService,
@@ -35,6 +39,7 @@ import { TicketStatusesService } from './services/ticket.statuses.service';
     UtilityService,
     TicketRepliesService,
     TicketStatusesService,
+    TicketPrioritiesService,
   ],
 })
 export class TicketsModule {}

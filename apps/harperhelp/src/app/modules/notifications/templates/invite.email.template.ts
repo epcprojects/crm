@@ -85,10 +85,8 @@ export function adminInviteTemplate({
           <p>Hi ${fullName},</p>
 
           <p>
-            You've been invited to join
-            <strong>${organizationName}</strong>
-            as
-            <strong>${role}</strong>.
+            You've been invited to join project
+            <strong>"${organizationName}"</strong>.
           </p>
 
           <p>

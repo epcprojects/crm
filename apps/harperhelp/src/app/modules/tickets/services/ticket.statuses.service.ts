@@ -9,12 +9,16 @@ import { QueryFailedError, Repository } from 'typeorm';
 import { TicketStatus } from '../entities/ticket.statuses.entity';
 import { CreateTicketStatusDto } from '../dto/create-ticket-status.dto';
 import { UpdateTicketStatusDto } from '../dto/update-ticket-status.dto';
+import { Ticket } from '../entities/ticket.entity';
 
 @Injectable()
 export class TicketStatusesService {
   constructor(
     @InjectRepository(TicketStatus)
     private readonly statusRepo: Repository<TicketStatus>,
+
+    @InjectRepository(Ticket)
+    private readonly ticketRepo: Repository<Ticket>,
   ) {}
 
   async create(dto: CreateTicketStatusDto) {
@@ -68,10 +72,24 @@ export class TicketStatusesService {
   async remove(id: string) {
     const status = await this.findOne(id);
 
-    await this.statusRepo.softRemove(status);
+    const ticketsUsingPriority = await this.ticketRepo.count({
+      where: {
+        statusKey: status.key,
+      },
+    });
 
-    return {
-      success: true,
-    };
+    if (ticketsUsingPriority > 0) {
+      throw new BadRequestException(
+        `Status '${status.key}' is already being used by ${ticketsUsingPriority} ticket(s) and cannot be deleted.`,
+      );
+    }
+
+    try {
+      await this.statusRepo.delete(id);
+      return { success: true };
+    } catch (err) {
+      console.error(err);
+      throw new BadRequestException('Unable to delete the status.');
+    }
   }
 }

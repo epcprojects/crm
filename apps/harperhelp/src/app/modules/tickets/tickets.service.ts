@@ -10,8 +10,8 @@ import { Ticket } from './entities/ticket.entity';
 import { Repository } from 'typeorm';
 import { FilesService } from '../files/files.service';
 import { UtilityService } from '../utility/utility.service';
-import { GetTicketsQueryDto } from './dto/get-tickets.dto';
 import { FileSource, FileStatus } from '@harperhelp/types';
+import { GetTicketsQueryDto } from './dto/get-tickets-query.dto';
 
 @Injectable()
 export class TicketsService {
@@ -72,9 +72,13 @@ export class TicketsService {
 
   // ---------------- FIND ALL ----------------
   async findAll(projectId: string, query: GetTicketsQueryDto) {
-    const qb = this.ticketRepo.createQueryBuilder('t');
-
-    qb.where('t.projectId = :projectId', { projectId });
+    const qb = this.ticketRepo
+      .createQueryBuilder('t')
+      .leftJoin('t.project', 'p')
+      .leftJoin('t.status', 's')
+      .leftJoin('t.priority', 'pr')
+      .leftJoin('t.assignee', 'a')
+      .where('t.projectId = :projectId', { projectId });
 
     if (query.statusKey) {
       qb.andWhere('t.statusKey = :statusKey', {
@@ -88,11 +92,38 @@ export class TicketsService {
       });
     }
 
+    if (query.assigneeId) {
+      qb.andWhere('t.assigneeId = :assigneeId', {
+        assigneeId: query.assigneeId,
+      });
+    }
+
     if (query.search) {
-      qb.andWhere('t.title ILIKE :search', {
+      qb.andWhere(`(t.title ILIKE :search OR t.description ILIKE :search)`, {
         search: `%${query.search}%`,
       });
     }
+
+    qb.select([
+      't.id',
+      't.title',
+      't.createdAt',
+
+      'p.id',
+      'p.name',
+
+      's.key',
+      's.label',
+      's.color',
+
+      'pr.key',
+      'pr.label',
+      'pr.color',
+
+      'a.id',
+      'a.fullName',
+      'a.email',
+    ]);
 
     qb.orderBy('t.createdAt', 'DESC')
       .skip((query.page - 1) * query.limit)
@@ -103,20 +134,119 @@ export class TicketsService {
     return {
       items,
       meta: {
-        total,
         page: query.page,
         limit: query.limit,
+        total,
+        totalPages: Math.ceil(total / query.limit),
+        hasNext: query.page * query.limit < total,
+        hasPrevious: query.page > 1,
+      },
+    };
+  }
+
+  //
+  async findAllProjects(query: GetTicketsQueryDto, user) {
+    const qb = this.ticketRepo
+      .createQueryBuilder('t')
+      .leftJoin('t.project', 'p')
+      .innerJoin('p.members', 'u', 'u.id = :userId', {
+        userId: user.id,
+      })
+      .leftJoin('t.status', 's')
+      .leftJoin('t.priority', 'pr')
+      .leftJoin('t.assignee', 'a');
+
+    if (query.statusKey) {
+      qb.andWhere('t.statusKey = :statusKey', {
+        statusKey: query.statusKey,
+      });
+    }
+
+    if (query.priorityKey) {
+      qb.andWhere('t.priorityKey = :priorityKey', {
+        priorityKey: query.priorityKey,
+      });
+    }
+
+    if (query.assigneeId) {
+      qb.andWhere('t.assigneeId = :assigneeId', {
+        assigneeId: query.assigneeId,
+      });
+    }
+
+    if (query.search) {
+      qb.andWhere('(t.title ILIKE :search OR t.description ILIKE :search)', {
+        search: `%${query.search}%`,
+      });
+    }
+
+    qb.select([
+      't.id',
+      't.title',
+      't.createdAt',
+
+      'p.id',
+      'p.name',
+
+      's.key',
+      's.label',
+      's.color',
+
+      'pr.key',
+      'pr.label',
+      'pr.color',
+
+      'a.id',
+      'a.fullName',
+      'a.email',
+    ]);
+
+    qb.orderBy('t.createdAt', 'DESC')
+      .skip((query.page - 1) * query.limit)
+      .take(query.limit);
+
+    const [items, total] = await qb.getManyAndCount();
+
+    return {
+      items,
+      meta: {
+        page: query.page,
+        limit: query.limit,
+        total,
+        totalPages: Math.ceil(total / query.limit),
+        hasNext: query.page * query.limit < total,
+        hasPrevious: query.page > 1,
       },
     };
   }
 
   // ---------------- FIND ONE ----------------
   async findOne(projectId: string, ticketId: string) {
-    const ticket = await this.ticketRepo.findOne({
-      where: { id: ticketId, projectId },
-    });
+    const ticket = await this.ticketRepo
+      .createQueryBuilder('t')
+      .leftJoinAndSelect('t.project', 'p')
+      .leftJoinAndSelect('t.assignee', 'a')
+      .leftJoinAndSelect('t.reporter', 'r')
+      .where('t.id = :ticketId', { ticketId })
+      .andWhere('t.projectId = :projectId', { projectId })
+      .select([
+        't',
 
-    if (!ticket) throw new NotFoundException('Ticket not found');
+        'p.id',
+        'p.name',
+        'p.brandColor',
+
+        'a.id',
+        'a.fullName',
+
+        'r.id',
+        'r.fullName',
+      ])
+      .getOne();
+
+    if (!ticket) {
+      throw new NotFoundException('Ticket not found');
+    }
 
     const attachments = await this.filesService.findBySource(
       FileSource.TICKET,
@@ -155,6 +285,48 @@ export class TicketsService {
     await this.ticketRepo.softRemove(ticket);
 
     return { success: true };
+  }
+
+  // ---------------- TICKET'S SUMMARY -------------------
+  // TODO: needs to re-think on how we manage these? as statuses and priorities are dynamic
+
+  async getTicketSummary(projectId: string) {
+    const result = await this.ticketRepo
+      .createQueryBuilder('t')
+      .select([
+        `SUM(CASE WHEN t.statusKey = 'open' THEN 1 ELSE 0 END) AS open`,
+        `SUM(CASE WHEN t.statusKey = 'in-progress' THEN 1 ELSE 0 END) AS inProgress`,
+        `SUM(CASE WHEN t.statusKey = 'resolved' THEN 1 ELSE 0 END) AS resolved`,
+        `SUM(CASE WHEN t.priorityKey = 'critical' THEN 1 ELSE 0 END) AS critical`,
+      ])
+      .where('t.projectId = :projectId', { projectId })
+      .getRawOne();
+
+    return {
+      open: Number(result.open),
+      inProgress: Number(result.inProgress),
+      resolved: Number(result.resolved),
+      critical: Number(result.critical),
+    };
+  }
+
+  async getGlobalTicketSummary() {
+    const result = await this.ticketRepo
+      .createQueryBuilder('t')
+      .select([
+        `SUM(CASE WHEN t.statusKey = 'open' THEN 1 ELSE 0 END) AS open`,
+        `SUM(CASE WHEN t.statusKey = 'in-progress' THEN 1 ELSE 0 END) AS inProgress`,
+        `SUM(CASE WHEN t.statusKey = 'resolved' THEN 1 ELSE 0 END) AS resolved`,
+        `SUM(CASE WHEN t.priorityKey = 'critical' THEN 1 ELSE 0 END) AS critical`,
+      ])
+      .getRawOne();
+
+    return {
+      open: Number(result.open),
+      inProgress: Number(result.inProgress),
+      resolved: Number(result.resolved),
+      critical: Number(result.critical),
+    };
   }
 
   // ---------------- ATTACHMENTS ----------------

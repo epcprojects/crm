@@ -18,7 +18,14 @@ export class FilesService {
 
   async findBySource(source: FileSource, sourceId: string) {
     return this.fileRepository.find({
-      where: { source, sourceId },
+      where: { source, sourceId, status: FileStatus.ACTIVE },
+      order: { createdAt: 'ASC' },
+    });
+  }
+
+  async findByProject(projectId: string) {
+    return this.fileRepository.find({
+      where: { projectId, status: FileStatus.ACTIVE },
       order: { createdAt: 'ASC' },
     });
   }

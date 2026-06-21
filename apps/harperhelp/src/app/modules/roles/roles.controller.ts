@@ -27,7 +27,7 @@ export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 
   @Post()
-  @Roles(SystemRoles.SUPER_ADMIN)
+  // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({ summary: 'Create a new role' })
   create(@Body() createRoleDto: CreateRoleDto) {
     return this.rolesService.create(createRoleDto);
@@ -40,7 +40,7 @@ export class RolesController {
   }
 
   @Get('permissions/catalog')
-  @Roles(SystemRoles.SUPER_ADMIN)
+  // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({ summary: 'Get All Permissions of the system' })
   getPermissionCatalog() {
     return MODULE_DEFINITIONS.map((module) => ({
@@ -63,14 +63,14 @@ export class RolesController {
   }
 
   @Patch(':id')
-  @Roles(SystemRoles.SUPER_ADMIN)
+  // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({ summary: 'Update existing role.' })
   update(@Param('id') id: string, @Body() updateRoleDto: UpdateRoleDto) {
     return this.rolesService.update(id, updateRoleDto);
   }
 
   @Delete(':id')
-  @Roles(SystemRoles.SUPER_ADMIN)
+  // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({ summary: 'Remove specific role from system.' })
   remove(@Param('id') id: string) {
     return this.rolesService.remove(id);

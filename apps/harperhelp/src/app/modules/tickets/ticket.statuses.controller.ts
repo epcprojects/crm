@@ -25,7 +25,7 @@ export class TicketStatusesController {
   constructor(private readonly service: TicketStatusesService) {}
 
   @Post()
-  @Roles(SystemRoles.SUPER_ADMIN)
+  // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({ summary: 'Create Ticket Statuses.' })
   create(@Body() dto: CreateTicketStatusDto) {
     return this.service.create(dto);
@@ -44,14 +44,14 @@ export class TicketStatusesController {
   }
 
   @Patch(':id')
-  @Roles(SystemRoles.SUPER_ADMIN)
+  // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({ summary: 'Update existing ticket status.' })
   update(@Param('id') id: string, @Body() dto: UpdateTicketStatusDto) {
     return this.service.update(id, dto);
   }
 
   @Delete(':id')
-  @Roles(SystemRoles.SUPER_ADMIN)
+  // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({ summary: 'Delete ticket status.' })
   remove(@Param('id') id: string) {
     return this.service.remove(id);

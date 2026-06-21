@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { BaseEntity } from '@harperhelp/interfaces';
 import { Project } from '../../projects/entities/project.entity';
+import { UserType } from '@harperhelp/types';
 
 @Entity('users')
 export class User extends BaseEntity {
@@ -27,7 +28,7 @@ export class User extends BaseEntity {
   @Column()
   fullName: string;
 
-  @Column({ unique: true, length: 100 })
+  @Column({ length: 100 })
   normalizedFullName: string;
 
   @Column({ nullable: true })
@@ -54,6 +55,9 @@ export class User extends BaseEntity {
   @ManyToMany(() => Project, (p) => p.members)
   @JoinTable({ name: 'user_projects_join' })
   projects: Project[];
+
+  @Column({ nullable: true, enum: UserType, default: UserType.INTERNAL })
+  userType: string;
 
   @BeforeInsert()
   @BeforeUpdate()

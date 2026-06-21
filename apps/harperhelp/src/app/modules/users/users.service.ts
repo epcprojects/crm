@@ -14,6 +14,7 @@ import { InviteUserDto } from './dto/invite-user.dto';
 import { generateRandomToken } from '@harperhelp/utils';
 import { NotificationsService } from '../notifications/notifications.service';
 import { Project } from '../projects/entities/project.entity';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UsersService {
@@ -59,8 +60,8 @@ export class UsersService {
       ...new Set(
         userRoles.flatMap((ur) =>
           ur.role.roleClaims
-            .filter((c) => c.claimType === 'permission')
-            .map((c) => c.claimValue),
+            .filter((c) => c.claimValue === 'true')
+            .map((c) => c.claimType),
         ),
       ),
     ];
@@ -75,6 +76,20 @@ export class UsersService {
   async findById(id: string) {
     const user = await this.userRepo.findOne({
       where: { id },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        isActive: true,
+        isInvitationAccepted: true,
+        normalizedFullName: true,
+        normalizedEmail: true,
+        updatedAt: true,
+        updatedBy: true,
+        createdAt: true,
+        createdBy: true,
+        userType: true,
+      },
     });
 
     if (!user) {
@@ -96,8 +111,8 @@ export class UsersService {
       ...new Set(
         userRoles.flatMap((ur) =>
           ur.role.roleClaims
-            .filter((c) => c.claimType === 'permission')
-            .map((c) => c.claimValue),
+            .filter((c) => c.claimValue === 'true')
+            .map((c) => c.claimType),
         ),
       ),
     ];
@@ -121,7 +136,7 @@ export class UsersService {
     }
 
     const role = await this.roleRepo.findOneBy({
-      normalizedName: dto.roleKey.toUpperCase(),
+      id: dto.roleKey,
     });
 
     if (!role) {
@@ -160,6 +175,7 @@ export class UsersService {
       existing.inviteExpiresAt = expiry;
       existing.isInvitationAccepted = false;
       existing.isActive = false;
+      existing.userType = dto.userType;
 
       await this.userRepo.save(existing);
 
@@ -205,6 +221,7 @@ export class UsersService {
         isInvitationAccepted: false,
         isActive: false,
         createdBy: currentUser.id,
+        userType: dto.userType,
       }),
     );
 
@@ -285,5 +302,72 @@ export class UsersService {
       resetPasswordToken: null,
       resetPasswordExpiresAt: null,
     });
+  }
+
+  async updateUser(userId: string, dto: UpdateUserDto) {
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+      relations: {
+        projects: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (dto.fullName !== undefined) {
+      user.fullName = dto.fullName;
+    }
+
+    if (dto.projectIds !== undefined) {
+      const projects = await this.projectRepo.find({
+        where: {
+          id: In(dto.projectIds),
+        },
+      });
+
+      user.projects = projects;
+    }
+
+    if (dto.roleKey !== undefined) {
+      const role = await this.roleRepo.findOneBy({
+        normalizedName: dto.roleKey.toUpperCase(),
+      });
+
+      if (!role) {
+        throw new BadRequestException('Invalid role');
+      }
+
+      await this.userRoleRepo.delete({ userId });
+
+      await this.userRoleRepo.save({
+        userId,
+        roleId: role.id,
+      });
+    }
+
+    await this.userRepo.save(user);
+
+    return this.findById(userId);
+  }
+
+  async softDeleteUser(userId: string) {
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    await this.userRepo.softDelete(userId);
+
+    await this.userRepo.update(userId, {
+      email: `deleted_${Date.now()}_${user.email}`,
+      normalizedEmail: `DELETED_${Date.now()}_${user.email.toUpperCase()}`,
+    });
+
+    return { success: true };
   }
 }
