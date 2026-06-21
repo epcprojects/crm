@@ -69,9 +69,11 @@ export default function UserCard({ user, onEdit, onDelete }: UserCardProps) {
 
       <div className="flex flex-col flex-wrap gap-2">
         <span className="block">Assigned Projects</span>
-        {user.projects.map((project) => (
-          <ProjectPill key={project.id} project={project} />
-        ))}
+        <div className="flex gap-2 ">
+          {user.projects.map((project) => (
+            <ProjectPill key={project.id} project={project} />
+          ))}
+        </div>
       </div>
 
       {onEdit || onDelete ? (
