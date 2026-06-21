@@ -135,7 +135,6 @@ export default function AddUserModal({
           />
         )}
 
-        {mode === 'create' ? (
         <div className="space-y-2">
           <label className="block text-sm font-normal text-gray-800 md:text-base">
             User Type
@@ -146,6 +145,7 @@ export default function AddUserModal({
               title="Internal"
               description="Devs & PMs — full project access"
               isSelected={formik.values.userType === 'internal'}
+              disabled={mode === 'edit'}
               onClick={() => {
                 formik.setFieldValue('userType', 'internal');
                 if (!formik.values.role) {
@@ -158,6 +158,7 @@ export default function AddUserModal({
               title="External"
               description="Clients — limited to their tickets + calendar"
               isSelected={formik.values.userType === 'external'}
+              disabled={mode === 'edit'}
               onClick={() => {
                 formik.setFieldValue('userType', 'external');
                 if (!formik.values.role) {
@@ -167,7 +168,6 @@ export default function AddUserModal({
             />
           </div>
         </div>
-        ) : null}
 
         <Dropdown
           label="Role"

@@ -27,6 +27,7 @@ export default function TicketDetailPage() {
   const canViewReplies = hasPermission('ticket_replies.view');
   const canPostReplies = hasPermission('ticket_replies.post');
   const canAttachReplyFiles = hasPermission('ticket_replies.attach_file');
+  const canEditStatus = hasPermission('tickets.edit_status');
   const canEditPriority = hasPermission('tickets.edit_priority');
   const canEditAssignee = hasPermission('tickets.edit_assignee');
   const canEditDueDate = hasPermission('tickets.edit_due_date');
@@ -95,9 +96,15 @@ export default function TicketDetailPage() {
         }),
         queryClient.invalidateQueries({
           queryKey: ['dashboard-project-tickets'],
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['project-tickets'],
+          refetchType: 'all',
         }),
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'recent-tickets'],
+          refetchType: 'all',
         }),
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'ticket-summary'],
@@ -263,6 +270,23 @@ export default function TicketDetailPage() {
     );
   }
 
+  const handleStatusChange = async (value: string) => {
+    if (!canEditStatus) {
+      return;
+    }
+
+    setSelectedStatus(value);
+
+    await updateTicketMutation.mutateAsync({
+      title: ticket.title,
+      description: ticket.description,
+      statusKey: value,
+      priorityKey: selectedPriority || null,
+      assigneeId: selectedAssigneeId,
+      dueDate: selectedDueDate,
+    });
+  };
+
   const handlePriorityChange = async (value: string) => {
     if (!canEditPriority) {
       return;
@@ -273,6 +297,7 @@ export default function TicketDetailPage() {
     await updateTicketMutation.mutateAsync({
       title: ticket.title,
       description: ticket.description,
+      statusKey: selectedStatus,
       priorityKey: value || null,
       assigneeId: selectedAssigneeId,
       dueDate: selectedDueDate,
@@ -292,6 +317,7 @@ export default function TicketDetailPage() {
     await updateTicketMutation.mutateAsync({
       title: ticket.title,
       description: ticket.description,
+      statusKey: selectedStatus,
       priorityKey: selectedPriority || null,
       assigneeId: value,
       dueDate: selectedDueDate,
@@ -308,6 +334,7 @@ export default function TicketDetailPage() {
     await updateTicketMutation.mutateAsync({
       title: ticket.title,
       description: ticket.description,
+      statusKey: selectedStatus,
       priorityKey: selectedPriority || null,
       assigneeId: selectedAssigneeId,
       dueDate: value,
@@ -405,8 +432,8 @@ export default function TicketDetailPage() {
                   label="Status"
                   options={statusOptions}
                   value={selectedStatus}
-                  disabled
-                  onChange={setSelectedStatus}
+                  disabled={updateTicketMutation.isPending || !canEditStatus}
+                  onChange={handleStatusChange}
                 />
                 <Dropdown
                   label="Priority"
@@ -699,6 +726,7 @@ type ApiTicketDetail = {
 type UpdateTicketRequest = {
   title: string;
   description: string;
+  statusKey: string;
   priorityKey: string | null;
   assigneeId: string;
   dueDate: string;

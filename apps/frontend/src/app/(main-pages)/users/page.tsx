@@ -55,7 +55,7 @@ export default function Page() {
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
-        body: JSON.stringify(getUserMutationPayload(values)),
+        body: JSON.stringify(getInviteUserPayload(values)),
       });
 
       const payload = await response.json().catch(() => null);
@@ -81,7 +81,7 @@ export default function Page() {
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
-        body: JSON.stringify(getUserMutationPayload(values)),
+        body: JSON.stringify(getUpdateUserPayload(values)),
       });
 
       const payload = await response.json().catch(() => null);
@@ -255,9 +255,15 @@ export default function Page() {
   );
 }
 
-function getUserMutationPayload(values: AddUserFormValues) {
+function getInviteUserPayload(values: AddUserFormValues) {
   return {
     email: values.email,
+    ...getUpdateUserPayload(values),
+  };
+}
+
+function getUpdateUserPayload(values: AddUserFormValues) {
+  return {
     fullName: values.fullName,
     userType: values.userType === 'internal' ? 'INTERNAL' : 'EXTERNAL',
     roleKey: values.role,
@@ -300,13 +306,16 @@ type ApiProjectMember = {
     id: string;
     role?: {
       id: string;
+      key?: string;
       name: string;
+      normalizedName?: string;
     };
   }>;
 };
 
 type ApiRoleOption = {
   id?: string;
+  key?: string;
   name?: string;
   normalizedName?: string;
 };
@@ -337,7 +346,7 @@ async function fetchRoleOptions() {
     )
     .map((role) => ({
       label: role.name ?? 'Unknown Role',
-      value: role.id ?? '',
+      value: getRoleKey(role),
     }))
     .filter((role) => role.value);
 }
@@ -391,11 +400,23 @@ function mapApiMemberRoles(
     return [
       {
         label: roleName,
-        value: userRole.role?.id,
+        value: getRoleKey(userRole.role),
         tone: getRoleTone(roleName),
       },
     ];
   });
+}
+
+function getRoleKey(role?: {
+  key?: string;
+  normalizedName?: string;
+  name?: string;
+}) {
+  return (
+    role?.key?.trim() ||
+    role?.normalizedName?.trim() ||
+    normalizeRoleName(role?.name)
+  );
 }
 
 function getRoleTone(roleName: string): UserCardUser['roles'][number]['tone'] {
