@@ -441,6 +441,7 @@ type ApiProjectTicket = {
 
 type ApiProjectFile = {
   id?: string;
+  projectId?: string | null;
   name?: string;
   fileName?: string;
   originalName?: string;
@@ -453,7 +454,12 @@ type ApiProjectFile = {
   createdBy?: string | null;
   uploadedAt?: string | null;
   createdAt?: string | null;
+  updatedAt?: string | null;
+  thumbnailKey?: string | null;
   storageKey?: string | null;
+  source?: string | null;
+  sourceId?: string | null;
+  status?: string | null;
 };
 
 type ApiProjectTicketsResponse = {
@@ -678,6 +684,11 @@ function mapApiProjectFileToProjectFileRecord(
       getNonEmptyString(file.uploadedBy) ?? getNonEmptyString(file.createdBy),
     uploadedAt: formatProjectFileDate(file.uploadedAt ?? file.createdAt),
     storageKey: getNonEmptyString(file.storageKey),
+    extension: getNonEmptyString(file.extension),
+    mimeType: getNonEmptyString(file.mimeType),
+    source: getNonEmptyString(file.source),
+    sourceId: getNonEmptyString(file.sourceId),
+    status: getNonEmptyString(file.status),
   };
 }
 

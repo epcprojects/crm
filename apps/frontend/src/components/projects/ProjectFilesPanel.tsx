@@ -16,6 +16,11 @@ export type ProjectFileRecord = {
   uploadedBy?: string;
   uploadedAt?: string;
   storageKey?: string;
+  extension?: string;
+  mimeType?: string;
+  source?: string;
+  sourceId?: string;
+  status?: string;
 };
 
 type ProjectFilesPanelProps = {
@@ -118,6 +123,16 @@ export default function ProjectFilesPanel({
                       {[file.size, file.uploadedAt].filter(Boolean).join(' • ')}
                     </p>
                   )}
+                  <div className="mt-1 flex max-w-3xl flex-wrap gap-3 gap-y-1 text-xs md:text-sm text-gray-500">
+                    {getFileMetadataItems(file).map((item) => (
+                      <span key={`${file.id}-${item.label}`}>
+                        <span className="font-medium text-gray-700">
+                          {item.label}:
+                        </span>{' '}
+                        {item.value}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -195,6 +210,30 @@ export default function ProjectFilesPanel({
       </div>
     </div>
   );
+}
+
+function getFileMetadataItems(file: ProjectFileRecord) {
+  return [
+    { label: 'Source', value: formatFileSource(file.source) },
+    { label: 'Status', value: file.status },
+    // { label: 'Type', value: file.mimeType ?? file.extension },
+    // { label: 'Uploaded by', value: file.uploadedBy },
+    // { label: 'Source ID', value: file.sourceId },
+  ].filter(
+    (item): item is { label: string; value: string } =>
+      typeof item.value === 'string' && item.value.trim().length > 0,
+  );
+}
+
+function formatFileSource(source?: string) {
+  const sourceLabels: Record<string, string> = {
+    project: 'Project',
+    thread: 'Thread',
+    ticket: 'Ticket',
+    ticket_reply: 'Ticket Reply',
+  };
+
+  return source ? (sourceLabels[source] ?? source) : undefined;
 }
 
 function getFileUrl(storageKey?: string) {

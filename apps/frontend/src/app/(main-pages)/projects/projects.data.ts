@@ -40,6 +40,11 @@ export type ProjectFileRecord = {
   uploadedBy?: string;
   uploadedAt?: string;
   storageKey?: string;
+  extension?: string;
+  mimeType?: string;
+  source?: string;
+  sourceId?: string;
+  status?: string;
 };
 
 export const baseProjects: ProjectRecord[] = [
