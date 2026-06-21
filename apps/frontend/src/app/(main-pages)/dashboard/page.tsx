@@ -112,6 +112,16 @@ export default function Page() {
       }),
     enabled: canViewRecentTickets,
   });
+  const criticalTicketsQuery = useQuery({
+    queryKey: ['dashboard', 'critical-tickets'],
+    queryFn: () =>
+      fetchDashboardTickets({
+        page: 1,
+        limit: 10,
+        priorityKey: 'Critical',
+      }),
+    enabled: canViewUpcoming,
+  });
   const upcomingTicketsQuery = useQuery({
     queryKey: ['dashboard', 'upcoming'],
     queryFn: fetchUpcomingTickets,
@@ -134,9 +144,16 @@ export default function Page() {
                 mapApiDashboardTicketToTicketListItem,
               ),
             }
+          : tab.key === 'critical'
+            ? {
+                ...tab,
+                tickets: (criticalTicketsQuery.data?.items ?? []).map(
+                  mapRecentTicketToTicketListItem,
+                ),
+              }
           : tab,
       ),
-    [upcomingTicketsQuery.data],
+    [criticalTicketsQuery.data?.items, upcomingTicketsQuery.data],
   );
 
   const handleViewAllTickets = () => {
@@ -582,14 +599,20 @@ async function fetchUpcomingTickets(): Promise<ApiDashboardTicket[]> {
 async function fetchDashboardTickets({
   page,
   limit,
+  priorityKey,
 }: {
   page: number;
   limit: number;
+  priorityKey?: string;
 }): Promise<DashboardTicketsResponse> {
   const searchParams = new URLSearchParams({
     page: String(page),
     limit: String(limit),
   });
+
+  if (priorityKey) {
+    searchParams.set('priorityKey', priorityKey);
+  }
 
   const response = await fetch(
     `/api/dashboard/projects?${searchParams.toString()}`,
@@ -648,6 +671,24 @@ function mapApiDashboardTicketToTicketListItem(
     tag: priorityLabel,
     tagClassName: getPriorityTagClassName(priorityLabel),
     icon: getInitials(projectName),
+    iconClassName: 'border-purple-200 bg-purple-50 text-purple-700',
+  };
+}
+
+function mapRecentTicketToTicketListItem(
+  ticket: RecentTicket,
+): TicketTab['tickets'][number] {
+  const priorityLabel = ticket.priority ?? 'No Priority';
+
+  return {
+    id: ticket.id,
+    title: ticket.title,
+    date: ticket.date,
+    owner: ticket.project.name,
+    ownerColor: 'border-purple-200 bg-purple-50 text-purple-700',
+    tag: priorityLabel,
+    tagClassName: getPriorityTagClassName(priorityLabel),
+    icon: ticket.project.initials,
     iconClassName: 'border-purple-200 bg-purple-50 text-purple-700',
   };
 }
