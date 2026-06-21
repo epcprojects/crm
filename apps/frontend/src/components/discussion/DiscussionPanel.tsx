@@ -9,6 +9,7 @@ import {
 
 export type DiscussionReply = {
   id: string;
+  authorId?: string;
   author: {
     name: string;
     initials: string;
@@ -32,6 +33,7 @@ type DiscussionPanelProps = {
   canCompose?: boolean;
   canAttachFile?: boolean;
   requireMessage?: boolean;
+  currentUserId?: string;
 };
 
 export default function DiscussionPanel({
@@ -46,6 +48,7 @@ export default function DiscussionPanel({
   canCompose = Boolean(onSubmitReply),
   canAttachFile = true,
   requireMessage = true,
+  currentUserId = '',
 }: DiscussionPanelProps) {
   const [message, setMessage] = useState('');
   const [attachment, setAttachment] = useState<File | null>(null);
@@ -109,24 +112,50 @@ export default function DiscussionPanel({
       <div className="min-h-96 px-3 flex-1 py-5 md:px-5">
         {replies.length ? (
           <div className="space-y-4">
-            {replies.map((reply) => (
-              <article key={reply.id} className="flex items-start gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-100 text-sm font-bold text-purple-700">
-                  {reply.author.initials}
-                </span>
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-semibold text-gray-900">
-                      {reply.author.name}
+            {replies.map((reply) => {
+              const isCurrentUserReply = Boolean(
+                currentUserId && reply.authorId === currentUserId,
+              );
+
+              return (
+                <article
+                  key={reply.id}
+                  className={`flex items-start gap-3 ${
+                    isCurrentUserReply ? 'justify-end' : 'justify-start'
+                  }`}
+                >
+                  {!isCurrentUserReply ? (
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-100 text-sm font-bold text-purple-700">
+                      {reply.author.initials}
                     </span>
-                    <span className="text-xs text-gray-900">
-                      {reply.createdAt}
-                    </span>
+                  ) : null}
+                  <div
+                    className={`max-w-[min(80%,42rem)] ${
+                      isCurrentUserReply ? 'text-right' : ''
+                    }`}
+                  >
+                    <div
+                      className={`flex flex-wrap items-center gap-2 ${
+                        isCurrentUserReply ? 'justify-end' : ''
+                      }`}
+                    >
+                      <span className="text-sm font-semibold text-gray-900">
+                        {reply.author.name}
+                      </span>
+                      <span className="text-xs text-gray-900">
+                        {reply.createdAt}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-900">{reply.message}</p>
                   </div>
-                  <p className="text-sm text-gray-900">{reply.message}</p>
-                </div>
-              </article>
-            ))}
+                  {isCurrentUserReply ? (
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-100 text-sm font-bold text-purple-700">
+                      {reply.author.initials}
+                    </span>
+                  ) : null}
+                </article>
+              );
+            })}
           </div>
         ) : (
           <div className="flex min-h-80 flex-col h-full items-center justify-center text-center">

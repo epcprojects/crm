@@ -20,6 +20,7 @@ export default function TicketDetailPage() {
   const queryClient = useQueryClient();
   const ticketId = String(params?.ticketId ?? '');
   const projectId = searchParams.get('projectId') ?? '';
+  const currentUserId = useAppSelector((state) => state.auth.user?.id ?? '');
   const userType = useAppSelector((state) => state.auth.user?.userType);
   const isExternalUser = userType === 'EXTERNAL';
   const { hasPermission } = usePermissions();
@@ -418,6 +419,7 @@ export default function TicketDetailPage() {
               isSubmittingReply={createReplyMutation.isPending}
               onSubmitReply={canPostReplies ? handleSubmitReply : undefined}
               requireMessage={false}
+              currentUserId={currentUserId}
             />
           </PermissionGuard>
         </div>
@@ -798,6 +800,7 @@ function mapApiTicketReplyToDiscussionReply(reply: ApiTicketReply) {
 
   return {
     id: reply.id,
+    authorId,
     author: {
       name: authorId ? `User ${authorId.slice(-4)}` : 'User',
       initials: authorId ? authorId.slice(-2).toUpperCase() : 'US',

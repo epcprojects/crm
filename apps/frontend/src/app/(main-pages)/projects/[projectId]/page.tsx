@@ -41,6 +41,7 @@ import {
   PermissionGuard,
   usePermissions,
 } from '../../../providers/PermissionProvider';
+import { useAppSelector } from '../../../Redux/store';
 
 const projectTabs = ['Tickets', 'Thread', 'Files', 'Calendar'] as const;
 
@@ -48,6 +49,7 @@ export default function ProjectDetailPage() {
   const params = useParams<{ projectId: string }>();
   const router = useRouter();
   const { setLoading } = useAppLoader();
+  const currentUserId = useAppSelector((state) => state.auth.user?.id ?? '');
   const { hasPermission } = usePermissions();
   const canViewProjectDetail = hasPermission('projects.view_detail');
   const canViewTickets = hasPermission('tickets.view_list');
@@ -501,6 +503,7 @@ export default function ProjectDetailPage() {
               canCompose={canPostThreadMessage}
               canAttachFile={canAttachThreadFile}
               requireMessage={false}
+              currentUserId={currentUserId}
             />
             </TabPanel>
           </PermissionGuard>

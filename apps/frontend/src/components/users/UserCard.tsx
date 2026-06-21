@@ -1,6 +1,10 @@
 'use client';
 
-import { TrashIcon } from '../../../public/icons';
+import {
+  AcceptedEmailIcon,
+  SentEmailIcon,
+  TrashIcon,
+} from '../../../public/icons';
 import { useIsMobile } from '../hooks/useIsMobile';
 import ThemeButton from '../ui/ThemeButton';
 
@@ -46,26 +50,39 @@ export default function UserCard({
 
   return (
     <article
-      className="rounded-2xl sm:border border-gray-100 p-4 drop-shadow-sm"
+      className="rounded-2xl sm:border border-gray-100 bg-white p-4 drop-shadow-sm"
       style={{
         boxShadow: `inset ${isMobile ? '2px' : '4px'} 0 0 ${user.accentColor}, 0px 8px 24px rgba(16,24,40,0.08)`,
-        backgroundColor: onResendInvite ? '#e5e7eb ' : 'white',
       }}
     >
       <div className="flex gap-2 flex-wrap items-start justify-between">
-        <div className="flex items-start gap-3 md:gap-4">
-          <Avatar user={user} />
+        <div className="flex  flex-wrap flex-col gap-3">
+          <div className="flex items-start gap-3 md:gap-4">
+            <Avatar user={user} />
 
-          <div className="min-w-0">
-            <h2 className="truncate text-sm md:text-base font-semibold text-gray-900">
-              {user.name}
-            </h2>
-            {user.email ? (
-              <p className="truncate text-xs text-gray-600">{user.email}</p>
-            ) : null}
+            <div className="flex flex-col gap-2">
+              <div className="min-w-0">
+                <h2 className="truncate text-sm md:text-base font-semibold text-gray-900">
+                  {user.name}
+                </h2>
+                {user.email ? (
+                  <p className="truncate text-xs text-gray-600">{user.email}</p>
+                ) : null}
+              </div>
+              {onResendInvite ? (
+                <div className="text-warning-500 font-semibold text-xs flex items-center gap-1.5">
+                  <SentEmailIcon />
+                  Invite Sent
+                </div>
+              ) : (
+                <div className="text-green-500 font-semibold text-xs flex items-center gap-1.5">
+                  <AcceptedEmailIcon />
+                  Invite Accepted
+                </div>
+              )}
+            </div>
           </div>
         </div>
-
         <div className="flex flex-wrap gap-2">
           {user.roles.map((role) => (
             <Pill key={role.label} label={role.label} tone={role.tone} />

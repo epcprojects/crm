@@ -29,9 +29,13 @@ import SearchIcon from './SearchIcon';
 import TicketIcon2 from './TicketIcon2';
 import EditIcon from './EditIcon';
 import DownloadIcon from './DownloadIcon';
+import SentEmailIcon from './SentEmailIcon';
+import AcceptedEmailIcon from './AcceptedEmailIcon';
 
 export {
   TicketIcon2,
+  SentEmailIcon,
+  AcceptedEmailIcon,
   DownloadIcon,
   EditIcon,
   SearchIcon,

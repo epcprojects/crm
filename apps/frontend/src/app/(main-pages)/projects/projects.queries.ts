@@ -387,13 +387,18 @@ type ApiProjectThreadMessage = {
   id: string;
   createdAt: string;
   updatedAt: string;
-  deletedAt: string | null;
-  isActive: boolean;
+  deletedAt?: string | null;
+  isActive?: boolean;
   createdBy: string | null;
   updatedBy: string | null;
-  projectId: string;
-  authorId: string;
+  projectId?: string;
+  authorId?: string;
   message: string;
+  author?: {
+    email?: string;
+    fullName?: string;
+    name?: string;
+  } | null;
 };
 
 type ApiProjectTicket = {
@@ -599,11 +604,23 @@ async function deleteProjectFile({
 function mapApiProjectThreadMessageToReply(
   message: ApiProjectThreadMessage,
 ): DiscussionReply {
+  const authorName =
+    getNonEmptyString(message.author?.fullName) ??
+    getNonEmptyString(message.author?.name) ??
+    (message.authorId ? `User ${message.authorId.slice(-4)}` : 'User');
+  const authorInitials =
+    authorName !== 'User'
+      ? getInitials(authorName)
+      : message.authorId
+        ? message.authorId.slice(-2).toUpperCase()
+        : 'US';
+
   return {
     id: message.id,
+    authorId: message.createdBy ?? message.authorId,
     author: {
-      name: `User ${message.authorId.slice(-4)}`,
-      initials: message.authorId.slice(-2).toUpperCase(),
+      name: authorName,
+      initials: authorInitials,
     },
     createdAt: formatThreadDate(message.createdAt),
     message: message.message,
