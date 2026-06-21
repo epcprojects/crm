@@ -83,6 +83,15 @@ export async function POST(
     }
 
     const { ticketId } = await context.params;
+    const projectId = new URL(request.url).searchParams.get('projectId')?.trim();
+
+    if (!projectId) {
+      return NextResponse.json(
+        { message: 'Project ID is required.' },
+        { status: 400 },
+      );
+    }
+
     const formData = await request.formData().catch(() => null);
     const messageValue = formData?.get('message');
     const attachment = formData?.get('attachments');
@@ -103,15 +112,18 @@ export async function POST(
       upstreamFormData.append('attachments', attachment, attachment.name);
     }
 
-    const response = await fetch(`${apiBaseUrl}/tickets/${ticketId}/replies`, {
-      method: 'POST',
-      headers: {
-        Accept: '*/*',
-        Authorization: `Bearer ${token}`,
+    const response = await fetch(
+      `${apiBaseUrl}/tickets/${ticketId}/projects/${projectId}`,
+      {
+        method: 'POST',
+        headers: {
+          Accept: '*/*',
+          Authorization: `Bearer ${token}`,
+        },
+        body: upstreamFormData,
+        cache: 'no-store',
       },
-      body: upstreamFormData,
-      cache: 'no-store',
-    });
+    );
 
     const data = await response.json().catch(() => null);
 
