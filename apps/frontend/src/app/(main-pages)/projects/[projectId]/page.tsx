@@ -104,7 +104,9 @@ export default function ProjectDetailPage() {
       attachment: File | null;
     }) => {
       const formData = new FormData();
-      formData.append('message', message);
+      if (message.trim()) {
+        formData.append('message', message.trim());
+      }
 
       if (attachment) {
         formData.append('attachments', attachment);
@@ -498,6 +500,7 @@ export default function ProjectDetailPage() {
               isSubmittingReply={createProjectThreadMutation.isPending}
               canCompose={canPostThreadMessage}
               canAttachFile={canAttachThreadFile}
+              requireMessage={false}
             />
             </TabPanel>
           </PermissionGuard>

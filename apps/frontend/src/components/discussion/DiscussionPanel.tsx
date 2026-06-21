@@ -31,6 +31,7 @@ type DiscussionPanelProps = {
   isSubmittingReply?: boolean;
   canCompose?: boolean;
   canAttachFile?: boolean;
+  requireMessage?: boolean;
 };
 
 export default function DiscussionPanel({
@@ -44,6 +45,7 @@ export default function DiscussionPanel({
   isSubmittingReply = false,
   canCompose = Boolean(onSubmitReply),
   canAttachFile = true,
+  requireMessage = true,
 }: DiscussionPanelProps) {
   const [message, setMessage] = useState('');
   const [attachment, setAttachment] = useState<File | null>(null);
@@ -53,7 +55,11 @@ export default function DiscussionPanel({
   const handleSubmit = async () => {
     const trimmedMessage = message.trim();
 
-    if (!trimmedMessage || isSubmittingReply || !onSubmitReply) {
+    if (
+      (requireMessage ? !trimmedMessage : !trimmedMessage && !attachment) ||
+      isSubmittingReply ||
+      !onSubmitReply
+    ) {
       return;
     }
 
@@ -199,7 +205,11 @@ export default function DiscussionPanel({
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={!message.trim() || isSubmittingReply}
+              disabled={
+                (requireMessage
+                  ? !message.trim()
+                  : !message.trim() && !attachment) || isSubmittingReply
+              }
               className="rounded-lg bg-[#10175A] px-5 py-2.5 sm:py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmittingReply ? 'Posting...' : 'Reply'}

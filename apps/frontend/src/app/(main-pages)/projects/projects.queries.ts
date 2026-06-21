@@ -399,19 +399,39 @@ type ApiProjectThreadMessage = {
 type ApiProjectTicket = {
   id: string;
   createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
-  isActive: boolean;
-  createdBy: string | null;
-  updatedBy: string | null;
-  projectId: string;
+  updatedAt?: string;
+  deletedAt?: string | null;
+  isActive?: boolean;
+  createdBy?: string | null;
+  updatedBy?: string | null;
+  projectId?: string;
   title: string;
-  description: string;
-  statusKey: string | null;
-  priorityKey: string | null;
-  reporterId: string | null;
-  assigneeId: string | null;
-  dueDate: string | null;
+  description?: string;
+  statusKey?: string | null;
+  priorityKey?: string | null;
+  reporterId?: string | null;
+  assigneeId?: string | null;
+  dueDate?: string | null;
+  project?: {
+    id?: string;
+    name?: string;
+  } | null;
+  status?: {
+    key?: string;
+    label?: string;
+    color?: string;
+  } | null;
+  priority?: {
+    key?: string;
+    label?: string;
+    color?: string;
+  } | null;
+  assignee?: {
+    id?: string;
+    email?: string;
+    fullName?: string;
+    name?: string;
+  } | null;
 };
 
 type ApiProjectFile = {
@@ -591,20 +611,33 @@ function mapApiProjectThreadMessageToReply(
 }
 
 function mapApiProjectTicketToRecentTicket(ticket: ApiProjectTicket): RecentTicket {
+  const projectName = getNonEmptyString(ticket.project?.name) ?? 'Project';
+  const statusLabel =
+    getNonEmptyString(ticket.status?.label) ??
+    mapTicketStatus(ticket.statusKey ?? null);
+  const priorityLabel =
+    getNonEmptyString(ticket.priority?.label) ??
+    mapTicketPriority(ticket.priorityKey ?? null);
+  const assigneeName =
+    getNonEmptyString(ticket.assignee?.fullName) ??
+    getNonEmptyString(ticket.assignee?.name) ??
+    (ticket.assigneeId ? `User ${ticket.assigneeId.slice(-4)}` : 'Unassigned');
+
   return {
     id: ticket.id,
     title: ticket.title,
     project: {
-      initials: 'PR',
-      name: 'Project',
+      id: ticket.project?.id ?? ticket.projectId,
+      initials: getInitials(projectName),
+      name: projectName,
     },
-    status: mapTicketStatus(ticket.statusKey),
-    priority: mapTicketPriority(ticket.priorityKey),
+    status: statusLabel,
+    statusColor: getNonEmptyString(ticket.status?.color),
+    priority: priorityLabel,
+    priorityColor: getNonEmptyString(ticket.priority?.color),
     assignee: {
-      name: ticket.assigneeId ? `User ${ticket.assigneeId.slice(-4)}` : 'Unassigned',
-      initials: ticket.assigneeId
-        ? ticket.assigneeId.slice(-2).toUpperCase()
-        : 'NA',
+      name: assigneeName,
+      initials: getInitials(assigneeName),
     },
     date: formatTicketDate(ticket.dueDate ?? ticket.createdAt),
   };
@@ -677,6 +710,23 @@ function mapTicketPriority(value: string | null): TicketPriority {
   }
 
   return 'Low';
+}
+
+function getInitials(value: string) {
+  const words = value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (!words.length) {
+    return 'NA';
+  }
+
+  return words
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join('')
+    .toUpperCase();
 }
 
 function formatTicketDate(value: string) {
