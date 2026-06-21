@@ -49,7 +49,7 @@ export default function TicketsTabs({ tabs }: TicketsTabsProps) {
         ))}
       </TabList>
 
-      <TabPanels className="px-4 pt-1 rounded-xl border mt-1.25 border-gray-200">
+      <TabPanels className="mt-1.25 max-h-[35rem] overflow-y-auto rounded-xl border border-gray-200 px-4 pt-1">
         {tabs.map((tab) => (
           <TabPanel key={tab.key} className="space-y-1 outline-none">
             {tab.tickets.length ? (

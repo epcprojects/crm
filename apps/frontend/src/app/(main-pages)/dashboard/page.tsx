@@ -112,12 +112,31 @@ export default function Page() {
       }),
     enabled: canViewRecentTickets,
   });
+  const upcomingTicketsQuery = useQuery({
+    queryKey: ['dashboard', 'upcoming'],
+    queryFn: fetchUpcomingTickets,
+    enabled: canViewUpcoming,
+  });
   const updateProjectMutation = useUpdateProjectMutation();
   const deleteProjectMutation = useDeleteProjectMutation();
 
   const projectOptions = useMemo(
     () => createTicketProjectOptions(projectsQuery.data ?? []),
     [projectsQuery.data],
+  );
+  const dashboardTicketTabs = useMemo<TicketTab[]>(
+    () =>
+      ticketTabs.map((tab) =>
+        tab.key === 'upcoming'
+          ? {
+              ...tab,
+              tickets: (upcomingTicketsQuery.data ?? []).map(
+                mapApiDashboardTicketToTicketListItem,
+              ),
+            }
+          : tab,
+      ),
+    [upcomingTicketsQuery.data],
   );
 
   const handleViewAllTickets = () => {
@@ -372,7 +391,7 @@ export default function Page() {
               canViewRecentTickets ? 'md:col-span-4' : 'md:col-span-14'
             }`}
           >
-            <TicketsTabs tabs={ticketTabs} />
+            <TicketsTabs tabs={dashboardTicketTabs} />
           </div>
         </PermissionGuard>
       </div>
@@ -512,7 +531,7 @@ type ApiDashboardTicket = {
   project: {
     id: string;
     name: string;
-  };
+  } | null;
   status: {
     key: string;
     label: string;
@@ -534,6 +553,31 @@ type ApiDashboardTicketsResponse = {
   items: ApiDashboardTicket[];
   meta: DashboardTicketsResponse['meta'];
 };
+
+async function fetchUpcomingTickets(): Promise<ApiDashboardTicket[]> {
+  const response = await fetch('/api/dashboard/upcoming', {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiDashboardTicket[]
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !Array.isArray(payload)) {
+    throw new Error(
+      !Array.isArray(payload)
+        ? payload?.message || 'Failed to fetch upcoming tickets.'
+        : 'Failed to fetch upcoming tickets.',
+    );
+  }
+
+  return payload;
+}
 
 async function fetchDashboardTickets({
   page,
@@ -589,6 +633,25 @@ function isApiDashboardTicketsResponse(
   );
 }
 
+function mapApiDashboardTicketToTicketListItem(
+  ticket: ApiDashboardTicket,
+): TicketTab['tickets'][number] {
+  const projectName = ticket.project?.name ?? 'No Project';
+  const priorityLabel = ticket.priority?.label ?? ticket.priority?.key ?? 'No Priority';
+
+  return {
+    id: ticket.id,
+    title: ticket.title,
+    date: formatTicketDate(ticket.createdAt),
+    owner: projectName,
+    ownerColor: 'border-purple-200 bg-purple-50 text-purple-700',
+    tag: priorityLabel,
+    tagClassName: getPriorityTagClassName(priorityLabel),
+    icon: getInitials(projectName),
+    iconClassName: 'border-purple-200 bg-purple-50 text-purple-700',
+  };
+}
+
 function mapApiDashboardTicketToRecentTicket(
   ticket: ApiDashboardTicket,
 ): RecentTicket {
@@ -601,9 +664,9 @@ function mapApiDashboardTicketToRecentTicket(
     id: ticket.id,
     title: ticket.title,
     project: {
-      id: ticket.project.id,
-      name: ticket.project.name,
-      initials: getInitials(ticket.project.name),
+      id: ticket.project?.id,
+      name: ticket.project?.name ?? 'No Project',
+      initials: getInitials(ticket.project?.name ?? 'No Project'),
     },
     status: statusLabel,
     statusColor: ticket.status?.color,
@@ -615,6 +678,28 @@ function mapApiDashboardTicketToRecentTicket(
     },
     date: formatTicketDate(ticket.createdAt),
   };
+}
+
+function getPriorityTagClassName(priority: string) {
+  const normalizedPriority = priority.trim().toLowerCase();
+
+  if (normalizedPriority === 'critical') {
+    return 'border-red-200 bg-red-50 text-red-600';
+  }
+
+  if (normalizedPriority === 'high') {
+    return 'border-orange-200 bg-orange-50 text-orange-600';
+  }
+
+  if (normalizedPriority === 'medium') {
+    return 'border-sky-200 bg-sky-50 text-sky-600';
+  }
+
+  if (normalizedPriority === 'low') {
+    return 'border-green-200 bg-green-50 text-green-600';
+  }
+
+  return 'border-gray-200 bg-gray-50 text-gray-600';
 }
 
 function getInitials(value: string) {

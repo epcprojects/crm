@@ -16,6 +16,15 @@ export type DiscussionReply = {
   };
   createdAt: string;
   message: string;
+  attachments?: DiscussionAttachment[];
+};
+
+export type DiscussionAttachment = {
+  id: string;
+  name: string;
+  sizeLabel?: string;
+  extension?: string;
+  storageKey?: string;
 };
 
 type DiscussionPanelProps = {
@@ -111,7 +120,7 @@ export default function DiscussionPanel({
 
       <div className="min-h-96 px-3 flex-1 py-5 md:px-5">
         {replies.length ? (
-          <div className="space-y-4">
+          <div className="space-y-5">
             {replies.map((reply) => {
               const isCurrentUserReply = Boolean(
                 currentUserId && reply.authorId === currentUserId,
@@ -125,31 +134,66 @@ export default function DiscussionPanel({
                   }`}
                 >
                   {!isCurrentUserReply ? (
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-100 text-sm font-bold text-purple-700">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-violet-200 bg-violet-100 text-xs font-bold text-purple-700">
                       {reply.author.initials}
                     </span>
                   ) : null}
                   <div
-                    className={`max-w-[min(80%,42rem)] ${
-                      isCurrentUserReply ? 'text-right' : ''
+                    className={`flex max-w-[min(82%,38rem)] flex-col ${
+                      isCurrentUserReply ? 'items-end' : 'items-start'
                     }`}
                   >
                     <div
-                      className={`flex flex-wrap items-center gap-2 ${
+                      className={`mb-1 flex flex-wrap items-center gap-2 ${
                         isCurrentUserReply ? 'justify-end' : ''
                       }`}
                     >
-                      <span className="text-sm font-semibold text-gray-900">
+                      <span className="text-sm font-bold text-gray-900">
                         {reply.author.name}
                       </span>
-                      <span className="text-xs text-gray-900">
+                      <span className="text-xs text-gray-700">
                         {reply.createdAt}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-900">{reply.message}</p>
+                    {reply.message || reply.attachments?.length ? (
+                      <div className="space-y-3 rounded-lg border border-gray-200 bg-white px-3.5 py-2 shadow-xs">
+                        {reply.message ? (
+                          <p className="text-sm leading-5 text-gray-900">
+                            {reply.message}
+                          </p>
+                        ) : null}
+                        {reply.attachments?.length ? (
+                          <div className="space-y-2">
+                            {reply.attachments.map((attachment) => (
+                              <a
+                                key={attachment.id}
+                                href={getAttachmentUrl(attachment.storageKey)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2 transition hover:bg-gray-50"
+                              >
+                                <AttachmentFileIcon
+                                  extension={attachment.extension}
+                                />
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-medium text-gray-700">
+                                    {attachment.name}
+                                  </p>
+                                  {attachment.sizeLabel ? (
+                                    <p className="text-xs text-gray-500">
+                                      {attachment.sizeLabel}
+                                    </p>
+                                  ) : null}
+                                </div>
+                              </a>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
                   {isCurrentUserReply ? (
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-100 text-sm font-bold text-purple-700">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-violet-200 bg-violet-100 text-xs font-bold text-purple-700">
                       {reply.author.initials}
                     </span>
                   ) : null}
@@ -195,7 +239,9 @@ export default function DiscussionPanel({
 
           {attachment ? (
             <div className="mt-2 flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2">
-              <p className="truncate text-sm text-gray-700">{attachment.name}</p>
+              <p className="truncate text-sm text-gray-700">
+                {attachment.name}
+              </p>
               <button
                 type="button"
                 onClick={() => {
@@ -247,6 +293,30 @@ export default function DiscussionPanel({
         </div>
       ) : null}
     </section>
+  );
+}
+
+function getAttachmentUrl(storageKey?: string) {
+  if (!storageKey) {
+    return '#';
+  }
+
+  const cloudfrontUrl = process.env.NEXT_PUBLIC_CLOUDFRONT_URL?.trim() ?? '';
+  const normalizedBaseUrl = cloudfrontUrl.replace(/\/+$/, '');
+  const normalizedStorageKey = storageKey.replace(/^\/+/, '');
+
+  return normalizedBaseUrl
+    ? `${normalizedBaseUrl}/${normalizedStorageKey}`
+    : '#';
+}
+
+function AttachmentFileIcon({ extension }: { extension?: string }) {
+  const label = (extension ?? 'file').replace(/^svg\+xml$/i, 'svg').slice(0, 4);
+
+  return (
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-50 text-[10px] font-bold uppercase text-[#10175A]">
+      {label}
+    </span>
   );
 }
 

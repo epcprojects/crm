@@ -464,7 +464,7 @@ export default function ProjectDetailPage() {
             <RecentTicketsTable
               tickets={projectTickets}
               enablePagination
-              pageSizeOptions={[12, 24, 48]}
+              pageSizeOptions={[10, 25, 50, 100]}
               pagination={ticketsPagination}
               onPaginationChange={setTicketsPagination}
               totalRows={projectTicketsQuery.data?.meta.total ?? 0}

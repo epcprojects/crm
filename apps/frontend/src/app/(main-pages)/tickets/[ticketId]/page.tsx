@@ -683,7 +683,19 @@ type ApiTicketReply = {
   updatedAt?: string;
   authorId?: string | null;
   createdBy?: string | null;
-  message?: string;
+  message?: string | null;
+  author?: ApiTicketPerson | null;
+  attachments?: ApiTicketReplyAttachment[];
+};
+
+type ApiTicketReplyAttachment = {
+  id?: string;
+  originalName?: string;
+  name?: string;
+  storageKey?: string | null;
+  sizeBytes?: string | number | null;
+  extension?: string | null;
+  mimeType?: string | null;
 };
 
 type ApiTicketAttachment = {
@@ -797,16 +809,33 @@ function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
 
 function mapApiTicketReplyToDiscussionReply(reply: ApiTicketReply) {
   const authorId = reply.authorId ?? reply.createdBy ?? '';
+  const authorName =
+    reply.author?.fullName ?? reply.author?.name ?? (authorId ? `User ${authorId.slice(-4)}` : 'User');
 
   return {
     id: reply.id,
     authorId,
     author: {
-      name: authorId ? `User ${authorId.slice(-4)}` : 'User',
-      initials: authorId ? authorId.slice(-2).toUpperCase() : 'US',
+      name: authorName,
+      initials: getInitials(authorName),
     },
     createdAt: formatReplyDate(reply.createdAt ?? reply.updatedAt ?? ''),
     message: reply.message?.trim() || '',
+    attachments: Array.isArray(reply.attachments)
+      ? reply.attachments.map(mapApiTicketReplyAttachment)
+      : [],
+  };
+}
+
+function mapApiTicketReplyAttachment(attachment: ApiTicketReplyAttachment) {
+  const name = attachment.originalName ?? attachment.name ?? 'Untitled file';
+
+  return {
+    id: attachment.id ?? `${name}-${attachment.storageKey ?? ''}`,
+    name,
+    sizeLabel: formatBytes(attachment.sizeBytes ?? 0),
+    extension: attachment.extension ?? attachment.mimeType ?? undefined,
+    storageKey: attachment.storageKey ?? undefined,
   };
 }
 

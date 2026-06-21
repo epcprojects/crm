@@ -393,12 +393,23 @@ type ApiProjectThreadMessage = {
   updatedBy: string | null;
   projectId?: string;
   authorId?: string;
-  message: string;
+  message: string | null;
   author?: {
     email?: string;
     fullName?: string;
     name?: string;
   } | null;
+  attachments?: ApiDiscussionAttachment[];
+};
+
+type ApiDiscussionAttachment = {
+  id?: string;
+  originalName?: string;
+  name?: string;
+  storageKey?: string | null;
+  sizeBytes?: string | number | null;
+  extension?: string | null;
+  mimeType?: string | null;
 };
 
 type ApiProjectTicket = {
@@ -629,7 +640,27 @@ function mapApiProjectThreadMessageToReply(
       initials: authorInitials,
     },
     createdAt: formatThreadDate(message.createdAt),
-    message: message.message,
+    message: message.message?.trim() ?? '',
+    attachments: Array.isArray(message.attachments)
+      ? message.attachments.map(mapApiDiscussionAttachment)
+      : [],
+  };
+}
+
+function mapApiDiscussionAttachment(attachment: ApiDiscussionAttachment) {
+  const name =
+    getNonEmptyString(attachment.originalName) ??
+    getNonEmptyString(attachment.name) ??
+    'Untitled file';
+
+  return {
+    id: getNonEmptyString(attachment.id) ?? `${name}-${attachment.storageKey}`,
+    name,
+    sizeLabel: formatFileSize(attachment.sizeBytes),
+    extension:
+      getNonEmptyString(attachment.extension) ??
+      getNonEmptyString(attachment.mimeType),
+    storageKey: getNonEmptyString(attachment.storageKey),
   };
 }
 

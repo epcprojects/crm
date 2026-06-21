@@ -19,7 +19,10 @@ import { appToast } from '../../../components/toast/AppToast';
 import Dropdown from '../../../components/ui/ThemeDropDown';
 import { SearchIcon } from '../../../../public/icons';
 import { createTicket } from '../../../lib/tickets';
-import { projectsQueryKey, useProjectsQuery } from '../projects/projects.queries';
+import {
+  projectsQueryKey,
+  useProjectsQuery,
+} from '../projects/projects.queries';
 import {
   PermissionGuard,
   usePermissions,
@@ -88,7 +91,9 @@ export default function Page() {
   const priorityFilterOptions = useMemo(
     () => [
       { label: 'All Priority', value: 'all' },
-      ...(ticketPrioritiesQuery.data ?? []).map(mapTicketSettingToDropdownOption),
+      ...(ticketPrioritiesQuery.data ?? []).map(
+        mapTicketSettingToDropdownOption,
+      ),
     ],
     [ticketPrioritiesQuery.data],
   );
@@ -110,11 +115,15 @@ export default function Page() {
         attachments: values.attachments,
       });
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['dashboard-project-tickets'] }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard-project-tickets'],
+        }),
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'recent-tickets'],
         }),
-        queryClient.invalidateQueries({ queryKey: ['dashboard', 'ticket-summary'] }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'ticket-summary'],
+        }),
         queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
       ]);
       appToast.success('Ticket created successfully.');
@@ -198,7 +207,7 @@ export default function Page() {
           tickets={ticketsQuery.data?.items ?? []}
           enablePagination
           initialPageSize={12}
-          pageSizeOptions={[12, 24, 48]}
+          pageSizeOptions={[10, 25, 50, 100]}
           pagination={pagination}
           onPaginationChange={setPagination}
           totalRows={ticketsQuery.data?.meta.total ?? 0}
@@ -421,8 +430,7 @@ function mapApiDashboardTicketToRecentTicket(
   const assigneeName =
     ticket.assignee?.fullName ?? ticket.assignee?.name ?? 'Unassigned';
   const statusLabel = ticket.status?.label ?? ticket.status?.key ?? 'Unknown';
-  const priorityLabel =
-    ticket.priority?.label ?? ticket.priority?.key ?? null;
+  const priorityLabel = ticket.priority?.label ?? ticket.priority?.key ?? null;
 
   return {
     id: ticket.id,
@@ -445,10 +453,7 @@ function mapApiDashboardTicketToRecentTicket(
 }
 
 function getInitials(value: string) {
-  const words = value
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
+  const words = value.trim().split(/\s+/).filter(Boolean);
 
   if (!words.length) {
     return 'NA';
