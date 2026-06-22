@@ -9,7 +9,7 @@ import {
   type PaginationState,
   type ColumnDef,
 } from '@tanstack/react-table';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import ThemeButton from '../ui/ThemeButton';
 import { ArrowUpRightIcon } from '../../../public/icons';
 
@@ -35,6 +35,22 @@ export type RecentTicket = {
   date: string;
 };
 
+export type TicketSortBy =
+  | 'id'
+  | 'title'
+  | 'project'
+  | 'status'
+  | 'priority'
+  | 'assignee'
+  | 'createdAt';
+
+export type TicketSortOrder = 'asc' | 'desc';
+
+export type TicketSortState = {
+  sortBy: TicketSortBy;
+  sortOrder: TicketSortOrder;
+};
+
 const statusStyles: Record<string, string> = {
   Open: 'border-red-200 bg-red-50 text-red-500',
   'In Progress': 'border-warning-200 bg-warning-50 text-warning-500',
@@ -51,6 +67,7 @@ const priorityStyles: Record<string, string> = {
 
 const baseColumns: ColumnDef<RecentTicket>[] = [
   {
+    id: 'id',
     accessorKey: 'id',
     header: 'Reference No',
     cell: ({ row }) => (
@@ -60,6 +77,7 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     ),
   },
   {
+    id: 'title',
     accessorKey: 'title',
     header: 'Title',
     cell: ({ row }) => (
@@ -69,6 +87,7 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     ),
   },
   {
+    id: 'project',
     accessorKey: 'project.name',
     header: 'Project',
     cell: ({ row }) => (
@@ -81,11 +100,13 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     ),
   },
   {
+    id: 'status',
     accessorKey: 'status',
     header: 'Status',
     cell: ({ row }) => renderStatusBadge(row.original),
   },
   {
+    id: 'priority',
     accessorKey: 'priority',
     header: 'Priority',
     cell: ({ row }) => (
@@ -107,6 +128,7 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     ),
   },
   {
+    id: 'assignee',
     accessorKey: 'assignee.name',
     header: 'Assignee',
     cell: ({ row }) => (
@@ -119,6 +141,7 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     ),
   },
   {
+    id: 'createdAt',
     accessorKey: 'date',
     header: 'Date',
     cell: ({ row }) => (
@@ -141,6 +164,8 @@ type RecentTicketsTableProps = {
   totalRows?: number;
   manualPagination?: boolean;
   onPaginationChange?: (pagination: PaginationState) => void;
+  sortState?: TicketSortState;
+  onSortChange?: (sortState: TicketSortState) => void;
 };
 
 export default function RecentTicketsTable({
@@ -155,6 +180,8 @@ export default function RecentTicketsTable({
   totalRows: controlledTotalRows,
   manualPagination = false,
   onPaginationChange,
+  sortState,
+  onSortChange,
 }: RecentTicketsTableProps) {
   const columns = hideProjectColumn
     ? baseColumns.filter((_, index) => index !== 2)
@@ -247,12 +274,17 @@ export default function RecentTicketsTable({
                     key={header.id}
                     className="border-b border-gray-200 px-4 py-3 text-sm font-semibold text-gray-900"
                   >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
+                    {header.isPlaceholder ? null : (
+                      <SortHeaderButton
+                        label={flexRender(
                           header.column.columnDef.header,
                           header.getContext(),
                         )}
+                        sortBy={getColumnSortBy(header.column.id)}
+                        sortState={sortState}
+                        onSortChange={onSortChange}
+                      />
+                    )}
                   </th>
                 ))}
               </tr>
@@ -495,6 +527,54 @@ function withAlpha(color: string, alpha: number) {
   }
 
   return normalizedColor;
+}
+
+function SortHeaderButton({
+  label,
+  sortBy,
+  sortState,
+  onSortChange,
+}: {
+  label: ReactNode;
+  sortBy?: TicketSortBy;
+  sortState?: TicketSortState;
+  onSortChange?: (sortState: TicketSortState) => void;
+}) {
+  if (!sortBy || !onSortChange) {
+    return <>{label}</>;
+  }
+
+  const isActive = sortState?.sortBy === sortBy;
+  const nextSortOrder: TicketSortOrder =
+    isActive && sortState?.sortOrder === 'asc' ? 'desc' : 'asc';
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSortChange({ sortBy, sortOrder: nextSortOrder })}
+      className="inline-flex items-center gap-1.5 text-left transition hover:text-primary-dark"
+      aria-label={`Sort by ${String(label)}`}
+    >
+      <span>{label}</span>
+      <span className={isActive ? 'text-primary-dark' : 'text-gray-400'}>
+        {isActive ? (sortState?.sortOrder === 'asc' ? '↑' : '↓') : '↕'}
+      </span>
+    </button>
+  );
+}
+
+function getColumnSortBy(columnId: string): TicketSortBy | undefined {
+  const sortByMap: Record<string, TicketSortBy> = {
+    id: 'id',
+    title: 'title',
+    project: 'project',
+    status: 'status',
+    priority: 'priority',
+    assignee: 'assignee',
+    createdAt: 'createdAt',
+  };
+
+  return sortByMap[columnId];
 }
 
 function getVisiblePageNumbers(currentPage: number, totalPages: number) {

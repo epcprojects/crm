@@ -13,6 +13,7 @@ import {
   createTicketProjectOptions,
 } from '../../../components/modals/create-ticket-modal.data';
 import RecentTicketsTable, {
+  type TicketSortState,
   type RecentTicket,
 } from '../../../components/tables/RecentTicketsTable';
 import { appToast } from '../../../components/toast/AppToast';
@@ -41,6 +42,10 @@ export default function Page() {
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 10,
+  });
+  const [sortState, setSortState] = useState<TicketSortState>({
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
   });
   const projectsQuery = useProjectsQuery();
   const { hasPermission } = usePermissions();
@@ -97,6 +102,11 @@ export default function Page() {
     ],
     [ticketPrioritiesQuery.data],
   );
+  const sortedTickets = useMemo(
+    () =>
+      sortTicketsLocally(ticketsQuery.data?.items ?? [], sortState),
+    [sortState, ticketsQuery.data?.items],
+  );
 
   const handleCreateTicket = async (values: CreateTicketFormValues) => {
     if (!canCreateTicket) {
@@ -117,21 +127,28 @@ export default function Page() {
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ['dashboard-project-tickets'],
+          refetchType: 'all',
         }),
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'recent-tickets'],
+          refetchType: 'all',
         }),
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'upcoming'],
+          refetchType: 'all',
         }),
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'critical-tickets'],
+          refetchType: 'all',
         }),
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'ticket-summary'],
           refetchType: 'all',
         }),
-        queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
+        queryClient.invalidateQueries({
+          queryKey: projectsQueryKey,
+          refetchType: 'all',
+        }),
       ]);
       appToast.success('Ticket created successfully.');
     } catch (error) {
@@ -162,6 +179,14 @@ export default function Page() {
       pageIndex: 0,
     }));
   }, [searchValue, selectedPriority, selectedStatus]);
+
+  const handleSortChange = (nextSortState: TicketSortState) => {
+    setSortState(nextSortState);
+    setPagination((current) => ({
+      ...current,
+      pageIndex: 0,
+    }));
+  };
 
   return (
     <div className="space-y-4">
@@ -211,15 +236,17 @@ export default function Page() {
         </div>
 
         <RecentTicketsTable
-          tickets={ticketsQuery.data?.items ?? []}
+            tickets={sortedTickets}
           enablePagination
           initialPageSize={10}
           pageSizeOptions={[10, 25, 50, 100]}
           pagination={pagination}
           onPaginationChange={setPagination}
-          totalRows={ticketsQuery.data?.meta.total ?? 0}
-          manualPagination
-          onRowClick={
+            totalRows={ticketsQuery.data?.meta.total ?? 0}
+            manualPagination
+            sortState={sortState}
+            onSortChange={handleSortChange}
+            onRowClick={
             canViewTicketDetail
               ? (ticket) =>
                   router.push(
@@ -457,6 +484,49 @@ function mapApiDashboardTicketToRecentTicket(
     },
     date: formatTicketDate(ticket.createdAt),
   };
+}
+
+function sortTicketsLocally(
+  tickets: RecentTicket[],
+  sortState: TicketSortState,
+) {
+  const direction = sortState.sortOrder === 'asc' ? 1 : -1;
+
+  return [...tickets].sort((firstTicket, secondTicket) => {
+    const firstValue = getTicketSortValue(firstTicket, sortState.sortBy);
+    const secondValue = getTicketSortValue(secondTicket, sortState.sortBy);
+
+    return (
+      firstValue.localeCompare(secondValue, undefined, {
+        numeric: true,
+        sensitivity: 'base',
+      }) * direction
+    );
+  });
+}
+
+function getTicketSortValue(
+  ticket: RecentTicket,
+  sortBy: TicketSortState['sortBy'],
+) {
+  switch (sortBy) {
+    case 'id':
+      return ticket.id;
+    case 'title':
+      return ticket.title;
+    case 'project':
+      return ticket.project.name;
+    case 'status':
+      return ticket.status;
+    case 'priority':
+      return ticket.priority ?? 'No Priority';
+    case 'assignee':
+      return ticket.assignee.name;
+    case 'createdAt':
+      return ticket.date;
+    default:
+      return '';
+  }
 }
 
 function getInitials(value: string) {

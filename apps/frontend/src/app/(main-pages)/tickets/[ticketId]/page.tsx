@@ -7,11 +7,13 @@ import DiscussionPanel from '../../../../components/discussion/DiscussionPanel';
 import Dropdown from '../../../../components/ui/ThemeDropDown';
 import { appToast } from '../../../../components/toast/AppToast';
 import { getTicketById, type TicketPerson } from '../tickets.data';
+import { projectsQueryKey } from '../../projects/projects.queries';
 import {
   PermissionGuard,
   usePermissions,
 } from '../../../providers/PermissionProvider';
 import { useAppSelector } from '../../../Redux/store';
+import { FileTypePlaceholder } from '../../../../../public/icons';
 
 export default function TicketDetailPage() {
   const params = useParams<{ ticketId: string }>();
@@ -172,6 +174,10 @@ export default function TicketDetailPage() {
         }),
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'ticket-summary'],
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: projectsQueryKey,
           refetchType: 'all',
         }),
       ]);
@@ -498,7 +504,7 @@ export default function TicketDetailPage() {
                     href={getAttachmentUrl(attachment.storageKey)}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center gap-3 rounded-xl border border-gray-200 p-3"
+                    className="flex items-center gap-3 rounded-xl border border-gray-200 p-2.5 transition hover:bg-gray-50"
                   >
                     <FileBadgeIcon extension={attachment.extension} />
                     <div>
@@ -1035,9 +1041,35 @@ function BackArrowIcon() {
 }
 
 function FileBadgeIcon({ extension }: { extension?: string }) {
+  const label = normalizeAttachmentExtension(extension);
+  const badgeClassName = getAttachmentBadgeClassName(label);
+
   return (
-    <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-violet-50 text-[10px] font-bold text-violet-600">
-      {(extension ?? 'file').slice(0, 3).toUpperCase()}
+    <span className="relative shrink-0">
+      <span
+        className={`rounded-xs absolute top-4.5 px-0.75 pt-1 pb-0.75 text-[10px] font-bold uppercase leading-none! text-white ${badgeClassName}`}
+      >
+        {label}
+      </span>
+      <FileTypePlaceholder />
     </span>
   );
+}
+
+function normalizeAttachmentExtension(extension?: string) {
+  return (extension ?? 'file')
+    .replace(/^\./, '')
+    .slice(0, 4)
+    .toUpperCase();
+}
+
+function getAttachmentBadgeClassName(extension: string) {
+  if (extension === 'PDF') return 'bg-red-500';
+  if (extension === 'DOC' || extension === 'DOCX') return 'bg-blue-600';
+  if (extension === 'XLS' || extension === 'XLSX') return 'bg-green-600';
+  if (['PNG', 'JPG', 'JPEG', 'SVG'].includes(extension))
+    return 'bg-violet-500';
+  if (extension === 'ZIP') return 'bg-gray-600';
+
+  return 'bg-[#10175A]';
 }

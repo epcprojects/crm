@@ -12,8 +12,12 @@ import UploadFileModal, {
   type UploadFileFormValues,
 } from '../../../../components/modals/UploadFileModal';
 import ConfirmActionModal from '../../../../components/modals/ConfirmActionModal';
-import DiscussionPanel from '../../../../components/discussion/DiscussionPanel';
-import ProjectFilesPanel from '../../../../components/projects/ProjectFilesPanel';
+import DiscussionPanel, {
+  type DiscussionAttachment,
+} from '../../../../components/discussion/DiscussionPanel';
+import ProjectFilesPanel, {
+  type ProjectFileRecord,
+} from '../../../../components/projects/ProjectFilesPanel';
 import {
   createTicketPriorityOptions,
   createTicketProjectOptions,
@@ -24,7 +28,6 @@ import { SearchIcon, PlusIcon } from '../../../../../public/icons';
 import ThemeButton from '../../../../components/ui/ThemeButton';
 import { useAppLoader } from '../../../providers/AppLoaderProvider';
 import { createTicket } from '../../../../lib/tickets';
-import type { ProjectFileRecord } from '../projects.data';
 import {
   projectsQueryKey,
   projectTicketsQueryKey,
@@ -227,21 +230,30 @@ export default function ProjectDetailPage() {
         queryKey: [...projectTicketsQueryKey, projectId],
       });
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['dashboard-project-tickets'] }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard-project-tickets'],
+          refetchType: 'all',
+        }),
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'recent-tickets'],
+          refetchType: 'all',
         }),
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'upcoming'],
+          refetchType: 'all',
         }),
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'critical-tickets'],
+          refetchType: 'all',
         }),
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'ticket-summary'],
           refetchType: 'all',
         }),
-        queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
+        queryClient.invalidateQueries({
+          queryKey: projectsQueryKey,
+          refetchType: 'all',
+        }),
       ]);
       appToast.success('Ticket created successfully.');
     } catch (error) {
@@ -289,6 +301,30 @@ export default function ProjectDetailPage() {
     } catch (error) {
       appToast.error(
         error instanceof Error ? error.message : 'Failed to delete file.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteThreadAttachment = async (
+    attachment: DiscussionAttachment,
+  ) => {
+    try {
+      setLoading(true);
+      await deleteProjectFileMutation.mutateAsync({
+        projectId,
+        fileId: attachment.id,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: [...projectThreadQueryKey, projectId],
+      });
+      appToast.success('Attachment deleted successfully.');
+    } catch (error) {
+      appToast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to delete attachment.',
       );
     } finally {
       setLoading(false);
@@ -513,6 +549,12 @@ export default function ProjectDetailPage() {
               canAttachFile={canAttachThreadFile}
               requireMessage={false}
               currentUserId={currentUserId}
+              onDeleteAttachment={handleDeleteThreadAttachment}
+              deletingAttachmentId={
+                deleteProjectFileMutation.isPending
+                  ? deleteProjectFileMutation.variables?.fileId
+                  : undefined
+              }
             />
             </TabPanel>
           </PermissionGuard>

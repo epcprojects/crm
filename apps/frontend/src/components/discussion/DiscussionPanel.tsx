@@ -44,6 +44,8 @@ type DiscussionPanelProps = {
   canAttachFile?: boolean;
   requireMessage?: boolean;
   currentUserId?: string;
+  onDeleteAttachment?: (attachment: DiscussionAttachment) => void;
+  deletingAttachmentId?: string;
 };
 
 export default function DiscussionPanel({
@@ -59,6 +61,8 @@ export default function DiscussionPanel({
   canAttachFile = true,
   requireMessage = true,
   currentUserId = '',
+  onDeleteAttachment,
+  deletingAttachmentId,
 }: DiscussionPanelProps) {
   const [message, setMessage] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -174,17 +178,22 @@ export default function DiscussionPanel({
                             className={`grid gap-2 ${reply.attachments.length > 1 && 'md:grid-cols-2'} ${!reply.message && reply.attachments && reply.attachments.length > 1 && 'p-2 border border-gray-200 rounded-xl'} ${isCurrentUserReply ? 'rounded-tr-none' : 'rounded-tl-none'}`}
                           >
                             {reply.attachments.map((attachment) => (
-                              <a
+                              <div
                                 key={attachment.id}
-                                href={getAttachmentUrl(attachment.storageKey)}
-                                target="_blank"
-                                rel="noreferrer"
                                 className="flex min-w-0 w-full items-start gap-3 rounded-xl border border-gray-200 bg-white p-2.5 transition hover:bg-gray-50"
                               >
-                                <AttachmentFileIcon
-                                  extension={attachment.extension}
-                                />
-                                <div className="min-w-0 flex-1">
+                                <a
+                                  href={getAttachmentUrl(
+                                    attachment.storageKey,
+                                  )}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="flex min-w-0 flex-1 items-start gap-3"
+                                >
+                                  <AttachmentFileIcon
+                                    extension={attachment.extension}
+                                  />
+                                  <div className="min-w-0 flex-1">
                                   <p className="truncate text-sm font-medium text-gray-700">
                                     {attachment.name}
                                   </p>
@@ -193,14 +202,24 @@ export default function DiscussionPanel({
                                       {attachment.sizeLabel}
                                     </p>
                                   ) : null}
-                                </div>
-                                <span
-                                  className="shrink-0 text-gray-400"
-                                  aria-hidden="true"
-                                >
-                                  <AttachmentTrashIcon />
-                                </span>
-                              </a>
+                                  </div>
+                                </a>
+                                {onDeleteAttachment ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      onDeleteAttachment(attachment)
+                                    }
+                                    disabled={
+                                      deletingAttachmentId === attachment.id
+                                    }
+                                    className="shrink-0 text-gray-400 transition hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                                    aria-label={`Delete ${attachment.name}`}
+                                  >
+                                    <AttachmentTrashIcon />
+                                  </button>
+                                ) : null}
+                              </div>
                             ))}
                           </div>
                         ) : null}

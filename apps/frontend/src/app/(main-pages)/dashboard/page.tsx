@@ -183,21 +183,28 @@ export default function Page() {
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'recent-tickets'],
+          refetchType: 'all',
         }),
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'upcoming'],
+          refetchType: 'all',
         }),
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'critical-tickets'],
+          refetchType: 'all',
         }),
         queryClient.invalidateQueries({
           queryKey: ['dashboard-project-tickets'],
+          refetchType: 'all',
         }),
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'ticket-summary'],
           refetchType: 'all',
         }),
-        queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
+        queryClient.invalidateQueries({
+          queryKey: projectsQueryKey,
+          refetchType: 'all',
+        }),
       ]);
       appToast.success('Ticket created successfully.');
     } catch (error) {

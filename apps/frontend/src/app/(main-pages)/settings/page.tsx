@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import SettingsItemModal, {
   type SettingsItemFormValues,
 } from '../../../components/modals/SettingsItemModal';
+import ConfirmActionModal from '../../../components/modals/ConfirmActionModal';
 import SettingsConfigCard, {
   type SettingsConfigItem,
 } from '../../../components/settings/SettingsConfigCard';
@@ -74,13 +75,17 @@ export default function Page() {
       const payload = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(payload?.message || 'Failed to create ticket priority.');
+        throw new Error(
+          payload?.message || 'Failed to create ticket priority.',
+        );
       }
 
       return payload;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['settings', 'ticket-priorities'] });
+      await queryClient.invalidateQueries({
+        queryKey: ['settings', 'ticket-priorities'],
+      });
       await queryClient.invalidateQueries({ queryKey: ['ticket-priorities'] });
     },
   });
@@ -104,13 +109,17 @@ export default function Page() {
       const payload = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(payload?.message || 'Failed to update ticket priority.');
+        throw new Error(
+          payload?.message || 'Failed to update ticket priority.',
+        );
       }
 
       return payload;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['settings', 'ticket-priorities'] });
+      await queryClient.invalidateQueries({
+        queryKey: ['settings', 'ticket-priorities'],
+      });
       await queryClient.invalidateQueries({ queryKey: ['ticket-priorities'] });
     },
   });
@@ -126,11 +135,15 @@ export default function Page() {
       const payload = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(payload?.message || 'Failed to delete ticket priority.');
+        throw new Error(
+          payload?.message || 'Failed to delete ticket priority.',
+        );
       }
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['settings', 'ticket-priorities'] });
+      await queryClient.invalidateQueries({
+        queryKey: ['settings', 'ticket-priorities'],
+      });
       await queryClient.invalidateQueries({ queryKey: ['ticket-priorities'] });
     },
   });
@@ -158,7 +171,9 @@ export default function Page() {
       return payload;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['settings', 'ticket-statuses'] });
+      await queryClient.invalidateQueries({
+        queryKey: ['settings', 'ticket-statuses'],
+      });
       await queryClient.invalidateQueries({ queryKey: ['ticket-statuses'] });
     },
   });
@@ -178,7 +193,9 @@ export default function Page() {
       }
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['settings', 'ticket-statuses'] });
+      await queryClient.invalidateQueries({
+        queryKey: ['settings', 'ticket-statuses'],
+      });
       await queryClient.invalidateQueries({ queryKey: ['ticket-statuses'] });
     },
   });
@@ -208,7 +225,9 @@ export default function Page() {
       return payload;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['settings', 'ticket-statuses'] });
+      await queryClient.invalidateQueries({
+        queryKey: ['settings', 'ticket-statuses'],
+      });
       await queryClient.invalidateQueries({ queryKey: ['ticket-statuses'] });
     },
   });
@@ -222,6 +241,10 @@ export default function Page() {
   const [editingPriorityId, setEditingPriorityId] = useState<string | null>(
     null,
   );
+  const [statusToDelete, setStatusToDelete] =
+    useState<SettingsConfigItem | null>(null);
+  const [priorityToDelete, setPriorityToDelete] =
+    useState<SettingsConfigItem | null>(null);
   const ticketStatusDetailQuery = useQuery({
     queryKey: ['ticket-statuses', editingStatusId],
     queryFn: () => fetchTicketStatusDetail(editingStatusId!),
@@ -302,6 +325,22 @@ export default function Page() {
     }
   };
 
+  const handleDeleteStatus = async () => {
+    if (!statusToDelete || !canDeleteStatus) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await deleteTicketStatusMutation.mutateAsync(statusToDelete.id);
+      await ticketStatusesQuery.refetch();
+      setStatusToDelete(null);
+      appToast.success('Status deleted successfully.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCreatePriority = async (values: SettingsItemFormValues) => {
     if (!canCreatePriority) {
       return;
@@ -346,100 +385,26 @@ export default function Page() {
     }
   };
 
+  const handleDeletePriority = async () => {
+    if (!priorityToDelete || !canDeletePriority) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await deleteTicketPriorityMutation.mutateAsync(priorityToDelete.id);
+      await ticketPrioritiesQuery.refetch();
+      setPriorityToDelete(null);
+      appToast.success('Priority deleted successfully.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const isMobile = useIsMobile();
 
   return (
     <div className="space-y-6">
-      {canViewSettings ? (
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <PermissionGuard permission="settings.view_statuses">
-        <SettingsConfigCard
-          title="Ticket Statuses"
-          subtitle={`${statusItems.length} statuses · used across all projects`}
-          buttonLabel="Add Status"
-          items={statusItems}
-          badgeVariant="status"
-          isLoading={ticketStatusesQuery.isLoading}
-          onAdd={
-            canCreateStatus
-              ? () => {
-                  setStatusModalMode('create');
-                  setEditingStatusId('new-status');
-                }
-              : undefined
-          }
-          onEdit={
-            canEditStatus
-              ? (item) => {
-                  setStatusModalMode('edit');
-                  setEditingStatusId(item.id);
-                }
-              : undefined
-          }
-          onDelete={
-            canDeleteStatus
-              ? async (item) => {
-                  setLoading(true);
-                  try {
-                  await deleteTicketStatusMutation.mutateAsync(item.id);
-                  await ticketStatusesQuery.refetch();
-                  appToast.success('Status deleted successfully.');
-                  } finally {
-                    setLoading(false);
-                  }
-                }
-              : undefined
-          }
-        />
-          </PermissionGuard>
-
-          <PermissionGuard permission="settings.view_priorities">
-        <SettingsConfigCard
-          title="Priority Levels"
-          subtitle={`${priorityItems.length} levels · used across all projects`}
-          buttonLabel="Add Priority"
-          items={priorityItems}
-          badgeVariant="priority"
-          isLoading={ticketPrioritiesQuery.isLoading}
-          onAdd={
-            canCreatePriority
-              ? () => {
-                  setPriorityModalMode('create');
-                  setEditingPriorityId('new-priority');
-                }
-              : undefined
-          }
-          onEdit={
-            canEditPriority
-              ? (item) => {
-                  setPriorityModalMode('edit');
-                  setEditingPriorityId(item.id);
-                }
-              : undefined
-          }
-          onDelete={
-            canDeletePriority
-              ? async (item) => {
-                  setLoading(true);
-                  try {
-                  await deleteTicketPriorityMutation.mutateAsync(item.id);
-                  await ticketPrioritiesQuery.refetch();
-                  appToast.success('Priority deleted successfully.');
-                  } finally {
-                    setLoading(false);
-                  }
-                }
-              : undefined
-          }
-        />
-          </PermissionGuard>
-        </div>
-      ) : (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
-          You do not have permission to view settings.
-        </div>
-      )}
-
       <div className="flex items-start gap-3 rounded-xl border border-warning-200 bg-[#FFFAEB] px-4 py-3 text-[#69410A]">
         <span className="mt-1 hidden sm:inline-block">
           <TipIcon />
@@ -458,6 +423,77 @@ export default function Page() {
           first.
         </p>
       </div>
+      {canViewSettings ? (
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <PermissionGuard permission="settings.view_statuses">
+            <SettingsConfigCard
+              title="Ticket Statuses"
+              subtitle={`${statusItems.length} statuses · used across all projects`}
+              buttonLabel="Add Status"
+              items={statusItems}
+              badgeVariant="status"
+              isLoading={ticketStatusesQuery.isLoading}
+              onAdd={
+                canCreateStatus
+                  ? () => {
+                      setStatusModalMode('create');
+                      setEditingStatusId('new-status');
+                    }
+                  : undefined
+              }
+              onEdit={
+                canEditStatus
+                  ? (item) => {
+                      setStatusModalMode('edit');
+                      setEditingStatusId(item.id);
+                    }
+                  : undefined
+              }
+              onDelete={
+                canDeleteStatus
+                  ? (item) => setStatusToDelete(item)
+                  : undefined
+              }
+            />
+          </PermissionGuard>
+
+          <PermissionGuard permission="settings.view_priorities">
+            <SettingsConfigCard
+              title="Priority Levels"
+              subtitle={`${priorityItems.length} levels · used across all projects`}
+              buttonLabel="Add Priority"
+              items={priorityItems}
+              badgeVariant="priority"
+              isLoading={ticketPrioritiesQuery.isLoading}
+              onAdd={
+                canCreatePriority
+                  ? () => {
+                      setPriorityModalMode('create');
+                      setEditingPriorityId('new-priority');
+                    }
+                  : undefined
+              }
+              onEdit={
+                canEditPriority
+                  ? (item) => {
+                      setPriorityModalMode('edit');
+                      setEditingPriorityId(item.id);
+                    }
+                  : undefined
+              }
+              onDelete={
+                canDeletePriority
+                  ? (item) => setPriorityToDelete(item)
+                  : undefined
+              }
+            />
+          </PermissionGuard>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
+          You do not have permission to view settings.
+        </div>
+      )}
 
       <SettingsItemModal
         isOpen={
@@ -498,13 +534,15 @@ export default function Page() {
         initialValues={
           priorityModalMode === 'edit'
             ? ticketPriorityDetailQuery.data
-              ? mapTicketPriorityDetailToFormValues(ticketPriorityDetailQuery.data)
+              ? mapTicketPriorityDetailToFormValues(
+                  ticketPriorityDetailQuery.data,
+                )
               : editingPriority
-            ? {
-                label: editingPriority.label,
-                value: editingPriority.value,
-                colorHex: editingPriority.colorHex ?? '#875BF7',
-              }
+                ? {
+                    label: editingPriority.label,
+                    value: editingPriority.value,
+                    colorHex: editingPriority.colorHex ?? '#875BF7',
+                  }
                 : undefined
             : undefined
         }
@@ -513,6 +551,44 @@ export default function Page() {
             ? handleEditPriority
             : handleCreatePriority
         }
+      />
+
+      <ConfirmActionModal
+        isOpen={Boolean(statusToDelete) && canDeleteStatus}
+        title="Delete Status"
+        message={
+          <>
+            Are you sure you want to delete{' '}
+            <span className="font-semibold">
+              {statusToDelete?.label ?? 'this status'}
+            </span>
+            ? This action cannot be undone.
+          </>
+        }
+        confirmLabel="Delete"
+        variant="danger"
+        isSubmitting={deleteTicketStatusMutation.isPending}
+        onClose={() => setStatusToDelete(null)}
+        onConfirm={handleDeleteStatus}
+      />
+
+      <ConfirmActionModal
+        isOpen={Boolean(priorityToDelete) && canDeletePriority}
+        title="Delete Priority"
+        message={
+          <>
+            Are you sure you want to delete{' '}
+            <span className="font-semibold">
+              {priorityToDelete?.label ?? 'this priority'}
+            </span>
+            ? This action cannot be undone.
+          </>
+        }
+        confirmLabel="Delete"
+        variant="danger"
+        isSubmitting={deleteTicketPriorityMutation.isPending}
+        onClose={() => setPriorityToDelete(null)}
+        onConfirm={handleDeletePriority}
       />
     </div>
   );
@@ -624,7 +700,9 @@ async function fetchTicketPriorityDetail(priorityId: string) {
   return payload;
 }
 
-function mapTicketStatusToSettingsItem(status: ApiTicketStatus): SettingsConfigItem {
+function mapTicketStatusToSettingsItem(
+  status: ApiTicketStatus,
+): SettingsConfigItem {
   return {
     id: status.id,
     label: status.label,

@@ -4,6 +4,7 @@ import ThemeButton from '../ui/ThemeButton';
 import {
   DownloadIcon,
   EyeOpenedIcon,
+  FileTypePlaceholder,
   PlusIcon,
   SearchIcon,
   TrashIcon,
@@ -11,7 +12,7 @@ import {
 export type ProjectFileRecord = {
   id: string;
   name: string;
-  type: 'pdf' | 'docx' | 'file';
+  type: string;
   size?: string;
   uploadedBy?: string;
   uploadedAt?: string;
@@ -110,7 +111,7 @@ export default function ProjectFilesPanel({
               className="flex items-center justify-between border-b border-gray-200 px-4 py-4 last:border-b-0"
             >
               <div className="flex items-center gap-4">
-                <FileTypeIcon type={file.type} />
+                <FileTypeIcon type={file.extension ?? file.type} />
                 <div className="">
                   <p
                     onClick={() => handleViewFile(file.storageKey)}
@@ -252,36 +253,57 @@ function getFileUrl(storageKey?: string) {
 
 function FileTypeIcon({ type }: { type: ProjectFileRecord['type'] }) {
   const label = type.toUpperCase();
-  const badgeClassName =
-    type === 'pdf'
-      ? 'bg-[#F04438]'
-      : type === 'docx'
-        ? 'bg-[#3165F6]'
-        : 'bg-gray-500';
+  const badgeClassName = getAttachmentBadgeClassName(label);
+  // const badgeClassName =
+  //   type === 'pdf'
+  //     ? 'bg-[#F04438]'
+  //     : type === 'docx'
+  //       ? 'bg-[#3165F6]'
+  //       : 'bg-gray-500';
 
   return (
-    <div className="relative h-11 w-8 shrink-0">
-      <svg
-        width="32"
-        height="44"
-        viewBox="0 0 32 44"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="absolute inset-0"
-      >
-        <path
-          d="M6 1.5H18.9645L26 8.53553V40C26 41.3807 24.8807 42.5 23.5 42.5H6C4.61929 42.5 3.5 41.3807 3.5 40V4C3.5 2.61929 4.61929 1.5 6 1.5Z"
-          fill="white"
-          stroke="#D0D5DD"
-        />
-        <path d="M19 1.5V7C19 8.10457 19.8954 9 21 9H26.5" fill="#F8FAFC" />
-        <path d="M19 1.5V7C19 8.10457 19.8954 9 21 9H26.5" stroke="#D0D5DD" />
-      </svg>
+    // <div className="relative h-11 w-8 shrink-0">
+    //   <svg
+    //     width="32"
+    //     height="44"
+    //     viewBox="0 0 32 44"
+    //     fill="none"
+    //     xmlns="http://www.w3.org/2000/svg"
+    //     className="absolute inset-0"
+    //   >
+    //     <path
+    //       d="M6 1.5H18.9645L26 8.53553V40C26 41.3807 24.8807 42.5 23.5 42.5H6C4.61929 42.5 3.5 41.3807 3.5 40V4C3.5 2.61929 4.61929 1.5 6 1.5Z"
+    //       fill="white"
+    //       stroke="#D0D5DD"
+    //     />
+    //     <path d="M19 1.5V7C19 8.10457 19.8954 9 21 9H26.5" fill="#F8FAFC" />
+    //     <path d="M19 1.5V7C19 8.10457 19.8954 9 21 9H26.5" stroke="#D0D5DD" />
+    //   </svg>
+    //   <span
+    //     className={`absolute -bottom-0.5 left-1/2 -translate-x-1/2 rounded-[4px] px-1.5 py-0.5 text-[10px] font-bold leading-none text-white ${badgeClassName}`}
+    //   >
+    //     {label}
+    //   </span>
+    // </div>
+    <span className="relative">
       <span
-        className={`absolute -bottom-0.5 left-1/2 -translate-x-1/2 rounded-[4px] px-1.5 py-0.5 text-[10px] font-bold leading-none text-white ${badgeClassName}`}
+        className={`rounded-xs absolute top-4.5 px-0.75 pt-1 pb-0.75 text-[10px] font-bold uppercase leading-none! text-white ${badgeClassName}`}
       >
         {label}
       </span>
-    </div>
+      <FileTypePlaceholder />
+    </span>
   );
+}
+
+function getAttachmentBadgeClassName(extension: string) {
+  if (extension.toLowerCase() === 'pdf') return 'bg-red-500';
+  if (extension.toLowerCase() === 'doc' || extension.toLowerCase() === 'docx')
+    return 'bg-blue-600';
+  if (extension.toLowerCase() === 'xls' || extension.toLowerCase() === 'xlxs')
+    return 'bg-green-600';
+  if (['png', 'jpg', 'jpeg', 'svg'].includes(extension.toLowerCase()))
+    return 'bg-violet-500';
+  if (extension.toLowerCase() === 'zip') return 'bg-gray-600';
+  return 'bg-[#10175A]';
 }
