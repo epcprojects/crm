@@ -368,6 +368,67 @@ function EditIcon() {
   );
 }
 
+export function RolesTableSkeleton() {
+  const headers = ['Role Name', 'Description', 'Permissions', 'Actions'];
+
+  return (
+    <div
+      className="overflow-hidden rounded-xl border border-gray-200 bg-white"
+      aria-hidden="true"
+    >
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-215 text-left">
+          <thead className="bg-gray-50">
+            <tr>
+              {headers.map((header) => (
+                <th
+                  key={header}
+                  className="border-b border-gray-200 px-4 py-3 text-sm font-semibold text-gray-900"
+                >
+                  {header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: 6 }).map((_, rowIndex) => (
+              <tr
+                key={rowIndex}
+                className="border-b border-gray-200 last:border-0"
+              >
+                <td className="px-4 py-3">
+                  <div className="h-4 w-32 animate-pulse rounded bg-gray-100" />
+                </td>
+                <td className="px-4 py-3">
+                  <div className="h-4 w-64 animate-pulse rounded bg-gray-100" />
+                </td>
+                <td className="px-4 py-3">
+                  <div className="h-4 w-10 animate-pulse rounded bg-gray-100" />
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex w-fit items-center gap-3">
+                    <div className="h-8.5 w-8.5 animate-pulse rounded-lg bg-gray-100" />
+                    <div className="h-8.5 w-8.5 animate-pulse rounded-lg bg-gray-100" />
+                    <div className="h-8.5 w-8.5 animate-pulse rounded-lg bg-gray-100" />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex justify-between gap-3 border-t border-gray-200 px-4 py-3 sm:flex-col md:flex-row md:items-center md:justify-between">
+        <div className="h-7 w-36 animate-pulse rounded bg-gray-100" />
+        <div className="flex items-center gap-2">
+          <div className="h-7 w-20 animate-pulse rounded bg-gray-100" />
+          <div className="h-8 w-32 animate-pulse rounded bg-gray-100" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function getVisiblePageNumbers(currentPage: number, totalPages: number) {
   if (totalPages <= 7) {
     return Array.from({ length: totalPages }, (_, index) => index + 1);

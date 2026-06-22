@@ -150,6 +150,53 @@ export default function UserCard({
   );
 }
 
+export function UserCardsSkeleton({ count = 6 }: { count?: number }) {
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" aria-hidden="true">
+      {Array.from({ length: count }).map((_, index) => (
+        <article
+          key={index}
+          className="rounded-2xl sm:border border-gray-100 bg-white p-4 drop-shadow-sm"
+          style={{
+            boxShadow:
+              'inset 4px 0 0 #EAECF0, 0px 8px 24px rgba(16,24,40,0.08)',
+          }}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="flex items-start gap-3 md:gap-4">
+              <div className="h-10.5 w-10.5 shrink-0 animate-pulse rounded-full bg-gray-100" />
+              <div className="flex flex-col gap-2">
+                <div className="h-4 w-32 animate-pulse rounded bg-gray-100" />
+                <div className="h-3 w-44 animate-pulse rounded bg-gray-100" />
+                <div className="h-3 w-24 animate-pulse rounded bg-gray-100" />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <div className="h-7 w-20 animate-pulse rounded-full bg-gray-100" />
+              <div className="h-7 w-24 animate-pulse rounded-full bg-gray-100" />
+            </div>
+          </div>
+
+          <div className="my-3 h-px bg-gray-200 md:my-4" />
+
+          <div className="flex flex-col gap-2">
+            <div className="h-4 w-32 animate-pulse rounded bg-gray-100" />
+            <div className="flex gap-2">
+              <div className="h-7 w-24 animate-pulse rounded-full bg-gray-100" />
+              <div className="h-7 w-28 animate-pulse rounded-full bg-gray-100" />
+            </div>
+          </div>
+
+          <div className="mt-5 flex items-center gap-3">
+            <div className="h-11 flex-1 animate-pulse rounded-lg bg-gray-100" />
+            <div className="h-11 w-11 animate-pulse rounded-lg bg-gray-100" />
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
 function Avatar({ user }: { user: UserCardUser }) {
   if (user.avatarUrl) {
     return (

@@ -9,6 +9,7 @@ import AddUserModal, {
 import DeleteUserModal from '../../../components/modals/DeleteUserModal';
 import { appToast } from '../../../components/toast/AppToast';
 import UserCard, {
+  UserCardsSkeleton,
   type UserCardUser,
 } from '../../../components/users/UserCard';
 import type { ProjectRecord } from '../projects/projects.data';
@@ -219,9 +220,7 @@ export default function Page() {
         }
       >
         {membersQuery.isLoading ? (
-          <div className="flex min-h-80 items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 py-10 text-center text-sm text-gray-500">
-            Loading users...
-          </div>
+          <UserCardsSkeleton />
         ) : userList.length ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {userList.map((user) => (

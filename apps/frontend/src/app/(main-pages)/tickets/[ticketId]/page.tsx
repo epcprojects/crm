@@ -182,6 +182,7 @@ export default function TicketDetailPage() {
   const [selectedPriority, setSelectedPriority] = useState('');
   const [selectedAssignee, setSelectedAssignee] = useState('');
   const [selectedDueDate, setSelectedDueDate] = useState('');
+  const minimumDueDate = getTomorrowInputValue();
 
   const statusOptions = useMemo(
     () =>
@@ -288,14 +289,16 @@ export default function TicketDetailPage() {
 
     setSelectedStatus(value);
 
-    await updateTicketMutation.mutateAsync({
+    await updateTicketMutation.mutateAsync(
+      buildUpdateTicketPayload({
       title: ticket.title,
       description: ticket.description,
       statusKey: value,
-      priorityKey: selectedPriority || null,
+        priorityKey: selectedPriority,
       assigneeId: selectedAssigneeId,
       dueDate: selectedDueDate,
-    });
+      }),
+    );
   };
 
   const handlePriorityChange = async (value: string) => {
@@ -305,14 +308,16 @@ export default function TicketDetailPage() {
 
     setSelectedPriority(value);
 
-    await updateTicketMutation.mutateAsync({
+    await updateTicketMutation.mutateAsync(
+      buildUpdateTicketPayload({
       title: ticket.title,
       description: ticket.description,
       statusKey: selectedStatus,
-      priorityKey: value || null,
+        priorityKey: value,
       assigneeId: selectedAssigneeId,
       dueDate: selectedDueDate,
-    });
+      }),
+    );
   };
 
   const handleAssigneeChange = async (value: string) => {
@@ -325,14 +330,16 @@ export default function TicketDetailPage() {
     );
     setSelectedAssignee(selectedOption?.label ?? '');
 
-    await updateTicketMutation.mutateAsync({
+    await updateTicketMutation.mutateAsync(
+      buildUpdateTicketPayload({
       title: ticket.title,
       description: ticket.description,
       statusKey: selectedStatus,
-      priorityKey: selectedPriority || null,
+        priorityKey: selectedPriority,
       assigneeId: value,
       dueDate: selectedDueDate,
-    });
+      }),
+    );
   };
 
   const handleDueDateChange = async (value: string) => {
@@ -340,16 +347,22 @@ export default function TicketDetailPage() {
       return;
     }
 
+    if (value && value < minimumDueDate) {
+      return;
+    }
+
     setSelectedDueDate(value);
 
-    await updateTicketMutation.mutateAsync({
+    await updateTicketMutation.mutateAsync(
+      buildUpdateTicketPayload({
       title: ticket.title,
       description: ticket.description,
       statusKey: selectedStatus,
-      priorityKey: selectedPriority || null,
+        priorityKey: selectedPriority,
       assigneeId: selectedAssigneeId,
       dueDate: value,
-    });
+      }),
+    );
   };
 
   const handleSubmitReply = async ({
@@ -512,6 +525,7 @@ export default function TicketDetailPage() {
                   <input
                     type="date"
                     value={selectedDueDate}
+                    min={minimumDueDate}
                     disabled={updateTicketMutation.isPending || !canEditDueDate}
                     onChange={(event) => handleDueDateChange(event.target.value)}
                     className="w-full bg-transparent text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:text-gray-400"
@@ -748,14 +762,37 @@ type ApiTicketDetail = {
   attachments: ApiTicketAttachment[];
 };
 
-type UpdateTicketRequest = {
+type UpdateTicketRequest = Partial<{
   title: string;
   description: string;
   statusKey: string;
-  priorityKey: string | null;
+  priorityKey: string;
   assigneeId: string;
   dueDate: string;
+}>;
+
+type UpdateTicketPayloadInput = {
+  title?: string | null;
+  description?: string | null;
+  statusKey?: string | null;
+  priorityKey?: string | null;
+  assigneeId?: string | null;
+  dueDate?: string | null;
 };
+
+function buildUpdateTicketPayload(
+  input: UpdateTicketPayloadInput,
+): UpdateTicketRequest {
+  return Object.fromEntries(
+    Object.entries(input).filter(([, value]) => {
+      if (typeof value !== 'string') {
+        return false;
+      }
+
+      return value.trim().length > 0;
+    }),
+  );
+}
 
 function isApiTicketDetail(value: unknown): value is ApiTicketDetail {
   return Boolean(
@@ -887,6 +924,13 @@ function toDateInputValue(value: string) {
   if (Number.isNaN(date.getTime())) {
     return value;
   }
+
+  return date.toISOString().slice(0, 10);
+}
+
+function getTomorrowInputValue() {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
 
   return date.toISOString().slice(0, 10);
 }

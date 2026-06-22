@@ -14,6 +14,7 @@ import AddRoleModal, {
 import DeleteRoleModal from '../../../components/modals/DeleteRoleModal';
 import RoleClaimsModal from '../../../components/modals/RoleClaimsModal';
 import RolesTable, {
+  RolesTableSkeleton,
   type RoleClaimRecord,
   type RoleRecord,
 } from '../../../components/tables/RolesTable';
@@ -239,9 +240,7 @@ export default function RolesPage() {
         </div>
 
         {rolesQuery.isLoading ? (
-          <div className="flex min-h-80 items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 py-10 text-center text-sm text-gray-500">
-            Loading roles...
-          </div>
+          <RolesTableSkeleton />
         ) : (rolesQuery.data?.length ?? 0) ? (
           <RolesTable
             roles={filteredRoles}
