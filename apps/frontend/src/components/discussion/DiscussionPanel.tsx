@@ -171,7 +171,7 @@ export default function DiscussionPanel({
                         ) : null}
                         {reply.attachments?.length ? (
                           <div
-                            className={`grid gap-2 ${reply.attachments.length > 1 && 'md:grid-cols-2'} ${!reply.message && reply.attachments && reply.attachments.length > 1 && 'p-2 border border-gray-200 rounded-xl'} `}
+                            className={`grid gap-2 ${reply.attachments.length > 1 && 'md:grid-cols-2'} ${!reply.message && reply.attachments && reply.attachments.length > 1 && 'p-2 border border-gray-200 rounded-xl'} ${isCurrentUserReply ? 'rounded-tr-none' : 'rounded-tl-none'}`}
                           >
                             {reply.attachments.map((attachment) => (
                               <a
