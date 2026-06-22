@@ -196,7 +196,7 @@ export default function Page() {
 
     try {
       setLoading(true);
-      await inviteUserMutation.mutateAsync(mapUserToFormValues(user));
+      await inviteUserMutation.mutateAsync(mapUserToFormValues(user, roleOptions));
       await queryClient.invalidateQueries({ queryKey: ['project-members'] });
       appToast.success('Invitation resent successfully.');
     } finally {
@@ -275,7 +275,7 @@ export default function Page() {
         onConfirm={handleEditUser}
         mode="edit"
         initialValues={
-          editingUser ? mapUserToFormValues(editingUser) : undefined
+          editingUser ? mapUserToFormValues(editingUser, roleOptions) : undefined
         }
         projects={projects}
         roleOptions={roleOptions}
@@ -447,6 +447,7 @@ function mapApiMemberRoles(
     return [
       {
         label: roleName,
+        id: userRole.role?.id,
         value: getRoleKey(userRole.role),
         tone: getRoleTone(roleName),
       },
@@ -498,7 +499,10 @@ function getProjectInitials(name: string) {
     .toUpperCase();
 }
 
-function mapUserToFormValues(user: UserCardUser): AddUserFormValues {
+function mapUserToFormValues(
+  user: UserCardUser,
+  roleOptions: Array<{ id?: string; label: string; value: string }> = [],
+): AddUserFormValues {
   const hasExternalRole = user.roles.some((role) => role.label === 'External');
   const role = user.roles.find(
     (role) => role.label !== 'Internal' && role.label !== 'External',
@@ -508,9 +512,30 @@ function mapUserToFormValues(user: UserCardUser): AddUserFormValues {
     fullName: user.name,
     email: user.email,
     userType: hasExternalRole ? 'external' : 'internal',
-    role: role?.value ?? '',
+    role: resolveUserRoleValue(role, roleOptions),
     projectAccess: user.projects.map((project) => project.id),
   };
+}
+
+function resolveUserRoleValue(
+  role: UserCardUser['roles'][number] | undefined,
+  roleOptions: Array<{ id?: string; label: string; value: string }>,
+) {
+  if (!role) {
+    return '';
+  }
+
+  const normalizedRoleLabel = normalizeRoleName(role.label);
+  const normalizedRoleValue = normalizeRoleName(role.value);
+  const matchedOption = roleOptions.find(
+    (option) =>
+      option.value === role.value ||
+      option.id === role.id ||
+      normalizeRoleName(option.label) === normalizedRoleLabel ||
+      normalizeRoleName(option.value) === normalizedRoleValue,
+  );
+
+  return matchedOption?.value ?? role.value ?? '';
 }
 
 function UsersEmptyIcon() {

@@ -18,6 +18,7 @@ export type UserCardProject = {
 export type UserCardRole = {
   label: string;
   tone: 'blue' | 'orange' | 'purple' | 'teal';
+  id?: string;
   value?: string;
 };
 
