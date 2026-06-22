@@ -40,7 +40,7 @@ export default function Page() {
   const [selectedPriority, setSelectedPriority] = useState('all');
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
-    pageSize: 12,
+    pageSize: 10,
   });
   const projectsQuery = useProjectsQuery();
   const { hasPermission } = usePermissions();
@@ -212,7 +212,7 @@ export default function Page() {
         <RecentTicketsTable
           tickets={ticketsQuery.data?.items ?? []}
           enablePagination
-          initialPageSize={12}
+          initialPageSize={10}
           pageSizeOptions={[10, 25, 50, 100]}
           pagination={pagination}
           onPaginationChange={setPagination}
