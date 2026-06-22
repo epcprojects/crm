@@ -8,6 +8,7 @@ export type TicketTabKey = 'upcoming' | 'critical';
 
 export type TicketListItem = {
   id: string;
+  projectId?: string;
   title: string;
   date: string;
   owner: string;
@@ -26,9 +27,10 @@ export type TicketTab = {
 
 type TicketsTabsProps = {
   tabs: TicketTab[];
+  onTicketClick?: (ticket: TicketListItem) => void;
 };
 
-export default function TicketsTabs({ tabs }: TicketsTabsProps) {
+export default function TicketsTabs({ tabs, onTicketClick }: TicketsTabsProps) {
   return (
     <TabGroup className="rounded-xl w-[calc(100dvw-32px)] sm:w-full bg-white space-y-2">
       <TabList className="flex border-b  border-gray-200">
@@ -56,8 +58,25 @@ export default function TicketsTabs({ tabs }: TicketsTabsProps) {
               tab.tickets.map((ticket, index) => (
                 <article
                   key={ticket.id}
+                  role={onTicketClick ? 'button' : undefined}
+                  tabIndex={onTicketClick ? 0 : undefined}
+                  onClick={
+                    onTicketClick ? () => onTicketClick(ticket) : undefined
+                  }
+                  onKeyDown={
+                    onTicketClick
+                      ? (event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            onTicketClick(ticket);
+                          }
+                        }
+                      : undefined
+                  }
                   className={clsx(
-                    'flex items-start gap-3 py-3',
+                    'flex items-start gap-3 py-3 outline-none transition',
+                    onTicketClick &&
+                      'cursor-pointer rounded-lg px-2 hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-primary/30',
                     index !== tab.tickets.length - 1 &&
                       'border-b border-gray-100',
                   )}

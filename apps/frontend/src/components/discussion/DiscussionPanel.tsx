@@ -139,7 +139,7 @@ export default function DiscussionPanel({
                     </span>
                   ) : null}
                   <div
-                    className={`flex max-w-[min(82%,38rem)] flex-col ${
+                    className={`flex max-w-200 flex-col ${
                       isCurrentUserReply ? 'items-end' : 'items-start'
                     }`}
                   >
@@ -156,35 +156,43 @@ export default function DiscussionPanel({
                       </span>
                     </div>
                     {reply.message || reply.attachments?.length ? (
-                      <div className="space-y-3 rounded-lg border border-gray-200 bg-white px-3.5 py-2 shadow-xs">
+                      <div className="w-full space-y-4 rounded-xl rounded-tr-none border border-gray-200 bg-white p-3 shadow-xs">
                         {reply.message ? (
-                          <p className="text-sm leading-5 text-gray-900">
+                          <p className="text-sm font-normal text-gray-900">
                             {reply.message}
                           </p>
                         ) : null}
                         {reply.attachments?.length ? (
-                          <div className="space-y-2">
+                          <div
+                            className={`grid gap-2 ${reply.attachments.length > 1 && 'md:grid-cols-2'}`}
+                          >
                             {reply.attachments.map((attachment) => (
                               <a
                                 key={attachment.id}
                                 href={getAttachmentUrl(attachment.storageKey)}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2 transition hover:bg-gray-50"
+                                className="flex min-w-0 w-full items-start gap-3 rounded-xl border border-gray-200 bg-white p-2.5 transition hover:bg-gray-50"
                               >
                                 <AttachmentFileIcon
                                   extension={attachment.extension}
                                 />
-                                <div className="min-w-0">
+                                <div className="min-w-0 flex-1">
                                   <p className="truncate text-sm font-medium text-gray-700">
                                     {attachment.name}
                                   </p>
                                   {attachment.sizeLabel ? (
-                                    <p className="text-xs text-gray-500">
+                                    <p className="text-sm text-gray-500">
                                       {attachment.sizeLabel}
                                     </p>
                                   ) : null}
                                 </div>
+                                <span
+                                  className="shrink-0 text-gray-400"
+                                  aria-hidden="true"
+                                >
+                                  <AttachmentTrashIcon />
+                                </span>
                               </a>
                             ))}
                           </div>
@@ -311,12 +319,62 @@ function getAttachmentUrl(storageKey?: string) {
 }
 
 function AttachmentFileIcon({ extension }: { extension?: string }) {
-  const label = (extension ?? 'file').replace(/^svg\+xml$/i, 'svg').slice(0, 4);
+  const label = normalizeAttachmentExtension(extension);
+  const badgeClassName = getAttachmentBadgeClassName(label);
 
   return (
-    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-50 text-[10px] font-bold uppercase text-[#10175A]">
-      {label}
+    <span className="relative flex h-10 w-9 shrink-0 items-end justify-center rounded border border-gray-200 bg-white pb-1 shadow-xs">
+      <span className="absolute right-0 top-0 h-3 w-3 rounded-bl border-b border-l border-gray-200 bg-gray-50" />
+      <span
+        className={`rounded px-1 py-0.5 text-[9px] font-bold uppercase leading-none text-white ${badgeClassName}`}
+      >
+        {label}
+      </span>
     </span>
+  );
+}
+
+function normalizeAttachmentExtension(extension?: string) {
+  const normalizedExtension = (extension ?? 'file')
+    .replace(/^svg\+xml$/i, 'svg')
+    .replace(/^application\//i, '')
+    .replace(/^image\//i, '')
+    .trim()
+    .toUpperCase();
+
+  if (normalizedExtension === 'JPEG') {
+    return 'JPG';
+  }
+
+  return normalizedExtension.slice(0, 4) || 'FILE';
+}
+
+function getAttachmentBadgeClassName(extension: string) {
+  if (extension === 'PDF') return 'bg-red-500';
+  if (extension === 'DOC' || extension === 'DOCX') return 'bg-blue-600';
+  if (extension === 'XLS' || extension === 'XLSX') return 'bg-emerald-600';
+  if (['PNG', 'JPG', 'JPEG', 'SVG'].includes(extension)) return 'bg-violet-500';
+  if (extension === 'ZIP') return 'bg-gray-600';
+  return 'bg-[#10175A]';
+}
+
+function AttachmentTrashIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M10.6667 3.99992V3.46659C10.6667 2.71985 10.6667 2.34648 10.5213 2.06126C10.3935 1.81038 10.1895 1.60641 9.93865 1.47858C9.65344 1.33325 9.28007 1.33325 8.53333 1.33325H7.46667C6.71993 1.33325 6.34656 1.33325 6.06135 1.47858C5.81046 1.60641 5.60649 1.81038 5.47866 2.06126C5.33333 2.34648 5.33333 2.71985 5.33333 3.46659V3.99992M6.66667 7.66658V10.9999M9.33333 7.66658V10.9999M2 3.99992H14M12.6667 3.99992V11.4666C12.6667 12.5867 12.6667 13.1467 12.4487 13.5746C12.2569 13.9509 11.951 14.2569 11.5746 14.4486C11.1468 14.6666 10.5868 14.6666 9.46667 14.6666H6.53333C5.41323 14.6666 4.85318 14.6666 4.42535 14.4486C4.04903 14.2569 3.74307 13.9509 3.55132 13.5746C3.33333 13.1467 3.33333 12.5867 3.33333 11.4666V3.99992"
+        stroke="#A4A7AE"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 

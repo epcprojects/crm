@@ -408,7 +408,21 @@ export default function Page() {
               canViewRecentTickets ? 'md:col-span-4' : 'md:col-span-14'
             }`}
           >
-            <TicketsTabs tabs={dashboardTicketTabs} />
+            <TicketsTabs
+              tabs={dashboardTicketTabs}
+              onTicketClick={
+                canViewTicketDetail
+                  ? (ticket) =>
+                      router.push(
+                        `/tickets/${ticket.id}${
+                          ticket.projectId
+                            ? `?projectId=${ticket.projectId}`
+                            : ''
+                        }`,
+                      )
+                  : undefined
+              }
+            />
           </div>
         </PermissionGuard>
       </div>
@@ -664,6 +678,7 @@ function mapApiDashboardTicketToTicketListItem(
 
   return {
     id: ticket.id,
+    projectId: ticket.project?.id,
     title: ticket.title,
     date: formatTicketDate(ticket.createdAt),
     owner: projectName,
@@ -682,6 +697,7 @@ function mapRecentTicketToTicketListItem(
 
   return {
     id: ticket.id,
+    projectId: ticket.project.id,
     title: ticket.title,
     date: ticket.date,
     owner: ticket.project.name,
