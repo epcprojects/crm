@@ -108,6 +108,14 @@ export default function TicketDetailPage() {
           refetchType: 'all',
         }),
         queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'upcoming'],
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'critical-tickets'],
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
           queryKey: ['dashboard', 'ticket-summary'],
         }),
       ]);

@@ -17,6 +17,7 @@ type SettingsConfigCardProps = {
   buttonLabel: string;
   items: SettingsConfigItem[];
   badgeVariant?: 'status' | 'priority';
+  isLoading?: boolean;
   onAdd?: () => void;
   onEdit?: (item: SettingsConfigItem) => void;
   onDelete?: (item: SettingsConfigItem) => void;
@@ -28,6 +29,7 @@ export default function SettingsConfigCard({
   buttonLabel,
   items,
   badgeVariant = 'status',
+  isLoading = false,
   onAdd,
   onEdit,
   onDelete,
@@ -50,7 +52,9 @@ export default function SettingsConfigCard({
       </div>
 
       <div className="mt-3 space-y-0">
-        {items.length ? (
+        {isLoading ? (
+          <SettingsConfigSkeleton />
+        ) : items.length ? (
           items.map((item) => (
             <div
               key={item.id}
@@ -108,6 +112,28 @@ export default function SettingsConfigCard({
         )}
       </div>
     </section>
+  );
+}
+
+function SettingsConfigSkeleton() {
+  return (
+    <div className="space-y-0" aria-hidden="true">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div
+          key={index}
+          className="flex items-center justify-between gap-3 border-b border-gray-200 py-3 last:border-b-0 last:pb-0"
+        >
+          <div className="grid min-w-0 flex-1 grid-cols-3 items-center gap-3">
+            <div className="h-8 w-28 animate-pulse rounded-full bg-gray-100" />
+            <div className="ml-auto h-4 w-20 animate-pulse rounded bg-gray-100" />
+            <div className="flex items-center justify-end gap-3">
+              <div className="md:h-10 md:w-10 h-8.5 w-8.5 animate-pulse rounded-lg bg-gray-100" />
+              <div className="md:h-10 md:w-10 h-8.5 w-8.5 animate-pulse rounded-lg bg-gray-100" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 

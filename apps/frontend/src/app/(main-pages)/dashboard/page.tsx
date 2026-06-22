@@ -108,7 +108,7 @@ export default function Page() {
     queryFn: () =>
       fetchDashboardTickets({
         page: 1,
-        limit: 5,
+        limit: 7,
       }),
     enabled: canViewRecentTickets,
   });
@@ -151,7 +151,7 @@ export default function Page() {
                   mapRecentTicketToTicketListItem,
                 ),
               }
-          : tab,
+            : tab,
       ),
     [criticalTicketsQuery.data?.items, upcomingTicketsQuery.data],
   );
@@ -183,6 +183,12 @@ export default function Page() {
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'recent-tickets'],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'upcoming'],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'critical-tickets'],
         }),
         queryClient.invalidateQueries({
           queryKey: ['dashboard-project-tickets'],
@@ -674,7 +680,8 @@ function mapApiDashboardTicketToTicketListItem(
   ticket: ApiDashboardTicket,
 ): TicketTab['tickets'][number] {
   const projectName = ticket.project?.name ?? 'No Project';
-  const priorityLabel = ticket.priority?.label ?? ticket.priority?.key ?? 'No Priority';
+  const priorityLabel =
+    ticket.priority?.label ?? ticket.priority?.key ?? 'No Priority';
 
   return {
     id: ticket.id,

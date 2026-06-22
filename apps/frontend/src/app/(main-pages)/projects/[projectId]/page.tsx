@@ -231,6 +231,12 @@ export default function ProjectDetailPage() {
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'recent-tickets'],
         }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'upcoming'],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'critical-tickets'],
+        }),
         queryClient.invalidateQueries({ queryKey: ['dashboard', 'ticket-summary'] }),
         queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
       ]);

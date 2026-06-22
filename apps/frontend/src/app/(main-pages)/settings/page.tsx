@@ -359,6 +359,7 @@ export default function Page() {
           buttonLabel="Add Status"
           items={statusItems}
           badgeVariant="status"
+          isLoading={ticketStatusesQuery.isLoading}
           onAdd={
             canCreateStatus
               ? () => {
@@ -399,6 +400,7 @@ export default function Page() {
           buttonLabel="Add Priority"
           items={priorityItems}
           badgeVariant="priority"
+          isLoading={ticketPrioritiesQuery.isLoading}
           onAdd={
             canCreatePriority
               ? () => {
