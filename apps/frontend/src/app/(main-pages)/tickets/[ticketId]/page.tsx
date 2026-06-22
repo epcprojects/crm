@@ -122,17 +122,19 @@ export default function TicketDetailPage() {
   const createReplyMutation = useMutation({
     mutationFn: async ({
       message,
-      attachment,
+      attachments,
     }: {
       message: string;
-      attachment: File | null;
+      attachments: File[];
     }) => {
       const formData = new FormData();
-      formData.append('message', message);
-
-      if (attachment) {
-        formData.append('attachments', attachment);
+      if (message.trim()) {
+        formData.append('message', message.trim());
       }
+
+      attachments.forEach((attachment) => {
+        formData.append('attachments', attachment);
+      });
 
       const response = await fetch(
         `/api/tickets/${ticketId}/replies?projectId=${encodeURIComponent(projectId)}`,
@@ -344,10 +346,10 @@ export default function TicketDetailPage() {
 
   const handleSubmitReply = async ({
     message,
-    attachment,
+    attachments,
   }: {
     message: string;
-    attachment: File | null;
+    attachments: File[];
   }) => {
     if (!canPostReplies) {
       return;
@@ -355,7 +357,7 @@ export default function TicketDetailPage() {
 
     await createReplyMutation.mutateAsync({
       message,
-      attachment,
+      attachments,
     });
   };
 

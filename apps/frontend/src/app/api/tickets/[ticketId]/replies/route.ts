@@ -94,12 +94,15 @@ export async function POST(
 
     const formData = await request.formData().catch(() => null);
     const messageValue = formData?.get('message');
-    const attachment = formData?.get('attachments');
+    const attachments = formData?.getAll('attachments') ?? [];
     const message =
       typeof messageValue === 'string' ? messageValue.trim() : undefined;
-    const hasAttachment = attachment instanceof File && attachment.size > 0;
+    const validAttachments = attachments.filter(
+      (attachment): attachment is File =>
+        attachment instanceof File && attachment.size > 0,
+    );
 
-    if (!message && !hasAttachment) {
+    if (!message && !validAttachments.length) {
       return NextResponse.json(
         { message: 'Message or attachment is required.' },
         { status: 400 },
@@ -112,9 +115,9 @@ export async function POST(
       upstreamFormData.append('message', message);
     }
 
-    if (hasAttachment) {
+    validAttachments.forEach((attachment) => {
       upstreamFormData.append('attachments', attachment, attachment.name);
-    }
+    });
 
     const response = await fetch(
       `${apiBaseUrl}/tickets/${ticketId}/projects/${projectId}`,

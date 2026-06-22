@@ -6,6 +6,7 @@ import {
   ALLOWED_ATTACHMENT_HELPER_TEXT,
   validateAttachments,
 } from '../../lib/attachments';
+import { FileTypePlaceholder } from '../../../public/icons';
 
 export type DiscussionReply = {
   id: string;
@@ -36,7 +37,7 @@ type DiscussionPanelProps = {
   composerPlaceholder?: string;
   onSubmitReply?: (payload: {
     message: string;
-    attachment: File | null;
+    attachments: File[];
   }) => Promise<void> | void;
   isSubmittingReply?: boolean;
   canCompose?: boolean;
@@ -60,7 +61,7 @@ export default function DiscussionPanel({
   currentUserId = '',
 }: DiscussionPanelProps) {
   const [message, setMessage] = useState('');
-  const [attachment, setAttachment] = useState<File | null>(null);
+  const [attachments, setAttachments] = useState<File[]>([]);
   const [attachmentError, setAttachmentError] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -68,7 +69,9 @@ export default function DiscussionPanel({
     const trimmedMessage = message.trim();
 
     if (
-      (requireMessage ? !trimmedMessage : !trimmedMessage && !attachment) ||
+      (requireMessage
+        ? !trimmedMessage
+        : !trimmedMessage && !attachments.length) ||
       isSubmittingReply ||
       !onSubmitReply
     ) {
@@ -77,27 +80,29 @@ export default function DiscussionPanel({
 
     await onSubmitReply({
       message: trimmedMessage,
-      attachment,
+      attachments,
     });
     setMessage('');
-    setAttachment(null);
+    setAttachments([]);
     setAttachmentError('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  const handleAttachmentChange = (file: File | null) => {
-    if (!file) {
-      setAttachment(null);
+  const handleAttachmentChange = (files: FileList | File[] | null) => {
+    const selectedFiles = files ? Array.from(files) : [];
+
+    if (!selectedFiles.length) {
+      setAttachments([]);
       setAttachmentError('');
       return;
     }
 
-    const validationError = validateAttachments([file]);
+    const validationError = validateAttachments(selectedFiles);
 
     if (validationError) {
-      setAttachment(null);
+      setAttachments([]);
       setAttachmentError(validationError);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -105,7 +110,7 @@ export default function DiscussionPanel({
       return;
     }
 
-    setAttachment(file);
+    setAttachments(selectedFiles);
     setAttachmentError('');
   };
 
@@ -139,7 +144,7 @@ export default function DiscussionPanel({
                     </span>
                   ) : null}
                   <div
-                    className={`flex max-w-200 flex-col ${
+                    className={`flex max-w-200 min-w-120 flex-col ${
                       isCurrentUserReply ? 'items-end' : 'items-start'
                     }`}
                   >
@@ -156,7 +161,9 @@ export default function DiscussionPanel({
                       </span>
                     </div>
                     {reply.message || reply.attachments?.length ? (
-                      <div className="w-full space-y-4 rounded-xl rounded-tr-none border border-gray-200 bg-white p-3 shadow-xs">
+                      <div
+                        className={`w-full rounded-xl ${isCurrentUserReply ? 'rounded-tr-none' : 'rounded-tl-none'} ${reply.message && 'space-y-2 border border-gray-200 p-3 shadow-xs'}  bg-white  `}
+                      >
                         {reply.message ? (
                           <p className="text-sm font-normal text-gray-900">
                             {reply.message}
@@ -164,7 +171,7 @@ export default function DiscussionPanel({
                         ) : null}
                         {reply.attachments?.length ? (
                           <div
-                            className={`grid gap-2 ${reply.attachments.length > 1 && 'md:grid-cols-2'}`}
+                            className={`grid gap-2 ${reply.attachments.length > 1 && 'md:grid-cols-2'} ${!reply.message && reply.attachments && reply.attachments.length > 1 && 'p-2 border border-gray-200 rounded-xl'} `}
                           >
                             {reply.attachments.map((attachment) => (
                               <a
@@ -240,29 +247,40 @@ export default function DiscussionPanel({
             type="file"
             className="hidden"
             accept={ALLOWED_ATTACHMENT_ACCEPT}
+            multiple
             onChange={(event) =>
-              handleAttachmentChange(event.target.files?.[0] ?? null)
+              handleAttachmentChange(event.target.files ?? null)
             }
           />
 
-          {attachment ? (
-            <div className="mt-2 flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2">
-              <p className="truncate text-sm text-gray-700">
-                {attachment.name}
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  handleAttachmentChange(null);
-                  if (fileInputRef.current) {
-                    fileInputRef.current.value = '';
-                  }
-                }}
-                disabled={isSubmittingReply}
-                className="text-xs font-medium text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Remove
-              </button>
+          {attachments.length ? (
+            <div className="mt-2 space-y-2">
+              {attachments.map((attachment) => (
+                <div
+                  key={`${attachment.name}-${attachment.lastModified}`}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2"
+                >
+                  <p className="truncate text-sm text-gray-700">
+                    {attachment.name}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextAttachments = attachments.filter(
+                        (file) => file !== attachment,
+                      );
+                      setAttachments(nextAttachments);
+                      if (!nextAttachments.length && fileInputRef.current) {
+                        fileInputRef.current.value = '';
+                      }
+                    }}
+                    disabled={isSubmittingReply}
+                    className="text-xs font-medium text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
             </div>
           ) : null}
 
@@ -291,7 +309,7 @@ export default function DiscussionPanel({
               disabled={
                 (requireMessage
                   ? !message.trim()
-                  : !message.trim() && !attachment) || isSubmittingReply
+                  : !message.trim() && !attachments.length) || isSubmittingReply
               }
               className="rounded-lg bg-[#10175A] px-5 py-2.5 sm:py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
@@ -323,13 +341,13 @@ function AttachmentFileIcon({ extension }: { extension?: string }) {
   const badgeClassName = getAttachmentBadgeClassName(label);
 
   return (
-    <span className="relative flex h-10 w-9 shrink-0 items-end justify-center rounded border border-gray-200 bg-white pb-1 shadow-xs">
-      <span className="absolute right-0 top-0 h-3 w-3 rounded-bl border-b border-l border-gray-200 bg-gray-50" />
+    <span className="relative">
       <span
-        className={`rounded px-1 py-0.5 text-[9px] font-bold uppercase leading-none text-white ${badgeClassName}`}
+        className={`rounded-xs absolute top-4.5 px-0.75 pt-1 pb-0.75 text-[10px] font-bold uppercase leading-none! text-white ${badgeClassName}`}
       >
         {label}
       </span>
+      <FileTypePlaceholder />
     </span>
   );
 }
@@ -352,7 +370,7 @@ function normalizeAttachmentExtension(extension?: string) {
 function getAttachmentBadgeClassName(extension: string) {
   if (extension === 'PDF') return 'bg-red-500';
   if (extension === 'DOC' || extension === 'DOCX') return 'bg-blue-600';
-  if (extension === 'XLS' || extension === 'XLSX') return 'bg-emerald-600';
+  if (extension === 'XLS' || extension === 'XLSX') return 'bg-green-600';
   if (['PNG', 'JPG', 'JPEG', 'SVG'].includes(extension)) return 'bg-violet-500';
   if (extension === 'ZIP') return 'bg-gray-600';
   return 'bg-[#10175A]';

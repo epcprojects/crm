@@ -31,9 +31,11 @@ import EditIcon from './EditIcon';
 import DownloadIcon from './DownloadIcon';
 import SentEmailIcon from './SentEmailIcon';
 import AcceptedEmailIcon from './AcceptedEmailIcon';
+import FileTypePlaceholder from './FileTypePlaceholder';
 
 export {
   TicketIcon2,
+  FileTypePlaceholder,
   SentEmailIcon,
   AcceptedEmailIcon,
   DownloadIcon,

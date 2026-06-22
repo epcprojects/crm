@@ -100,19 +100,19 @@ export default function ProjectDetailPage() {
   const createProjectThreadMutation = useMutation({
     mutationFn: async ({
       message,
-      attachment,
+      attachments,
     }: {
       message: string;
-      attachment: File | null;
+      attachments: File[];
     }) => {
       const formData = new FormData();
       if (message.trim()) {
         formData.append('message', message.trim());
       }
 
-      if (attachment) {
+      attachments.forEach((attachment) => {
         formData.append('attachments', attachment);
-      }
+      });
 
       const response = await fetch(`/api/projects/${projectId}/thread`, {
         method: 'POST',
@@ -288,16 +288,16 @@ export default function ProjectDetailPage() {
 
   const handleSubmitReply = async ({
     message,
-    attachment,
+    attachments,
   }: {
     message: string;
-    attachment: File | null;
+    attachments: File[];
   }) => {
     if (!canPostThreadMessage) {
       return;
     }
 
-    await createProjectThreadMutation.mutateAsync({ message, attachment });
+    await createProjectThreadMutation.mutateAsync({ message, attachments });
   };
 
   const visibleProjectTabs = projectTabs.filter((tab) => {
