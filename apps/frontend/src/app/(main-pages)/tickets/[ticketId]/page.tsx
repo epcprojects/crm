@@ -117,6 +117,7 @@ export default function TicketDetailPage() {
         }),
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'ticket-summary'],
+          refetchType: 'all',
         }),
       ]);
       appToast.success('Ticket updated successfully.');
@@ -165,9 +166,15 @@ export default function TicketDetailPage() {
       return data;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: ['ticket-replies', ticketId],
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['ticket-replies', ticketId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'ticket-summary'],
+          refetchType: 'all',
+        }),
+      ]);
       appToast.success('Reply posted successfully.');
     },
     onError: (error) => {

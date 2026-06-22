@@ -195,6 +195,7 @@ export default function Page() {
         }),
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'ticket-summary'],
+          refetchType: 'all',
         }),
         queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
       ]);
