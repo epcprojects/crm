@@ -13,7 +13,7 @@ import {
   usePermissions,
 } from '../../../providers/PermissionProvider';
 import { useAppSelector } from '../../../Redux/store';
-import { FileTypePlaceholder } from '../../../../../public/icons';
+import { AlertIcon, FileTypePlaceholder } from '../../../../../public/icons';
 
 export default function TicketDetailPage() {
   const params = useParams<{ ticketId: string }>();
@@ -195,7 +195,11 @@ export default function TicketDetailPage() {
   const [selectedPriority, setSelectedPriority] = useState('');
   const [selectedAssignee, setSelectedAssignee] = useState('');
   const [selectedDueDate, setSelectedDueDate] = useState('');
+  const todayInputValue = getTodayInputValue();
   const minimumDueDate = getTomorrowInputValue();
+  const isDueDateOverdue = Boolean(
+    selectedDueDate && selectedDueDate < todayInputValue,
+  );
 
   const statusOptions = useMemo(
     () =>
@@ -304,12 +308,12 @@ export default function TicketDetailPage() {
 
     await updateTicketMutation.mutateAsync(
       buildUpdateTicketPayload({
-      title: ticket.title,
-      description: ticket.description,
-      statusKey: value,
+        title: ticket.title,
+        description: ticket.description,
+        statusKey: value,
         priorityKey: selectedPriority,
-      assigneeId: selectedAssigneeId,
-      dueDate: selectedDueDate,
+        assigneeId: selectedAssigneeId,
+        dueDate: selectedDueDate,
       }),
     );
   };
@@ -323,12 +327,12 @@ export default function TicketDetailPage() {
 
     await updateTicketMutation.mutateAsync(
       buildUpdateTicketPayload({
-      title: ticket.title,
-      description: ticket.description,
-      statusKey: selectedStatus,
+        title: ticket.title,
+        description: ticket.description,
+        statusKey: selectedStatus,
         priorityKey: value,
-      assigneeId: selectedAssigneeId,
-      dueDate: selectedDueDate,
+        assigneeId: selectedAssigneeId,
+        dueDate: selectedDueDate,
       }),
     );
   };
@@ -345,12 +349,12 @@ export default function TicketDetailPage() {
 
     await updateTicketMutation.mutateAsync(
       buildUpdateTicketPayload({
-      title: ticket.title,
-      description: ticket.description,
-      statusKey: selectedStatus,
+        title: ticket.title,
+        description: ticket.description,
+        statusKey: selectedStatus,
         priorityKey: selectedPriority,
-      assigneeId: value,
-      dueDate: selectedDueDate,
+        assigneeId: value,
+        dueDate: selectedDueDate,
       }),
     );
   };
@@ -368,12 +372,12 @@ export default function TicketDetailPage() {
 
     await updateTicketMutation.mutateAsync(
       buildUpdateTicketPayload({
-      title: ticket.title,
-      description: ticket.description,
-      statusKey: selectedStatus,
+        title: ticket.title,
+        description: ticket.description,
+        statusKey: selectedStatus,
         priorityKey: selectedPriority,
-      assigneeId: selectedAssigneeId,
-      dueDate: value,
+        assigneeId: selectedAssigneeId,
+        dueDate: value,
       }),
     );
   };
@@ -531,6 +535,19 @@ export default function TicketDetailPage() {
                 </h3>
               </div>
               <div className="p-3 sm:p-4">
+                {isDueDateOverdue ? (
+                  <div className="mb-3 flex items-start gap-2 rounded-lg bg-red-100 px-3 py-2.5 text-[#B42318]">
+                    <AlertIcon fill="#B42318" opacity="0" />
+                    <div className="flex items-center gap-3 justify-between w-full">
+                      <p className="text-sm font-medium pt-0.25">
+                        {selectedDueDate}
+                      </p>
+                      <p className="text-sm font-medium  bg-[#F04438] text-white py-0.5 px-2.5 rounded-full">
+                        Overdue
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
                 <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
                   {selectedDueDate ? 'Selected date' : 'No due date'}
                 </p>
@@ -540,7 +557,9 @@ export default function TicketDetailPage() {
                     value={selectedDueDate}
                     min={minimumDueDate}
                     disabled={updateTicketMutation.isPending || !canEditDueDate}
-                    onChange={(event) => handleDueDateChange(event.target.value)}
+                    onChange={(event) =>
+                      handleDueDateChange(event.target.value)
+                    }
                     className="w-full bg-transparent text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:text-gray-400"
                   />
                   {/* <CalendarIcon /> */}
@@ -870,7 +889,9 @@ function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
 function mapApiTicketReplyToDiscussionReply(reply: ApiTicketReply) {
   const authorId = reply.authorId ?? reply.createdBy ?? '';
   const authorName =
-    reply.author?.fullName ?? reply.author?.name ?? (authorId ? `User ${authorId.slice(-4)}` : 'User');
+    reply.author?.fullName ??
+    reply.author?.name ??
+    (authorId ? `User ${authorId.slice(-4)}` : 'User');
 
   return {
     id: reply.id,
@@ -946,6 +967,10 @@ function getTomorrowInputValue() {
   date.setDate(date.getDate() + 1);
 
   return date.toISOString().slice(0, 10);
+}
+
+function getTodayInputValue() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function formatReplyDate(value: string) {
@@ -1057,18 +1082,14 @@ function FileBadgeIcon({ extension }: { extension?: string }) {
 }
 
 function normalizeAttachmentExtension(extension?: string) {
-  return (extension ?? 'file')
-    .replace(/^\./, '')
-    .slice(0, 4)
-    .toUpperCase();
+  return (extension ?? 'file').replace(/^\./, '').slice(0, 4).toUpperCase();
 }
 
 function getAttachmentBadgeClassName(extension: string) {
   if (extension === 'PDF') return 'bg-red-500';
   if (extension === 'DOC' || extension === 'DOCX') return 'bg-blue-600';
   if (extension === 'XLS' || extension === 'XLSX') return 'bg-green-600';
-  if (['PNG', 'JPG', 'JPEG', 'SVG'].includes(extension))
-    return 'bg-violet-500';
+  if (['PNG', 'JPG', 'JPEG', 'SVG'].includes(extension)) return 'bg-violet-500';
   if (extension === 'ZIP') return 'bg-gray-600';
 
   return 'bg-[#10175A]';
