@@ -30,6 +30,23 @@ These targets are either [inferred automatically](https://nx.dev/concepts/inferr
 
 [More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 
+## Google Calendar setup
+
+The project details calendar tab now supports temporary frontend-only Google Calendar sync.
+
+Add this environment variable for the frontend app before using the Google connect button:
+
+```sh
+NEXT_PUBLIC_GOOGLE_CALENDAR_CLIENT_ID=your_google_oauth_client_id
+```
+
+Notes:
+
+- Use a Google OAuth client that allows browser-based sign-in
+- Enable the Google Calendar API in the Google Cloud project
+- This temporary implementation stores project calendar state in browser `localStorage`
+- Once backend endpoints exist, this flow should move to server-managed tokens and shared sync
+
 ## Add new projects
 
 While you could add new projects to your workspace manually, you might want to leverage [Nx plugins](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) and their [code generation](https://nx.dev/features/generate-code?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) feature.

@@ -18,6 +18,7 @@ import DiscussionPanel, {
 import ProjectFilesPanel, {
   type ProjectFileRecord,
 } from '../../../../components/projects/ProjectFilesPanel';
+import ProjectCalendarPanel from '../../../../components/projects/ProjectCalendarPanel';
 import {
   createTicketPriorityOptions,
   createTicketProjectOptions,
@@ -586,10 +587,7 @@ export default function ProjectDetailPage() {
 
           <PermissionGuard permission="calendar.view_grid">
             <TabPanel>
-            <PlaceholderCard
-              title="Calendar"
-              description="Project milestones and due dates will appear here."
-            />
+            <ProjectCalendarPanel projectId={projectId} projectName={project.name} />
             </TabPanel>
           </PermissionGuard>
         </TabPanels>
@@ -689,21 +687,6 @@ function Metric({ label, value }: { label: string; value: string }) {
     <div className="sm:min-w-16 border-r border-gray-200 pr-4 sm:pr-6 last:border-r-0 last:pr-0">
       <p className="text-sm text-gray-500 whitespace-nowrap">{label}</p>
       <p className="text-sm font-semibold text-gray-800">{value}</p>
-    </div>
-  );
-}
-
-function PlaceholderCard({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center">
-      <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
-      <p className="mt-2 text-sm text-gray-500">{description}</p>
     </div>
   );
 }

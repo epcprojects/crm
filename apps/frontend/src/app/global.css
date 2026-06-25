@@ -81,3 +81,65 @@ button[aria-disabled='true'] {
   border-radius: 999px;
 }
 
+.fc {
+  --fc-border-color: #e5e7eb;
+  --fc-page-bg-color: #ffffff;
+  --fc-neutral-bg-color: #f9fafb;
+  --fc-today-bg-color: #f5f3ff;
+  --fc-event-border-color: transparent;
+  --fc-button-bg-color: transparent;
+  --fc-button-border-color: transparent;
+  --fc-button-hover-bg-color: transparent;
+  --fc-button-hover-border-color: transparent;
+  --fc-button-active-bg-color: transparent;
+  --fc-button-active-border-color: transparent;
+}
+
+.fc .fc-scrollgrid,
+.fc .fc-scrollgrid table {
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.fc .fc-col-header-cell-cushion {
+  padding: 14px 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.fc .fc-daygrid-day-top {
+  flex-direction: row;
+  justify-content: flex-start;
+  padding: 6px 8px 0;
+}
+
+.fc .fc-daygrid-day-number {
+  font-size: 14px;
+  color: #374151;
+}
+
+.fc .fc-day-other .fc-daygrid-day-number {
+  color: #c4c8d0;
+}
+
+.fc .fc-daygrid-day-frame {
+  min-height: 118px;
+}
+
+.fc .fc-daygrid-event {
+  margin: 3px 6px 0;
+  border-radius: 8px;
+  padding: 2px 4px;
+}
+
+.fc .fc-event-title {
+  font-size: 12px;
+  font-weight: 500;
+  white-space: normal;
+}
+
+.fc .fc-highlight {
+  background: rgba(103, 25, 252, 0.12);
+}
+

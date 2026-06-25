@@ -110,9 +110,9 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     accessorKey: 'priority',
     header: 'Priority',
     cell: ({ row }) => (
-      <span className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2 py-1 text-sm font-semibold text-gray-700 shadow-xs">
+      <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-gray-200 bg-white px-2 py-1 text-sm font-semibold text-gray-700 shadow-xs">
         <span
-          className={`h-1.5 w-1.5 rounded-full ${
+          className={`h-1.5 w-1.5 whitespace-nowrap rounded-full ${
             row.original.priorityColor
               ? ''
               : (priorityStyles[row.original.priority ?? ''] ?? 'bg-gray-400')
