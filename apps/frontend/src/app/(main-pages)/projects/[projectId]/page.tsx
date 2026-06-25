@@ -46,6 +46,7 @@ import {
   usePermissions,
 } from '../../../providers/PermissionProvider';
 import { useAppSelector } from '../../../Redux/store';
+import Calendar from '../../../../components/calendar/Calendar';
 
 const projectTabs = ['Tickets', 'Thread', 'Files', 'Calendar'] as const;
 
@@ -71,10 +72,12 @@ export default function ProjectDetailPage() {
   const [uploadFileOpen, setUploadFileOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [fileSearchValue, setFileSearchValue] = useState('');
-  const [uploadedFilesState, setUploadedFilesState] = useState<ProjectFileRecord[]>(
-    [],
+  const [uploadedFilesState, setUploadedFilesState] = useState<
+    ProjectFileRecord[]
+  >([]);
+  const [fileToDelete, setFileToDelete] = useState<ProjectFileRecord | null>(
+    null,
   );
-  const [fileToDelete, setFileToDelete] = useState<ProjectFileRecord | null>(null);
   const [ticketsPagination, setTicketsPagination] = useState({
     pageIndex: 0,
     pageSize: 12,
@@ -82,7 +85,10 @@ export default function ProjectDetailPage() {
   const projectId = String(params?.projectId ?? '');
   const hasShownError = useRef(false);
   const queryClient = useQueryClient();
-  const projectDetailQuery = useProjectDetailQuery(projectId, canViewProjectDetail);
+  const projectDetailQuery = useProjectDetailQuery(
+    projectId,
+    canViewProjectDetail,
+  );
   const projectThreadQuery = useProjectThreadQuery(projectId, canViewThread);
   const projectFilesQuery = useProjectFilesQuery(projectId, canViewFiles);
   const projectTicketsQuery = useProjectTicketsQuery(
@@ -182,7 +188,10 @@ export default function ProjectDetailPage() {
     const normalizedSearch = searchValue.trim().toLowerCase();
     const tickets = (projectTicketsQuery.data?.items ?? []).map((ticket) => ({
       ...ticket,
-      statusColor: getTicketStatusColor(ticket.status, ticketStatusesQuery.data),
+      statusColor: getTicketStatusColor(
+        ticket.status,
+        ticketStatusesQuery.data,
+      ),
     }));
 
     return tickets.filter((ticket) => {
@@ -323,9 +332,7 @@ export default function ProjectDetailPage() {
       appToast.success('Attachment deleted successfully.');
     } catch (error) {
       appToast.error(
-        error instanceof Error
-          ? error.message
-          : 'Failed to delete attachment.',
+        error instanceof Error ? error.message : 'Failed to delete attachment.',
       );
     } finally {
       setLoading(false);
@@ -439,10 +446,9 @@ export default function ProjectDetailPage() {
                 {canViewThread ? (
                   <Metric
                     label="Thread posts"
-                    value={String(projectThreadQuery.data?.length ?? 0).padStart(
-                      2,
-                      '0',
-                    )}
+                    value={String(
+                      projectThreadQuery.data?.length ?? 0,
+                    ).padStart(2, '0')}
                   />
                 ) : null}
                 {canViewFiles ? (
@@ -482,112 +488,115 @@ export default function ProjectDetailPage() {
         <TabPanels className={'flex-1 flex flex-col'}>
           <PermissionGuard permission="tickets.view_list">
             <TabPanel className="space-y-4">
-            <div className="flex flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
-              {canFilterTickets ? (
-                <div className="relative flex w-full items-center md:max-w-xs">
-                  <input
-                    value={searchValue}
-                    onChange={(event) => setSearchValue(event.target.value)}
-                    placeholder="Search..."
-                    className="h-10.5 w-full rounded-lg border border-gray-200 bg-white ps-7 px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
-                  />
-                  <span className="absolute inset-s-2">
-                    <SearchIcon />
-                  </span>
-                </div>
-              ) : null}
+              <div className="flex flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
+                {canFilterTickets ? (
+                  <div className="relative flex w-full items-center md:max-w-xs">
+                    <input
+                      value={searchValue}
+                      onChange={(event) => setSearchValue(event.target.value)}
+                      placeholder="Search..."
+                      className="h-10.5 w-full rounded-lg border border-gray-200 bg-white ps-7 px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
+                    />
+                    <span className="absolute inset-s-2">
+                      <SearchIcon />
+                    </span>
+                  </div>
+                ) : null}
 
-              {canCreateTicket ? (
-                <ThemeButton
-                  icon={<PlusIcon />}
-                  onClick={() => setCreateTicketOpen(true)}
-                >
-                  New Ticket
-                </ThemeButton>
-              ) : null}
-            </div>
+                {canCreateTicket ? (
+                  <ThemeButton
+                    icon={<PlusIcon />}
+                    onClick={() => setCreateTicketOpen(true)}
+                  >
+                    New Ticket
+                  </ThemeButton>
+                ) : null}
+              </div>
 
-            <RecentTicketsTable
-              tickets={projectTickets}
-              enablePagination
-              pageSizeOptions={[10, 25, 50, 100]}
-              pagination={ticketsPagination}
-              onPaginationChange={setTicketsPagination}
-              totalRows={projectTicketsQuery.data?.meta.total ?? 0}
-              manualPagination
-              onRowClick={
-                canViewTicketDetail
-                  ? (ticket) =>
-                      router.push(`/tickets/${ticket.id}?projectId=${projectId}`)
-                  : undefined
-              }
-              hideProjectColumn
-            />
+              <RecentTicketsTable
+                tickets={projectTickets}
+                enablePagination
+                pageSizeOptions={[10, 25, 50, 100]}
+                pagination={ticketsPagination}
+                onPaginationChange={setTicketsPagination}
+                totalRows={projectTicketsQuery.data?.meta.total ?? 0}
+                manualPagination
+                onRowClick={
+                  canViewTicketDetail
+                    ? (ticket) =>
+                        router.push(
+                          `/tickets/${ticket.id}?projectId=${projectId}`,
+                        )
+                    : undefined
+                }
+                hideProjectColumn
+              />
             </TabPanel>
           </PermissionGuard>
 
           <PermissionGuard permission="thread.view">
             <TabPanel className={'flex flex-col flex-1 '}>
-            <DiscussionPanel
-              title="Discussion"
-              replies={projectThreadQuery.data ?? []}
-              emptyTitle={
-                projectThreadQuery.isLoading
-                  ? 'Loading discussion...'
-                  : 'No replies yet.'
-              }
-              emptyDescription={
-                projectThreadQuery.isLoading
-                  ? 'Fetching project discussion messages.'
-                  : 'No discussion messages have been added to this project yet.'
-              }
-              composerPlaceholder="Post the project thread..."
-              onSubmitReply={
-                canPostThreadMessage ? handleSubmitReply : undefined
-              }
-              isSubmittingReply={createProjectThreadMutation.isPending}
-              canCompose={canPostThreadMessage}
-              canAttachFile={canAttachThreadFile}
-              requireMessage={false}
-              currentUserId={currentUserId}
-              onDeleteAttachment={handleDeleteThreadAttachment}
-              deletingAttachmentId={
-                deleteProjectFileMutation.isPending
-                  ? deleteProjectFileMutation.variables?.fileId
-                  : undefined
-              }
-            />
+              <DiscussionPanel
+                title="Discussion"
+                replies={projectThreadQuery.data ?? []}
+                emptyTitle={
+                  projectThreadQuery.isLoading
+                    ? 'Loading discussion...'
+                    : 'No replies yet.'
+                }
+                emptyDescription={
+                  projectThreadQuery.isLoading
+                    ? 'Fetching project discussion messages.'
+                    : 'No discussion messages have been added to this project yet.'
+                }
+                composerPlaceholder="Post the project thread..."
+                onSubmitReply={
+                  canPostThreadMessage ? handleSubmitReply : undefined
+                }
+                isSubmittingReply={createProjectThreadMutation.isPending}
+                canCompose={canPostThreadMessage}
+                canAttachFile={canAttachThreadFile}
+                requireMessage={false}
+                currentUserId={currentUserId}
+                onDeleteAttachment={handleDeleteThreadAttachment}
+                deletingAttachmentId={
+                  deleteProjectFileMutation.isPending
+                    ? deleteProjectFileMutation.variables?.fileId
+                    : undefined
+                }
+              />
             </TabPanel>
           </PermissionGuard>
 
           <PermissionGuard permission="files.view">
             <TabPanel className={'flex flex-col flex-1 '}>
-            <ProjectFilesPanel
-              files={projectFiles}
-              searchValue={fileSearchValue}
-              onSearchChange={setFileSearchValue}
-              onUploadClick={
-                canUploadFiles ? () => setUploadFileOpen(true) : undefined
-              }
-              onDeleteFile={setFileToDelete}
-              canDownloadFile={canDownloadFiles}
-              deletingFileId={
-                deleteProjectFileMutation.isPending
-                  ? deleteProjectFileMutation.variables?.fileId
-                  : undefined
-              }
-              subtitle={
-                projectFilesQuery.isLoading
-                  ? 'Loading files...'
-                  : `${uploadedFilesState.length + (projectFilesQuery.data?.length ?? 0)} files`
-              }
-            />
+              <ProjectFilesPanel
+                files={projectFiles}
+                searchValue={fileSearchValue}
+                onSearchChange={setFileSearchValue}
+                onUploadClick={
+                  canUploadFiles ? () => setUploadFileOpen(true) : undefined
+                }
+                onDeleteFile={setFileToDelete}
+                canDownloadFile={canDownloadFiles}
+                deletingFileId={
+                  deleteProjectFileMutation.isPending
+                    ? deleteProjectFileMutation.variables?.fileId
+                    : undefined
+                }
+                subtitle={
+                  projectFilesQuery.isLoading
+                    ? 'Loading files...'
+                    : `${uploadedFilesState.length + (projectFilesQuery.data?.length ?? 0)} files`
+                }
+              />
             </TabPanel>
           </PermissionGuard>
 
           <PermissionGuard permission="calendar.view_grid">
             <TabPanel>
-            <ProjectCalendarPanel projectId={projectId} projectName={project.name} />
+              {/* <ProjectCalendarPanel projectId={projectId} projectName={project.name} /> */}
+              {/* <Calendar /> */}
             </TabPanel>
           </PermissionGuard>
         </TabPanels>
@@ -664,10 +673,7 @@ async function fetchTicketStatuses() {
   return payload;
 }
 
-function getTicketStatusColor(
-  status: string,
-  statuses?: ApiTicketStatus[],
-) {
+function getTicketStatusColor(status: string, statuses?: ApiTicketStatus[]) {
   const normalizedStatus = normalizeStatusValue(status);
 
   return statuses?.find((item) => {
