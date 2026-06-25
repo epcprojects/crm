@@ -330,7 +330,7 @@ export default function Page() {
           <div className="flex items-center gap-2 justify-between">
             <div className="flex items-center gap-2 md:gap-2.5">
               <ProfileIcon />
-              <h2 className="text-base md:text-xl font-semibold text-black">
+              <h2 className="text-sm md:text-base font-bold text-black">
                 Projects
               </h2>
             </div>
@@ -338,7 +338,7 @@ export default function Page() {
             {canViewProjectsList ? (
               <Link
                 href={'/projects'}
-                className="text-primary font-medium text-base hover:underline underline-offset-2"
+                className="text-primary font-medium text-sm hover:underline underline-offset-2"
               >
                 View All
               </Link>
@@ -398,7 +398,7 @@ export default function Page() {
           >
             <div className="flex items-center gap-2 md:gap-2.5">
               <ClockIcon opacity={0} />
-              <h2 className="text-base md:text-xl font-semibold text-black">
+              <h2 className="text-sm md:text-base font-bold text-black">
                 Recent Tickets
               </h2>
             </div>

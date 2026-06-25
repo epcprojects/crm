@@ -223,7 +223,7 @@ export default function RolesTable({
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
-                    className="border-b border-gray-200 px-4 py-3 text-sm font-semibold text-gray-900"
+                    className="border-b border-gray-200 px-4 py-3 text-xs font-semibold text-gray-900"
                   >
                     {header.isPlaceholder
                       ? null
@@ -383,7 +383,7 @@ export function RolesTableSkeleton() {
               {headers.map((header) => (
                 <th
                   key={header}
-                  className="border-b border-gray-200 px-4 py-3 text-sm font-semibold text-gray-900"
+                  className="border-b border-gray-200 px-4 py-3 text-xs font-semibold text-gray-900"
                 >
                   {header}
                 </th>

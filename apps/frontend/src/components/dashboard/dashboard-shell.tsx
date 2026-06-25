@@ -483,7 +483,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           <div className="flex-1 overflow-y-auto">
             <div className=" px-4 pb-4 pt-5">
               <p
-                className={`mb-3 px-2 text-xs sm:text-sm font-medium captilize text-black transition-opacity duration-200 ${
+                className={`mb-3 px-2 text-xs font-medium captilize text-black transition-opacity duration-200 ${
                   collapsed
                     ? 'opacity-0 hidden lg:h-0 lg:overflow-hidden'
                     : 'opacity-100'
@@ -498,7 +498,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                   return (
                     <Link
                       key={item.href}
-                      className={`group flex items-center rounded-lg px-3 py-2 text-sm md:text-base  transition-all duration-200 ${
+                      className={`group flex items-center rounded-lg px-3 py-2 text-sm  transition-all duration-200 ${
                         isActive
                           ? 'bg-white text-black shadow ring-1 ring-gray-200 font-medium'
                           : 'text-gray-500 hover:bg-slate-50 hover:text-black font-normal'
@@ -534,7 +534,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             {canViewProjectsList ? (
               <div className=" border-t border-gray-200 pt-5 px-4 pb-4">
                 <p
-                  className={`mb-3 px-2 text-xs sm:text-sm font-medium captilize text-black transition-opacity duration-200 ${
+                  className={`mb-3 px-2 text-xs font-medium captilize text-black transition-opacity duration-200 ${
                     collapsed
                       ? 'opacity-0 lg:h-0 hidden lg:overflow-hidden'
                       : 'opacity-100'
@@ -565,7 +565,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                           {project.initials}
                         </span>
                         <span
-                          className={`truncate text-sm md:text-base transition-all duration-300 ${
+                          className={`truncate text-sm transition-all duration-300 ${
                             isProjectActive
                               ? 'font-medium text-gray-900'
                               : 'font-normal text-gray-600'
@@ -697,7 +697,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                   </button>
                   <div className="sm:inline-block hidden">
                     <div className="flex items-center gap-2">
-                      <p className="text-lg md:text-3xl font-semibold text-black">
+                      <p className="text-base md:text-xl font-bold text-black">
                         {currentHeader.title}
                       </p>
                       {typeof currentHeader.count === 'number' ? (
@@ -706,7 +706,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                         </span>
                       ) : null}
                     </div>
-                    <h1 className="text-sm md:text-lg font-normal tracking-tight text-gray-600">
+                    <h1 className="text-xs md:text-smfont-normal tracking-tight text-gray-600">
                       {currentHeader.subtitle}
                     </h1>
                   </div>
@@ -728,7 +728,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
           <main
             className={`px-4 sm:px-6 flex flex-col flex-1 py-4 md:py-8 lg:px-8 ${
-              shouldHideHeader ? '' : 'md:pt-32'
+              shouldHideHeader ? '' : 'md:pt-28'
             }`}
           >
             {shouldShowNoAccessPage ? <NoAccessPage /> : children}

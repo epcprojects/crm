@@ -98,7 +98,7 @@ export default function ProjectFilesPanel({
 
       <div className="flex min-h-0 max-h-[calc(100dvh-360px)] flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white sm:rounded-2xl">
         <div className="flex items-center justify-between border-b border-gray-200 px-3 sm:px-4 py-3">
-          <h3 className="text-sm md:text-base font-semibold text-gray-900">
+          <h3 className="text-sm md:text-sm font-semibold text-gray-900">
             {title}
           </h3>
           <p className="text-sm text-gray-900">{subtitle}</p>
@@ -111,27 +111,49 @@ export default function ProjectFilesPanel({
               className="flex items-center justify-between border-b border-gray-200 px-4 py-4 last:border-b-0"
             >
               <div className="flex items-center gap-4">
-                <FileTypeIcon type={file.extension ?? file.type} />
+                {file.extension === 'png' ||
+                file.extension === 'svg' ||
+                file.extension === 'jpg' ||
+                file.extension === 'svg+xml' ||
+                file.extension === 'jpeg' ? (
+                  <img
+                    className="rounded-sm h-10 w-10  border border-gray-200"
+                    src={getFileUrl(file.storageKey)}
+                  />
+                ) : (
+                  <FileTypeIcon type={file.extension ?? file.type} />
+                )}
                 <div className="">
                   <p
                     onClick={() => handleViewFile(file.storageKey)}
-                    className="text-sm cursor-pointer md:text-base truncate sm:w-full w-36 line-clamp-1 leading-[1.2] font-medium text-gray-900"
+                    className="text-sm cursor-pointer  truncate sm:w-full w-36 line-clamp-1 leading-[1.2] font-semibold text-gray-900"
                   >
                     {file.name}
                   </p>
-                  {(file.size || file.uploadedAt) && (
-                    <p className="mt-1 text-xs md:text-sm text-gray-900">
-                      {[file.size, file.uploadedAt].filter(Boolean).join(' • ')}
-                    </p>
-                  )}
-                  <div className="mt-1 flex max-w-3xl flex-wrap gap-3 gap-y-1 text-xs md:text-sm text-gray-500">
+                  <div className="flex items-center gap-2">
+                    {file.size && (
+                      <p className="mt-1 text-xs md:text-xs text-gray-700">
+                        {[file.size].filter(Boolean).join(' • ')}
+                      </p>
+                    )}
+                    <span className="inline-block mt-1 h-1 w-1 rounded-full bg-gray-400"></span>
+                    {file.uploadedAt && (
+                      <p className="mt-1 text-xs md:text-xs text-gray-700">
+                        {[file.uploadedAt].filter(Boolean).join(' • ')}
+                      </p>
+                    )}
+                    <span className="inline-block mt-1 h-1 w-1 rounded-full bg-gray-400"></span>
+
                     {getFileMetadataItems(file).map((item) => (
-                      <span key={`${file.id}-${item.label}`}>
-                        <span className="font-medium text-gray-700">
-                          {item.label}:
-                        </span>{' '}
-                        {item.value}
-                      </span>
+                      <div
+                        key={`${file.id}-${item.label}`}
+                        className={`mt-1 rounded-full  py-0.5 px-2 flex max-w-3xl flex-wrap gap-3 gap-y-1 text-xs border ${item.value === 'Thread' ? 'text-[#5925DC] bg-[#F4F3FF] border-[#D9D6FE]' : 'text-[#026AA2] bg-[#F0F9FF] border-[#B9E6FE]'}`}
+                      >
+                        <span key={`${file.id}-${item.label}`}>
+                          <span className="font-medium">{item.label}</span>{' '}
+                          {item.value}
+                        </span>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -215,8 +237,8 @@ export default function ProjectFilesPanel({
 
 function getFileMetadataItems(file: ProjectFileRecord) {
   return [
-    { label: 'Source', value: formatFileSource(file.source) },
-    { label: 'Status', value: file.status },
+    { label: 'From', value: formatFileSource(file.source) },
+    // { label: 'Status', value: file.status },
     // { label: 'Type', value: file.mimeType ?? file.extension },
     // { label: 'Uploaded by', value: file.uploadedBy },
     // { label: 'Source ID', value: file.sourceId },
@@ -237,7 +259,7 @@ function formatFileSource(source?: string) {
   return source ? (sourceLabels[source] ?? source) : undefined;
 }
 
-function getFileUrl(storageKey?: string) {
+export function getFileUrl(storageKey?: string) {
   if (!storageKey) {
     return '';
   }

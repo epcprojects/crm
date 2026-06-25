@@ -12,6 +12,7 @@ import {
 import { useState, type ReactNode } from 'react';
 import ThemeButton from '../ui/ThemeButton';
 import { ArrowUpRightIcon } from '../../../public/icons';
+import { useAppSelector } from '../../app/Redux/store';
 
 export type TicketStatus = string;
 export type TicketPriority = string;
@@ -71,7 +72,7 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     accessorKey: 'id',
     header: 'Reference No',
     cell: ({ row }) => (
-      <span className="font-semibold text-gray-900 text-sm">
+      <span className="font-normal text-gray-900 text-sm">
         {row.original.id}
       </span>
     ),
@@ -91,7 +92,7 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     accessorKey: 'project.name',
     header: 'Project',
     cell: ({ row }) => (
-      <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-purple-100 py-0.75 pr-2.5 pl-0.75 text-sm font-medium text-purple-700">
+      <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-purple-100 py-0.75 pr-2.5 pl-0.75 text-xs font-medium text-purple-700">
         <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-medium">
           {row.original.project.initials}
         </span>
@@ -110,7 +111,7 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     accessorKey: 'priority',
     header: 'Priority',
     cell: ({ row }) => (
-      <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-gray-200 bg-white px-2 py-1 text-sm font-semibold text-gray-700 shadow-xs">
+      <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-gray-200 bg-white px-2 py-1 text-sm font-meidum text-gray-700 shadow-xs">
         <span
           className={`h-1.5 w-1.5 whitespace-nowrap rounded-full ${
             row.original.priorityColor
@@ -133,7 +134,7 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     header: 'Assignee',
     cell: ({ row }) => (
       <span className="inline-flex items-center gap-2 text-gray-900 font-normal text-sm">
-        <span className="flex h-7.5 w-7.5 items-center justify-center rounded-full bg-linear-to-br from-orange-200 to-slate-800 text-sm font-medium text-white">
+        <span className="flex h-7.5 min-w-7.5 items-center justify-center rounded-full bg-linear-to-br from-orange-200 to-slate-800 text-xs font-medium text-white">
           {row.original.assignee.initials}
         </span>
         {row.original.assignee.name}
@@ -183,9 +184,19 @@ export default function RecentTicketsTable({
   sortState,
   onSortChange,
 }: RecentTicketsTableProps) {
-  const columns = hideProjectColumn
-    ? baseColumns.filter((_, index) => index !== 2)
-    : baseColumns;
+  const userType = useAppSelector((state) => state.auth.user?.userType);
+  const isExternalUser = userType === 'EXTERNAL';
+  const columns = baseColumns.filter((column) => {
+    if (hideProjectColumn && column.id === 'project') {
+      return false;
+    }
+
+    if (isExternalUser && column.id === 'assignee') {
+      return false;
+    }
+
+    return true;
+  });
 
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -255,6 +266,7 @@ export default function RecentTicketsTable({
                 key={row.id}
                 ticket={row.original}
                 onClick={onRowClick}
+                showAssignee={!isExternalUser}
               />
             ))
         ) : (
@@ -272,7 +284,7 @@ export default function RecentTicketsTable({
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
-                    className="border-b border-gray-200 px-4 py-3 text-sm font-semibold text-gray-900"
+                    className="border-b border-gray-200 px-4 py-3 text-xs font-semibold text-gray-900"
                   >
                     {header.isPlaceholder ? null : (
                       <SortHeaderButton
@@ -411,9 +423,11 @@ export default function RecentTicketsTable({
 function TicketMobileCard({
   ticket,
   onClick,
+  showAssignee = true,
 }: {
   ticket: RecentTicket;
   onClick?: (ticket: RecentTicket) => void;
+  showAssignee?: boolean;
 }) {
   return (
     <button
@@ -424,17 +438,23 @@ function TicketMobileCard({
       }`}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-orange-200 to-slate-800 text-base font-medium text-white">
-            {ticket.assignee.initials}
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-base font-semibold text-gray-900">
-              {ticket.assignee.name}
-            </p>
-            <p className=" text-xs text-gray-600">{ticket.date}</p>
+        {showAssignee ? (
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-orange-200 to-slate-800 text-base font-medium text-white">
+              {ticket.assignee.initials}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-base font-semibold text-gray-900">
+                {ticket.assignee.name}
+              </p>
+              <p className=" text-xs text-gray-600">{ticket.date}</p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="min-w-0">
+            <p className="text-xs text-gray-600">{ticket.date}</p>
+          </div>
+        )}
 
         <div className="flex shrink-0 items-center gap-2">
           {renderStatusBadge(ticket)}

@@ -7,6 +7,7 @@ import {
   validateAttachments,
 } from '../../lib/attachments';
 import { FileTypePlaceholder } from '../../../public/icons';
+import { getFileUrl } from '../projects/ProjectFilesPanel';
 
 export type DiscussionReply = {
   id: string;
@@ -183,25 +184,33 @@ export default function DiscussionPanel({
                                 className="flex min-w-0 w-full items-start gap-3 rounded-xl border border-gray-200 bg-white p-2.5 transition hover:bg-gray-50"
                               >
                                 <a
-                                  href={getAttachmentUrl(
-                                    attachment.storageKey,
-                                  )}
+                                  href={getAttachmentUrl(attachment.storageKey)}
                                   target="_blank"
                                   rel="noreferrer"
                                   className="flex min-w-0 flex-1 items-start gap-3"
                                 >
-                                  <AttachmentFileIcon
-                                    extension={attachment.extension}
-                                  />
+                                  {attachment.extension === 'png' ||
+                                  attachment.extension === 'svg' ||
+                                  attachment.extension === 'jpg' ||
+                                  attachment.extension === 'jpeg' ? (
+                                    <img
+                                      className="rounded-sm h-10  border border-gray-200 w-10"
+                                      src={getFileUrl(attachment.storageKey)}
+                                    />
+                                  ) : (
+                                    <AttachmentFileIcon
+                                      extension={attachment.extension}
+                                    />
+                                  )}
                                   <div className="min-w-0 flex-1">
-                                  <p className="truncate text-sm font-medium text-gray-700">
-                                    {attachment.name}
-                                  </p>
-                                  {attachment.sizeLabel ? (
-                                    <p className="text-sm text-gray-500">
-                                      {attachment.sizeLabel}
+                                    <p className="truncate text-sm font-medium text-gray-700">
+                                      {attachment.name}
                                     </p>
-                                  ) : null}
+                                    {attachment.sizeLabel ? (
+                                      <p className="text-sm text-gray-500">
+                                        {attachment.sizeLabel}
+                                      </p>
+                                    ) : null}
                                   </div>
                                 </a>
                                 {onDeleteAttachment ? (

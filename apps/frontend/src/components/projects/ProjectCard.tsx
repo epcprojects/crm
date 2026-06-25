@@ -55,7 +55,7 @@ export default function ProjectCard({
 }: ProjectCardProps) {
   return (
     <article
-      className={`rounded-xl group md:rounded-2xl border p-2.5 md:p-4 shadow-xs transition hover:drop-shadow ${
+      className={`rounded-xl group md:rounded-2xl space-y-3 md:space-y-4 border p-2.5 md:p-4 shadow-xs transition hover:drop-shadow ${
         onClick ? 'cursor-pointer' : ''
       }`}
       onClick={onClick}
@@ -74,7 +74,7 @@ export default function ProjectCard({
             {initials}
           </span>
           <div className="min-w-0">
-            <h2 className="truncate text-sm md:text-base font-medium text-gray-900">
+            <h2 className="truncate text-sm md:text-base font-semibold text-gray-900">
               {name}
             </h2>
             <p className="truncate text-[10px] md:text-xs font-normal text-gray-600">
@@ -134,10 +134,10 @@ export default function ProjectCard({
         </div>
       </div>
 
-      <div
+      {/* <div
         className="my-3 md:my-4 h-px"
         style={{ backgroundColor: `${colorHex}33` }}
-      />
+      /> */}
 
       <div className="grid grid-cols-3 gap-2">
         <ProjectMetric label="Total" value={totalCount} tone="bg-cyan-100" />

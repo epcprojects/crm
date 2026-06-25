@@ -14,6 +14,7 @@ import {
 } from '../../../providers/PermissionProvider';
 import { useAppSelector } from '../../../Redux/store';
 import { AlertIcon, FileTypePlaceholder } from '../../../../../public/icons';
+import { getFileUrl } from '../../../../components/projects/ProjectFilesPanel';
 
 export default function TicketDetailPage() {
   const params = useParams<{ ticketId: string }>();
@@ -510,7 +511,17 @@ export default function TicketDetailPage() {
                     rel="noreferrer"
                     className="flex items-center gap-3 rounded-xl border border-gray-200 p-2.5 transition hover:bg-gray-50"
                   >
-                    <FileBadgeIcon extension={attachment.extension} />
+                    {attachment.extension === 'png' ||
+                    attachment.extension === 'svg' ||
+                    attachment.extension === 'jpg' ||
+                    attachment.extension === 'jpeg' ? (
+                      <img
+                        className="rounded-sm border border-gray-200 h-10 w-10"
+                        src={getFileUrl(attachment.storageKey)}
+                      />
+                    ) : (
+                      <FileBadgeIcon extension={attachment.extension} />
+                    )}
                     <div>
                       <p className="text-sm font-semibold text-gray-800">
                         {attachment.name}
