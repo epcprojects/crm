@@ -23,6 +23,18 @@ export class FilesService {
     });
   }
 
+  async findBySourceBulk(source: FileSource, sourceIds: string[]) {
+    if (!sourceIds.length) return [];
+
+    return this.fileRepository
+      .createQueryBuilder('file')
+      .where('file.source = :source', { source })
+      .andWhere('file.sourceId IN (:...sourceIds)', { sourceIds })
+      .andWhere('file.status = :status', { status: FileStatus.ACTIVE })
+      .orderBy('file.createdAt', 'ASC')
+      .getMany();
+  }
+
   async findByProject(projectId: string) {
     return this.fileRepository.find({
       where: { projectId, status: FileStatus.ACTIVE },

@@ -11,7 +11,7 @@ import { SYSTEM_TICKET_STATUS } from '@harperhelp/types';
 @Index('IDX_TICKET_REPORTER_ID', ['reporterId'])
 @Index('IDX_TICKET_ASSIGNEE_ID', ['assigneeId'])
 @Index('IDX_TICKET_STATUS_KEY', ['statusKey'])
-@Index('IDX_TICKET_PRIORITY_KEY',['priorityKey'])
+@Index('IDX_TICKET_PRIORITY_KEY', ['priorityKey'])
 export class Ticket extends BaseEntity {
   @Column({
     type: 'uuid',
@@ -23,6 +23,13 @@ export class Ticket extends BaseEntity {
   })
   @JoinColumn({ name: 'projectId' })
   project: Project;
+
+  @Column({
+    type: 'varchar',
+    length: 50,
+    nullable: true,
+  })
+  ticketRefNo: string;
 
   @Column({
     type: 'varchar',

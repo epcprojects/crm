@@ -30,10 +30,10 @@ export class NotificationsService {
     to: string;
     fullName: string;
     role: string;
-    organizationName: string;
+    projectName: string;
     inviteToken: string;
   }) {
-    const { to, fullName, role, organizationName, inviteToken } = params;
+    const { to, fullName, role, projectName, inviteToken } = params;
 
     const APP_URL = this.configService.get<string>('app.hostUrl');
 
@@ -42,8 +42,9 @@ export class NotificationsService {
     const html = adminInviteTemplate({
       fullName,
       role,
-      organizationName,
+      projectName,
       inviteLink,
+      appUrl: APP_URL,
     });
 
     const msg: sgMail.MailDataRequired = {
@@ -54,7 +55,7 @@ export class NotificationsService {
         name: 'HarperHelp',
       },
 
-      subject: `You're invited to join '${organizationName}'`,
+      subject: `You're invited to join '${projectName}'`,
 
       html,
     };

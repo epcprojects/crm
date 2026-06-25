@@ -27,6 +27,7 @@ export class TicketReply extends BaseEntity {
 
   @Column({
     type: 'text',
+    nullable: true
   })
   message: string;
 

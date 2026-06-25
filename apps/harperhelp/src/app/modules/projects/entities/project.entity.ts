@@ -13,6 +13,9 @@ export class Project extends BaseEntity {
   @Column({ length: 100, nullable: true })
   category: string;
 
+  @Column({ length: 100, nullable: true })
+  projectCode: string;
+
   @Column({ length: 7, default: '#5B4FCF' })
   brandColor: string;
 

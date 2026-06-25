@@ -1,15 +1,17 @@
 interface AdminInviteTemplateParams {
   fullName: string;
   role: string;
-  organizationName: string;
+  projectName: string;
   inviteLink: string;
+  appUrl: string;
 }
 
 export function adminInviteTemplate({
   fullName,
   role,
-  organizationName,
+  projectName,
   inviteLink,
+  appUrl,
 }: AdminInviteTemplateParams): string {
   return `
 <!DOCTYPE html>
@@ -60,10 +62,10 @@ export function adminInviteTemplate({
     <table class="card" cellpadding="0" cellspacing="0">
 
       <tr>
-        <td align="center" style="padding: 20px;">
+        <td align="left" style="padding: 20px;">
           <img
-            src="https://harperhelp.vercel.app/images/harperhelplogo.png"
-            width="220"
+            src="${appUrl}/images/logoWithText.svg"
+            width="150"
             alt="HarperHelp">
         </td>
       </tr>
@@ -71,7 +73,7 @@ export function adminInviteTemplate({
       <tr>
         <td>
           <img
-            src="https://harperhelp.vercel.app/images/invite-banner.png"
+            src="${appUrl}/images/HarperBanner.jpg"
             width="100%"
             alt="Banner">
         </td>
@@ -86,7 +88,7 @@ export function adminInviteTemplate({
 
           <p>
             You've been invited to join project
-            <strong>"${organizationName}"</strong>.
+            <strong>"${projectName}"</strong>.
           </p>
 
           <p>

@@ -1,18 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Project } from './entities/project.entity';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { UserRole } from '../users/entities/user.roles.entity';
-import { SystemRoles } from '@harperhelp/types';
+import { SystemRoles, UserType } from '@harperhelp/types';
 import { Ticket } from '../tickets/entities/ticket.entity';
 import { GetProjectsQueryDto } from './dto/get-projects-query.dto';
 
 @Injectable()
 export class ProjectsService {
   constructor(
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
+
     @InjectRepository(Project)
     private readonly projectRepo: Repository<Project>,
 
@@ -25,11 +28,18 @@ export class ProjectsService {
 
   async createProject(dto: CreateProjectDto, currentUser: User) {
     // 1. Create project
+    const [{ nextval }] = await this.dataSource.query(
+      `SELECT nextval('project_code_seq')`,
+    );
+
+    const projectCode = `HH${nextval}`;
+
     const project = this.projectRepo.create({
       name: dto.name,
       category: dto.category,
       brandColor: dto.brandColor ?? '#5B4FCF',
       logoLetter: dto.logoLetter ?? 'HH',
+      projectCode,
     });
 
     const savedProject = await this.projectRepo.save(project);
@@ -172,7 +182,8 @@ export class ProjectsService {
       .createQueryBuilder('project')
       .innerJoin('project.members', 'member')
       .where('project.id = :projectId', { projectId })
-      .andWhere('member.id != :userId', { userId: user.id })
+      .andWhere('member.isInvitationAccepted = true')
+      .andWhere('member.userType = :userType', { userType: UserType.INTERNAL })
       .andWhere((qb) => {
         const subQuery = qb
           .subQuery()
@@ -235,5 +246,18 @@ export class ProjectsService {
     return {
       success: true,
     };
+  }
+
+  // Utility
+  private generateProjectCode(name: string): string {
+    const prefix = name
+      .replace(/[^a-zA-Z]/g, '')
+      .toUpperCase()
+      .slice(0, 3)
+      .padEnd(3, 'X');
+
+    const suffix = Math.random().toString(36).substring(2, 4).toUpperCase();
+
+    return `${prefix}${suffix}`;
   }
 }

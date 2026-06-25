@@ -15,6 +15,8 @@ import { TicketStatusesController } from './ticket.statuses.controller';
 import { TicketStatusesService } from './services/ticket.statuses.service';
 import { TicketPrioritiesController } from './ticket.priorities.controller';
 import { TicketPrioritiesService } from './services/ticket.priorities.service';
+import { TicketSequence } from './entities/ticket.sequence.entity';
+import { Project } from '../projects/entities/project.entity';
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { TicketPrioritiesService } from './services/ticket.priorities.service';
       TicketPriority,
       FileRecord,
       TicketReply,
+      TicketSequence,
+      Project
     ]),
   ],
   controllers: [

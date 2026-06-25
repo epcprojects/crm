@@ -61,13 +61,10 @@ export class TicketsController {
         priorityKey: {
           type: 'string',
         },
-        assigneeId: {
-          type: 'string',
-          format: 'uuid',
-        },
         dueDate: {
           type: 'string',
           format: 'date-time',
+          nullable: true
         },
         attachments: {
           type: 'array',
@@ -150,7 +147,14 @@ export class DashboardController {
   }
 
   @Get('ticket-summary')
-  getGlobalTicketSummary() {
-    return this.ticketsService.getGlobalTicketSummary();
+    @ApiOperation({summary: 'Get tickets summary. Returns Open, In Progress, Resolved and Critical counts.'})
+  getGlobalTicketSummary(@GetUser() user) {
+    return this.ticketsService.getGlobalTicketSummary(user);
+  }
+
+  @Get('upcoming')
+  @ApiOperation({summary: 'Get upcoming tickets'})
+  getUpcomingTickets(@GetUser() user){
+    return this.ticketsService.getUpcomingTickets(user)
   }
 }

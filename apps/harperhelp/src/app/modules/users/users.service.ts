@@ -198,7 +198,7 @@ export class UsersService {
         to: existing.email,
         fullName: existing.fullName,
         role: role.name,
-        organizationName: projectNames,
+        projectName: projectNames,
         inviteToken: existing.inviteToken,
       });
 
@@ -234,7 +234,7 @@ export class UsersService {
       to: newUser.email,
       fullName: newUser.fullName,
       role: role.name,
-      organizationName: projectNames,
+      projectName: projectNames,
       inviteToken: newUser.inviteToken,
     });
 

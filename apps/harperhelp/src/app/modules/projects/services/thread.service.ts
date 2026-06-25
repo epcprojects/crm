@@ -1,7 +1,11 @@
 import { FileSource } from '@harperhelp/types';
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { FilesService } from '../../files/files.service';
 import { UtilityService } from '../../utility/utility.service';
 import { ThreadMessage } from '../entities/thread-messages.entity';
@@ -23,14 +27,23 @@ export class ThreadService {
     userId: string,
     files?: Express.Multer.File[],
   ) {
+    if (!dto.message && !files.length) {
+      throw new BadRequestException('Atleast one message is required.');
+    }
+
     const message = await this.repo.save(
       this.repo.create({
         projectId,
         message: dto.message,
         authorId: userId,
         createdBy: userId,
+        parentId: dto.parentId,
       }),
     );
+
+    if (dto.parentId) {
+      await this.repo.increment({ id: dto.parentId }, 'replyCount', 1);
+    }
 
     if (files?.length) {
       await this.uploadAttachments(message.id, projectId, files, userId);
@@ -39,16 +52,23 @@ export class ThreadService {
     return this.findOne(message.id);
   }
 
+  // TODO: optimize N+1 issue
   async findAll(projectId: string) {
-    return this.repo.find({
-      where: { projectId },
-      order: { createdAt: 'ASC' },
+    const messages = await this.repo.find({
+      where: {
+        projectId,
+        parentId: IsNull(), // only top-level threads
+      },
+      order: {
+        createdAt: 'ASC',
+      },
       relations: {
         author: true,
       },
       select: {
         id: true,
         message: true,
+        replyCount: true,
         createdAt: true,
         createdBy: true,
         updatedAt: true,
@@ -59,6 +79,16 @@ export class ThreadService {
         },
       },
     });
+
+    return Promise.all(
+      messages.map(async (message) => ({
+        ...message,
+        attachments: await this.filesService.findBySource(
+          FileSource.THREAD,
+          message.id,
+        ),
+      })),
+    );
   }
 
   async findOne(id: string) {
@@ -73,6 +103,78 @@ export class ThreadService {
       ...msg,
       attachments,
     };
+  }
+
+  async getThread(parentId: string, projectId: string) {
+    const parent = await this.repo.findOne({
+      where: { id: parentId, projectId },
+      relations: { author: true },
+    });
+
+    if (!parent) throw new NotFoundException('Thread not found');
+
+    const replies = await this.repo.find({
+      where: { parentId },
+      relations: { author: true },
+      order: { createdAt: 'ASC' },
+    });
+
+    const allIds = [parent.id, ...replies.map((r) => r.id)];
+
+    const allFiles = await this.filesService.findBySourceBulk(
+      FileSource.THREAD,
+      allIds,
+    );
+
+    const attachMap = new Map<string, any[]>();
+
+    for (const file of allFiles) {
+      const arr = attachMap.get(file.sourceId) || [];
+      arr.push(file);
+      attachMap.set(file.sourceId, arr);
+    }
+
+    return {
+      ...parent,
+      attachments: attachMap.get(parent.id) || [],
+      replies: replies.map((r) => ({
+        ...r,
+        attachments: attachMap.get(r.id) || [],
+      })),
+    };
+  }
+
+  async findReplies(messageId: string, projectId: string) {
+    const replies = await this.repo.find({
+      where: { parentId: messageId, projectId },
+      relations: {
+        author: true,
+      },
+      order: {
+        createdAt: 'ASC',
+      },
+    });
+
+    const allIds = replies.map((r) => r.id);
+
+    const files = await this.filesService.findBySourceBulk(
+      FileSource.THREAD,
+      allIds,
+    );
+
+    const fileMap = new Map<string, any[]>();
+
+    for (const file of files) {
+      if (!fileMap.has(file.sourceId)) {
+        fileMap.set(file.sourceId, []);
+      }
+      fileMap.get(file.sourceId)!.push(file);
+    }
+
+    return replies.map((reply) => ({
+      ...reply,
+      attachments: fileMap.get(reply.id) || [],
+    }));
   }
 
   private async uploadAttachments(

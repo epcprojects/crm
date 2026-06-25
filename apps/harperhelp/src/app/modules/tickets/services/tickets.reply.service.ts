@@ -1,5 +1,9 @@
 import { FileSource } from '@harperhelp/types';
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FilesService } from '../../files/files.service';
@@ -24,9 +28,10 @@ export class TicketRepliesService {
     userId: string,
     files?: Express.Multer.File[],
   ) {
-
-    if(!dto.message && !files){
-      throw new BadRequestException('Atleast one message is required to send a reply.')
+    if (!dto.message && !files.length) {
+      throw new BadRequestException(
+        'Atleast one message is required to send a reply.',
+      );
     }
 
     const reply = await this.replyRepo.save(
@@ -46,11 +51,29 @@ export class TicketRepliesService {
     return this.findOne(reply.id);
   }
 
+  // TODO: optimize N+1 issue
   async findByTicket(ticketId: string) {
-    return this.replyRepo.find({
+    const replies = await this.replyRepo.find({
       where: { ticketId },
       order: { createdAt: 'ASC' },
+      relations: {
+        author: true,
+      },
     });
+
+    return Promise.all(
+      replies.map(async (reply) => {
+        delete reply.author['passwordHash'];
+
+        return {
+          ...reply,
+          attachments: await this.filesService.findBySource(
+            FileSource.TICKET_REPLY,
+            reply.id,
+          ),
+        };
+      }),
+    );
   }
 
   async findOne(id: string) {

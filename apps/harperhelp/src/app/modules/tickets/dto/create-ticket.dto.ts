@@ -30,11 +30,6 @@ export class CreateTicketDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsUUID()
-  assigneeId?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
   @IsDateString()
   dueDate?: string;
 }

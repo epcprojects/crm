@@ -1,8 +1,14 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString } from 'class-validator';
 
 export class CreateThreadMessageDto {
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsString()
-  message: string;
+  @IsOptional()
+  message?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  parentId?: string;
 }
