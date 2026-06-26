@@ -21,7 +21,7 @@ export type CreateTicketFormValues = {
   title: string;
   description: string;
   status: string;
-  assignee: string;
+  priority: string;
   dueDate: string;
   attachments: File[];
 };
@@ -33,32 +33,9 @@ type CreateTicketModalProps = {
   onClose: () => void;
   onConfirm?: (values: CreateTicketFormValues) => Promise<void> | void;
   projectOptions: CreateTicketDropdownOption[];
-  priorityOptions?: CreateTicketDropdownOption[];
   preselectedProjectId?: string;
   disableProjectSelection?: boolean;
 };
-
-const createTicketSchema = yup.object({
-  project: yup.string().required('Project is required'),
-  title: yup.string().required('Title is required'),
-  description: yup
-    .string()
-    .max(
-      MAX_DESCRIPTION_LENGTH,
-      `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less`,
-    )
-    .optional(),
-  status: yup.string().required('Status is required'),
-  assignee: yup.string().optional(),
-  dueDate: yup
-    .string()
-    .test(
-      'not-in-past',
-      'Due date cannot be less than current date',
-      (value) => !value || value >= getTodayInputValue(),
-    )
-    .optional(),
-});
 
 export default function CreateTicketModal({
   isOpen,
@@ -73,6 +50,31 @@ export default function CreateTicketModal({
   const isExternalUser = userType === 'EXTERNAL';
   const [isDragOver, setIsDragOver] = useState(false);
   const [attachmentError, setAttachmentError] = useState('');
+  const createTicketSchema = useMemo(
+    () =>
+      yup.object({
+        project: yup.string().required('Project is required'),
+        title: yup.string().required('Title is required'),
+        description: yup
+          .string()
+          .max(
+            MAX_DESCRIPTION_LENGTH,
+            `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less`,
+          )
+          .optional(),
+        status: yup.string().required('Status is required'),
+        priority: yup.string().optional(),
+        dueDate: yup
+          .string()
+          .test(
+            'not-in-past',
+            'Due date cannot be less than current date',
+            (value) => !value || value >= getTodayInputValue(),
+          )
+          .optional(),
+      }),
+    [isExternalUser],
+  );
 
   const formik = useFormik<CreateTicketFormValues>({
     initialValues: {
@@ -80,7 +82,7 @@ export default function CreateTicketModal({
       title: '',
       description: '',
       status: '',
-      assignee: '',
+      priority: '',
       dueDate: '',
       attachments: [],
     },
@@ -97,11 +99,9 @@ export default function CreateTicketModal({
     queryKey: ['ticket-statuses'],
     queryFn: fetchTicketStatuses,
   });
-
-  const projectMembersQuery = useQuery({
-    queryKey: ['project-members', formik.values.project],
-    queryFn: () => fetchProjectMembers(formik.values.project),
-    enabled: Boolean(formik.values.project),
+  const ticketPrioritiesQuery = useQuery({
+    queryKey: ['ticket-priorities'],
+    queryFn: fetchTicketPriorities,
   });
 
   const statusOptions = useMemo(
@@ -130,16 +130,20 @@ export default function CreateTicketModal({
     [statusOptions],
   );
 
-  const resolvedAssigneeOptions = useMemo(() => {
-    if (projectMembersQuery.data?.length) {
-      return projectMembersQuery.data.map((member) => ({
-        label: member.fullName,
-        value: member.id,
-      }));
-    }
-
-    return [];
-  }, [projectMembersQuery.data]);
+  const priorityOptions = useMemo(
+    () =>
+      (ticketPrioritiesQuery.data ?? []).map((priority) => ({
+        label: priority.label,
+        value: priority.key,
+        icon: (
+          <span
+            className="inline-block h-2.25 w-2.5 rounded-full"
+            style={{ backgroundColor: priority.color }}
+          />
+        ),
+      })),
+    [ticketPrioritiesQuery.data],
+  );
 
   useEffect(() => {
     if (!isOpen) {
@@ -161,8 +165,8 @@ export default function CreateTicketModal({
         formik.setFieldValue('status', openStatusValue);
       }
 
-      if (formik.values.assignee) {
-        formik.setFieldValue('assignee', '');
+      if (formik.values.priority) {
+        formik.setFieldValue('priority', '');
       }
 
       return;
@@ -172,33 +176,11 @@ export default function CreateTicketModal({
       formik.setFieldValue('status', statusOptions[0].value);
     }
   }, [
-    formik.values.assignee,
     formik.values.status,
     isExternalUser,
     openStatusValue,
     statusOptions,
   ]);
-
-  useEffect(() => {
-    if (isExternalUser) {
-      return;
-    }
-
-    if (!resolvedAssigneeOptions.length) {
-      if (formik.values.assignee) {
-        formik.setFieldValue('assignee', '');
-      }
-      return;
-    }
-
-    const hasSelectedAssignee = resolvedAssigneeOptions.some(
-      (option) => option.value === formik.values.assignee,
-    );
-
-    if (!hasSelectedAssignee) {
-      formik.setFieldValue('assignee', '');
-    }
-  }, [formik.values.assignee, isExternalUser, resolvedAssigneeOptions]);
 
   const setAttachments = (files: FileList | File[]) => {
     const nextFiles = mergeAttachmentFiles(
@@ -290,8 +272,8 @@ export default function CreateTicketModal({
           </div>
         </div>
 
-        {isExternalUser ? null : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {isExternalUser ? null : (
             <Dropdown
               label="Status"
               required
@@ -301,16 +283,22 @@ export default function CreateTicketModal({
               error={Boolean(formik.touched.status && formik.errors.status)}
               errorMessage={formik.touched.status ? formik.errors.status : ''}
             />
+          )}
 
+          {isExternalUser ? null : (
             <Dropdown
-              label="Assignee"
-              options={resolvedAssigneeOptions}
-              value={formik.values.assignee}
-              onChange={(value) => formik.setFieldValue('assignee', value)}
-              placeholder="Select assignee"
+              label="Priority"
+              options={priorityOptions}
+              value={formik.values.priority}
+              onChange={(value) => formik.setFieldValue('priority', value)}
+              error={Boolean(formik.touched.priority && formik.errors.priority)}
+              errorMessage={
+                formik.touched.priority ? formik.errors.priority : ''
+              }
+              placeholder="Select priority"
             />
-          </div>
-        )}
+          )}
+        </div>
 
         <ThemeInput
           label="Due Date (optional)"
@@ -411,9 +399,8 @@ type ApiTicketStatus = {
   color: string;
 };
 
-type ApiProjectMember = {
-  id: string;
-  fullName: string;
+type ApiTicketPriority = ApiTicketStatus & {
+  sortOrder: number;
 };
 
 async function fetchTicketStatuses() {
@@ -441,8 +428,8 @@ async function fetchTicketStatuses() {
   return payload;
 }
 
-async function fetchProjectMembers(projectId: string) {
-  const response = await fetch(`/api/projects/${projectId}/members`, {
+async function fetchTicketPriorities() {
+  const response = await fetch('/api/ticket-priorities', {
     method: 'GET',
     headers: {
       Accept: 'application/json',
@@ -451,19 +438,21 @@ async function fetchProjectMembers(projectId: string) {
   });
 
   const payload = (await response.json().catch(() => null)) as
-    | ApiProjectMember[]
+    | ApiTicketPriority[]
     | { message?: string }
     | null;
 
   if (!response.ok || !Array.isArray(payload)) {
     throw new Error(
       !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch project members.'
-        : 'Failed to fetch project members.',
+        ? payload?.message || 'Failed to fetch ticket priorities.'
+        : 'Failed to fetch ticket priorities.',
     );
   }
 
-  return payload;
+  return payload
+    .slice()
+    .sort((first, second) => first.sortOrder - second.sortOrder);
 }
 
 export function UploadIcon() {

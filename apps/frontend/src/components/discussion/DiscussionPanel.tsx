@@ -8,6 +8,7 @@ import {
 } from '../../lib/attachments';
 import { FileTypePlaceholder } from '../../../public/icons';
 import { getFileUrl } from '../projects/ProjectFilesPanel';
+import ConfirmActionModal from '../modals/ConfirmActionModal';
 
 export type DiscussionReply = {
   id: string;
@@ -68,6 +69,8 @@ export default function DiscussionPanel({
   const [message, setMessage] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
   const [attachmentError, setAttachmentError] = useState('');
+  const [attachmentToDelete, setAttachmentToDelete] =
+    useState<DiscussionAttachment | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleSubmit = async () => {
@@ -119,234 +122,269 @@ export default function DiscussionPanel({
     setAttachmentError('');
   };
 
+  const handleConfirmDeleteAttachment = async () => {
+    if (!attachmentToDelete || !onDeleteAttachment) {
+      return;
+    }
+
+    await onDeleteAttachment(attachmentToDelete);
+    setAttachmentToDelete(null);
+  };
+
   return (
-    <section className="rounded-xl sm:rounded-2xl border flex-1 bg-white flex flex-col border-gray-200 ">
-      <div className="flex items-center justify-between border-b border-gray-200 px-3 py-2 sm:py-3 md:px-5">
-        <h3 className="text-sm md:text-base font-semibold text-gray-900">
-          {title}
-        </h3>
-        <p className="text-sm text-gray-900">{subtitle}</p>
-      </div>
+    <>
+      <section className="rounded-xl sm:rounded-2xl border flex-1 bg-white flex flex-col border-gray-200 ">
+        <div className="flex items-center justify-between border-b border-gray-200 px-3 py-2 sm:py-3 md:px-5">
+          <h3 className="text-sm md:text-base font-semibold text-gray-900">
+            {title}
+          </h3>
+          <p className="text-sm text-gray-900">{subtitle}</p>
+        </div>
 
-      <div className="min-h-96 px-3 flex-1 py-5 md:px-5">
-        {replies.length ? (
-          <div className="space-y-5">
-            {replies.map((reply) => {
-              const isCurrentUserReply = Boolean(
-                currentUserId && reply.authorId === currentUserId,
-              );
+        <div className="min-h-96 px-3 flex-1 py-5 md:px-5">
+          {replies.length ? (
+            <div className="space-y-5">
+              {replies.map((reply) => {
+                const isCurrentUserReply = Boolean(
+                  currentUserId && reply.authorId === currentUserId,
+                );
 
-              return (
-                <article
-                  key={reply.id}
-                  className={`flex items-start gap-3 ${
-                    isCurrentUserReply ? 'justify-end' : 'justify-start'
-                  }`}
-                >
-                  {!isCurrentUserReply ? (
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-violet-200 bg-violet-100 text-xs font-bold text-purple-700">
-                      {reply.author.initials}
-                    </span>
-                  ) : null}
-                  <div
-                    className={`flex max-w-200 min-w-120 flex-col ${
-                      isCurrentUserReply ? 'items-end' : 'items-start'
+                return (
+                  <article
+                    key={reply.id}
+                    className={`flex items-start gap-3 ${
+                      isCurrentUserReply ? 'justify-start' : 'justify-start'
                     }`}
                   >
-                    <div
-                      className={`mb-1 flex flex-wrap items-center gap-2 ${
-                        isCurrentUserReply ? 'justify-end' : ''
-                      }`}
-                    >
-                      <span className="text-sm font-bold text-gray-900">
-                        {reply.author.name}
-                      </span>
-                      <span className="text-xs text-gray-700">
-                        {reply.createdAt}
-                      </span>
-                    </div>
-                    {reply.message || reply.attachments?.length ? (
-                      <div
-                        className={`w-full rounded-xl ${isCurrentUserReply ? 'rounded-tr-none' : 'rounded-tl-none'} ${reply.message && 'space-y-2 border border-gray-200 p-3 shadow-xs'}  bg-white  `}
-                      >
-                        {reply.message ? (
-                          <p className="text-sm font-normal text-gray-900">
-                            {reply.message}
-                          </p>
-                        ) : null}
-                        {reply.attachments?.length ? (
-                          <div
-                            className={`grid gap-2 ${reply.attachments.length > 1 && 'md:grid-cols-2'} ${!reply.message && reply.attachments && reply.attachments.length > 1 && 'p-2 border border-gray-200 rounded-xl'} ${isCurrentUserReply ? 'rounded-tr-none' : 'rounded-tl-none'}`}
-                          >
-                            {reply.attachments.map((attachment) => (
-                              <div
-                                key={attachment.id}
-                                className="flex min-w-0 w-full items-start gap-3 rounded-xl border border-gray-200 bg-white p-2.5 transition hover:bg-gray-50"
-                              >
-                                <a
-                                  href={getAttachmentUrl(attachment.storageKey)}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="flex min-w-0 flex-1 items-start gap-3"
-                                >
-                                  {attachment.extension === 'png' ||
-                                  attachment.extension === 'svg' ||
-                                  attachment.extension === 'jpg' ||
-                                  attachment.extension === 'jpeg' ? (
-                                    <img
-                                      className="rounded-sm h-10  border border-gray-200 w-10"
-                                      src={getFileUrl(attachment.storageKey)}
-                                    />
-                                  ) : (
-                                    <AttachmentFileIcon
-                                      extension={attachment.extension}
-                                    />
-                                  )}
-                                  <div className="min-w-0 flex-1">
-                                    <p className="truncate text-sm font-medium text-gray-700">
-                                      {attachment.name}
-                                    </p>
-                                    {attachment.sizeLabel ? (
-                                      <p className="text-sm text-gray-500">
-                                        {attachment.sizeLabel}
-                                      </p>
-                                    ) : null}
-                                  </div>
-                                </a>
-                                {onDeleteAttachment ? (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      onDeleteAttachment(attachment)
-                                    }
-                                    disabled={
-                                      deletingAttachmentId === attachment.id
-                                    }
-                                    className="shrink-0 text-gray-400 transition hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
-                                    aria-label={`Delete ${attachment.name}`}
-                                  >
-                                    <AttachmentTrashIcon />
-                                  </button>
-                                ) : null}
-                              </div>
-                            ))}
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </div>
-                  {isCurrentUserReply ? (
+                    {/* {isCurrentUserReply ? ( */}
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-violet-200 bg-violet-100 text-xs font-bold text-purple-700">
                       {reply.author.initials}
                     </span>
-                  ) : null}
-                </article>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="flex min-h-80 flex-col h-full items-center justify-center text-center">
-            <EmptyRepliesIcon />
-            <p className="mt-2 sm:mt-4 text-base md:text-lg font-semibold text-gray-600">
-              {emptyTitle}
-            </p>
-            <p className="mt-1 sm:mt-2 text-xs text-gray-500">
-              {emptyDescription}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {canCompose ? (
-        <div className="px-2 py-4 md:px-5">
-          <div className="rounded-sm bg-gray-100 px-3 py-2">
-            <textarea
-              rows={3}
-              value={message}
-              onChange={(event) => setMessage(event.target.value)}
-              placeholder={composerPlaceholder}
-              disabled={isSubmittingReply}
-              className="w-full resize-none bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
-            />
-          </div>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            className="hidden"
-            accept={ALLOWED_ATTACHMENT_ACCEPT}
-            multiple
-            onChange={(event) =>
-              handleAttachmentChange(event.target.files ?? null)
-            }
-          />
-
-          {attachments.length ? (
-            <div className="mt-2 space-y-2">
-              {attachments.map((attachment) => (
-                <div
-                  key={`${attachment.name}-${attachment.lastModified}`}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2"
-                >
-                  <p className="truncate text-sm text-gray-700">
-                    {attachment.name}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const nextAttachments = attachments.filter(
-                        (file) => file !== attachment,
-                      );
-                      setAttachments(nextAttachments);
-                      if (!nextAttachments.length && fileInputRef.current) {
-                        fileInputRef.current.value = '';
-                      }
-                    }}
-                    disabled={isSubmittingReply}
-                    className="text-xs font-medium text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
+                    {/* ) : null} */}
+                    <div
+                      className={`flex max-w-200 min-w-120 flex-col ${
+                        isCurrentUserReply ? 'items-start' : 'items-start'
+                      }`}
+                    >
+                      <div
+                        className={`mb-1 flex flex-wrap items-center gap-2 ${
+                          isCurrentUserReply ? 'justify-start' : ''
+                        }`}
+                      >
+                        <span className="text-sm font-bold text-gray-900">
+                          {reply.author.name}
+                        </span>
+                        <span className="text-xs text-gray-700">
+                          {reply.createdAt}
+                        </span>
+                      </div>
+                      {reply.message || reply.attachments?.length ? (
+                        <div
+                          className={`w-full rounded-xl ${isCurrentUserReply ? 'rounded-tr-none' : 'rounded-tl-none'} ${reply.message && 'space-y-2 border border-gray-200 p-3 shadow-xs'}  bg-white  `}
+                        >
+                          {reply.message ? (
+                            <p className="text-sm font-normal text-gray-900">
+                              {reply.message}
+                            </p>
+                          ) : null}
+                          {reply.attachments?.length ? (
+                            <div
+                              className={`grid gap-2 ${reply.attachments.length > 1 && 'md:grid-cols-2'} ${!reply.message && reply.attachments && reply.attachments.length > 1 && 'p-2 border border-gray-200 rounded-xl'} ${isCurrentUserReply ? 'rounded-tr-none' : 'rounded-tl-none'}`}
+                            >
+                              {reply.attachments.map((attachment) => (
+                                <div
+                                  key={attachment.id}
+                                  className="flex min-w-0 w-full items-start gap-3 rounded-xl border border-gray-200 bg-white p-2.5 transition hover:bg-gray-50"
+                                >
+                                  <a
+                                    href={getAttachmentUrl(attachment.storageKey)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="flex min-w-0 flex-1 items-start gap-3"
+                                  >
+                                    {attachment.extension === 'png' ||
+                                    attachment.extension === 'svg' ||
+                                    attachment.extension === 'jpg' ||
+                                    attachment.extension === 'jpeg' ? (
+                                      <img
+                                        className="rounded-sm h-10  border border-gray-200 w-10"
+                                        src={getFileUrl(attachment.storageKey)}
+                                      />
+                                    ) : (
+                                      <AttachmentFileIcon
+                                        extension={attachment.extension}
+                                      />
+                                    )}
+                                    <div className="min-w-0 flex-1">
+                                      <p className="truncate text-sm font-medium text-gray-700">
+                                        {attachment.name}
+                                      </p>
+                                      {attachment.sizeLabel ? (
+                                        <p className="text-sm text-gray-500">
+                                          {attachment.sizeLabel}
+                                        </p>
+                                      ) : null}
+                                    </div>
+                                  </a>
+                                  {onDeleteAttachment ? (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setAttachmentToDelete(attachment)
+                                      }
+                                      disabled={
+                                        deletingAttachmentId === attachment.id
+                                      }
+                                      className="shrink-0 text-gray-400 transition hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                                      aria-label={`Delete ${attachment.name}`}
+                                    >
+                                      <AttachmentTrashIcon />
+                                    </button>
+                                  ) : null}
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                    {/* {isCurrentUserReply ? (
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-violet-200 bg-violet-100 text-xs font-bold text-purple-700">
+                        {reply.author.initials}
+                      </span>
+                    ) : null} */}
+                  </article>
+                );
+              })}
             </div>
-          ) : null}
+          ) : (
+            <div className="flex min-h-80 flex-col h-full items-center justify-center text-center">
+              <EmptyRepliesIcon />
+              <p className="mt-2 sm:mt-4 text-base md:text-lg font-semibold text-gray-600">
+                {emptyTitle}
+              </p>
+              <p className="mt-1 sm:mt-2 text-xs text-gray-500">
+                {emptyDescription}
+              </p>
+            </div>
+          )}
+        </div>
 
-          {attachmentError ? (
-            <p className="mt-2 text-xs text-red-600">{attachmentError}</p>
-          ) : canAttachFile ? (
-            <p className="mt-2 text-xs text-gray-500">
-              {ALLOWED_ATTACHMENT_HELPER_TEXT}
-            </p>
-          ) : null}
+        {canCompose ? (
+          <div className="px-2 py-4 md:px-5">
+            <div className="rounded-sm bg-gray-100 px-3 py-2">
+              <textarea
+                rows={3}
+                value={message}
+                onChange={(event) => setMessage(event.target.value)}
+                placeholder={composerPlaceholder}
+                disabled={isSubmittingReply}
+                className="w-full resize-none bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
+              />
+            </div>
 
-          <div className="mt-3 flex items-center justify-end gap-3">
-            {canAttachFile ? (
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              accept={ALLOWED_ATTACHMENT_ACCEPT}
+              multiple
+              onChange={(event) =>
+                handleAttachmentChange(event.target.files ?? null)
+              }
+            />
+
+            {attachments.length ? (
+              <div className="mt-2 space-y-2">
+                {attachments.map((attachment) => (
+                  <div
+                    key={`${attachment.name}-${attachment.lastModified}`}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2"
+                  >
+                    <p className="truncate text-sm text-gray-700">
+                      {attachment.name}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextAttachments = attachments.filter(
+                          (file) => file !== attachment,
+                        );
+                        setAttachments(nextAttachments);
+                        if (!nextAttachments.length && fileInputRef.current) {
+                          fileInputRef.current.value = '';
+                        }
+                      }}
+                      disabled={isSubmittingReply}
+                      className="text-xs font-medium text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            {attachmentError ? (
+              <p className="mt-2 text-xs text-red-600">{attachmentError}</p>
+            ) : canAttachFile ? (
+              <p className="mt-2 text-xs text-gray-500">
+                {ALLOWED_ATTACHMENT_HELPER_TEXT}
+              </p>
+            ) : null}
+
+            <div className="mt-3 flex items-center justify-end gap-3">
+              {canAttachFile ? (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isSubmittingReply}
+                  className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <PaperclipIcon />
+                </button>
+              ) : null}
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isSubmittingReply}
-                className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={handleSubmit}
+                disabled={
+                  (requireMessage
+                    ? !message.trim()
+                    : !message.trim() && !attachments.length) ||
+                  isSubmittingReply
+                }
+                className="rounded-lg bg-[#10175A] px-5 py-2.5 sm:py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <PaperclipIcon />
+                {isSubmittingReply ? 'Posting...' : 'Reply'}
               </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={
-                (requireMessage
-                  ? !message.trim()
-                  : !message.trim() && !attachments.length) || isSubmittingReply
-              }
-              className="rounded-lg bg-[#10175A] px-5 py-2.5 sm:py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSubmittingReply ? 'Posting...' : 'Reply'}
-            </button>
+            </div>
           </div>
-        </div>
-      ) : null}
-    </section>
+        ) : null}
+      </section>
+
+      <ConfirmActionModal
+        isOpen={Boolean(attachmentToDelete)}
+        onClose={() => setAttachmentToDelete(null)}
+        title="Delete Attachment?"
+        message={
+          <>
+            Are you sure you want to delete{' '}
+            <span className="font-semibold">
+              “{attachmentToDelete?.name ?? 'this attachment'}”
+            </span>
+            ? This action cannot be undone.
+          </>
+        }
+        confirmLabel="Yes, Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isSubmitting={
+          Boolean(attachmentToDelete) &&
+          deletingAttachmentId === attachmentToDelete?.id
+        }
+        onConfirm={handleConfirmDeleteAttachment}
+      />
+    </>
   );
 }
 

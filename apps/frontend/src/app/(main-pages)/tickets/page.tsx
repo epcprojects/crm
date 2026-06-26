@@ -9,7 +9,6 @@ import CreateTicketModal, {
   type CreateTicketFormValues,
 } from '../../../components/modals/CreateTicketModal';
 import {
-  createTicketPriorityOptions,
   createTicketProjectOptions,
 } from '../../../components/modals/create-ticket-modal.data';
 import RecentTicketsTable, {
@@ -120,7 +119,7 @@ export default function Page() {
         title: values.title,
         description: values.description,
         statusKey: values.status,
-        assigneeId: values.assignee,
+        priorityKey: values.priority,
         dueDate: values.dueDate,
         attachments: values.attachments,
       });
@@ -261,7 +260,6 @@ export default function Page() {
         onClose={() => setCreateTicketOpen(false)}
         onConfirm={handleCreateTicket}
         projectOptions={projectOptions}
-        priorityOptions={createTicketPriorityOptions}
       />
     </div>
   );

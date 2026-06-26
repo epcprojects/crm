@@ -20,7 +20,6 @@ import ProjectFilesPanel, {
 } from '../../../../components/projects/ProjectFilesPanel';
 import ProjectCalendarPanel from '../../../../components/projects/ProjectCalendarPanel';
 import {
-  createTicketPriorityOptions,
   createTicketProjectOptions,
 } from '../../../../components/modals/create-ticket-modal.data';
 import RecentTicketsTable from '../../../../components/tables/RecentTicketsTable';
@@ -232,7 +231,7 @@ export default function ProjectDetailPage() {
         title: values.title,
         description: values.description,
         statusKey: values.status,
-        assigneeId: values.assignee,
+        priorityKey: values.priority,
         dueDate: values.dueDate,
         attachments: values.attachments,
       });
@@ -607,7 +606,6 @@ export default function ProjectDetailPage() {
         onClose={() => setCreateTicketOpen(false)}
         onConfirm={handleCreateTicket}
         projectOptions={projectOptions}
-        priorityOptions={createTicketPriorityOptions}
         preselectedProjectId={project.id}
         disableProjectSelection
       />

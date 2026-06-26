@@ -12,7 +12,6 @@ import CreateTicketModal, {
   type CreateTicketFormValues,
 } from '../../../components/modals/CreateTicketModal';
 import {
-  createTicketPriorityOptions,
   createTicketProjectOptions,
 } from '../../../components/modals/create-ticket-modal.data';
 import ProjectCard from '../../../components/projects/ProjectCard';
@@ -163,7 +162,7 @@ export default function ProjectsPage() {
         title: values.title,
         description: values.description,
         statusKey: values.status,
-        assigneeId: values.assignee,
+        priorityKey: values.priority,
         dueDate: values.dueDate,
         attachments: values.attachments,
       });
@@ -350,7 +349,6 @@ export default function ProjectsPage() {
         }}
         onConfirm={handleCreateTicket}
         projectOptions={projectOptions}
-        priorityOptions={createTicketPriorityOptions}
         preselectedProjectId={selectedProjectId ?? undefined}
         disableProjectSelection={Boolean(selectedProjectId)}
       />
