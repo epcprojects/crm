@@ -569,6 +569,7 @@ type DashboardTicketsResponse = {
 
 type ApiDashboardTicket = {
   id: string;
+  ticketRefNo?: string;
   createdAt: string;
   title: string;
   project: {
@@ -732,6 +733,7 @@ function mapApiDashboardTicketToRecentTicket(
 
   return {
     id: ticket.id,
+    ticketRefNo: ticket.ticketRefNo,
     title: ticket.title,
     project: {
       id: ticket.project?.id,

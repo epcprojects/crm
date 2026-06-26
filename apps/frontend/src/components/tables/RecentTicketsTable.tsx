@@ -19,6 +19,7 @@ export type TicketPriority = string;
 
 export type RecentTicket = {
   id: string;
+  ticketRefNo?: string;
   title: string;
   project: {
     id?: string;
@@ -73,7 +74,7 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     header: 'Reference No',
     cell: ({ row }) => (
       <span className="font-normal text-gray-900 text-sm">
-        {row.original.id}
+        {row.original.ticketRefNo ?? row.original.id}
       </span>
     ),
   },
@@ -478,12 +479,12 @@ function TicketMobileCard({
 
       <div className="my-3 h-px bg-gray-200" />
 
-      <div className="flex items-center gap-3">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100 border border-gray-100 text-sm font-semibold text-gray-900">
-          {ticket.id}
-        </span>
-        <p className="truncate text-sm text-gray-800">{ticket.title}</p>
-      </div>
+        <div className="flex items-center gap-3">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100 border border-gray-100 text-sm font-semibold text-gray-900">
+          {ticket.ticketRefNo ?? ticket.id}
+          </span>
+          <p className="truncate text-sm text-gray-800">{ticket.title}</p>
+        </div>
 
       <div className="mt-2">
         <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-purple-100 py-0.5 pr-3 pl-0.5 text-sm font-medium text-purple-700">

@@ -414,6 +414,7 @@ type ApiDiscussionAttachment = {
 
 type ApiProjectTicket = {
   id: string;
+  ticketRefNo?: string;
   createdAt: string;
   updatedAt?: string;
   deletedAt?: string | null;
@@ -679,6 +680,7 @@ function mapApiProjectTicketToRecentTicket(ticket: ApiProjectTicket): RecentTick
 
   return {
     id: ticket.id,
+    ticketRefNo: ticket.ticketRefNo,
     title: ticket.title,
     project: {
       id: ticket.project?.id ?? ticket.projectId,

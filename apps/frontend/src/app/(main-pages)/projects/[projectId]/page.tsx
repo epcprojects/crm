@@ -197,7 +197,9 @@ export default function ProjectDetailPage() {
       if (!normalizedSearch) return true;
 
       return (
-        ticket.id.toLowerCase().includes(normalizedSearch) ||
+        (ticket.ticketRefNo ?? ticket.id)
+          .toLowerCase()
+          .includes(normalizedSearch) ||
         ticket.title.toLowerCase().includes(normalizedSearch) ||
         ticket.assignee.name.toLowerCase().includes(normalizedSearch)
       );
