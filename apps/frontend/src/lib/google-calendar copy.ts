@@ -19,7 +19,7 @@
  * NEXTAUTH_URL=http://localhost:3000
  */
 
-import { CalendarEvent, GoogleCalendar } from '@/types';
+import { CalendarEvent, GoogleCalendar } from '../components/types';
 
 const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/calendar.readonly',
@@ -81,10 +81,12 @@ export async function refreshAccessToken(refreshToken: string) {
   return response.json();
 }
 
-export async function fetchGoogleCalendars(accessToken: string): Promise<GoogleCalendar[]> {
+export async function fetchGoogleCalendars(
+  accessToken: string,
+): Promise<GoogleCalendar[]> {
   const response = await fetch(
     'https://www.googleapis.com/calendar/v3/users/me/calendarList',
-    { headers: { Authorization: `Bearer ${accessToken}` } }
+    { headers: { Authorization: `Bearer ${accessToken}` } },
   );
 
   if (!response.ok) throw new Error('Failed to fetch calendars');
@@ -102,7 +104,7 @@ export async function fetchGoogleEvents(
   accessToken: string,
   calendarId: string,
   timeMin: string,
-  timeMax: string
+  timeMax: string,
 ): Promise<CalendarEvent[]> {
   const params = new URLSearchParams({
     timeMin,
@@ -114,10 +116,11 @@ export async function fetchGoogleEvents(
 
   const response = await fetch(
     `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
+    { headers: { Authorization: `Bearer ${accessToken}` } },
   );
 
-  if (!response.ok) throw new Error(`Failed to fetch events from ${calendarId}`);
+  if (!response.ok)
+    throw new Error(`Failed to fetch events from ${calendarId}`);
 
   const data = await response.json();
 
@@ -127,7 +130,9 @@ export async function fetchGoogleEvents(
     const endRaw = event.end?.dateTime || event.end?.date || '';
 
     const date = isAllDay ? startRaw : startRaw.split('T')[0];
-    const startTime = !isAllDay ? startRaw.split('T')[1]?.slice(0, 5) : undefined;
+    const startTime = !isAllDay
+      ? startRaw.split('T')[1]?.slice(0, 5)
+      : undefined;
     const endTime = !isAllDay ? endRaw.split('T')[1]?.slice(0, 5) : undefined;
 
     return {
@@ -158,7 +163,7 @@ export async function createGoogleEvent(
     description?: string;
     location?: string;
     allDay?: boolean;
-  }
+  },
 ) {
   const body: any = {
     summary: event.title,
@@ -170,8 +175,14 @@ export async function createGoogleEvent(
     body.start = { date: event.date };
     body.end = { date: event.date };
   } else {
-    body.start = { dateTime: `${event.date}T${event.startTime}:00`, timeZone: 'UTC' };
-    body.end = { dateTime: `${event.date}T${event.endTime || event.startTime}:00`, timeZone: 'UTC' };
+    body.start = {
+      dateTime: `${event.date}T${event.startTime}:00`,
+      timeZone: 'UTC',
+    };
+    body.end = {
+      dateTime: `${event.date}T${event.endTime || event.startTime}:00`,
+      timeZone: 'UTC',
+    };
   }
 
   const response = await fetch(
@@ -183,7 +194,7 @@ export async function createGoogleEvent(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
-    }
+    },
   );
 
   if (!response.ok) throw new Error('Failed to create Google event');
@@ -193,14 +204,14 @@ export async function createGoogleEvent(
 export async function deleteGoogleEvent(
   accessToken: string,
   calendarId: string,
-  eventId: string
+  eventId: string,
 ) {
   const response = await fetch(
     `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`,
     {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${accessToken}` },
-    }
+    },
   );
 
   if (!response.ok && response.status !== 410) {

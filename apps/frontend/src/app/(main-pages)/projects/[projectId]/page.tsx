@@ -17,7 +17,7 @@ import type { DiscussionAttachment } from '../../../../components/discussion/typ
 import ProjectFilesPanel, {
   type ProjectFileRecord,
 } from '../../../../components/projects/ProjectFilesPanel';
-import ProjectCalendarPanel from '../../../../components/projects/ProjectCalendarPanel';
+// import ProjectCalendarPanel from '../../../../components/projects/ProjectCalendarPanel';
 import { createTicketProjectOptions } from '../../../../components/modals/create-ticket-modal.data';
 import RecentTicketsTable from '../../../../components/tables/RecentTicketsTable';
 import { appToast } from '../../../../components/toast/AppToast';
@@ -44,7 +44,7 @@ import {
   usePermissions,
 } from '../../../providers/PermissionProvider';
 import { useAppSelector } from '../../../Redux/store';
-import Calendar from '../../../../components/calendar/Calendar';
+// import Calendar from '../../../../components/calendar/Calendar';
 
 const projectTabs = ['Tickets', 'Thread', 'Files', 'Calendar'] as const;
 
@@ -697,9 +697,7 @@ export default function ProjectDetailPage() {
                       Boolean(selectedThreadMessageId)
                     }
                     canCompose={canPostThreadReply}
-                    canAttachFile={
-                      canAttachThreadFile && canPostThreadReply
-                    }
+                    canAttachFile={canAttachThreadFile && canPostThreadReply}
                     requireMessage={false}
                     currentUserId={currentUserId}
                     onDeleteAttachment={handleDeleteThreadAttachment}

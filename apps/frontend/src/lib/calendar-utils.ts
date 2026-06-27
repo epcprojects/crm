@@ -1,4 +1,4 @@
-import { DayCell, CalendarEvent, Ticket } from '@/types';
+import { DayCell, CalendarEvent, Ticket } from '../components/types';
 
 export function toDateString(date: Date): string {
   return date.toISOString().split('T')[0];
@@ -11,7 +11,11 @@ export function todayString(): string {
 export function formatDisplayDate(dateStr: string): string {
   const [year, month, day] = dateStr.split('-').map(Number);
   const date = new Date(year, month - 1, day);
-  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  return date.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 export function formatMonthYear(date: Date): string {
@@ -95,7 +99,7 @@ export function populateCells(
   cells: DayCell[],
   events: CalendarEvent[],
   tickets: Ticket[],
-  selectedDate: string | null
+  selectedDate: string | null,
 ): DayCell[] {
   const eventsByDate = new Map<string, CalendarEvent[]>();
   const ticketsByDate = new Map<string, Ticket[]>();
@@ -133,4 +137,12 @@ export const STATUS_COLORS: Record<string, string> = {
 };
 
 export const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-export const DAYS_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+export const DAYS_FULL = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+];
