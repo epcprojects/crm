@@ -622,7 +622,7 @@ export default function ProjectDetailPage() {
               <div
                 className={`grid flex-1 border border-gray-200 overflow-hidden rounded-xl md:rounded-2xl ${
                   selectedThreadMessageId
-                    ? 'xl:grid-cols-[minmax(0,1fr)_360px] divide-x divide-gray-200'
+                    ? 'xl:grid-cols-[minmax(0,1fr)_400px] divide-x divide-gray-200'
                     : 'grid-cols-1'
                 }`}
               >
