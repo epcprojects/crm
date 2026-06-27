@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import {
   ALLOWED_ATTACHMENT_ACCEPT,
   ALLOWED_ATTACHMENT_HELPER_TEXT,
@@ -9,30 +9,13 @@ import {
 import { FileTypePlaceholder } from '../../../public/icons';
 import { getFileUrl } from '../projects/ProjectFilesPanel';
 import ConfirmActionModal from '../modals/ConfirmActionModal';
-
-export type DiscussionReply = {
-  id: string;
-  authorId?: string;
-  author: {
-    name: string;
-    initials: string;
-  };
-  createdAt: string;
-  message: string;
-  attachments?: DiscussionAttachment[];
-};
-
-export type DiscussionAttachment = {
-  id: string;
-  name: string;
-  sizeLabel?: string;
-  extension?: string;
-  storageKey?: string;
-};
+import type { DiscussionAttachment, DiscussionReply } from './types';
 
 type DiscussionPanelProps = {
   title?: string;
   subtitle?: string;
+  headerAction?: ReactNode;
+  headerReply?: DiscussionReply | null;
   replies: DiscussionReply[];
   emptyTitle?: string;
   emptyDescription?: string;
@@ -46,13 +29,17 @@ type DiscussionPanelProps = {
   canAttachFile?: boolean;
   requireMessage?: boolean;
   currentUserId?: string;
+  showReplyMeta?: boolean;
+  onReplyClick?: (reply: DiscussionReply) => void;
   onDeleteAttachment?: (attachment: DiscussionAttachment) => void;
   deletingAttachmentId?: string;
 };
 
-export default function DiscussionPanel({
+export default function TicketRepliesPanel({
   title = 'Replies',
   subtitle = 'Files auto-sync to repository',
+  headerAction,
+  headerReply,
   replies,
   emptyTitle = 'No replies yet.',
   emptyDescription = 'No responses have been added to this ticket yet.',
@@ -63,6 +50,8 @@ export default function DiscussionPanel({
   canAttachFile = true,
   requireMessage = true,
   currentUserId = '',
+  showReplyMeta = false,
+  onReplyClick,
   onDeleteAttachment,
   deletingAttachmentId,
 }: DiscussionPanelProps) {
@@ -135,13 +124,90 @@ export default function DiscussionPanel({
     <>
       <section className="rounded-xl sm:rounded-2xl border flex-1 bg-white flex flex-col border-gray-200 ">
         <div className="flex items-center justify-between border-b border-gray-200 px-3 py-2 sm:py-3 md:px-5">
-          <h3 className="text-sm md:text-base font-semibold text-gray-900">
-            {title}
-          </h3>
-          <p className="text-sm text-gray-900">{subtitle}</p>
+          <div className="flex items-center gap-3">
+            <h3 className="text-sm md:text-base font-semibold text-gray-900">
+              {title}
+            </h3>
+          </div>
+          <div className="flex items-center gap-3">
+            {subtitle ? (
+              <p className="text-sm text-gray-900">{subtitle}</p>
+            ) : null}
+            {headerAction}
+          </div>
         </div>
 
-        <div className="min-h-96 px-3 flex-1 py-5 md:px-5">
+        <div className="min-h-96 px-3 flex-1 py-5 md:px-5 max-h-[calc(100dvh-520px)] overflow-y-auto">
+          {headerReply ? (
+            <div className="mb-4 border-b border-gray-200 pb-4">
+              <article className="flex items-start gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-violet-200 bg-violet-100 text-xs font-bold text-purple-700">
+                  {headerReply.author.initials}
+                </span>
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <div className="mb-1 flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-bold text-gray-900">
+                      {headerReply.author.name}
+                    </span>
+                    <span className="text-xs text-gray-700">
+                      {headerReply.createdAt}
+                    </span>
+                  </div>
+                  {headerReply.message ? (
+                    <p className="text-sm font-normal text-gray-900">
+                      {headerReply.message}
+                    </p>
+                  ) : null}
+                  {headerReply.attachments?.length ? (
+                    <div className="mt-2 grid gap-2">
+                      {headerReply.attachments.map((attachment) => (
+                        <div
+                          key={attachment.id}
+                          className="flex min-w-0 w-full items-start gap-3 rounded-xl border border-gray-200 bg-white p-2.5 transition hover:bg-gray-50"
+                        >
+                          <a
+                            href={getAttachmentUrl(attachment.storageKey)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex min-w-0 flex-1 items-start gap-3"
+                          >
+                            {isImageAttachment(attachment.extension) ? (
+                              <img
+                                className="rounded-sm h-10 border border-gray-200 w-10"
+                                src={getFileUrl(attachment.storageKey)}
+                              />
+                            ) : (
+                              <AttachmentFileIcon
+                                extension={attachment.extension}
+                              />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium text-gray-700">
+                                {attachment.name}
+                              </p>
+                              {attachment.sizeLabel ? (
+                                <p className="text-sm text-gray-500">
+                                  {attachment.sizeLabel}
+                                </p>
+                              ) : null}
+                            </div>
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  {typeof headerReply.replyCount === 'number' &&
+                  headerReply.replyCount > 0 ? (
+                    <p className="mt-2 text-xs font-medium text-gray-500">
+                      {headerReply.replyCount}{' '}
+                      {headerReply.replyCount === 1 ? 'Reply' : 'Replies'}
+                    </p>
+                  ) : null}
+                </div>
+              </article>
+            </div>
+          ) : null}
+
           {replies.length ? (
             <div className="space-y-5">
               {replies.map((reply) => {
@@ -162,7 +228,7 @@ export default function DiscussionPanel({
                     </span>
                     {/* ) : null} */}
                     <div
-                      className={`flex max-w-200 min-w-120 flex-col ${
+                      className={`flex max-w-200 w-full flex-col ${
                         isCurrentUserReply ? 'items-start' : 'items-start'
                       }`}
                     >
@@ -197,15 +263,14 @@ export default function DiscussionPanel({
                                   className="flex min-w-0 w-full items-start gap-3 rounded-xl border border-gray-200 bg-white p-2.5 transition hover:bg-gray-50"
                                 >
                                   <a
-                                    href={getAttachmentUrl(attachment.storageKey)}
+                                    href={getAttachmentUrl(
+                                      attachment.storageKey,
+                                    )}
                                     target="_blank"
                                     rel="noreferrer"
                                     className="flex min-w-0 flex-1 items-start gap-3"
                                   >
-                                    {attachment.extension === 'png' ||
-                                    attachment.extension === 'svg' ||
-                                    attachment.extension === 'jpg' ||
-                                    attachment.extension === 'jpeg' ? (
+                                    {isImageAttachment(attachment.extension) ? (
                                       <img
                                         className="rounded-sm h-10  border border-gray-200 w-10"
                                         src={getFileUrl(attachment.storageKey)}
@@ -246,6 +311,20 @@ export default function DiscussionPanel({
                             </div>
                           ) : null}
                         </div>
+                      ) : null}
+
+                      {showReplyMeta ? (
+                        <button
+                          type="button"
+                          onClick={() => onReplyClick?.(reply)}
+                          disabled={!onReplyClick}
+                          className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 transition hover:text-gray-700"
+                        >
+                          <ReplyArrowIcon />
+                          {reply.replyCount && reply.replyCount > 0
+                            ? `${reply.replyCount} ${reply.replyCount === 1 ? 'Reply' : 'Replies'}`
+                            : 'Reply'}
+                        </button>
                       ) : null}
                     </div>
                     {/* {isCurrentUserReply ? (
@@ -433,6 +512,17 @@ function normalizeAttachmentExtension(extension?: string) {
   return normalizedExtension.slice(0, 4) || 'FILE';
 }
 
+function isImageAttachment(extension?: string) {
+  const normalizedExtension = extension?.trim().toLowerCase();
+
+  return (
+    normalizedExtension === 'png' ||
+    normalizedExtension === 'svg' ||
+    normalizedExtension === 'jpg' ||
+    normalizedExtension === 'jpeg'
+  );
+}
+
 function getAttachmentBadgeClassName(extension: string) {
   if (extension === 'PDF') return 'bg-red-500';
   if (extension === 'DOC' || extension === 'DOCX') return 'bg-blue-600';
@@ -476,6 +566,33 @@ function PaperclipIcon() {
         clipRule="evenodd"
         d="M9.5 3.75C7.15279 3.75 5.25 5.65279 5.25 8V13.5001C5.25 17.228 8.27208 20.2501 12 20.2501C15.7279 20.2501 18.75 17.228 18.75 13.5001V12.0001C18.75 11.5859 19.0858 11.2501 19.5 11.2501C19.9142 11.2501 20.25 11.5859 20.25 12.0001V13.5001C20.25 18.0564 16.5563 21.7501 12 21.7501C7.44365 21.7501 3.75 18.0564 3.75 13.5001V8C3.75 4.82436 6.32436 2.25 9.5 2.25C12.6756 2.25 15.25 4.82436 15.25 8V13.5C15.25 15.2949 13.7949 16.75 12 16.75C10.2051 16.75 8.75 15.2949 8.75 13.5V9.5C8.75 9.08579 9.08579 8.75 9.5 8.75C9.91421 8.75 10.25 9.08579 10.25 9.5V13.5C10.25 14.4665 11.0335 15.25 12 15.25C12.9665 15.25 13.75 14.4665 13.75 13.5V8C13.75 5.65279 11.8472 3.75 9.5 3.75Z"
         fill="#020F52"
+      />
+    </svg>
+  );
+}
+
+function ReplyArrowIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M5.24935 4.0835L2.33398 7.00016L5.24935 9.91683"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M11.666 7H2.625"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );

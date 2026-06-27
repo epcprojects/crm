@@ -406,8 +406,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     [],
   );
 
-  const sidebarWidth = collapsed ? 'lg:w-18' : 'lg:w-72';
-  const contentOffset = collapsed ? 'lg:pl-18' : 'lg:pl-72';
+  const sidebarWidth = collapsed ? 'lg:w-18' : 'lg:w-60';
+  const contentOffset = collapsed ? 'lg:pl-18' : 'lg:pl-60';
   const shouldShowNoAccessPage =
     !isLoadingCatalog && visibleNavigationItems.length === 0;
   const shouldHideHeader =
@@ -437,7 +437,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         ) : null}
 
         <aside
-          className={`fixed inset-y-0 left-0 z-40 flex w-66 flex-col border-r border-gray-200 bg-gray-50 transition-all duration-300 ease-out ${sidebarWidth} ${
+          className={`fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-gray-200 bg-gray-50 transition-all duration-300 ease-out ${sidebarWidth} ${
             mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           }`}
         >

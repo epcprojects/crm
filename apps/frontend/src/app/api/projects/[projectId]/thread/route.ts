@@ -85,9 +85,12 @@ export async function POST(
     const { projectId } = await context.params;
     const formData = await request.formData().catch(() => null);
     const messageValue = formData?.get('message');
+    const parentIdValue = formData?.get('parentId');
     const attachments = formData?.getAll('attachments') ?? [];
     const message =
       typeof messageValue === 'string' ? messageValue.trim() : undefined;
+    const parentId =
+      typeof parentIdValue === 'string' ? parentIdValue.trim() : undefined;
     const validAttachments = attachments.filter(
       (attachment): attachment is File =>
         attachment instanceof File && attachment.size > 0,
@@ -104,6 +107,10 @@ export async function POST(
 
     if (message) {
       upstreamFormData.append('message', message);
+    }
+
+    if (parentId) {
+      upstreamFormData.append('parentId', parentId);
     }
 
     validAttachments.forEach((attachment) => {

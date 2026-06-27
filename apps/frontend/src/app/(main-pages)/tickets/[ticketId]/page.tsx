@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import DiscussionPanel from '../../../../components/discussion/DiscussionPanel';
+import TicketRepliesPanel from '../../../../components/discussion/TicketRepliesPanel';
 import Dropdown from '../../../../components/ui/ThemeDropDown';
 import { appToast } from '../../../../components/toast/AppToast';
 import { getTicketById, type TicketPerson } from '../tickets.data';
@@ -439,7 +439,7 @@ export default function TicketDetailPage() {
           </section>
 
           <PermissionGuard permission="ticket_replies.view">
-            <DiscussionPanel
+            <TicketRepliesPanel
               replies={
                 canViewReplies
                   ? (ticketRepliesQuery.data ?? ticket.replies)

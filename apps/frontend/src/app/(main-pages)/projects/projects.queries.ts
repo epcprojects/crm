@@ -14,7 +14,7 @@ import {
 } from './projects.data';
 import type { CreateProjectFormValues } from '../../../components/modals/CreateProjectModal';
 import type { UploadFileFormValues } from '../../../components/modals/UploadFileModal';
-import type { DiscussionReply } from '../../../components/discussion/DiscussionPanel';
+import type { DiscussionReply } from '../../../components/discussion/types';
 import type {
   RecentTicket,
   TicketPriority,
@@ -23,8 +23,14 @@ import type {
 
 export const projectsQueryKey = ['projects'];
 export const projectThreadQueryKey = ['project-thread'];
+export const projectThreadDetailQueryKey = ['project-thread-detail'];
 export const projectTicketsQueryKey = ['project-tickets'];
 export const projectFilesQueryKey = ['project-files'];
+
+type ProjectThreadDetail = {
+  header: DiscussionReply | null;
+  replies: DiscussionReply[];
+};
 
 type ProjectsQueryOptions = {
   page?: number;
@@ -131,6 +137,18 @@ export function useProjectThreadQuery(projectId: string, enabled = true) {
     queryKey: [...projectThreadQueryKey, projectId],
     queryFn: () => fetchProjectThread(projectId),
     enabled: Boolean(projectId && enabled),
+  });
+}
+
+export function useProjectThreadDetailQuery(
+  projectId: string,
+  messageId: string,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: [...projectThreadDetailQueryKey, projectId, messageId],
+    queryFn: () => fetchProjectThreadDetail(projectId, messageId),
+    enabled: Boolean(projectId && messageId && enabled),
   });
 }
 
@@ -394,12 +412,14 @@ type ApiProjectThreadMessage = {
   projectId?: string;
   authorId?: string;
   message: string | null;
+  replyCount?: string | number | null;
   author?: {
     email?: string;
     fullName?: string;
     name?: string;
   } | null;
   attachments?: ApiDiscussionAttachment[];
+  replies?: ApiProjectThreadMessage[];
 };
 
 type ApiDiscussionAttachment = {
@@ -506,6 +526,28 @@ async function fetchProjectThread(projectId: string) {
   }
 
   return payload.map(mapApiProjectThreadMessageToReply);
+}
+
+async function fetchProjectThreadDetail(projectId: string, messageId: string) {
+  const response = await fetch(`/api/projects/${projectId}/thread/${messageId}`, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as unknown;
+
+  if (!response.ok) {
+    throw new Error(
+      isProjectErrorPayload(payload)
+        ? payload.message || 'Failed to fetch thread details.'
+        : 'Failed to fetch thread details.',
+    );
+  }
+
+  return normalizeProjectThreadDetail(payload, messageId);
 }
 
 async function fetchProjectTickets(projectId: string, page: number, limit: number) {
@@ -636,6 +678,7 @@ function mapApiProjectThreadMessageToReply(
   return {
     id: message.id,
     authorId: message.createdBy ?? message.authorId,
+    replyCount: normalizeReplyCount(message.replyCount),
     author: {
       name: authorName,
       initials: authorInitials,
@@ -646,6 +689,73 @@ function mapApiProjectThreadMessageToReply(
       ? message.attachments.map(mapApiDiscussionAttachment)
       : [],
   };
+}
+
+function normalizeProjectThreadDetail(
+  payload: unknown,
+  messageId: string,
+): ProjectThreadDetail {
+  const normalizedMessages = extractThreadMessages(payload);
+  const mappedReplies = normalizedMessages.map(mapApiProjectThreadMessageToReply);
+  const header =
+    mappedReplies.find((reply) => reply.id === messageId) ??
+    mappedReplies[0] ??
+    null;
+
+  if (!header) {
+    return {
+      header: null,
+      replies: [],
+    };
+  }
+
+  return {
+    header,
+    replies: mappedReplies.filter((reply) => reply.id !== header.id),
+  };
+}
+
+function extractThreadMessages(payload: unknown): ApiProjectThreadMessage[] {
+  if (Array.isArray(payload)) {
+    return payload as ApiProjectThreadMessage[];
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    return [];
+  }
+
+  if ('data' in payload) {
+    return extractThreadMessages((payload as { data?: unknown }).data);
+  }
+
+  const objectPayload = payload as {
+    id?: unknown;
+    parent?: unknown;
+    replies?: unknown;
+    items?: unknown;
+  };
+
+  if (typeof objectPayload.id === 'string') {
+    const currentMessage = payload as ApiProjectThreadMessage;
+    const replyMessages = extractThreadMessages(currentMessage.replies);
+
+    return [currentMessage, ...replyMessages];
+  }
+
+  if (objectPayload.parent || objectPayload.replies) {
+    const parentMessages = objectPayload.parent
+      ? extractThreadMessages([objectPayload.parent])
+      : [];
+    const replyMessages = extractThreadMessages(objectPayload.replies);
+
+    return [...parentMessages, ...replyMessages];
+  }
+
+  if (objectPayload.items) {
+    return extractThreadMessages(objectPayload.items);
+  }
+
+  return [];
 }
 
 function mapApiDiscussionAttachment(attachment: ApiDiscussionAttachment) {
@@ -818,6 +928,19 @@ function formatThreadDate(value: string) {
     hour: 'numeric',
     minute: '2-digit',
   }).format(date);
+}
+
+function normalizeReplyCount(value?: string | number | null) {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value > 0 ? value : 0;
+  }
+
+  if (typeof value === 'string') {
+    const parsedValue = Number.parseInt(value, 10);
+    return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : 0;
+  }
+
+  return 0;
 }
 
 function mapProjectFileType(value: string): ProjectFileRecord['type'] {

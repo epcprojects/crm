@@ -12,16 +12,13 @@ import UploadFileModal, {
   type UploadFileFormValues,
 } from '../../../../components/modals/UploadFileModal';
 import ConfirmActionModal from '../../../../components/modals/ConfirmActionModal';
-import DiscussionPanel, {
-  type DiscussionAttachment,
-} from '../../../../components/discussion/DiscussionPanel';
+import ProjectThreadPanel from '../../../../components/discussion/ProjectThreadPanel';
+import type { DiscussionAttachment } from '../../../../components/discussion/types';
 import ProjectFilesPanel, {
   type ProjectFileRecord,
 } from '../../../../components/projects/ProjectFilesPanel';
 import ProjectCalendarPanel from '../../../../components/projects/ProjectCalendarPanel';
-import {
-  createTicketProjectOptions,
-} from '../../../../components/modals/create-ticket-modal.data';
+import { createTicketProjectOptions } from '../../../../components/modals/create-ticket-modal.data';
 import RecentTicketsTable from '../../../../components/tables/RecentTicketsTable';
 import { appToast } from '../../../../components/toast/AppToast';
 import { SearchIcon, PlusIcon } from '../../../../../public/icons';
@@ -32,9 +29,11 @@ import {
   projectsQueryKey,
   projectTicketsQueryKey,
   projectThreadQueryKey,
+  projectThreadDetailQueryKey,
   useDeleteProjectFileMutation,
   useProjectDetailQuery,
   useProjectFilesQuery,
+  useProjectThreadDetailQuery,
   useProjectTicketsQuery,
   useProjectThreadQuery,
   useUploadProjectFilesMutation,
@@ -77,6 +76,7 @@ export default function ProjectDetailPage() {
   const [fileToDelete, setFileToDelete] = useState<ProjectFileRecord | null>(
     null,
   );
+  const [selectedThreadMessageId, setSelectedThreadMessageId] = useState('');
   const [ticketsPagination, setTicketsPagination] = useState({
     pageIndex: 0,
     pageSize: 12,
@@ -89,6 +89,11 @@ export default function ProjectDetailPage() {
     canViewProjectDetail,
   );
   const projectThreadQuery = useProjectThreadQuery(projectId, canViewThread);
+  const projectThreadDetailQuery = useProjectThreadDetailQuery(
+    projectId,
+    selectedThreadMessageId,
+    canViewThread,
+  );
   const projectFilesQuery = useProjectFilesQuery(projectId, canViewFiles);
   const projectTicketsQuery = useProjectTicketsQuery(
     projectId,
@@ -110,13 +115,19 @@ export default function ProjectDetailPage() {
     mutationFn: async ({
       message,
       attachments,
+      parentId,
     }: {
       message: string;
       attachments: File[];
+      parentId?: string;
     }) => {
       const formData = new FormData();
       if (message.trim()) {
         formData.append('message', message.trim());
+      }
+
+      if (parentId?.trim()) {
+        formData.append('parentId', parentId.trim());
       }
 
       attachments.forEach((attachment) => {
@@ -140,10 +151,19 @@ export default function ProjectDetailPage() {
 
       return data;
     },
-    onSuccess: async () => {
+    onSuccess: async (_data, variables) => {
       await queryClient.invalidateQueries({
         queryKey: [...projectThreadQueryKey, projectId],
       });
+      if (variables.parentId) {
+        await queryClient.invalidateQueries({
+          queryKey: [
+            ...projectThreadDetailQueryKey,
+            projectId,
+            variables.parentId,
+          ],
+        });
+      }
       appToast.success('Reply posted successfully.');
     },
     onError: (error) => {
@@ -166,6 +186,7 @@ export default function ProjectDetailPage() {
       pageIndex: 0,
     }));
     setUploadedFilesState([]);
+    setSelectedThreadMessageId('');
   }, [projectId]);
 
   useEffect(() => {
@@ -220,6 +241,38 @@ export default function ProjectDetailPage() {
       );
     });
   }, [fileSearchValue, projectFilesQuery.data, uploadedFilesState]);
+
+  const selectedThreadRoot = useMemo(() => {
+    if (!selectedThreadMessageId) {
+      return null;
+    }
+
+    return (
+      projectThreadQuery.data?.find(
+        (reply) => reply.id === selectedThreadMessageId,
+      ) ?? null
+    );
+  }, [projectThreadQuery.data, selectedThreadMessageId]);
+
+  const selectedThreadHeader = useMemo(() => {
+    if (!selectedThreadMessageId) {
+      return null;
+    }
+
+    return projectThreadDetailQuery.data?.header ?? selectedThreadRoot ?? null;
+  }, [
+    projectThreadDetailQuery.data,
+    selectedThreadMessageId,
+    selectedThreadRoot,
+  ]);
+
+  const selectedThreadReplies = useMemo(() => {
+    if (!selectedThreadMessageId) {
+      return [];
+    }
+
+    return projectThreadDetailQuery.data?.replies ?? [];
+  }, [projectThreadDetailQuery.data, selectedThreadMessageId]);
 
   const handleCreateTicket = async (values: CreateTicketFormValues) => {
     if (!canCreateTicket) {
@@ -327,9 +380,20 @@ export default function ProjectDetailPage() {
         projectId,
         fileId: attachment.id,
       });
-      await queryClient.invalidateQueries({
-        queryKey: [...projectThreadQueryKey, projectId],
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: [...projectThreadQueryKey, projectId],
+        }),
+        selectedThreadMessageId
+          ? queryClient.invalidateQueries({
+              queryKey: [
+                ...projectThreadDetailQueryKey,
+                projectId,
+                selectedThreadMessageId,
+              ],
+            })
+          : Promise.resolve(),
+      ]);
       appToast.success('Attachment deleted successfully.');
     } catch (error) {
       appToast.error(
@@ -352,6 +416,24 @@ export default function ProjectDetailPage() {
     }
 
     await createProjectThreadMutation.mutateAsync({ message, attachments });
+  };
+
+  const handleSubmitThreadReply = async ({
+    message,
+    attachments,
+  }: {
+    message: string;
+    attachments: File[];
+  }) => {
+    if (!canPostThreadMessage || !selectedThreadMessageId) {
+      return;
+    }
+
+    await createProjectThreadMutation.mutateAsync({
+      message,
+      attachments,
+      parentId: selectedThreadMessageId,
+    });
   };
 
   const visibleProjectTabs = projectTabs.filter((tab) => {
@@ -537,35 +619,95 @@ export default function ProjectDetailPage() {
 
           <PermissionGuard permission="thread.view">
             <TabPanel className={'flex flex-col flex-1 '}>
-              <DiscussionPanel
-                title="Discussion"
-                replies={projectThreadQuery.data ?? []}
-                emptyTitle={
-                  projectThreadQuery.isLoading
-                    ? 'Loading discussion...'
-                    : 'No replies yet.'
-                }
-                emptyDescription={
-                  projectThreadQuery.isLoading
-                    ? 'Fetching project discussion messages.'
-                    : 'No discussion messages have been added to this project yet.'
-                }
-                composerPlaceholder="Post the project thread..."
-                onSubmitReply={
-                  canPostThreadMessage ? handleSubmitReply : undefined
-                }
-                isSubmittingReply={createProjectThreadMutation.isPending}
-                canCompose={canPostThreadMessage}
-                canAttachFile={canAttachThreadFile}
-                requireMessage={false}
-                currentUserId={currentUserId}
-                onDeleteAttachment={handleDeleteThreadAttachment}
-                deletingAttachmentId={
-                  deleteProjectFileMutation.isPending
-                    ? deleteProjectFileMutation.variables?.fileId
-                    : undefined
-                }
-              />
+              <div
+                className={`grid flex-1 border border-gray-200 overflow-hidden rounded-xl md:rounded-2xl ${
+                  selectedThreadMessageId
+                    ? 'xl:grid-cols-[minmax(0,1fr)_360px] divide-x divide-gray-200'
+                    : 'grid-cols-1'
+                }`}
+              >
+                <ProjectThreadPanel
+                  title="Discussion"
+                  replies={projectThreadQuery.data ?? []}
+                  emptyTitle={
+                    projectThreadQuery.isLoading
+                      ? 'Loading discussion...'
+                      : 'No replies yet.'
+                  }
+                  emptyDescription={
+                    projectThreadQuery.isLoading
+                      ? 'Fetching project discussion messages.'
+                      : 'No discussion messages have been added to this project yet.'
+                  }
+                  composerPlaceholder="Post the project thread..."
+                  onSubmitReply={
+                    canPostThreadMessage ? handleSubmitReply : undefined
+                  }
+                  isSubmittingReply={
+                    createProjectThreadMutation.isPending &&
+                    !selectedThreadMessageId
+                  }
+                  canCompose={canPostThreadMessage}
+                  canAttachFile={canAttachThreadFile}
+                  requireMessage={false}
+                  currentUserId={currentUserId}
+                  showReplyMeta
+                  onReplyClick={(reply) => setSelectedThreadMessageId(reply.id)}
+                  onDeleteAttachment={handleDeleteThreadAttachment}
+                  deletingAttachmentId={
+                    deleteProjectFileMutation.isPending
+                      ? deleteProjectFileMutation.variables?.fileId
+                      : undefined
+                  }
+                />
+
+                {selectedThreadMessageId ? (
+                  <ProjectThreadPanel
+                    title="Thread"
+                    subtitle=""
+                    headerAction={
+                      <button
+                        type="button"
+                        onClick={() => setSelectedThreadMessageId('')}
+                        className="flex h-6 w-6 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100"
+                        aria-label="Close thread"
+                      >
+                        <CloseCrossIcon />
+                      </button>
+                    }
+                    headerReply={selectedThreadHeader}
+                    replies={selectedThreadReplies}
+                    emptyTitle={
+                      projectThreadDetailQuery.isLoading
+                        ? 'Loading thread...'
+                        : 'No replies yet.'
+                    }
+                    emptyDescription={
+                      projectThreadDetailQuery.isLoading
+                        ? 'Fetching thread replies.'
+                        : 'No replies have been added to this thread yet.'
+                    }
+                    composerPlaceholder="Reply to thread..."
+                    onSubmitReply={
+                      canPostThreadMessage ? handleSubmitThreadReply : undefined
+                    }
+                    isSubmittingReply={
+                      createProjectThreadMutation.isPending &&
+                      Boolean(selectedThreadMessageId)
+                    }
+                    canCompose={canPostThreadMessage}
+                    canAttachFile={canAttachThreadFile}
+                    requireMessage={false}
+                    currentUserId={currentUserId}
+                    onDeleteAttachment={handleDeleteThreadAttachment}
+                    deletingAttachmentId={
+                      deleteProjectFileMutation.isPending
+                        ? deleteProjectFileMutation.variables?.fileId
+                        : undefined
+                    }
+                  />
+                ) : null}
+              </div>
             </TabPanel>
           </PermissionGuard>
 
@@ -709,6 +851,26 @@ function BackArrowIcon() {
       <path
         d="M2.4375 8.99975C2.4375 9.27992 2.56174 9.53984 2.67939 9.73502C2.80635 9.94563 2.97708 10.1631 3.16439 10.3751C3.54013 10.8004 4.0304 11.2571 4.50618 11.6703C4.98475 12.0858 5.46167 12.4685 5.81794 12.7466C5.99637 12.8859 6.14523 12.9994 6.24978 13.0784C6.30207 13.1179 6.34332 13.1488 6.37169 13.1699L6.40436 13.1942L6.41303 13.2007L6.41604 13.2029C6.66617 13.3871 7.01862 13.334 7.20286 13.0838C7.3871 12.8337 7.33371 12.4816 7.08361 12.2973L7.07407 12.2903L7.04403 12.268C7.01746 12.2482 6.97815 12.2187 6.9279 12.1808C6.82738 12.1048 6.68327 11.9949 6.51014 11.8598C6.16329 11.589 5.70272 11.2194 5.2438 10.8208C4.78208 10.4199 4.33486 10.0008 4.00748 9.63023C3.98678 9.60679 3.96674 9.58375 3.94737 9.56114L15 9.56113C15.3107 9.56113 15.5625 9.30929 15.5625 8.99863C15.5625 8.68797 15.3107 8.43613 15 8.43613L3.94927 8.43614C3.96805 8.41423 3.98746 8.39194 4.00748 8.36927C4.33486 7.99871 4.78208 7.57959 5.2438 7.17865C5.70272 6.78013 6.16329 6.41046 6.51014 6.13974C6.68327 6.00461 6.82737 5.89466 6.9279 5.81872C6.97815 5.78076 7.01746 5.75133 7.04403 5.73153L7.07406 5.7092L7.08361 5.70214C7.33371 5.51789 7.3871 5.16578 7.20286 4.91567C7.01862 4.66554 6.66617 4.61237 6.41604 4.79662L6.41303 4.79884L6.40436 4.80525L6.37169 4.82954C6.34332 4.85069 6.30207 4.88157 6.24978 4.92107C6.14523 5.00005 5.99637 5.11363 5.81793 5.2529C5.46167 5.53098 4.98474 5.91364 4.50618 6.32922C4.0304 6.74237 3.54013 7.19911 3.16439 7.62441C2.97708 7.83642 2.80635 8.05386 2.67939 8.26448C2.56245 8.45847 2.43899 8.71646 2.43751 8.9947"
         fill="black"
+      />
+    </svg>
+  );
+}
+
+function CloseCrossIcon() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        d="M5 5L15 15M15 5L5 15"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
       />
     </svg>
   );
