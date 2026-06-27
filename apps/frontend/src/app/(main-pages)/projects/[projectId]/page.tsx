@@ -61,6 +61,7 @@ export default function ProjectDetailPage() {
   const canFilterTickets = hasPermission('tickets.filter');
   const canViewThread = hasPermission('thread.view');
   const canPostThreadMessage = hasPermission('thread.post_message');
+  const canPostThreadReply = hasPermission('thread.post_reply');
   const canAttachThreadFile = hasPermission('thread.attach_file');
   const canViewFiles = hasPermission('files.view');
   const canUploadFiles = hasPermission('files.upload');
@@ -425,7 +426,7 @@ export default function ProjectDetailPage() {
     message: string;
     attachments: File[];
   }) => {
-    if (!canPostThreadMessage || !selectedThreadMessageId) {
+    if (!canPostThreadReply || !selectedThreadMessageId) {
       return;
     }
 
@@ -689,14 +690,16 @@ export default function ProjectDetailPage() {
                     }
                     composerPlaceholder="Reply to thread..."
                     onSubmitReply={
-                      canPostThreadMessage ? handleSubmitThreadReply : undefined
+                      canPostThreadReply ? handleSubmitThreadReply : undefined
                     }
                     isSubmittingReply={
                       createProjectThreadMutation.isPending &&
                       Boolean(selectedThreadMessageId)
                     }
-                    canCompose={canPostThreadMessage}
-                    canAttachFile={canAttachThreadFile}
+                    canCompose={canPostThreadReply}
+                    canAttachFile={
+                      canAttachThreadFile && canPostThreadReply
+                    }
                     requireMessage={false}
                     currentUserId={currentUserId}
                     onDeleteAttachment={handleDeleteThreadAttachment}
