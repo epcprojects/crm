@@ -192,6 +192,10 @@ export default function TicketDetailPage() {
   });
 
   const ticket = ticketDetailQuery.data ?? fallbackTicket;
+  const isTicketLoading =
+    Boolean(projectId && ticketId && canViewTicketDetail) &&
+    ticketDetailQuery.isLoading &&
+    !ticket;
   const [selectedStatus, setSelectedStatus] = useState('Open');
   const [selectedPriority, setSelectedPriority] = useState('');
   const [selectedAssignee, setSelectedAssignee] = useState('');
@@ -280,6 +284,10 @@ export default function TicketDetailPage() {
         </div>
       </div>
     );
+  }
+
+  if (isTicketLoading) {
+    return <TicketDetailSkeleton />;
   }
 
   if (!ticket) {
@@ -1044,6 +1052,63 @@ function MetaItem({ label, value }: { label: string; value: string }) {
       <p className="sm:mt-1 text-base sm:text-xl font-semibold text-gray-900">
         {value}
       </p>
+    </div>
+  );
+}
+
+function TicketDetailSkeleton() {
+  return (
+    <div className="space-y-4 flex-1 w-full flex flex-col items-start -mt-16 sm:mt-0 animate-pulse">
+      <div className="h-10 w-24 rounded-lg border border-gray-200 bg-white" />
+
+      <div className="grid grid-cols-1 flex-1 w-full gap-4 xl:grid-cols-12">
+        <div className="space-y-4 xl:col-span-9 flex flex-col">
+          <section className="rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-3 md:p-5">
+            <div className="sm:grid flex flex-wrap gap-4 border-b border-gray-200 pb-5 grid-cols-3">
+              {[1, 2, 3].map((item) => (
+                <div key={item} className="space-y-2">
+                  <div className="h-4 w-20 rounded bg-gray-200" />
+                  <div className="h-7 w-32 rounded bg-gray-200" />
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-5 space-y-3">
+              <div className="h-8 w-2/3 rounded bg-gray-200" />
+              <div className="h-4 w-full rounded bg-gray-200" />
+              <div className="h-4 w-5/6 rounded bg-gray-200" />
+              <div className="h-4 w-3/4 rounded bg-gray-200" />
+            </div>
+          </section>
+
+          <section className="rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-4 space-y-4">
+            <div className="h-6 w-32 rounded bg-gray-200" />
+            {[1, 2].map((item) => (
+              <div key={item} className="flex gap-3">
+                <div className="h-10 w-10 rounded-full bg-gray-200" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-40 rounded bg-gray-200" />
+                  <div className="h-4 w-full rounded bg-gray-200" />
+                  <div className="h-4 w-4/5 rounded bg-gray-200" />
+                </div>
+              </div>
+            ))}
+          </section>
+        </div>
+
+        <aside className="space-y-4 xl:col-span-3">
+          {[1, 2, 3, 4].map((item) => (
+            <section
+              key={item}
+              className="rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-4 space-y-4"
+            >
+              <div className="h-6 w-32 rounded bg-gray-200" />
+              <div className="h-11 w-full rounded-lg bg-gray-200" />
+              <div className="h-11 w-full rounded-lg bg-gray-200" />
+            </section>
+          ))}
+        </aside>
+      </div>
     </div>
   );
 }

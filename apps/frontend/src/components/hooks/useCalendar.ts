@@ -12,6 +12,7 @@ import {
   fetchEventsByView,
   fetchProjectEventById,
   fetchProjectEventsByView,
+  fetchProjectTickets,
   fetchTicketsByView,
   createEvent as apiCreateEvent,
   createProjectEvent as apiCreateProjectEvent,
@@ -48,7 +49,7 @@ function toTicket(ticket: ApiTicket): Ticket {
   return {
     id: ticket.id,
     title: ticket.title,
-    dueDate: ticket.dueDate,
+    dueDate: ticket.dueDate.split('T')[0],
     priority: ticket.priority,
     status: ticket.status,
     createdAt: new Date().toISOString(),
@@ -124,7 +125,8 @@ export function useCalendar(options?: { projectId?: string }) {
 
     try {
       if (projectId) {
-        setTickets([]);
+        const rawTickets = await fetchProjectTickets(projectId);
+        setTickets(rawTickets.map(toTicket));
         return;
       }
 

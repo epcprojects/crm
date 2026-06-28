@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import { useCalendar } from '../hooks/useCalendar';
 import DaySidebar from './DaySidebar';
 import AddModal from './AddModal';
@@ -26,6 +27,7 @@ type CalendarProps = {
 };
 
 export default function Calendar({ projectId }: CalendarProps) {
+  const router = useRouter();
   const isProjectCalendar = Boolean(projectId);
   const cal = useCalendar({ projectId });
   const [modal, setModal] = useState<ModalType>(null);
@@ -84,10 +86,13 @@ export default function Calendar({ projectId }: CalendarProps) {
       const ticket = cal.tickets.find((item) => item.id === rawId);
 
       if (ticket) {
-        cal.setSelectedDate(ticket.dueDate);
+        const ticketDetailUrl = projectId
+          ? `/tickets/${ticket.id}?projectId=${projectId}`
+          : `/tickets/${ticket.id}`;
+        router.push(ticketDetailUrl);
       }
     },
-    [cal, isProjectCalendar],
+    [cal, isProjectCalendar, projectId, router],
   );
 
   const sidebarData = useMemo(() => {
@@ -227,6 +232,12 @@ export default function Calendar({ projectId }: CalendarProps) {
           onDeleteEvent={cal.deleteEvent}
           onUpdateTicket={cal.updateTicket}
           onDeleteTicket={cal.deleteTicket}
+          onTicketClick={(ticket) => {
+            const ticketDetailUrl = projectId
+              ? `/tickets/${ticket.id}?projectId=${projectId}`
+              : `/tickets/${ticket.id}`;
+            router.push(ticketDetailUrl);
+          }}
           onAddEvent={() => {
             setEditingEvent(null);
             setModal('event');
@@ -234,7 +245,7 @@ export default function Calendar({ projectId }: CalendarProps) {
           onAddTicket={() => setModal('ticket')}
           showAddEventAction={isProjectCalendar}
           showAddTicketAction={!isProjectCalendar}
-          showTicketsSection={!isProjectCalendar}
+          showTicketsSection
         />
       </div>
 

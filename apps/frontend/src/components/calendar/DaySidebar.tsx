@@ -3,11 +3,7 @@
 import { useState } from 'react';
 import ConfirmActionModal from '../modals/ConfirmActionModal';
 import { CalendarEvent, Ticket } from '../types';
-import {
-  formatTime,
-  PRIORITY_COLORS,
-  STATUS_COLORS,
-} from '../../lib/calendar-utils';
+import { formatTime, PRIORITY_COLORS } from '../../lib/calendar-utils';
 import ThemeButton from '../ui/ThemeButton';
 
 interface DaySidebarProps {
@@ -17,6 +13,7 @@ interface DaySidebarProps {
   onDeleteEvent: (id: string) => void | Promise<void>;
   onUpdateTicket: (id: string, updates: Partial<Ticket>) => void;
   onDeleteTicket: (id: string) => void;
+  onTicketClick?: (ticket: Ticket) => void;
   onAddEvent: () => void;
   onAddTicket: () => void;
   showAddEventAction?: boolean;
@@ -31,6 +28,7 @@ export default function DaySidebar({
   onDeleteEvent,
   onUpdateTicket,
   onDeleteTicket,
+  onTicketClick,
   onAddEvent,
   onAddTicket,
   showAddEventAction = true,
@@ -169,14 +167,20 @@ export default function DaySidebar({
                     />
                     <div className="stc-body">
                       <div className="stc-top">
-                        <span className="stc-title">{ticket.title}</span>
                         <button
+                          type="button"
+                          className="stc-title text-left"
+                          onClick={() => onTicketClick?.(ticket)}
+                        >
+                          {ticket.title}
+                        </button>
+                        {/* <button
                           className="delete-btn"
                           onClick={() => onDeleteTicket(ticket.id)}
                           aria-label="Delete ticket"
                         >
-                          Ã—
-                        </button>
+                          x
+                        </button> */}
                       </div>
                       {ticket.description ? (
                         <div className="sec-desc">{ticket.description}</div>
@@ -192,7 +196,7 @@ export default function DaySidebar({
                         >
                           {ticket.priority}
                         </span>
-                        <select
+                        {/* <select
                           className="status-select"
                           value={ticket.status}
                           onChange={(event) =>
@@ -206,7 +210,7 @@ export default function DaySidebar({
                           <option value="in_progress">In Progress</option>
                           <option value="review">Review</option>
                           <option value="closed">Closed</option>
-                        </select>
+                        </select> */}
                       </div>
                       {ticket.tags?.length ? (
                         <div className="tag-list">

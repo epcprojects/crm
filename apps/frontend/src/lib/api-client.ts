@@ -13,7 +13,7 @@ export interface ApiEvent {
   id: string;
   title: string;
   type: 'event' | 'google';
-  date: string;        // YYYY-MM-DD
+  date: string; // YYYY-MM-DD
   description?: string;
   color?: string;
   start?: string;
@@ -24,10 +24,25 @@ export interface ApiEvent {
 export interface ApiTicket {
   id: string;
   title: string;
-  dueDate: string;     // YYYY-MM-DD
+  dueDate: string; // YYYY-MM-DD
   priority: 'low' | 'medium' | 'high' | 'critical';
   status: 'open' | 'in_progress' | 'review' | 'closed';
+  description?: string;
 }
+
+type ApiProjectTicketListItem = {
+  id: string;
+  title: string;
+  description?: string | null;
+  dueDate?: string | null;
+  createdAt?: string | null;
+  priority?: {
+    key?: string | null;
+  } | null;
+  status?: {
+    key?: string | null;
+  } | null;
+};
 
 // ── Events ──────────────────────────────────────────────────────────────────
 
@@ -100,9 +115,12 @@ export async function fetchProjectEventById(
   projectId: string,
   eventId: string,
 ): Promise<ApiEvent> {
-  const res = await fetch(`/api/projects/${projectId}/calendar/events/${eventId}`, {
-    cache: 'no-store',
-  });
+  const res = await fetch(
+    `/api/projects/${projectId}/calendar/events/${eventId}`,
+    {
+      cache: 'no-store',
+    },
+  );
   if (!res.ok) {
     const err = await res.json().catch(() => null);
     throw new Error(err?.message || 'Failed to fetch project event');
@@ -115,11 +133,14 @@ export async function updateProjectEvent(
   eventId: string,
   data: Partial<Omit<ApiEvent, 'id'>>,
 ): Promise<ApiEvent> {
-  const res = await fetch(`/api/projects/${projectId}/calendar/events/${eventId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
+  const res = await fetch(
+    `/api/projects/${projectId}/calendar/events/${eventId}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    },
+  );
   if (!res.ok) {
     const err = await res.json().catch(() => null);
     throw new Error(err?.message || 'Failed to update project event');
@@ -131,9 +152,12 @@ export async function deleteProjectEvent(
   projectId: string,
   eventId: string,
 ): Promise<void> {
-  const res = await fetch(`/api/projects/${projectId}/calendar/events/${eventId}`, {
-    method: 'DELETE',
-  });
+  const res = await fetch(
+    `/api/projects/${projectId}/calendar/events/${eventId}`,
+    {
+      method: 'DELETE',
+    },
+  );
   if (!res.ok) {
     const err = await res.json().catch(() => null);
     throw new Error(err?.message || 'Failed to delete project event');
@@ -166,16 +190,84 @@ export async function fetchTicketsByView(
   view: CalendarView,
   date: string,
 ): Promise<ApiTicket[]> {
-  const res = await fetch(
-    `${API_BASE}/tickets?view=${view}&date=${date}`,
-    { cache: 'no-store' },
-  );
+  const res = await fetch(`${API_BASE}/tickets?view=${view}&date=${date}`, {
+    cache: 'no-store',
+  });
   if (!res.ok) throw new Error(`Failed to fetch tickets: ${res.status}`);
   return res.json();
 }
 
+export async function fetchProjectTickets(
+  projectId: string,
+  page = 1,
+  limit = 100,
+): Promise<ApiTicket[]> {
+  const searchParams = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+  const res = await fetch(
+    `/api/projects/${projectId}/tickets?${searchParams.toString()}`,
+    { cache: 'no-store' },
+  );
+  if (!res.ok) {
+    throw new Error(`Failed to fetch project tickets: ${res.status}`);
+  }
+
+  const data = await res.json().catch(() => null);
+  const items = Array.isArray(data?.items)
+    ? (data.items as ApiProjectTicketListItem[])
+    : [];
+
+  return items
+    .filter((ticket) => {
+      const dateValue =
+        (typeof ticket.dueDate === 'string' && ticket.dueDate.trim()) ||
+        (typeof ticket.createdAt === 'string' && ticket.createdAt.trim());
+
+      return Boolean(dateValue);
+    })
+    .map((ticket) => ({
+      id: ticket.id,
+      title: ticket.title,
+      description: ticket.description ?? undefined,
+      dueDate: toIsoDate(
+        (ticket.dueDate && ticket.dueDate.trim()) ||
+          (ticket.createdAt as string),
+      ),
+      priority: normalizeTicketPriority(ticket.priority?.key),
+      status: normalizeTicketStatus(ticket.status?.key),
+    }));
+}
+
+function normalizeTicketPriority(value?: string | null): ApiTicket['priority'] {
+  const normalized = value?.trim().toLowerCase();
+
+  if (normalized === 'critical') return 'critical';
+  if (normalized === 'high') return 'high';
+  if (normalized === 'low') return 'low';
+  return 'medium';
+}
+
+function normalizeTicketStatus(value?: string | null): ApiTicket['status'] {
+  const normalized = value?.trim().toLowerCase();
+
+  if (normalized === 'in_progress') return 'in_progress';
+  if (normalized === 'review') return 'review';
+  if (normalized === 'closed') return 'closed';
+  return 'open';
+}
+
+function toIsoDate(value: string) {
+  return value.split('T')[0];
+}
+
 export async function createTicket(
-  data: Omit<ApiTicket, 'id'> & { description?: string; assignee?: string; tags?: string[] },
+  data: Omit<ApiTicket, 'id'> & {
+    description?: string;
+    assignee?: string;
+    tags?: string[];
+  },
 ): Promise<ApiTicket> {
   const res = await fetch(`${API_BASE}/tickets`, {
     method: 'POST',
