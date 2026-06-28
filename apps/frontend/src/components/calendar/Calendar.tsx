@@ -97,7 +97,9 @@ export default function Calendar({ projectId }: CalendarProps) {
       return {
         title: formatDisplayDate(cal.selectedDate),
         events: cal.events.filter((event) => event.date === cal.selectedDate),
-        tickets: cal.tickets.filter((ticket) => ticket.dueDate === cal.selectedDate),
+        tickets: cal.tickets.filter(
+          (ticket) => ticket.dueDate === cal.selectedDate,
+        ),
       };
     }
 
@@ -113,15 +115,13 @@ export default function Calendar({ projectId }: CalendarProps) {
         events: cal.events.filter((event) => {
           const eventDate = new Date(`${event.date}T00:00:00`);
           return (
-            eventDate.getFullYear() === year &&
-            eventDate.getMonth() === month
+            eventDate.getFullYear() === year && eventDate.getMonth() === month
           );
         }),
         tickets: cal.tickets.filter((ticket) => {
           const ticketDate = new Date(`${ticket.dueDate}T00:00:00`);
           return (
-            ticketDate.getFullYear() === year &&
-            ticketDate.getMonth() === month
+            ticketDate.getFullYear() === year && ticketDate.getMonth() === month
           );
         }),
       };
@@ -150,12 +150,14 @@ export default function Calendar({ projectId }: CalendarProps) {
     return {
       title: formatDisplayDate(currentDateKey),
       events: cal.events.filter((event) => event.date === currentDateKey),
-      tickets: cal.tickets.filter((ticket) => ticket.dueDate === currentDateKey),
+      tickets: cal.tickets.filter(
+        (ticket) => ticket.dueDate === currentDateKey,
+      ),
     };
   }, [cal.currentDate, cal.events, cal.selectedDate, cal.tickets, cal.view]);
 
   return (
-    <div className="calendar-app bg-gray-200">
+    <div className="calendar-app bg-gray-400">
       <div className="app-topbar">
         <div className="topbar-left" />
         {/* <div className="topbar-right">
