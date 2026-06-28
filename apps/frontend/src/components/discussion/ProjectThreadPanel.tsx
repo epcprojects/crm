@@ -158,46 +158,42 @@ export default function ProjectThreadPanel({
                       {headerReply.message}
                     </p>
                   ) : null}
-                  {!headerReply.message && headerReply.attachments?.length ? (
+                  {headerReply.attachments?.length ? (
                     <div className="mt-2 grid gap-2">
-                      <div
-                        key={headerReply.attachments[0].id}
-                        className="flex min-w-0 w-full items-start gap-3 rounded-xl border border-gray-200 bg-white p-2.5 transition hover:bg-gray-50"
-                      >
-                        <a
-                          href={getAttachmentUrl(
-                            headerReply.attachments[0].storageKey,
-                          )}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex min-w-0 flex-1 items-start gap-3"
+                      {headerReply.attachments.map((attachment) => (
+                        <div
+                          key={attachment.id}
+                          className="flex min-w-0 w-full items-start gap-3 rounded-xl border border-gray-200 bg-white p-2.5 transition hover:bg-gray-50"
                         >
-                          {isImageAttachment(
-                            headerReply.attachments[0].extension,
-                          ) ? (
-                            <img
-                              className="rounded-sm h-10 border border-gray-200 w-10"
-                              src={getFileUrl(
-                                headerReply.attachments[0].storageKey,
-                              )}
-                            />
-                          ) : (
-                            <AttachmentFileIcon
-                              extension={headerReply.attachments[0].extension}
-                            />
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium text-gray-700">
-                              {headerReply.attachments[0].name}
-                            </p>
-                            {headerReply.attachments[0].sizeLabel ? (
-                              <p className="text-sm text-gray-500">
-                                {headerReply.attachments[0].sizeLabel}
+                          <a
+                            href={getAttachmentUrl(attachment.storageKey)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex min-w-0 flex-1 items-start gap-3"
+                          >
+                            {isImageAttachment(attachment.extension) ? (
+                              <img
+                                className="rounded-sm h-10 border border-gray-200 w-10"
+                                src={getFileUrl(attachment.storageKey)}
+                              />
+                            ) : (
+                              <AttachmentFileIcon
+                                extension={attachment.extension}
+                              />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium text-gray-700">
+                                {attachment.name}
                               </p>
-                            ) : null}
-                          </div>
-                        </a>
-                      </div>
+                              {attachment.sizeLabel ? (
+                                <p className="text-sm text-gray-500">
+                                  {attachment.sizeLabel}
+                                </p>
+                              ) : null}
+                            </div>
+                          </a>
+                        </div>
+                      ))}
                     </div>
                   ) : null}
                 </div>

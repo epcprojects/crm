@@ -415,7 +415,10 @@ export default function TicketDetailPage() {
         <div className="space-y-4 xl:col-span-9 flex flex-col">
           <section className="rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-3 md:p-5">
             <div className="sm:grid flex flex-wrap gap-4 border-b border-gray-200 pb-5 grid-cols-3">
-              <MetaItem label="Ticket ID" value={`${ticket.id}`} />
+              <MetaItem
+                label="Ticket ID"
+                value={`${ticket.ticketRefNo ?? ticket.id}`}
+              />
               <MetaItem label="Created" value={ticket.date} />
               <div>
                 <span className="block text-sm text-gray-500">Project</span>
@@ -781,6 +784,7 @@ type ApiTicketPerson = {
 
 type ApiTicketDetail = {
   id: string;
+  ticketRefNo?: string;
   createdAt: string;
   updatedAt?: string;
   deletedAt?: string | null;
@@ -856,6 +860,7 @@ function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
 
   return {
     id: ticket.id,
+    ticketRefNo: ticket.ticketRefNo,
     title: ticket.title,
     project: {
       id: ticket.project?.id ?? ticket.projectId,
