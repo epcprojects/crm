@@ -4,10 +4,10 @@ import { useRef, useCallback, useMemo } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
-import listPlugin from '@fullcalendar/list';
 import interactionPlugin, { DateClickArg } from '@fullcalendar/interaction';
 import multiMonthPlugin from '@fullcalendar/multimonth';
 import {
+  DatesSetArg,
   EventClickArg,
   EventContentArg,
   EventDropArg,
@@ -24,6 +24,10 @@ interface FullCalendarViewProps {
   onEventClick: (id: string) => void;
   onEventDrop: (id: string, newDate: string) => void;
   onSelect: (dateStr: string) => void;
+  onViewChange?: (
+    view: 'month' | 'week' | 'day' | 'year',
+    dateStr: string,
+  ) => void;
 }
 
 function ticketsToFCEvents(tickets: Ticket[]): EventInput[] {
@@ -81,29 +85,6 @@ function EventContent({ info }: { info: EventContentArg }) {
   const extendedProps = event.extendedProps ?? {};
   const isTicket = extendedProps.type === 'ticket';
   const isGoogle = extendedProps.type === 'google';
-  const isListView = info.view.type.startsWith('list');
-
-  if (isListView) {
-    return (
-      <div className="fc-list-event-inner">
-        {isTicket && (
-          <span
-            className="fc-list-badge"
-            style={{ background: event.backgroundColor as string }}
-          >
-            {extendedProps.priority?.toUpperCase()}
-          </span>
-        )}
-        {isGoogle && <span className="fc-list-badge google">G</span>}
-        <span className="fc-list-title">{event.title}</span>
-        {extendedProps.status && (
-          <span className="fc-list-status">
-            {extendedProps.status.replace('_', ' ')}
-          </span>
-        )}
-      </div>
-    );
-  }
 
   return (
     <div className="fc-event-inner">
@@ -121,6 +102,7 @@ export default function FullCalendarView({
   onEventClick,
   onEventDrop,
   onSelect,
+  onViewChange,
 }: FullCalendarViewProps) {
   const calRef = useRef<FullCalendar>(null);
 
@@ -160,6 +142,30 @@ export default function FullCalendarView({
     [onSelect],
   );
 
+  const handleDatesSet = useCallback(
+    (arg: DatesSetArg) => {
+      if (!onViewChange) {
+        return;
+      }
+
+      const nextView =
+        arg.view.type === 'dayGridMonth'
+          ? 'month'
+          : arg.view.type === 'timeGridWeek' || arg.view.type === 'dayGridWeek'
+            ? 'week'
+            : arg.view.type === 'timeGridDay' || arg.view.type === 'dayGridDay'
+              ? 'day'
+              : arg.view.type.includes('multiMonth')
+                ? 'year'
+                : arg.view.type.startsWith('list')
+                  ? 'week'
+                  : 'month';
+
+      onViewChange(nextView, formatLocalDate(arg.view.currentStart));
+    },
+    [onViewChange],
+  );
+
   return (
     <div className="fc-wrapper">
       <FullCalendar
@@ -167,7 +173,6 @@ export default function FullCalendarView({
         plugins={[
           dayGridPlugin,
           timeGridPlugin,
-          listPlugin,
           interactionPlugin,
           multiMonthPlugin,
         ]}
@@ -175,14 +180,13 @@ export default function FullCalendarView({
         headerToolbar={{
           left: 'prev,next today',
           center: 'title',
-          right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek',
+          right: 'dayGridMonth,timeGridWeek,timeGridDay',
         }}
         buttonText={{
           today: 'Today',
           month: 'Month',
           week: 'Week',
           day: 'Day',
-          list: 'List',
         }}
         events={fcEvents}
         editable={true}
@@ -196,6 +200,7 @@ export default function FullCalendarView({
         eventClick={handleEventClick}
         eventDrop={handleEventDrop}
         select={handleSelect}
+        datesSet={handleDatesSet}
         eventContent={(info) => <EventContent info={info} />}
         height="100%"
         stickyHeaderDates={true}
@@ -210,9 +215,16 @@ export default function FullCalendarView({
           meridiem: 'short',
         }}
         navLinkDayClick={(date) => {
-          onDateClick(date.toISOString().split('T')[0]);
+          onDateClick(formatLocalDate(date));
         }}
       />
     </div>
   );
+}
+
+function formatLocalDate(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }

@@ -1,42 +1,50 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { useCalendar } from '../hooks/useCalendar';
 import DaySidebar from './DaySidebar';
 import AddModal from './AddModal';
-import GoogleModal from './GoogleModal';
-import { toDateString } from '../../lib/calendar-utils';
+import { formatDisplayDate } from '../../lib/calendar-utils';
+import { appToast } from '../toast/AppToast';
+import type { CalendarEvent } from '../types';
 
 const FullCalendarView = dynamic(() => import('./FullCalendarView'), {
   ssr: false,
   loading: () => (
     <div className="fc-loading">
       <div className="fc-loading-spinner" />
-      <span>Loading calendar…</span>
+      <span>Loading calendar...</span>
     </div>
   ),
 });
 
-type ModalType = 'event' | 'ticket' | 'google' | null;
+type ModalType = 'event' | 'ticket' | null;
 
-export default function Calendar() {
-  const cal = useCalendar();
+type CalendarProps = {
+  projectId?: string;
+};
+
+export default function Calendar({ projectId }: CalendarProps) {
+  const isProjectCalendar = Boolean(projectId);
+  const cal = useCalendar({ projectId });
   const [modal, setModal] = useState<ModalType>(null);
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  const [, setIsFetchingEventDetail] = useState(false);
 
-  // Drag-and-drop: update date in DB then refetch
   const handleEventDrop = useCallback(
     async (id: string, newDate: string) => {
       try {
         const rawId = id.replace(/^ticket_/, '');
-        const isTicket = cal.tickets.some((t) => t.id === rawId);
+        const isTicket = cal.tickets.some((ticket) => ticket.id === rawId);
+
         if (isTicket) {
           await cal.updateTicket(rawId, { dueDate: newDate });
         } else {
           await cal.updateEventDate(id, newDate);
         }
-      } catch (e) {
-        console.error('Drag update failed:', e);
+      } catch (error) {
+        console.error('Drag update failed:', error);
         cal.refetch();
       }
     },
@@ -44,182 +52,159 @@ export default function Calendar() {
   );
 
   const handleEventClick = useCallback(
-    (id: string) => {
-      const event = cal.events.find((e) => e.id === id);
+    async (id: string) => {
+      const event = cal.events.find((calendarEvent) => calendarEvent.id === id);
+
       if (event) {
         cal.setSelectedDate(event.date);
+
+        if (!isProjectCalendar) {
+          return;
+        }
+
+        try {
+          setIsFetchingEventDetail(true);
+          const detailedEvent = await cal.getProjectEvent(id);
+          setEditingEvent(detailedEvent ?? event);
+          setModal('event');
+        } catch (error) {
+          appToast.error(
+            error instanceof Error
+              ? error.message
+              : 'Failed to load event details.',
+          );
+        } finally {
+          setIsFetchingEventDetail(false);
+        }
+
         return;
       }
+
       const rawId = id.replace(/^ticket_/, '');
-      const ticket = cal.tickets.find((t) => t.id === rawId);
-      if (ticket) cal.setSelectedDate(ticket.dueDate);
+      const ticket = cal.tickets.find((item) => item.id === rawId);
+
+      if (ticket) {
+        cal.setSelectedDate(ticket.dueDate);
+      }
     },
-    [cal],
+    [cal, isProjectCalendar],
   );
 
-  function handleGoogleConnect() {
-    cal.setIsGoogleConnected(true);
-    cal.setGoogleCalendars([
-      {
-        id: 'primary',
-        summary: 'My Calendar',
-        backgroundColor: '#4285f4',
-        selected: true,
-      },
-      {
-        id: 'work',
-        summary: 'Work',
-        backgroundColor: '#0f9d58',
-        selected: true,
-      },
-      {
-        id: 'holidays',
-        summary: 'Holidays in Pakistan',
-        backgroundColor: '#f4b400',
-        selected: false,
-      },
-    ]);
-    const today = new Date();
-    const offset = (n: number) => {
-      const d = new Date(today);
-      d.setDate(d.getDate() + n);
-      return toDateString(d);
-    };
-    cal.addGoogleEvents([
-      {
-        id: 'google_1',
-        title: 'Product Review Meeting',
-        date: offset(4),
-        startTime: '11:00',
-        endTime: '12:00',
-        type: 'google',
-        googleCalendarId: 'primary',
-      },
-      {
-        id: 'google_2',
-        title: 'Team Lunch',
-        date: offset(6),
-        startTime: '13:00',
-        endTime: '14:00',
-        type: 'google',
-        googleCalendarId: 'work',
-      },
-      {
-        id: 'google_3',
-        title: 'Client Call — AUDITi',
-        date: offset(9),
-        startTime: '15:00',
-        endTime: '16:00',
-        type: 'google',
-        googleCalendarId: 'primary',
-      },
-    ]);
-    setModal(null);
-  }
+  const sidebarData = useMemo(() => {
+    const currentDateKey = formatLocalDate(cal.currentDate);
 
-  function handleGoogleDisconnect() {
-    cal.setIsGoogleConnected(false);
-    cal.setGoogleCalendars([]);
-    cal.addGoogleEvents([]);
-    setModal(null);
-  }
+    if (cal.selectedDate) {
+      return {
+        title: formatDisplayDate(cal.selectedDate),
+        events: cal.events.filter((event) => event.date === cal.selectedDate),
+        tickets: cal.tickets.filter((ticket) => ticket.dueDate === cal.selectedDate),
+      };
+    }
+
+    if (cal.view === 'month') {
+      const year = cal.currentDate.getFullYear();
+      const month = cal.currentDate.getMonth();
+
+      return {
+        title: cal.currentDate.toLocaleDateString('en-US', {
+          month: 'long',
+          year: 'numeric',
+        }),
+        events: cal.events.filter((event) => {
+          const eventDate = new Date(`${event.date}T00:00:00`);
+          return (
+            eventDate.getFullYear() === year &&
+            eventDate.getMonth() === month
+          );
+        }),
+        tickets: cal.tickets.filter((ticket) => {
+          const ticketDate = new Date(`${ticket.dueDate}T00:00:00`);
+          return (
+            ticketDate.getFullYear() === year &&
+            ticketDate.getMonth() === month
+          );
+        }),
+      };
+    }
+
+    if (cal.view === 'week') {
+      const startOfWeek = new Date(cal.currentDate);
+      startOfWeek.setDate(cal.currentDate.getDate() - cal.currentDate.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+      return {
+        title: `${formatDisplayDate(formatLocalDate(startOfWeek))} - ${formatDisplayDate(
+          formatLocalDate(endOfWeek),
+        )}`,
+        events: cal.events.filter((event) =>
+          isDateWithinRange(event.date, startOfWeek, endOfWeek),
+        ),
+        tickets: cal.tickets.filter((ticket) =>
+          isDateWithinRange(ticket.dueDate, startOfWeek, endOfWeek),
+        ),
+      };
+    }
+
+    return {
+      title: formatDisplayDate(currentDateKey),
+      events: cal.events.filter((event) => event.date === currentDateKey),
+      tickets: cal.tickets.filter((ticket) => ticket.dueDate === currentDateKey),
+    };
+  }, [cal.currentDate, cal.events, cal.selectedDate, cal.tickets, cal.view]);
 
   return (
-    <div className="calendar-app">
-      {/* Top bar */}
+    <div className="calendar-app bg-gray-200">
       <div className="app-topbar">
-        <div className="topbar-left">
-          <h1 className="app-title">Calendar</h1>
-          <div className="topbar-legend">
-            <span className="leg-item">
-              <span className="leg-dot" style={{ background: '#0f6e56' }} />
-              Events
-            </span>
-            <span className="leg-item">
-              <span className="leg-dot ticket-dot" />
-              Tickets
-            </span>
-            <span className="leg-item">
-              <span className="leg-dot" style={{ background: '#4285f4' }} />
-              Google
-            </span>
-          </div>
-          {(cal.loadingEvents || cal.loadingTickets) && (
-            <span className="loading-pill">Syncing…</span>
-          )}
-          {cal.error && (
-            <span className="error-pill" title={cal.error}>
-              API error — running in offline mode
-            </span>
-          )}
-        </div>
-        <div className="topbar-right">
-          <button
-            className="tb-btn ticket-btn"
-            onClick={() => setModal('ticket')}
-          >
-            + Ticket
-          </button>
-          <button
-            className="tb-btn event-btn"
-            onClick={() => setModal('event')}
-          >
-            + Event
-          </button>
-          <button
-            className={`tb-btn google-btn ${cal.isGoogleConnected ? 'connected' : ''}`}
-            onClick={() => setModal('google')}
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-hidden="true"
-              style={{ flexShrink: 0 }}
+        <div className="topbar-left" />
+        {/* <div className="topbar-right">
+          {!isProjectCalendar ? (
+            <>
+              <button
+                className="tb-btn ticket-btn"
+                onClick={() => setModal('ticket')}
+              >
+                + Ticket
+              </button>
+              <button
+                className="tb-btn event-btn"
+                onClick={() => setModal('event')}
+              >
+                + Event
+              </button>
+            </>
+          ) : (
+            <button
+              className="tb-btn event-btn"
+              onClick={() => setModal('event')}
             >
-              <path
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                fill="#4285F4"
+              + Event
+            </button>
+          )}
+        </div> */}
+      </div>
+
+      {!isProjectCalendar ? (
+        <div className="priority-legend">
+          <span className="pri-label">Ticket priority:</span>
+          {[
+            { label: 'Critical', color: '#ef4444' },
+            { label: 'High', color: '#f97316' },
+            { label: 'Medium', color: '#eab308' },
+            { label: 'Low', color: '#22c55e' },
+          ].map((priority) => (
+            <span key={priority.label} className="leg-item">
+              <span
+                className="leg-dot"
+                style={{ background: priority.color }}
               />
-              <path
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                fill="#34A853"
-              />
-              <path
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                fill="#FBBC05"
-              />
-              <path
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                fill="#EA4335"
-              />
-            </svg>
-            {cal.isGoogleConnected ? 'Google Connected' : 'Connect Google'}
-          </button>
+              {priority.label}
+            </span>
+          ))}
         </div>
-      </div>
+      ) : null}
 
-      {/* Priority legend */}
-      <div className="priority-legend">
-        <span className="pri-label">Ticket priority:</span>
-        {[
-          { label: 'Critical', color: '#ef4444' },
-          { label: 'High', color: '#f97316' },
-          { label: 'Medium', color: '#eab308' },
-          { label: 'Low', color: '#22c55e' },
-        ].map((p) => (
-          <span key={p.label} className="leg-item">
-            <span className="leg-dot" style={{ background: p.color }} />
-            {p.label}
-          </span>
-        ))}
-        <span className="pri-tip">
-          Drag events to reschedule · Click to view details · Auto-saves to DB
-        </span>
-      </div>
-
-      {/* Main layout */}
       <div className="calendar-body">
         <div className="calendar-main">
           <FullCalendarView
@@ -229,47 +214,55 @@ export default function Calendar() {
             onEventClick={handleEventClick}
             onEventDrop={handleEventDrop}
             onSelect={cal.setSelectedDate}
+            onViewChange={cal.setCalendarContext}
           />
         </div>
 
         <DaySidebar
-          selectedDate={cal.selectedDate}
-          events={cal.events.filter((e) => e.date === cal.selectedDate)}
-          tickets={cal.tickets.filter((t) => t.dueDate === cal.selectedDate)}
+          title={sidebarData.title}
+          events={sidebarData.events}
+          tickets={sidebarData.tickets}
           onDeleteEvent={cal.deleteEvent}
           onUpdateTicket={cal.updateTicket}
           onDeleteTicket={cal.deleteTicket}
-          onAddEvent={() => setModal('event')}
+          onAddEvent={() => {
+            setEditingEvent(null);
+            setModal('event');
+          }}
           onAddTicket={() => setModal('ticket')}
+          showAddEventAction={isProjectCalendar}
+          showAddTicketAction={!isProjectCalendar}
+          showTicketsSection={!isProjectCalendar}
         />
       </div>
 
-      {(modal === 'event' || modal === 'ticket') && (
+      {modal ? (
         <AddModal
           mode={modal}
           selectedDate={cal.selectedDate}
-          onClose={() => setModal(null)}
+          onClose={() => {
+            setModal(null);
+            setEditingEvent(null);
+          }}
           onAddEvent={cal.addEvent}
           onAddTicket={cal.addTicket}
+          initialEvent={editingEvent}
+          onUpdateEvent={cal.updateCalendarEvent}
+          onDeleteEvent={cal.deleteEvent}
         />
-      )}
-
-      {modal === 'google' && (
-        <GoogleModal
-          isConnected={cal.isGoogleConnected}
-          calendars={cal.googleCalendars}
-          onClose={() => setModal(null)}
-          onConnect={handleGoogleConnect}
-          onDisconnect={handleGoogleDisconnect}
-          onToggleCalendar={(id) =>
-            cal.setGoogleCalendars((prev: any) =>
-              prev.map((c: any) =>
-                c.id === id ? { ...c, selected: !c.selected } : c,
-              ),
-            )
-          }
-        />
-      )}
+      ) : null}
     </div>
   );
+}
+
+function formatLocalDate(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function isDateWithinRange(value: string, start: Date, end: Date) {
+  const date = new Date(`${value}T00:00:00`);
+  return date >= start && date <= end;
 }

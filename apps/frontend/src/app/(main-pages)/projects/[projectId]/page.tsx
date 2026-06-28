@@ -17,7 +17,6 @@ import type { DiscussionAttachment } from '../../../../components/discussion/typ
 import ProjectFilesPanel, {
   type ProjectFileRecord,
 } from '../../../../components/projects/ProjectFilesPanel';
-// import ProjectCalendarPanel from '../../../../components/projects/ProjectCalendarPanel';
 import { createTicketProjectOptions } from '../../../../components/modals/create-ticket-modal.data';
 import RecentTicketsTable from '../../../../components/tables/RecentTicketsTable';
 import { appToast } from '../../../../components/toast/AppToast';
@@ -44,7 +43,7 @@ import {
   usePermissions,
 } from '../../../providers/PermissionProvider';
 import { useAppSelector } from '../../../Redux/store';
-// import Calendar from '../../../../components/calendar/Calendar';
+import Calendar from '../../../../components/calendar/Calendar';
 
 const projectTabs = ['Tickets', 'Thread', 'Files', 'Calendar'] as const;
 
@@ -739,8 +738,7 @@ export default function ProjectDetailPage() {
 
           <PermissionGuard permission="calendar.view_grid">
             <TabPanel>
-              {/* <ProjectCalendarPanel projectId={projectId} projectName={project.name} /> */}
-              {/* <Calendar /> */}
+              <Calendar projectId={projectId} />
             </TabPanel>
           </PermissionGuard>
         </TabPanels>

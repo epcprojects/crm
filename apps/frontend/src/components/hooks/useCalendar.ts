@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { CalendarEvent, Ticket, GoogleCalendar } from '../types';
 import {
   toDateString,
@@ -8,10 +8,15 @@ import {
   populateCells,
 } from '../..//lib/calendar-utils';
 import {
+  deleteProjectEvent as apiDeleteProjectEvent,
   fetchEventsByView,
+  fetchProjectEventById,
+  fetchProjectEventsByView,
   fetchTicketsByView,
   createEvent as apiCreateEvent,
+  createProjectEvent as apiCreateProjectEvent,
   updateEvent as apiUpdateEvent,
+  updateProjectEvent as apiUpdateProjectEvent,
   deleteEvent as apiDeleteEvent,
   createTicket as apiCreateTicket,
   updateTicket as apiUpdateTicket,
@@ -21,100 +26,122 @@ import {
   CalendarView as ApiView,
 } from '../..//lib/api-client';
 
-// Map FullCalendar view names → API view param
 function fcViewToApiView(view: 'month' | 'week' | 'day' | 'year'): ApiView {
   return view as ApiView;
 }
 
-// Convert API event → internal CalendarEvent
-function toCalendarEvent(e: ApiEvent): CalendarEvent {
+function toCalendarEvent(event: ApiEvent): CalendarEvent {
+  const date = (event.date || event.start || '').split('T')[0];
+
   return {
-    id: e.id,
-    title: e.title,
-    type: e.type,
-    date: e.date,
-    description: e.description,
-    color: e.color,
-    allDay: true,
+    id: event.id,
+    title: event.title,
+    type: event.type ?? 'event',
+    date,
+    description: event.description,
+    color: event.color,
+    allDay: event.allDay ?? true,
   };
 }
 
-// Convert API ticket → internal Ticket
-function toTicket(t: ApiTicket): Ticket {
+function toTicket(ticket: ApiTicket): Ticket {
   return {
-    id: t.id,
-    title: t.title,
-    dueDate: t.dueDate,
-    priority: t.priority,
-    status: t.status,
+    id: ticket.id,
+    title: ticket.title,
+    dueDate: ticket.dueDate,
+    priority: ticket.priority,
+    status: ticket.status,
     createdAt: new Date().toISOString(),
   };
 }
 
-export function useCalendar() {
+export function useCalendar(options?: { projectId?: string }) {
+  const projectId = options?.projectId?.trim() || '';
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<'month' | 'week' | 'day' | 'year'>('month');
   const [selectedDate, setSelectedDate] = useState<string | null>(
     toDateString(new Date()),
   );
-
-  // Separate state: DB-backed + Google events
   const [dbEvents, setDbEvents] = useState<CalendarEvent[]>([]);
   const [googleEvents, setGoogleEvents] = useState<CalendarEvent[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
-
   const [isGoogleConnected, setIsGoogleConnected] = useState(false);
   const [googleCalendars, setGoogleCalendars] = useState<GoogleCalendar[]>([]);
-
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [loadingTickets, setLoadingTickets] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingProjectEvents, setPendingProjectEvents] = useState<CalendarEvent[]>([]);
+  const pendingProjectEventsRef = useRef<CalendarEvent[]>([]);
 
-  // All events combined
   const events: CalendarEvent[] = useMemo(
     () => [...dbEvents, ...googleEvents],
     [dbEvents, googleEvents],
   );
 
-  // Reference date string for the API (always the 1st of month for month view, etc.)
-  const refDateStr = useMemo(() => toDateString(currentDate), [currentDate]);
+  useEffect(() => {
+    pendingProjectEventsRef.current = pendingProjectEvents;
+  }, [pendingProjectEvents]);
 
-  // ── Fetch from API whenever view or date changes ────────────────────────
+  const refDateStr = useMemo(
+    () => getCalendarQueryDate(currentDate, view),
+    [currentDate, view],
+  );
 
   const fetchEvents = useCallback(async () => {
     setLoadingEvents(true);
     setError(null);
+
     try {
-      const apiView = fcViewToApiView(view === 'year' ? 'year' : view);
-      const raw = await fetchEventsByView(apiView, refDateStr);
-      setDbEvents(raw.map(toCalendarEvent));
-    } catch (e: any) {
-      setError(e.message);
+      const apiView = fcViewToApiView(view);
+      const rawEvents = projectId
+        ? await fetchProjectEventsByView(projectId, apiView, refDateStr)
+        : await fetchEventsByView(apiView, refDateStr);
+      const fetchedEvents = rawEvents.map(toCalendarEvent);
+
+      if (!projectId) {
+        setDbEvents(fetchedEvents);
+        return;
+      }
+
+      const currentPendingProjectEvents = pendingProjectEventsRef.current;
+      const fetchedIds = new Set(fetchedEvents.map((event) => event.id));
+      const remainingPendingEvents = currentPendingProjectEvents.filter(
+        (event) => !fetchedIds.has(event.id),
+      );
+
+      setPendingProjectEvents(remainingPendingEvents);
+      setDbEvents(mergeCalendarEvents(fetchedEvents, remainingPendingEvents));
+    } catch (fetchError: any) {
+      setError(fetchError.message);
     } finally {
       setLoadingEvents(false);
     }
-  }, [view, refDateStr]);
+  }, [projectId, view, refDateStr]);
 
   const fetchTickets = useCallback(async () => {
     setLoadingTickets(true);
     setError(null);
+
     try {
-      const apiView = fcViewToApiView(view === 'year' ? 'year' : view);
-      const raw = await fetchTicketsByView(apiView, refDateStr);
-      setTickets(raw.map(toTicket));
-    } catch (e: any) {
-      setError(e.message);
+      if (projectId) {
+        setTickets([]);
+        return;
+      }
+
+      const apiView = fcViewToApiView(view);
+      const rawTickets = await fetchTicketsByView(apiView, refDateStr);
+      setTickets(rawTickets.map(toTicket));
+    } catch (fetchError: any) {
+      setError(fetchError.message);
     } finally {
       setLoadingTickets(false);
     }
-  }, [view, refDateStr]);
+  }, [projectId, view, refDateStr]);
 
   useEffect(() => {
     fetchEvents();
     fetchTickets();
   }, [fetchEvents, fetchTickets]);
-
-  // ── Month grid cells (used when rendering month view manually) ───────────
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -124,27 +151,29 @@ export function useCalendar() {
     [rawCells, events, tickets, selectedDate],
   );
 
-  // ── Navigation ────────────────────────────────────────────────────────────
-
   const navigatePrev = useCallback(() => {
-    setCurrentDate((d) => {
-      const nd = new Date(d);
-      if (view === 'month') nd.setMonth(d.getMonth() - 1);
-      else if (view === 'week') nd.setDate(d.getDate() - 7);
-      else if (view === 'year') nd.setFullYear(d.getFullYear() - 1);
-      else nd.setDate(d.getDate() - 1);
-      return nd;
+    setCurrentDate((date) => {
+      const nextDate = new Date(date);
+
+      if (view === 'month') nextDate.setMonth(date.getMonth() - 1);
+      else if (view === 'week') nextDate.setDate(date.getDate() - 7);
+      else if (view === 'year') nextDate.setFullYear(date.getFullYear() - 1);
+      else nextDate.setDate(date.getDate() - 1);
+
+      return nextDate;
     });
   }, [view]);
 
   const navigateNext = useCallback(() => {
-    setCurrentDate((d) => {
-      const nd = new Date(d);
-      if (view === 'month') nd.setMonth(d.getMonth() + 1);
-      else if (view === 'week') nd.setDate(d.getDate() + 7);
-      else if (view === 'year') nd.setFullYear(d.getFullYear() + 1);
-      else nd.setDate(d.getDate() + 1);
-      return nd;
+    setCurrentDate((date) => {
+      const nextDate = new Date(date);
+
+      if (view === 'month') nextDate.setMonth(date.getMonth() + 1);
+      else if (view === 'week') nextDate.setDate(date.getDate() + 7);
+      else if (view === 'year') nextDate.setFullYear(date.getFullYear() + 1);
+      else nextDate.setDate(date.getDate() + 1);
+
+      return nextDate;
     });
   }, [view]);
 
@@ -153,34 +182,102 @@ export function useCalendar() {
     setSelectedDate(toDateString(new Date()));
   }, []);
 
-  // ── Event CRUD (API-backed) ───────────────────────────────────────────────
+  const setCalendarContext = useCallback(
+    (nextView: 'month' | 'week' | 'day' | 'year', nextDate: string) => {
+      const nextCurrentDate = new Date(`${nextDate}T00:00:00`);
+
+      setView((currentView) => (currentView === nextView ? currentView : nextView));
+      setCurrentDate((currentValue) =>
+        formatLocalDate(currentValue) === nextDate ? currentValue : nextCurrentDate,
+      );
+      setSelectedDate((currentValue) => {
+        if (nextView === 'day') {
+          return currentValue === nextDate ? currentValue : nextDate;
+        }
+
+        return currentValue === null ? currentValue : null;
+      });
+    },
+    [],
+  );
 
   const addEvent = useCallback(async (event: Omit<CalendarEvent, 'id'>) => {
-    const created = await apiCreateEvent({
+    const payload = {
       title: event.title,
       type: event.type as any,
       date: event.date,
       description: event.description,
       color: event.color,
-    });
+    };
+    const created = projectId
+      ? await apiCreateProjectEvent(projectId, payload)
+      : await apiCreateEvent(payload);
     const mapped = toCalendarEvent(created);
-    setDbEvents((prev) => [...prev, mapped]);
+    setDbEvents((previous) => mergeCalendarEvents(previous, [mapped]));
+    if (projectId) {
+      setPendingProjectEvents((previous) => mergeCalendarEvents(previous, [mapped]));
+    }
     return mapped;
-  }, []);
+  }, [projectId]);
 
   const deleteEvent = useCallback(async (id: string) => {
-    await apiDeleteEvent(id);
-    setDbEvents((prev) => prev.filter((e) => e.id !== id));
-  }, []);
+    if (projectId) {
+      await apiDeleteProjectEvent(projectId, id);
+    } else {
+      await apiDeleteEvent(id);
+    }
+    setDbEvents((previous) => previous.filter((event) => event.id !== id));
+    setPendingProjectEvents((previous) => previous.filter((event) => event.id !== id));
+  }, [projectId]);
 
   const updateEventDate = useCallback(async (id: string, newDate: string) => {
-    const updated = await apiUpdateEvent(id, { date: newDate });
-    setDbEvents((prev) =>
-      prev.map((e) => (e.id === id ? toCalendarEvent(updated) : e)),
+    const updated = projectId
+      ? await apiUpdateProjectEvent(projectId, id, { date: newDate })
+      : await apiUpdateEvent(id, { date: newDate });
+    setDbEvents((previous) =>
+      previous.map((event) => (event.id === id ? toCalendarEvent(updated) : event)),
     );
-  }, []);
+    if (projectId) {
+      setPendingProjectEvents((previous) =>
+        previous.map((event) => (event.id === id ? toCalendarEvent(updated) : event)),
+      );
+    }
+  }, [projectId]);
 
-  // ── Ticket CRUD (API-backed) ──────────────────────────────────────────────
+  const getProjectEvent = useCallback(async (id: string) => {
+    if (!projectId) {
+      return null;
+    }
+
+    const event = await fetchProjectEventById(projectId, id);
+    return toCalendarEvent(event);
+  }, [projectId]);
+
+  const updateCalendarEvent = useCallback(
+    async (id: string, event: Omit<CalendarEvent, 'id'>) => {
+      const payload = {
+        title: event.title,
+        type: event.type as any,
+        date: event.date,
+        description: event.description,
+        color: event.color,
+      };
+      const updated = projectId
+        ? await apiUpdateProjectEvent(projectId, id, payload)
+        : await apiUpdateEvent(id, payload);
+      const mapped = toCalendarEvent(updated);
+      setDbEvents((previous) =>
+        previous.map((item) => (item.id === id ? mapped : item)),
+      );
+      if (projectId) {
+        setPendingProjectEvents((previous) =>
+          previous.map((item) => (item.id === id ? mapped : item)),
+        );
+      }
+      return mapped;
+    },
+    [projectId],
+  );
 
   const addTicket = useCallback(
     async (ticket: Omit<Ticket, 'id' | 'createdAt'>) => {
@@ -194,7 +291,7 @@ export function useCalendar() {
         tags: ticket.tags,
       });
       const mapped = toTicket(created);
-      setTickets((prev) => [...prev, mapped]);
+      setTickets((previous) => [...previous, mapped]);
       return mapped;
     },
     [],
@@ -209,20 +306,18 @@ export function useCalendar() {
         status: updates.status as any,
       });
       const mapped = toTicket(updated);
-      setTickets((prev) => prev.map((t) => (t.id === id ? mapped : t)));
+      setTickets((previous) => previous.map((ticket) => (ticket.id === id ? mapped : ticket)));
     },
     [],
   );
 
   const deleteTicket = useCallback(async (id: string) => {
     await apiDeleteTicket(id);
-    setTickets((prev) => prev.filter((t) => t.id !== id));
+    setTickets((previous) => previous.filter((ticket) => ticket.id !== id));
   }, []);
 
-  // ── Google events (not DB-backed) ────────────────────────────────────────
-
   const addGoogleEvents = useCallback((newEvents: CalendarEvent[]) => {
-    setGoogleEvents(newEvents.filter((e) => e.type === 'google'));
+    setGoogleEvents(newEvents.filter((event) => event.type === 'google'));
   }, []);
 
   return {
@@ -245,8 +340,11 @@ export function useCalendar() {
     navigatePrev,
     navigateNext,
     goToToday,
+    setCalendarContext,
     addEvent,
+    getProjectEvent,
     deleteEvent,
+    updateCalendarEvent,
     updateEventDate,
     addTicket,
     updateTicket,
@@ -257,4 +355,43 @@ export function useCalendar() {
       fetchTickets();
     },
   };
+}
+
+function mergeCalendarEvents(
+  baseEvents: CalendarEvent[],
+  incomingEvents: CalendarEvent[],
+) {
+  const byId = new Map<string, CalendarEvent>();
+
+  baseEvents.forEach((event) => {
+    byId.set(event.id, event);
+  });
+
+  incomingEvents.forEach((event) => {
+    byId.set(event.id, event);
+  });
+
+  return Array.from(byId.values());
+}
+
+function getCalendarQueryDate(
+  currentDate: Date,
+  view: 'month' | 'week' | 'day' | 'year',
+) {
+  if (view === 'month') {
+    return `${currentDate.getFullYear()}-${`${currentDate.getMonth() + 1}`.padStart(2, '0')}-01`;
+  }
+
+  if (view === 'year') {
+    return `${currentDate.getFullYear()}-01-01`;
+  }
+
+  return formatLocalDate(currentDate);
+}
+
+function formatLocalDate(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }

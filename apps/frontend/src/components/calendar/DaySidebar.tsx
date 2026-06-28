@@ -1,26 +1,31 @@
 'use client';
 
+import { useState } from 'react';
+import ConfirmActionModal from '../modals/ConfirmActionModal';
 import { CalendarEvent, Ticket } from '../types';
 import {
-  formatDisplayDate,
   formatTime,
   PRIORITY_COLORS,
   STATUS_COLORS,
 } from '../../lib/calendar-utils';
+import ThemeButton from '../ui/ThemeButton';
 
 interface DaySidebarProps {
-  selectedDate: string | null;
+  title: string;
   events: CalendarEvent[];
   tickets: Ticket[];
-  onDeleteEvent: (id: string) => void;
+  onDeleteEvent: (id: string) => void | Promise<void>;
   onUpdateTicket: (id: string, updates: Partial<Ticket>) => void;
   onDeleteTicket: (id: string) => void;
   onAddEvent: () => void;
   onAddTicket: () => void;
+  showAddEventAction?: boolean;
+  showAddTicketAction?: boolean;
+  showTicketsSection?: boolean;
 }
 
 export default function DaySidebar({
-  selectedDate,
+  title,
   events,
   tickets,
   onDeleteEvent,
@@ -28,174 +33,214 @@ export default function DaySidebar({
   onDeleteTicket,
   onAddEvent,
   onAddTicket,
+  showAddEventAction = true,
+  showAddTicketAction = true,
+  showTicketsSection = true,
 }: DaySidebarProps) {
-  if (!selectedDate) {
-    return (
-      <aside className="day-sidebar empty">
-        <p className="sidebar-empty-msg">Select a day to see details</p>
-      </aside>
-    );
+  const [eventToDelete, setEventToDelete] = useState<CalendarEvent | null>(
+    null,
+  );
+  const [isDeletingEvent, setIsDeletingEvent] = useState(false);
+
+  async function handleConfirmDelete() {
+    if (!eventToDelete) {
+      return;
+    }
+
+    try {
+      setIsDeletingEvent(true);
+      await onDeleteEvent(eventToDelete.id);
+      setEventToDelete(null);
+    } finally {
+      setIsDeletingEvent(false);
+    }
   }
 
-  const dayEvents = events.filter((e) => e.date === selectedDate);
-  const dayTickets = tickets.filter((t) => t.dueDate === selectedDate);
-
   return (
-    <aside className="day-sidebar">
-      <div className="sidebar-header">
-        <h2 className="sidebar-date">{formatDisplayDate(selectedDate)}</h2>
-        <div className="sidebar-actions">
-          <button className="sb-action-btn" onClick={onAddEvent}>
-            + Event
-          </button>
-          <button className="sb-action-btn ticket" onClick={onAddTicket}>
-            + Ticket
-          </button>
+    <>
+      <aside className="day-sidebar">
+        <div className="sidebar-header">
+          <h2 className="sidebar-date">{title}</h2>
+          {showAddEventAction || showAddTicketAction ? (
+            <div className="sidebar-actions">
+              {showAddEventAction ? (
+                <ThemeButton className="w-full" onClick={onAddEvent}>
+                  + Event
+                </ThemeButton>
+              ) : null}
+              {showAddTicketAction ? (
+                <ThemeButton
+                  className="sb-action-btn ticket"
+                  onClick={onAddTicket}
+                >
+                  + Ticket
+                </ThemeButton>
+              ) : null}
+            </div>
+          ) : null}
         </div>
-      </div>
 
-      {/* Events section */}
-      <section className="sidebar-section">
-        <h3 className="section-label">
-          Events
-          <span className="count-badge">{dayEvents.length}</span>
-        </h3>
+        <section className="sidebar-section">
+          <h3 className="section-label">
+            Events
+            <span className="count-badge">{events.length}</span>
+          </h3>
 
-        {dayEvents.length === 0 ? (
-          <p className="empty-section">No events</p>
-        ) : (
-          <div className="item-list">
-            {dayEvents.map((event) => (
-              <div key={event.id} className="sidebar-event-card">
-                <div className="sec-left">
-                  <div
-                    className="sec-dot"
-                    style={{
-                      background:
-                        event.type === 'google'
-                          ? '#4285f4'
-                          : event.type === 'ticket'
-                            ? '#8b5cf6'
-                            : '#0f6e56',
-                    }}
-                  />
-                  <div className="sec-body">
-                    <div className="sec-title">{event.title}</div>
-                    {event.startTime && (
-                      <div className="sec-meta">
-                        {formatTime(event.startTime)}
-                        {event.endTime && ` – ${formatTime(event.endTime)}`}
-                      </div>
-                    )}
-                    {event.location && (
-                      <div className="sec-meta">📍 {event.location}</div>
-                    )}
-                    {event.description && (
-                      <div className="sec-desc">{event.description}</div>
-                    )}
-                    {event.type === 'google' && (
-                      <div className="google-badge">Google Calendar</div>
-                    )}
-                    {event.hangoutLink && (
-                      <a
-                        href={event.hangoutLink}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="meet-link"
-                      >
-                        Join Google Meet
-                      </a>
-                    )}
+          {events.length === 0 ? (
+            <p className="empty-section">No events</p>
+          ) : (
+            <div className="item-list">
+              {events.map((event) => (
+                <div key={event.id} className="sidebar-event-card">
+                  <div className="sec-left">
+                    <div
+                      className="sec-dot"
+                      style={{
+                        background:
+                          event.type === 'google'
+                            ? '#4285f4'
+                            : event.type === 'ticket'
+                              ? '#8b5cf6'
+                              : '#0f6e56',
+                      }}
+                    />
+                    <div className="sec-body">
+                      <div className="sec-title">{event.title}</div>
+                      {event.startTime ? (
+                        <div className="sec-meta">
+                          {formatTime(event.startTime)}
+                          {event.endTime
+                            ? ` â€“ ${formatTime(event.endTime)}`
+                            : ''}
+                        </div>
+                      ) : null}
+                      {event.location ? (
+                        <div className="sec-meta">ðŸ“ {event.location}</div>
+                      ) : null}
+                      {event.description ? (
+                        <div className="sec-desc">{event.description}</div>
+                      ) : null}
+                      {event.type === 'google' ? (
+                        <div className="google-badge">Google Calendar</div>
+                      ) : null}
+                      {event.hangoutLink ? (
+                        <a
+                          href={event.hangoutLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="meet-link"
+                        >
+                          Join Google Meet
+                        </a>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-                {event.type !== 'google' && (
-                  <button
-                    className="delete-btn"
-                    onClick={() => onDeleteEvent(event.id)}
-                    aria-label="Delete event"
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Tickets section */}
-      <section className="sidebar-section">
-        <h3 className="section-label">
-          Tickets Due
-          <span className="count-badge">{dayTickets.length}</span>
-        </h3>
-
-        {dayTickets.length === 0 ? (
-          <p className="empty-section">No tickets due</p>
-        ) : (
-          <div className="item-list">
-            {dayTickets.map((ticket) => (
-              <div key={ticket.id} className="sidebar-ticket-card">
-                <div
-                  className="priority-stripe"
-                  style={{ background: PRIORITY_COLORS[ticket.priority] }}
-                />
-                <div className="stc-body">
-                  <div className="stc-top">
-                    <span className="stc-title">{ticket.title}</span>
+                  {event.type !== 'google' ? (
                     <button
                       className="delete-btn"
-                      onClick={() => onDeleteTicket(ticket.id)}
-                      aria-label="Delete ticket"
+                      onClick={() => setEventToDelete(event)}
+                      aria-label="Delete event"
                     >
-                      ×
+                      x
                     </button>
-                  </div>
-                  {ticket.description && (
-                    <div className="sec-desc">{ticket.description}</div>
-                  )}
-                  <div className="stc-meta">
-                    <span
-                      className="badge"
-                      style={{
-                        background: PRIORITY_COLORS[ticket.priority] + '22',
-                        color: PRIORITY_COLORS[ticket.priority],
-                        borderColor: PRIORITY_COLORS[ticket.priority] + '44',
-                      }}
-                    >
-                      {ticket.priority}
-                    </span>
-                    <select
-                      className="status-select"
-                      value={ticket.status}
-                      onChange={(e) =>
-                        onUpdateTicket(ticket.id, {
-                          status: e.target.value as any,
-                        })
-                      }
-                      style={{ color: STATUS_COLORS[ticket.status] }}
-                    >
-                      <option value="open">Open</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="review">Review</option>
-                      <option value="closed">Closed</option>
-                    </select>
-                  </div>
-                  {ticket.tags && ticket.tags.length > 0 && (
-                    <div className="tag-list">
-                      {ticket.tags.map((tag) => (
-                        <span key={tag} className="tag">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                  ) : null}
                 </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {showTicketsSection ? (
+          <section className="sidebar-section">
+            <h3 className="section-label">
+              Tickets Due
+              <span className="count-badge">{tickets.length}</span>
+            </h3>
+
+            {tickets.length === 0 ? (
+              <p className="empty-section">No tickets due</p>
+            ) : (
+              <div className="item-list">
+                {tickets.map((ticket) => (
+                  <div key={ticket.id} className="sidebar-ticket-card">
+                    <div
+                      className="priority-stripe"
+                      style={{ background: PRIORITY_COLORS[ticket.priority] }}
+                    />
+                    <div className="stc-body">
+                      <div className="stc-top">
+                        <span className="stc-title">{ticket.title}</span>
+                        <button
+                          className="delete-btn"
+                          onClick={() => onDeleteTicket(ticket.id)}
+                          aria-label="Delete ticket"
+                        >
+                          Ã—
+                        </button>
+                      </div>
+                      {ticket.description ? (
+                        <div className="sec-desc">{ticket.description}</div>
+                      ) : null}
+                      <div className="stc-meta">
+                        <span
+                          className="badge"
+                          style={{
+                            background: `${PRIORITY_COLORS[ticket.priority]}22`,
+                            color: PRIORITY_COLORS[ticket.priority],
+                            borderColor: `${PRIORITY_COLORS[ticket.priority]}44`,
+                          }}
+                        >
+                          {ticket.priority}
+                        </span>
+                        <select
+                          className="status-select"
+                          value={ticket.status}
+                          onChange={(event) =>
+                            onUpdateTicket(ticket.id, {
+                              status: event.target.value as Ticket['status'],
+                            })
+                          }
+                          style={{ color: STATUS_COLORS[ticket.status] }}
+                        >
+                          <option value="open">Open</option>
+                          <option value="in_progress">In Progress</option>
+                          <option value="review">Review</option>
+                          <option value="closed">Closed</option>
+                        </select>
+                      </div>
+                      {ticket.tags?.length ? (
+                        <div className="tag-list">
+                          {ticket.tags.map((tag) => (
+                            <span key={tag} className="tag">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
-      </section>
-    </aside>
+            )}
+          </section>
+        ) : null}
+      </aside>
+
+      <ConfirmActionModal
+        isOpen={Boolean(eventToDelete)}
+        title="Delete event?"
+        message="This event will be permanently removed from the calendar."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        isSubmitting={isDeletingEvent}
+        variant="danger"
+        onClose={() => {
+          if (!isDeletingEvent) {
+            setEventToDelete(null);
+          }
+        }}
+        onConfirm={handleConfirmDelete}
+      />
+    </>
   );
 }
