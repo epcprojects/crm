@@ -683,7 +683,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         >
           {!shouldHideHeader ? (
             <header
-              className={`fixed ${collapsed ? 'sm:max-w-[calc(100%-72px)]' : 'sm:max-w-[calc(100%-290px)]'} top-0 z-20 border-b border-gray-200 bg-white w-full backdrop-blur`}
+              className={`fixed ${collapsed ? 'sm:max-w-[calc(100%-72px)]' : 'sm:max-w-[calc(100%-240px)]'} top-0 z-20 border-b border-gray-200 bg-white w-full backdrop-blur`}
             >
               <div className="flex py-4 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center gap-3">
