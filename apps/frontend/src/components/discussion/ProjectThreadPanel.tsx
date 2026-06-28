@@ -3,7 +3,6 @@
 import { useRef, useState, type ReactNode } from 'react';
 import {
   ALLOWED_ATTACHMENT_ACCEPT,
-  ALLOWED_ATTACHMENT_HELPER_TEXT,
   validateAttachments,
 } from '../../lib/attachments';
 import { FileTypePlaceholder } from '../../../public/icons';
@@ -374,7 +373,7 @@ export default function ProjectThreadPanel({
 
         {canCompose ? (
           <div className="px-2 py-4 md:px-5">
-            <div className="rounded-sm bg-gray-100 px-3 py-2">
+            <div className="rounded-xl border border-gray-200 bg-white p-3">
               <textarea
                 rows={3}
                 value={message}
@@ -383,6 +382,31 @@ export default function ProjectThreadPanel({
                 disabled={isSubmittingReply}
                 className="w-full resize-none bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
               />
+              <div className="mt-1 flex items-center justify-end gap-2">
+                {canAttachFile ? (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isSubmittingReply}
+                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <PaperclipIcon />
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={
+                    (requireMessage
+                      ? !message.trim()
+                      : !message.trim() && !attachments.length) ||
+                    isSubmittingReply
+                  }
+                  className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#10175A] text-white disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <TelegramIcon />
+                </button>
+              </div>
             </div>
 
             <input
@@ -397,14 +421,11 @@ export default function ProjectThreadPanel({
             />
 
             {attachments.length ? (
-              <div
-                className="mt-2 space-y-2 grid grid-cols-3
-               gap-3 flex-wrap"
-              >
+              <div className="mt-3 grid grid-cols-3 gap-2">
                 {attachments.map((attachment) => (
                   <div
                     key={`${attachment.name}-${attachment.lastModified}`}
-                    className="flex items-center  justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2"
+                    className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2"
                   >
                     <p className="truncate text-sm text-gray-700">
                       {attachment.name}
@@ -432,19 +453,15 @@ export default function ProjectThreadPanel({
 
             {attachmentError ? (
               <p className="mt-2 text-xs text-red-600">{attachmentError}</p>
-            ) : canAttachFile ? (
-              <p className="mt-2 text-xs text-gray-500">
-                {ALLOWED_ATTACHMENT_HELPER_TEXT}
-              </p>
             ) : null}
 
-            <div className="mt-3 flex items-center justify-end gap-3">
+            {/* <div className="mt-3 flex items-center justify-end gap-2">
               {canAttachFile ? (
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isSubmittingReply}
-                  className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <PaperclipIcon />
                 </button>
@@ -458,12 +475,11 @@ export default function ProjectThreadPanel({
                     : !message.trim() && !attachments.length) ||
                   isSubmittingReply
                 }
-                className="rounded-lg bg-[#10175A] px-4 py-2.5 sm:py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#10175A] text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {/* {isSubmittingReply ? 'Posting...' : 'Reply'} */}
                 <TelegramIcon />
               </button>
-            </div>
+            </div> */}
           </div>
         ) : null}
       </section>
