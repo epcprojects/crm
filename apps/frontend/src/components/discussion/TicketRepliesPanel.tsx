@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ALLOWED_ATTACHMENT_ACCEPT,
-  ALLOWED_ATTACHMENT_HELPER_TEXT,
   validateAttachments,
 } from '../../lib/attachments';
 import { FileTypePlaceholder } from '../../../public/icons';
@@ -365,91 +364,92 @@ export default function TicketRepliesPanel({
 
         {canCompose ? (
           <div className="px-2 py-4 md:px-5">
-            <div className="rounded-sm bg-gray-100 px-3 py-2">
+            <div className="rounded-xl border border-gray-200 bg-white p-2 sm:p-3">
               <textarea
                 rows={3}
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
                 placeholder={composerPlaceholder}
                 disabled={isSubmittingReply}
-                className="w-full resize-none bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
+                className="min-h-16 md:min-h-28 w-full resize-none bg-transparent px-2 py-1 text-sm text-gray-700 outline-none placeholder:text-gray-400"
               />
-            </div>
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="hidden"
-              accept={ALLOWED_ATTACHMENT_ACCEPT}
-              multiple
-              onChange={(event) =>
-                handleAttachmentChange(event.target.files ?? null)
-              }
-            />
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                accept={ALLOWED_ATTACHMENT_ACCEPT}
+                multiple
+                onChange={(event) =>
+                  handleAttachmentChange(event.target.files ?? null)
+                }
+              />
 
-            {attachments.length ? (
-              <div className="mt-2 space-y-2">
-                {attachments.map((attachment) => (
-                  <div
-                    key={`${attachment.name}-${attachment.lastModified}`}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2"
-                  >
-                    <p className="truncate text-sm text-gray-700">
-                      {attachment.name}
-                    </p>
+              {attachments.length ? (
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  {attachments.map((attachment) => (
+                    <div
+                      key={`${attachment.name}-${attachment.lastModified}`}
+                      className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2"
+                    >
+                      <p className="truncate text-sm text-gray-700">
+                        {attachment.name}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextAttachments = attachments.filter(
+                            (file) => file !== attachment,
+                          );
+                          setAttachments(nextAttachments);
+                          if (!nextAttachments.length && fileInputRef.current) {
+                            fileInputRef.current.value = '';
+                          }
+                        }}
+                        disabled={isSubmittingReply}
+                        className="text-xs font-medium text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {attachmentError ? (
+                <p className="mt-2 text-xs text-red-600">{attachmentError}</p>
+              ) : null}
+
+              <div className="mt-3 flex items-end justify-end gap-3">
+                {/* <div className="text-xs text-gray-500">
+                  {canAttachFile ? ALLOWED_ATTACHMENT_HELPER_TEXT : null}
+                </div> */}
+                <div className="flex items-center gap-2">
+                  {canAttachFile ? (
                     <button
                       type="button"
-                      onClick={() => {
-                        const nextAttachments = attachments.filter(
-                          (file) => file !== attachment,
-                        );
-                        setAttachments(nextAttachments);
-                        if (!nextAttachments.length && fileInputRef.current) {
-                          fileInputRef.current.value = '';
-                        }
-                      }}
+                      onClick={() => fileInputRef.current?.click()}
                       disabled={isSubmittingReply}
-                      className="text-xs font-medium text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      Remove
+                      <PaperclipIcon />
                     </button>
-                  </div>
-                ))}
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={
+                      (requireMessage
+                        ? !message.trim()
+                        : !message.trim() && !attachments.length) ||
+                      isSubmittingReply
+                    }
+                    className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#10175A] text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <TelegramIcon />
+                  </button>
+                </div>
               </div>
-            ) : null}
-
-            {attachmentError ? (
-              <p className="mt-2 text-xs text-red-600">{attachmentError}</p>
-            ) : canAttachFile ? (
-              <p className="mt-2 text-xs text-gray-500">
-                {ALLOWED_ATTACHMENT_HELPER_TEXT}
-              </p>
-            ) : null}
-
-            <div className="mt-3 flex items-center justify-end gap-3">
-              {canAttachFile ? (
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isSubmittingReply}
-                  className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <PaperclipIcon />
-                </button>
-              ) : null}
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={
-                  (requireMessage
-                    ? !message.trim()
-                    : !message.trim() && !attachments.length) ||
-                  isSubmittingReply
-                }
-                className="rounded-lg bg-[#10175A] px-5 py-2.5 sm:py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSubmittingReply ? 'Posting...' : 'Reply'}
-              </button>
             </div>
           </div>
         ) : null}
@@ -580,6 +580,23 @@ function PaperclipIcon() {
         clipRule="evenodd"
         d="M9.5 3.75C7.15279 3.75 5.25 5.65279 5.25 8V13.5001C5.25 17.228 8.27208 20.2501 12 20.2501C15.7279 20.2501 18.75 17.228 18.75 13.5001V12.0001C18.75 11.5859 19.0858 11.2501 19.5 11.2501C19.9142 11.2501 20.25 11.5859 20.25 12.0001V13.5001C20.25 18.0564 16.5563 21.7501 12 21.7501C7.44365 21.7501 3.75 18.0564 3.75 13.5001V8C3.75 4.82436 6.32436 2.25 9.5 2.25C12.6756 2.25 15.25 4.82436 15.25 8V13.5C15.25 15.2949 13.7949 16.75 12 16.75C10.2051 16.75 8.75 15.2949 8.75 13.5V9.5C8.75 9.08579 9.08579 8.75 9.5 8.75C9.91421 8.75 10.25 9.08579 10.25 9.5V13.5C10.25 14.4665 11.0335 15.25 12 15.25C12.9665 15.25 13.75 14.4665 13.75 13.5V8C13.75 5.65279 11.8472 3.75 9.5 3.75Z"
         fill="#020F52"
+      />
+    </svg>
+  );
+}
+
+function TelegramIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M9.8029 13.0897L9.80288 13.0896L8.02961 11.0735C7.15174 10.0754 7.04779 9.63681 7.10554 9.54226L7.77109 9.00624L10.4686 6.89628C10.6861 6.72615 10.7245 6.41191 10.5544 6.1944C10.3843 5.97689 10.07 5.93848 9.85253 6.10861L7.15216 8.22073L6.34009 8.88355C6.15052 9.08701 6.02962 9.43495 6.16147 9.92972C6.28453 10.3915 6.62968 11.0017 7.36459 11.8396L7.09316 12.3748C6.91786 12.6185 6.7551 12.8447 6.6053 12.9998C6.45646 13.1539 6.18601 13.3804 5.80932 13.3054C5.43759 13.2315 5.27077 12.9241 5.18818 12.7269C5.1043 12.5266 5.03326 12.255 4.95618 11.9602L4.62184 10.6826C4.43614 9.97294 4.37201 9.76896 4.25117 9.61882C4.23592 9.59987 4.22003 9.58156 4.20355 9.56391C4.07597 9.42731 3.8958 9.34325 3.23583 9.0787L3.19968 9.06421C2.54928 8.80352 2.01354 8.58879 1.63882 8.37781C1.27579 8.17341 0.883764 7.87625 0.838665 7.37487C0.831655 7.29695 0.831776 7.21852 0.839024 7.14062C0.885665 6.63934 1.27866 6.34344 1.64233 6.14025C2.01771 5.93051 2.55412 5.71755 3.20531 5.45903L3.20532 5.45903L11.1947 2.28701C12.0119 1.96253 12.6802 1.6972 13.2052 1.57623C13.7406 1.4529 14.2936 1.43984 14.7269 1.84067C15.1517 2.23359 15.2025 2.78712 15.1496 3.34498C15.0971 3.89847 14.9244 4.61828 14.7114 5.5062L13.0983 12.2309C12.9626 12.7969 12.848 13.2747 12.7105 13.6214C12.5717 13.9716 12.349 14.3478 11.8991 14.4667C11.4437 14.5871 11.0674 14.3627 10.7814 14.1206C10.5005 13.8829 10.1801 13.5186 9.8029 13.0897Z"
+        fill="white"
       />
     </svg>
   );

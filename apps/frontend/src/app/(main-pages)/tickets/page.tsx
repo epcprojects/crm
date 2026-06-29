@@ -157,14 +157,17 @@ export default function Page() {
         throw new Error('Project id is required to update ticket status.');
       }
 
-      const response = await fetch(`/api/projects/${projectId}/tickets/${ticket.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
+      const response = await fetch(
+        `/api/projects/${projectId}/tickets/${ticket.id}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({ statusKey }),
         },
-        body: JSON.stringify({ statusKey }),
-      });
+      );
 
       const data = await response.json().catch(() => null);
 
@@ -185,9 +188,10 @@ export default function Page() {
         queryKey: ['dashboard-project-tickets'],
       });
 
-      const previousQueries = queryClient.getQueriesData<DashboardTicketsResponse>({
-        queryKey: ['dashboard-project-tickets'],
-      });
+      const previousQueries =
+        queryClient.getQueriesData<DashboardTicketsResponse>({
+          queryKey: ['dashboard-project-tickets'],
+        });
 
       queryClient.setQueriesData<DashboardTicketsResponse>(
         { queryKey: ['dashboard-project-tickets'] },
@@ -386,7 +390,7 @@ export default function Page() {
               </div>
 
               <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                <div className="flex items-center rounded-lg border border-gray-200 bg-white p-1">
+                <div className="hidden items-center rounded-lg border border-gray-200 bg-white p-1">
                   <button
                     type="button"
                     onClick={() => setViewMode('table')}

@@ -205,59 +205,70 @@ export default function DaySidebar({
                 <p className="empty-section">No tickets due</p>
               ) : (
                 <div className="item-list border border-gray-200 rounded-xl ps-3 p-2">
-                  {tickets.map((ticket) => (
-                    <div
-                      key={ticket.id}
-                      className="sidebar-ticket-card border-b! pb-2! border-b-gray-200! last:border-b-0!"
-                    >
-                      {/* <div
-                      className="priority-stripe"
-                      style={{ background: PRIORITY_COLORS[ticket.priority] }}
-                    /> */}
-                      <div className="stc-body w-full">
-                        <div className="stc-top">
-                          <button
-                            type="button"
-                            className="stc-title text-left"
-                            onClick={() => onTicketClick?.(ticket)}
-                          >
-                            {ticket.title}
-                          </button>
-                          {/* <button
+                  {tickets.map((ticket) => {
+                    const dueDateValue = toDateInputValue(ticket.dueDate);
+                    const isOverdue = Boolean(
+                      dueDateValue && dueDateValue < getTodayInputValue(),
+                    );
+
+                    return (
+                      <div
+                        key={ticket.id}
+                        className="sidebar-ticket-card border-b! pb-2! border-b-gray-200! last:border-b-0!"
+                      >
+                        <div className="stc-body w-full">
+                          <div className="stc-top">
+                            <button
+                              type="button"
+                              className="stc-title text-left"
+                              onClick={() => onTicketClick?.(ticket)}
+                            >
+                              {ticket.title}
+                            </button>
+                            {/* <button
                           className="delete-btn"
                           onClick={() => onDeleteTicket(ticket.id)}
                           aria-label="Delete ticket"
                         >
                           x
                         </button> */}
-                        </div>
-                        {ticket.description ? (
-                          <div className="sec-desc">{ticket.description}</div>
-                        ) : null}
-                        <div className="flex items-end justify-between gap-2 w-full">
-                          <div className="sec-meta">
-                            Due: {formatTicketDate(ticket.dueDate)}
                           </div>
-                          <div className="stc-meta">
-                            <span
-                              className="badge"
-                              style={{
-                                background: ticket.priority
-                                  ? `${PRIORITY_COLORS[ticket.priority]}22`
-                                  : '#6b72800f',
-                                color: ticket.priority
-                                  ? PRIORITY_COLORS[ticket.priority]
-                                  : '#6b7280',
-                                borderColor: ticket.priority
-                                  ? `${PRIORITY_COLORS[ticket.priority]}44`
-                                  : '#d1d5db',
-                              }}
+                          {ticket.description ? (
+                            <div className="sec-desc">{ticket.description}</div>
+                          ) : null}
+                          <div className="flex items-end justify-between gap-2 w-full">
+                            <div
+                              className={`sec-meta flex items-center justify-between w-full gap-2 ${isOverdue ? 'text-[#B42318]' : ''}`}
                             >
-                              {ticket.priority
-                                ? ticket.priority
-                                : 'No Priority'}
-                            </span>
-                            {/* <select
+                              <span>
+                                Due: {formatTicketDate(ticket.dueDate)}
+                              </span>
+                              {isOverdue ? (
+                                <span className="rounded-full bg-[#F04438] px-2.5 py-0.5 text-xs font-medium text-white">
+                                  Overdue
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="stc-meta">
+                              <span
+                                className="badge"
+                                style={{
+                                  background: ticket.priority
+                                    ? `${PRIORITY_COLORS[ticket.priority]}22`
+                                    : '#6b72800f',
+                                  color: ticket.priority
+                                    ? PRIORITY_COLORS[ticket.priority]
+                                    : '#6b7280',
+                                  borderColor: ticket.priority
+                                    ? `${PRIORITY_COLORS[ticket.priority]}44`
+                                    : '#d1d5db',
+                                }}
+                              >
+                                {ticket.priority
+                                  ? ticket.priority
+                                  : 'No Priority'}
+                              </span>
+                              {/* <select
                           className="status-select"
                           value={ticket.status}
                           onChange={(event) =>
@@ -272,20 +283,21 @@ export default function DaySidebar({
                           <option value="review">Review</option>
                           <option value="closed">Closed</option>
                         </select> */}
+                            </div>
                           </div>
+                          {ticket.tags?.length ? (
+                            <div className="tag-list">
+                              {ticket.tags.map((tag) => (
+                                <span key={tag} className="tag">
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
                         </div>
-                        {ticket.tags?.length ? (
-                          <div className="tag-list">
-                            {ticket.tags.map((tag) => (
-                              <span key={tag} className="tag">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        ) : null}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </section>
@@ -324,4 +336,16 @@ function formatTicketDate(value: string) {
     day: 'numeric',
     year: 'numeric',
   }).format(date);
+}
+
+function toDateInputValue(value: string) {
+  return value.split('T')[0] ?? '';
+}
+
+function getTodayInputValue() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = `${today.getMonth() + 1}`.padStart(2, '0');
+  const day = `${today.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
