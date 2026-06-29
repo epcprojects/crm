@@ -25,6 +25,7 @@ import {
   ApiEvent,
   ApiTicket,
   CalendarView as ApiView,
+  ProjectCalendarEventType,
 } from '../..//lib/api-client';
 
 function fcViewToApiView(view: 'month' | 'week' | 'day' | 'year'): ApiView {
@@ -72,6 +73,9 @@ export function useCalendar(options?: { projectId?: string }) {
   const [loadingTickets, setLoadingTickets] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingProjectEvents, setPendingProjectEvents] = useState<CalendarEvent[]>([]);
+  const [eventTypeFilter, setEventTypeFilter] = useState<
+    ProjectCalendarEventType | ''
+  >('');
   const pendingProjectEventsRef = useRef<CalendarEvent[]>([]);
 
   const events: CalendarEvent[] = useMemo(
@@ -95,7 +99,12 @@ export function useCalendar(options?: { projectId?: string }) {
     try {
       const apiView = fcViewToApiView(view);
       const rawEvents = projectId
-        ? await fetchProjectEventsByView(projectId, apiView, refDateStr)
+        ? await fetchProjectEventsByView(
+            projectId,
+            apiView,
+            refDateStr,
+            eventTypeFilter,
+          )
         : await fetchEventsByView(apiView, refDateStr);
       const fetchedEvents = rawEvents.map(toCalendarEvent);
 
@@ -117,7 +126,7 @@ export function useCalendar(options?: { projectId?: string }) {
     } finally {
       setLoadingEvents(false);
     }
-  }, [projectId, view, refDateStr]);
+  }, [eventTypeFilter, projectId, view, refDateStr]);
 
   const fetchTickets = useCallback(async () => {
     setLoadingTickets(true);
@@ -125,7 +134,13 @@ export function useCalendar(options?: { projectId?: string }) {
 
     try {
       if (projectId) {
-        const rawTickets = await fetchProjectTickets(projectId);
+        const apiView = fcViewToApiView(view);
+        const rawTickets = await fetchProjectTickets(
+          projectId,
+          apiView,
+          refDateStr,
+          eventTypeFilter,
+        );
         setTickets(rawTickets.map(toTicket));
         return;
       }
@@ -138,7 +153,7 @@ export function useCalendar(options?: { projectId?: string }) {
     } finally {
       setLoadingTickets(false);
     }
-  }, [projectId, view, refDateStr]);
+  }, [eventTypeFilter, projectId, view, refDateStr]);
 
   useEffect(() => {
     fetchEvents();
@@ -339,6 +354,8 @@ export function useCalendar(options?: { projectId?: string }) {
     loadingEvents,
     loadingTickets,
     error,
+    eventTypeFilter,
+    setEventTypeFilter,
     navigatePrev,
     navigateNext,
     goToToday,

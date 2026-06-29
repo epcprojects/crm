@@ -11,7 +11,10 @@ function getApiBaseUrl() {
   return baseUrl.replace(/\/docs\/?$/, '');
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ projectId: string }> },
+) {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('access_token')?.value;
@@ -29,23 +32,24 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const requestUrl = new URL(request.url);
-    const upstreamUrl = new URL(`${apiBaseUrl}/dashboard/projects`);
+    const { projectId } = await context.params;
+    const upstreamUrl = new URL(
+      `${apiBaseUrl}/projects/${projectId}/tickets/calendar`,
+    );
+    const view = request.nextUrl.searchParams.get('view');
+    const date = request.nextUrl.searchParams.get('date');
+    const eventType = request.nextUrl.searchParams.get('eventType');
 
-    for (const key of [
-      'statusKey',
-      'priorityKey',
-      'search',
-      'assigneeId',
-      'projectId',
-      'page',
-      'limit',
-    ]) {
-      const value = requestUrl.searchParams.get(key);
+    if (view) {
+      upstreamUrl.searchParams.set('view', view);
+    }
 
-      if (value) {
-        upstreamUrl.searchParams.set(key, value);
-      }
+    if (date) {
+      upstreamUrl.searchParams.set('date', date);
+    }
+
+    if (eventType) {
+      upstreamUrl.searchParams.set('eventType', eventType);
     }
 
     const response = await fetch(upstreamUrl.toString(), {
@@ -61,7 +65,7 @@ export async function GET(request: NextRequest) {
 
     if (!response.ok) {
       return NextResponse.json(
-        { message: data?.message || 'Failed to fetch tickets.' },
+        { message: data?.message || 'Failed to fetch project calendar tickets.' },
         { status: response.status },
       );
     }
@@ -69,7 +73,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(data, { status: 200 });
   } catch {
     return NextResponse.json(
-      { message: 'Something went wrong while fetching tickets.' },
+      {
+        message: 'Something went wrong while fetching project calendar tickets.',
+      },
       { status: 500 },
     );
   }

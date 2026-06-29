@@ -163,9 +163,9 @@ export default function Calendar({ projectId }: CalendarProps) {
 
   return (
     <div className="calendar-app ">
-      <div className="app-topbar">
+      {/*<div className="app-topbar">
         <div className="topbar-left" />
-        {/* <div className="topbar-right">
+         <div className="topbar-right">
           {!isProjectCalendar ? (
             <>
               <button
@@ -189,8 +189,8 @@ export default function Calendar({ projectId }: CalendarProps) {
               + Event
             </button>
           )}
-        </div> */}
-      </div>
+        </div> 
+      </div>*/}
 
       {!isProjectCalendar ? (
         <div className="priority-legend">
@@ -229,6 +229,12 @@ export default function Calendar({ projectId }: CalendarProps) {
           title={sidebarData.title}
           events={sidebarData.events}
           tickets={sidebarData.tickets}
+          eventTypeFilter={cal.eventTypeFilter}
+          onEventTypeFilterChange={(value) => {
+            cal.setEventTypeFilter(
+              value as '' | 'due_date' | 'launch' | 'meeting' | 'milestone',
+            );
+          }}
           onDeleteEvent={cal.deleteEvent}
           onUpdateTicket={cal.updateTicket}
           onDeleteTicket={cal.deleteTicket}
@@ -253,6 +259,7 @@ export default function Calendar({ projectId }: CalendarProps) {
         <AddModal
           mode={modal}
           selectedDate={cal.selectedDate}
+          isProjectCalendar={isProjectCalendar}
           onClose={() => {
             setModal(null);
             setEditingEvent(null);

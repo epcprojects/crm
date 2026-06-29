@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useFormik } from 'formik';
 import * as yup from 'yup';
 import AppModal from './AppModal';
+import ConfirmActionModal from './ConfirmActionModal';
 import type {
   ProjectCalendarEvent,
   ProjectCalendarEventInput,
@@ -47,6 +48,7 @@ export default function ProjectCalendarEventModal({
   isSubmitting = false,
   isDeleting = false,
 }: ProjectCalendarEventModalProps) {
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const formik = useFormik<ProjectCalendarEventInput>({
     initialValues: createInitialValues(event, initialRange),
     validationSchema: schema,
@@ -72,7 +74,9 @@ export default function ProjectCalendarEventModal({
       showFooter
       onCancel={onClose}
       onConfirm={() => formik.submitForm()}
-      confirmLabel={isSubmitting ? 'Saving...' : event ? 'Save Event' : 'Create Event'}
+      confirmLabel={
+        isSubmitting ? 'Saving...' : event ? 'Save Event' : 'Create Event'
+      }
       confimBtnDisable={isSubmitting || isDeleting}
       outSideClickClose={false}
       roundedCustom
@@ -88,7 +92,9 @@ export default function ProjectCalendarEventModal({
           placeholder="Design review"
           className="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
         />
-        <FieldError error={formik.touched.title ? formik.errors.title : undefined} />
+        <FieldError
+          error={formik.touched.title ? formik.errors.title : undefined}
+        />
 
         <FieldLabel label="Type" required />
         <select
@@ -133,7 +139,10 @@ export default function ProjectCalendarEventModal({
             <input
               name="start"
               type={formik.values.allDay ? 'date' : 'datetime-local'}
-              value={formatInputValue(formik.values.start, formik.values.allDay)}
+              value={formatInputValue(
+                formik.values.start,
+                formik.values.allDay,
+              )}
               onChange={(event) =>
                 formik.setFieldValue(
                   'start',
@@ -142,7 +151,9 @@ export default function ProjectCalendarEventModal({
               }
               className="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm text-gray-900 outline-none"
             />
-            <FieldError error={formik.touched.start ? formik.errors.start : undefined} />
+            <FieldError
+              error={formik.touched.start ? formik.errors.start : undefined}
+            />
           </div>
 
           <div>
@@ -159,7 +170,9 @@ export default function ProjectCalendarEventModal({
               }
               className="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm text-gray-900 outline-none"
             />
-            <FieldError error={formik.touched.end ? formik.errors.end : undefined} />
+            <FieldError
+              error={formik.touched.end ? formik.errors.end : undefined}
+            />
           </div>
         </div>
 
@@ -175,17 +188,36 @@ export default function ProjectCalendarEventModal({
           />
         </div>
 
-        {event ? (
+        {/* {event ? (
           <button
             type="button"
-            onClick={() => onDelete?.()}
+            onClick={() => setConfirmDeleteOpen(true)}
             disabled={isDeleting || isSubmitting}
             className="text-sm font-medium text-red-600 disabled:opacity-50"
           >
             {isDeleting ? 'Deleting...' : 'Delete event'}
           </button>
-        ) : null}
+        ) : null} */}
       </div>
+
+      <ConfirmActionModal
+        isOpen={confirmDeleteOpen}
+        title="Delete event?"
+        message="This event will be permanently removed."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isSubmitting={isDeleting}
+        onClose={() => {
+          if (!isDeleting) {
+            setConfirmDeleteOpen(false);
+          }
+        }}
+        onConfirm={async () => {
+          await onDelete?.();
+          setConfirmDeleteOpen(false);
+        }}
+      />
     </AppModal>
   );
 }

@@ -1,16 +1,42 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { useAppLoader } from '../../app/providers/AppLoaderProvider';
 import AppModal from '../modals/AppModal';
 import ConfirmActionModal from '../modals/ConfirmActionModal';
 import { CalendarEvent, Ticket, TicketPriority, TicketStatus } from '../types';
 import { toDateString } from '../../lib/calendar-utils';
+import Dropdown from '../ui/ThemeDropDown';
+import {
+  PROJECT_EVENT_TYPE_COLORS,
+  PROJECT_EVENT_TYPE_OPTIONS,
+  type ProjectEventTypeOptionValue,
+} from './eventTypeOptions';
+
+const configColors = [
+  '#F79009',
+  '#0BA5EC',
+  '#17B26A',
+  '#6172F3',
+  '#875BF7',
+  '#D444F1',
+  '#667085',
+  '#F04438',
+];
 
 type ModalMode = 'event' | 'ticket';
+
+type EventFormErrors = {
+  title?: string;
+  eventType?: string;
+  date?: string;
+  colorHex?: string;
+};
 
 interface AddModalProps {
   mode: ModalMode;
   selectedDate: string | null;
+  isProjectCalendar?: boolean;
   onClose: () => void;
   onAddEvent: (event: Omit<CalendarEvent, 'id'>) => Promise<unknown> | unknown;
   onAddTicket: (
@@ -27,6 +53,7 @@ interface AddModalProps {
 export default function AddModal({
   mode,
   selectedDate,
+  isProjectCalendar = false,
   onClose,
   onAddEvent,
   onAddTicket,
@@ -34,6 +61,8 @@ export default function AddModal({
   onUpdateEvent,
   onDeleteEvent,
 }: AddModalProps) {
+  const { setLoading } = useAppLoader();
+  const colorInputRef = useRef<HTMLInputElement | null>(null);
   const isEditingEvent = mode === 'event' && Boolean(initialEvent?.id);
   const defaultDate =
     initialEvent?.date || selectedDate || toDateString(new Date());
@@ -48,6 +77,21 @@ export default function AddModal({
   );
   const [location, setLocation] = useState(initialEvent?.location ?? '');
   const [allDay, setAllDay] = useState(initialEvent?.allDay ?? false);
+  const [eventType, setEventType] = useState<ProjectEventTypeOptionValue | ''>(
+    isProjectCalendar &&
+      initialEvent?.type &&
+      PROJECT_EVENT_TYPE_OPTIONS.some(
+        (option) => option.value === initialEvent.type,
+      )
+      ? (initialEvent.type as ProjectEventTypeOptionValue)
+      : '',
+  );
+  const [colorHex, setColorHex] = useState(
+    initialEvent?.color ??
+      (isProjectCalendar && eventType
+        ? PROJECT_EVENT_TYPE_COLORS[eventType]
+        : '#17B26A'),
+  );
   const [dueDate, setDueDate] = useState(defaultDate);
   const [priority, setPriority] = useState<TicketPriority>('medium');
   const [status, setStatus] = useState<TicketStatus>('open');
@@ -55,25 +99,63 @@ export default function AddModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [eventErrors, setEventErrors] = useState<EventFormErrors>({});
+
+  function validateEventForm() {
+    const nextErrors: EventFormErrors = {};
+
+    if (!title.trim()) {
+      nextErrors.title = 'Title is required.';
+    }
+
+    if (!date.trim()) {
+      nextErrors.date = 'Date is required.';
+    }
+
+    if (isProjectCalendar && !eventType) {
+      nextErrors.eventType = 'Event type is required.';
+    }
+
+    if (
+      isProjectCalendar &&
+      (!colorHex.trim() || !/^#([0-9A-Fa-f]{6})$/.test(colorHex.trim()))
+    ) {
+      nextErrors.colorHex = 'Enter a valid hex color like #17B26A.';
+    }
+
+    setEventErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  }
 
   async function handleSubmit() {
-    if (!title.trim() || isSubmitting) {
+    if (isSubmitting) {
+      return;
+    }
+
+    if (mode === 'event' && !validateEventForm()) {
       return;
     }
 
     try {
       setIsSubmitting(true);
+      setLoading(true);
 
       if (mode === 'event') {
+        const normalizedEventType = isProjectCalendar
+          ? (eventType as ProjectEventTypeOptionValue)
+          : ('event' as const);
         const eventPayload = {
           title: title.trim(),
           date,
-          startTime: allDay ? undefined : startTime,
-          endTime: allDay ? undefined : endTime,
+          startTime: !isProjectCalendar && !allDay ? startTime : undefined,
+          endTime: !isProjectCalendar && !allDay ? endTime : undefined,
           description: description.trim() || undefined,
-          location: location.trim() || undefined,
-          type: 'event',
-          allDay,
+          location: !isProjectCalendar
+            ? location.trim() || undefined
+            : undefined,
+          type: normalizedEventType,
+          allDay: !isProjectCalendar ? allDay : undefined,
+          color: isProjectCalendar ? colorHex : undefined,
         } satisfies Omit<CalendarEvent, 'id'>;
 
         if (isEditingEvent && initialEvent?.id && onUpdateEvent) {
@@ -97,6 +179,7 @@ export default function AddModal({
 
       onClose();
     } finally {
+      setLoading(false);
       setIsSubmitting(false);
     }
   }
@@ -108,10 +191,12 @@ export default function AddModal({
 
     try {
       setIsDeleting(true);
+      setLoading(true);
       await onDeleteEvent(initialEvent.id);
       setConfirmDeleteOpen(false);
       onClose();
     } finally {
+      setLoading(false);
       setIsDeleting(false);
     }
   }
@@ -155,7 +240,7 @@ export default function AddModal({
                 : 'Add Event'
               : 'Add Ticket'
         }
-        confimBtnDisable={isSubmitting || isDeleting || !title.trim()}
+        confimBtnDisable={isSubmitting || isDeleting}
         outSideClickClose={false}
         roundedCustom
         size="medium"
@@ -167,42 +252,207 @@ export default function AddModal({
             <input
               type="text"
               value={title}
-              onChange={(event) => setTitle(event.target.value)}
+              onChange={(event) => {
+                setTitle(event.target.value);
+                setEventErrors((current) => ({ ...current, title: undefined }));
+              }}
               placeholder={
                 mode === 'event' ? 'Sprint planning' : 'Ticket summary'
               }
-              className="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
+              className={`h-11 w-full rounded-lg border px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400 ${
+                eventErrors.title ? 'border-red-300' : 'border-gray-200'
+              }`}
               autoFocus
             />
+            {mode === 'event' && eventErrors.title ? (
+              <p className="mt-1 text-xs text-red-600">{eventErrors.title}</p>
+            ) : null}
           </div>
 
           {mode === 'event' ? (
             <>
-              <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_160px]">
-                <div>
-                  <FieldLabel label="Date" required />
-                  <input
-                    type="date"
-                    value={date}
-                    onChange={(event) => setDate(event.target.value)}
-                    className="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm text-gray-900 outline-none"
-                  />
-                </div>
-
-                <div className="flex items-end">
-                  <label className="inline-flex h-11 items-center gap-2 rounded-lg border border-gray-200 px-3 text-sm text-gray-700">
+              {isProjectCalendar ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <FieldLabel label="Date" required />
                     <input
-                      type="checkbox"
-                      checked={allDay}
-                      onChange={(event) => setAllDay(event.target.checked)}
-                      className="h-4 w-4 rounded border border-gray-300"
+                      type="date"
+                      value={date}
+                      onChange={(event) => {
+                        setDate(event.target.value);
+                        setEventErrors((current) => ({
+                          ...current,
+                          date: undefined,
+                        }));
+                      }}
+                      className={`h-11 w-full rounded-lg border px-3 text-sm text-gray-900 outline-none ${
+                        eventErrors.date ? 'border-red-300' : 'border-gray-200'
+                      }`}
                     />
-                    All day
-                  </label>
+                    {eventErrors.date ? (
+                      <p className="mt-1 text-xs text-red-600">
+                        {eventErrors.date}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div>
+                    <FieldLabel label="Event Type" required />
+                    <Dropdown
+                      value={eventType}
+                      options={[...PROJECT_EVENT_TYPE_OPTIONS]}
+                      placeholder="Select event type"
+                      error={Boolean(eventErrors.eventType)}
+                      errorMessage={eventErrors.eventType}
+                      onChange={(value) => {
+                        const nextType = value as ProjectEventTypeOptionValue;
+                        setEventType(nextType);
+                        setEventErrors((current) => ({
+                          ...current,
+                          eventType: undefined,
+                        }));
+                        setColorHex((currentColor) =>
+                          currentColor === '#17B26A' ||
+                          currentColor ===
+                            PROJECT_EVENT_TYPE_COLORS[
+                              eventType as ProjectEventTypeOptionValue
+                            ]
+                            ? PROJECT_EVENT_TYPE_COLORS[nextType]
+                            : currentColor,
+                        );
+                      }}
+                    />
+                  </div>
                 </div>
-              </div>
+              ) : null}
 
-              {!allDay ? (
+              {isProjectCalendar ? (
+                <div className="space-y-2">
+                  <FieldLabel label="Color" />
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {configColors.map((color) => {
+                      const isSelected =
+                        colorHex.toLowerCase() === color.toLowerCase();
+
+                      return (
+                        <button
+                          key={color}
+                          type="button"
+                          onClick={() => {
+                            setColorHex(color);
+                            setEventErrors((current) => ({
+                              ...current,
+                              colorHex: undefined,
+                            }));
+                          }}
+                          className={`flex h-7 w-7 items-center justify-center rounded-full border-2 transition ${
+                            isSelected
+                              ? 'border-white ring-2'
+                              : 'border-transparent'
+                          }`}
+                          style={
+                            isSelected
+                              ? { boxShadow: `0 0 0 2px ${color}` }
+                              : undefined
+                          }
+                          aria-label={`Select color ${color}`}
+                        >
+                          <span
+                            className="h-6.5 min-w-6.5 rounded-full"
+                            style={{ backgroundColor: color }}
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex items-center gap-2 bg-white">
+                    <input
+                      ref={colorInputRef}
+                      type="color"
+                      value={colorHex}
+                      onChange={(event) => {
+                        setColorHex(event.target.value);
+                        setEventErrors((current) => ({
+                          ...current,
+                          colorHex: undefined,
+                        }));
+                      }}
+                      className="sr-only"
+                      tabIndex={-1}
+                      aria-hidden="true"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => colorInputRef.current?.click()}
+                      className="h-7 min-w-7 shrink-0 rounded-full"
+                      style={{ backgroundColor: colorHex }}
+                      aria-label="Open color picker"
+                    />
+                    <div className="w-full rounded-lg border border-gray-200 px-3">
+                      <input
+                        name="colorHex"
+                        value={colorHex}
+                        onChange={(event) => {
+                          setColorHex(event.target.value);
+                          setEventErrors((current) => ({
+                            ...current,
+                            colorHex: undefined,
+                          }));
+                        }}
+                        placeholder="#17B26A"
+                        className="h-10.5 w-full bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400"
+                      />
+                    </div>
+                  </div>
+                  {eventErrors.colorHex ? (
+                    <p className="text-xs text-red-600">
+                      {eventErrors.colorHex}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {!isProjectCalendar ? (
+                <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_160px]">
+                  <div>
+                    <FieldLabel label="Date" required />
+                    <input
+                      type="date"
+                      value={date}
+                      onChange={(event) => {
+                        setDate(event.target.value);
+                        setEventErrors((current) => ({
+                          ...current,
+                          date: undefined,
+                        }));
+                      }}
+                      className={`h-11 w-full rounded-lg border px-3 text-sm text-gray-900 outline-none ${
+                        eventErrors.date ? 'border-red-300' : 'border-gray-200'
+                      }`}
+                    />
+                    {eventErrors.date ? (
+                      <p className="mt-1 text-xs text-red-600">
+                        {eventErrors.date}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="flex items-end">
+                    <label className="inline-flex h-11 items-center gap-2 rounded-lg border border-gray-200 px-3 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={allDay}
+                        onChange={(event) => setAllDay(event.target.checked)}
+                        className="h-4 w-4 rounded border border-gray-300"
+                      />
+                      All day
+                    </label>
+                  </div>
+                </div>
+              ) : null}
+
+              {!isProjectCalendar && !allDay ? (
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <FieldLabel label="Start Time" />
@@ -226,16 +476,18 @@ export default function AddModal({
                 </div>
               ) : null}
 
-              <div>
-                <FieldLabel label="Location" />
-                <input
-                  type="text"
-                  value={location}
-                  onChange={(event) => setLocation(event.target.value)}
-                  placeholder="Optional location"
-                  className="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
-                />
-              </div>
+              {!isProjectCalendar ? (
+                <div>
+                  <FieldLabel label="Location" />
+                  <input
+                    type="text"
+                    value={location}
+                    onChange={(event) => setLocation(event.target.value)}
+                    placeholder="Optional location"
+                    className="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
+                  />
+                </div>
+              ) : null}
             </>
           ) : (
             <>
@@ -307,7 +559,7 @@ export default function AddModal({
             />
           </div>
 
-          {isEditingEvent && onDeleteEvent ? (
+          {/* {isEditingEvent && onDeleteEvent ? (
             <button
               type="button"
               onClick={() => {
@@ -318,7 +570,7 @@ export default function AddModal({
             >
               {isDeleting ? 'Deleting...' : 'Delete event'}
             </button>
-          ) : null}
+          ) : null} */}
         </div>
       </AppModal>
 

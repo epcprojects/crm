@@ -1,4 +1,11 @@
-export type EventType = 'ticket' | 'event' | 'google';
+export type EventType =
+  | 'ticket'
+  | 'event'
+  | 'google'
+  | 'due_date'
+  | 'launch'
+  | 'meeting'
+  | 'milestone';
 
 export type TicketPriority = 'low' | 'medium' | 'high' | 'critical';
 

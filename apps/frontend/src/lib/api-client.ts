@@ -6,13 +6,24 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export type CalendarView = 'day' | 'week' | 'month' | 'year';
+export type ProjectCalendarEventType =
+  | 'due_date'
+  | 'launch'
+  | 'meeting'
+  | 'milestone';
 
 // ── Types matching the backend ──────────────────────────────────────────────
 
 export interface ApiEvent {
   id: string;
   title: string;
-  type: 'event' | 'google';
+  type:
+    | 'event'
+    | 'google'
+    | 'due_date'
+    | 'launch'
+    | 'meeting'
+    | 'milestone';
   date: string; // YYYY-MM-DD
   description?: string;
   color?: string;
@@ -23,6 +34,7 @@ export interface ApiEvent {
 
 export interface ApiTicket {
   id: string;
+  ticketRefNo?: string;
   title: string;
   dueDate: string; // YYYY-MM-DD
   priority: 'low' | 'medium' | 'high' | 'critical';
@@ -62,9 +74,19 @@ export async function fetchProjectEventsByView(
   projectId: string,
   view: CalendarView,
   date: string,
+  eventType?: ProjectCalendarEventType | '',
 ): Promise<ApiEvent[]> {
+  const searchParams = new URLSearchParams({
+    view,
+    date,
+  });
+
+  if (eventType) {
+    searchParams.set('eventType', eventType);
+  }
+
   const res = await fetch(
-    `/api/projects/${projectId}/calendar/events?view=${view}&date=${date}`,
+    `/api/projects/${projectId}/calendar/events?${searchParams.toString()}`,
     { cache: 'no-store' },
   );
   if (!res.ok) throw new Error(`Failed to fetch project events: ${res.status}`);
@@ -199,25 +221,33 @@ export async function fetchTicketsByView(
 
 export async function fetchProjectTickets(
   projectId: string,
-  page = 1,
-  limit = 100,
+  view: CalendarView,
+  date: string,
+  eventType?: ProjectCalendarEventType | '',
 ): Promise<ApiTicket[]> {
   const searchParams = new URLSearchParams({
-    page: String(page),
-    limit: String(limit),
+    view,
+    date,
   });
+
+  if (eventType) {
+    searchParams.set('eventType', eventType);
+  }
+
   const res = await fetch(
-    `/api/projects/${projectId}/tickets?${searchParams.toString()}`,
+    `/api/projects/${projectId}/tickets/calendar?${searchParams.toString()}`,
     { cache: 'no-store' },
   );
   if (!res.ok) {
-    throw new Error(`Failed to fetch project tickets: ${res.status}`);
+    throw new Error(`Failed to fetch project calendar tickets: ${res.status}`);
   }
 
   const data = await res.json().catch(() => null);
-  const items = Array.isArray(data?.items)
-    ? (data.items as ApiProjectTicketListItem[])
-    : [];
+  const items = Array.isArray(data)
+    ? (data as ApiProjectTicketListItem[])
+    : Array.isArray(data?.items)
+      ? (data.items as ApiProjectTicketListItem[])
+      : [];
 
   return items
     .filter((ticket) => {
@@ -229,6 +259,12 @@ export async function fetchProjectTickets(
     })
     .map((ticket) => ({
       id: ticket.id,
+      ticketRefNo:
+        typeof (ticket as ApiProjectTicketListItem & { ticketRefNo?: string })
+          .ticketRefNo === 'string'
+          ? (ticket as ApiProjectTicketListItem & { ticketRefNo?: string })
+              .ticketRefNo
+          : undefined,
       title: ticket.title,
       description: ticket.description ?? undefined,
       dueDate: toIsoDate(

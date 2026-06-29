@@ -5,11 +5,19 @@ import ConfirmActionModal from '../modals/ConfirmActionModal';
 import { CalendarEvent, Ticket } from '../types';
 import { formatTime, PRIORITY_COLORS } from '../../lib/calendar-utils';
 import ThemeButton from '../ui/ThemeButton';
+import { TrashIcon } from '../../../public/icons';
+import Dropdown from '../ui/ThemeDropDown';
+import {
+  PROJECT_EVENT_TYPE_COLORS,
+  PROJECT_EVENT_TYPE_FILTER_OPTIONS,
+} from './eventTypeOptions';
 
 interface DaySidebarProps {
   title: string;
   events: CalendarEvent[];
   tickets: Ticket[];
+  eventTypeFilter?: string;
+  onEventTypeFilterChange?: (value: string) => void;
   onDeleteEvent: (id: string) => void | Promise<void>;
   onUpdateTicket: (id: string, updates: Partial<Ticket>) => void;
   onDeleteTicket: (id: string) => void;
@@ -25,6 +33,8 @@ export default function DaySidebar({
   title,
   events,
   tickets,
+  eventTypeFilter = '',
+  onEventTypeFilterChange,
   onDeleteEvent,
   onUpdateTicket,
   onDeleteTicket,
@@ -58,13 +68,20 @@ export default function DaySidebar({
     <>
       <aside className="day-sidebar">
         <div className="sidebar-header">
-          <h2 className="sidebar-date">{title}</h2>
           {showAddEventAction || showAddTicketAction ? (
             <div className="sidebar-actions">
               {showAddEventAction ? (
-                <ThemeButton className="w-full" onClick={onAddEvent}>
-                  + Event
-                </ThemeButton>
+                <div className="flex flex-col gap-2 md:gap-4 w-full">
+                  <ThemeButton className="" onClick={onAddEvent}>
+                    + Event
+                  </ThemeButton>
+                  <Dropdown
+                    value={eventTypeFilter}
+                    label="Event Filter"
+                    options={[...PROJECT_EVENT_TYPE_FILTER_OPTIONS]}
+                    onChange={onEventTypeFilterChange ?? (() => undefined)}
+                  />
+                </div>
               ) : null}
               {showAddTicketAction ? (
                 <ThemeButton
@@ -78,10 +95,14 @@ export default function DaySidebar({
           ) : null}
         </div>
 
+        <div className="sidebar-content-scroll">
+
         <section className="sidebar-section">
           <h3 className="section-label">
             Events
-            <span className="count-badge">{events.length}</span>
+            <span className="rounded-full h-5 min-w-5 flex items-center justify-center text-gray-900 bg-gray-100 border border-gray-200">
+              {events.length}
+            </span>
           </h3>
 
           {events.length === 0 ? (
@@ -89,21 +110,30 @@ export default function DaySidebar({
           ) : (
             <div className="item-list">
               {events.map((event) => (
-                <div key={event.id} className="sidebar-event-card">
+                <div
+                  key={event.id}
+                  className="border border-gray-200 rounded-xl flex ps-3 p-2 "
+                >
                   <div className="sec-left">
                     <div
-                      className="sec-dot"
+                      className="sec-dot mt-1!"
                       style={{
                         background:
-                          event.type === 'google'
+                          event.color ||
+                          (event.type === 'google'
                             ? '#4285f4'
                             : event.type === 'ticket'
                               ? '#8b5cf6'
-                              : '#0f6e56',
+                              : event.type === 'due_date' ||
+                                  event.type === 'launch' ||
+                                  event.type === 'meeting' ||
+                                  event.type === 'milestone'
+                                ? PROJECT_EVENT_TYPE_COLORS[event.type]
+                                : '#0f6e56'),
                       }}
                     />
                     <div className="sec-body">
-                      <div className="sec-title">{event.title}</div>
+                      <div className="text-sm font-medium">{event.title}</div>
                       {event.startTime ? (
                         <div className="sec-meta">
                           {formatTime(event.startTime)}
@@ -116,7 +146,7 @@ export default function DaySidebar({
                         <div className="sec-meta">ðŸ“ {event.location}</div>
                       ) : null}
                       {event.description ? (
-                        <div className="sec-desc">{event.description}</div>
+                        <div className="text-xs">{event.description}</div>
                       ) : null}
                       {event.type === 'google' ? (
                         <div className="google-badge">Google Calendar</div>
@@ -135,11 +165,11 @@ export default function DaySidebar({
                   </div>
                   {event.type !== 'google' ? (
                     <button
-                      className="delete-btn"
+                      className="h-6 hover:bg-red-100 rounded-md w-6 flex items-center justify-center"
                       onClick={() => setEventToDelete(event)}
                       aria-label="Delete event"
                     >
-                      x
+                      <TrashIcon height="12" width="12" />
                     </button>
                   ) : null}
                 </div>
@@ -152,19 +182,24 @@ export default function DaySidebar({
           <section className="sidebar-section">
             <h3 className="section-label">
               Tickets Due
-              <span className="count-badge">{tickets.length}</span>
+              <span className="rounded-full h-5 min-w-5 flex items-center leading-none justify-center text-gray-900 bg-gray-100 border border-gray-200">
+                {tickets.length}
+              </span>
             </h3>
 
             {tickets.length === 0 ? (
               <p className="empty-section">No tickets due</p>
             ) : (
-              <div className="item-list">
+              <div className="item-list border border-gray-200 rounded-xl ps-3 p-2">
                 {tickets.map((ticket) => (
-                  <div key={ticket.id} className="sidebar-ticket-card">
-                    <div
+                  <div
+                    key={ticket.id}
+                    className="sidebar-ticket-card border-b! pb-2! border-b-gray-200! last:border-b-0!"
+                  >
+                    {/* <div
                       className="priority-stripe"
                       style={{ background: PRIORITY_COLORS[ticket.priority] }}
-                    />
+                    /> */}
                     <div className="stc-body">
                       <div className="stc-top">
                         <button
@@ -228,6 +263,7 @@ export default function DaySidebar({
             )}
           </section>
         ) : null}
+        </div>
       </aside>
 
       <ConfirmActionModal

@@ -16,6 +16,7 @@ import {
 } from '@fullcalendar/core';
 import { CalendarEvent, Ticket } from '../types';
 import { PRIORITY_COLORS } from '../../lib/calendar-utils';
+import { PROJECT_EVENT_TYPE_COLORS } from './eventTypeOptions';
 
 interface FullCalendarViewProps {
   events: CalendarEvent[];
@@ -53,7 +54,16 @@ function ticketsToFCEvents(tickets: Ticket[]): EventInput[] {
 
 function calendarEventsToFC(events: CalendarEvent[]): EventInput[] {
   return events.map((e) => {
-    const bgColor = e.type === 'google' ? '#4285f4' : '#0f6e56';
+    const bgColor =
+      e.color ||
+      (e.type === 'google'
+        ? '#4285f4'
+        : e.type === 'due_date' ||
+            e.type === 'launch' ||
+            e.type === 'meeting' ||
+            e.type === 'milestone'
+          ? PROJECT_EVENT_TYPE_COLORS[e.type]
+          : '#0f6e56');
 
     const start =
       e.startTime && !e.allDay ? `${e.date}T${e.startTime}` : e.date;

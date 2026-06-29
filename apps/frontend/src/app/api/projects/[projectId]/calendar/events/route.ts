@@ -37,6 +37,7 @@ export async function GET(
     const query = new URLSearchParams();
     const view = searchParams.get('view');
     const date = searchParams.get('date');
+    const eventType = searchParams.get('eventType');
 
     if (view) {
       query.set('view', view);
@@ -44,6 +45,10 @@ export async function GET(
 
     if (date) {
       query.set('date', date);
+    }
+
+    if (eventType) {
+      query.set('eventType', eventType);
     }
 
     const response = await fetch(

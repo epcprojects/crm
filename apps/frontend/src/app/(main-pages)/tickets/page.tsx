@@ -38,6 +38,7 @@ export default function Page() {
   const [searchValue, setSearchValue] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedPriority, setSelectedPriority] = useState('all');
+  const [selectedProject, setSelectedProject] = useState('all');
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 10,
@@ -66,6 +67,7 @@ export default function Page() {
       'dashboard-project-tickets',
       selectedStatus,
       selectedPriority,
+      selectedProject,
       searchValue.trim(),
       pagination.pageIndex,
       pagination.pageSize,
@@ -74,6 +76,7 @@ export default function Page() {
       fetchDashboardTickets({
         statusKey: selectedStatus === 'all' ? undefined : selectedStatus,
         priorityKey: selectedPriority === 'all' ? undefined : selectedPriority,
+        projectId: selectedProject === 'all' ? undefined : selectedProject,
         search: searchValue.trim(),
         page: pagination.pageIndex + 1,
         limit: pagination.pageSize,
@@ -100,6 +103,16 @@ export default function Page() {
       ),
     ],
     [ticketPrioritiesQuery.data],
+  );
+  const projectFilterOptions = useMemo(
+    () => [
+      { label: 'All Projects', value: 'all' },
+      ...(projectsQuery.data ?? []).map((project) => ({
+        label: project.name,
+        value: project.id,
+      })),
+    ],
+    [projectsQuery.data],
   );
   const sortedTickets = useMemo(
     () =>
@@ -177,7 +190,7 @@ export default function Page() {
       ...current,
       pageIndex: 0,
     }));
-  }, [searchValue, selectedPriority, selectedStatus]);
+  }, [searchValue, selectedPriority, selectedProject, selectedStatus]);
 
   const handleSortChange = (nextSortState: TicketSortState) => {
     setSortState(nextSortState);
@@ -227,6 +240,14 @@ export default function Page() {
                     value={selectedPriority}
                     onChange={setSelectedPriority}
                     placeholder="All Priority"
+                  />
+                </div>
+                <div className="w-full md:w-44">
+                  <Dropdown
+                    options={projectFilterOptions}
+                    value={selectedProject}
+                    onChange={setSelectedProject}
+                    placeholder="All Projects"
                   />
                 </div>
               </div>
@@ -319,12 +340,14 @@ type ApiDashboardTicketsResponse = {
 async function fetchDashboardTickets({
   statusKey,
   priorityKey,
+  projectId,
   search,
   page,
   limit,
 }: {
   statusKey?: string;
   priorityKey?: string;
+  projectId?: string;
   search?: string;
   page: number;
   limit: number;
@@ -340,6 +363,10 @@ async function fetchDashboardTickets({
 
   if (priorityKey) {
     searchParams.set('priorityKey', priorityKey);
+  }
+
+  if (projectId) {
+    searchParams.set('projectId', projectId);
   }
 
   if (search) {
