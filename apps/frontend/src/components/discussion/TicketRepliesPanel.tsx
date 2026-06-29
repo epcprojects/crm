@@ -219,22 +219,22 @@ export default function TicketRepliesPanel({
                   <article
                     key={reply.id}
                     className={`flex items-start gap-3 ${
-                      isCurrentUserReply ? 'justify-start' : 'justify-start'
+                      isCurrentUserReply ? 'justify-end' : 'justify-start'
                     }`}
                   >
-                    {/* {isCurrentUserReply ? ( */}
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-violet-200 bg-violet-100 text-xs font-bold text-purple-700">
-                      {reply.author.initials}
-                    </span>
-                    {/* ) : null} */}
+                    {!isCurrentUserReply ? (
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-violet-200 bg-violet-100 text-xs font-bold text-purple-700">
+                        {reply.author.initials}
+                      </span>
+                    ) : null}
                     <div
-                      className={`flex max-w-200 w-full flex-col ${
-                        isCurrentUserReply ? 'items-start' : 'items-start'
+                      className={`flex max-w-200 w-fit flex-col ${
+                        isCurrentUserReply ? 'items-end' : 'items-start'
                       }`}
                     >
                       <div
                         className={`mb-1 flex flex-wrap items-center gap-2 ${
-                          isCurrentUserReply ? 'justify-start' : ''
+                          isCurrentUserReply ? 'justify-end' : 'justify-start'
                         }`}
                       >
                         <span className="text-sm font-bold text-gray-900">
@@ -327,11 +327,11 @@ export default function TicketRepliesPanel({
                         </button>
                       ) : null}
                     </div>
-                    {/* {isCurrentUserReply ? (
+                    {isCurrentUserReply ? (
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-violet-200 bg-violet-100 text-xs font-bold text-purple-700">
                         {reply.author.initials}
                       </span>
-                    ) : null} */}
+                    ) : null}
                   </article>
                 );
               })}
