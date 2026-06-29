@@ -22,6 +22,7 @@ import RecentTicketsTable from '../../../../components/tables/RecentTicketsTable
 import { appToast } from '../../../../components/toast/AppToast';
 import { SearchIcon, PlusIcon } from '../../../../../public/icons';
 import ThemeButton from '../../../../components/ui/ThemeButton';
+import { useIsMobile } from '../../../../components/hooks/useIsMobile';
 import { useAppLoader } from '../../../providers/AppLoaderProvider';
 import { createTicket } from '../../../../lib/tickets';
 import {
@@ -51,6 +52,7 @@ export default function ProjectDetailPage() {
   const params = useParams<{ projectId: string }>();
   const router = useRouter();
   const { setLoading } = useAppLoader();
+  const isMobile = useIsMobile();
   const currentUserId = useAppSelector((state) => state.auth.user?.id ?? '');
   const { hasPermission } = usePermissions();
   const canViewProjectDetail = hasPermission('projects.view_detail');
@@ -621,45 +623,47 @@ export default function ProjectDetailPage() {
             <TabPanel className={'flex flex-col flex-1 '}>
               <div
                 className={`grid flex-1 border border-gray-200 overflow-hidden rounded-xl md:rounded-2xl ${
-                  selectedThreadMessageId
+                  selectedThreadMessageId && !isMobile
                     ? 'xl:grid-cols-[minmax(0,1fr)_400px] divide-x divide-gray-200'
                     : 'grid-cols-1'
                 }`}
               >
-                <ProjectThreadPanel
-                  title="Discussion"
-                  replies={projectThreadQuery.data ?? []}
-                  emptyTitle={
-                    projectThreadQuery.isLoading
-                      ? 'Loading discussion...'
-                      : 'No replies yet.'
-                  }
-                  emptyDescription={
-                    projectThreadQuery.isLoading
-                      ? 'Fetching project discussion messages.'
-                      : 'No discussion messages have been added to this project yet.'
-                  }
-                  composerPlaceholder="Post the project thread..."
-                  onSubmitReply={
-                    canPostThreadMessage ? handleSubmitReply : undefined
-                  }
-                  isSubmittingReply={
-                    createProjectThreadMutation.isPending &&
-                    !selectedThreadMessageId
-                  }
-                  canCompose={canPostThreadMessage}
-                  canAttachFile={canAttachThreadFile}
-                  requireMessage={false}
-                  currentUserId={currentUserId}
-                  showReplyMeta
-                  onReplyClick={(reply) => setSelectedThreadMessageId(reply.id)}
-                  onDeleteAttachment={handleDeleteThreadAttachment}
-                  deletingAttachmentId={
-                    deleteProjectFileMutation.isPending
-                      ? deleteProjectFileMutation.variables?.fileId
-                      : undefined
-                  }
-                />
+                {(!isMobile || !selectedThreadMessageId) && (
+                  <ProjectThreadPanel
+                    title="Discussion"
+                    replies={projectThreadQuery.data ?? []}
+                    emptyTitle={
+                      projectThreadQuery.isLoading
+                        ? 'Loading discussion...'
+                        : 'No replies yet.'
+                    }
+                    emptyDescription={
+                      projectThreadQuery.isLoading
+                        ? 'Fetching project discussion messages.'
+                        : 'No discussion messages have been added to this project yet.'
+                    }
+                    composerPlaceholder="Post the project thread..."
+                    onSubmitReply={
+                      canPostThreadMessage ? handleSubmitReply : undefined
+                    }
+                    isSubmittingReply={
+                      createProjectThreadMutation.isPending &&
+                      !selectedThreadMessageId
+                    }
+                    canCompose={canPostThreadMessage}
+                    canAttachFile={canAttachThreadFile}
+                    requireMessage={false}
+                    currentUserId={currentUserId}
+                    showReplyMeta
+                    onReplyClick={(reply) => setSelectedThreadMessageId(reply.id)}
+                    onDeleteAttachment={handleDeleteThreadAttachment}
+                    deletingAttachmentId={
+                      deleteProjectFileMutation.isPending
+                        ? deleteProjectFileMutation.variables?.fileId
+                        : undefined
+                    }
+                  />
+                )}
 
                 {selectedThreadMessageId ? (
                   <ProjectThreadPanel

@@ -140,7 +140,7 @@ export default function ProjectThreadPanel({
           {headerReply ? (
             <div className="  pb-4">
               <article className="flex items-start gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-violet-200 bg-violet-100 text-xs font-bold text-purple-700">
+                <span className="flex w-7 h-7 md:h-9 md:w-9 shrink-0 items-center justify-center rounded-full border border-violet-200 bg-violet-100 text-xs font-bold text-purple-700">
                   {headerReply.author.initials}
                 </span>
                 <div className="flex min-w-0 flex-1 flex-col">
@@ -224,12 +224,12 @@ export default function ProjectThreadPanel({
                 return (
                   <article
                     key={reply.id}
-                    className={`flex items-start gap-3 ${
+                    className={`flex items-start gap-2 md:gap-3 ${
                       isCurrentUserReply ? 'justify-start' : 'justify-start'
                     }`}
                   >
                     {/* {isCurrentUserReply ? ( */}
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-violet-200 bg-violet-100 text-xs font-bold text-purple-700">
+                    <span className="flex w-7 h-7 md:h-9 md:w-9 shrink-0 items-center justify-center rounded-full border border-violet-200 bg-violet-100 text-xs font-bold text-purple-700">
                       {reply.author.initials}
                     </span>
                     {/* ) : null} */}
@@ -243,7 +243,7 @@ export default function ProjectThreadPanel({
                           isCurrentUserReply ? 'justify-start' : ''
                         }`}
                       >
-                        <span className="text-sm font-bold text-gray-900">
+                        <span className="text-xs md:text-sm font-bold text-gray-900">
                           {reply.author.name}
                         </span>
                         <span className="text-xs text-gray-700">
@@ -266,7 +266,7 @@ export default function ProjectThreadPanel({
                               {reply.attachments.map((attachment) => (
                                 <div
                                   key={attachment.id}
-                                  className={`flex  min-w-0 w-fit items-start gap-3 ${reply.attachments && reply.attachments.length > 2 && 'min-w-40'}  rounded-xl  ${!isImageAttachment(attachment.extension) || (reply.attachments && reply.attachments.length > 1 && 'p-0.5 min-w-72 border border-gray-200')} transition bg-gray-50`}
+                                  className={`flex  min-w-0 w-fit items-start gap-3 ${reply.attachments && reply.attachments.length > 2 && 'md:min-w-40'}  rounded-xl  ${!isImageAttachment(attachment.extension) || (reply.attachments && reply.attachments.length > 1 && 'p-0.5 w-full md:min-w-72 border border-gray-200')} transition bg-gray-50`}
                                 >
                                   <a
                                     href={getAttachmentUrl(
