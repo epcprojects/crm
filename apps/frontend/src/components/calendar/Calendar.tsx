@@ -31,7 +31,7 @@ export default function Calendar({ projectId }: CalendarProps) {
   const router = useRouter();
   const isProjectCalendar = Boolean(projectId);
   const { hasPermission } = usePermissions();
-  const canEditEvent = hasPermission('calendar.edit_event');
+  const canEditEvent = hasPermission('calendar.navigate');
   const canAddEvent = hasPermission('calendar.add_event');
   const canViewUpcoming = hasPermission('calendar.view_upcoming');
   const cal = useCalendar({ projectId });
