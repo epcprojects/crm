@@ -237,6 +237,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
+  const isAuthenticated = useAppSelector(
+    (state) => state.auth.isAuthenticated,
+  );
   const { setLoading } = useAppLoader();
   const { hasPermission, hasAnyPermission, isLoadingCatalog } =
     usePermissions();
@@ -245,6 +248,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [headerActionOverride, setHeaderActionOverrideState] = useState<
     (() => void) | null
   >(null);
@@ -274,7 +278,12 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       (item) => pathname === item.href,
     );
 
-    if (!currentMainRoute || visibleNavigationItems.length === 0) {
+    if (
+      isLoggingOut ||
+      !isAuthenticated ||
+      !currentMainRoute ||
+      visibleNavigationItems.length === 0
+    ) {
       return;
     }
 
@@ -285,7 +294,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     if (!canAccessCurrentRoute) {
       router.replace(visibleNavigationItems[0].href);
     }
-  }, [pathname, router, visibleNavigationItems]);
+  }, [isAuthenticated, isLoggingOut, pathname, router, visibleNavigationItems]);
 
   const sidebarProjects = useMemo<SidebarProject[]>(() => {
     return (projectsQuery.data ?? []).map((project) => ({
@@ -377,9 +386,15 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   });
 
   const handleLogout = async () => {
-    await dispatch(logoutThunk());
-    await clearPersistedSession();
-    router.push('/login');
+    setIsLoggingOut(true);
+
+    try {
+      await dispatch(logoutThunk());
+      await clearPersistedSession();
+      router.replace('/login');
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   const handleChangePassword = () => {
@@ -409,7 +424,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const sidebarWidth = collapsed ? 'lg:w-18' : 'lg:w-60';
   const contentOffset = collapsed ? 'lg:pl-18' : 'lg:pl-60';
   const shouldShowNoAccessPage =
-    !isLoadingCatalog && visibleNavigationItems.length === 0;
+    !isLoggingOut &&
+    isAuthenticated &&
+    !isLoadingCatalog &&
+    visibleNavigationItems.length === 0;
   const shouldHideHeader =
     shouldShowNoAccessPage ||
     pathname?.startsWith('/tickets/') ||
@@ -423,6 +441,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const headerActionLabel = currentHeader.action?.label ?? '';
 
   const isMobile = useIsMobile();
+
+  if (isLoggingOut || !isAuthenticated) {
+    return null;
+  }
 
   return (
     <DashboardHeaderActionContext.Provider value={headerActionContextValue}>

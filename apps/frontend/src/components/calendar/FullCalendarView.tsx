@@ -32,6 +32,7 @@ interface FullCalendarViewProps {
   editable?: boolean;
   selectable?: boolean;
   navLinks?: boolean;
+  allowedViews?: Array<'month' | 'week' | 'day'>;
 }
 
 function ticketsToFCEvents(tickets: Ticket[]): EventInput[] {
@@ -116,6 +117,7 @@ export default function FullCalendarView({
   editable = true,
   selectable = true,
   navLinks = true,
+  allowedViews = ['month', 'week', 'day'],
 }: FullCalendarViewProps) {
   const calRef = useRef<FullCalendar>(null);
 
@@ -193,7 +195,16 @@ export default function FullCalendarView({
         headerToolbar={{
           left: 'prev,next today',
           center: 'title',
-          right: 'dayGridMonth,timeGridWeek,timeGridDay',
+          right:
+            allowedViews.length <= 1
+              ? ''
+              : allowedViews
+                  .map((view) => {
+                    if (view === 'month') return 'dayGridMonth';
+                    if (view === 'week') return 'timeGridWeek';
+                    return 'timeGridDay';
+                  })
+                  .join(','),
         }}
         buttonText={{
           today: 'Today',

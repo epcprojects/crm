@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ALLOWED_ATTACHMENT_ACCEPT,
   validateAttachments,
@@ -60,6 +60,17 @@ export default function ProjectThreadPanel({
   const [attachmentToDelete, setAttachmentToDelete] =
     useState<DiscussionAttachment | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+
+    if (!container) {
+      return;
+    }
+
+    container.scrollTop = container.scrollHeight;
+  }, [headerReply?.id, replies.length]);
 
   const handleSubmit = async () => {
     const trimmedMessage = message.trim();
@@ -136,7 +147,10 @@ export default function ProjectThreadPanel({
           </div>
         </div>
 
-        <div className="min-h-96 px-3 flex-1 py-5 md:px-5 max-h-[calc(100dvh-520px)] overflow-y-auto">
+        <div
+          ref={scrollContainerRef}
+          className="min-h-96 px-3 flex-1 py-5 md:px-5 max-h-[calc(100dvh-520px)] overflow-y-auto"
+        >
           {headerReply ? (
             <div className="  pb-4">
               <article className="flex items-start gap-3">

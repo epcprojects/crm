@@ -247,6 +247,7 @@ export default function Calendar({ projectId }: CalendarProps) {
             editable={!isProjectCalendar || canEditEvent}
             selectable={!isProjectCalendar || canAddEvent}
             navLinks={!isProjectCalendar || canEditEvent || canViewUpcoming}
+            allowedViews={isProjectCalendar ? ['month'] : ['month', 'week', 'day']}
           />
         </div>
 

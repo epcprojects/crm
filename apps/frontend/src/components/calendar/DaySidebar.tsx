@@ -141,6 +141,9 @@ export default function DaySidebar({
                         className="sec-body text-left disabled:cursor-default"
                       >
                         <div className="text-sm font-medium">{event.title}</div>
+                        <div className="sec-meta">
+                          Date: {formatTicketDate(event.date)}
+                        </div>
                         {event.startTime ? (
                           <div className="sec-meta">
                             {formatTime(event.startTime)}
@@ -207,7 +210,7 @@ export default function DaySidebar({
                       className="priority-stripe"
                       style={{ background: PRIORITY_COLORS[ticket.priority] }}
                     /> */}
-                      <div className="stc-body">
+                      <div className="stc-body w-full">
                         <div className="stc-top">
                           <button
                             type="button"
@@ -227,24 +230,30 @@ export default function DaySidebar({
                         {ticket.description ? (
                           <div className="sec-desc">{ticket.description}</div>
                         ) : null}
-                        <div className="stc-meta">
-                          <span
-                            className="badge"
-                            style={{
-                              background: ticket.priority
-                                ? `${PRIORITY_COLORS[ticket.priority]}22`
-                                : '#6b72800f',
-                              color: ticket.priority
-                                ? PRIORITY_COLORS[ticket.priority]
-                                : '#6b7280',
-                              borderColor: ticket.priority
-                                ? `${PRIORITY_COLORS[ticket.priority]}44`
-                                : '#d1d5db',
-                            }}
-                          >
-                            {ticket.priority ? ticket.priority : 'No Priority'}
-                          </span>
-                          {/* <select
+                        <div className="flex items-end justify-between gap-2 w-full">
+                          <div className="sec-meta">
+                            Due: {formatTicketDate(ticket.dueDate)}
+                          </div>
+                          <div className="stc-meta">
+                            <span
+                              className="badge"
+                              style={{
+                                background: ticket.priority
+                                  ? `${PRIORITY_COLORS[ticket.priority]}22`
+                                  : '#6b72800f',
+                                color: ticket.priority
+                                  ? PRIORITY_COLORS[ticket.priority]
+                                  : '#6b7280',
+                                borderColor: ticket.priority
+                                  ? `${PRIORITY_COLORS[ticket.priority]}44`
+                                  : '#d1d5db',
+                              }}
+                            >
+                              {ticket.priority
+                                ? ticket.priority
+                                : 'No Priority'}
+                            </span>
+                            {/* <select
                           className="status-select"
                           value={ticket.status}
                           onChange={(event) =>
@@ -259,6 +268,7 @@ export default function DaySidebar({
                           <option value="review">Review</option>
                           <option value="closed">Closed</option>
                         </select> */}
+                          </div>
                         </div>
                         {ticket.tags?.length ? (
                           <div className="tag-list">
@@ -296,4 +306,18 @@ export default function DaySidebar({
       />
     </>
   );
+}
+
+function formatTicketDate(value: string) {
+  const date = new Date(`${value}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date);
 }
