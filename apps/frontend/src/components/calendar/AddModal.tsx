@@ -35,12 +35,17 @@ export default function AddModal({
   onDeleteEvent,
 }: AddModalProps) {
   const isEditingEvent = mode === 'event' && Boolean(initialEvent?.id);
-  const defaultDate = initialEvent?.date || selectedDate || toDateString(new Date());
+  const defaultDate =
+    initialEvent?.date || selectedDate || toDateString(new Date());
   const [title, setTitle] = useState(initialEvent?.title ?? '');
   const [date, setDate] = useState(defaultDate);
-  const [startTime, setStartTime] = useState(initialEvent?.startTime ?? '09:00');
+  const [startTime, setStartTime] = useState(
+    initialEvent?.startTime ?? '09:00',
+  );
   const [endTime, setEndTime] = useState(initialEvent?.endTime ?? '10:00');
-  const [description, setDescription] = useState(initialEvent?.description ?? '');
+  const [description, setDescription] = useState(
+    initialEvent?.description ?? '',
+  );
   const [location, setLocation] = useState(initialEvent?.location ?? '');
   const [allDay, setAllDay] = useState(initialEvent?.allDay ?? false);
   const [dueDate, setDueDate] = useState(defaultDate);
@@ -151,7 +156,7 @@ export default function AddModal({
               : 'Add Ticket'
         }
         confimBtnDisable={isSubmitting || isDeleting || !title.trim()}
-        outSideClickClose={!isSubmitting && !isDeleting}
+        outSideClickClose={false}
         roundedCustom
         size="medium"
         scrollNeeded={false}
@@ -163,7 +168,9 @@ export default function AddModal({
               type="text"
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              placeholder={mode === 'event' ? 'Sprint planning' : 'Ticket summary'}
+              placeholder={
+                mode === 'event' ? 'Sprint planning' : 'Ticket summary'
+              }
               className="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
               autoFocus
             />

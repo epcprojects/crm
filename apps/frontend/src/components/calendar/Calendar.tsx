@@ -162,7 +162,7 @@ export default function Calendar({ projectId }: CalendarProps) {
   }, [cal.currentDate, cal.events, cal.selectedDate, cal.tickets, cal.view]);
 
   return (
-    <div className="calendar-app bg-gray-400">
+    <div className="calendar-app ">
       <div className="app-topbar">
         <div className="topbar-left" />
         {/* <div className="topbar-right">

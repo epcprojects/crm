@@ -109,9 +109,13 @@ const AppModal: React.FC<AppModalProps> = ({
     <Portal>
       <div
         className={wrapperClasses}
-        onClick={outSideClickClose ? onClose : undefined}
+        onMouseDown={outSideClickClose ? onClose : undefined}
       >
-        <div className={modalClasses} onClick={(e) => e.stopPropagation()}>
+        <div
+          className={modalClasses}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
           {showHeader && (
             <div className="px-4 py-3 bg-white flex sm:rounded-t-xl items-center justify-between border-b border-gray-200">
               <div className="flex items-center gap-3">
@@ -131,6 +135,15 @@ const AppModal: React.FC<AppModalProps> = ({
 
               {!hideCrossButton && (
                 <button
+                  type="button"
+                  onMouseDown={
+                    disableCloseButton
+                      ? undefined
+                      : (event) => {
+                          event.stopPropagation();
+                          onClose();
+                        }
+                  }
                   onClick={disableCloseButton ? undefined : onClose}
                   disabled={disableCloseButton}
                   className={`w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-full ${
