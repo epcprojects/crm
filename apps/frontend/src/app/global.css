@@ -308,6 +308,7 @@ button[aria-disabled='true'] {
   color: var(--text-primary) !important;
 }
 
+
 .fc .fc-button-primary:not(:disabled).fc-button-active,
 .fc .fc-button-primary:not(:disabled):active {
   background: white  !important;
@@ -1037,6 +1038,22 @@ button[aria-disabled='true'] {
 }
 
 @keyframes topbar-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+
+.fc .fc-addEventButton-button {
+  background: linear-gradient(90deg, #1e1b72 0%, #5b2eff 100%) !important;
+  border: 0 !important;
+  color: #ffffff !important;
+  min-width: 90px;
+  padding: 8px 16px !important;
+  border-radius: 8px !important;
+
+}
+
+.fc .fc-addEventButton-button:hover {
+  background: linear-gradient(90deg, #191761 0%, #4d27e0 100%) !important;
+  color: #ffffff !important;
+}
 
 /* full calendar css end */
 

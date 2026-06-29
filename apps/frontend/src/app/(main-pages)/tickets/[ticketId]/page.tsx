@@ -13,7 +13,7 @@ import {
   usePermissions,
 } from '../../../providers/PermissionProvider';
 import { useAppSelector } from '../../../Redux/store';
-import { AlertIcon, FileTypePlaceholder } from '../../../../../public/icons';
+import { FileTypePlaceholder } from '../../../../../public/icons';
 import { getFileUrl } from '../../../../components/projects/ProjectFilesPanel';
 
 export default function TicketDetailPage() {
@@ -484,7 +484,7 @@ export default function TicketDetailPage() {
       <div className="grid grid-cols-1 flex-1 w-full gap-4 xl:grid-cols-12">
         <div className="space-y-4 xl:col-span-9 flex flex-col">
           <section className="rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-3 md:p-5">
-            <div className="sm:grid flex flex-wrap gap-4 border-b border-gray-200 pb-5 grid-cols-3">
+            <div className="sm:grid flex flex-wrap gap-4 border-b border-gray-200 pb-5 grid-cols-4">
               <MetaItem
                 label="Ticket ID"
                 value={`${ticket.ticketRefNo ?? ticket.id}`}
@@ -499,6 +499,26 @@ export default function TicketDetailPage() {
                   {ticket.project.name}
                 </span>
               </div>
+              {/* {isDueDateOverdue ? ( */}
+              <div>
+                <span className="block text-sm text-gray-500">Date</span>
+                <div
+                  className={`flex items-start gap-2 rounded-lg h-fit pt-2  ${isDueDateOverdue ? 'text-[#B42318] ' : 'text-gray-700'} `}
+                >
+                  {/* <AlertIcon fill="#B42318" opacity="0" /> */}
+                  <div className="flex items-center gap-3  w-full">
+                    <p className="text-sm font-medium pt-0.25">
+                      {selectedDueDate}
+                    </p>
+                    {isDueDateOverdue && (
+                      <p className="text-sm font-medium  bg-[#F04438] text-white py-0.5 px-2.5 rounded-full">
+                        Overdue
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              {/* ) : null} */}
             </div>
 
             <div className="pt-2 sm:pt-5">
@@ -709,21 +729,8 @@ export default function TicketDetailPage() {
                 </h3>
               </div>
               <div className="p-3 sm:p-4">
-                {isDueDateOverdue ? (
-                  <div className="mb-3 flex items-start gap-2 rounded-lg bg-red-100 px-3 py-2.5 text-[#B42318]">
-                    <AlertIcon fill="#B42318" opacity="0" />
-                    <div className="flex items-center gap-3 justify-between w-full">
-                      <p className="text-sm font-medium pt-0.25">
-                        {selectedDueDate}
-                      </p>
-                      <p className="text-sm font-medium  bg-[#F04438] text-white py-0.5 px-2.5 rounded-full">
-                        Overdue
-                      </p>
-                    </div>
-                  </div>
-                ) : null}
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
-                  {selectedDueDate ? 'Selected date' : 'No due date'}
+                <p className="mb-2 text-xs font-medium  tracking-wide text-gray-500">
+                  {selectedDueDate ? 'Select date' : 'No due date'}
                 </p>
                 <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2.5">
                   <input

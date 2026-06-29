@@ -26,6 +26,7 @@ interface DaySidebarProps {
   onAddEvent: () => void;
   onAddTicket: () => void;
   showAddEventAction?: boolean;
+  showEventTypeFilter?: boolean;
   showAddTicketAction?: boolean;
   showTicketsSection?: boolean;
   canDeleteEvent?: boolean;
@@ -45,6 +46,7 @@ export default function DaySidebar({
   onAddEvent,
   onAddTicket,
   showAddEventAction = true,
+  showEventTypeFilter = false,
   showAddTicketAction = true,
   showTicketsSection = true,
   canDeleteEvent = true,
@@ -72,20 +74,22 @@ export default function DaySidebar({
     <>
       <aside className="day-sidebar">
         <div className="sidebar-header">
-          {showAddEventAction || showAddTicketAction ? (
+          {showAddEventAction || showAddTicketAction || showEventTypeFilter ? (
             <div className="sidebar-actions">
               {showAddEventAction ? (
-                <div className="flex flex-col gap-2 md:gap-4 w-full">
+                <div className="flex flex-col gap-2 w-full">
                   <ThemeButton className="" onClick={onAddEvent}>
                     + Event
                   </ThemeButton>
-                  <Dropdown
-                    value={eventTypeFilter}
-                    label="Event Filter"
-                    options={[...PROJECT_EVENT_TYPE_FILTER_OPTIONS]}
-                    onChange={onEventTypeFilterChange ?? (() => undefined)}
-                  />
                 </div>
+              ) : null}
+              {showEventTypeFilter ? (
+                <Dropdown
+                  value={eventTypeFilter}
+                  label="Event Type"
+                  options={[...PROJECT_EVENT_TYPE_FILTER_OPTIONS]}
+                  onChange={onEventTypeFilterChange ?? (() => undefined)}
+                />
               ) : null}
               {showAddTicketAction ? (
                 <ThemeButton

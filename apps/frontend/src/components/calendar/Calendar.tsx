@@ -247,7 +247,15 @@ export default function Calendar({ projectId }: CalendarProps) {
             editable={!isProjectCalendar || canEditEvent}
             selectable={!isProjectCalendar || canAddEvent}
             navLinks={!isProjectCalendar || canEditEvent || canViewUpcoming}
-            allowedViews={isProjectCalendar ? ['month'] : ['month', 'week', 'day']}
+            allowedViews={
+              isProjectCalendar ? ['month'] : ['month', 'week', 'day']
+            }
+            showAddEventButton={isProjectCalendar && canAddEvent}
+            onAddEvent={() => {
+              setEditingEvent(null);
+              setIsReadOnlyEventModal(false);
+              setModal('event');
+            }}
           />
         </div>
 
@@ -287,7 +295,8 @@ export default function Calendar({ projectId }: CalendarProps) {
             setModal('event');
           }}
           onAddTicket={() => setModal('ticket')}
-          showAddEventAction={isProjectCalendar && canAddEvent}
+          showAddEventAction={false}
+          showEventTypeFilter={isProjectCalendar}
           showAddTicketAction={!isProjectCalendar}
           showTicketsSection
           canDeleteEvent={!isProjectCalendar || canEditEvent}

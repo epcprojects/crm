@@ -33,6 +33,8 @@ interface FullCalendarViewProps {
   selectable?: boolean;
   navLinks?: boolean;
   allowedViews?: Array<'month' | 'week' | 'day'>;
+  showAddEventButton?: boolean;
+  onAddEvent?: () => void;
 }
 
 function ticketsToFCEvents(tickets: Ticket[]): EventInput[] {
@@ -118,6 +120,8 @@ export default function FullCalendarView({
   selectable = true,
   navLinks = true,
   allowedViews = ['month', 'week', 'day'],
+  showAddEventButton = false,
+  onAddEvent,
 }: FullCalendarViewProps) {
   const calRef = useRef<FullCalendar>(null);
 
@@ -125,6 +129,23 @@ export default function FullCalendarView({
     () => [...calendarEventsToFC(events), ...ticketsToFCEvents(tickets)],
     [events, tickets],
   );
+  const headerRight = useMemo(() => {
+    if (allowedViews.length <= 1) {
+      return showAddEventButton ? 'addEventButton' : '';
+    }
+
+    const viewButtons = allowedViews
+      .map((view) => {
+        if (view === 'month') return 'dayGridMonth';
+        if (view === 'week') return 'timeGridWeek';
+        return 'timeGridDay';
+      })
+      .join(',');
+
+    return showAddEventButton
+      ? `${viewButtons},addEventButton`
+      : viewButtons;
+  }, [allowedViews, showAddEventButton]);
 
   const handleDateClick = useCallback(
     (arg: DateClickArg) => {
@@ -191,20 +212,19 @@ export default function FullCalendarView({
           interactionPlugin,
           multiMonthPlugin,
         ]}
+        customButtons={{
+          addEventButton: {
+            text: '+ Event',
+            click: () => {
+              onAddEvent?.();
+            },
+          },
+        }}
         initialView="dayGridMonth"
         headerToolbar={{
           left: 'prev,next today',
           center: 'title',
-          right:
-            allowedViews.length <= 1
-              ? ''
-              : allowedViews
-                  .map((view) => {
-                    if (view === 'month') return 'dayGridMonth';
-                    if (view === 'week') return 'timeGridWeek';
-                    return 'timeGridDay';
-                  })
-                  .join(','),
+          right: headerRight,
         }}
         buttonText={{
           today: 'Today',
