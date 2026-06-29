@@ -17,13 +17,7 @@ export type ProjectCalendarEventType =
 export interface ApiEvent {
   id: string;
   title: string;
-  type:
-    | 'event'
-    | 'google'
-    | 'due_date'
-    | 'launch'
-    | 'meeting'
-    | 'milestone';
+  type: 'event' | 'google' | 'due_date' | 'launch' | 'meeting' | 'milestone';
   date: string; // YYYY-MM-DD
   description?: string;
   color?: string;
@@ -37,7 +31,7 @@ export interface ApiTicket {
   ticketRefNo?: string;
   title: string;
   dueDate: string; // YYYY-MM-DD
-  priority: 'low' | 'medium' | 'high' | 'critical';
+  priority: 'low' | 'medium' | 'high' | 'critical' | null;
   status: 'open' | 'in_progress' | 'review' | 'closed';
   description?: string;
 }
@@ -279,10 +273,12 @@ export async function fetchProjectTickets(
 function normalizeTicketPriority(value?: string | null): ApiTicket['priority'] {
   const normalized = value?.trim().toLowerCase();
 
+  if (!normalized) return null;
   if (normalized === 'critical') return 'critical';
   if (normalized === 'high') return 'high';
   if (normalized === 'low') return 'low';
-  return 'medium';
+  if (normalized === 'medium') return 'medium';
+  return null;
 }
 
 function normalizeTicketStatus(value?: string | null): ApiTicket['status'] {

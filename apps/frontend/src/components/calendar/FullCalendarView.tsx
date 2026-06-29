@@ -48,8 +48,8 @@ function ticketsToFCEvents(tickets: Ticket[]): EventInput[] {
       tags: t.tags,
       originalId: t.id,
     },
-    backgroundColor: PRIORITY_COLORS[t.priority],
-    borderColor: PRIORITY_COLORS[t.priority],
+    backgroundColor: t.priority ? PRIORITY_COLORS[t.priority] : '#9ca3af',
+    borderColor: t.priority ? PRIORITY_COLORS[t.priority] : '#9ca3af',
     textColor: '#ffffff',
     classNames: ['fc-ticket-event'],
   }));
@@ -61,9 +61,7 @@ function calendarEventsToFC(events: CalendarEvent[]): EventInput[] {
       e.color ||
       (e.type === 'google'
         ? '#4285f4'
-        : e.type === 'launch' ||
-            e.type === 'meeting' ||
-            e.type === 'milestone'
+        : e.type === 'launch' || e.type === 'meeting' || e.type === 'milestone'
           ? PROJECT_EVENT_TYPE_COLORS[e.type]
           : '#0f6e56');
 

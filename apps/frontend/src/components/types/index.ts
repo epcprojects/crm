@@ -33,7 +33,7 @@ export interface Ticket {
   title: string;
   description?: string;
   dueDate: string; // ISO date string YYYY-MM-DD
-  priority: TicketPriority;
+  priority: TicketPriority | null;
   status: TicketStatus;
   assignee?: string;
   tags?: string[];

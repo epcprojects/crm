@@ -865,8 +865,12 @@ function mapTicketStatus(value: string | null): TicketStatus {
   return 'Open';
 }
 
-function mapTicketPriority(value: string | null): TicketPriority {
+function mapTicketPriority(value: string | null): TicketPriority | null {
   const normalizedValue = value?.trim().toLowerCase();
+
+  if (!normalizedValue) {
+    return null;
+  }
 
   if (normalizedValue === 'critical') {
     return 'Critical';
@@ -880,7 +884,11 @@ function mapTicketPriority(value: string | null): TicketPriority {
     return 'Medium';
   }
 
-  return 'Low';
+  if (normalizedValue === 'low') {
+    return 'Low';
+  }
+
+  return null;
 }
 
 function getInitials(value: string) {

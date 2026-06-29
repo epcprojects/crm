@@ -231,12 +231,18 @@ export default function DaySidebar({
                           <span
                             className="badge"
                             style={{
-                              background: `${PRIORITY_COLORS[ticket.priority]}22`,
-                              color: PRIORITY_COLORS[ticket.priority],
-                              borderColor: `${PRIORITY_COLORS[ticket.priority]}44`,
+                              background: ticket.priority
+                                ? `${PRIORITY_COLORS[ticket.priority]}22`
+                                : '#6b72800f',
+                              color: ticket.priority
+                                ? PRIORITY_COLORS[ticket.priority]
+                                : '#6b7280',
+                              borderColor: ticket.priority
+                                ? `${PRIORITY_COLORS[ticket.priority]}44`
+                                : '#d1d5db',
                             }}
                           >
-                            {ticket.priority}
+                            {ticket.priority ? ticket.priority : 'No Priority'}
                           </span>
                           {/* <select
                           className="status-select"
