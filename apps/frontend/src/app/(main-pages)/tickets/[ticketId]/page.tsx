@@ -35,6 +35,7 @@ export default function TicketDetailPage() {
   const canEditPriority = hasPermission('tickets.edit_priority');
   const canEditAssignee = hasPermission('tickets.edit_assignee');
   const canEditDueDate = hasPermission('tickets.edit_due_date');
+  const canEditTicketContent = !isExternalUser;
 
   const fallbackTicket = useMemo(() => getTicketById(ticketId), [ticketId]);
 
@@ -200,6 +201,10 @@ export default function TicketDetailPage() {
   const [selectedPriority, setSelectedPriority] = useState('');
   const [selectedAssignee, setSelectedAssignee] = useState('');
   const [selectedDueDate, setSelectedDueDate] = useState('');
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [titleDraft, setTitleDraft] = useState('');
+  const [descriptionDraft, setDescriptionDraft] = useState('');
   const todayInputValue = getTodayInputValue();
   const minimumDueDate = getTomorrowInputValue();
   const isDueDateOverdue = Boolean(
@@ -266,6 +271,8 @@ export default function TicketDetailPage() {
     setSelectedPriority(ticket.priorityKey ?? '');
     setSelectedAssignee(ticket.assigneeDetail?.name ?? '');
     setSelectedDueDate(toDateInputValue(ticket.dueDateValue ?? ''));
+    setTitleDraft(ticket.title);
+    setDescriptionDraft(ticket.description);
   }, [ticket]);
 
   if (!canViewTicketDetail) {
@@ -408,6 +415,61 @@ export default function TicketDetailPage() {
     });
   };
 
+  const handleSaveTitle = async () => {
+    if (!canEditTicketContent) {
+      return;
+    }
+
+    const nextTitle = titleDraft.trim();
+
+    if (!nextTitle) {
+      appToast.error('Title is required.');
+      return;
+    }
+
+    if (nextTitle === ticket.title) {
+      setIsEditingTitle(false);
+      return;
+    }
+
+    await updateTicketMutation.mutateAsync(
+      buildUpdateTicketPayload({
+        title: nextTitle,
+        description: ticket.description,
+        statusKey: selectedStatus,
+        priorityKey: selectedPriority,
+        assigneeId: selectedAssigneeId,
+        dueDate: selectedDueDate,
+      }),
+    );
+    setIsEditingTitle(false);
+  };
+
+  const handleSaveDescription = async () => {
+    if (!canEditTicketContent) {
+      return;
+    }
+
+    const nextDescription = descriptionDraft.trim();
+
+    if (nextDescription === ticket.description.trim()) {
+      setIsEditingDescription(false);
+      return;
+    }
+
+    await updateTicketMutation.mutateAsync(
+      buildUpdateTicketPayload({
+        title: ticket.title,
+        description: nextDescription,
+        statusKey: selectedStatus,
+        priorityKey: selectedPriority,
+        assigneeId: selectedAssigneeId,
+        dueDate: selectedDueDate,
+      }),
+    );
+    setIsEditingDescription(false);
+  };
+
   return (
     <div className="space-y-4 flex-1 w-full flex flex-col items-start -mt-16 sm:mt-0">
       <button
@@ -440,12 +502,102 @@ export default function TicketDetailPage() {
             </div>
 
             <div className="pt-2 sm:pt-5">
-              <h2 className="text-base md:text-xl leading-8 font-semibold text-gray-900">
-                {ticket.title}
-              </h2>
-              <p className="sm:mt-2 text-sm text-gray-700">
-                {ticket.description}
-              </p>
+              {isEditingTitle ? (
+                <div>
+                  <input
+                    type="text"
+                    value={titleDraft}
+                    autoFocus
+                    disabled={updateTicketMutation.isPending}
+                    onChange={(event) => setTitleDraft(event.target.value)}
+                    onBlur={() => {
+                      void handleSaveTitle();
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        void handleSaveTitle();
+                      }
+
+                      if (event.key === 'Escape') {
+                        setIsEditingTitle(false);
+                        setTitleDraft(ticket.title);
+                      }
+                    }}
+                    className="w-full border-b border-b-gray-400 pb-2 text-base font-semibold text-gray-900 outline-none  md:text-xl"
+                  />
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  disabled={!canEditTicketContent}
+                  onClick={() => {
+                    if (!canEditTicketContent) {
+                      return;
+                    }
+
+                    setIsEditingDescription(false);
+                    setDescriptionDraft(ticket.description);
+                    setIsEditingTitle(true);
+                  }}
+                  className="block w-full text-left disabled:cursor-default"
+                >
+                  <h2 className="text-base md:text-xl leading-8 font-semibold text-gray-900">
+                    {ticket.title}
+                  </h2>
+                </button>
+              )}
+
+              {isEditingDescription ? (
+                <div className="mt-4">
+                  <textarea
+                    value={descriptionDraft}
+                    autoFocus
+                    rows={5}
+                    disabled={updateTicketMutation.isPending}
+                    onChange={(event) =>
+                      setDescriptionDraft(event.target.value)
+                    }
+                    onBlur={() => {
+                      void handleSaveDescription();
+                    }}
+                    onKeyDown={(event) => {
+                      if (
+                        (event.ctrlKey || event.metaKey) &&
+                        event.key === 'Enter'
+                      ) {
+                        event.preventDefault();
+                        void handleSaveDescription();
+                      }
+
+                      if (event.key === 'Escape') {
+                        setIsEditingDescription(false);
+                        setDescriptionDraft(ticket.description);
+                      }
+                    }}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none "
+                  />
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  disabled={!canEditTicketContent}
+                  onClick={() => {
+                    if (!canEditTicketContent) {
+                      return;
+                    }
+
+                    setIsEditingTitle(false);
+                    setTitleDraft(ticket.title);
+                    setIsEditingDescription(true);
+                  }}
+                  className="mt-2 block w-full text-left disabled:cursor-default"
+                >
+                  <p className="text-sm text-gray-700">
+                    {ticket.description || 'Add description'}
+                  </p>
+                </button>
+              )}
             </div>
           </section>
 
