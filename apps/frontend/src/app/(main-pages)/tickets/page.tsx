@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PaginationState } from '@tanstack/react-table';
 import { useRouter } from 'next/navigation';
 import { useDashboardHeaderAction } from '../../../components/dashboard/dashboard-shell';
@@ -13,6 +13,7 @@ import RecentTicketsTable, {
   type TicketSortState,
   type RecentTicket,
 } from '../../../components/tables/RecentTicketsTable';
+import TicketsKanbanView from '../../../components/tickets/TicketsKanbanView';
 import { appToast } from '../../../components/toast/AppToast';
 import Dropdown from '../../../components/ui/ThemeDropDown';
 import { SearchIcon } from '../../../../public/icons';
@@ -34,6 +35,7 @@ export default function Page() {
   const { setHeaderActionOverride } = useDashboardHeaderAction();
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
+  const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedPriority, setSelectedPriority] = useState('all');
   const [selectedProject, setSelectedProject] = useState('all');
@@ -50,6 +52,7 @@ export default function Page() {
   const canCreateTicket = hasPermission('tickets.create');
   const canFilterTickets = hasPermission('tickets.filter');
   const canViewTicketDetail = hasPermission('tickets.view_detail');
+  const canEditTicketStatus = hasPermission('tickets.edit_status');
   const ticketStatusesQuery = useQuery({
     queryKey: ['ticket-statuses'],
     queryFn: fetchTicketStatuses,
@@ -67,6 +70,7 @@ export default function Page() {
       selectedPriority,
       selectedProject,
       searchValue.trim(),
+      viewMode,
       pagination.pageIndex,
       pagination.pageSize,
     ],
@@ -76,8 +80,8 @@ export default function Page() {
         priorityKey: selectedPriority === 'all' ? undefined : selectedPriority,
         projectId: selectedProject === 'all' ? undefined : selectedProject,
         search: searchValue.trim(),
-        page: pagination.pageIndex + 1,
-        limit: pagination.pageSize,
+        page: viewMode === 'kanban' ? 1 : pagination.pageIndex + 1,
+        limit: viewMode === 'kanban' ? 100 : pagination.pageSize,
       }),
     enabled: hasPermission('tickets.view_list'),
   });
@@ -112,10 +116,141 @@ export default function Page() {
     ],
     [projectsQuery.data],
   );
+  const kanbanStatusOptions = useMemo(
+    () =>
+      (ticketStatusesQuery.data ?? []).map((status) => ({
+        label: status.label,
+        value: status.key,
+        color: status.color,
+      })),
+    [ticketStatusesQuery.data],
+  );
   const sortedTickets = useMemo(
     () => sortTicketsLocally(ticketsQuery.data?.items ?? [], sortState),
     [sortState, ticketsQuery.data?.items],
   );
+  const statusMetadataByKey = useMemo(
+    () =>
+      new Map(
+        (ticketStatusesQuery.data ?? []).map((status) => [
+          status.key,
+          {
+            label: status.label,
+            color: status.color,
+          },
+        ]),
+      ),
+    [ticketStatusesQuery.data],
+  );
+
+  const moveTicketMutation = useMutation({
+    mutationFn: async ({
+      ticket,
+      statusKey,
+    }: {
+      ticket: RecentTicket;
+      statusKey: string;
+    }) => {
+      const projectId = ticket.project.id;
+
+      if (!projectId) {
+        throw new Error('Project id is required to update ticket status.');
+      }
+
+      const response = await fetch(`/api/projects/${projectId}/tickets/${ticket.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ statusKey }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message =
+          Array.isArray(data?.message) && data.message.length
+            ? data.message.join(', ')
+            : data?.message || 'Failed to update ticket status.';
+        throw new Error(message);
+      }
+
+      return { ticket, statusKey };
+    },
+    onMutate: async ({ ticket, statusKey }) => {
+      const nextStatus = statusMetadataByKey.get(statusKey);
+
+      await queryClient.cancelQueries({
+        queryKey: ['dashboard-project-tickets'],
+      });
+
+      const previousQueries = queryClient.getQueriesData<DashboardTicketsResponse>({
+        queryKey: ['dashboard-project-tickets'],
+      });
+
+      queryClient.setQueriesData<DashboardTicketsResponse>(
+        { queryKey: ['dashboard-project-tickets'] },
+        (current) => {
+          if (!current) {
+            return current;
+          }
+
+          return {
+            ...current,
+            items: current.items.map((currentTicket) =>
+              currentTicket.id === ticket.id
+                ? {
+                    ...currentTicket,
+                    status: nextStatus?.label ?? currentTicket.status,
+                    statusColor: nextStatus?.color ?? currentTicket.statusColor,
+                  }
+                : currentTicket,
+            ),
+          };
+        },
+      );
+
+      return { previousQueries };
+    },
+    onError: (error, _variables, context) => {
+      context?.previousQueries.forEach(([queryKey, data]) => {
+        queryClient.setQueryData(queryKey, data);
+      });
+      appToast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to update ticket status.',
+      );
+    },
+    onSuccess: () => {
+      appToast.success('Ticket status updated successfully.');
+    },
+    onSettled: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard-project-tickets'],
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'recent-tickets'],
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'upcoming'],
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'critical-tickets'],
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'ticket-summary'],
+          refetchType: 'all',
+        }),
+      ]);
+    },
+  });
 
   const handleCreateTicket = async (values: CreateTicketFormValues) => {
     if (!canCreateTicket) {
@@ -197,6 +332,34 @@ export default function Page() {
     }));
   };
 
+  const handleTicketClick = (ticket: RecentTicket) => {
+    if (!canViewTicketDetail) {
+      return;
+    }
+
+    router.push(`/tickets/${ticket.id}?projectId=${ticket.project.id}`);
+  };
+
+  const handleMoveTicket = async (
+    ticket: RecentTicket,
+    nextStatusKey: string,
+  ) => {
+    if (!canEditTicketStatus || moveTicketMutation.isPending) {
+      return;
+    }
+
+    const nextStatus = statusMetadataByKey.get(nextStatusKey);
+
+    if (!nextStatus || ticket.status === nextStatus.label) {
+      return;
+    }
+
+    await moveTicketMutation.mutateAsync({
+      ticket,
+      statusKey: nextStatusKey,
+    });
+  };
+
   return (
     <div className="space-y-4">
       <PermissionGuard
@@ -223,6 +386,32 @@ export default function Page() {
               </div>
 
               <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                <div className="flex items-center rounded-lg border border-gray-200 bg-white p-1">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('table')}
+                    className={`flex h-8 w-8 items-center justify-center rounded-md transition ${
+                      viewMode === 'table'
+                        ? 'bg-primary-dark text-white shadow-sm'
+                        : 'text-gray-500 hover:bg-gray-50'
+                    }`}
+                    aria-label="Table view"
+                  >
+                    <TableViewIcon />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('kanban')}
+                    className={`flex h-8 w-8 items-center justify-center rounded-md transition ${
+                      viewMode === 'kanban'
+                        ? 'bg-primary-dark text-white shadow-sm'
+                        : 'text-gray-500 hover:bg-gray-50'
+                    }`}
+                    aria-label="Kanban view"
+                  >
+                    <KanbanViewIcon />
+                  </button>
+                </div>
                 <div className="w-full md:w-44">
                   <Dropdown
                     options={projectFilterOptions}
@@ -252,26 +441,36 @@ export default function Page() {
           ) : null}
         </div>
 
-        <RecentTicketsTable
-          tickets={sortedTickets}
-          enablePagination
-          initialPageSize={10}
-          pageSizeOptions={[10, 25, 50, 100]}
-          pagination={pagination}
-          onPaginationChange={setPagination}
-          totalRows={ticketsQuery.data?.meta.total ?? 0}
-          manualPagination
-          sortState={sortState}
-          onSortChange={handleSortChange}
-          onRowClick={
-            canViewTicketDetail
-              ? (ticket) =>
-                  router.push(
-                    `/tickets/${ticket.id}?projectId=${ticket.project.id}`,
-                  )
-              : undefined
-          }
-        />
+        {viewMode === 'kanban' ? (
+          <TicketsKanbanView
+            tickets={sortedTickets}
+            statusOptions={kanbanStatusOptions}
+            onTicketClick={canViewTicketDetail ? handleTicketClick : undefined}
+            onMoveTicket={(ticket, nextStatusKey) => {
+              void handleMoveTicket(ticket, nextStatusKey);
+            }}
+            canDragTickets={canEditTicketStatus}
+            movingTicketId={
+              moveTicketMutation.isPending
+                ? (moveTicketMutation.variables?.ticket.id ?? null)
+                : null
+            }
+          />
+        ) : (
+          <RecentTicketsTable
+            tickets={sortedTickets}
+            enablePagination
+            initialPageSize={10}
+            pageSizeOptions={[10, 25, 50, 100]}
+            pagination={pagination}
+            onPaginationChange={setPagination}
+            totalRows={ticketsQuery.data?.meta.total ?? 0}
+            manualPagination
+            sortState={sortState}
+            onSortChange={handleSortChange}
+            onRowClick={canViewTicketDetail ? handleTicketClick : undefined}
+          />
+        )}
       </PermissionGuard>
       <CreateTicketModal
         isOpen={createTicketOpen && canCreateTicket}
@@ -579,4 +778,46 @@ function formatTicketDate(value: string) {
     day: 'numeric',
     year: 'numeric',
   }).format(date);
+}
+
+function TableViewIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        d="M4 4H12M4 8H12M4 12H12M2.667 2.667H13.333C14.07 2.667 14.667 3.264 14.667 4V12C14.667 12.736 14.07 13.333 13.333 13.333H2.667C1.93 13.333 1.333 12.736 1.333 12V4C1.333 3.264 1.93 2.667 2.667 2.667Z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function KanbanViewIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        d="M2.667 2.667H6.667V6.667H2.667V2.667ZM9.333 2.667H13.333V6.667H9.333V2.667ZM2.667 9.333H6.667V13.333H2.667V9.333ZM9.333 9.333H13.333V13.333H9.333V9.333Z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
