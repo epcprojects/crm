@@ -29,6 +29,9 @@ interface FullCalendarViewProps {
     view: 'month' | 'week' | 'day' | 'year',
     dateStr: string,
   ) => void;
+  editable?: boolean;
+  selectable?: boolean;
+  navLinks?: boolean;
 }
 
 function ticketsToFCEvents(tickets: Ticket[]): EventInput[] {
@@ -58,8 +61,7 @@ function calendarEventsToFC(events: CalendarEvent[]): EventInput[] {
       e.color ||
       (e.type === 'google'
         ? '#4285f4'
-        : e.type === 'due_date' ||
-            e.type === 'launch' ||
+        : e.type === 'launch' ||
             e.type === 'meeting' ||
             e.type === 'milestone'
           ? PROJECT_EVENT_TYPE_COLORS[e.type]
@@ -113,6 +115,9 @@ export default function FullCalendarView({
   onEventDrop,
   onSelect,
   onViewChange,
+  editable = true,
+  selectable = true,
+  navLinks = true,
 }: FullCalendarViewProps) {
   const calRef = useRef<FullCalendar>(null);
 
@@ -199,13 +204,13 @@ export default function FullCalendarView({
           day: 'Day',
         }}
         events={fcEvents}
-        editable={true}
-        selectable={true}
+        editable={editable}
+        selectable={selectable}
         selectMirror={true}
         dayMaxEvents={4}
         weekends={true}
         nowIndicator={true}
-        navLinks={true}
+        navLinks={navLinks}
         dateClick={handleDateClick}
         eventClick={handleEventClick}
         eventDrop={handleEventDrop}

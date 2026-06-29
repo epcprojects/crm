@@ -35,11 +35,7 @@ type ApiProjectCalendarEvent = {
   updatedAt?: string;
 };
 
-type ProjectCalendarEventType =
-  | 'due_date'
-  | 'launch'
-  | 'meeting'
-  | 'milestone';
+type ProjectCalendarEventType = 'due_date' | 'launch' | 'meeting' | 'milestone';
 
 type ProjectCalendarEvent = {
   id: string;
@@ -71,7 +67,12 @@ export default function ProjectCalendarPanel({
   const [currentDateLabel, setCurrentDateLabel] = useState('');
 
   const visibleEventsQuery = useQuery({
-    queryKey: ['project-calendar-events', projectId, calendarView, referenceDate],
+    queryKey: [
+      'project-calendar-events',
+      projectId,
+      calendarView,
+      referenceDate,
+    ],
     queryFn: async () => {
       const searchParams = new URLSearchParams({
         view: calendarView,
@@ -168,7 +169,8 @@ export default function ProjectCalendarPanel({
 
   const hasError = visibleEventsQuery.isError || allEventsQuery.isError;
   const errorMessage =
-    (visibleEventsQuery.error instanceof Error && visibleEventsQuery.error.message) ||
+    (visibleEventsQuery.error instanceof Error &&
+      visibleEventsQuery.error.message) ||
     (allEventsQuery.error instanceof Error && allEventsQuery.error.message) ||
     'Failed to load project calendar events.';
 
@@ -177,7 +179,9 @@ export default function ProjectCalendarPanel({
       <div className="rounded-[24px] border border-gray-200 bg-white p-4 md:p-6">
         <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Project calendar</h3>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Project calendar
+            </h3>
             <p className="text-sm text-gray-500">{projectName}</p>
           </div>
 
@@ -203,11 +207,20 @@ export default function ProjectCalendarPanel({
           events={calendarEvents}
           dayMaxEvents={3}
           height="auto"
-          datesSet={(arg) => handleDatesSet(arg, setCalendarView, setReferenceDate, setCurrentDateLabel)}
+          datesSet={(arg) =>
+            handleDatesSet(
+              arg,
+              setCalendarView,
+              setReferenceDate,
+              setCurrentDateLabel,
+            )
+          }
         />
 
         {visibleEventsQuery.isLoading ? (
-          <p className="mt-4 text-sm text-gray-500">Loading calendar events...</p>
+          <p className="mt-4 text-sm text-gray-500">
+            Loading calendar events...
+          </p>
         ) : null}
       </div>
 
@@ -254,7 +267,12 @@ export default function ProjectCalendarPanel({
         <SidebarCard title="Summary">
           <div className="space-y-3">
             {(
-              ['due_date', 'launch', 'meeting', 'milestone'] as ProjectCalendarEventType[]
+              [
+                'due_date',
+                'launch',
+                'meeting',
+                'milestone',
+              ] as ProjectCalendarEventType[]
             ).map((type) => (
               <LegendRow
                 key={type}
@@ -301,7 +319,10 @@ function LegendRow({
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="flex items-center gap-3">
-        <span className="h-3 w-3 rounded-full" style={{ backgroundColor: colors.dot }} />
+        <span
+          className="h-3 w-3 rounded-full"
+          style={{ backgroundColor: colors.dot }}
+        />
         <span className="text-[15px] font-semibold text-gray-900">
           {formatEventTypeLabel(type)}
         </span>
@@ -322,7 +343,9 @@ function handleDatesSet(
   setReferenceDate(formatDateForApi(arg.view.currentStart));
 }
 
-function normalizeProjectCalendarEvents(payload: unknown): ProjectCalendarEvent[] {
+function normalizeProjectCalendarEvents(
+  payload: unknown,
+): ProjectCalendarEvent[] {
   return extractEventArray(payload)
     .map((event, index) => normalizeProjectCalendarEvent(event, index))
     .filter((event): event is ProjectCalendarEvent => Boolean(event));
@@ -365,7 +388,8 @@ function normalizeProjectCalendarEvent(
   }
 
   const title = value.title ?? value.name ?? value.subject ?? 'Untitled event';
-  const allDay = typeof value.allDay === 'boolean' ? value.allDay : isDateOnly(start);
+  const allDay =
+    typeof value.allDay === 'boolean' ? value.allDay : isDateOnly(start);
 
   return {
     id: value.id ?? `${title}-${start}-${index}`,
@@ -379,7 +403,10 @@ function normalizeProjectCalendarEvent(
 }
 
 function normalizeEventType(value?: string | null): ProjectCalendarEventType {
-  const normalized = value?.trim().toLowerCase().replace(/[\s-]+/g, '_');
+  const normalized = value
+    ?.trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
 
   if (normalized === 'due_date') return 'due_date';
   if (normalized === 'launch') return 'launch';

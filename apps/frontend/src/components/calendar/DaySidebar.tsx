@@ -19,6 +19,7 @@ interface DaySidebarProps {
   eventTypeFilter?: string;
   onEventTypeFilterChange?: (value: string) => void;
   onDeleteEvent: (id: string) => void | Promise<void>;
+  onEventClick?: (event: CalendarEvent) => void;
   onUpdateTicket: (id: string, updates: Partial<Ticket>) => void;
   onDeleteTicket: (id: string) => void;
   onTicketClick?: (ticket: Ticket) => void;
@@ -27,6 +28,7 @@ interface DaySidebarProps {
   showAddEventAction?: boolean;
   showAddTicketAction?: boolean;
   showTicketsSection?: boolean;
+  canDeleteEvent?: boolean;
 }
 
 export default function DaySidebar({
@@ -36,6 +38,7 @@ export default function DaySidebar({
   eventTypeFilter = '',
   onEventTypeFilterChange,
   onDeleteEvent,
+  onEventClick,
   onUpdateTicket,
   onDeleteTicket,
   onTicketClick,
@@ -44,6 +47,7 @@ export default function DaySidebar({
   showAddEventAction = true,
   showAddTicketAction = true,
   showTicketsSection = true,
+  canDeleteEvent = true,
 }: DaySidebarProps) {
   const [eventToDelete, setEventToDelete] = useState<CalendarEvent | null>(
     null,
@@ -96,61 +100,65 @@ export default function DaySidebar({
         </div>
 
         <div className="sidebar-content-scroll">
+          <section className="sidebar-section">
+            <h3 className="section-label">
+              Events
+              <span className="rounded-full h-5 min-w-5 flex items-center justify-center text-gray-900 bg-gray-100 border border-gray-200">
+                {events.length}
+              </span>
+            </h3>
 
-        <section className="sidebar-section">
-          <h3 className="section-label">
-            Events
-            <span className="rounded-full h-5 min-w-5 flex items-center justify-center text-gray-900 bg-gray-100 border border-gray-200">
-              {events.length}
-            </span>
-          </h3>
-
-          {events.length === 0 ? (
-            <p className="empty-section">No events</p>
-          ) : (
-            <div className="item-list">
-              {events.map((event) => (
-                <div
-                  key={event.id}
-                  className="border border-gray-200 rounded-xl flex ps-3 p-2 "
-                >
-                  <div className="sec-left">
-                    <div
-                      className="sec-dot mt-1!"
-                      style={{
-                        background:
-                          event.color ||
-                          (event.type === 'google'
-                            ? '#4285f4'
-                            : event.type === 'ticket'
-                              ? '#8b5cf6'
-                              : event.type === 'due_date' ||
-                                  event.type === 'launch' ||
-                                  event.type === 'meeting' ||
-                                  event.type === 'milestone'
-                                ? PROJECT_EVENT_TYPE_COLORS[event.type]
-                                : '#0f6e56'),
-                      }}
-                    />
-                    <div className="sec-body">
-                      <div className="text-sm font-medium">{event.title}</div>
-                      {event.startTime ? (
-                        <div className="sec-meta">
-                          {formatTime(event.startTime)}
-                          {event.endTime
-                            ? ` â€“ ${formatTime(event.endTime)}`
-                            : ''}
-                        </div>
-                      ) : null}
-                      {event.location ? (
-                        <div className="sec-meta">ðŸ“ {event.location}</div>
-                      ) : null}
-                      {event.description ? (
-                        <div className="text-xs">{event.description}</div>
-                      ) : null}
-                      {event.type === 'google' ? (
-                        <div className="google-badge">Google Calendar</div>
-                      ) : null}
+            {events.length === 0 ? (
+              <p className="empty-section">No events</p>
+            ) : (
+              <div className="item-list">
+                {events.map((event) => (
+                  <div
+                    key={event.id}
+                    className="border border-gray-200 rounded-xl flex ps-3 p-2 "
+                  >
+                    <div className="sec-left">
+                      <div
+                        className="sec-dot mt-1!"
+                        style={{
+                          background:
+                            event.color ||
+                            (event.type === 'google'
+                              ? '#4285f4'
+                              : event.type === 'ticket'
+                                ? '#8b5cf6'
+                                : event.type === 'launch' ||
+                                    event.type === 'meeting' ||
+                                    event.type === 'milestone'
+                                  ? PROJECT_EVENT_TYPE_COLORS[event.type]
+                                  : '#0f6e56'),
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => onEventClick?.(event)}
+                        disabled={!onEventClick}
+                        className="sec-body text-left disabled:cursor-default"
+                      >
+                        <div className="text-sm font-medium">{event.title}</div>
+                        {event.startTime ? (
+                          <div className="sec-meta">
+                            {formatTime(event.startTime)}
+                            {event.endTime
+                              ? ` â€“ ${formatTime(event.endTime)}`
+                              : ''}
+                          </div>
+                        ) : null}
+                        {event.location ? (
+                          <div className="sec-meta">ðŸ“ {event.location}</div>
+                        ) : null}
+                        {event.description ? (
+                          <div className="text-xs">{event.description}</div>
+                        ) : null}
+                        {event.type === 'google' ? (
+                          <div className="google-badge">Google Calendar</div>
+                        ) : null}
+                      </button>
                       {event.hangoutLink ? (
                         <a
                           href={event.hangoutLink}
@@ -162,76 +170,75 @@ export default function DaySidebar({
                         </a>
                       ) : null}
                     </div>
+                    {canDeleteEvent && event.type !== 'google' ? (
+                      <button
+                        className="h-6 hover:bg-red-100 rounded-md w-6 flex items-center justify-center"
+                        onClick={() => setEventToDelete(event)}
+                        aria-label="Delete event"
+                      >
+                        <TrashIcon height="12" width="12" />
+                      </button>
+                    ) : null}
                   </div>
-                  {event.type !== 'google' ? (
-                    <button
-                      className="h-6 hover:bg-red-100 rounded-md w-6 flex items-center justify-center"
-                      onClick={() => setEventToDelete(event)}
-                      aria-label="Delete event"
+                ))}
+              </div>
+            )}
+          </section>
+
+          {showTicketsSection ? (
+            <section className="sidebar-section">
+              <h3 className="section-label">
+                Tickets Due
+                <span className="rounded-full h-5 min-w-5 flex items-center leading-none justify-center text-gray-900 bg-gray-100 border border-gray-200">
+                  {tickets.length}
+                </span>
+              </h3>
+
+              {tickets.length === 0 ? (
+                <p className="empty-section">No tickets due</p>
+              ) : (
+                <div className="item-list border border-gray-200 rounded-xl ps-3 p-2">
+                  {tickets.map((ticket) => (
+                    <div
+                      key={ticket.id}
+                      className="sidebar-ticket-card border-b! pb-2! border-b-gray-200! last:border-b-0!"
                     >
-                      <TrashIcon height="12" width="12" />
-                    </button>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {showTicketsSection ? (
-          <section className="sidebar-section">
-            <h3 className="section-label">
-              Tickets Due
-              <span className="rounded-full h-5 min-w-5 flex items-center leading-none justify-center text-gray-900 bg-gray-100 border border-gray-200">
-                {tickets.length}
-              </span>
-            </h3>
-
-            {tickets.length === 0 ? (
-              <p className="empty-section">No tickets due</p>
-            ) : (
-              <div className="item-list border border-gray-200 rounded-xl ps-3 p-2">
-                {tickets.map((ticket) => (
-                  <div
-                    key={ticket.id}
-                    className="sidebar-ticket-card border-b! pb-2! border-b-gray-200! last:border-b-0!"
-                  >
-                    {/* <div
+                      {/* <div
                       className="priority-stripe"
                       style={{ background: PRIORITY_COLORS[ticket.priority] }}
                     /> */}
-                    <div className="stc-body">
-                      <div className="stc-top">
-                        <button
-                          type="button"
-                          className="stc-title text-left"
-                          onClick={() => onTicketClick?.(ticket)}
-                        >
-                          {ticket.title}
-                        </button>
-                        {/* <button
+                      <div className="stc-body">
+                        <div className="stc-top">
+                          <button
+                            type="button"
+                            className="stc-title text-left"
+                            onClick={() => onTicketClick?.(ticket)}
+                          >
+                            {ticket.title}
+                          </button>
+                          {/* <button
                           className="delete-btn"
                           onClick={() => onDeleteTicket(ticket.id)}
                           aria-label="Delete ticket"
                         >
                           x
                         </button> */}
-                      </div>
-                      {ticket.description ? (
-                        <div className="sec-desc">{ticket.description}</div>
-                      ) : null}
-                      <div className="stc-meta">
-                        <span
-                          className="badge"
-                          style={{
-                            background: `${PRIORITY_COLORS[ticket.priority]}22`,
-                            color: PRIORITY_COLORS[ticket.priority],
-                            borderColor: `${PRIORITY_COLORS[ticket.priority]}44`,
-                          }}
-                        >
-                          {ticket.priority}
-                        </span>
-                        {/* <select
+                        </div>
+                        {ticket.description ? (
+                          <div className="sec-desc">{ticket.description}</div>
+                        ) : null}
+                        <div className="stc-meta">
+                          <span
+                            className="badge"
+                            style={{
+                              background: `${PRIORITY_COLORS[ticket.priority]}22`,
+                              color: PRIORITY_COLORS[ticket.priority],
+                              borderColor: `${PRIORITY_COLORS[ticket.priority]}44`,
+                            }}
+                          >
+                            {ticket.priority}
+                          </span>
+                          {/* <select
                           className="status-select"
                           value={ticket.status}
                           onChange={(event) =>
@@ -246,23 +253,23 @@ export default function DaySidebar({
                           <option value="review">Review</option>
                           <option value="closed">Closed</option>
                         </select> */}
-                      </div>
-                      {ticket.tags?.length ? (
-                        <div className="tag-list">
-                          {ticket.tags.map((tag) => (
-                            <span key={tag} className="tag">
-                              {tag}
-                            </span>
-                          ))}
                         </div>
-                      ) : null}
+                        {ticket.tags?.length ? (
+                          <div className="tag-list">
+                            {ticket.tags.map((tag) => (
+                              <span key={tag} className="tag">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        ) : null}
+                  ))}
+                </div>
+              )}
+            </section>
+          ) : null}
         </div>
       </aside>
 

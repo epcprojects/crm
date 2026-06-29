@@ -9,6 +9,7 @@ import AddModal from './AddModal';
 import { formatDisplayDate } from '../../lib/calendar-utils';
 import { appToast } from '../toast/AppToast';
 import type { CalendarEvent } from '../types';
+import { usePermissions } from '../../app/providers/PermissionProvider';
 
 const FullCalendarView = dynamic(() => import('./FullCalendarView'), {
   ssr: false,
@@ -29,13 +30,22 @@ type CalendarProps = {
 export default function Calendar({ projectId }: CalendarProps) {
   const router = useRouter();
   const isProjectCalendar = Boolean(projectId);
+  const { hasPermission } = usePermissions();
+  const canEditEvent = hasPermission('calendar.edit_event');
+  const canAddEvent = hasPermission('calendar.add_event');
+  const canViewUpcoming = hasPermission('calendar.view_upcoming');
   const cal = useCalendar({ projectId });
   const [modal, setModal] = useState<ModalType>(null);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  const [isReadOnlyEventModal, setIsReadOnlyEventModal] = useState(false);
   const [, setIsFetchingEventDetail] = useState(false);
 
   const handleEventDrop = useCallback(
     async (id: string, newDate: string) => {
+      if (isProjectCalendar && !canEditEvent) {
+        return;
+      }
+
       try {
         const rawId = id.replace(/^ticket_/, '');
         const isTicket = cal.tickets.some((ticket) => ticket.id === rawId);
@@ -50,7 +60,32 @@ export default function Calendar({ projectId }: CalendarProps) {
         cal.refetch();
       }
     },
-    [cal],
+    [cal, canEditEvent, isProjectCalendar],
+  );
+
+  const openProjectEventModal = useCallback(
+    async (eventId: string, fallbackEvent?: CalendarEvent | null) => {
+      if (!canEditEvent && !canViewUpcoming) {
+        return;
+      }
+
+      try {
+        setIsFetchingEventDetail(true);
+        const detailedEvent = await cal.getProjectEvent(eventId);
+        setEditingEvent(detailedEvent ?? fallbackEvent ?? null);
+        setIsReadOnlyEventModal(!canEditEvent && canViewUpcoming);
+        setModal('event');
+      } catch (error) {
+        appToast.error(
+          error instanceof Error
+            ? error.message
+            : 'Failed to load event details.',
+        );
+      } finally {
+        setIsFetchingEventDetail(false);
+      }
+    },
+    [cal, canEditEvent, canViewUpcoming],
   );
 
   const handleEventClick = useCallback(
@@ -64,20 +99,7 @@ export default function Calendar({ projectId }: CalendarProps) {
           return;
         }
 
-        try {
-          setIsFetchingEventDetail(true);
-          const detailedEvent = await cal.getProjectEvent(id);
-          setEditingEvent(detailedEvent ?? event);
-          setModal('event');
-        } catch (error) {
-          appToast.error(
-            error instanceof Error
-              ? error.message
-              : 'Failed to load event details.',
-          );
-        } finally {
-          setIsFetchingEventDetail(false);
-        }
+        await openProjectEventModal(id, event);
 
         return;
       }
@@ -92,7 +114,7 @@ export default function Calendar({ projectId }: CalendarProps) {
         router.push(ticketDetailUrl);
       }
     },
-    [cal, isProjectCalendar, projectId, router],
+    [cal, isProjectCalendar, openProjectEventModal, projectId, router],
   );
 
   const sidebarData = useMemo(() => {
@@ -222,6 +244,9 @@ export default function Calendar({ projectId }: CalendarProps) {
             onEventDrop={handleEventDrop}
             onSelect={cal.setSelectedDate}
             onViewChange={cal.setCalendarContext}
+            editable={!isProjectCalendar || canEditEvent}
+            selectable={!isProjectCalendar || canAddEvent}
+            navLinks={!isProjectCalendar || canEditEvent || canViewUpcoming}
           />
         </div>
 
@@ -232,10 +257,17 @@ export default function Calendar({ projectId }: CalendarProps) {
           eventTypeFilter={cal.eventTypeFilter}
           onEventTypeFilterChange={(value) => {
             cal.setEventTypeFilter(
-              value as '' | 'due_date' | 'launch' | 'meeting' | 'milestone',
+              value as '' | 'launch' | 'meeting' | 'milestone',
             );
           }}
           onDeleteEvent={cal.deleteEvent}
+          onEventClick={
+            isProjectCalendar
+              ? (event) => {
+                  void openProjectEventModal(event.id, event);
+                }
+              : undefined
+          }
           onUpdateTicket={cal.updateTicket}
           onDeleteTicket={cal.deleteTicket}
           onTicketClick={(ticket) => {
@@ -245,13 +277,19 @@ export default function Calendar({ projectId }: CalendarProps) {
             router.push(ticketDetailUrl);
           }}
           onAddEvent={() => {
+            if (isProjectCalendar && !canAddEvent) {
+              return;
+            }
+
             setEditingEvent(null);
+            setIsReadOnlyEventModal(false);
             setModal('event');
           }}
           onAddTicket={() => setModal('ticket')}
-          showAddEventAction={isProjectCalendar}
+          showAddEventAction={isProjectCalendar && canAddEvent}
           showAddTicketAction={!isProjectCalendar}
           showTicketsSection
+          canDeleteEvent={!isProjectCalendar || canEditEvent}
         />
       </div>
 
@@ -263,12 +301,14 @@ export default function Calendar({ projectId }: CalendarProps) {
           onClose={() => {
             setModal(null);
             setEditingEvent(null);
+            setIsReadOnlyEventModal(false);
           }}
           onAddEvent={cal.addEvent}
           onAddTicket={cal.addTicket}
           initialEvent={editingEvent}
           onUpdateEvent={cal.updateCalendarEvent}
           onDeleteEvent={cal.deleteEvent}
+          readOnly={isReadOnlyEventModal}
         />
       ) : null}
     </div>

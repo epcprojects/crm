@@ -37,6 +37,7 @@ interface AddModalProps {
   mode: ModalMode;
   selectedDate: string | null;
   isProjectCalendar?: boolean;
+  readOnly?: boolean;
   onClose: () => void;
   onAddEvent: (event: Omit<CalendarEvent, 'id'>) => Promise<unknown> | unknown;
   onAddTicket: (
@@ -54,6 +55,7 @@ export default function AddModal({
   mode,
   selectedDate,
   isProjectCalendar = false,
+  readOnly = false,
   onClose,
   onAddEvent,
   onAddTicket,
@@ -132,6 +134,10 @@ export default function AddModal({
       return;
     }
 
+    if (readOnly) {
+      return;
+    }
+
     if (mode === 'event' && !validateEventForm()) {
       return;
     }
@@ -207,20 +213,24 @@ export default function AddModal({
         isOpen
         onClose={isSubmitting ? () => undefined : onClose}
         title={
-          mode === 'event'
-            ? isEditingEvent
-              ? 'Edit Event'
-              : 'Add Event'
-            : 'Add Ticket'
+          readOnly && mode === 'event'
+            ? 'View Event'
+            : mode === 'event'
+              ? isEditingEvent
+                ? 'Edit Event'
+                : 'Add Event'
+              : 'Add Ticket'
         }
         subtitle={
-          mode === 'event'
-            ? isEditingEvent
-              ? 'Update the selected calendar event.'
-              : 'Add a calendar event for the selected date.'
-            : 'Add a ticket with date, priority, and status.'
+          readOnly && mode === 'event'
+            ? ''
+            : mode === 'event'
+              ? isEditingEvent
+                ? 'Update the selected calendar event.'
+                : 'Add a calendar event for the selected date.'
+              : 'Add a ticket with date, priority, and status.'
         }
-        showFooter
+        showFooter={!readOnly}
         onCancel={onClose}
         onConfirm={() => {
           void handleSubmit();
@@ -248,25 +258,38 @@ export default function AddModal({
       >
         <div className="space-y-4 p-4 md:p-6">
           <div>
-            <FieldLabel label="Title" required />
-            <input
-              type="text"
-              value={title}
-              onChange={(event) => {
-                setTitle(event.target.value);
-                setEventErrors((current) => ({ ...current, title: undefined }));
-              }}
-              placeholder={
-                mode === 'event' ? 'Sprint planning' : 'Ticket summary'
-              }
-              className={`h-11 w-full rounded-lg border px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400 ${
-                eventErrors.title ? 'border-red-300' : 'border-gray-200'
-              }`}
-              autoFocus
-            />
-            {mode === 'event' && eventErrors.title ? (
-              <p className="mt-1 text-xs text-red-600">{eventErrors.title}</p>
-            ) : null}
+            <FieldLabel label="Title" required={!readOnly} />
+            {readOnly ? (
+              <FieldValue value={title} />
+            ) : (
+              <>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(event) => {
+                    setTitle(event.target.value);
+                    setEventErrors((current) => ({
+                      ...current,
+                      title: undefined,
+                    }));
+                  }}
+                  disabled={readOnly}
+                  readOnly={readOnly}
+                  placeholder={
+                    mode === 'event' ? 'Sprint planning' : 'Ticket summary'
+                  }
+                  className={`h-11 w-full rounded-lg border px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400 ${
+                    eventErrors.title ? 'border-red-300' : 'border-gray-200'
+                  }`}
+                  autoFocus
+                />
+                {mode === 'event' && eventErrors.title ? (
+                  <p className="mt-1 text-xs text-red-600">
+                    {eventErrors.title}
+                  </p>
+                ) : null}
+              </>
+            )}
           </div>
 
           {mode === 'event' ? (
@@ -274,137 +297,166 @@ export default function AddModal({
               {isProjectCalendar ? (
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <FieldLabel label="Date" required />
-                    <input
-                      type="date"
-                      value={date}
-                      onChange={(event) => {
-                        setDate(event.target.value);
-                        setEventErrors((current) => ({
-                          ...current,
-                          date: undefined,
-                        }));
-                      }}
-                      className={`h-11 w-full rounded-lg border px-3 text-sm text-gray-900 outline-none ${
-                        eventErrors.date ? 'border-red-300' : 'border-gray-200'
-                      }`}
-                    />
-                    {eventErrors.date ? (
-                      <p className="mt-1 text-xs text-red-600">
-                        {eventErrors.date}
-                      </p>
-                    ) : null}
+                    <FieldLabel label="Date" required={!readOnly} />
+                    {readOnly ? (
+                      <FieldValue value={date} />
+                    ) : (
+                      <>
+                        <input
+                          type="date"
+                          value={date}
+                          onChange={(event) => {
+                            setDate(event.target.value);
+                            setEventErrors((current) => ({
+                              ...current,
+                              date: undefined,
+                            }));
+                          }}
+                          disabled={readOnly}
+                          readOnly={readOnly}
+                          className={`h-11 w-full rounded-lg border px-3 text-sm text-gray-900 outline-none ${
+                            eventErrors.date
+                              ? 'border-red-300'
+                              : 'border-gray-200'
+                          }`}
+                        />
+                        {eventErrors.date ? (
+                          <p className="mt-1 text-xs text-red-600">
+                            {eventErrors.date}
+                          </p>
+                        ) : null}
+                      </>
+                    )}
                   </div>
                   <div>
-                    <FieldLabel label="Event Type" required />
-                    <Dropdown
-                      value={eventType}
-                      options={[...PROJECT_EVENT_TYPE_OPTIONS]}
-                      placeholder="Select event type"
-                      error={Boolean(eventErrors.eventType)}
-                      errorMessage={eventErrors.eventType}
-                      onChange={(value) => {
-                        const nextType = value as ProjectEventTypeOptionValue;
-                        setEventType(nextType);
-                        setEventErrors((current) => ({
-                          ...current,
-                          eventType: undefined,
-                        }));
-                        setColorHex((currentColor) =>
-                          currentColor === '#17B26A' ||
-                          currentColor ===
-                            PROJECT_EVENT_TYPE_COLORS[
-                              eventType as ProjectEventTypeOptionValue
-                            ]
-                            ? PROJECT_EVENT_TYPE_COLORS[nextType]
-                            : currentColor,
-                        );
-                      }}
-                    />
+                    <FieldLabel label="Event Type" required={!readOnly} />
+                    {readOnly ? (
+                      <FieldValue
+                        value={
+                          PROJECT_EVENT_TYPE_OPTIONS.find(
+                            (option) => option.value === eventType,
+                          )?.label ?? eventType
+                        }
+                      />
+                    ) : (
+                      <Dropdown
+                        value={eventType}
+                        options={[...PROJECT_EVENT_TYPE_OPTIONS]}
+                        placeholder="Select event type"
+                        error={Boolean(eventErrors.eventType)}
+                        errorMessage={eventErrors.eventType}
+                        disabled={readOnly}
+                        onChange={(value) => {
+                          const nextType = value as ProjectEventTypeOptionValue;
+                          setEventType(nextType);
+                          setEventErrors((current) => ({
+                            ...current,
+                            eventType: undefined,
+                          }));
+                          setColorHex((currentColor) =>
+                            currentColor === '#17B26A' ||
+                            currentColor ===
+                              PROJECT_EVENT_TYPE_COLORS[
+                                eventType as ProjectEventTypeOptionValue
+                              ]
+                              ? PROJECT_EVENT_TYPE_COLORS[nextType]
+                              : currentColor,
+                          );
+                        }}
+                      />
+                    )}
                   </div>
                 </div>
               ) : null}
 
               {isProjectCalendar ? (
                 <div className="space-y-2">
-                  <FieldLabel label="Color" />
+                  {!readOnly && <FieldLabel label="Color" />}
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    {configColors.map((color) => {
-                      const isSelected =
-                        colorHex.toLowerCase() === color.toLowerCase();
+                  {readOnly ? null : (
+                    <>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {configColors.map((color) => {
+                          const isSelected =
+                            colorHex.toLowerCase() === color.toLowerCase();
 
-                      return (
-                        <button
-                          key={color}
-                          type="button"
-                          onClick={() => {
-                            setColorHex(color);
+                          return (
+                            <button
+                              key={color}
+                              type="button"
+                              onClick={() => {
+                                setColorHex(color);
+                                setEventErrors((current) => ({
+                                  ...current,
+                                  colorHex: undefined,
+                                }));
+                              }}
+                              disabled={readOnly}
+                              className={`flex h-7 w-7 items-center justify-center rounded-full border-2 transition ${
+                                isSelected
+                                  ? 'border-white ring-2'
+                                  : 'border-transparent'
+                              }`}
+                              style={
+                                isSelected
+                                  ? { boxShadow: `0 0 0 2px ${color}` }
+                                  : undefined
+                              }
+                              aria-label={`Select color ${color}`}
+                            >
+                              <span
+                                className="h-6.5 min-w-6.5 rounded-full"
+                                style={{ backgroundColor: color }}
+                              />
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="flex items-center gap-2 bg-white">
+                        <input
+                          ref={colorInputRef}
+                          type="color"
+                          value={colorHex}
+                          onChange={(event) => {
+                            setColorHex(event.target.value);
                             setEventErrors((current) => ({
                               ...current,
                               colorHex: undefined,
                             }));
                           }}
-                          className={`flex h-7 w-7 items-center justify-center rounded-full border-2 transition ${
-                            isSelected
-                              ? 'border-white ring-2'
-                              : 'border-transparent'
-                          }`}
-                          style={
-                            isSelected
-                              ? { boxShadow: `0 0 0 2px ${color}` }
-                              : undefined
-                          }
-                          aria-label={`Select color ${color}`}
-                        >
-                          <span
-                            className="h-6.5 min-w-6.5 rounded-full"
-                            style={{ backgroundColor: color }}
+                          className="sr-only"
+                          tabIndex={-1}
+                          aria-hidden="true"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => colorInputRef.current?.click()}
+                          disabled={readOnly}
+                          className="h-7 min-w-7 shrink-0 rounded-full"
+                          style={{ backgroundColor: colorHex }}
+                          aria-label="Open color picker"
+                        />
+                        <div className="w-full rounded-lg border border-gray-200 px-3">
+                          <input
+                            name="colorHex"
+                            value={colorHex}
+                            onChange={(event) => {
+                              setColorHex(event.target.value);
+                              setEventErrors((current) => ({
+                                ...current,
+                                colorHex: undefined,
+                              }));
+                            }}
+                            disabled={readOnly}
+                            readOnly={readOnly}
+                            placeholder="#17B26A"
+                            className="h-10.5 w-full bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400"
                           />
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div className="flex items-center gap-2 bg-white">
-                    <input
-                      ref={colorInputRef}
-                      type="color"
-                      value={colorHex}
-                      onChange={(event) => {
-                        setColorHex(event.target.value);
-                        setEventErrors((current) => ({
-                          ...current,
-                          colorHex: undefined,
-                        }));
-                      }}
-                      className="sr-only"
-                      tabIndex={-1}
-                      aria-hidden="true"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => colorInputRef.current?.click()}
-                      className="h-7 min-w-7 shrink-0 rounded-full"
-                      style={{ backgroundColor: colorHex }}
-                      aria-label="Open color picker"
-                    />
-                    <div className="w-full rounded-lg border border-gray-200 px-3">
-                      <input
-                        name="colorHex"
-                        value={colorHex}
-                        onChange={(event) => {
-                          setColorHex(event.target.value);
-                          setEventErrors((current) => ({
-                            ...current,
-                            colorHex: undefined,
-                          }));
-                        }}
-                        placeholder="#17B26A"
-                        className="h-10.5 w-full bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400"
-                      />
-                    </div>
-                  </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
                   {eventErrors.colorHex ? (
                     <p className="text-xs text-red-600">
                       {eventErrors.colorHex}
@@ -416,38 +468,56 @@ export default function AddModal({
               {!isProjectCalendar ? (
                 <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_160px]">
                   <div>
-                    <FieldLabel label="Date" required />
-                    <input
-                      type="date"
-                      value={date}
-                      onChange={(event) => {
-                        setDate(event.target.value);
-                        setEventErrors((current) => ({
-                          ...current,
-                          date: undefined,
-                        }));
-                      }}
-                      className={`h-11 w-full rounded-lg border px-3 text-sm text-gray-900 outline-none ${
-                        eventErrors.date ? 'border-red-300' : 'border-gray-200'
-                      }`}
-                    />
-                    {eventErrors.date ? (
-                      <p className="mt-1 text-xs text-red-600">
-                        {eventErrors.date}
-                      </p>
-                    ) : null}
+                    <FieldLabel label="Date" required={!readOnly} />
+                    {readOnly ? (
+                      <FieldValue value={date} />
+                    ) : (
+                      <>
+                        <input
+                          type="date"
+                          value={date}
+                          onChange={(event) => {
+                            setDate(event.target.value);
+                            setEventErrors((current) => ({
+                              ...current,
+                              date: undefined,
+                            }));
+                          }}
+                          disabled={readOnly}
+                          readOnly={readOnly}
+                          className={`h-11 w-full rounded-lg border px-3 text-sm text-gray-900 outline-none ${
+                            eventErrors.date
+                              ? 'border-red-300'
+                              : 'border-gray-200'
+                          }`}
+                        />
+                        {eventErrors.date ? (
+                          <p className="mt-1 text-xs text-red-600">
+                            {eventErrors.date}
+                          </p>
+                        ) : null}
+                      </>
+                    )}
                   </div>
 
                   <div className="flex items-end">
-                    <label className="inline-flex h-11 items-center gap-2 rounded-lg border border-gray-200 px-3 text-sm text-gray-700">
-                      <input
-                        type="checkbox"
-                        checked={allDay}
-                        onChange={(event) => setAllDay(event.target.checked)}
-                        className="h-4 w-4 rounded border border-gray-300"
-                      />
-                      All day
-                    </label>
+                    {readOnly ? (
+                      <div className="w-full">
+                        <FieldLabel label="All Day" />
+                        <FieldValue value={allDay ? 'Yes' : 'No'} />
+                      </div>
+                    ) : (
+                      <label className="inline-flex h-11 items-center gap-2 rounded-lg border border-gray-200 px-3 text-sm text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked={allDay}
+                          onChange={(event) => setAllDay(event.target.checked)}
+                          disabled={readOnly}
+                          className="h-4 w-4 rounded border border-gray-300"
+                        />
+                        All day
+                      </label>
+                    )}
                   </div>
                 </div>
               ) : null}
@@ -456,22 +526,34 @@ export default function AddModal({
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <FieldLabel label="Start Time" />
-                    <input
-                      type="time"
-                      value={startTime}
-                      onChange={(event) => setStartTime(event.target.value)}
-                      className="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm text-gray-900 outline-none"
-                    />
+                    {readOnly ? (
+                      <FieldValue value={startTime} />
+                    ) : (
+                      <input
+                        type="time"
+                        value={startTime}
+                        onChange={(event) => setStartTime(event.target.value)}
+                        disabled={readOnly}
+                        readOnly={readOnly}
+                        className="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm text-gray-900 outline-none"
+                      />
+                    )}
                   </div>
 
                   <div>
                     <FieldLabel label="End Time" />
-                    <input
-                      type="time"
-                      value={endTime}
-                      onChange={(event) => setEndTime(event.target.value)}
-                      className="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm text-gray-900 outline-none"
-                    />
+                    {readOnly ? (
+                      <FieldValue value={endTime} />
+                    ) : (
+                      <input
+                        type="time"
+                        value={endTime}
+                        onChange={(event) => setEndTime(event.target.value)}
+                        disabled={readOnly}
+                        readOnly={readOnly}
+                        className="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm text-gray-900 outline-none"
+                      />
+                    )}
                   </div>
                 </div>
               ) : null}
@@ -479,13 +561,19 @@ export default function AddModal({
               {!isProjectCalendar ? (
                 <div>
                   <FieldLabel label="Location" />
-                  <input
-                    type="text"
-                    value={location}
-                    onChange={(event) => setLocation(event.target.value)}
-                    placeholder="Optional location"
-                    className="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
-                  />
+                  {readOnly ? (
+                    <FieldValue value={location} />
+                  ) : (
+                    <input
+                      type="text"
+                      value={location}
+                      onChange={(event) => setLocation(event.target.value)}
+                      disabled={readOnly}
+                      readOnly={readOnly}
+                      placeholder="Optional location"
+                      className="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
+                    />
+                  )}
                 </div>
               ) : null}
             </>
@@ -550,13 +638,22 @@ export default function AddModal({
 
           <div>
             <FieldLabel label="Description" />
-            <textarea
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder="Optional description"
-              rows={4}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-900 outline-none placeholder:text-gray-400"
-            />
+            {readOnly ? (
+              <FieldValue
+                value={description}
+                className="min-h-28 whitespace-pre-wrap"
+              />
+            ) : (
+              <textarea
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                disabled={readOnly}
+                readOnly={readOnly}
+                placeholder="Optional description"
+                rows={4}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-900 outline-none placeholder:text-gray-400"
+              />
+            )}
           </div>
 
           {/* {isEditingEvent && onDeleteEvent ? (
@@ -605,5 +702,21 @@ function FieldLabel({
       {label}
       {required ? <span className="text-red-500"> *</span> : null}
     </label>
+  );
+}
+
+function FieldValue({
+  value,
+  className = '',
+}: {
+  value: string;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`min-h-11 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 ${className}`}
+    >
+      {value || '—'}
+    </div>
   );
 }

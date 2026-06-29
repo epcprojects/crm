@@ -8,9 +8,7 @@ import { useDashboardHeaderAction } from '../../../components/dashboard/dashboar
 import CreateTicketModal, {
   type CreateTicketFormValues,
 } from '../../../components/modals/CreateTicketModal';
-import {
-  createTicketProjectOptions,
-} from '../../../components/modals/create-ticket-modal.data';
+import { createTicketProjectOptions } from '../../../components/modals/create-ticket-modal.data';
 import RecentTicketsTable, {
   type TicketSortState,
   type RecentTicket,
@@ -115,8 +113,7 @@ export default function Page() {
     [projectsQuery.data],
   );
   const sortedTickets = useMemo(
-    () =>
-      sortTicketsLocally(ticketsQuery.data?.items ?? [], sortState),
+    () => sortTicketsLocally(ticketsQuery.data?.items ?? [], sortState),
     [sortState, ticketsQuery.data?.items],
   );
 
@@ -226,6 +223,14 @@ export default function Page() {
               </div>
 
               <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                <div className="w-full md:w-44">
+                  <Dropdown
+                    options={projectFilterOptions}
+                    value={selectedProject}
+                    onChange={setSelectedProject}
+                    placeholder="All Projects"
+                  />
+                </div>
                 <div className="w-full md:w-38">
                   <Dropdown
                     options={statusFilterOptions}
@@ -242,31 +247,23 @@ export default function Page() {
                     placeholder="All Priority"
                   />
                 </div>
-                <div className="w-full md:w-44">
-                  <Dropdown
-                    options={projectFilterOptions}
-                    value={selectedProject}
-                    onChange={setSelectedProject}
-                    placeholder="All Projects"
-                  />
-                </div>
               </div>
             </>
           ) : null}
         </div>
 
         <RecentTicketsTable
-            tickets={sortedTickets}
+          tickets={sortedTickets}
           enablePagination
           initialPageSize={10}
           pageSizeOptions={[10, 25, 50, 100]}
           pagination={pagination}
           onPaginationChange={setPagination}
-            totalRows={ticketsQuery.data?.meta.total ?? 0}
-            manualPagination
-            sortState={sortState}
-            onSortChange={handleSortChange}
-            onRowClick={
+          totalRows={ticketsQuery.data?.meta.total ?? 0}
+          manualPagination
+          sortState={sortState}
+          onSortChange={handleSortChange}
+          onRowClick={
             canViewTicketDetail
               ? (ticket) =>
                   router.push(
