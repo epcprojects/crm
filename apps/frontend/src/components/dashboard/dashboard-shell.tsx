@@ -31,6 +31,7 @@ import {
 import { useProjectsQuery } from '../../app/(main-pages)/projects/projects.queries';
 import { useAppLoader } from '../../app/providers/AppLoaderProvider';
 import { usePermissions } from '../../app/providers/PermissionProvider';
+import { queryClient } from '../../app/providers/QueryProvider';
 import { Images } from '../../app/ui/images';
 import ChangePasswordModal, {
   type ChangePasswordFormValues,
@@ -434,6 +435,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
     try {
       await dispatch(logoutThunk());
+      queryClient.clear();
       await clearPersistedSession();
       router.replace('/login');
     } finally {

@@ -8,7 +8,7 @@ import {
 } from '@tanstack/react-query';
 import React from 'react';
 
-const queryClient = new QueryClient({
+export const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error, query) => {
       console.error('Query error:', query.queryKey, error);
