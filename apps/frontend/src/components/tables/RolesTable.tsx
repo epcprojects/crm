@@ -42,6 +42,80 @@ type RolesTableProps = {
   onDelete?: (role: RoleRecord) => void;
 };
 
+type RolesActionProps = Pick<
+  RolesTableProps,
+  'currentUserRoles' | 'onViewClaims' | 'onEdit' | 'onDelete'
+>;
+
+function renderRoleActions(
+  role: RoleRecord,
+  {
+    currentUserRoles = [],
+    onViewClaims,
+    onEdit,
+    onDelete,
+  }: RolesActionProps,
+) {
+  const currentUserRoleSet = new Set(
+    currentUserRoles.map(getNormalizedUserRole).filter(Boolean),
+  );
+  const isProtectedRole = ['SUPER_ADMIN'].includes(role.normalizedName);
+  const hasCurrentUserRole = currentUserRoleSet.has(
+    normalizeRoleValue(role.normalizedName),
+  );
+  const canEdit = Boolean(onEdit);
+  const canDelete = Boolean(onDelete);
+  const shouldHideMutations = isProtectedRole || hasCurrentUserRole;
+
+  return (
+    <div className="flex w-fit items-end justify-end gap-3">
+      <Tooltip hide={role.roleClaims.length < 1} content="" heading="View Claims">
+        <button
+          type="button"
+          disabled={role.roleClaims.length < 1}
+          onClick={() => onViewClaims?.(role)}
+          className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-gray-200 text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+          aria-label={`View ${role.name} role claims`}
+        >
+          <EyeOpenedIcon fill="currentColor" />
+        </button>
+      </Tooltip>
+
+      {canEdit && !shouldHideMutations ? (
+        <Tooltip hide={shouldHideMutations} content="" heading="Edit Role">
+          <button
+            type="button"
+            disabled={shouldHideMutations}
+            onClick={() => {
+              if (!shouldHideMutations) onEdit?.(role);
+            }}
+            className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-gray-200 text-primary-dark transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+            aria-label={`Edit ${role.name}`}
+          >
+            <EditIcon />
+          </button>
+        </Tooltip>
+      ) : null}
+
+      {canDelete && !shouldHideMutations ? (
+        <Tooltip hide={shouldHideMutations} content="" heading="Delete Role">
+          <button
+            type="button"
+            onClick={() => {
+              if (!shouldHideMutations) onDelete?.(role);
+            }}
+            disabled={shouldHideMutations}
+            className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-red-500 text-red-500 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+            aria-label={`Delete ${role.name}`}
+          >
+            <TrashIcon />
+          </button>
+        </Tooltip>
+      ) : null}
+    </div>
+  );
+}
+
 function getColumns({
   currentUserRoles = [],
   onViewClaims,
@@ -51,20 +125,7 @@ function getColumns({
   RolesTableProps,
   'currentUserRoles' | 'onViewClaims' | 'onEdit' | 'onDelete'
 >): ColumnDef<RoleRecord>[] {
-  const currentUserRoleSet = new Set(
-    currentUserRoles.map(getNormalizedUserRole).filter(Boolean),
-  );
-
   return [
-    // {
-    //   accessorKey: 'id',
-    //   header: '#',
-    //   cell: ({ row }) => (
-    //     <span className="text-sm font-semibold text-gray-900">
-    //       {row.original.id.slice(-5)}
-    //     </span>
-    //   ),
-    // },
     {
       accessorKey: 'normalizedName',
       header: 'Role Name',
@@ -78,9 +139,7 @@ function getColumns({
       accessorKey: 'description',
       header: 'Description',
       cell: ({ row }) => (
-        <span className="text-sm text-gray-800">
-          {row.original.description}
-        </span>
+        <span className="text-sm text-gray-800">{row.original.description}</span>
       ),
     },
     {
@@ -95,80 +154,13 @@ function getColumns({
     {
       id: 'actions',
       header: 'Actions',
-      cell: ({ row }) => {
-        const isProtectedRole = ['SUPER_ADMIN'].includes(
-          row.original.normalizedName,
-        );
-        const hasCurrentUserRole = currentUserRoleSet.has(
-          normalizeRoleValue(row.original.normalizedName),
-        );
-        const canEdit = Boolean(onEdit);
-        const canDelete = Boolean(onDelete);
-        const shouldHideMutations = isProtectedRole || hasCurrentUserRole;
-
-        // eslint-disable-next-line no-constant-condition, no-constant-binary-expression
-        if (false && isProtectedRole) {
-          return <span className="text-sm text-gray-400">—</span>;
-        }
-
-        return (
-          <div className="flex items-end  gap-3  w-fit justify-end">
-            <Tooltip
-              hide={row.original.roleClaims.length < 1}
-              content=""
-              heading="View Claims"
-            >
-              <button
-                type="button"
-                disabled={row.original.roleClaims.length < 1}
-                onClick={() => onViewClaims?.(row.original)}
-                className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-gray-200 text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-                aria-label={`View ${row.original.name} role claims`}
-              >
-                <EyeOpenedIcon fill="currentColor" />
-              </button>
-            </Tooltip>
-            {canEdit && !shouldHideMutations && (
-              <Tooltip
-                hide={shouldHideMutations}
-                content=""
-                heading="Edit Role"
-              >
-                <button
-                  type="button"
-                  disabled={shouldHideMutations}
-                  onClick={() => {
-                    if (!shouldHideMutations) onEdit?.(row.original);
-                  }}
-                  className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-gray-200 text-primary-dark transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-                  aria-label={`Edit ${row.original.name}`}
-                >
-                  <EditIcon />
-                </button>
-              </Tooltip>
-            )}
-            {canDelete && !shouldHideMutations && (
-              <Tooltip
-                hide={shouldHideMutations}
-                content=""
-                heading="Delete Role"
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!shouldHideMutations) onDelete?.(row.original);
-                  }}
-                  disabled={shouldHideMutations}
-                  className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-red-500 text-red-500 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
-                  aria-label={`Delete ${row.original.name}`}
-                >
-                  <TrashIcon />
-                </button>
-              </Tooltip>
-            )}
-          </div>
-        );
-      },
+      cell: ({ row }) =>
+        renderRoleActions(row.original, {
+          currentUserRoles,
+          onViewClaims,
+          onEdit,
+          onDelete,
+        }),
     },
   ];
 }
@@ -215,7 +207,64 @@ export default function RolesTable({
 
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-      <div className="overflow-x-auto">
+      <div className="space-y-3 p-3 md:hidden">
+        {table.getRowModel().rows.length ? (
+          table.getRowModel().rows.map((row) => {
+            const role = row.original;
+
+            return (
+              <article
+                key={row.id}
+                className="rounded-xl border border-gray-200 bg-white p-4"
+              >
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Role Name
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-gray-900">
+                      {role.normalizedName}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Description
+                    </p>
+                    <p className="mt-1 text-sm text-gray-700">
+                      {role.description || 'No description'}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                        Permissions
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-gray-900">
+                        {role.roleClaims.length}
+                      </p>
+                    </div>
+
+                    {renderRoleActions(role, {
+                      currentUserRoles,
+                      onViewClaims,
+                      onEdit,
+                      onDelete,
+                    })}
+                  </div>
+                </div>
+              </article>
+            );
+          })
+        ) : (
+          <div className="px-4 py-8 text-center text-sm text-gray-500">
+            No roles found.
+          </div>
+        )}
+      </div>
+
+      <div className="hidden overflow-x-auto md:block">
         <table className="w-full min-w-215 text-left">
           <thead className="bg-gray-50">
             {table.getHeaderGroups().map((headerGroup) => (
@@ -267,9 +316,9 @@ export default function RolesTable({
         </table>
       </div>
 
-      <div className="flex justify-between sm:flex-col gap-3 border-t border-gray-200 px-4 py-3 md:flex-row md:items-center md:justify-between">
+      <div className="flex justify-between gap-3 border-t border-gray-200 px-4 py-3 sm:flex-col md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2 text-sm text-gray-600">
-          <span className="sm:inline-block hidden">Showing per page</span>
+          <span className="hidden sm:inline-block">Showing per page</span>
           <select
             value={pagination.pageSize}
             onChange={(event) => table.setPageSize(Number(event.target.value))}
@@ -284,7 +333,7 @@ export default function RolesTable({
         </div>
 
         <div className="flex flex-col gap-3 text-sm text-gray-600 md:flex-row md:items-center">
-          <span className="sm:inline-block hidden">
+          <span className="hidden sm:inline-block">
             {startRow}-{endRow} of {totalRows}
           </span>
 
@@ -376,7 +425,7 @@ export function RolesTableSkeleton() {
       className="overflow-hidden rounded-xl border border-gray-200 bg-white"
       aria-hidden="true"
     >
-      <div className="overflow-x-auto">
+      <div className="hidden overflow-x-auto md:block">
         <table className="w-full min-w-215 text-left">
           <thead className="bg-gray-50">
             <tr>
@@ -416,6 +465,29 @@ export function RolesTableSkeleton() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className="space-y-3 p-3 md:hidden">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div
+            key={index}
+            className="rounded-xl border border-gray-200 bg-white p-4"
+          >
+            <div className="space-y-3">
+              <div className="h-3 w-20 animate-pulse rounded bg-gray-100" />
+              <div className="h-4 w-32 animate-pulse rounded bg-gray-100" />
+              <div className="h-3 w-24 animate-pulse rounded bg-gray-100" />
+              <div className="h-4 w-full animate-pulse rounded bg-gray-100" />
+              <div className="flex items-center justify-between">
+                <div className="h-4 w-12 animate-pulse rounded bg-gray-100" />
+                <div className="flex gap-3">
+                  <div className="h-8.5 w-8.5 animate-pulse rounded-lg bg-gray-100" />
+                  <div className="h-8.5 w-8.5 animate-pulse rounded-lg bg-gray-100" />
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
       <div className="flex justify-between gap-3 border-t border-gray-200 px-4 py-3 sm:flex-col md:flex-row md:items-center md:justify-between">
