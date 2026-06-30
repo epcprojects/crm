@@ -390,7 +390,7 @@ export default function Page() {
               </div>
 
               <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                <div className="flex items-center rounded-lg border border-gray-200 bg-white ">
+                <div className="hidden items-center rounded-lg border border-gray-200 bg-white ">
                   <button
                     type="button"
                     onClick={() => setViewMode('table')}
