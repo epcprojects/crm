@@ -232,6 +232,50 @@ function getAccountInitials(name: string) {
   return getProjectInitials(name).slice(0, 2) || 'A';
 }
 
+function SidebarNavSkeleton({ collapsed }: { collapsed: boolean }) {
+  return (
+    <div className={`space-y-1.5 ${collapsed ? 'w-fit' : ''}`}>
+      {Array.from({ length: 5 }).map((_, index) => (
+        <div
+          key={`nav-skeleton-${index}`}
+          className={`flex items-center rounded-lg px-3 py-2 ${
+            collapsed ? 'justify-center lg:px-0 w-10' : 'gap-2'
+          }`}
+        >
+          <span className="h-9 w-9 shrink-0 animate-pulse rounded-xl bg-gray-200" />
+          <span
+            className={`h-4 animate-pulse rounded-full bg-gray-200 transition-all duration-300 ${
+              collapsed ? 'w-0 overflow-hidden opacity-0' : 'w-24 opacity-100'
+            }`}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SidebarProjectsSkeleton({ collapsed }: { collapsed: boolean }) {
+  return (
+    <div className="space-y-1.5">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div
+          key={`project-skeleton-${index}`}
+          className={`flex w-full items-center rounded-lg border border-transparent py-1.25 px-3 ${
+            collapsed ? 'justify-center lg:px-0' : 'gap-2'
+          }`}
+        >
+          <span className="h-7.5 w-7.5 shrink-0 animate-pulse rounded-full bg-gray-200" />
+          <span
+            className={`h-4 animate-pulse rounded-full bg-gray-200 transition-all duration-300 ${
+              collapsed ? 'w-0 overflow-hidden opacity-0' : 'w-28 opacity-100'
+            }`}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function DashboardShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -423,6 +467,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   const sidebarWidth = collapsed ? 'lg:w-18' : 'lg:w-60';
   const contentOffset = collapsed ? 'lg:pl-18' : 'lg:pl-60';
+  const isSidebarProjectsLoading =
+    (canViewProjectsList || canViewProjectDetail) && projectsQuery.isLoading;
+  const isSidebarLoading = isLoadingCatalog || isSidebarProjectsLoading;
   const shouldShowNoAccessPage =
     !isLoggingOut &&
     isAuthenticated &&
@@ -513,44 +560,48 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               >
                 Main Menu
               </p>
-              <nav className={`space-y-1.5 ${collapsed ? 'w-fit' : ''}`}>
-                {visibleNavigationItems.map((item) => {
-                  const isActive = pathname === item.href;
+              {isSidebarLoading ? (
+                <SidebarNavSkeleton collapsed={collapsed} />
+              ) : (
+                <nav className={`space-y-1.5 ${collapsed ? 'w-fit' : ''}`}>
+                  {visibleNavigationItems.map((item) => {
+                    const isActive = pathname === item.href;
 
-                  return (
-                    <Link
-                      key={item.href}
-                      className={`group flex items-center rounded-lg px-3 py-2 text-sm  transition-all duration-200 ${
-                        isActive
-                          ? 'bg-white text-black shadow ring-1 ring-gray-200 font-medium'
-                          : 'text-gray-500 hover:bg-slate-50 hover:text-black font-normal'
-                      } ${collapsed ? 'justify-center lg:px-0 w-10 items-center' : 'gap-2'}`}
-                      href={item.href}
-                      onClick={() => setMobileOpen(false)}
-                      title={collapsed ? item.label : undefined}
-                    >
-                      <span
-                        className={`flex items-center justify-center rounded-xl transition ${
+                    return (
+                      <Link
+                        key={item.href}
+                        className={`group flex items-center rounded-lg px-3 py-2 text-sm  transition-all duration-200 ${
                           isActive
-                            ? 'bg-white text-violet-600'
-                            : 'bg-slate-100 text-gray-500 group-hover:bg-white group-hover:text-slate-700'
-                        }`}
+                            ? 'bg-white text-black shadow ring-1 ring-gray-200 font-medium'
+                            : 'text-gray-500 hover:bg-slate-50 hover:text-black font-normal'
+                        } ${collapsed ? 'justify-center lg:px-0 w-10 items-center' : 'gap-2'}`}
+                        href={item.href}
+                        onClick={() => setMobileOpen(false)}
+                        title={collapsed ? item.label : undefined}
                       >
-                        {item.icon(isActive)}
-                      </span>
-                      <span
-                        className={`whitespace-nowrap transition-all duration-300 ${
-                          collapsed
-                            ? 'w-0 overflow-hidden opacity-0'
-                            : 'opacity-100'
-                        }`}
-                      >
-                        {item.label}
-                      </span>
-                    </Link>
-                  );
-                })}
-              </nav>
+                        <span
+                          className={`flex items-center justify-center rounded-xl transition ${
+                            isActive
+                              ? 'bg-white text-violet-600'
+                              : 'bg-slate-100 text-gray-500 group-hover:bg-white group-hover:text-slate-700'
+                          }`}
+                        >
+                          {item.icon(isActive)}
+                        </span>
+                        <span
+                          className={`whitespace-nowrap transition-all duration-300 ${
+                            collapsed
+                              ? 'w-0 overflow-hidden opacity-0'
+                              : 'opacity-100'
+                          }`}
+                        >
+                          {item.label}
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </nav>
+              )}
             </div>
 
             {canViewProjectsList ? (
@@ -564,71 +615,75 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                 >
                   Projects
                 </p>
-                <div className="space-y-1.5">
-                  {sidebarProjects.map((project) => {
-                    const projectHref = `/projects/${project.id}`;
-                    const isProjectActive = pathname === projectHref;
-                    const projectContent = (
-                      <>
-                        <span
-                          className="flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-xs font-normal drop-shadow-xs"
-                          style={{
-                            color: !isProjectActive
-                              ? (project.colorHex ?? '#6172F3')
-                              : '#ffffff',
-                            backgroundColor: isProjectActive
-                              ? (project.colorHex ?? '#6172F3')
-                              : '',
-                            borderColor: project.colorHex
-                              ? `${project.colorHex}33`
-                              : undefined,
-                          }}
-                        >
-                          {project.initials}
-                        </span>
-                        <span
-                          className={`truncate text-sm transition-all duration-300 ${
-                            isProjectActive
-                              ? 'font-medium text-gray-900'
-                              : 'font-normal text-gray-600'
-                          } ${
-                            collapsed
-                              ? 'w-0 overflow-hidden opacity-0'
-                              : 'opacity-100'
-                          }`}
-                        >
-                          {project.name}
-                        </span>
-                      </>
-                    );
+                {isSidebarProjectsLoading ? (
+                  <SidebarProjectsSkeleton collapsed={collapsed} />
+                ) : (
+                  <div className="space-y-1.5">
+                    {sidebarProjects.map((project) => {
+                      const projectHref = `/projects/${project.id}`;
+                      const isProjectActive = pathname === projectHref;
+                      const projectContent = (
+                        <>
+                          <span
+                            className="flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-xs font-normal drop-shadow-xs"
+                            style={{
+                              color: !isProjectActive
+                                ? (project.colorHex ?? '#6172F3')
+                                : '#ffffff',
+                              backgroundColor: isProjectActive
+                                ? (project.colorHex ?? '#6172F3')
+                                : '',
+                              borderColor: project.colorHex
+                                ? `${project.colorHex}33`
+                                : undefined,
+                            }}
+                          >
+                            {project.initials}
+                          </span>
+                          <span
+                            className={`truncate text-sm transition-all duration-300 ${
+                              isProjectActive
+                                ? 'font-medium text-gray-900'
+                                : 'font-normal text-gray-600'
+                            } ${
+                              collapsed
+                                ? 'w-0 overflow-hidden opacity-0'
+                                : 'opacity-100'
+                            }`}
+                          >
+                            {project.name}
+                          </span>
+                        </>
+                      );
 
-                    return canViewProjectDetail ? (
-                      <Link
-                        key={project.id}
-                        className={`flex w-full items-center rounded-lg border py-1.25 px-3 text-left transition ${
-                          isProjectActive
-                            ? 'border-gray-200 bg-white shadow-sm'
-                            : 'border-transparent hover:bg-slate-50'
-                        } ${collapsed ? 'justify-center lg:px-0' : 'gap-2'}`}
-                        href={projectHref}
-                        onClick={() => setMobileOpen(false)}
-                        title={collapsed ? project.name : undefined}
-                      >
-                        {projectContent}
-                      </Link>
-                    ) : (
-                      <div
-                        key={project.id}
-                        className={`flex w-full cursor-not-allowed items-center rounded-lg border border-transparent py-1.25 px-3 text-left opacity-70 ${
-                          collapsed ? 'justify-center lg:px-0' : 'gap-2'
-                        }`}
-                        title={collapsed ? project.name : undefined}
-                      >
-                        {projectContent}
-                      </div>
-                    );
-                  })}
-                </div>
+                      return canViewProjectDetail ? (
+                        <Link
+                          key={project.id}
+                          className={`flex w-full items-center rounded-lg border py-1.25 px-3 text-left transition ${
+                            isProjectActive
+                              ? 'border-gray-200 bg-white shadow-sm'
+                              : 'border-transparent hover:bg-slate-50'
+                          } ${collapsed ? 'justify-center lg:px-0' : 'gap-2'}`}
+                          href={projectHref}
+                          onClick={() => setMobileOpen(false)}
+                          title={collapsed ? project.name : undefined}
+                        >
+                          {projectContent}
+                        </Link>
+                      ) : (
+                        <div
+                          key={project.id}
+                          className={`flex w-full cursor-not-allowed items-center rounded-lg border border-transparent py-1.25 px-3 text-left opacity-70 ${
+                            collapsed ? 'justify-center lg:px-0' : 'gap-2'
+                          }`}
+                          title={collapsed ? project.name : undefined}
+                        >
+                          {projectContent}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             ) : null}
           </div>

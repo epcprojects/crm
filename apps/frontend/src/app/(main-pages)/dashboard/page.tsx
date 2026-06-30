@@ -272,56 +272,66 @@ export default function Page() {
 
   const isMobile = useIsMobile();
   const ticketSummary = ticketSummaryQuery.data;
+  const isStatsLoading = canViewStats && ticketSummaryQuery.isLoading;
+  const isRecentTicketsLoading =
+    canViewRecentTickets && recentTicketsQuery.isLoading;
+  const isUpcomingTicketsLoading =
+    canViewUpcoming &&
+    (upcomingTicketsQuery.isLoading || criticalTicketsQuery.isLoading);
 
   return (
     <div className="space-y-6">
       <PermissionGuard permission="dashboard.view_stats">
-        <div className="grid md:grid-cols-4 gap-3 md:gap-5">
-          <StatusCard
-            icon={
-              <FolderIcon
-                width={isMobile ? '20' : '24'}
-                height={isMobile ? '20' : '24'}
-                fill="currentColor"
-              />
-            }
-            title="Open"
-            count={formatSummaryCount(ticketSummary?.open)}
-          />
-          <StatusCard
-            icon={
-              <ClockIcon
-                width={isMobile ? '20' : '24'}
-                height={isMobile ? '20' : '24'}
-                fill="currentColor"
-              />
-            }
-            title="In Progress"
-            count={formatSummaryCount(ticketSummary?.inProgress)}
-          />
-          <StatusCard
-            icon={
-              <CheckMarkCircleIcon
-                width={isMobile ? '20' : '24'}
-                height={isMobile ? '20' : '24'}
-                fill="currentColor"
-              />
-            }
-            title="Resolved"
-            count={formatSummaryCount(ticketSummary?.resolved)}
-          />
-          <StatusCard
-            icon={
-              <AlertIcon
-                width={isMobile ? '20' : '24'}
-                height={isMobile ? '20' : '24'}
-                fill="currentColor"
-              />
-            }
-            title="Critical"
-            count={formatSummaryCount(ticketSummary?.critical)}
-          />
-        </div>
+        {isStatsLoading ? (
+          <DashboardStatsSkeleton />
+        ) : (
+          <div className="grid md:grid-cols-4 gap-3 md:gap-5">
+            <StatusCard
+              icon={
+                <FolderIcon
+                  width={isMobile ? '20' : '24'}
+                  height={isMobile ? '20' : '24'}
+                  fill="currentColor"
+                />
+              }
+              title="Open"
+              count={formatSummaryCount(ticketSummary?.open)}
+            />
+            <StatusCard
+              icon={
+                <ClockIcon
+                  width={isMobile ? '20' : '24'}
+                  height={isMobile ? '20' : '24'}
+                  fill="currentColor"
+                />
+              }
+              title="In Progress"
+              count={formatSummaryCount(ticketSummary?.inProgress)}
+            />
+            <StatusCard
+              icon={
+                <CheckMarkCircleIcon
+                  width={isMobile ? '20' : '24'}
+                  height={isMobile ? '20' : '24'}
+                  fill="currentColor"
+                />
+              }
+              title="Resolved"
+              count={formatSummaryCount(ticketSummary?.resolved)}
+            />
+            <StatusCard
+              icon={
+                <AlertIcon
+                  width={isMobile ? '20' : '24'}
+                  height={isMobile ? '20' : '24'}
+                  fill="currentColor"
+                />
+              }
+              title="Critical"
+              count={formatSummaryCount(ticketSummary?.critical)}
+            />
+          </div>
+        )}
       </PermissionGuard>
 
       <PermissionGuard permission="dashboard.view_project_cards">
@@ -401,18 +411,22 @@ export default function Page() {
                 Recent Tickets
               </h2>
             </div>
-            <RecentTicketsTable
-              tickets={recentTicketsQuery.data?.items ?? []}
-              onViewAll={canViewTicketsList ? handleViewAllTickets : undefined}
-              onRowClick={
-                canViewTicketDetail
-                  ? (ticket) =>
-                      router.push(
-                        `/tickets/${ticket.id}?projectId=${ticket.project.id}`,
-                      )
-                  : undefined
-              }
-            />
+            {isRecentTicketsLoading ? (
+              <RecentTicketsTableSkeleton />
+            ) : (
+              <RecentTicketsTable
+                tickets={recentTicketsQuery.data?.items ?? []}
+                onViewAll={canViewTicketsList ? handleViewAllTickets : undefined}
+                onRowClick={
+                  canViewTicketDetail
+                    ? (ticket) =>
+                        router.push(
+                          `/tickets/${ticket.id}?projectId=${ticket.project.id}`,
+                        )
+                    : undefined
+                }
+              />
+            )}
           </div>
         </PermissionGuard>
         <PermissionGuard permission="dashboard.view_upcoming">
@@ -421,21 +435,25 @@ export default function Page() {
               canViewRecentTickets ? 'md:col-span-4' : 'md:col-span-14'
             }`}
           >
-            <TicketsTabs
-              tabs={dashboardTicketTabs}
-              onTicketClick={
-                canViewTicketDetail
-                  ? (ticket) =>
-                      router.push(
-                        `/tickets/${ticket.id}${
-                          ticket.projectId
-                            ? `?projectId=${ticket.projectId}`
-                            : ''
-                        }`,
-                      )
-                  : undefined
-              }
-            />
+            {isUpcomingTicketsLoading ? (
+              <DashboardTabsSkeleton />
+            ) : (
+              <TicketsTabs
+                tabs={dashboardTicketTabs}
+                onTicketClick={
+                  canViewTicketDetail
+                    ? (ticket) =>
+                        router.push(
+                          `/tickets/${ticket.id}${
+                            ticket.projectId
+                              ? `?projectId=${ticket.projectId}`
+                              : ''
+                          }`,
+                        )
+                    : undefined
+                }
+              />
+            )}
           </div>
         </PermissionGuard>
       </div>
@@ -508,6 +526,81 @@ function ProjectCardSkeleton() {
           >
             <div className="h-3 w-10 rounded bg-gray-200" />
             <div className="h-5 w-6 rounded-full bg-gray-200" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DashboardStatsSkeleton() {
+  return (
+    <div className="grid md:grid-cols-4 gap-3 md:gap-5">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div
+          key={index}
+          className="animate-pulse rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-3.5 md:rounded-2xl md:px-5 md:py-6"
+        >
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="h-10 w-10 rounded-full bg-gray-200 md:h-12 md:w-12" />
+            <div className="space-y-2">
+              <div className="h-6 w-14 rounded bg-gray-200 md:h-7 md:w-16" />
+              <div className="h-3 w-20 rounded bg-gray-200 md:w-24" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function RecentTicketsTableSkeleton() {
+  return (
+    <div className="animate-pulse overflow-hidden rounded-2xl border border-gray-200 bg-white">
+      <div className="border-b border-gray-200 px-4 py-4 md:px-6">
+        <div className="grid grid-cols-5 gap-4">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <div key={index} className="h-4 rounded bg-gray-200" />
+          ))}
+        </div>
+      </div>
+      <div className="space-y-0">
+        {Array.from({ length: 6 }).map((_, rowIndex) => (
+          <div
+            key={rowIndex}
+            className="grid grid-cols-5 gap-4 border-b border-gray-100 px-4 py-4 last:border-b-0 md:px-6"
+          >
+            {Array.from({ length: 5 }).map((_, cellIndex) => (
+              <div
+                key={cellIndex}
+                className="h-5 rounded bg-gray-100"
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DashboardTabsSkeleton() {
+  return (
+    <div className="w-[calc(100dvw-32px)] space-y-2 rounded-xl bg-white sm:w-full">
+      <div className="flex border-b border-gray-200">
+        <div className="h-9 w-1/2 animate-pulse rounded-tl bg-gray-100" />
+        <div className="h-9 w-1/2 animate-pulse rounded-tr bg-gray-50" />
+      </div>
+      <div className="space-y-3 rounded-xl border border-gray-200 px-4 py-3">
+        {Array.from({ length: 5 }).map((_, index) => (
+          <div
+            key={index}
+            className="flex items-start gap-3 border-b border-gray-100 py-3 last:border-b-0"
+          >
+            <div className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-gray-200" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="h-4 w-3/4 rounded bg-gray-200" />
+              <div className="h-3 w-full rounded bg-gray-100" />
+            </div>
           </div>
         ))}
       </div>
