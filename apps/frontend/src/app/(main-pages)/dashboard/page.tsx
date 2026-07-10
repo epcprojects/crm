@@ -460,9 +460,71 @@ export default function Page() {
                 )}
               </div>
             </PermissionGuard>
-            <div className='bg-white  shadow-[0_0_35px_0_rgb(0_0_0/0.04)] rounded-[20px] p-3'>
-                  
-            </div>
+            <PermissionGuard permission="dashboard.view_project_cards">
+              <div className="bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)] rounded-[20px] p-3 flex flex-col gap-3.5">
+                <div className="flex flex-row justify-between items-center">
+                  <div className="flex flex-row gap-2.5 items-center">
+                    <p className="text-black font-medium text-lg">Projects</p>
+
+                    <div className="w-7.5 h-7.5 text-sm text-bright-gray bg-gray-100 rounded-full flex items-center justify-center">
+                      {projectsQuery.data?.length ?? 0}
+                    </div>
+                  </div>
+
+                  {canViewProjectsList ? (
+                    <Link
+                      href="/projects"
+                      className="bg-white border border-soft-peach py-2 px-2.5 rounded-lg flex items-center justify-center text-xs font-medium text-black-olive"
+                    >
+                      View All
+                    </Link>
+                  ) : null}
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 ">
+                  {projectsQuery.isLoading
+                    ? Array.from({ length: 3 }).map((_, index) => (
+                        <ProjectCardSkeleton key={index} />
+                      ))
+                    : (projectsQuery.data ?? []).map((project) => (
+                        <ProjectCard
+                          key={project.id}
+                          id={project.id}
+                          initials={project.initials}
+                          name={project.name}
+                          category={project.category}
+                          totalCount={project.totalCount}
+                          openCount={project.openCount}
+                          criticalCount={project.criticalCount}
+                          colorHex={project.colorHex}
+                          onClick={
+                            canViewProjectDetail
+                              ? () => router.push(`/projects/${project.id}`)
+                              : undefined
+                          }
+                          onEdit={
+                            canEditProject
+                              ? () => setProjectToEdit(project)
+                              : undefined
+                          }
+                          onDelete={
+                            canDeleteProject
+                              ? () =>
+                                  setProjectToDelete({
+                                    id: project.id,
+                                    name: project.name,
+                                  })
+                              : undefined
+                          }
+                          isDeleting={
+                            deleteProjectMutation.isPending &&
+                            deleteProjectMutation.variables === project.id
+                          }
+                        />
+                      ))}
+                </div>
+              </div>
+            </PermissionGuard>
           </div>
           {/* <PermissionGuard permission="dashboard.view_stats">
             {isStatsLoading ? (
