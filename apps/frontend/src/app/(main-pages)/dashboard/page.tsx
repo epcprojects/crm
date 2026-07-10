@@ -8,9 +8,11 @@ import {
   AlertIcon,
   CheckMarkCircleIcon,
   ClockIcon,
+  FiltersIcon,
   FolderIcon,
   PlusIcon,
   ProfileIcon,
+  SearchIcon,
 } from '../../../../public/icons';
 import TicketsTabs, {
   type TicketTab,
@@ -397,10 +399,71 @@ export default function Page() {
               </div>
             )}
           </PermissionGuard>
-          <div className='flex flex-row gap-3'>
-                          <div className='bg-white '>
+          <div className="flex flex-row h-full gap-3">
+            <PermissionGuard permission="dashboard.view_recent_tickets">
+              <div
+                className={`bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)] flex flex-col gap-3.5 rounded-[20px] p-3 h-full`}
+              >
+                <div className="flex flex-row justify-between items-center">
+                  <div className="flex flex-row gap-2.5 items-center">
+                    <p className="text-lg font-medium text-black">
+                      Recent Tickets
+                    </p>
 
-                          </div>
+                    <div className="w-7.5 h-7.5 flex items-center justify-center text-sm text-bright-gray rounded-full bg-gray-100">
+                      {recentTicketsQuery.data?.items?.length ?? 0}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-row gap-2">
+                    <div className="border border-gray-200 bg-white py-2 px-2.5 flex items-center gap-2 justify-between flex-row rounded-lg">
+                      <SearchIcon fill="#374151" />
+                      <input
+                        placeholder="Search"
+                        className="placeholder:text-gray-400 text-sm text-gray-700 outline-none"
+                      />
+                    </div>
+
+                    {canViewTicketsList ? (
+                      <button
+                        type="button"
+                        onClick={handleViewAllTickets}
+                        className="border text-xs font-medium text-black-olive border-gray-200 bg-white rounded-lg py-2 px-2.5 flex items-center justify-center"
+                      >
+                        View All
+                      </button>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      className="border border-gray-200 bg-gray-100 py-2 px-2.5 rounded-lg flex flex-row items-center gap-0.75"
+                    >
+                      <FiltersIcon />
+                      <p className="text-xs font-medium text-black-olive">
+                        Filter
+                      </p>
+                    </button>
+                  </div>
+                </div>
+
+                {isRecentTicketsLoading ? (
+                  <RecentTicketsTableSkeleton />
+                ) : (
+                  <RecentTicketsTable
+                    tickets={recentTicketsQuery.data?.items ?? []}
+                    onViewAll={undefined}
+                    onRowClick={
+                      canViewTicketDetail
+                        ? (ticket) =>
+                            router.push(
+                              `/tickets/${ticket.id}?projectId=${ticket.project.id}`,
+                            )
+                        : undefined
+                    }
+                  />
+                )}
+              </div>
+            </PermissionGuard>
           </div>
           {/* <PermissionGuard permission="dashboard.view_stats">
             {isStatsLoading ? (

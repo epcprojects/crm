@@ -61,7 +61,7 @@ export default function TicketsTabs({ tabs, onTicketClick }: TicketsTabsProps) {
     });
   }, [activeIndex]);
   return (
-    <div className="rounded-[20px] shadow-[0_0_35px_0_rgb(0_0_0/0.04)] sm:w-full h-full bg-white space-y-2 py-4  flex flex-col gap-6 min-w-85">
+    <div className="rounded-[20px] shadow-[0_0_35px_0_rgb(0_0_0/0.04)] sm:w-full h-full bg-white space-y-2 py-4  flex flex-col gap-3 min-w-85">
      <div className='px-4.5'>
        <div className="relative grid w-full grid-cols-2 gap-1 rounded-full border border-gray-100 bg-gray-50 p-1">
         <div
@@ -97,12 +97,11 @@ export default function TicketsTabs({ tabs, onTicketClick }: TicketsTabsProps) {
         })}
       </div>
      </div>
-
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto scrollbar-hide  px-4.5">
+      <div className="flex min-h-0 flex-1 flex-col  overflow-y-auto scrollbar-hide  px-4.5">
         {activeTab?.tickets.length ? (
           activeTab.tickets.map((ticket, index) => {
             const isLast = index === activeTab.tickets.length - 1;
-
+            
             return (
               <div key={ticket.id}>
                 <article
@@ -122,7 +121,8 @@ export default function TicketsTabs({ tabs, onTicketClick }: TicketsTabsProps) {
                       : undefined
                   }
                   className={clsx(
-                    'flex flex-row items-start gap-3 rounded-xl outline-none transition',
+                    'flex flex-row items-start gap-3  outline-none transition py-4 ',
+                     !isLast && 'border-b border-gray-200',
                     onTicketClick &&
                       'cursor-pointer hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-primary/30',
                   )}
@@ -169,9 +169,7 @@ export default function TicketsTabs({ tabs, onTicketClick }: TicketsTabsProps) {
                   </div>
                 </article>
 
-                {!isLast ? (
-                  <div className="my-4 h-px w-full bg-gray-200" />
-                ) : null}
+               
               </div>
             );
           })

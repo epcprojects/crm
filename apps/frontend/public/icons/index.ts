@@ -32,8 +32,9 @@ import DownloadIcon from './DownloadIcon';
 import SentEmailIcon from './SentEmailIcon';
 import AcceptedEmailIcon from './AcceptedEmailIcon';
 import FileTypePlaceholder from './FileTypePlaceholder';
-
+import FiltersIcon from './FiltersIcon';
 export {
+  FiltersIcon,
   TicketIcon2,
   FileTypePlaceholder,
   SentEmailIcon,
