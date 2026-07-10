@@ -110,7 +110,7 @@ export default function Page() {
     queryFn: () =>
       fetchDashboardTickets({
         page: 1,
-        limit: 7,
+        limit: 20,
       }),
     enabled: canViewRecentTickets,
   });
@@ -395,10 +395,10 @@ export default function Page() {
               </div>
             )}
           </PermissionGuard>
-          <div className="flex flex-row h-full gap-3">
+          <div className="flex min-h-0 flex-1 flex-row gap-3">
             <PermissionGuard permission="dashboard.view_recent_tickets">
               <div
-                className={`bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)] flex flex-col gap-3.5 rounded-[20px] p-3 h-full`}
+                className={`bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)] flex flex-col min-h-0 gap-3.5 rounded-[20px] p-3 h-full `}
               >
                 <div className="flex flex-row justify-between items-center">
                   <div className="flex flex-row gap-2.5 items-center">
@@ -460,6 +460,9 @@ export default function Page() {
                 )}
               </div>
             </PermissionGuard>
+            <div className='bg-white  shadow-[0_0_35px_0_rgb(0_0_0/0.04)] rounded-[20px] p-3'>
+                  
+            </div>
           </div>
           {/* <PermissionGuard permission="dashboard.view_stats">
             {isStatsLoading ? (
@@ -1042,9 +1045,9 @@ function formatTicketDate(value: string) {
     return '-';
   }
 
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(date);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
 }

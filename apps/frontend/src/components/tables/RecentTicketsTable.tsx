@@ -83,7 +83,7 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     accessorKey: 'title',
     header: 'Title',
     cell: ({ row }) => (
-      <span className="block max-w-52 whitespace-break-spaces text-sm text-gray-900">
+      <span className="block max-w-52 whitespace-break-spaces text-sm text-gray-800">
         {row.original.title}
       </span>
     ),
@@ -93,8 +93,8 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     accessorKey: 'project.name',
     header: 'Project',
     cell: ({ row }) => (
-      <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-purple-100 py-0.75 pr-2.5 pl-0.75 text-xs font-medium text-purple-700">
-        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-medium">
+      <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-gray-100 bg-white py-0.5 pr-2.5 pl-0.5 text-xs  text-gray-800">
+        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs text-gray-900">
           {row.original.project.initials}
         </span>
         {row.original.project.name}
@@ -257,7 +257,7 @@ export default function RecentTicketsTable({
   const visiblePages = getVisiblePageNumbers(currentPage, totalPages);
 
   return (
-    <div className="overflow-hidden rounded-xl w-[calc(100dvw-32px)] sm:w-full md:border md:border-gray-100 h-full bg-white">
+    <div className="overflow-y-auto scrollbar-hide rounded-xl w-[calc(100dvw-32px)] sm:w-full md:border md:border-gray-100 h-full bg-white">
       <div className="space-y-3 md:p-3 md:hidden">
         {table.getRowModel().rows.length ? (
           table
