@@ -26,7 +26,7 @@ export default function ThemeButton({
 }: ThemeButtonProps) {
   const hasIcon = Boolean(icon);
   return (
-    <div
+    <button
       className={clsx(
         `${hasIcon && 'p-0.75 text-base'} ${fullRounded ? 'rounded-full' : 'rounded-lg'}`,
         !hasIcon && {
@@ -35,13 +35,6 @@ export default function ThemeButton({
           'px-2.5 py-2 text-base': size === 'md',
           'px-6 py-2.5 text-sm md:text-base': size === 'lg',
         },
-        hasIcon &&
-          {
-            // 'py-px text-xs': size === 'xs',
-            // 'p-0.75 text-sm': size === 'sm',
-            // 'p-0.75 text-base': size === 'md',
-            // 'py-px text-sm md:text-base': size === 'lg',
-          },
         {
           'bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 text-white hover:opacity-90':
             variant === 'primaryGradient',
@@ -51,10 +44,11 @@ export default function ThemeButton({
             variant === 'primary',
         },
       )}
+      {...props}
     >
-      <button
+      <div
         className={clsx(
-          `flex items-center cursor-pointer justify-center ${borderclassName} ${hasIcon && 'p-px! pe-3! md:pe-5! text-sm md:text-base'} font-medium transition-all duration-300`,
+          `flex items-center cursor-pointer justify-center ${fullRounded ? 'rounded-full' : 'rounded-lg'} ${borderclassName} ${hasIcon && 'p-px! pe-3! md:pe-5! text-sm md:text-base'} font-medium transition-all duration-300`,
           !hasIcon && {
             ' px-4 py-2 text-xs': size === 'xs',
             ' px-6 py-3 text-xs': size === 'sm',
@@ -71,7 +65,6 @@ export default function ThemeButton({
           },
           className,
         )}
-        {...props}
       >
         {hasIcon && (
           <span
@@ -84,7 +77,7 @@ export default function ThemeButton({
         )}
 
         <span className="whitespace-nowrap font-medium">{children}</span>
-      </button>
-    </div>
+      </div>
+    </button>
   );
 }

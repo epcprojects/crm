@@ -146,7 +146,7 @@ const pageHeaderConfigs: PageHeaderConfig[] = [
   {
     href: '/dashboard',
     title: 'Good day, Admin 👋',
-  
+
     subtitle: "Here's what's happening across your companies",
     action: {
       label: 'New Ticket',
@@ -450,7 +450,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const shouldHideHeader =
     shouldShowNoAccessPage ||
     pathname?.startsWith('/tickets/') ||
-    pathname?.startsWith('/dashboard')
+    pathname?.startsWith('/dashboard') ||
+    pathname?.startsWith('/settings') ||
     pathname?.startsWith('/projects/');
   const canUseCurrentHeaderAction = currentHeader.action?.permission
     ? hasPermission(currentHeader.action.permission)
@@ -477,7 +478,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             type="button"
           />
         ) : null}
-       <div className="hidden w-29 shrink-0 lg:block" />
+        <div className="hidden w-29 shrink-0 lg:block" />
         <aside
           className={`fixed inset-y-0  left-0 z-40 flex flex-col gap-10 bg-gray-200 px-6 pt-6 pb-8 transition-transform duration-300 ease-out  ${
             mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
