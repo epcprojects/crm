@@ -330,18 +330,14 @@ export default function Page() {
                   </div>
 
                   {canCreateTicket ? (
-                    <div className="p-0.75 rounded-full bg-linear-to-l from-royal-blue/30 to-crystal-blue/30">
-                      <ThemeButton
-                        className="rounded-full"
-                        variant="primaryGradient"
-                        icon={
-                          <PlusIcon fill="#3889FE" width="20" height="20" />
-                        }
-                        onClick={() => setCreateTicketOpen(true)}
-                      >
-                        New Ticket
-                      </ThemeButton>
-                    </div>
+                    <ThemeButton
+                      className="rounded-full"
+                      variant="primaryGradient"
+                      icon={<PlusIcon fill="#3889FE" width="20" height="20" />}
+                      onClick={() => setCreateTicketOpen(true)}
+                    >
+                      New Ticket
+                    </ThemeButton>
                   ) : null}
                 </div>
 
@@ -397,10 +393,8 @@ export default function Page() {
               </div>
             )}
           </PermissionGuard>
-          <div className='flex flex-row gap-3'>
-                          <div className='bg-white '>
-
-                          </div>
+          <div className="flex flex-row gap-3">
+            <div className="bg-white "></div>
           </div>
           {/* <PermissionGuard permission="dashboard.view_stats">
             {isStatsLoading ? (
