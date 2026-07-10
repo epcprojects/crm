@@ -9,6 +9,7 @@ import {
   CheckMarkCircleIcon,
   ClockIcon,
   FolderIcon,
+  PlusIcon,
   ProfileIcon,
 } from '../../../../public/icons';
 import TicketsTabs, {
@@ -22,9 +23,7 @@ import ConfirmActionModal from '../../../components/modals/ConfirmActionModal';
 import CreateProjectModal, {
   type CreateProjectFormValues,
 } from '../../../components/modals/CreateProjectModal';
-import {
-  createTicketProjectOptions,
-} from '../../../components/modals/create-ticket-modal.data';
+import { createTicketProjectOptions } from '../../../components/modals/create-ticket-modal.data';
 import ProjectCard from '../../../components/projects/ProjectCard';
 import RecentTicketsTable, {
   type RecentTicket,
@@ -45,6 +44,8 @@ import {
   usePermissions,
 } from '../../providers/PermissionProvider';
 import { useAppLoader } from '../../providers/AppLoaderProvider';
+import ThemeButton from '../../../components/ui/ThemeButton';
+import { useAppSelector } from '../../Redux/store';
 
 type TicketSummary = {
   open: number | null;
@@ -278,157 +279,11 @@ export default function Page() {
   const isUpcomingTicketsLoading =
     canViewUpcoming &&
     (upcomingTicketsQuery.isLoading || criticalTicketsQuery.isLoading);
-
+  const user = useAppSelector((state) => state.auth.user);
+  const currentUserName = user?.fullName || 'Admin';
   return (
-    <div className="space-y-6">
-      <PermissionGuard permission="dashboard.view_stats">
-        {isStatsLoading ? (
-          <DashboardStatsSkeleton />
-        ) : (
-          <div className="grid md:grid-cols-4 gap-3 md:gap-5">
-            <StatusCard
-              icon={
-                <FolderIcon
-                  width={isMobile ? '20' : '24'}
-                  height={isMobile ? '20' : '24'}
-                  fill="currentColor"
-                />
-              }
-              title="Open"
-              count={formatSummaryCount(ticketSummary?.open)}
-            />
-            <StatusCard
-              icon={
-                <ClockIcon
-                  width={isMobile ? '20' : '24'}
-                  height={isMobile ? '20' : '24'}
-                  fill="currentColor"
-                />
-              }
-              title="In Progress"
-              count={formatSummaryCount(ticketSummary?.inProgress)}
-            />
-            <StatusCard
-              icon={
-                <CheckMarkCircleIcon
-                  width={isMobile ? '20' : '24'}
-                  height={isMobile ? '20' : '24'}
-                  fill="currentColor"
-                />
-              }
-              title="Resolved"
-              count={formatSummaryCount(ticketSummary?.resolved)}
-            />
-            <StatusCard
-              icon={
-                <AlertIcon
-                  width={isMobile ? '20' : '24'}
-                  height={isMobile ? '20' : '24'}
-                  fill="currentColor"
-                />
-              }
-              title="Critical"
-              count={formatSummaryCount(ticketSummary?.critical)}
-            />
-          </div>
-        )}
-      </PermissionGuard>
-
-      <PermissionGuard permission="dashboard.view_project_cards">
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 justify-between">
-            <div className="flex items-center gap-2 md:gap-2.5">
-              <ProfileIcon />
-              <h2 className="text-sm md:text-base font-bold text-black">
-                Projects
-              </h2>
-            </div>
-
-            {canViewProjectsList ? (
-              <Link
-                href={'/projects'}
-                className="text-primary font-medium text-sm hover:underline underline-offset-2"
-              >
-                View All
-              </Link>
-            ) : null}
-          </div>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            {projectsQuery.isLoading
-              ? Array.from({ length: 3 }).map((_, index) => (
-                  <ProjectCardSkeleton key={index} />
-                ))
-              : (projectsQuery.data ?? []).map((project) => (
-                  <ProjectCard
-                    key={project.id}
-                    id={project.id}
-                    initials={project.initials}
-                    name={project.name}
-                    category={project.category}
-                    totalCount={project.totalCount}
-                    openCount={project.openCount}
-                    criticalCount={project.criticalCount}
-                    colorHex={project.colorHex}
-                    onClick={
-                      canViewProjectDetail
-                        ? () => router.push(`/projects/${project.id}`)
-                        : undefined
-                    }
-                    onEdit={
-                      canEditProject
-                        ? () => setProjectToEdit(project)
-                        : undefined
-                    }
-                    onDelete={
-                      canDeleteProject
-                        ? () =>
-                            setProjectToDelete({
-                              id: project.id,
-                              name: project.name,
-                            })
-                        : undefined
-                    }
-                    isDeleting={
-                      deleteProjectMutation.isPending &&
-                      deleteProjectMutation.variables === project.id
-                    }
-                  />
-                ))}
-          </div>
-        </div>
-      </PermissionGuard>
-
-      <div className="grid md:grid-cols-14 gap-4 md:gap-6">
-        <PermissionGuard permission="dashboard.view_recent_tickets">
-          <div
-            className={`space-y-4 ${
-              canViewUpcoming ? 'md:col-span-10' : 'md:col-span-14'
-            }`}
-          >
-            <div className="flex items-center gap-2 md:gap-2.5">
-              <ClockIcon opacity={0} />
-              <h2 className="text-sm md:text-base font-bold text-black">
-                Recent Tickets
-              </h2>
-            </div>
-            {isRecentTicketsLoading ? (
-              <RecentTicketsTableSkeleton />
-            ) : (
-              <RecentTicketsTable
-                tickets={recentTicketsQuery.data?.items ?? []}
-                onViewAll={canViewTicketsList ? handleViewAllTickets : undefined}
-                onRowClick={
-                  canViewTicketDetail
-                    ? (ticket) =>
-                        router.push(
-                          `/tickets/${ticket.id}?projectId=${ticket.project.id}`,
-                        )
-                    : undefined
-                }
-              />
-            )}
-          </div>
-        </PermissionGuard>
+    <div className="py-5 pr-5 z-100 h-dvh relative">
+      <div className="bg-white/40 border border-white rounded-4xl p-3 flex flex-row h-full gap-3">
         <PermissionGuard permission="dashboard.view_upcoming">
           <div
             className={` ${
@@ -456,6 +311,249 @@ export default function Page() {
             )}
           </div>
         </PermissionGuard>
+        <div className="flex flex-col gap-3 flex-1">
+          <PermissionGuard permission="dashboard.view_stats">
+            {isStatsLoading ? (
+              <DashboardStatsSkeleton />
+            ) : (
+              <div className="bg-[url('/images/DashboardComponentBgImage.jpg')] w-full bg-center bg-no-repeat bg-cover h-56 rounded-[20px] p-7.5 bg-black/30 flex flex-col justify-between">
+                <div className="flex flex-row gap-6 items-start">
+                  <div className="flex flex-col flex-1 gap-1.5">
+                    <p className="text-[32px] text-white">
+                      <span className="font-bold">Good day</span>,{' '}
+                      {currentUserName} 👋
+                    </p>
+
+                    <p className="text-lg text-gray-100">
+                      Here's what's happening across your companies
+                    </p>
+                  </div>
+
+                  {canCreateTicket ? (
+                    <div className="p-0.75 rounded-full bg-linear-to-l from-royal-blue/30 to-crystal-blue/30">
+                      <ThemeButton
+                        className="rounded-full"
+                        variant="primaryGradient"
+                        icon={
+                          <PlusIcon fill="#3889FE" width="20" height="20" />
+                        }
+                        onClick={() => setCreateTicketOpen(true)}
+                      >
+                        New Ticket
+                      </ThemeButton>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="grid grid-cols-4 gap-5">
+                  <StatusCard
+                    title="Open"
+                    count={formatSummaryCount(ticketSummary?.open)}
+                    icon={
+                      <FolderIcon
+                        width={isMobile ? '20' : '24'}
+                        height={isMobile ? '20' : '24'}
+                        fill="white"
+                      />
+                    }
+                  />
+
+                  <StatusCard
+                    title="In Progress"
+                    count={formatSummaryCount(ticketSummary?.inProgress)}
+                    icon={
+                      <ClockIcon
+                        width={isMobile ? '20' : '24'}
+                        height={isMobile ? '20' : '24'}
+                        fill="white"
+                      />
+                    }
+                  />
+
+                  <StatusCard
+                    title="Resolved"
+                    count={formatSummaryCount(ticketSummary?.resolved)}
+                    icon={
+                      <CheckMarkCircleIcon
+                        width={isMobile ? '20' : '24'}
+                        height={isMobile ? '20' : '24'}
+                        fill="white"
+                      />
+                    }
+                  />
+
+                  <StatusCard
+                    title="Critical"
+                    count={formatSummaryCount(ticketSummary?.critical)}
+                    icon={
+                      <AlertIcon
+                        width={isMobile ? '20' : '24'}
+                        height={isMobile ? '20' : '24'}
+                        fill="white"
+                      />
+                    }
+                  />
+                </div>
+              </div>
+            )}
+          </PermissionGuard>
+          <div className='flex flex-row gap-3'>
+                          <div className='bg-white '>
+
+                          </div>
+          </div>
+          {/* <PermissionGuard permission="dashboard.view_stats">
+            {isStatsLoading ? (
+              <DashboardStatsSkeleton />
+            ) : (
+              <div className="grid md:grid-cols-4 gap-3 md:gap-5">
+                <StatusCard
+                  icon={
+                    <FolderIcon
+                      width={isMobile ? '20' : '24'}
+                      height={isMobile ? '20' : '24'}
+                      fill="currentColor"
+                    />
+                  }
+                  title="Open"
+                  count={formatSummaryCount(ticketSummary?.open)}
+                />
+                <StatusCard
+                  icon={
+                    <ClockIcon
+                      width={isMobile ? '20' : '24'}
+                      height={isMobile ? '20' : '24'}
+                      fill="currentColor"
+                    />
+                  }
+                  title="In Progress"
+                  count={formatSummaryCount(ticketSummary?.inProgress)}
+                />
+                <StatusCard
+                  icon={
+                    <CheckMarkCircleIcon
+                      width={isMobile ? '20' : '24'}
+                      height={isMobile ? '20' : '24'}
+                      fill="currentColor"
+                    />
+                  }
+                  title="Resolved"
+                  count={formatSummaryCount(ticketSummary?.resolved)}
+                />
+                <StatusCard
+                  icon={
+                    <AlertIcon
+                      width={isMobile ? '20' : '24'}
+                      height={isMobile ? '20' : '24'}
+                      fill="currentColor"
+                    />
+                  }
+                  title="Critical"
+                  count={formatSummaryCount(ticketSummary?.critical)}
+                />
+              </div>
+            )}
+          </PermissionGuard> */}
+
+          {/* <PermissionGuard permission="dashboard.view_project_cards">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 justify-between">
+                <div className="flex items-center gap-2 md:gap-2.5">
+                  <ProfileIcon />
+                  <h2 className="text-sm md:text-base font-bold text-black">
+                    Projects
+                  </h2>
+                </div>
+
+                {canViewProjectsList ? (
+                  <Link
+                    href={'/projects'}
+                    className="text-primary font-medium text-sm hover:underline underline-offset-2"
+                  >
+                    View All
+                  </Link>
+                ) : null}
+              </div>
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                {projectsQuery.isLoading
+                  ? Array.from({ length: 3 }).map((_, index) => (
+                      <ProjectCardSkeleton key={index} />
+                    ))
+                  : (projectsQuery.data ?? []).map((project) => (
+                      <ProjectCard
+                        key={project.id}
+                        id={project.id}
+                        initials={project.initials}
+                        name={project.name}
+                        category={project.category}
+                        totalCount={project.totalCount}
+                        openCount={project.openCount}
+                        criticalCount={project.criticalCount}
+                        colorHex={project.colorHex}
+                        onClick={
+                          canViewProjectDetail
+                            ? () => router.push(`/projects/${project.id}`)
+                            : undefined
+                        }
+                        onEdit={
+                          canEditProject
+                            ? () => setProjectToEdit(project)
+                            : undefined
+                        }
+                        onDelete={
+                          canDeleteProject
+                            ? () =>
+                                setProjectToDelete({
+                                  id: project.id,
+                                  name: project.name,
+                                })
+                            : undefined
+                        }
+                        isDeleting={
+                          deleteProjectMutation.isPending &&
+                          deleteProjectMutation.variables === project.id
+                        }
+                      />
+                    ))}
+              </div>
+            </div>
+          </PermissionGuard> */}
+
+          {/* <div className="grid md:grid-cols-14 gap-4 md:gap-6">
+            <PermissionGuard permission="dashboard.view_recent_tickets">
+              <div
+                className={`space-y-4 ${
+                  canViewUpcoming ? 'md:col-span-10' : 'md:col-span-14'
+                }`}
+              >
+                <div className="flex items-center gap-2 md:gap-2.5">
+                  <ClockIcon opacity={0} />
+                  <h2 className="text-sm md:text-base font-bold text-black">
+                    Recent Tickets
+                  </h2>
+                </div>
+                {isRecentTicketsLoading ? (
+                  <RecentTicketsTableSkeleton />
+                ) : (
+                  <RecentTicketsTable
+                    tickets={recentTicketsQuery.data?.items ?? []}
+                    onViewAll={
+                      canViewTicketsList ? handleViewAllTickets : undefined
+                    }
+                    onRowClick={
+                      canViewTicketDetail
+                        ? (ticket) =>
+                            router.push(
+                              `/tickets/${ticket.id}?projectId=${ticket.project.id}`,
+                            )
+                        : undefined
+                    }
+                  />
+                )}
+              </div>
+            </PermissionGuard>
+          </div> */}
+        </div>
       </div>
 
       <CreateTicketModal
@@ -571,10 +669,7 @@ function RecentTicketsTableSkeleton() {
             className="grid grid-cols-5 gap-4 border-b border-gray-100 px-4 py-4 last:border-b-0 md:px-6"
           >
             {Array.from({ length: 5 }).map((_, cellIndex) => (
-              <div
-                key={cellIndex}
-                className="h-5 rounded bg-gray-100"
-              />
+              <div key={cellIndex} className="h-5 rounded bg-gray-100" />
             ))}
           </div>
         ))}

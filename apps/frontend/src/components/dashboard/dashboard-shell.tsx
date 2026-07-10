@@ -90,9 +90,7 @@ const navigationItems: NavItem[] = [
   {
     href: '/dashboard',
     label: 'Dashboard',
-    icon: (isActive) => (
-      <DashboardIcon opacity={isActive ? '0.4' : '0'} fill="currentColor" />
-    ),
+    icon: (isActive) => <DashboardIcon fill="currentColor" />,
     roles: ['admin', 'developer', 'pm', 'external'],
     anyPermissions: [
       'dashboard.view_stats',
@@ -104,9 +102,7 @@ const navigationItems: NavItem[] = [
   {
     href: '/tickets',
     label: 'All Tickets',
-    icon: (isActive) => (
-      <TicketsIcon opacity={isActive ? '0.4' : '0'} fill="currentColor" />
-    ),
+    icon: (isActive) => <TicketsIcon fill="currentColor" />,
     roles: ['admin', 'developer', 'pm', 'external'],
     anyPermissions: ['tickets.view_list'],
     roleLabels: {
@@ -116,9 +112,7 @@ const navigationItems: NavItem[] = [
   {
     href: '/projects',
     label: 'Projects',
-    icon: (isActive) => (
-      <ProjectsIcon opacity={isActive ? '0.4' : '0'} fill="currentColor" />
-    ),
+    icon: (isActive) => <ProjectsIcon fill="currentColor" />,
     roles: ['admin', 'developer', 'pm', 'external'],
     anyPermissions: ['projects.view_list'],
     roleLabels: {
@@ -128,27 +122,21 @@ const navigationItems: NavItem[] = [
   {
     href: '/users',
     label: 'Users',
-    icon: (isActive) => (
-      <UserGroup opacity={isActive ? '0.4' : '0'} fill="currentColor" />
-    ),
+    icon: (isActive) => <UserGroup fill="currentColor" />,
     roles: ['admin'],
     anyPermissions: ['users.view_list'],
   },
   {
     href: '/roles',
     label: 'Roles',
-    icon: (isActive) => (
-      <RolesIcon opacity={isActive ? '0.4' : '0'} fill="currentColor" />
-    ),
+    icon: (isActive) => <RolesIcon fill="currentColor" />,
     roles: ['admin'],
     anyPermissions: ['roles.view_list'],
   },
   {
     href: '/settings',
     label: 'Settings',
-    icon: (isActive) => (
-      <SettingsIcon opacity={isActive ? '0.4' : '0'} fill="currentColor" />
-    ),
+    icon: (isActive) => <SettingsIcon fill="currentColor" />,
     roles: ['admin'],
     anyPermissions: ['settings.view_statuses', 'settings.view_priorities'],
   },
@@ -158,6 +146,7 @@ const pageHeaderConfigs: PageHeaderConfig[] = [
   {
     href: '/dashboard',
     title: 'Good day, Admin 👋',
+  
     subtitle: "Here's what's happening across your companies",
     action: {
       label: 'New Ticket',
@@ -233,44 +222,30 @@ function getAccountInitials(name: string) {
   return getProjectInitials(name).slice(0, 2) || 'A';
 }
 
-function SidebarNavSkeleton({ collapsed }: { collapsed: boolean }) {
+function SidebarNavSkeleton() {
   return (
-    <div className={`space-y-1.5 ${collapsed ? 'w-fit' : ''}`}>
+    <div className="w-fit space-y-1.5">
       {Array.from({ length: 5 }).map((_, index) => (
         <div
           key={`nav-skeleton-${index}`}
-          className={`flex items-center rounded-lg px-3 py-2 ${
-            collapsed ? 'justify-center lg:px-0 w-10' : 'gap-2'
-          }`}
+          className="flex w-10 items-center justify-center rounded-lg px-0 py-2"
         >
           <span className="h-9 w-9 shrink-0 animate-pulse rounded-xl bg-gray-200" />
-          <span
-            className={`h-4 animate-pulse rounded-full bg-gray-200 transition-all duration-300 ${
-              collapsed ? 'w-0 overflow-hidden opacity-0' : 'w-24 opacity-100'
-            }`}
-          />
         </div>
       ))}
     </div>
   );
 }
 
-function SidebarProjectsSkeleton({ collapsed }: { collapsed: boolean }) {
+function SidebarProjectsSkeleton() {
   return (
     <div className="space-y-1.5">
       {Array.from({ length: 4 }).map((_, index) => (
         <div
           key={`project-skeleton-${index}`}
-          className={`flex w-full items-center rounded-lg border border-transparent py-1.25 px-3 ${
-            collapsed ? 'justify-center lg:px-0' : 'gap-2'
-          }`}
+          className="flex w-full items-center justify-center rounded-lg border border-transparent px-0 py-1.25"
         >
           <span className="h-7.5 w-7.5 shrink-0 animate-pulse rounded-full bg-gray-200" />
-          <span
-            className={`h-4 animate-pulse rounded-full bg-gray-200 transition-all duration-300 ${
-              collapsed ? 'w-0 overflow-hidden opacity-0' : 'w-28 opacity-100'
-            }`}
-          />
         </div>
       ))}
     </div>
@@ -282,15 +257,12 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
-  const isAuthenticated = useAppSelector(
-    (state) => state.auth.isAuthenticated,
-  );
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const { setLoading } = useAppLoader();
   const { hasPermission, hasAnyPermission, isLoadingCatalog } =
     usePermissions();
   const canViewProjectsList = hasPermission('projects.view_list');
   const canViewProjectDetail = hasPermission('projects.view_detail');
-  const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -467,8 +439,6 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     [],
   );
 
-  const sidebarWidth = collapsed ? 'lg:w-18' : 'lg:w-60';
-  const contentOffset = collapsed ? 'lg:pl-18' : 'lg:pl-60';
   const isSidebarProjectsLoading =
     (canViewProjectsList || canViewProjectDetail) && projectsQuery.isLoading;
   const isSidebarLoading = isLoadingCatalog || isSidebarProjectsLoading;
@@ -480,6 +450,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const shouldHideHeader =
     shouldShowNoAccessPage ||
     pathname?.startsWith('/tickets/') ||
+    pathname?.startsWith('/dashboard')
     pathname?.startsWith('/projects/');
   const canUseCurrentHeaderAction = currentHeader.action?.permission
     ? hasPermission(currentHeader.action.permission)
@@ -497,7 +468,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   return (
     <DashboardHeaderActionContext.Provider value={headerActionContextValue}>
-      <div className="min-h-dvh bg-white text-slate-900">
+      <div className="flex min-h-dvh bg-white text-slate-900">
         {mobileOpen ? (
           <button
             aria-label="Close navigation"
@@ -506,99 +477,51 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             type="button"
           />
         ) : null}
-
+       <div className="hidden w-29 shrink-0 lg:block" />
         <aside
-          className={`fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-gray-200 bg-gray-50 transition-all duration-300 ease-out ${sidebarWidth} ${
+          className={`fixed inset-y-0  left-0 z-40 flex flex-col gap-10 bg-gray-200 px-6 pt-6 pb-8 transition-transform duration-300 ease-out  ${
             mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           }`}
         >
-          <div className="flex  items-center justify-between  px-4 pt-4 pb-2">
-            <button
-              onClick={
-                collapsed
-                  ? () => setCollapsed((value) => !value)
-                  : () => {
-                      console.log('tests');
-                    }
-              }
-              className="flex items-center  gap-3 overflow-hidden"
-            >
-              <Image alt="" src={Images.index.logo} className="w-10 md:w-12" />
-
-              <div
-                className={`min-w-0 transition-all duration-300 ${
-                  collapsed
-                    ? 'pointer-events-none w-0 opacity-0'
-                    : 'w-auto opacity-100'
-                }`}
-              >
-                <p className=" text-base md:text-lg font-semibold text-start leading-none text-black">
-                  Harper
-                </p>
-                <p className="text-xs md:text-base font-extralight text-black">
-                  HelpDesk
-                </p>
-              </div>
-            </button>
-
-            <button
-              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              className={`${collapsed ? 'absolute -right-2 rotate-180' : 'md:inline-block hidden'}  hover:scale-110`}
-              onClick={() => setCollapsed((value) => !value)}
-              type="button"
-            >
-              <ToggleIcon />
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto">
-            <div className=" px-4 pb-4 pt-5">
-              <p
-                className={`mb-3 px-2 text-xs font-medium captilize text-black transition-opacity duration-200 ${
-                  collapsed
-                    ? 'opacity-0 hidden lg:h-0 lg:overflow-hidden'
-                    : 'opacity-100'
-                }`}
-              >
-                Main Menu
-              </p>
+          <button
+            onClick={() => {
+              '';
+            }}
+            className="w-16 h-16 bg-white rounded-full flex items-center justify-center"
+          >
+            <Image src={Images.index.logoIconImage} alt={'LOGO'} />
+          </button>
+          <div className="flex flex-col h-full justify-between">
+            <div className="flex-1 overflow-y-auto scrollbar-hide">
               {isSidebarLoading ? (
-                <SidebarNavSkeleton collapsed={collapsed} />
+                <SidebarNavSkeleton />
               ) : (
-                <nav className={`space-y-1.5 ${collapsed ? 'w-fit' : ''}`}>
+                <nav
+                  className={`flex flex-col w-fit items-center gap-2.5 scrollbar-hide`}
+                >
                   {visibleNavigationItems.map((item) => {
                     const isActive = pathname === item.href;
 
                     return (
                       <Link
                         key={item.href}
-                        className={`group flex items-center rounded-lg px-3 py-2 text-sm  transition-all duration-200 ${
-                          isActive
-                            ? 'bg-white text-black shadow ring-1 ring-gray-200 font-medium'
-                            : 'text-gray-500 hover:bg-slate-50 hover:text-black font-normal'
-                        } ${collapsed ? 'justify-center lg:px-0 w-10 items-center' : 'gap-2'}`}
                         href={item.href}
                         onClick={() => setMobileOpen(false)}
-                        title={collapsed ? item.label : undefined}
+                        className="flex w-fit flex-col items-center gap-2.5 scrollbar-hide"
                       >
-                        <span
-                          className={`flex items-center justify-center rounded-xl transition ${
+                        <div
+                          className={`w-14 h-14 rounded-full flex items-center justify-center transition ${
                             isActive
-                              ? 'bg-white text-violet-600'
-                              : 'bg-slate-100 text-gray-500 group-hover:bg-white group-hover:text-slate-700'
+                              ? 'bg-linear-to-l from-primary-light to-primary-dark text-white'
+                              : 'bg-white text-gray-700'
                           }`}
                         >
                           {item.icon(isActive)}
-                        </span>
-                        <span
-                          className={`whitespace-nowrap transition-all duration-300 ${
-                            collapsed
-                              ? 'w-0 overflow-hidden opacity-0'
-                              : 'opacity-100'
-                          }`}
-                        >
+                        </div>
+
+                        <p className={`text-sm transition text-gray-900`}>
                           {item.label}
-                        </span>
+                        </p>
                       </Link>
                     );
                   })}
@@ -606,164 +529,60 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               )}
             </div>
 
-            {canViewProjectsList ? (
-              <div className=" border-t border-gray-200 pt-5 px-4 pb-4">
-                <p
-                  className={`mb-3 px-2 text-xs font-medium captilize text-black transition-opacity duration-200 ${
-                    collapsed
-                      ? 'opacity-0 lg:h-0 hidden lg:overflow-hidden'
-                      : 'opacity-100'
-                  }`}
+            <div className="relative z-300">
+              <Menu as="div" className="relative z-300">
+                <MenuButton
+                  className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-left outline-none ring-1 ring-gray-200 transition hover:bg-gray-50"
+                  title={currentAccount.name}
                 >
-                  Projects
-                </p>
-                {isSidebarProjectsLoading ? (
-                  <SidebarProjectsSkeleton collapsed={collapsed} />
-                ) : (
-                  <div className="space-y-1.5">
-                    {sidebarProjects.map((project) => {
-                      const projectHref = `/projects/${project.id}`;
-                      const isProjectActive = pathname === projectHref;
-                      const projectContent = (
-                        <>
-                          <span
-                            className="flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-xs font-normal drop-shadow-xs"
-                            style={{
-                              color: !isProjectActive
-                                ? (project.colorHex ?? '#6172F3')
-                                : '#ffffff',
-                              backgroundColor: isProjectActive
-                                ? (project.colorHex ?? '#6172F3')
-                                : '',
-                              borderColor: project.colorHex
-                                ? `${project.colorHex}33`
-                                : undefined,
-                            }}
-                          >
-                            {project.initials}
-                          </span>
-                          <span
-                            className={`truncate text-sm transition-all duration-300 ${
-                              isProjectActive
-                                ? 'font-medium text-gray-900'
-                                : 'font-normal text-gray-600'
-                            } ${
-                              collapsed
-                                ? 'w-0 overflow-hidden opacity-0'
-                                : 'opacity-100'
-                            }`}
-                          >
-                            {project.name}
-                          </span>
-                        </>
-                      );
-
-                      return canViewProjectDetail ? (
-                        <Link
-                          key={project.id}
-                          className={`flex w-full items-center rounded-lg border py-1.25 px-3 text-left transition ${
-                            isProjectActive
-                              ? 'border-gray-200 bg-white shadow-sm'
-                              : 'border-transparent hover:bg-slate-50'
-                          } ${collapsed ? 'justify-center lg:px-0' : 'gap-2'}`}
-                          href={projectHref}
-                          onClick={() => setMobileOpen(false)}
-                          title={collapsed ? project.name : undefined}
-                        >
-                          {projectContent}
-                        </Link>
-                      ) : (
-                        <div
-                          key={project.id}
-                          className={`flex w-full cursor-not-allowed items-center rounded-lg border border-transparent py-1.25 px-3 text-left opacity-70 ${
-                            collapsed ? 'justify-center lg:px-0' : 'gap-2'
-                          }`}
-                          title={collapsed ? project.name : undefined}
-                        >
-                          {projectContent}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            ) : null}
-          </div>
-
-          <div className="mt-auto px-3 pb-3 pt-3.5">
-            <Menu as="div" className="relative">
-              <MenuButton
-                className={`flex w-full items-center rounded-2xl outline-none bg-white p-2 text-left transition hover:bg-gray-50 ${
-                  collapsed ? 'justify-center' : 'gap-3'
-                }`}
-                title={collapsed ? currentAccount.name : undefined}
-              >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-slate-700 to-slate-950 text-sm font-semibold text-white">
-                  {currentAccount.initials}
-                </span>
-                <span
-                  className={`min-w-0 flex-1 transition-all duration-300 ${
-                    collapsed ? 'w-0 overflow-hidden opacity-0' : 'opacity-100'
-                  }`}
-                >
-                  <span className="block truncate text-base font-medium text-black">
-                    {currentAccount.name}
+                  {/* fallback initials */}
+                  <span className="flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-br from-slate-700 to-slate-950 text-sm font-semibold text-white">
+                    {currentAccount.initials}
                   </span>
-                  <span className="block truncate text-xs font-normal text-gray-500">
-                    {currentAccount.email}
-                  </span>
-                </span>
-                <span
-                  className={`text-gray-700 transition-all duration-300 ${
-                    collapsed ? 'w-0 overflow-hidden opacity-0' : 'opacity-100'
-                  }`}
-                >
-                  <AccountChevronIcon />
-                </span>
-              </MenuButton>
+                </MenuButton>
 
-              <MenuItems
-                anchor="top start"
-                className="z-50 mb-3 w-52 sm:w-66 origin-bottom-left rounded-xl bg-white p-1 ring-1 ring-gray-200 focus:outline-none"
-              >
-                <MenuItem>
-                  <button
-                    className="flex w-full items-center gap-2 sm:gap-3 rounded-lg px-3 py-2 text-left text-sm md:text-base font-medium text-black transition data-focus:bg-gray-50"
-                    onClick={handleChangePassword}
-                    type="button"
-                  >
-                    <PasswordMenuIcon
-                      height={isMobile ? '20' : '24'}
-                      width={isMobile ? '20' : '24'}
-                    />
-                    Change Password
-                  </button>
-                </MenuItem>
-                <MenuItem>
-                  <button
-                    className="flex w-full items-center gap-2 sm:gap-3 rounded-lg px-3 py-2 text-left text-sm md:text-base font-medium text-red-500 transition data-focus:bg-red-50"
-                    onClick={handleLogout}
-                    type="button"
-                  >
-                    <LogoutMenuIcon
-                      height={isMobile ? '20' : '24'}
-                      width={isMobile ? '20' : '24'}
-                    />
-                    Logout
-                  </button>
-                </MenuItem>
-              </MenuItems>
-            </Menu>
+                <MenuItems
+                  anchor="top start"
+                  className="z-300 mb-3 w-52 sm:w-66 origin-bottom-left rounded-xl bg-white p-1 ring-1 ring-gray-200 focus:outline-none"
+                >
+                  <MenuItem>
+                    <button
+                      className="flex w-full items-center gap-2 sm:gap-3 rounded-lg px-3 py-2 text-left text-sm md:text-base font-medium text-black transition data-focus:bg-gray-50"
+                      onClick={handleChangePassword}
+                      type="button"
+                    >
+                      <PasswordMenuIcon
+                        height={isMobile ? '20' : '24'}
+                        width={isMobile ? '20' : '24'}
+                      />
+                      Change Password
+                    </button>
+                  </MenuItem>
+
+                  <MenuItem>
+                    <button
+                      className="flex w-full items-center gap-2 sm:gap-3 rounded-lg px-3 py-2 text-left text-sm md:text-base font-medium text-red-500 transition data-focus:bg-red-50"
+                      onClick={handleLogout}
+                      type="button"
+                    >
+                      <LogoutMenuIcon
+                        height={isMobile ? '20' : '24'}
+                        width={isMobile ? '20' : '24'}
+                      />
+                      Logout
+                    </button>
+                  </MenuItem>
+                </MenuItems>
+              </Menu>
+            </div>
           </div>
         </aside>
 
         <div
-          className={`min-h-dvh transition-all  flex flex-col duration-300 ease-out ${contentOffset}`}
+          className={`min-h-dvh transition-all  flex flex-col duration-300 ease-out flex-1 bg-gray-200`}
         >
           {!shouldHideHeader ? (
-            <header
-              className={`fixed ${collapsed ? 'sm:max-w-[calc(100%-72px)]' : 'sm:max-w-[calc(100%-240px)]'} top-0 z-20 border-b border-gray-200 bg-white w-full backdrop-blur`}
-            >
+            <header className="sticky top-0 z-20 border-b border-gray-200 bg-white w-full backdrop-blur">
               <div className="flex py-4 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center gap-3">
                   <button
@@ -806,7 +625,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           ) : null}
 
           <main
-            className={`px-4 sm:px-6 flex flex-col flex-1 py-4 md:py-8 lg:px-8 ${
+            className={` flex flex-col flex-1  ${
               shouldHideHeader ? '' : 'md:pt-28'
             }`}
           >
@@ -966,46 +785,60 @@ function AccountChevronIcon() {
 
 function RolesIcon({
   fill = 'currentColor',
-  opacity = '0',
+  opacity = '0.4',
 }: {
   fill?: string;
   opacity?: string;
 }) {
   return (
     <svg
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
+      width="26"
+      height="26"
+      viewBox="0 0 26 26"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <circle cx="8" cy="8" r="3" fill={fill} opacity={opacity} />
-      <circle cx="16" cy="9" r="2.5" fill={fill} opacity={opacity} />
+      <g opacity={opacity}>
+        <path
+          d="M9.20822 9.20833C9.20822 10.7041 7.99566 11.9167 6.49989 11.9167C5.00412 11.9167 3.79155 10.7041 3.79155 9.20833C3.79155 7.71256 5.00412 6.5 6.49989 6.5C7.99566 6.5 9.20822 7.71256 9.20822 9.20833Z"
+          fill={fill}
+        />
+        <path
+          d="M22.2082 9.20833C22.2082 10.7041 20.9957 11.9167 19.4999 11.9167C18.0041 11.9167 16.7916 10.7041 16.7916 9.20833C16.7916 7.71256 18.0041 6.5 19.4999 6.5C20.9957 6.5 22.2082 7.71256 22.2082 9.20833Z"
+          fill={fill}
+        />
+        <path
+          d="M8.38015 16.5955C8.5194 16.5137 8.64725 16.4385 8.75734 16.3705C11.3531 14.7654 14.6467 14.7654 17.2424 16.3705C17.3525 16.4385 17.4804 16.5137 17.6196 16.5955C18.8805 17.3364 21.0758 18.6264 19.484 20.2014C18.6205 21.0557 17.6587 21.6667 16.4496 21.6667H9.55015C8.34103 21.6667 7.37931 21.0557 6.51581 20.2014C4.92393 18.6264 7.1193 17.3364 8.38015 16.5955Z"
+          fill={fill}
+        />
+      </g>
       <path
-        d="M3.75 17C3.75 14.9289 5.42893 13.25 7.5 13.25H8.5C10.5711 13.25 12.25 14.9289 12.25 17V17.5H3.75V17Z"
-        stroke={fill}
-        strokeWidth="1.5"
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M8.39572 8.12501C8.39572 5.5822 10.4571 3.52084 12.9999 3.52084C15.5427 3.52084 17.6041 5.5822 17.6041 8.12501C17.6041 10.6678 15.5427 12.7292 12.9999 12.7292C10.4571 12.7292 8.39572 10.6678 8.39572 8.12501ZM12.9999 5.14584C11.3545 5.14584 10.0207 6.47966 10.0207 8.12501C10.0207 9.77036 11.3545 11.1042 12.9999 11.1042C14.6452 11.1042 15.9791 9.77036 15.9791 8.12501C15.9791 6.47966 14.6452 5.14584 12.9999 5.14584Z"
         fill={fill}
-        fillOpacity={opacity}
-        strokeLinecap="round"
-        strokeLinejoin="round"
       />
       <path
-        d="M13.25 17.5V16.75C13.25 15.2312 14.4812 14 16 14H16.5C18.0188 14 19.25 15.2312 19.25 16.75V17.5"
-        stroke={fill}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M8.33019 15.6794C11.1878 13.9124 14.8123 13.9124 17.6699 15.6794C17.7541 15.7315 17.8608 15.7939 17.9834 15.8656C18.5383 16.1904 19.4194 16.7059 20.0205 17.317C20.3981 17.7007 20.7747 18.2239 20.8433 18.8762C20.9168 19.574 20.6206 20.22 20.0556 20.779C19.1221 21.7025 17.9659 22.4792 16.4498 22.4792H9.55031C8.03423 22.4792 6.87795 21.7025 5.94453 20.779C5.3795 20.22 5.08331 19.574 5.15677 18.8762C5.22542 18.2239 5.60199 17.7007 5.97956 17.317C6.5807 16.7059 7.46165 16.1904 8.01661 15.8657C8.13922 15.7939 8.24593 15.7315 8.33019 15.6794ZM16.8153 17.0615C14.4814 15.6184 11.5187 15.6184 9.18481 17.0615C9.04472 17.1481 8.89451 17.2367 8.73952 17.3281C8.18499 17.6551 7.56935 18.0181 7.13795 18.4566C6.87254 18.7264 6.78579 18.9233 6.77284 19.0463C6.76468 19.1238 6.76859 19.3084 7.08741 19.6238C7.88099 20.4089 8.64816 20.8542 9.55031 20.8542H16.4498C17.3519 20.8542 18.1191 20.4089 18.9127 19.6238C19.2315 19.3084 19.2354 19.1238 19.2273 19.0463C19.2143 18.9233 19.1275 18.7264 18.8621 18.4566C18.4307 18.0181 17.8152 17.6551 17.2606 17.3281C17.1056 17.2367 16.9554 17.1482 16.8153 17.0615Z"
+        fill={fill}
       />
       <path
-        d="M6 8C6 6.89543 6.89543 6 8 6C9.10457 6 10 6.89543 10 8C10 9.10457 9.10457 10 8 10C6.89543 10 6 9.10457 6 8Z"
-        stroke={fill}
-        strokeWidth="1.5"
+        d="M2.43743 9.20834C2.43743 7.26384 4.01376 5.68751 5.95826 5.68751C6.407 5.68751 6.77076 6.05128 6.77076 6.50001C6.77076 6.94874 6.407 7.31251 5.95826 7.31251C4.91122 7.31251 4.06243 8.1613 4.06243 9.20834C4.06243 10.2554 4.91122 11.1042 5.95826 11.1042C6.407 11.1042 6.77076 11.4679 6.77076 11.9167C6.77076 12.3654 6.407 12.7292 5.95826 12.7292C4.01376 12.7292 2.43743 11.1528 2.43743 9.20834Z"
+        fill={fill}
       />
       <path
-        d="M13.5 9C13.5 7.89543 14.3954 7 15.5 7C16.6046 7 17.5 7.89543 17.5 9C17.5 10.1046 16.6046 11 15.5 11C14.3954 11 13.5 10.1046 13.5 9Z"
-        stroke={fill}
-        strokeWidth="1.5"
+        d="M5.34339 13.2741C5.7903 13.2337 6.18536 13.5632 6.22579 14.0101C6.26622 14.457 5.93671 14.8521 5.4898 14.8925C4.79614 14.9553 4.09775 15.2232 3.45819 15.7157C3.35514 15.7951 3.24818 15.8737 3.14031 15.953C2.77241 16.2234 2.3939 16.5016 2.12389 16.8434C1.96358 17.0463 1.90629 17.1988 1.89719 17.3065C1.89025 17.3886 1.90195 17.5331 2.08847 17.7629C2.62514 18.4241 3.06192 18.6875 3.49472 18.6875C3.94345 18.6875 4.30722 19.0513 4.30722 19.5C4.30722 19.9487 3.94345 20.3125 3.49472 20.3125C2.30403 20.3125 1.4495 19.5542 0.826745 18.7869C0.419891 18.2857 0.230117 17.7357 0.277965 17.1697C0.323652 16.6291 0.577411 16.1796 0.848767 15.8361C1.27345 15.2985 1.90351 14.8401 2.27259 14.5716C2.35031 14.5151 2.41653 14.4669 2.46674 14.4282C3.33806 13.7573 4.32665 13.3661 5.34339 13.2741Z"
+        fill={fill}
+      />
+      <path
+        d="M18.6874 6.50001C18.6874 6.05128 19.0512 5.68751 19.4999 5.68751C21.4444 5.68751 23.0207 7.26384 23.0207 9.20834C23.0207 11.1528 21.4444 12.7292 19.4999 12.7292C19.0512 12.7292 18.6874 12.3654 18.6874 11.9167C18.6874 11.4679 19.0512 11.1042 19.4999 11.1042C20.5469 11.1042 21.3957 10.2554 21.3957 9.20834C21.3957 8.1613 20.5469 7.31251 19.4999 7.31251C19.0512 7.31251 18.6874 6.94874 18.6874 6.50001Z"
+        fill={fill}
+      />
+      <path
+        d="M19.774 14.0101C19.8145 13.5632 20.2095 13.2337 20.6564 13.2741C21.6732 13.3661 22.6618 13.7573 23.5331 14.4282C23.5833 14.4669 23.6494 14.515 23.7271 14.5715C24.0962 14.84 24.7264 15.2985 25.151 15.8361C25.4224 16.1796 25.6762 16.6291 25.7219 17.1697C25.7697 17.7357 25.5799 18.2857 25.1731 18.7869C24.5503 19.5542 23.6958 20.3125 22.5051 20.3125C22.0564 20.3125 21.6926 19.9487 21.6926 19.5C21.6926 19.0513 22.0564 18.6875 22.5051 18.6875C22.9379 18.6875 23.3747 18.4241 23.9113 17.7629C24.0979 17.5331 24.1096 17.3886 24.1026 17.3065C24.0935 17.1988 24.0362 17.0463 23.8759 16.8434C23.6059 16.5016 23.2274 16.2234 22.8595 15.953C22.7517 15.8737 22.6447 15.7951 22.5416 15.7157C21.9021 15.2232 21.2037 14.9553 20.51 14.8925C20.0631 14.8521 19.7336 14.457 19.774 14.0101Z"
+        fill={fill}
       />
     </svg>
   );

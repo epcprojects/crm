@@ -10,6 +10,7 @@ type ThemeButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   icon?: ReactNode;
   fullRounded?: boolean;
   iconBg?: string;
+  borderclassName?: string;
 };
 
 export default function ThemeButton({
@@ -20,27 +21,28 @@ export default function ThemeButton({
   fullRounded = true,
   className,
   iconBg = 'bg-white',
+  borderclassName,
   ...props
 }: ThemeButtonProps) {
   const hasIcon = Boolean(icon);
   return (
     <button
       className={clsx(
-        'flex items-center cursor-pointer justify-center rounded-lg font-medium transition-all duration-300',
+        `flex items-center cursor-pointer justify-center ${borderclassName} ${fullRounded?"rounded-full":"rounded-lg"}  font-medium transition-all duration-300`,
         !hasIcon && {
           ' px-4 py-2 text-xs': size === 'xs',
           ' px-6 py-3 text-xs': size === 'sm',
-          'px-2.5 py-2 text-sm': size === 'md',
+          'px-2.5 py-2 text-base': size === 'md',
           'px-6 py-2.5 text-sm md:text-base': size === 'lg',
         },
         hasIcon && {
           ' px-4 py-2 text-xs': size === 'xs',
           ' px-6 py-3 text-xs': size === 'sm',
-          'px-2.5 py-2 text-sm': size === 'md',
+          'px-2.5 py-2 text-base': size === 'md',
           'px-6 py-2.5 text-sm md:text-base': size === 'lg',
         },
         {
-          'bg-linear-to-r from-primary-dark via-[#6719FC]  to-[#3165F6] text-white hover:opacity-90':
+          'bg-linear-to-l from-royal-blue  to-crystal-blue text-white hover:opacity-90':
             variant === 'primaryGradient',
           'bg-gray-50 border border-gray-200 text-black hover:bg-gray-100':
             variant === 'secondary',
@@ -51,9 +53,9 @@ export default function ThemeButton({
       )}
       {...props}
     >
-      {hasIcon && <span className={clsx('mr-1.5 ')}>{icon}</span>}
+      {hasIcon && <span className={clsx('mr-1.5 w-8 h-8 bg-white shrink-0 rounded-full flex items-center justify-center')}>{icon}</span>}
 
-      <span className="whitespace-nowrap">{children}</span>
+      <span className="whitespace-nowrap font-medium">{children}</span>
     </button>
   );
 }
