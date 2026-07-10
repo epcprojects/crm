@@ -332,18 +332,14 @@ export default function Page() {
                   </div>
 
                   {canCreateTicket ? (
-                    <div className="p-0.75 rounded-full bg-linear-to-l from-royal-blue/30 to-crystal-blue/30">
-                      <ThemeButton
-                        className="rounded-full"
-                        variant="primaryGradient"
-                        icon={
-                          <PlusIcon fill="#3889FE" width="20" height="20" />
-                        }
-                        onClick={() => setCreateTicketOpen(true)}
-                      >
-                        New Ticket
-                      </ThemeButton>
-                    </div>
+                    <ThemeButton
+                      className="rounded-full"
+                      variant="primaryGradient"
+                      icon={<PlusIcon fill="#3889FE" width="20" height="20" />}
+                      onClick={() => setCreateTicketOpen(true)}
+                    >
+                      New Ticket
+                    </ThemeButton>
                   ) : null}
                 </div>
 
