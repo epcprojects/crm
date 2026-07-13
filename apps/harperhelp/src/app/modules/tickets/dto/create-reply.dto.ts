@@ -2,9 +2,10 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsOptional, IsBoolean } from 'class-validator';
 
 export class CreateReplyDto {
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  message: string;
+  message?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

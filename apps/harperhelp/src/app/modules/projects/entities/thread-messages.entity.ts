@@ -9,6 +9,9 @@ export class ThreadMessage extends BaseEntity {
   @Column('uuid')
   projectId: string;
 
+  @Column({ type: 'uuid', nullable: true })
+  parentId: string;
+
   @ManyToOne(() => Project, {
     onDelete: 'CASCADE',
   })
@@ -24,6 +27,15 @@ export class ThreadMessage extends BaseEntity {
   @JoinColumn({ name: 'authorId' })
   author: User;
 
-  @Column('text')
+  @Column({
+    type: 'text',
+    nullable: true,
+  })
   message: string;
+
+  @Column({
+    type: 'bigint',
+    default: 0,
+  })
+  replyCount: number;
 }

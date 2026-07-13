@@ -6,6 +6,7 @@ import {
   IsEnum,
   IsOptional,
   IsString,
+  IsUUID,
 } from 'class-validator';
 
 export class InviteUserDto {
@@ -24,12 +25,9 @@ export class InviteUserDto {
   @IsEnum(UserType)
   userType: UserType;
 
-  @ApiProperty({
-    enum: ProjectRoles,
-    example: ProjectRoles.DEVELOPER,
-  })
-  @IsEnum(ProjectRoles)
-  roleKey: ProjectRoles;
+  @ApiProperty()
+  @IsString()
+  roleKey: string;
 
   @ApiProperty()
   @IsArray()

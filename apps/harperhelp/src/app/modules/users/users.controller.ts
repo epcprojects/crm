@@ -1,8 +1,13 @@
 import {
+  BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
+  Param,
   Post,
+  Put,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
@@ -13,6 +18,7 @@ import { InviteUserDto } from './dto/invite-user.dto';
 import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { GetUser } from '../../../common/decorators/get-user.decorator';
 import { SystemRoles } from '@harperhelp/types';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Controller('users')
 @ApiBearerAuth('JWT-auth')
@@ -28,16 +34,32 @@ export class UsersController {
     return this.usersService.getMyself(user);
   }
 
-  @Roles(SystemRoles.SUPER_ADMIN, SystemRoles.ADMIN)
+  // @Roles(SystemRoles.SUPER_ADMIN, SystemRoles.ADMIN)
   @Post('invite/project')
   @ApiOperation({
     summary: 'Invite user to project',
   })
-  async inviteToProject(
-    @Body() dto: InviteUserDto,
-    @GetUser() currentUser,
-  ) {
+  async inviteToProject(@Body() dto: InviteUserDto, @GetUser() currentUser) {
     return this.usersService.inviteToProject(dto, currentUser);
   }
 
+  @Put(':id')
+  updateUser(@Param('id') id: string, @Body() dto: UpdateUserDto) {
+    return this.usersService.updateUser(id, dto);
+  }
+
+  @Delete(':id')
+  // @Roles(SystemRoles.SUPER_ADMIN, SystemRoles.ADMIN)
+  @ApiOperation({
+    summary: 'Soft delete user',
+  })
+  softDeleteUser(@Param('id') id: string, @GetUser() user) {
+    if (id === user?.id) {
+      throw new UnauthorizedException(
+        'You are not authorized to delete this user',
+      );
+    }
+
+    return this.usersService.softDeleteUser(id);
+  }
 }

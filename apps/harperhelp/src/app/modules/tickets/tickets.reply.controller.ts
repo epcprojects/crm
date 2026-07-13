@@ -6,19 +6,28 @@ import {
   UseInterceptors,
   Body,
   UploadedFiles,
-  Req,
+  UseGuards,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { CreateReplyDto } from './dto/create-reply.dto';
 import { TicketRepliesService } from './services/tickets.reply.service';
-import { ApiBody, ApiConsumes, ApiOperation } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+} from '@nestjs/swagger';
 import { GetUser } from 'apps/harperhelp/src/common/decorators/get-user.decorator';
+import { JwtAuthGuard } from 'apps/harperhelp/src/common/guards/jwt-auth.guard';
+import { RolesGuard } from 'apps/harperhelp/src/common/guards/roles.guard';
 
-@Controller('tickets/:ticketId/replies')
+@Controller('tickets/:ticketId')
+@ApiBearerAuth('JWT-auth')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class TicketRepliesController {
   constructor(private readonly service: TicketRepliesService) {}
 
-  @Get()
+  @Get('replies')
   @ApiOperation({
     description: 'Returns all replies of a ticket.',
   })
@@ -26,7 +35,7 @@ export class TicketRepliesController {
     return this.service.findByTicket(ticketId);
   }
 
-  @Post()
+  @Post('projects/:pid')
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -51,11 +60,12 @@ export class TicketRepliesController {
     description: 'Creates a reply for a ticket. it also accepts attachments.',
   })
   create(
+    @Param('pid') pid: string,
     @Param('ticketId') ticketId: string,
     @Body() dto: CreateReplyDto,
     @UploadedFiles() files: Express.Multer.File[],
     @GetUser() user,
   ) {
-    return this.service.create(ticketId, dto, user.id, files);
+    return this.service.create(pid, ticketId, dto, user.id, files);
   }
 }

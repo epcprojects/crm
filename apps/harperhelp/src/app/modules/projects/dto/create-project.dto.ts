@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString } from 'class-validator';
 
 export class CreateProjectDto {
@@ -7,14 +7,14 @@ export class CreateProjectDto {
   name: string;
 
   @IsString()
-  @ApiProperty({ required: false })
-  category: string;
+  @ApiPropertyOptional()
+  category?: string;
 
   @IsString()
-  @ApiProperty({ required: false })
-  brandColor: string;
+  @ApiPropertyOptional()
+  brandColor?: string;
 
   @IsString()
-  @ApiProperty({ required: false })
-  logoLetter: string;
+  @ApiPropertyOptional()
+  logoLetter?: string;
 }

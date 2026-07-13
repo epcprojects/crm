@@ -9,6 +9,7 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFiles,
+  Query,
 } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
@@ -28,6 +29,9 @@ import { SystemRoles } from '@harperhelp/types';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { GetUser } from 'apps/harperhelp/src/common/decorators/get-user.decorator';
 import { ProjectsFilesService } from './services/project-files.service';
+import { User } from '../users/entities/user.entity';
+import { Authorize } from '../../../common/guards/authorize.guard';
+import { GetProjectsQueryDto } from './dto/get-projects-query.dto';
 
 @Controller('projects')
 @ApiBearerAuth('JWT-auth')
@@ -40,28 +44,30 @@ export class ProjectsController {
   ) {}
 
   @Post()
-  @Roles(SystemRoles.SUPER_ADMIN)
+  // @Authorize({
+  //   permissions: ['projects.create'],
+  //   roles: [SystemRoles.SUPER_ADMIN],
+  // })
   @ApiOperation({ summary: 'Create a new project' })
-  create(@Body() createProjectDto: CreateProjectDto) {
-    return this.projectsService.create(createProjectDto);
+  create(@Body() createProjectDto: CreateProjectDto, @GetUser() user) {
+    return this.projectsService.createProject(createProjectDto, user);
   }
 
   @Get()
-  @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({ summary: 'Find all projects' })
-  findAll() {
-    return this.projectsService.findAll();
+  findAll(@Query() query: GetProjectsQueryDto, @GetUser() user) {
+    return this.projectsService.findAll(query, user);
   }
 
   @Get('names')
-  @Roles(SystemRoles.SUPER_ADMIN)
+  // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({ summary: 'Find all projects with names only' })
   findAllNames() {
     return this.projectsService.findAllNames();
   }
 
   @Get('members')
-  @Roles(SystemRoles.SUPER_ADMIN)
+  // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({
     summary: 'Get list of all members with their assigned projects.',
   })
@@ -70,43 +76,43 @@ export class ProjectsController {
   }
 
   @Get(':id')
-  @Roles(
-    SystemRoles.SUPER_ADMIN,
-    SystemRoles.ADMIN,
-    SystemRoles.PROJECT_MANAGER,
-    SystemRoles.DEVELOPER,
-    SystemRoles.VIEWER,
-  )
+  // @Roles(
+  //   SystemRoles.SUPER_ADMIN,
+  //   SystemRoles.ADMIN,
+  //   SystemRoles.PROJECT_MANAGER,
+  //   SystemRoles.DEVELOPER,
+  //   SystemRoles.VIEWER,
+  // )
   @ApiOperation({ summary: 'Find a project by ID' })
   findOne(@Param('id') id: string) {
     return this.projectsService.findOne(id);
   }
 
   @Patch(':id')
-  @Roles(SystemRoles.SUPER_ADMIN)
+  // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({ summary: 'Update a project' })
   update(@Param('id') id: string, @Body() updateProjectDto: UpdateProjectDto) {
     return this.projectsService.update(id, updateProjectDto);
   }
 
   @Delete(':id')
-  @Roles(SystemRoles.SUPER_ADMIN)
+  // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({ summary: 'Delete a project' })
   remove(@Param('id') id: string) {
     return this.projectsService.remove(id);
   }
 
   @Get(':id/members')
-  @Roles(
-    SystemRoles.SUPER_ADMIN,
-    SystemRoles.ADMIN,
-    SystemRoles.PROJECT_MANAGER,
-    SystemRoles.DEVELOPER,
-    SystemRoles.VIEWER,
-  )
+  // @Roles(
+  //   SystemRoles.SUPER_ADMIN,
+  //   SystemRoles.ADMIN,
+  //   SystemRoles.PROJECT_MANAGER,
+  //   SystemRoles.DEVELOPER,
+  //   SystemRoles.VIEWER,
+  // )
   @ApiOperation({ summary: 'Get list of project members.' })
-  findProjectMembers(@Param('id') id: string) {
-    return this.projectsService.findProjectMembers(id);
+  findProjectMembers(@Param('id') id: string, @GetUser() user) {
+    return this.projectsService.findProjectMembers(id, user);
   }
 
   // ---------------- UPLOAD FILES ----------------

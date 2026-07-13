@@ -1,5 +1,9 @@
 import { FileSource } from '@harperhelp/types';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FilesService } from '../../files/files.service';
@@ -18,11 +22,18 @@ export class TicketRepliesService {
   ) {}
 
   async create(
+    projectId: string,
     ticketId: string,
     dto: CreateReplyDto,
     userId: string,
     files?: Express.Multer.File[],
   ) {
+    if (!dto.message && !files.length) {
+      throw new BadRequestException(
+        'Atleast one message is required to send a reply.',
+      );
+    }
+
     const reply = await this.replyRepo.save(
       this.replyRepo.create({
         ticketId,
@@ -34,17 +45,35 @@ export class TicketRepliesService {
     );
 
     if (files?.length) {
-      await this.uploadAttachments(reply.id, files, userId);
+      await this.uploadAttachments(reply.id, files, userId, projectId);
     }
 
     return this.findOne(reply.id);
   }
 
+  // TODO: optimize N+1 issue
   async findByTicket(ticketId: string) {
-    return this.replyRepo.find({
+    const replies = await this.replyRepo.find({
       where: { ticketId },
       order: { createdAt: 'ASC' },
+      relations: {
+        author: true,
+      },
     });
+
+    return Promise.all(
+      replies.map(async (reply) => {
+        delete reply.author['passwordHash'];
+
+        return {
+          ...reply,
+          attachments: await this.filesService.findBySource(
+            FileSource.TICKET_REPLY,
+            reply.id,
+          ),
+        };
+      }),
+    );
   }
 
   async findOne(id: string) {
@@ -69,6 +98,7 @@ export class TicketRepliesService {
     replyId: string,
     files: Express.Multer.File[],
     userId: string,
+    projectId: string,
   ) {
     for (const file of files) {
       const key = `tickets/replies/${replyId}/${Date.now()}-${file.originalname}`;
@@ -76,7 +106,7 @@ export class TicketRepliesService {
       await this.utilityService.uploadFile(file, key);
 
       await this.filesService.create({
-        projectId: null, // optional if you want OR derive from ticket
+        projectId,
         uploadedBy: userId,
         originalName: file.originalname,
         storageKey: key,

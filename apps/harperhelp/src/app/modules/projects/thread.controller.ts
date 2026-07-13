@@ -44,6 +44,10 @@ export class ThreadController {
         message: {
           type: 'string',
         },
+        parentId: {
+          type: 'uuid',
+          nullable: true,
+        },
         attachments: {
           type: 'array',
           items: {
@@ -67,4 +71,20 @@ export class ThreadController {
   ) {
     return this.service.create(pid, dto, user.id, files);
   }
+
+  @Get(':messageId')
+  @ApiOperation({
+    description: 'Get full thread (parent + replies + attachments)',
+  })
+  getThread(@Param('pid') pid: string, @Param('messageId') messageId: string) {
+    return this.service.getThread(messageId, pid);
+  }
+
+  // @Get(':messageId/replies')
+  // @ApiOperation({
+  //   description: 'Get replies by parent message id',
+  // })
+  // getReplies(@Param('pid') pid: string, @Param('messageId') messageId: string) {
+  //   return this.service.findReplies(messageId, pid);
+  // }
 }
