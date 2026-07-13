@@ -461,7 +461,7 @@ export default function Page() {
               </div>
             </PermissionGuard>
             <PermissionGuard permission="dashboard.view_project_cards">
-              <div className="bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)] rounded-[20px] p-3 flex flex-col gap-3.5">
+              <div className="bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)] rounded-[20px] p-3 flex flex-col gap-3.5 w-[320px]">
                 <div className="flex flex-row justify-between items-center">
                   <div className="flex flex-row gap-2.5 items-center">
                     <p className="text-black font-medium text-lg">Projects</p>
@@ -481,7 +481,7 @@ export default function Page() {
                   ) : null}
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 ">
+                <div className="grid grid-cols-1 gap-3 ">
                   {projectsQuery.isLoading
                     ? Array.from({ length: 3 }).map((_, index) => (
                         <ProjectCardSkeleton key={index} />
@@ -526,157 +526,7 @@ export default function Page() {
               </div>
             </PermissionGuard>
           </div>
-          {/* <PermissionGuard permission="dashboard.view_stats">
-            {isStatsLoading ? (
-              <DashboardStatsSkeleton />
-            ) : (
-              <div className="grid md:grid-cols-4 gap-3 md:gap-5">
-                <StatusCard
-                  icon={
-                    <FolderIcon
-                      width={isMobile ? '20' : '24'}
-                      height={isMobile ? '20' : '24'}
-                      fill="currentColor"
-                    />
-                  }
-                  title="Open"
-                  count={formatSummaryCount(ticketSummary?.open)}
-                />
-                <StatusCard
-                  icon={
-                    <ClockIcon
-                      width={isMobile ? '20' : '24'}
-                      height={isMobile ? '20' : '24'}
-                      fill="currentColor"
-                    />
-                  }
-                  title="In Progress"
-                  count={formatSummaryCount(ticketSummary?.inProgress)}
-                />
-                <StatusCard
-                  icon={
-                    <CheckMarkCircleIcon
-                      width={isMobile ? '20' : '24'}
-                      height={isMobile ? '20' : '24'}
-                      fill="currentColor"
-                    />
-                  }
-                  title="Resolved"
-                  count={formatSummaryCount(ticketSummary?.resolved)}
-                />
-                <StatusCard
-                  icon={
-                    <AlertIcon
-                      width={isMobile ? '20' : '24'}
-                      height={isMobile ? '20' : '24'}
-                      fill="currentColor"
-                    />
-                  }
-                  title="Critical"
-                  count={formatSummaryCount(ticketSummary?.critical)}
-                />
-              </div>
-            )}
-          </PermissionGuard> */}
-
-          {/* <PermissionGuard permission="dashboard.view_project_cards">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 justify-between">
-                <div className="flex items-center gap-2 md:gap-2.5">
-                  <ProfileIcon />
-                  <h2 className="text-sm md:text-base font-bold text-black">
-                    Projects
-                  </h2>
-                </div>
-
-                {canViewProjectsList ? (
-                  <Link
-                    href={'/projects'}
-                    className="text-primary font-medium text-sm hover:underline underline-offset-2"
-                  >
-                    View All
-                  </Link>
-                ) : null}
-              </div>
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                {projectsQuery.isLoading
-                  ? Array.from({ length: 3 }).map((_, index) => (
-                      <ProjectCardSkeleton key={index} />
-                    ))
-                  : (projectsQuery.data ?? []).map((project) => (
-                      <ProjectCard
-                        key={project.id}
-                        id={project.id}
-                        initials={project.initials}
-                        name={project.name}
-                        category={project.category}
-                        totalCount={project.totalCount}
-                        openCount={project.openCount}
-                        criticalCount={project.criticalCount}
-                        colorHex={project.colorHex}
-                        onClick={
-                          canViewProjectDetail
-                            ? () => router.push(`/projects/${project.id}`)
-                            : undefined
-                        }
-                        onEdit={
-                          canEditProject
-                            ? () => setProjectToEdit(project)
-                            : undefined
-                        }
-                        onDelete={
-                          canDeleteProject
-                            ? () =>
-                                setProjectToDelete({
-                                  id: project.id,
-                                  name: project.name,
-                                })
-                            : undefined
-                        }
-                        isDeleting={
-                          deleteProjectMutation.isPending &&
-                          deleteProjectMutation.variables === project.id
-                        }
-                      />
-                    ))}
-              </div>
-            </div>
-          </PermissionGuard> */}
-
-          {/* <div className="grid md:grid-cols-14 gap-4 md:gap-6">
-            <PermissionGuard permission="dashboard.view_recent_tickets">
-              <div
-                className={`space-y-4 ${
-                  canViewUpcoming ? 'md:col-span-10' : 'md:col-span-14'
-                }`}
-              >
-                <div className="flex items-center gap-2 md:gap-2.5">
-                  <ClockIcon opacity={0} />
-                  <h2 className="text-sm md:text-base font-bold text-black">
-                    Recent Tickets
-                  </h2>
-                </div>
-                {isRecentTicketsLoading ? (
-                  <RecentTicketsTableSkeleton />
-                ) : (
-                  <RecentTicketsTable
-                    tickets={recentTicketsQuery.data?.items ?? []}
-                    onViewAll={
-                      canViewTicketsList ? handleViewAllTickets : undefined
-                    }
-                    onRowClick={
-                      canViewTicketDetail
-                        ? (ticket) =>
-                            router.push(
-                              `/tickets/${ticket.id}?projectId=${ticket.project.id}`,
-                            )
-                        : undefined
-                    }
-                  />
-                )}
-              </div>
-            </PermissionGuard>
-          </div> */}
+          
         </div>
       </div>
 
