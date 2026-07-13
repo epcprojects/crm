@@ -85,6 +85,7 @@ export default function Page() {
   const canViewProjectDetail = hasPermission('projects.view_detail');
   const canEditProject = hasPermission('projects.edit');
   const canDeleteProject = hasPermission('projects.delete');
+  const [searchValue, setSearchValue] = useState('');
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [projectToEdit, setProjectToEdit] = useState<ProjectRecord | null>(
     null,
@@ -105,11 +106,12 @@ export default function Page() {
     enabled: canViewStats,
   });
   const recentTicketsQuery = useQuery({
-    queryKey: ['dashboard', 'recent-tickets'],
+    queryKey: ['dashboard', 'recent-tickets', searchValue.trim()],
     queryFn: () =>
       fetchDashboardTickets({
         page: 1,
         limit: 20,
+        search: searchValue.trim(),
       }),
     enabled: canViewRecentTickets,
   });
@@ -394,7 +396,7 @@ export default function Page() {
               </div>
             )}
           </PermissionGuard>
-          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_340px] min-h-0 flex-row gap-3">
+          <div className="grid grid-cols-1 flex-1 md:grid-cols-[minmax(0,1fr)_340px] min-h-0 flex-row gap-3">
             <PermissionGuard permission="dashboard.view_recent_tickets">
               <div
                 className={`bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)]  flex flex-1 flex-col min-h-0 gap-3.5 rounded-[20px] p-3 h-full `}
@@ -414,8 +416,11 @@ export default function Page() {
                     <div className="border border-gray-200 bg-white py-2 px-2.5 flex items-center gap-2 justify-between flex-row rounded-lg">
                       <SearchIcon fill="#374151" />
                       <input
+                        type="text"
+                        value={searchValue}
+                        onChange={(event) => setSearchValue(event.target.value)}
                         placeholder="Search"
-                        className="placeholder:text-gray-400 text-sm text-gray-700 outline-none"
+                        className="min-w-0 bg-transparent placeholder:text-gray-400 text-sm text-gray-700 outline-none"
                       />
                     </div>
 
@@ -787,10 +792,12 @@ async function fetchDashboardTickets({
   page,
   limit,
   priorityKey,
+  search,
 }: {
   page: number;
   limit: number;
   priorityKey?: string;
+  search?: string;
 }): Promise<DashboardTicketsResponse> {
   const searchParams = new URLSearchParams({
     page: String(page),
@@ -799,6 +806,10 @@ async function fetchDashboardTickets({
 
   if (priorityKey) {
     searchParams.set('priorityKey', priorityKey);
+  }
+
+  if (search) {
+    searchParams.set('search', search);
   }
 
   const response = await fetch(
