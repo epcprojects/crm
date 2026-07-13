@@ -1,7 +1,6 @@
 'use client';
 
 import clsx from 'clsx';
-import Image from 'next/image';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import EmptyState from '../EmptyState';
 

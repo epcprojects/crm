@@ -11,7 +11,7 @@ import {
 } from '@tanstack/react-table';
 import { useState, type ReactNode } from 'react';
 import ThemeButton from '../ui/ThemeButton';
-import { ArrowUpRightIcon, PlusIcon } from '../../../public/icons';
+import { ArrowUpRightIcon } from '../../../public/icons';
 import { useAppSelector } from '../../app/Redux/store';
 import EmptyState from '../EmptyState';
 
@@ -292,7 +292,7 @@ export default function RecentTicketsTable({
       </div>
 
       <div className="hidden min-h-0 flex-1 overflow-x-auto overflow-y-scroll scrollbar-hide md:block">
-        <table className="w-full  min-w-[880px] text-left">
+        <table className="w-full  min-w-220 text-left">
           <thead className="bg-gray-50">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>

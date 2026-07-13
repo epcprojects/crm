@@ -15,7 +15,6 @@ import {
 } from 'react';
 import {
   PlusIcon,
-  ToggleIcon,
   DashboardIcon,
   TicketsIcon,
   ProjectsIcon,
@@ -64,17 +63,6 @@ type PageHeaderConfig = {
 };
 
 type UserRole = 'admin' | 'developer' | 'pm' | 'external';
-
-type UserProjectResponse = {
-  id: string;
-  name: string;
-  initials: string;
-  colorHex?: string;
-};
-
-type SidebarProject = UserProjectResponse & {
-  initials: string;
-};
 
 type DashboardHeaderActionContextValue = {
   setHeaderActionOverride: (action: (() => void) | null) => void;
@@ -237,21 +225,6 @@ function SidebarNavSkeleton() {
   );
 }
 
-function SidebarProjectsSkeleton() {
-  return (
-    <div className="space-y-1.5">
-      {Array.from({ length: 4 }).map((_, index) => (
-        <div
-          key={`project-skeleton-${index}`}
-          className="flex w-full items-center justify-center rounded-lg border border-transparent px-0 py-1.25"
-        >
-          <span className="h-7.5 w-7.5 shrink-0 animate-pulse rounded-full bg-gray-200" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export function DashboardShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -312,15 +285,6 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       router.replace(visibleNavigationItems[0].href);
     }
   }, [isAuthenticated, isLoggingOut, pathname, router, visibleNavigationItems]);
-
-  const sidebarProjects = useMemo<SidebarProject[]>(() => {
-    return (projectsQuery.data ?? []).map((project) => ({
-      id: project.id,
-      name: project.name,
-      initials: project.initials || getProjectInitials(project.name),
-      colorHex: project.colorHex,
-    }));
-  }, [projectsQuery.data]);
 
   const currentAccount = useMemo(() => {
     const name = user?.fullName || fallbackAccount.name;
@@ -761,27 +725,6 @@ function PasswordMenuIcon({ width = '24', height = '24' }) {
         fillRule="evenodd"
         clipRule="evenodd"
         d="M6.75 8.45909V6.5C6.75 3.6005 9.1005 1.25 12 1.25C14.8995 1.25 17.25 3.6005 17.25 6.5V8.45909C18.9408 8.86285 20.239 10.2984 20.4755 12.0552C20.6236 13.1556 20.75 14.3118 20.75 15.5C20.75 16.6882 20.6236 17.8444 20.4755 18.9448C20.2039 20.9618 18.5328 22.5555 16.4748 22.6501C15.0464 22.7158 13.5958 22.75 12 22.75C10.4042 22.75 8.95364 22.7158 7.52522 22.6501C5.46716 22.5555 3.79609 20.9618 3.52452 18.9448C3.37636 17.8444 3.25 16.6882 3.25 15.5C3.25 14.3118 3.37636 13.1556 3.52452 12.0552C3.76104 10.2984 5.05919 8.86285 6.75 8.45909ZM8.25 6.5C8.25 4.42893 9.92893 2.75 12 2.75C14.0711 2.75 15.75 4.42893 15.75 6.5V8.31937C14.5532 8.27365 13.3269 8.25 12 8.25C10.6732 8.25 9.44676 8.27365 8.25 8.31937V6.5ZM12 9.75C10.4264 9.75 8.9989 9.78372 7.5941 9.8483C6.2851 9.90848 5.18929 10.9319 5.0111 12.2553C4.86573 13.3351 4.75 14.4129 4.75 15.5C4.75 16.5871 4.86573 17.6649 5.0111 18.7447C5.18929 20.0681 6.2851 21.0915 7.5941 21.1517C8.9989 21.2163 10.4264 21.25 12 21.25C13.5736 21.25 15.0011 21.2163 16.4059 21.1517C17.7149 21.0915 18.8107 20.0681 18.9889 18.7447C19.1343 17.6649 19.25 16.5871 19.25 15.5C19.25 14.4129 19.1343 13.3351 18.9889 12.2553C18.8107 10.9319 17.7149 9.90848 16.4059 9.8483C15.0011 9.78372 13.5736 9.75 12 9.75Z"
-        fill="black"
-      />
-    </svg>
-  );
-}
-
-function AccountChevronIcon() {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 20 20"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M5.40033 8.81376L4.6001 7.85349L10.0002 3.35339L15.4003 7.85345L14.6001 8.81374L10.0002 4.98053L5.40033 8.81376Z"
-        fill="black"
-      />
-      <path
-        d="M5.40033 11.1868L4.6001 12.1471L10.0002 16.6472L15.4003 12.1471L14.6001 11.1868L10.0002 15.02L5.40033 11.1868Z"
         fill="black"
       />
     </svg>

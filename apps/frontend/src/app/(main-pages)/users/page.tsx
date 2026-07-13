@@ -683,23 +683,3 @@ function resolveUserRoleValue(
 
   return matchedOption?.value ?? role.value ?? '';
 }
-
-function UsersEmptyIcon() {
-  return (
-    <svg
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M16 21V19C16 17.1362 14.2091 15.5 12 15.5H7C4.79086 15.5 3 17.1362 3 19V21M21 21V19.5C21 18.0876 19.9704 16.8585 18.5 16.402M15.5 3.40198C16.9704 3.85853 18 5.08765 18 6.5C18 7.91235 16.9704 9.14147 15.5 9.59802M13.5 6.5C13.5 8.15685 12.1569 9.5 10.5 9.5C8.84315 9.5 7.5 8.15685 7.5 6.5C7.5 4.84315 8.84315 3.5 10.5 3.5C12.1569 3.5 13.5 4.84315 13.5 6.5Z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
