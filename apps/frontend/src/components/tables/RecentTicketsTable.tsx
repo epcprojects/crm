@@ -13,6 +13,7 @@ import { useState, type ReactNode } from 'react';
 import ThemeButton from '../ui/ThemeButton';
 import { ArrowUpRightIcon } from '../../../public/icons';
 import { useAppSelector } from '../../app/Redux/store';
+import EmptyState from '../EmptyState';
 
 export type TicketStatus = string;
 export type TicketPriority = string;
@@ -168,11 +169,13 @@ type RecentTicketsTableProps = {
   onPaginationChange?: (pagination: PaginationState) => void;
   sortState?: TicketSortState;
   onSortChange?: (sortState: TicketSortState) => void;
+  emptyStateButton?: ReactNode;
 };
 
 export default function RecentTicketsTable({
   tickets,
   onViewAll,
+  emptyStateButton,
   enablePagination = false,
   initialPageSize = 12,
   pageSizeOptions = [10, 25, 50, 100],
@@ -255,9 +258,19 @@ export default function RecentTicketsTable({
       )
     : totalRows;
   const visiblePages = getVisiblePageNumbers(currentPage, totalPages);
-
+  if (tickets.length === 0) {
+    return (
+       <EmptyState
+      imageUrl="/images/RecentTicketEmpty.svg"
+      imageAlt="No recent tickets"
+      title="No Recent Tickets"
+      description="Recent tickets will appear here once they are created."
+      button={emptyStateButton}
+    />
+    );
+  }
   return (
-  <div className="flex h-full min-h-0 w-[calc(100dvw-32px)] flex-col overflow-hidden rounded-xl bg-white sm:w-full md:border md:border-gray-200">
+    <div className="flex h-full min-h-0  flex-col overflow-hidden rounded-xl bg-white sm:w-full md:border md:border-gray-200">
       <div className="space-y-3 md:p-3 md:hidden">
         {table.getRowModel().rows.length ? (
           table

@@ -394,7 +394,7 @@ export default function Page() {
               </div>
             )}
           </PermissionGuard>
-          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_340px] min-h-0 flex-row gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_340px] min-h-0 flex-1 flex-row gap-3">
             <PermissionGuard permission="dashboard.view_recent_tickets">
               <div
                 className={`bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)]  flex flex-1 flex-col min-h-0 gap-3.5 rounded-[20px] p-3 h-full `}
@@ -446,6 +446,20 @@ export default function Page() {
                 ) : (
                   <RecentTicketsTable
                     tickets={recentTicketsQuery.data?.items ?? []}
+                    emptyStateButton={
+                      canCreateTicket ? (
+                        <ThemeButton
+                          className="rounded-full"
+                          variant="primaryGradient"
+                          icon={
+                            <PlusIcon fill="#3889FE" width="20" height="20" />
+                          }
+                          onClick={() => setCreateTicketOpen(true)}
+                        >
+                          New Ticket
+                        </ThemeButton>
+                      ) : undefined
+                    }
                     onViewAll={undefined}
                     onRowClick={
                       canViewTicketDetail
