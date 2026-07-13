@@ -30,6 +30,7 @@ import {
   projectsQueryKey,
 } from './projects.queries';
 import type { ProjectRecord } from './projects.data';
+import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
 
 export default function ProjectsPage() {
   const router = useRouter();
@@ -221,138 +222,167 @@ export default function ProjectsPage() {
       setLoading(false);
     }
   };
-
+  const projectSummaryStats = useMemo(
+    () => [
+      {
+        title: 'Open',
+        count:  0,
+        color: '#F04438',
+      },
+      {
+        title: 'InProgress',
+        count:  0,
+        color: '#F79009',
+      },
+      {
+        title: 'Resolved',
+        count:  0,
+        color: '#17B26A',
+      },
+      {
+        title: 'Critical',
+        count: 0,
+        color: '#7A5AF8',
+      },
+    ],
+    [],
+  );
   return (
-    <div className="">
-      <PermissionGuard
-        permission="projects.view_list"
-        fallback={
-          <div className="flex min-h-80 items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 py-10 text-center text-sm text-gray-500">
-            You do not have permission to view projects.
-          </div>
-        }
-      >
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          {projectsQuery.isLoading
-            ? Array.from({ length: 6 }).map((_, index) => (
-                <ProjectCardSkeleton key={index} />
-              ))
-            : projects.map((project) => (
-                <ProjectCard
-                  key={project.id}
-                  id={project.id}
-                  initials={project.initials}
-                  name={project.name}
-                  category={project.category}
-                  totalCount={project.totalCount}
-                  openCount={project.openCount}
-                  criticalCount={project.criticalCount}
-                  colorHex={project.colorHex}
-                  onClick={
-                    canViewProjectDetail
-                      ? () => router.push(`/projects/${project.id}`)
-                      : undefined
-                  }
-                  onAddTicket={
-                    canCreateTicket
-                      ? () => {
-                          setSelectedProjectId(project.id);
-                          setCreateTicketOpen(true);
-                        }
-                      : undefined
-                  }
-                  onEdit={
-                    canEditProject
-                      ? () => {
-                          setProjectToEdit(project);
-                          setCreateProjectOpen(true);
-                        }
-                      : undefined
-                  }
-                  onDelete={
-                    canDeleteProject
-                      ? () =>
-                          setProjectToDelete({
-                            id: project.id,
-                            name: project.name,
-                          })
-                      : undefined
-                  }
-                  isDeleting={
-                    deleteProjectMutation.isPending &&
-                    deleteProjectMutation.variables === project.id
-                  }
-                />
-              ))}
-        </div>
-        {projectsQuery.hasNextPage ? (
-          <div ref={loadMoreRef} className="py-6">
-            {projectsQuery.isFetchingNextPage ? (
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                {Array.from({ length: 3 }).map((_, index) => (
-                  <ProjectCardSkeleton key={`next-page-${index}`} />
-                ))}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </PermissionGuard>
+     <div className="relative z-100 h-dvh py-5 pr-5">
+        <div className="flex h-full flex-col gap-3 rounded-4xl border border-white bg-white/40 p-3">
+           <DashboardSummaryBanner imageSrc={'/images/ProjectsIcon.svg'} title={'Projects'} stats={[]}/>
+      </div>
+     </div>
+    // <div className="">
+    //   <PermissionGuard
+    //     permission="projects.view_list"
+    //     fallback={
+    //       <div className="flex min-h-80 items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 py-10 text-center text-sm text-gray-500">
+    //         You do not have permission to view projects.
+    //       </div>
+    //     }
+    //   >
+    //     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+    //       {projectsQuery.isLoading
+    //         ? Array.from({ length: 6 }).map((_, index) => (
+    //             <ProjectCardSkeleton key={index} />
+    //           ))
+    //         : projects.map((project) => (
+    //             <ProjectCard
+    //               key={project.id}
+    //               id={project.id}
+    //               initials={project.initials}
+    //               name={project.name}
+    //               category={project.category}
+    //               totalCount={project.totalCount}
+    //               openCount={project.openCount}
+    //               criticalCount={project.criticalCount}
+    //               colorHex={project.colorHex}
+    //               onClick={
+    //                 canViewProjectDetail
+    //                   ? () => router.push(`/projects/${project.id}`)
+    //                   : undefined
+    //               }
+    //               onAddTicket={
+    //                 canCreateTicket
+    //                   ? () => {
+    //                       setSelectedProjectId(project.id);
+    //                       setCreateTicketOpen(true);
+    //                     }
+    //                   : undefined
+    //               }
+    //               onEdit={
+    //                 canEditProject
+    //                   ? () => {
+    //                       setProjectToEdit(project);
+    //                       setCreateProjectOpen(true);
+    //                     }
+    //                   : undefined
+    //               }
+    //               onDelete={
+    //                 canDeleteProject
+    //                   ? () =>
+    //                       setProjectToDelete({
+    //                         id: project.id,
+    //                         name: project.name,
+    //                       })
+    //                   : undefined
+    //               }
+    //               isDeleting={
+    //                 deleteProjectMutation.isPending &&
+    //                 deleteProjectMutation.variables === project.id
+    //               }
+    //             />
+    //           ))}
+    //     </div>
+    //     {projectsQuery.hasNextPage ? (
+    //       <div ref={loadMoreRef} className="py-6">
+    //         {projectsQuery.isFetchingNextPage ? (
+    //           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+    //             {Array.from({ length: 3 }).map((_, index) => (
+    //               <ProjectCardSkeleton key={`next-page-${index}`} />
+    //             ))}
+    //           </div>
+    //         ) : null}
+    //       </div>
+    //     ) : null}
+    //   </PermissionGuard>
 
-      <CreateProjectModal
-        isOpen={
-          createProjectOpen &&
-          (projectToEdit ? canEditProject : canCreateProject)
-        }
-        onClose={() => {
-          setCreateProjectOpen(false);
-          setProjectToEdit(null);
-        }}
-        onConfirm={handleCreateProject}
-        initialValues={
-          projectToEdit
-            ? {
-                name: projectToEdit.name,
-                category: projectToEdit.category,
-                colorHex: projectToEdit.colorHex,
-              }
-            : undefined
-        }
-        title={projectToEdit ? 'Edit Project' : 'Create Project'}
-        confirmLabel={projectToEdit ? 'Update Project' : 'Create Project'}
-      />
+    //   <CreateProjectModal
+    //     isOpen={
+    //       createProjectOpen &&
+    //       (projectToEdit ? canEditProject : canCreateProject)
+    //     }
+    //     onClose={() => {
+    //       setCreateProjectOpen(false);
+    //       setProjectToEdit(null);
+    //     }}
+    //     onConfirm={handleCreateProject}
+    //     initialValues={
+    //       projectToEdit
+    //         ? {
+    //             name: projectToEdit.name,
+    //             category: projectToEdit.category,
+    //             colorHex: projectToEdit.colorHex,
+    //           }
+    //         : undefined
+    //     }
+    //     title={projectToEdit ? 'Edit Project' : 'Create Project'}
+    //     confirmLabel={projectToEdit ? 'Update Project' : 'Create Project'}
+    //   />
 
-      <ConfirmActionModal
-        isOpen={Boolean(projectToDelete)}
-        onClose={() => setProjectToDelete(null)}
-        title="Delete Project?"
-        message={
-          <>
-            Are you sure you want to delete{' '}
-            <span className="font-semibold">
-              “{projectToDelete?.name ?? 'this project'}”
-            </span>
-            ? This action cannot be undone.
-          </>
-        }
-        confirmLabel="Yes, Delete"
-        cancelLabel="Cancel"
-        variant="danger"
-        isSubmitting={deleteProjectMutation.isPending}
-        onConfirm={handleDeleteProject}
-      />
+    //   <ConfirmActionModal
+    //     isOpen={Boolean(projectToDelete)}
+    //     onClose={() => setProjectToDelete(null)}
+    //     title="Delete Project?"
+    //     message={
+    //       <>
+    //         Are you sure you want to delete{' '}
+    //         <span className="font-semibold">
+    //           “{projectToDelete?.name ?? 'this project'}”
+    //         </span>
+    //         ? This action cannot be undone.
+    //       </>
+    //     }
+    //     confirmLabel="Yes, Delete"
+    //     cancelLabel="Cancel"
+    //     variant="danger"
+    //     isSubmitting={deleteProjectMutation.isPending}
+    //     onConfirm={handleDeleteProject}
+    //   />
 
-      <CreateTicketModal
-        isOpen={createTicketOpen}
-        onClose={() => {
-          setCreateTicketOpen(false);
-          setSelectedProjectId(null);
-        }}
-        onConfirm={handleCreateTicket}
-        projectOptions={projectOptions}
-        preselectedProjectId={selectedProjectId ?? undefined}
-        disableProjectSelection={Boolean(selectedProjectId)}
-      />
-    </div>
+    //   <CreateTicketModal
+    //     isOpen={createTicketOpen}
+    //     onClose={() => {
+    //       setCreateTicketOpen(false);
+    //       setSelectedProjectId(null);
+    //     }}
+    //     onConfirm={handleCreateTicket}
+    //     projectOptions={projectOptions}
+    //     preselectedProjectId={selectedProjectId ?? undefined}
+    //     disableProjectSelection={Boolean(selectedProjectId)}
+    //   />
+    // </div>
   );
 }
 

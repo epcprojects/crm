@@ -9,6 +9,7 @@ import CreateTicketModal, {
   type CreateTicketFormValues,
 } from '../../../components/modals/CreateTicketModal';
 import { createTicketProjectOptions } from '../../../components/modals/create-ticket-modal.data';
+import Image from 'next/image';
 import RecentTicketsTable, {
   type TicketSortState,
   type RecentTicket,
@@ -27,7 +28,14 @@ import {
   usePermissions,
 } from '../../providers/PermissionProvider';
 import { useAppLoader } from '../../providers/AppLoaderProvider';
+import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
 
+type TicketSummary = {
+  open: number | null;
+  inProgress: number | null;
+  resolved: number | null;
+  critical: number | null;
+};
 export default function Page() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -53,6 +61,8 @@ export default function Page() {
   const canFilterTickets = hasPermission('tickets.filter');
   const canViewTicketDetail = hasPermission('tickets.view_detail');
   const canEditTicketStatus = hasPermission('tickets.edit_status');
+  const canViewTickets = hasPermission('tickets.view_list');
+
   const ticketStatusesQuery = useQuery({
     queryKey: ['ticket-statuses'],
     queryFn: fetchTicketStatuses,
@@ -62,6 +72,11 @@ export default function Page() {
     queryKey: ['ticket-priorities'],
     queryFn: fetchTicketPriorities,
     enabled: canFilterTickets,
+  });
+  const ticketSummaryQuery = useQuery({
+    queryKey: ['dashboard', 'ticket-summary'],
+    queryFn: fetchTicketSummary,
+    enabled: canViewTickets,
   });
   const ticketsQuery = useQuery({
     queryKey: [
@@ -85,7 +100,31 @@ export default function Page() {
       }),
     enabled: hasPermission('tickets.view_list'),
   });
-
+  const ticketSummaryStats = useMemo(
+    () => [
+      {
+        title: 'Open',
+        count: ticketSummaryQuery.data?.open ?? 0,
+        color: '#F04438',
+      },
+      {
+        title: 'InProgress',
+        count: ticketSummaryQuery.data?.inProgress ?? 0,
+        color: '#F79009',
+      },
+      {
+        title: 'Resolved',
+        count: ticketSummaryQuery.data?.resolved ?? 0,
+        color: '#17B26A',
+      },
+      {
+        title: 'Critical',
+        count: ticketSummaryQuery.data?.critical ?? 0,
+        color: '#7A5AF8',
+      },
+    ],
+    [ticketSummaryQuery.data],
+  );
   const projectOptions = useMemo(
     () => createTicketProjectOptions(projectsQuery.data ?? []),
     [projectsQuery.data],
@@ -365,124 +404,273 @@ export default function Page() {
   };
 
   return (
-    <div className="space-y-4">
-      <PermissionGuard
-        permission="tickets.view_list"
-        fallback={
-          <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
-            You do not have permission to view tickets.
+    <>
+      <div className="relative z-100 h-dvh py-5 pr-5">
+        <div className="flex h-full flex-col gap-3 rounded-4xl border border-white bg-white/40 p-3">
+          <DashboardSummaryBanner
+            imageSrc="/images/TicketsIcon.svg"
+            imageAlt="Tickets"
+            title="Tickets"
+            stats={ticketSummaryStats}
+          />
+
+          <div className="min-h-0 flex-1 overflow-y-auto rounded-[20px] bg-white p-3 md:p-4">
+            <PermissionGuard
+              permission="tickets.view_list"
+              fallback={
+                <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
+                  You do not have permission to view tickets.
+                </div>
+              }
+            >
+              <div className="flex min-h-full flex-col gap-4">
+                <div className="flex flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
+                  {canFilterTickets ? (
+                    <>
+                      <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 md:max-w-50">
+                        <div className="flex items-center gap-2">
+                          <SearchIcon fill="#374151" />
+                          <input
+                            type="text"
+                            value={searchValue}
+                            onChange={(event) =>
+                              setSearchValue(event.target.value)
+                            }
+                            placeholder="Search"
+                            className="min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400"
+                          />
+                        </div>
+                      </div>
+                     
+
+                      <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                        <div className="hidden items-center rounded-lg border border-gray-200 bg-white">
+                          <button
+                            type="button"
+                            onClick={() => setViewMode('table')}
+                            className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
+                              viewMode === 'table'
+                                ? 'bg-primary-dark text-white shadow-sm'
+                                : 'text-gray-500 hover:bg-gray-50'
+                            }`}
+                            aria-label="Table view"
+                          >
+                            <TableViewIcon />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setViewMode('kanban')}
+                            className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
+                              viewMode === 'kanban'
+                                ? 'bg-primary-dark text-white shadow-sm'
+                                : 'text-gray-500 hover:bg-gray-50'
+                            }`}
+                            aria-label="Kanban view"
+                          >
+                            <KanbanViewIcon />
+                          </button>
+                        </div>
+
+                        <div className="w-full md:w-44">
+                          <Dropdown
+                            options={projectFilterOptions}
+                            value={selectedProject}
+                            onChange={setSelectedProject}
+                            placeholder="All Projects"
+                          />
+                        </div>
+
+                        <div className="w-full md:w-38">
+                          <Dropdown
+                            options={statusFilterOptions}
+                            value={selectedStatus}
+                            onChange={setSelectedStatus}
+                            placeholder="All Status"
+                          />
+                        </div>
+
+                        <div className="w-full md:w-38">
+                          <Dropdown
+                            options={priorityFilterOptions}
+                            value={selectedPriority}
+                            onChange={setSelectedPriority}
+                            placeholder="All Priority"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+
+                <div className="min-h-0 flex-1">
+                  {viewMode === 'kanban' ? (
+                    <TicketsKanbanView
+                      tickets={sortedTickets}
+                      statusOptions={kanbanStatusOptions}
+                      onTicketClick={
+                        canViewTicketDetail ? handleTicketClick : undefined
+                      }
+                      onMoveTicket={(ticket, nextStatusKey) => {
+                        void handleMoveTicket(ticket, nextStatusKey);
+                      }}
+                      canDragTickets={canEditTicketStatus}
+                      movingTicketId={
+                        moveTicketMutation.isPending
+                          ? (moveTicketMutation.variables?.ticket.id ?? null)
+                          : null
+                      }
+                    />
+                  ) : (
+                    <RecentTicketsTable
+                      tickets={sortedTickets}
+                      enablePagination
+                      initialPageSize={10}
+                      pageSizeOptions={[10, 25, 50, 100]}
+                      pagination={pagination}
+                      onPaginationChange={setPagination}
+                      totalRows={ticketsQuery.data?.meta.total ?? 0}
+                      manualPagination
+                      sortState={sortState}
+                      onSortChange={handleSortChange}
+                      onRowClick={
+                        canViewTicketDetail ? handleTicketClick : undefined
+                      }
+                    />
+                  )}
+                </div>
+              </div>
+            </PermissionGuard>
           </div>
-        }
-      >
-        <div className="flex flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
-          {canFilterTickets ? (
-            <>
-              <div className="relative flex w-full items-center md:max-w-xs">
-                <input
-                  value={searchValue}
-                  onChange={(event) => setSearchValue(event.target.value)}
-                  placeholder="Search..."
-                  className="h-10.5 w-full rounded-lg border border-gray-200 bg-white ps-7 px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
-                />
-                <span className="absolute start-2">
-                  <SearchIcon />
-                </span>
-              </div>
-
-              <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                <div className="hidden items-center rounded-lg border border-gray-200 bg-white ">
-                  <button
-                    type="button"
-                    onClick={() => setViewMode('table')}
-                    className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
-                      viewMode === 'table'
-                        ? 'bg-primary-dark text-white shadow-sm'
-                        : 'text-gray-500 hover:bg-gray-50'
-                    }`}
-                    aria-label="Table view"
-                  >
-                    <TableViewIcon />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewMode('kanban')}
-                    className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
-                      viewMode === 'kanban'
-                        ? 'bg-primary-dark text-white shadow-sm'
-                        : 'text-gray-500 hover:bg-gray-50'
-                    }`}
-                    aria-label="Kanban view"
-                  >
-                    <KanbanViewIcon />
-                  </button>
-                </div>
-                <div className="w-full md:w-44">
-                  <Dropdown
-                    options={projectFilterOptions}
-                    value={selectedProject}
-                    onChange={setSelectedProject}
-                    placeholder="All Projects"
-                  />
-                </div>
-                <div className="w-full md:w-38">
-                  <Dropdown
-                    options={statusFilterOptions}
-                    value={selectedStatus}
-                    onChange={setSelectedStatus}
-                    placeholder="All Status"
-                  />
-                </div>
-                <div className="w-full md:w-38">
-                  <Dropdown
-                    options={priorityFilterOptions}
-                    value={selectedPriority}
-                    onChange={setSelectedPriority}
-                    placeholder="All Priority"
-                  />
-                </div>
-              </div>
-            </>
-          ) : null}
         </div>
+      </div>
 
-        {viewMode === 'kanban' ? (
-          <TicketsKanbanView
-            tickets={sortedTickets}
-            statusOptions={kanbanStatusOptions}
-            onTicketClick={canViewTicketDetail ? handleTicketClick : undefined}
-            onMoveTicket={(ticket, nextStatusKey) => {
-              void handleMoveTicket(ticket, nextStatusKey);
-            }}
-            canDragTickets={canEditTicketStatus}
-            movingTicketId={
-              moveTicketMutation.isPending
-                ? (moveTicketMutation.variables?.ticket.id ?? null)
-                : null
-            }
-          />
-        ) : (
-          <RecentTicketsTable
-            tickets={sortedTickets}
-            enablePagination
-            initialPageSize={10}
-            pageSizeOptions={[10, 25, 50, 100]}
-            pagination={pagination}
-            onPaginationChange={setPagination}
-            totalRows={ticketsQuery.data?.meta.total ?? 0}
-            manualPagination
-            sortState={sortState}
-            onSortChange={handleSortChange}
-            onRowClick={canViewTicketDetail ? handleTicketClick : undefined}
-          />
-        )}
-      </PermissionGuard>
       <CreateTicketModal
         isOpen={createTicketOpen && canCreateTicket}
         onClose={() => setCreateTicketOpen(false)}
         onConfirm={handleCreateTicket}
         projectOptions={projectOptions}
       />
-    </div>
+    </>
+
+    // <div className="space-y-4">
+    //   <PermissionGuard
+    //     permission="tickets.view_list"
+    //     fallback={
+    //       <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
+    //         You do not have permission to view tickets.
+    //       </div>
+    //     }
+    //   >
+    //     <div className="flex flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
+    //       {canFilterTickets ? (
+    //         <>
+    //           <div className="relative flex w-full items-center md:max-w-xs">
+    //             <input
+    //               value={searchValue}
+    //               onChange={(event) => setSearchValue(event.target.value)}
+    //               placeholder="Search..."
+    //               className="h-10.5 w-full rounded-lg border border-gray-200 bg-white ps-7 px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
+    //             />
+    //             <span className="absolute start-2">
+    //               <SearchIcon />
+    //             </span>
+    //           </div>
+
+    //           <div className="flex flex-col gap-3 md:flex-row md:items-center">
+    //             <div className="hidden items-center rounded-lg border border-gray-200 bg-white ">
+    //               <button
+    //                 type="button"
+    //                 onClick={() => setViewMode('table')}
+    //                 className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
+    //                   viewMode === 'table'
+    //                     ? 'bg-primary-dark text-white shadow-sm'
+    //                     : 'text-gray-500 hover:bg-gray-50'
+    //                 }`}
+    //                 aria-label="Table view"
+    //               >
+    //                 <TableViewIcon />
+    //               </button>
+    //               <button
+    //                 type="button"
+    //                 onClick={() => setViewMode('kanban')}
+    //                 className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
+    //                   viewMode === 'kanban'
+    //                     ? 'bg-primary-dark text-white shadow-sm'
+    //                     : 'text-gray-500 hover:bg-gray-50'
+    //                 }`}
+    //                 aria-label="Kanban view"
+    //               >
+    //                 <KanbanViewIcon />
+    //               </button>
+    //             </div>
+    //             <div className="w-full md:w-44">
+    //               <Dropdown
+    //                 options={projectFilterOptions}
+    //                 value={selectedProject}
+    //                 onChange={setSelectedProject}
+    //                 placeholder="All Projects"
+    //               />
+    //             </div>
+    //             <div className="w-full md:w-38">
+    //               <Dropdown
+    //                 options={statusFilterOptions}
+    //                 value={selectedStatus}
+    //                 onChange={setSelectedStatus}
+    //                 placeholder="All Status"
+    //               />
+    //             </div>
+    //             <div className="w-full md:w-38">
+    //               <Dropdown
+    //                 options={priorityFilterOptions}
+    //                 value={selectedPriority}
+    //                 onChange={setSelectedPriority}
+    //                 placeholder="All Priority"
+    //               />
+    //             </div>
+    //           </div>
+    //         </>
+    //       ) : null}
+    //     </div>
+
+    //     {viewMode === 'kanban' ? (
+    //       <TicketsKanbanView
+    //         tickets={sortedTickets}
+    //         statusOptions={kanbanStatusOptions}
+    //         onTicketClick={canViewTicketDetail ? handleTicketClick : undefined}
+    //         onMoveTicket={(ticket, nextStatusKey) => {
+    //           void handleMoveTicket(ticket, nextStatusKey);
+    //         }}
+    //         canDragTickets={canEditTicketStatus}
+    //         movingTicketId={
+    //           moveTicketMutation.isPending
+    //             ? (moveTicketMutation.variables?.ticket.id ?? null)
+    //             : null
+    //         }
+    //       />
+    //     ) : (
+    //       <RecentTicketsTable
+    //         tickets={sortedTickets}
+    //         enablePagination
+    //         initialPageSize={10}
+    //         pageSizeOptions={[10, 25, 50, 100]}
+    //         pagination={pagination}
+    //         onPaginationChange={setPagination}
+    //         totalRows={ticketsQuery.data?.meta.total ?? 0}
+    //         manualPagination
+    //         sortState={sortState}
+    //         onSortChange={handleSortChange}
+    //         onRowClick={canViewTicketDetail ? handleTicketClick : undefined}
+    //       />
+    //     )}
+    //   </PermissionGuard>
+    //   <CreateTicketModal
+    //     isOpen={createTicketOpen && canCreateTicket}
+    //     onClose={() => setCreateTicketOpen(false)}
+    //     onConfirm={handleCreateTicket}
+    //     projectOptions={projectOptions}
+    //   />
+    // </div>
   );
 }
 
@@ -683,7 +871,41 @@ function isApiDashboardTicketsResponse(
       typeof (value as ApiDashboardTicketsResponse).meta === 'object',
   );
 }
+async function fetchTicketSummary(): Promise<TicketSummary> {
+  const response = await fetch('/api/dashboard/ticket-summary', {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
 
+  const payload = (await response.json().catch(() => null)) as
+    | TicketSummary
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !isTicketSummary(payload)) {
+    throw new Error(
+      payload && typeof payload === 'object' && 'message' in payload
+        ? payload.message || 'Failed to fetch ticket summary.'
+        : 'Failed to fetch ticket summary.',
+    );
+  }
+
+  return payload;
+}
+
+function isTicketSummary(value: unknown): value is TicketSummary {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      'open' in value &&
+      'inProgress' in value &&
+      'resolved' in value &&
+      'critical' in value,
+  );
+}
 function mapApiDashboardTicketToRecentTicket(
   ticket: ApiDashboardTicket,
 ): RecentTicket {

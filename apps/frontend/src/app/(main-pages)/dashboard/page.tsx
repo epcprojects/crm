@@ -318,7 +318,7 @@ export default function Page() {
             {isStatsLoading ? (
               <DashboardStatsSkeleton />
             ) : (
-              <div className="bg-[url('/images/DashboardComponentBgImage.jpg')] w-full bg-center bg-no-repeat bg-cover h-56 rounded-[20px] p-7.5 bg-black/30 flex flex-col justify-between">
+              <div className="bg-[url('/images/DashboardComponentBgImage.jpg')] w-full bg-center bg-no-repeat bg-cover gap-8.5 rounded-[20px] p-7.5 bg-black/30 flex flex-col justify-between">
                 <div className="flex flex-row gap-6 items-start">
                   <div className="flex flex-col flex-1 gap-1.5">
                     <p className="text-[32px] text-white">

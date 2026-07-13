@@ -449,10 +449,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     visibleNavigationItems.length === 0;
   const shouldHideHeader =
     shouldShowNoAccessPage ||
-    pathname?.startsWith('/tickets/') ||
+    pathname?.startsWith('/tickets') ||
     pathname?.startsWith('/dashboard') ||
     pathname?.startsWith('/settings') ||
-    pathname?.startsWith('/projects/');
+    pathname?.startsWith('/projects');
   const canUseCurrentHeaderAction = currentHeader.action?.permission
     ? hasPermission(currentHeader.action.permission)
     : Boolean(currentHeader.action);
