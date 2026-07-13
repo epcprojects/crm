@@ -471,7 +471,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   return (
     <DashboardHeaderActionContext.Provider value={headerActionContextValue}>
-     <div className="flex h-dvh min-h-0 overflow-hidden bg-white text-slate-900">
+      <div className="flex h-dvh min-h-0 overflow-hidden bg-white text-slate-900">
         {mobileOpen ? (
           <button
             aria-label="Close navigation"
@@ -504,7 +504,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                 <SidebarNavSkeleton />
               ) : (
                 <nav
-                  className={`flex flex-col w-fit items-center gap-2.5 scrollbar-hide`}
+                  className={`flex flex-col w-fit items-center gap-2.5 md:gap-5 scrollbar-hide`}
                 >
                   {visibleNavigationItems.map((item) => {
                     const isActive = pathname === item.href;
@@ -520,7 +520,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                           className={`w-14 h-14 rounded-full flex items-center justify-center transition ${
                             isActive
                               ? 'bg-linear-to-l from-primary-light to-primary-dark text-white'
-                              : 'bg-white text-gray-700'
+                              : 'bg-white text-gray-700 hover:bg-gray-100 hover:text-primary'
                           }`}
                         >
                           {item.icon(isActive)}

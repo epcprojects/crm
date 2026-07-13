@@ -280,7 +280,7 @@ export default function ProjectThreadPanel({
                               {reply.attachments.map((attachment) => (
                                 <div
                                   key={attachment.id}
-                                  className={`flex  min-w-0  w-fit items-start gap-3 ${reply.attachments && reply.attachments.length > 2 && 'md:min-w-40'}  rounded-xl  ${!isImageAttachment(attachment.extension) || (reply.attachments && reply.attachments.length > 1 && 'p-0.5 w-full md:min-w-72 border border-gray-200')} transition bg-gray-50`}
+                                  className={`flex  min-w-0  w-fit items-start gap-3 ${reply.attachments && reply.attachments.length > 1 && 'md:min-w-40'}  rounded-xl  ${!isImageAttachment(attachment.extension) || (reply.attachments && reply.attachments.length > 1 && 'p-0.5 w-full md:min-w-72 border border-gray-200')} transition bg-gray-50`}
                                 >
                                   <a
                                     href={getAttachmentUrl(
