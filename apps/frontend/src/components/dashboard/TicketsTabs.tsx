@@ -61,47 +61,47 @@ export default function TicketsTabs({ tabs, onTicketClick }: TicketsTabsProps) {
     });
   }, [activeIndex]);
   return (
-    <div className="rounded-[20px] shadow-[0_0_35px_0_rgb(0_0_0/0.04)] sm:w-full h-full bg-white space-y-2 py-4  flex flex-col gap-3 min-w-85">
-     <div className='px-4.5'>
-       <div className="relative grid w-full grid-cols-2 gap-1 rounded-full border border-gray-200 bg-gray-50 p-1">
-        <div
-          className="absolute top-1 bottom-1 left-0 rounded-full bg-white shadow-[0_0_25px_0_rgb(27_28_29/0.12)] transition-all duration-300 ease-out"
-          style={{
-            width: indicatorStyle.width,
-            transform: indicatorStyle.transform,
-            opacity: indicatorStyle.opacity,
-          }}
-        />
+    <div className="rounded-[20px] shadow-[0_0_35px_0_rgb(0_0_0/0.04)]  h-full bg-white space-y-2 py-4  flex flex-col gap-3 ">
+      <div className="px-4.5">
+        <div className="relative grid w-full grid-cols-2 gap-1 rounded-full border border-gray-200 bg-gray-50 p-1">
+          <div
+            className="absolute top-1 bottom-1 left-0 rounded-full bg-white shadow-[0_0_25px_0_rgb(27_28_29/0.12)] transition-all duration-300 ease-out"
+            style={{
+              width: indicatorStyle.width,
+              transform: indicatorStyle.transform,
+              opacity: indicatorStyle.opacity,
+            }}
+          />
 
-        {tabs.map((tab, index) => {
-          const isActive = tab.key === activeTabKey;
+          {tabs.map((tab, index) => {
+            const isActive = tab.key === activeTabKey;
 
-          return (
-            <button
-              key={tab.key}
-              ref={(el) => {
-                buttonRefs.current[index] = el;
-              }}
-              type="button"
-              onClick={() => setActiveTabKey(tab.key)}
-              className={clsx(
-                'relative z-10 rounded-full px-3 py-1.25 text-sm font-medium transition-colors duration-300',
-                isActive
-                  ? 'text-black-olive'
-                  : 'text-liver hover:text-black-olive',
-              )}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
+            return (
+              <button
+                key={tab.key}
+                ref={(el) => {
+                  buttonRefs.current[index] = el;
+                }}
+                type="button"
+                onClick={() => setActiveTabKey(tab.key)}
+                className={clsx(
+                  'relative z-10 rounded-full px-3 py-1.25 text-sm font-medium transition-colors duration-300',
+                  isActive
+                    ? 'text-black-olive'
+                    : 'text-liver hover:text-black-olive',
+                )}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
-     </div>
       <div className="flex min-h-0 flex-1 flex-col  overflow-y-auto scrollbar-hide  px-4.5">
         {activeTab?.tickets.length ? (
           activeTab.tickets.map((ticket, index) => {
             const isLast = index === activeTab.tickets.length - 1;
-            
+
             return (
               <div key={ticket.id}>
                 <article
@@ -122,7 +122,7 @@ export default function TicketsTabs({ tabs, onTicketClick }: TicketsTabsProps) {
                   }
                   className={clsx(
                     'flex flex-row items-start gap-3  outline-none transition py-4 ',
-                     !isLast && 'border-b border-gray-200',
+                    !isLast && 'border-b border-gray-200',
                     onTicketClick &&
                       'cursor-pointer hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-primary/30',
                   )}
@@ -168,8 +168,6 @@ export default function TicketsTabs({ tabs, onTicketClick }: TicketsTabsProps) {
                     </div>
                   </div>
                 </article>
-
-               
               </div>
             );
           })

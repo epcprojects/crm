@@ -11,7 +11,6 @@ import {
   FiltersIcon,
   FolderIcon,
   PlusIcon,
-  ProfileIcon,
   SearchIcon,
 } from '../../../../public/icons';
 import TicketsTabs, {
@@ -395,12 +394,12 @@ export default function Page() {
               </div>
             )}
           </PermissionGuard>
-          <div className="flex min-h-0 flex-1 flex-row gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_340px] min-h-0 flex-row gap-3">
             <PermissionGuard permission="dashboard.view_recent_tickets">
               <div
-                className={`bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)] flex flex-1 flex-col min-h-0 gap-3.5 rounded-[20px] p-3 h-full `}
+                className={`bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)]  flex flex-1 flex-col min-h-0 gap-3.5 rounded-[20px] p-3 h-full `}
               >
-                <div className="flex flex-row justify-between items-center">
+                <div className="flex flex-row  flex-wrap gap-3 justify-between items-center">
                   <div className="flex flex-row gap-2.5 items-center">
                     <p className="text-lg font-medium text-black">
                       Recent Tickets
@@ -461,7 +460,7 @@ export default function Page() {
               </div>
             </PermissionGuard>
             <PermissionGuard permission="dashboard.view_project_cards">
-              <div className="bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)] rounded-[20px] p-3 flex flex-col gap-3.5 w-[320px]">
+              <div className="bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)]  rounded-[20px] p-3 flex flex-col gap-3.5 ">
                 <div className="flex flex-row justify-between items-center">
                   <div className="flex flex-row gap-2.5 items-center">
                     <p className="text-black font-medium text-lg">Projects</p>
@@ -526,7 +525,6 @@ export default function Page() {
               </div>
             </PermissionGuard>
           </div>
-          
         </div>
       </div>
 
