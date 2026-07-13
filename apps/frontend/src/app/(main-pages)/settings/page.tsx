@@ -405,8 +405,8 @@ export default function Page() {
   const isMobile = useIsMobile();
 
   return (
-    <div className="py-5 pr-5 z-100 h-dvh relative">
-      <div className="bg-white/40 border border-white rounded-4xl p-3  h-full gap-3">
+    <div className="py-5 pr-5 z-100 max-h-dvh h-dvh relative">
+      <div className="bg-white/40 border flex flex-col border-white rounded-4xl p-3  h-full space-y-3">
         <div className="bg-[url('/images/DashboardComponentBgImage.jpg')] w-full bg-center bg-no-repeat bg-cover rounded-[20px] p-7.5 bg-black/30 flex flex-col justify-between">
           <div className="flex items-center gap-3 md:gap-4">
             <Image
@@ -419,26 +419,26 @@ export default function Page() {
             <h2 className="text-white text-3xl font-normal">Settings</h2>
           </div>
         </div>
-        <div className="flex items-start gap-3 rounded-xl border border-warning-200 bg-[#FFFAEB] px-4 py-3 text-[#69410A]">
-          <span className="mt-1 hidden sm:inline-block">
+        <div className="flex items-center gap-3 rounded-full border border-warning-200 bg-[#FFFAEB] p-1 text-[#69410A]">
+          <span className=" bg-white flex items-center justify-center  drop-shadow rounded-full h-10 w-10">
             <TipIcon />
           </span>
-          <p className="text-sm leading-6">
+          <p className="text-sm leading-6 text-gray-700">
             <span className="inline-block pe-2 sm:hidden">
               <TipIcon
                 height={isMobile ? '16' : '20'}
                 width={isMobile ? '16' : '20'}
               />
             </span>
-            <span className="font-semibold">Tip:</span> Statuses and priorities
-            defined here appear in every dropdown across the app — new tickets,
-            ticket detail editors, and list filters. You can&apos;t delete one
-            that&apos;s currently assigned to a ticket; reassign those tickets
-            first.
+            <span className="font-semibold text-gray-900">Tip:</span> Statuses
+            and priorities defined here appear in every dropdown across the app
+            — new tickets, ticket detail editors, and list filters. You
+            can&apos;t delete one that&apos;s currently assigned to a ticket;
+            reassign those tickets first.
           </p>
         </div>
         {canViewSettings ? (
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <div className="grid grid-cols-1 gap-2 md:gap-4 flex-1 xl:grid-cols-2">
             <PermissionGuard permission="settings.view_statuses">
               <SettingsConfigCard
                 title="Ticket Statuses"

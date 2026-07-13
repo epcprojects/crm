@@ -33,7 +33,7 @@ export default function DashboardSummaryBanner({
       <div className="flex min-w-0 flex-1 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <p className="text-2xl text-white md:text-[32px]">{title}</p>
 
-        <div className="flex max-w-full items-center gap-4 overflow-x-auto rounded-xl border border-white/6 bg-black/11 px-3 py-2.5 shadow-[0_14px_54px_0_rgb(0_0_0/0.25)] md:gap-5.5 md:px-4">
+        <div className="flex max-w-full items-center gap-4 overflow-x-auto rounded-xl border border-white/12 bg-black/40 backdrop-blur-2xl px-3 py-2.5 drop-shadow-[0_14px_54px_0_rgb(0_0_0/0.25)] md:gap-5.5 md:px-4">
           {stats.map((item, index) => (
             <Fragment key={`${item.title}-${index}`}>
               {index > 0 ? (
@@ -45,14 +45,12 @@ export default function DashboardSummaryBanner({
 
               <div className="flex shrink-0 items-center gap-3 md:gap-4">
                 <div className="flex items-center gap-2">
-                  <span className="flex h-3 w-3 shrink-0 items-center justify-center rounded-full bg-white">
-                    <span className="flex h-2.5 w-2.5 items-center justify-center rounded-full bg-black/60">
-                      <span
-                        className="h-[7.5px] w-[7.5px] rounded-full"
-                        style={{ backgroundColor: item.color }}
-                      />
-                    </span>
-                  </span>
+                  <div className="border h-4 relative flex items-center justify-center w-4 border-white  rounded-full">
+                    <span
+                      className="w-2.5 h-2.5 inline-block absolute rounded-full m-auto"
+                      style={{ backgroundColor: item.color }}
+                    ></span>
+                  </div>
 
                   <p className="whitespace-nowrap text-sm text-gray-200 md:text-base">
                     {item.title}

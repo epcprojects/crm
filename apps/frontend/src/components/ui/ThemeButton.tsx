@@ -30,10 +30,10 @@ export default function ThemeButton({
       className={clsx(
         `${hasIcon && 'p-0.75 text-base'} ${fullRounded ? 'rounded-full' : 'rounded-lg'}`,
         !hasIcon && {
-          ' px-4 py-2 text-xs': size === 'xs',
-          ' px-6 py-3 text-xs': size === 'sm',
-          'px-2.5 py-2 text-base': size === 'md',
-          'px-6 py-2.5 text-sm md:text-base': size === 'lg',
+          ' p-0 text-xs': size === 'xs',
+          'p-0 text-xs': size === 'sm',
+          'p-0 text-base': size === 'md',
+          'p-0 text-sm md:text-base': size === 'lg',
         },
         {
           'bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 text-white hover:opacity-90':
@@ -43,6 +43,7 @@ export default function ThemeButton({
           'bg-primary-dark text-white border border-primary-dark hover:border-primary hover:bg-primary':
             variant === 'primary',
         },
+        className,
       )}
       {...props}
     >
@@ -63,7 +64,6 @@ export default function ThemeButton({
             'bg-primary-dark text-white border border-primary-dark hover:border-primary hover:bg-primary':
               variant === 'primary',
           },
-          className,
         )}
       >
         {hasIcon && (
