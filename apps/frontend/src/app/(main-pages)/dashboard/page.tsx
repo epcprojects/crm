@@ -8,7 +8,6 @@ import {
   AlertIcon,
   CheckMarkCircleIcon,
   ClockIcon,
-  FiltersIcon,
   FolderIcon,
   PlusIcon,
   SearchIcon,
@@ -498,8 +497,8 @@ export default function Page() {
               </div>
             </PermissionGuard>
             <PermissionGuard permission="dashboard.view_project_cards">
-              <div className="bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)]  rounded-[20px] p-3 flex flex-col gap-3.5 ">
-                <div className="flex flex-row justify-between items-center">
+              <div className="bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)] flex-1 overflow-y-auto scrollbar-hide rounded-[20px]  flex flex-col gap-3.5 ">
+                <div className="flex flex-row justify-between items-center sticky z-10 top-0 px-4 pt-4 bg-white">
                   <div className="flex flex-row gap-2.5 items-center">
                     <p className="text-black font-medium text-lg">Projects</p>
 
@@ -582,6 +581,47 @@ export default function Page() {
                       />
                     ))
                   )}
+                <div className="grid grid-cols-1 gap-3 bg-white px-3">
+                  {projectsQuery.isLoading
+                    ? Array.from({ length: 3 }).map((_, index) => (
+                        <ProjectCardSkeleton key={index} />
+                      ))
+                    : (projectsQuery.data ?? []).map((project) => (
+                        <ProjectCard
+                          key={project.id}
+                          id={project.id}
+                          initials={project.initials}
+                          name={project.name}
+                          category={project.category}
+                          totalCount={project.totalCount}
+                          openCount={project.openCount}
+                          criticalCount={project.criticalCount}
+                          colorHex={project.colorHex}
+                          onClick={
+                            canViewProjectDetail
+                              ? () => router.push(`/projects/${project.id}`)
+                              : undefined
+                          }
+                          onEdit={
+                            canEditProject
+                              ? () => setProjectToEdit(project)
+                              : undefined
+                          }
+                          onDelete={
+                            canDeleteProject
+                              ? () =>
+                                  setProjectToDelete({
+                                    id: project.id,
+                                    name: project.name,
+                                  })
+                              : undefined
+                          }
+                          isDeleting={
+                            deleteProjectMutation.isPending &&
+                            deleteProjectMutation.variables === project.id
+                          }
+                        />
+                      ))}
                 </div>
               </div>
             </PermissionGuard>

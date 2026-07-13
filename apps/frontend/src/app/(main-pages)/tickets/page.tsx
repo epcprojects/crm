@@ -9,7 +9,6 @@ import CreateTicketModal, {
   type CreateTicketFormValues,
 } from '../../../components/modals/CreateTicketModal';
 import { createTicketProjectOptions } from '../../../components/modals/create-ticket-modal.data';
-import Image from 'next/image';
 import RecentTicketsTable, {
   type TicketSortState,
   type RecentTicket,
