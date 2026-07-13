@@ -21,7 +21,9 @@ export default function DashboardSummaryBanner({
   imageAlt = '',
 }: DashboardSummaryBannerProps) {
   return (
-    <div className="flex w-full flex-col gap-4 rounded-[20px] bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat px-4 py-5 md:flex-row md:items-center md:px-7.5 md:py-6">
+    <div className="flex w-full flex-col gap-4 overflow-hidden relative rounded-[20px]  bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat px-4 py-5 md:flex-row md:items-center md:px-7.5 md:py-6">
+      <div className="bg-black/30 absolute h-full w-full"></div>
+
       <Image
         alt={imageAlt}
         src={imageSrc}
@@ -33,7 +35,7 @@ export default function DashboardSummaryBanner({
       <div className="flex min-w-0 flex-1 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <p className="text-2xl text-white md:text-[32px]">{title}</p>
 
-        <div className="flex max-w-full items-center gap-4 overflow-x-auto rounded-xl border border-white/12 bg-black/40 backdrop-blur-2xl px-3 py-2.5 drop-shadow-[0_14px_54px_0_rgb(0_0_0/0.25)] md:gap-5.5 md:px-4">
+        <div className="flex max-w-full items-center gap-4 overflow-x-auto rounded-xl border border-white/12 bg-white/10 backdrop-blur-3xl px-3 py-2.5 drop-shadow-[0_14px_44px_0_rgb(0_0_0/0.45)] md:gap-5.5 md:px-4">
           {stats.map((item, index) => (
             <Fragment key={`${item.title}-${index}`}>
               {index > 0 ? (
