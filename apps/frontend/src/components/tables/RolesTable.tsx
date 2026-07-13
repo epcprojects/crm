@@ -206,8 +206,8 @@ export default function RolesTable({
   const visiblePages = getVisiblePageNumbers(currentPage, totalPages);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-      <div className="space-y-3 p-3 md:hidden">
+   <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white">
+   <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 md:hidden">
         {table.getRowModel().rows.length ? (
           table.getRowModel().rows.map((row) => {
             const role = row.original;
@@ -264,7 +264,7 @@ export default function RolesTable({
         )}
       </div>
 
-      <div className="hidden overflow-x-auto md:block">
+      <div className="hidden min-h-0 flex-1 overflow-x-auto overflow-y-auto md:block">
         <table className="w-full min-w-215 text-left">
           <thead className="bg-gray-50">
             {table.getHeaderGroups().map((headerGroup) => (
@@ -272,7 +272,7 @@ export default function RolesTable({
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
-                    className="border-b border-gray-200 px-4 py-3 text-xs font-semibold text-gray-900"
+                    className="sticky top-0 z-10 border-b border-gray-200 px-4 py-3 text-xs font-semibold text-gray-900"
                   >
                     {header.isPlaceholder
                       ? null
@@ -316,7 +316,7 @@ export default function RolesTable({
         </table>
       </div>
 
-      <div className="flex justify-between gap-3 border-t border-gray-200 px-4 py-3 sm:flex-col md:flex-row md:items-center md:justify-between">
+      <div className="mt-auto flex shrink-0 justify-between gap-3 border-t border-gray-200 bg-white px-4 py-3 sm:flex-col md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2 text-sm text-gray-600">
           <span className="hidden sm:inline-block">Showing per page</span>
           <select

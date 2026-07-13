@@ -10,7 +10,7 @@ type SummaryItem = {
 type DashboardSummaryBannerProps = {
   imageSrc: string;
   title: string;
-  stats: SummaryItem[];
+  stats?: SummaryItem[];
   imageAlt?: string;
 };
 
@@ -34,38 +34,39 @@ export default function DashboardSummaryBanner({
 
       <div className="flex min-w-0 flex-1 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <p className="text-2xl text-white md:text-[32px]">{title}</p>
+        {stats?.length ? (
+          <div className="flex max-w-full items-center gap-4 overflow-x-auto rounded-xl border border-white/12 bg-white/10 px-3 py-2.5 backdrop-blur-3xl drop-shadow-[0_14px_44px_0_rgb(0_0_0/0.45)] md:gap-5.5 md:px-4">
+            {stats.map((item, index) => (
+              <Fragment key={`${item.title}-${index}`}>
+                {index > 0 ? (
+                  <div
+                    className="h-5.25 w-0.5 shrink-0 bg-linear-to-b from-white/0 via-white/80 to-white/0"
+                    aria-hidden="true"
+                  />
+                ) : null}
 
-        <div className="flex max-w-full items-center gap-4 overflow-x-auto rounded-xl border border-white/12 bg-white/10 backdrop-blur-3xl px-3 py-2.5 drop-shadow-[0_14px_44px_0_rgb(0_0_0/0.45)] md:gap-5.5 md:px-4">
-          {stats.map((item, index) => (
-            <Fragment key={`${item.title}-${index}`}>
-              {index > 0 ? (
-                <div
-                  className="h-5.25 w-0.5 shrink-0 bg-linear-to-b from-white/0 via-white/80 to-white/0"
-                  aria-hidden="true"
-                />
-              ) : null}
+                <div className="flex shrink-0 items-center gap-3 md:gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex h-4 w-4 items-center justify-center rounded-full border border-white">
+                      <span
+                        className="absolute m-auto inline-block h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: item.color }}
+                      />
+                    </div>
 
-              <div className="flex shrink-0 items-center gap-3 md:gap-4">
-                <div className="flex items-center gap-2">
-                  <div className="border h-4 relative flex items-center justify-center w-4 border-white  rounded-full">
-                    <span
-                      className="w-2.5 h-2.5 inline-block absolute rounded-full m-auto"
-                      style={{ backgroundColor: item.color }}
-                    ></span>
+                    <p className="whitespace-nowrap text-sm text-gray-200 md:text-base">
+                      {item.title}
+                    </p>
                   </div>
 
-                  <p className="whitespace-nowrap text-sm text-gray-200 md:text-base">
-                    {item.title}
+                  <p className="whitespace-nowrap text-base font-bold text-white md:text-lg">
+                    {item.count}
                   </p>
                 </div>
-
-                <p className="whitespace-nowrap text-base text-white font-bold md:text-lg">
-                  {item.count}
-                </p>
-              </div>
-            </Fragment>
-          ))}
-        </div>
+              </Fragment>
+            ))}
+          </div>
+        ) : null}
       </div>
     </div>
   );

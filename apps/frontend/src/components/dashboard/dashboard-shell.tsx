@@ -453,6 +453,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     pathname?.startsWith('/dashboard') ||
     pathname?.startsWith('/settings') ||
     pathname?.startsWith('/users') ||
+    pathname?.startsWith('/roles')||
     pathname?.startsWith('/projects');
   const canUseCurrentHeaderAction = currentHeader.action?.permission
     ? hasPermission(currentHeader.action.permission)
