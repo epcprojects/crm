@@ -15,7 +15,6 @@ import {
 import { useAppSelector } from '../../../Redux/store';
 import { FileTypePlaceholder } from '../../../../../public/icons';
 import { getFileUrl } from '../../../../components/projects/ProjectFilesPanel';
-import DashboardSummaryBanner from '../../../../components/ui/DashboardSummaryBanner';
 
 export default function TicketDetailPage() {
   const params = useParams<{ ticketId: string }>();
@@ -518,7 +517,7 @@ export default function TicketDetailPage() {
                       }`}
                     >
                       <div className="flex w-full items-center gap-3">
-                        <p className="pt-0.25 text-sm font-medium">
+                        <p className="pt-px text-sm font-medium">
                           {selectedDueDate}
                         </p>
 
@@ -800,7 +799,6 @@ export default function TicketDetailPage() {
         </div>
       </div>
     </div>
-   
   );
 }
 

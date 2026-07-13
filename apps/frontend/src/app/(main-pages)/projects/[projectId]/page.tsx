@@ -45,8 +45,6 @@ import {
 } from '../../../providers/PermissionProvider';
 import { useAppSelector } from '../../../Redux/store';
 import Calendar from '../../../../components/calendar/Calendar';
-import DashboardSummaryBanner from '../../../../components/ui/DashboardSummaryBanner';
-
 const projectTabs = ['Tickets', 'Thread', 'Files', 'Calendar'] as const;
 
 export default function ProjectDetailPage() {
@@ -486,37 +484,36 @@ export default function ProjectDetailPage() {
       </div>
     );
   }
-const projectSummaryStats = [
-  ...(canViewTickets
-    ? [
-        {
-          title: 'Tickets',
-          count: projectTicketsQuery.data?.meta.total ?? 0,
-          color: '#F04438',
-        },
-      ]
-    : []),
-  ...(canViewThread
-    ? [
-        {
-          title: 'Thread Posts',
-          count: projectThreadQuery.data?.length ?? 0,
-          color: '#F79009',
-        },
-      ]
-    : []),
-  ...(canViewFiles
-    ? [
-        {
-          title: 'Files',
-          count:
-            uploadedFilesState.length +
-            (projectFilesQuery.data?.length ?? 0),
-          color: '#17B26A',
-        },
-      ]
-    : []),
-];
+  const projectSummaryStats = [
+    ...(canViewTickets
+      ? [
+          {
+            title: 'Tickets',
+            count: projectTicketsQuery.data?.meta.total ?? 0,
+            color: '#F04438',
+          },
+        ]
+      : []),
+    ...(canViewThread
+      ? [
+          {
+            title: 'Thread Posts',
+            count: projectThreadQuery.data?.length ?? 0,
+            color: '#F79009',
+          },
+        ]
+      : []),
+    ...(canViewFiles
+      ? [
+          {
+            title: 'Files',
+            count:
+              uploadedFilesState.length + (projectFilesQuery.data?.length ?? 0),
+            color: '#17B26A',
+          },
+        ]
+      : []),
+  ];
   return (
     <>
       <div className="relative z-100 h-dvh overflow-hidden py-5 pr-5">
@@ -847,302 +844,6 @@ const projectSummaryStats = [
         onConfirm={handleDeleteFile}
       />
     </>
-    // <div className="space-y-4 flex flex-col flex-1 items-start w-full -mt-16 sm:mt-0">
-    //   <button
-    //     type="button"
-    //     onClick={() => router.back()}
-    //     className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
-    //   >
-    //     <BackArrowIcon />
-    //     Back
-    //   </button>
-
-    //   <section className="w-full">
-    //     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-    //       <div className="flex items-center gap-3 sm:gap-4">
-    //         <span
-    //           className="flex h-12 min-w-12 sm:h-19 sm:w-19 items-center justify-center rounded-full text-lg md:text-3xl font-semibold"
-    //           style={{
-    //             backgroundColor: `${project.colorHex}22`,
-    //             color: project.colorHex,
-    //           }}
-    //         >
-    //           {project.initials}
-    //         </span>
-    //         <div>
-    //           <div className="flex items-center gap-3">
-    //             <h2 className="text-base md:text-lg font-semibold text-gray-900">
-    //               {project.name}
-    //             </h2>
-    //             <span className="rounded-full border border-green-200 bg-green-50 px-2.5 py-0.5 text-sm font-medium text-green-600">
-    //               {project.category}
-    //             </span>
-    //           </div>
-
-    //           <div className="mt-1.5 sm:mt-2.5 flex-wrap flex items-center gap-4 sm:gap-8">
-    //             {canViewTickets ? (
-    //               <Metric
-    //                 label="Tickets"
-    //                 value={String(
-    //                   projectTicketsQuery.data?.meta.total ?? 0,
-    //                 ).padStart(2, '0')}
-    //               />
-    //             ) : null}
-    //             {canViewThread ? (
-    //               <Metric
-    //                 label="Thread posts"
-    //                 value={String(
-    //                   projectThreadQuery.data?.length ?? 0,
-    //                 ).padStart(2, '0')}
-    //               />
-    //             ) : null}
-    //             {canViewFiles ? (
-    //               <Metric
-    //                 label="Files"
-    //                 value={String(
-    //                   uploadedFilesState.length +
-    //                     (projectFilesQuery.data?.length ?? 0),
-    //                 ).padStart(2, '0')}
-    //               />
-    //             ) : null}
-    //           </div>
-    //         </div>
-    //       </div>
-    //     </div>
-    //   </section>
-
-    //   <TabGroup className="space-y-4 flex flex-1 flex-col w-full">
-    //     <TabList className="flex border-y border-gray-200">
-    //       {visibleProjectTabs.map((tab) => (
-    //         <Tab
-    //           key={tab}
-    //           className={({ selected }) =>
-    //             clsx(
-    //               'border-b-2 px-4 py-3 text-sm font-semibold outline-none transition',
-    //               selected
-    //                 ? 'border-primary-dark text-primary-dark'
-    //                 : 'border-transparent text-gray-500 hover:text-gray-700',
-    //             )
-    //           }
-    //         >
-    //           {tab}
-    //         </Tab>
-    //       ))}
-    //     </TabList>
-
-    //     <TabPanels className={'flex-1 flex flex-col'}>
-    //       <PermissionGuard permission="tickets.view_list">
-    //         <TabPanel className="space-y-4">
-    //           <div className="flex flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
-    //             {canFilterTickets ? (
-    //               <div className="relative flex w-full items-center md:max-w-xs">
-    //                 <input
-    //                   value={searchValue}
-    //                   onChange={(event) => setSearchValue(event.target.value)}
-    //                   placeholder="Search..."
-    //                   className="h-10.5 w-full rounded-lg border border-gray-200 bg-white ps-7 px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
-    //                 />
-    //                 <span className="absolute inset-s-2">
-    //                   <SearchIcon />
-    //                 </span>
-    //               </div>
-    //             ) : null}
-
-    //             {canCreateTicket ? (
-    //               <ThemeButton
-    //                 icon={<PlusIcon />}
-    //                 onClick={() => setCreateTicketOpen(true)}
-    //               >
-    //                 New Ticket
-    //               </ThemeButton>
-    //             ) : null}
-    //           </div>
-
-    //           <RecentTicketsTable
-    //             tickets={projectTickets}
-    //             enablePagination
-    //             pageSizeOptions={[10, 25, 50, 100]}
-    //             pagination={ticketsPagination}
-    //             onPaginationChange={setTicketsPagination}
-    //             totalRows={projectTicketsQuery.data?.meta.total ?? 0}
-    //             manualPagination
-    //             onRowClick={
-    //               canViewTicketDetail
-    //                 ? (ticket) =>
-    //                     router.push(
-    //                       `/tickets/${ticket.id}?projectId=${projectId}`,
-    //                     )
-    //                 : undefined
-    //             }
-    //             hideProjectColumn
-    //           />
-    //         </TabPanel>
-    //       </PermissionGuard>
-
-    //       <PermissionGuard permission="thread.view">
-    //         <TabPanel className={'flex flex-col flex-1 '}>
-    //           <div
-    //             className={`grid flex-1 border border-gray-200 overflow-hidden rounded-xl md:rounded-2xl ${
-    //               selectedThreadMessageId && !isMobile
-    //                 ? 'xl:grid-cols-[minmax(0,1fr)_400px] divide-x divide-gray-200'
-    //                 : 'grid-cols-1'
-    //             }`}
-    //           >
-    //             {(!isMobile || !selectedThreadMessageId) && (
-    //               <ProjectThreadPanel
-    //                 title="Discussion"
-    //                 replies={projectThreadQuery.data ?? []}
-    //                 emptyTitle={
-    //                   projectThreadQuery.isLoading
-    //                     ? 'Loading discussion...'
-    //                     : 'No replies yet.'
-    //                 }
-    //                 emptyDescription={
-    //                   projectThreadQuery.isLoading
-    //                     ? 'Fetching project discussion messages.'
-    //                     : 'No discussion messages have been added to this project yet.'
-    //                 }
-    //                 composerPlaceholder="Post the project thread..."
-    //                 onSubmitReply={
-    //                   canPostThreadMessage ? handleSubmitReply : undefined
-    //                 }
-    //                 isSubmittingReply={
-    //                   createProjectThreadMutation.isPending &&
-    //                   !selectedThreadMessageId
-    //                 }
-    //                 canCompose={canPostThreadMessage}
-    //                 canAttachFile={canAttachThreadFile}
-    //                 requireMessage={false}
-    //                 currentUserId={currentUserId}
-    //                 showReplyMeta
-    //                 onReplyClick={(reply) => setSelectedThreadMessageId(reply.id)}
-    //                 onDeleteAttachment={handleDeleteThreadAttachment}
-    //                 deletingAttachmentId={
-    //                   deleteProjectFileMutation.isPending
-    //                     ? deleteProjectFileMutation.variables?.fileId
-    //                     : undefined
-    //                 }
-    //               />
-    //             )}
-
-    //             {selectedThreadMessageId ? (
-    //               <ProjectThreadPanel
-    //                 title="Thread"
-    //                 subtitle=""
-    //                 headerAction={
-    //                   <button
-    //                     type="button"
-    //                     onClick={() => setSelectedThreadMessageId('')}
-    //                     className="flex h-6 w-6 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100"
-    //                     aria-label="Close thread"
-    //                   >
-    //                     <CloseCrossIcon />
-    //                   </button>
-    //                 }
-    //                 headerReply={selectedThreadHeader}
-    //                 replies={selectedThreadReplies}
-    //                 emptyTitle={
-    //                   projectThreadDetailQuery.isLoading
-    //                     ? 'Loading thread...'
-    //                     : 'No replies yet.'
-    //                 }
-    //                 emptyDescription={
-    //                   projectThreadDetailQuery.isLoading
-    //                     ? 'Fetching thread replies.'
-    //                     : 'No replies have been added to this thread yet.'
-    //                 }
-    //                 composerPlaceholder="Reply to thread..."
-    //                 onSubmitReply={
-    //                   canPostThreadReply ? handleSubmitThreadReply : undefined
-    //                 }
-    //                 isSubmittingReply={
-    //                   createProjectThreadMutation.isPending &&
-    //                   Boolean(selectedThreadMessageId)
-    //                 }
-    //                 canCompose={canPostThreadReply}
-    //                 canAttachFile={canAttachThreadFile && canPostThreadReply}
-    //                 requireMessage={false}
-    //                 currentUserId={currentUserId}
-    //                 onDeleteAttachment={handleDeleteThreadAttachment}
-    //                 deletingAttachmentId={
-    //                   deleteProjectFileMutation.isPending
-    //                     ? deleteProjectFileMutation.variables?.fileId
-    //                     : undefined
-    //                 }
-    //               />
-    //             ) : null}
-    //           </div>
-    //         </TabPanel>
-    //       </PermissionGuard>
-
-    //       <PermissionGuard permission="files.view">
-    //         <TabPanel className={'flex flex-col flex-1 '}>
-    //           <ProjectFilesPanel
-    //             files={projectFiles}
-    //             searchValue={fileSearchValue}
-    //             onSearchChange={setFileSearchValue}
-    //             onUploadClick={
-    //               canUploadFiles ? () => setUploadFileOpen(true) : undefined
-    //             }
-    //             onDeleteFile={setFileToDelete}
-    //             canDownloadFile={canDownloadFiles}
-    //             deletingFileId={
-    //               deleteProjectFileMutation.isPending
-    //                 ? deleteProjectFileMutation.variables?.fileId
-    //                 : undefined
-    //             }
-    //             subtitle={
-    //               projectFilesQuery.isLoading
-    //                 ? 'Loading files...'
-    //                 : `${uploadedFilesState.length + (projectFilesQuery.data?.length ?? 0)} files`
-    //             }
-    //           />
-    //         </TabPanel>
-    //       </PermissionGuard>
-
-    //       <PermissionGuard permission="calendar.view_grid">
-    //         <TabPanel>
-    //           <Calendar projectId={projectId} />
-    //         </TabPanel>
-    //       </PermissionGuard>
-    //     </TabPanels>
-    //   </TabGroup>
-
-    //   <CreateTicketModal
-    //     isOpen={createTicketOpen && canCreateTicket}
-    //     onClose={() => setCreateTicketOpen(false)}
-    //     onConfirm={handleCreateTicket}
-    //     projectOptions={projectOptions}
-    //     preselectedProjectId={project.id}
-    //     disableProjectSelection
-    //   />
-
-    //   <UploadFileModal
-    //     isOpen={uploadFileOpen && canUploadFiles}
-    //     onClose={() => setUploadFileOpen(false)}
-    //     onConfirm={handleUploadFile}
-    //   />
-
-    //   <ConfirmActionModal
-    //     isOpen={Boolean(fileToDelete)}
-    //     onClose={() => setFileToDelete(null)}
-    //     title="Delete File?"
-    //     message={
-    //       <>
-    //         Are you sure you want to delete{' '}
-    //         <span className="font-semibold">
-    //           “{fileToDelete?.name ?? 'this file'}”
-    //         </span>
-    //         ? This action cannot be undone.
-    //       </>
-    //     }
-    //     confirmLabel="Yes, Delete"
-    //     cancelLabel="Cancel"
-    //     variant="danger"
-    //     isSubmitting={deleteProjectFileMutation.isPending}
-    //     onConfirm={handleDeleteFile}
-    //   />
-    // </div>
   );
 }
 
@@ -1191,15 +892,6 @@ function getTicketStatusColor(status: string, statuses?: ApiTicketStatus[]) {
 
 function normalizeStatusValue(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, '');
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="sm:min-w-16 border-r border-gray-200 pr-4 sm:pr-6 last:border-r-0 last:pr-0">
-      <p className="text-sm text-gray-500 whitespace-nowrap">{label}</p>
-      <p className="text-sm font-semibold text-gray-800">{value}</p>
-    </div>
-  );
 }
 
 function BackArrowIcon() {

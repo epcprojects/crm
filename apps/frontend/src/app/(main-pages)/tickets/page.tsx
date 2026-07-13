@@ -9,7 +9,6 @@ import CreateTicketModal, {
   type CreateTicketFormValues,
 } from '../../../components/modals/CreateTicketModal';
 import { createTicketProjectOptions } from '../../../components/modals/create-ticket-modal.data';
-import Image from 'next/image';
 import RecentTicketsTable, {
   type TicketSortState,
   type RecentTicket,
@@ -407,15 +406,15 @@ export default function Page() {
   return (
     <>
       <div className="relative z-100 h-dvh overflow-hidden py-5 pr-5">
-       <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden rounded-3xl border border-white bg-white/40 p-3">
+        <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden rounded-3xl border border-white bg-white/40 p-3">
           <div className="shrink-0">
-          <DashboardSummaryBanner
-            imageSrc="/images/TicketsIcon.svg"
-            imageAlt="Tickets"
-            title="Tickets"
-            stats={ticketSummaryStats}
-          />
-</div>
+            <DashboardSummaryBanner
+              imageSrc="/images/TicketsIcon.svg"
+              imageAlt="Tickets"
+              title="Tickets"
+              stats={ticketSummaryStats}
+            />
+          </div>
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[20px] bg-white p-3 md:p-4">
             <PermissionGuard
               permission="tickets.view_list"
@@ -425,8 +424,8 @@ export default function Page() {
                 </div>
               }
             >
-             <div className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-hidden">
-             <div className="flex shrink-0 flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
+              <div className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-hidden">
+                <div className="flex shrink-0 flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
                   {canFilterTickets ? (
                     <>
                       <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 md:max-w-50">
@@ -514,7 +513,7 @@ export default function Page() {
                   ) : null}
                 </div>
 
-              <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+                <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
                   {viewMode === 'kanban' ? (
                     <TicketsKanbanView
                       tickets={sortedTickets}
@@ -563,8 +562,6 @@ export default function Page() {
         projectOptions={projectOptions}
       />
     </>
-
-   
   );
 }
 
