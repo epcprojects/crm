@@ -37,7 +37,7 @@ export default function SettingsConfigCard({
   const itemColumnLabel = badgeVariant === 'priority' ? 'Priority' : 'Status';
 
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-2.5 md:p-5">
+    <section className="flex h-full min-h-0 flex-col rounded-2xl border border-gray-200 bg-white p-2.5 md:p-5">
       <div className="flex items-start flex-col gap-4 sm:flex-row sm:justify-between">
         <div>
           <h2 className="text-base md:text-lg font-medium text-gray-900">
@@ -52,7 +52,7 @@ export default function SettingsConfigCard({
         ) : null}
       </div>
 
-      <div className="mt-3 space-y-0 border border-gray-200 overflow-hidden rounded-xl">
+      <div className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200">
         <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_300px] items-center gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3 text-xs font-medium text-gray-500">
           <p>{itemColumnLabel}</p>
           <p className="">Slug</p>
@@ -60,51 +60,55 @@ export default function SettingsConfigCard({
         </div>
 
         {isLoading ? (
-          <SettingsConfigSkeleton />
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <SettingsConfigSkeleton />
+          </div>
         ) : items.length ? (
-          items.map((item) => (
-            <div
-              key={item.id}
-              className="flex items-center py-3 px-4 justify-between gap-3 border-b  border-gray-200 last:border-b-0"
-            >
-              <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_300px] items-center gap-3">
-                <SettingsBadge
-                  label={item.label}
-                  colorHex={item.colorHex ?? '#667085'}
-                  variant={badgeVariant}
-                />
-                <p className="truncate text-sm text-gray-700">{item.value}</p>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {items.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center py-3 px-4 justify-between gap-3 border-b border-gray-200 last:border-b-0"
+              >
+                <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_300px] items-center gap-3">
+                  <SettingsBadge
+                    label={item.label}
+                    colorHex={item.colorHex ?? '#667085'}
+                    variant={badgeVariant}
+                  />
+                  <p className="truncate text-sm text-gray-700">{item.value}</p>
 
-                {onEdit || onDelete ? (
-                  <div className="flex items-center justify-end gap-3">
-                    {onEdit ? (
-                      <button
-                        type="button"
-                        onClick={() => onEdit(item)}
-                        className="flex md:h-10 md:w-10 h-8.5 w-8.5 items-center justify-center rounded-lg border border-gray-200 text-primary-dark transition hover:bg-gray-50"
-                        aria-label={`Edit ${item.label}`}
-                      >
-                        <EditIcon />
-                      </button>
-                    ) : null}
+                  {onEdit || onDelete ? (
+                    <div className="flex items-center justify-end gap-3">
+                      {onEdit ? (
+                        <button
+                          type="button"
+                          onClick={() => onEdit(item)}
+                          className="flex md:h-10 md:w-10 h-8.5 w-8.5 items-center justify-center rounded-lg border border-gray-200 text-primary-dark transition hover:bg-gray-50"
+                          aria-label={`Edit ${item.label}`}
+                        >
+                          <EditIcon />
+                        </button>
+                      ) : null}
 
-                    {onDelete ? (
-                      <button
-                        type="button"
-                        onClick={() => onDelete(item)}
-                        className="flex md:h-10 md:w-10 h-8.5 w-8.5 items-center justify-center rounded-lg border border-red-500 text-red-500 transition hover:bg-red-50"
-                        aria-label={`Delete ${item.label}`}
-                      >
-                        <TrashIcon />
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
+                      {onDelete ? (
+                        <button
+                          type="button"
+                          onClick={() => onDelete(item)}
+                          className="flex md:h-10 md:w-10 h-8.5 w-8.5 items-center justify-center rounded-lg border border-red-500 text-red-500 transition hover:bg-red-50"
+                          aria-label={`Delete ${item.label}`}
+                        >
+                          <TrashIcon />
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
               </div>
-            </div>
-          ))
+            ))}
+          </div>
         ) : (
-          <div className="flex min-h-56 flex-col items-center justify-center gap-2 py-6 text-center">
+          <div className="flex min-h-56 flex-1 flex-col items-center justify-center gap-2 py-6 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-400">
               <SettingsEmptyIcon />
             </div>

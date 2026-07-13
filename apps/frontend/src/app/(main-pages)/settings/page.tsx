@@ -405,8 +405,8 @@ export default function Page() {
   const isMobile = useIsMobile();
 
   return (
-    <div className="py-5 pr-5 z-100 max-h-dvh h-dvh relative">
-      <div className="bg-white/40 border flex flex-col border-white rounded-3xl p-3  h-full space-y-3">
+    <div className="relative z-100 h-dvh overflow-hidden py-5 pr-5">
+      <div className="flex h-full min-h-0 flex-col space-y-3 rounded-3xl border border-white bg-white/40 p-3">
         <div className="bg-[url('/images/DashboardComponentBgImage.jpg')] w-full bg-center bg-no-repeat bg-cover rounded-[20px] p-7.5 bg-black/30 flex flex-col justify-between">
           <div className="flex items-center gap-3 md:gap-4">
             <Image
@@ -420,7 +420,7 @@ export default function Page() {
           </div>
         </div>
         <div className="flex items-center gap-3 rounded-full border border-warning-200 bg-[#FFFAEB] p-1 text-[#69410A]">
-          <span className=" bg-white flex items-center justify-center  drop-shadow rounded-full h-10 w-10">
+          <span className=" bg-white flex items-center justify-center  drop-shadow rounded-full h-10 min-w-10">
             <TipIcon />
           </span>
           <p className="text-sm leading-6 text-gray-700">
@@ -438,7 +438,7 @@ export default function Page() {
           </p>
         </div>
         {canViewSettings ? (
-          <div className="grid grid-cols-1 gap-2 md:gap-4 flex-1 xl:grid-cols-2">
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 md:gap-4 xl:grid-cols-2">
             <PermissionGuard permission="settings.view_statuses">
               <SettingsConfigCard
                 title="Ticket Statuses"
