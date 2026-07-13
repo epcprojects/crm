@@ -93,7 +93,7 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     accessorKey: 'project.name',
     header: 'Project',
     cell: ({ row }) => (
-      <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-gray-100 bg-white py-0.5 pr-2.5 pl-0.5 text-xs  text-gray-800">
+      <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-gray-200 bg-white py-0.5 pr-2.5 pl-0.5 text-xs  text-gray-800">
         <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs text-gray-900">
           {row.original.project.initials}
         </span>
@@ -257,7 +257,7 @@ export default function RecentTicketsTable({
   const visiblePages = getVisiblePageNumbers(currentPage, totalPages);
 
   return (
-  <div className="flex h-full min-h-0 w-[calc(100dvw-32px)] flex-col overflow-hidden rounded-xl bg-white sm:w-full md:border md:border-gray-100">
+  <div className="flex h-full min-h-0 w-[calc(100dvw-32px)] flex-col overflow-hidden rounded-xl bg-white sm:w-full md:border md:border-gray-200">
       <div className="space-y-3 md:p-3 md:hidden">
         {table.getRowModel().rows.length ? (
           table

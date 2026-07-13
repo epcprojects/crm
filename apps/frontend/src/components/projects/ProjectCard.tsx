@@ -63,7 +63,7 @@ export default function ProjectCard({
 }: ProjectCardProps) {
   return (
     <article
-      className={`group overflow-hidden rounded-xl border border-gray-100 shadow-xs transition hover:drop-shadow md:rounded-2xl ${
+      className={`group overflow-hidden rounded-xl border border-gray-200 shadow-xs transition hover:drop-shadow md:rounded-2xl ${
         onClick ? 'cursor-pointer' : ''
       }`}
       onClick={onClick}

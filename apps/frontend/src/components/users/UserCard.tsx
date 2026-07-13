@@ -50,114 +50,102 @@ export default function UserCard({
   const isMobile = useIsMobile();
 
   return (
-    <article
-      className="rounded-2xl sm:border border-gray-100 bg-white p-4 drop-shadow-sm"
-      style={{
-        boxShadow: `inset ${isMobile ? '2px' : '4px'} 0 0 ${user.accentColor}, 0px 8px 24px rgba(16,24,40,0.08)`,
-      }}
-    >
-      <div className="flex gap-2 flex-wrap items-start justify-between">
-        <div className="flex  flex-wrap flex-col gap-3">
-          <div className="flex items-start gap-3 md:gap-4">
-            <Avatar user={user} />
-
-            <div className="flex flex-col gap-2">
-              <div className="min-w-0">
-                <h2 className="truncate text-sm md:text-base font-semibold text-gray-900">
-                  {user.name}
-                </h2>
-                {user.email ? (
-                  <p className="truncate text-xs text-gray-600">{user.email}</p>
-                ) : null}
-              </div>
-              {onResendInvite ? (
-                <div className="text-warning-500 font-semibold text-xs flex items-center gap-1.5">
-                  <SentEmailIcon />
-                  Invite Sent
-                </div>
-              ) : (
-                <div className="text-green-500 font-semibold text-xs flex items-center gap-1.5">
-                  <AcceptedEmailIcon />
-                  Invite Accepted
-                </div>
-              )}
+    <article className="border border-gray-200 bg-gray-50 rounded-2xl flex flex-col">
+      <div className="p-2.5 flex flex-col flex-1 gap-4 rounded-t-2xl bg-gray-50">
+        <div className="flex flex-row gap-4">
+          <Avatar user={user} />
+          <div className="flex flex-col flex-1 gap-2">
+            <div className="flex flex-col gap-0.5">
+              <p className="text-sm text-gray-950">{user.name}</p>
+              <p className="text-xs text-gray-600">{user.email}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {user.roles.map((role) => (
+                <Pill key={role.label} label={role.label} tone={role.tone} />
+              ))}
             </div>
           </div>
+          <div>
+            {onResendInvite ? (
+              <div className="text-warning-600 font-semibold text-xs flex items-center gap-1.5">
+                <SentEmailIcon />
+                Invite Sent
+              </div>
+            ) : (
+              <div className="text-green-500 font-semibold text-xs flex items-center gap-1.5">
+                <AcceptedEmailIcon />
+                Invite Accepted
+              </div>
+            )}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {user.roles.map((role) => (
-            <Pill key={role.label} label={role.label} tone={role.tone} />
-          ))}
-        </div>
-      </div>
-
-      <div className="my-3 md:my-4 h-px bg-gray-200" />
-
-      <div className="flex flex-col flex-wrap gap-2">
-        <span className="block">Assigned Projects</span>
-        <div className="flex gap-2 ">
+        <div className="flex  flex-wrap gap-2">
           {user.projects.map((project) => (
             <ProjectPill key={project.id} project={project} />
           ))}
         </div>
       </div>
+      <div className="bg-white rounded-b-2xl p-2.5">
+        {onResendInvite || onEdit || onDelete ? (
+          <div className=" flex gap-2">
+            {onResendInvite ? (
+              <ThemeButton
+                type="button"
+                variant="secondary"
+                onClick={() => onResendInvite(user)}
+                className="w-full"
+                size={isMobile ? 'md' : 'lg'}
+              >
+                Resend Invite
+              </ThemeButton>
+            ) : onEdit ? (
+              <ThemeButton
+                type="button"
+                onClick={() => onEdit(user)}
+                variant="secondary"
+                className="w-full"
+                size={isMobile ? 'md' : 'lg'}
+                icon={
+                  <EditUserIcon
+                    height={isMobile ? '14' : '18'}
+                    width={isMobile ? '14' : '18'}
+                  />
+                }
+              >
+                Edit User
+              </ThemeButton>
+            ) : null}
 
-      {onResendInvite || onEdit || onDelete ? (
-        <div className="mt-5 flex items-center gap-3">
-          {onResendInvite ? (
-            <ThemeButton
-              type="button"
-              variant="secondary"
-              onClick={() => onResendInvite(user)}
-              className="w-full"
-              size={isMobile ? 'md' : 'lg'}
-            >
-              Resend Invite
-            </ThemeButton>
-          ) : onEdit ? (
-            <ThemeButton
-              type="button"
-              onClick={() => onEdit(user)}
-              variant="secondary"
-              className="w-full"
-              size={isMobile ? 'md' : 'lg'}
-              icon={
-                <EditUserIcon
-                  height={isMobile ? '14' : '18'}
-                  width={isMobile ? '14' : '18'}
+            {onDelete ? (
+              <button
+                type="button"
+                onClick={() => onDelete(user)}
+                className="py-2 px-2.5  flex items-center justify-center rounded-lg transition bg-error-100 border border-error-200  "
+                aria-label={`Delete ${user.name}`}
+              >
+                <TrashIcon
+                  height={isMobile ? '16' : '18'}
+                  width={isMobile ? '16' : '18'}
                 />
-              }
-            >
-              Edit User
-            </ThemeButton>
-          ) : null}
-
-          {onDelete ? (
-            <button
-              type="button"
-              onClick={() => onDelete(user)}
-              className="flex md:h-11 h-9 min-w-9 md:min-w-11 items-center justify-center rounded-lg border border-red-500 text-red-500 transition hover:bg-red-50"
-              aria-label={`Delete ${user.name}`}
-            >
-              <TrashIcon
-                height={isMobile ? '16' : '18'}
-                width={isMobile ? '16' : '18'}
-              />
-            </button>
-          ) : null}
-        </div>
-      ) : null}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
     </article>
   );
 }
 
 export function UserCardsSkeleton({ count = 6 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" aria-hidden="true">
+    <div
+      className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+      aria-hidden="true"
+    >
       {Array.from({ length: count }).map((_, index) => (
         <article
           key={index}
-          className="rounded-2xl sm:border border-gray-100 bg-white p-4 drop-shadow-sm"
+          className="rounded-2xl sm:border border-gray-200 bg-white p-4 drop-shadow-sm"
           style={{
             boxShadow:
               'inset 4px 0 0 #EAECF0, 0px 8px 24px rgba(16,24,40,0.08)',
@@ -239,16 +227,21 @@ function Pill({ label, tone }: { label: string; tone: UserCardRole['tone'] }) {
 function ProjectPill({ project }: { project: UserCardProject }) {
   return (
     <span
-      className="inline-flex w-fit items-center gap-2 rounded-full pe-2.5 ps-0.5 py-0.5  text-xs md:text-sm font-medium"
+      className="inline-flex w-fit items-center gap-2 rounded-full bg-white border border-gray-200 pe-2.5 ps-0.5 py-0.5  text-xs md:text-sm font-medium"
       style={{
         color: project.colorHex,
-        backgroundColor: `${project.colorHex}1A`,
+        // backgroundColor: `${project.colorHex}1A`,
       }}
     >
-      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-medium shadow-sm">
+      <span
+        className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs  shadow-sm"
+        style={{
+          backgroundColor: `${project.colorHex}1A`,
+        }}
+      >
         {project.initials}
       </span>
-      {project.name}
+      <span className="text-xs text-gray-800">{project.name}</span>
     </span>
   );
 }

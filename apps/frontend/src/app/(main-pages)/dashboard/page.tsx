@@ -640,7 +640,7 @@ function RecentTicketsTableSkeleton() {
         {Array.from({ length: 6 }).map((_, rowIndex) => (
           <div
             key={rowIndex}
-            className="grid grid-cols-5 gap-4 border-b border-gray-100 px-4 py-4 last:border-b-0 md:px-6"
+            className="grid grid-cols-5 gap-4 border-b border-gray-200 px-4 py-4 last:border-b-0 md:px-6"
           >
             {Array.from({ length: 5 }).map((_, cellIndex) => (
               <div key={cellIndex} className="h-5 rounded bg-gray-100" />
@@ -663,7 +663,7 @@ function DashboardTabsSkeleton() {
         {Array.from({ length: 5 }).map((_, index) => (
           <div
             key={index}
-            className="flex items-start gap-3 border-b border-gray-100 py-3 last:border-b-0"
+            className="flex items-start gap-3 border-b border-gray-200 py-3 last:border-b-0"
           >
             <div className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-gray-200" />
             <div className="min-w-0 flex-1 space-y-2">

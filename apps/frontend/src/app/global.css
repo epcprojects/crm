@@ -21,6 +21,8 @@
    --color-black-olive: #252822;
    --color-bright-gray: #414651;
    --color-soft-peach: #EAEDE7;
+   --color-error-100: #FEE4E2;
+   --color-error-200: #FECDCA;
 }
 
 html {

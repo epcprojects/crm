@@ -63,7 +63,7 @@ export default function TicketsTabs({ tabs, onTicketClick }: TicketsTabsProps) {
   return (
     <div className="rounded-[20px] shadow-[0_0_35px_0_rgb(0_0_0/0.04)] sm:w-full h-full bg-white space-y-2 py-4  flex flex-col gap-3 min-w-85">
      <div className='px-4.5'>
-       <div className="relative grid w-full grid-cols-2 gap-1 rounded-full border border-gray-100 bg-gray-50 p-1">
+       <div className="relative grid w-full grid-cols-2 gap-1 rounded-full border border-gray-200 bg-gray-50 p-1">
         <div
           className="absolute top-1 bottom-1 left-0 rounded-full bg-white shadow-[0_0_25px_0_rgb(27_28_29/0.12)] transition-all duration-300 ease-out"
           style={{

@@ -20,6 +20,8 @@ import {
 } from '../../providers/PermissionProvider';
 import { useAppLoader } from '../../providers/AppLoaderProvider';
 import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
+import { FiltersIcon, PlusIcon, SearchIcon } from '../../../../public/icons';
+import ThemeButton from '../../../components/ui/ThemeButton';
 
 export default function Page() {
   const { setHeaderActionOverride, setHeaderCountOverride } =
@@ -197,7 +199,9 @@ export default function Page() {
 
     try {
       setLoading(true);
-      await inviteUserMutation.mutateAsync(mapUserToFormValues(user, roleOptions));
+      await inviteUserMutation.mutateAsync(
+        mapUserToFormValues(user, roleOptions),
+      );
       await queryClient.invalidateQueries({ queryKey: ['project-members'] });
       appToast.success('Invitation resent successfully.');
     } finally {
@@ -209,91 +213,204 @@ export default function Page() {
     userList.find((user) => user.id === editingUserId) ?? null;
   const deletingUser =
     userList.find((user) => user.id === deletingUserId) ?? null;
+  const [searchValue, setSearchValue] = useState('');
+  const filteredUserList = useMemo(() => {
+    const search = searchValue.trim().toLowerCase();
 
+    if (!search) {
+      return userList;
+    }
+
+    return userList.filter((user) => {
+      const searchableValues = [
+        user.name,
+        user.email,
+        ...user.roles.map((role) => role.label),
+        ...user.projects.map((project) => project.name),
+      ];
+
+      return searchableValues.some((value) =>
+        value.toLowerCase().includes(search),
+      );
+    });
+  }, [searchValue, userList]);
+
+  const userStats = useMemo(
+    () => [
+      {
+        title: 'Total Users',
+        count: userList.length,
+        color: '#F04438',
+      },
+      {
+        title: 'Active Users',
+        count: userList.filter((user) => user.isInvitationAccepted).length,
+        color: '#F79009',
+      },
+      {
+        title: 'Pending Invites',
+        count: userList.filter((user) => !user.isInvitationAccepted).length,
+        color: '#17B26A',
+      },
+      {
+        title: 'External Users',
+        count: userList.filter((user) =>
+          user.roles.some((role) =>
+            normalizeRoleName(role.label).includes('EXTERNAL'),
+          ),
+        ).length,
+        color: '#7A5AF8',
+      },
+    ],
+    [userList],
+  );
   return (
-     <div className="relative z-100 h-dvh py-5 pr-5">
-      <div className="flex h-full flex-col gap-3 rounded-4xl border border-white bg-white/40 p-3">
-            <DashboardSummaryBanner imageSrc={''} title={''} stats={[]}/>
+    <>
+      <div className="relative z-100 h-[calc(100dvh-4.5rem)] overflow-hidden py-5 pr-5 sm:h-dvh">
+        <div className="flex h-full min-h-0 flex-col gap-3 rounded-4xl border border-white bg-white/40 p-3">
+          <DashboardSummaryBanner
+            imageSrc="/images/UsersIcon.svg"
+            imageAlt="Users"
+            title="Users"
+            stats={userStats}
+          />
+
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden rounded-[20px] bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
+            <PermissionGuard
+              permission="users.view_list"
+              fallback={
+                <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
+                  You do not have permission to view users.
+                </div>
+              }
+            >
+              <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
+                <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 sm:max-w-50">
+                    <div className="flex items-center gap-2">
+                      <SearchIcon fill="#374151" />
+
+                      <input
+                        type="text"
+                        value={searchValue}
+                        onChange={(event) => setSearchValue(event.target.value)}
+                        placeholder="Search"
+                        className="min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      className="flex items-center gap-0.75 rounded-lg border border-gray-200 bg-gray-100 px-2.5 py-2"
+                    >
+                      <FiltersIcon />
+
+                      <span className="text-xs font-medium text-black-olive">
+                        Filter
+                      </span>
+                    </button>
+
+                    {canCreateUser ? (
+                      <ThemeButton
+                        className="shrink-0 rounded-full"
+                        variant="primaryGradient"
+                        icon={
+                          <PlusIcon fill="#3889FE" width="20" height="20" />
+                        }
+                        onClick={() => setAddUserOpen(true)}
+                      >
+                        Add User
+                      </ThemeButton>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                  {membersQuery.isLoading ? (
+                    <UserCardsSkeleton />
+                  ) : filteredUserList.length ? (
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                      {filteredUserList.map((user) => (
+                        <UserCard
+                          key={user.id}
+                          user={user}
+                          onEdit={
+                            user.isInvitationAccepted && canEditUser
+                              ? (selectedUser) =>
+                                  setEditingUserId(selectedUser.id)
+                              : undefined
+                          }
+                          onDelete={
+                            canDeleteUser
+                              ? (selectedUser) =>
+                                  setDeletingUserId(selectedUser.id)
+                              : undefined
+                          }
+                          onResendInvite={
+                            !user.isInvitationAccepted && canCreateUser
+                              ? handleResendInvite
+                              : undefined
+                          }
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex min-h-80 flex-col items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 py-10 text-center">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-400">
+                        <UsersEmptyIcon />
+                      </div>
+
+                      <h2 className="mt-4 text-lg font-semibold text-gray-900">
+                        {searchValue.trim()
+                          ? 'No matching users found.'
+                          : 'No users yet.'}
+                      </h2>
+
+                      <p className="mt-2 max-w-md text-sm text-gray-500">
+                        {searchValue.trim()
+                          ? 'Try searching with a different name, email, role, or project.'
+                          : 'Invite team members or clients to give them access to projects, tickets, and collaboration spaces.'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </PermissionGuard>
+          </div>
+        </div>
       </div>
-    </div>
-    // <div className="">
-    //   <PermissionGuard
-    //     permission="users.view_list"
-    //     fallback={
-    //       <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
-    //         You do not have permission to view users.
-    //       </div>
-    //     }
-    //   >
-    //     {membersQuery.isLoading ? (
-    //       <UserCardsSkeleton />
-    //     ) : userList.length ? (
-    //       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-    //         {userList.map((user) => (
-    //           <UserCard
-    //             key={user.id}
-    //             user={user}
-    //             onEdit={
-    //               user.isInvitationAccepted && canEditUser
-    //                 ? (selectedUser) => setEditingUserId(selectedUser.id)
-    //                 : undefined
-    //             }
-    //             onDelete={
-    //               canDeleteUser
-    //                 ? (selectedUser) => setDeletingUserId(selectedUser.id)
-    //                 : undefined
-    //             }
-    //             onResendInvite={
-    //               !user.isInvitationAccepted && canCreateUser
-    //                 ? handleResendInvite
-    //                 : undefined
-    //             }
-    //           />
-    //         ))}
-    //       </div>
-    //     ) : (
-    //       <div className="flex min-h-80 flex-col items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 py-10 text-center">
-    //         <div className="flex h-14 w-14 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-400">
-    //           <UsersEmptyIcon />
-    //         </div>
-    //         <h2 className="mt-4 text-lg font-semibold text-gray-900">
-    //           No users yet.
-    //         </h2>
-    //         <p className="mt-2 max-w-md text-sm text-gray-500">
-    //           Invite team members or clients to give them access to projects,
-    //           tickets, and collaboration spaces.
-    //         </p>
-    //       </div>
-    //     )}
-    //   </PermissionGuard>
 
-    //   <AddUserModal
-    //     isOpen={addUserOpen && canCreateUser}
-    //     onClose={() => setAddUserOpen(false)}
-    //     onConfirm={handleCreateUser}
-    //     projects={projects}
-    //     roleOptions={roleOptions}
-    //   />
+      <AddUserModal
+        isOpen={addUserOpen && canCreateUser}
+        onClose={() => setAddUserOpen(false)}
+        onConfirm={handleCreateUser}
+        projects={projects}
+        roleOptions={roleOptions}
+      />
 
-    //   <AddUserModal
-    //     isOpen={Boolean(editingUser) && canEditUser}
-    //     onClose={() => setEditingUserId(null)}
-    //     onConfirm={handleEditUser}
-    //     mode="edit"
-    //     initialValues={
-    //       editingUser ? mapUserToFormValues(editingUser, roleOptions) : undefined
-    //     }
-    //     projects={projects}
-    //     roleOptions={roleOptions}
-    //   />
+      <AddUserModal
+        isOpen={Boolean(editingUser) && canEditUser}
+        onClose={() => setEditingUserId(null)}
+        onConfirm={handleEditUser}
+        mode="edit"
+        initialValues={
+          editingUser
+            ? mapUserToFormValues(editingUser, roleOptions)
+            : undefined
+        }
+        projects={projects}
+        roleOptions={roleOptions}
+      />
 
-    //   <DeleteUserModal
-    //     isOpen={Boolean(deletingUser) && canDeleteUser}
-    //     onClose={() => setDeletingUserId(null)}
-    //     onConfirm={handleDeleteUser}
-    //     userName={deletingUser?.name}
-    //   />
-    // </div>
+      <DeleteUserModal
+        isOpen={Boolean(deletingUser) && canDeleteUser}
+        onClose={() => setDeletingUserId(null)}
+        onConfirm={handleDeleteUser}
+        userName={deletingUser?.name}
+      />
+    </>
   );
 }
 
@@ -393,7 +510,8 @@ async function fetchRoleOptions() {
 
   return payload
     .filter(
-      (role) => normalizeRoleName(role.normalizedName ?? role.name) !== 'SUPER_ADMIN',
+      (role) =>
+        normalizeRoleName(role.normalizedName ?? role.name) !== 'SUPER_ADMIN',
     )
     .map((role) => ({
       id: role.id,
@@ -480,7 +598,10 @@ function getRoleTone(roleName: string): UserCardUser['roles'][number]['tone'] {
     return 'orange';
   }
 
-  if (normalizedRoleName.includes('external') || normalizedRoleName.includes('viewer')) {
+  if (
+    normalizedRoleName.includes('external') ||
+    normalizedRoleName.includes('viewer')
+  ) {
     return 'teal';
   }
 
@@ -492,7 +613,12 @@ function getRoleTone(roleName: string): UserCardUser['roles'][number]['tone'] {
 }
 
 function normalizeRoleName(roleName?: string) {
-  return roleName?.trim().toUpperCase().replace(/[\s-]+/g, '_') ?? '';
+  return (
+    roleName
+      ?.trim()
+      .toUpperCase()
+      .replace(/[\s-]+/g, '_') ?? ''
+  );
 }
 
 function getProjectInitials(name: string) {
