@@ -104,6 +104,7 @@ export default function UserCard({
                 onClick={() => onEdit(user)}
                 variant="secondary"
                 className="w-full"
+                iconBg="bg-transparent"
                 size={isMobile ? 'md' : 'lg'}
                 icon={
                   <EditUserIcon

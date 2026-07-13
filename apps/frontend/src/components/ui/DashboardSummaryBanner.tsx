@@ -29,10 +29,10 @@ export default function DashboardSummaryBanner({
         src={imageSrc}
         width={48}
         height={48}
-        className="h-10 w-10 shrink-0 backdrop-blur-3xl drop-shadow md:h-12 md:w-12"
+        className="h-10 w-10 relative shrink-0 backdrop-blur-3xl drop-shadow md:h-12 md:w-12"
       />
 
-      <div className="flex min-w-0 flex-1 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex min-w-0 flex-1 flex-col gap-4 relative lg:flex-row lg:items-center lg:justify-between">
         <p className="text-2xl text-white md:text-[32px]">{title}</p>
         {stats?.length ? (
           <div className="flex max-w-full items-center gap-4 overflow-x-auto rounded-xl border border-white/12 bg-white/10 px-3 py-2.5 backdrop-blur-3xl drop-shadow-[0_14px_44px_0_rgb(0_0_0/0.45)] md:gap-5.5 md:px-4">

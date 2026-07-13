@@ -56,20 +56,17 @@ export default function ThemeButton({
             'px-2.5 py-2 text-base': size === 'md',
             'px-6 py-2.5 text-sm md:text-base': size === 'lg',
           },
-          {
+          variant === 'primaryGradient' && {
             'bg-linear-to-l from-[#304FFD]  to-[#40C3FF] text-white hover:opacity-90':
               variant === 'primaryGradient',
-            'bg-gray-50 border border-gray-200 text-black hover:bg-gray-100':
-              variant === 'secondary',
-            'bg-primary-dark text-white border border-primary-dark hover:border-primary hover:bg-primary':
-              variant === 'primary',
           },
         )}
       >
         {hasIcon && (
           <span
             className={clsx(
-              'mr-1.5 w-6 md:w-8 md:h-8 h-6 bg-white shrink-0 rounded-full flex items-center justify-center',
+              'mr-1.5 w-6 md:w-8 md:h-8 h-6 shrink-0 rounded-full flex items-center justify-center',
+              iconBg ? iconBg : 'bg-white',
             )}
           >
             {icon}
