@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import type { ReactNode } from 'react';
 import ThemeButton from './ui/ThemeButton';
+import { PlusIcon } from '../../public/icons';
 
 type EmptyStateProps = {
   imageUrl?: string;
@@ -18,7 +19,7 @@ export default function EmptyState({
   title,
   description,
   buttonLabel,
-  buttonIcon,
+  buttonIcon =<PlusIcon/>,
   onButtonClick,
 }: EmptyStateProps) {
   return (
