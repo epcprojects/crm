@@ -471,7 +471,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   return (
     <DashboardHeaderActionContext.Provider value={headerActionContextValue}>
-      <div className="flex min-h-dvh bg-white text-slate-900">
+     <div className="flex h-dvh min-h-0 overflow-hidden bg-white text-slate-900">
         {mobileOpen ? (
           <button
             aria-label="Close navigation"
@@ -585,9 +585,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           </div>
         </aside>
 
-        <div
-          className={`min-h-dvh transition-all  flex flex-col duration-300 ease-out flex-1 bg-gray-200`}
-        >
+        <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-gray-200 transition-all duration-300 ease-out">
           {!shouldHideHeader ? (
             <header className="sticky top-0 z-20 border-b border-gray-200 bg-white w-full backdrop-blur">
               <div className="flex py-4 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
