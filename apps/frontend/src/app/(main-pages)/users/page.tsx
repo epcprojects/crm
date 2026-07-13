@@ -265,6 +265,7 @@ export default function Page() {
     ],
     [userList],
   );
+  const hasSearch = Boolean(searchValue.trim());
   return (
     <>
       <div className="relative z-100 h-[calc(100dvh-4.5rem)] overflow-hidden py-5 pr-5 sm:h-dvh">
@@ -359,31 +360,32 @@ export default function Page() {
                     </div>
                   ) : (
                     <EmptyState
-                      imageUrl="/images/UsersIcon.svg"
-                      imageAlt="No users"
-                      title={
-                        searchValue.trim()
-                          ? 'No Matching Users'
-                          : 'No Users Yet'
+                      imageUrl={
+                        hasSearch
+                          ? '/images/UsersSearchIcon.svg'
+                          : '/images/UsersEmptyIcon.svg'
                       }
+                      imageAlt={hasSearch ? 'No search results' : 'No users'}
+                      title={hasSearch ? 'No Results Found' : 'No Users Yet'}
                       description={
-                        searchValue.trim()
-                          ? 'Try searching with a different name, email, role, or project.'
-                          : 'Invite team members or clients to give them access to projects, tickets, and collaboration spaces.'
+                        hasSearch
+                          ? "We couldn't find matching results for your search. Try a different keyword or clear the filters."
+                          : 'Add your first team member to get started.'
                       }
-                      button={
-                        !searchValue.trim() && canCreateUser ? (
-                          <ThemeButton
-                            className="rounded-full"
-                            variant="primaryGradient"
-                            icon={
-                              <PlusIcon fill="#3889FE" width="20" height="20" />
-                            }
-                            onClick={() => setAddUserOpen(true)}
-                          >
-                            Add User
-                          </ThemeButton>
-                        ) : undefined
+                      buttonLabel={hasSearch ? 'Clear Search' : 'Add User'}
+                      buttonIcon={
+                        hasSearch ? (
+                          <SearchIcon fill="#3889FE" />
+                        ) : (
+                          <PlusIcon fill="#3889FE" width="20" height="20" />
+                        )
+                      }
+                      onButtonClick={
+                        hasSearch
+                          ? () => setSearchValue('')
+                          : canCreateUser
+                            ? () => setAddUserOpen(true)
+                            : undefined
                       }
                     />
                   )}

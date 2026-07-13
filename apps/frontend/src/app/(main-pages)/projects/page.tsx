@@ -63,10 +63,10 @@ export default function ProjectsPage() {
   const canEditProject = hasPermission('projects.edit');
   const canDeleteProject = hasPermission('projects.delete');
   const projectsQuery = useProjectsInfiniteQuery(canViewProjectList, 12);
- const projects = useMemo(
-  () => projectsQuery.data?.pages.flatMap((page) => page.items) ?? [],
-  [projectsQuery.data],
-);
+  const projects = useMemo(
+    () => projectsQuery.data?.pages.flatMap((page) => page.items) ?? [],
+    [projectsQuery.data],
+  );
   const projectOptions = useMemo(
     () => createTicketProjectOptions(projects),
     [projects],
@@ -226,10 +226,9 @@ export default function ProjectsPage() {
     }
   };
   const [searchValue, setSearchValue] = useState('');
-  
 
-const filteredProjects = useMemo(() => {
-  const search = searchValue.trim().toLowerCase();
+  const filteredProjects = useMemo(() => {
+    const search = searchValue.trim().toLowerCase();
 
     if (!search) {
       return projects;
@@ -327,71 +326,80 @@ const filteredProjects = useMemo(() => {
                   ) : null}
                 </div>
 
-              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-                {projectsQuery.isLoading ? (
-                  <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-4">
-                    {Array.from({ length: 6 }).map((_, index) => (
-                      <ProjectCardSkeleton key={index} />
-                    ))}
-                  </div>
-                ) : filteredProjects.length > 0 ? (
-                  <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-4">
-                    {filteredProjects.map((project) => (
-                      <ProjectCard
-                        key={project.id}
-                        id={project.id}
-                        initials={project.initials}
-                        name={project.name}
-                        category={project.category}
-                        totalCount={project.totalCount}
-                        openCount={project.openCount}
-                        criticalCount={project.criticalCount}
-                        colorHex={project.colorHex}
-                        onClick={
-                          canViewProjectDetail
-                            ? () =>
-                                router.push(`/projects/${project.id}`)
-                            : undefined
-                        }
-                        onAddTicket={
-                          canCreateTicket
-                            ? () => {
-                                setSelectedProjectId(project.id);
-                                setCreateTicketOpen(true);
-                              }
-                            : undefined
-                        }
-                        onEdit={
-                          canEditProject
-                            ? () => {
-                                setProjectToEdit(project);
-                                setCreateProjectOpen(true);
-                              }
-                            : undefined
-                        }
-                        onDelete={
-                          canDeleteProject
-                            ? () =>
-                                setProjectToDelete({
-                                  id: project.id,
-                                  name: project.name,
-                                })
-                            : undefined
-                        }
-                        isDeleting={
-                          deleteProjectMutation.isPending &&
-                          deleteProjectMutation.variables === project.id
-                        }
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex min-h-60 items-center justify-center rounded-2xl border border-dashed border-gray-200 px-5 text-center text-sm text-gray-500">
-                    {searchValue.trim()
-                      ? `No projects found for "${searchValue.trim()}".`
-                      : 'No projects found.'}
-                  </div>
-                )}
+                <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                  {projectsQuery.isLoading ? (
+                    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-4">
+                      {Array.from({ length: 6 }).map((_, index) => (
+                        <ProjectCardSkeleton key={index} />
+                      ))}
+                    </div>
+                  ) : filteredProjects.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-4">
+                      {filteredProjects.map((project) => (
+                        <ProjectCard
+                          key={project.id}
+                          id={project.id}
+                          initials={project.initials}
+                          name={project.name}
+                          category={project.category}
+                          totalCount={project.totalCount}
+                          openCount={project.openCount}
+                          criticalCount={project.criticalCount}
+                          colorHex={project.colorHex}
+                          onClick={
+                            canViewProjectDetail
+                              ? () => router.push(`/projects/${project.id}`)
+                              : undefined
+                          }
+                          onAddTicket={
+                            canCreateTicket
+                              ? () => {
+                                  setSelectedProjectId(project.id);
+                                  setCreateTicketOpen(true);
+                                }
+                              : undefined
+                          }
+                          onEdit={
+                            canEditProject
+                              ? () => {
+                                  setProjectToEdit(project);
+                                  setCreateProjectOpen(true);
+                                }
+                              : undefined
+                          }
+                          onDelete={
+                            canDeleteProject
+                              ? () =>
+                                  setProjectToDelete({
+                                    id: project.id,
+                                    name: project.name,
+                                  })
+                              : undefined
+                          }
+                          isDeleting={
+                            deleteProjectMutation.isPending &&
+                            deleteProjectMutation.variables === project.id
+                          }
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyState
+                      imageUrl="/images/EmptyProjectIcon.svg"
+                      imageAlt="No projects"
+                      title="No Projects"
+                      description="Projects will appear here once they are created."
+                      buttonLabel="New Project"
+                      onButtonClick={
+                        canCreateProject
+                          ? () => {
+                              setProjectToEdit(null);
+                              setCreateProjectOpen(true);
+                            }
+                          : undefined
+                      }
+                    />
+                  )}
 
                   {projectsQuery.hasNextPage ? (
                     <div ref={loadMoreRef} className="py-6">
@@ -454,18 +462,18 @@ const filteredProjects = useMemo(() => {
         onConfirm={handleDeleteProject}
       />
 
-    <CreateTicketModal
-      isOpen={createTicketOpen && canCreateTicket}
-      onClose={() => {
-        setCreateTicketOpen(false);
-        setSelectedProjectId(null);
-      }}
-      onConfirm={handleCreateTicket}
-      projectOptions={projectOptions}
-      preselectedProjectId={selectedProjectId ?? undefined}
-      disableProjectSelection={Boolean(selectedProjectId)}
-    />
-  </>
+      <CreateTicketModal
+        isOpen={createTicketOpen && canCreateTicket}
+        onClose={() => {
+          setCreateTicketOpen(false);
+          setSelectedProjectId(null);
+        }}
+        onConfirm={handleCreateTicket}
+        projectOptions={projectOptions}
+        preselectedProjectId={selectedProjectId ?? undefined}
+        disableProjectSelection={Boolean(selectedProjectId)}
+      />
+    </>
     // <div className="">
     //   <PermissionGuard
     //     permission="projects.view_list"

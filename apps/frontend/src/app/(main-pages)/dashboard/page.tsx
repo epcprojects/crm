@@ -528,19 +528,14 @@ export default function Page() {
                       imageAlt="No projects"
                       title="No Projects"
                       description="Projects will appear here once they are created."
-                      button={
-                        canCreateProject ? (
-                          <ThemeButton
-                            className="rounded-full"
-                            variant="primaryGradient"
-                            icon={
-                              <PlusIcon fill="#3889FE" width="20" height="20" />
+                      buttonLabel="New Project"
+                      onButtonClick={
+                        canCreateProject
+                          ? () => {
+                              setProjectToEdit(null);
+                              setCreateProjectOpen(true);
                             }
-                            onClick={() => setCreateProjectOpen(true)}
-                          >
-                            New Project
-                          </ThemeButton>
-                        ) : undefined
+                          : undefined
                       }
                     />
                   ) : (
@@ -581,47 +576,7 @@ export default function Page() {
                       />
                     ))
                   )}
-                <div className="grid grid-cols-1 gap-3 bg-white px-3">
-                  {projectsQuery.isLoading
-                    ? Array.from({ length: 3 }).map((_, index) => (
-                        <ProjectCardSkeleton key={index} />
-                      ))
-                    : (projectsQuery.data ?? []).map((project) => (
-                        <ProjectCard
-                          key={project.id}
-                          id={project.id}
-                          initials={project.initials}
-                          name={project.name}
-                          category={project.category}
-                          totalCount={project.totalCount}
-                          openCount={project.openCount}
-                          criticalCount={project.criticalCount}
-                          colorHex={project.colorHex}
-                          onClick={
-                            canViewProjectDetail
-                              ? () => router.push(`/projects/${project.id}`)
-                              : undefined
-                          }
-                          onEdit={
-                            canEditProject
-                              ? () => setProjectToEdit(project)
-                              : undefined
-                          }
-                          onDelete={
-                            canDeleteProject
-                              ? () =>
-                                  setProjectToDelete({
-                                    id: project.id,
-                                    name: project.name,
-                                  })
-                              : undefined
-                          }
-                          isDeleting={
-                            deleteProjectMutation.isPending &&
-                            deleteProjectMutation.variables === project.id
-                          }
-                        />
-                      ))}
+                 
                 </div>
               </div>
             </PermissionGuard>

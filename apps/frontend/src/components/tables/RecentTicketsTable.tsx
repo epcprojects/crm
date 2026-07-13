@@ -265,18 +265,8 @@ export default function RecentTicketsTable({
         imageAlt="No recent tickets"
         title="No Recent Tickets"
         description="Recent tickets will appear here once they are created."
-        button={
-          onEmptyButtonClick ? (
-            <ThemeButton
-              className="rounded-full"
-              variant="primaryGradient"
-              icon={<PlusIcon fill="#3889FE" width="20" height="20" />}
-              onClick={onEmptyButtonClick}
-            >
-              New Ticket
-            </ThemeButton>
-          ) : undefined
-        }
+        buttonLabel="New Ticket"
+        onButtonClick={onEmptyButtonClick}
       />
     );
   }
