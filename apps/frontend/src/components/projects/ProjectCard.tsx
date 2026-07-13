@@ -31,8 +31,9 @@ function ProjectMetric({
   tone: string;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-1.5 md:gap-2">
-      <p className="truncate text-[10px] text-gray-600 ">
+    <div className="flex  items-center justify-center min-w-21.75 gap-1.5 md:gap-2">
+   
+      <p className="truncate text-xs text-gray-600 ">
         {label}
       </p>
 
@@ -68,7 +69,7 @@ export default function ProjectCard({
       onClick={onClick}
       data-project-id={id}
     >
-      <div className="flex flex-wrap items-start justify-between gap-3 bg-gray-50 px-2.5 py-3.5 md:gap-4 md:px-4 md:py-4">
+      <div className="flex flex-wrap items-start justify-between gap-3 bg-gray-100 px-2.5 py-3.5 md:gap-4 md:px-4 md:py-4">
         <div className="flex min-w-0 flex-1 items-center gap-3 md:gap-4">
           <span
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sm font-semibold shadow-[0_0_35px_0_rgb(0_0_0/0.06)] md:h-10.5 md:w-10.5 md:text-base"
@@ -142,7 +143,7 @@ export default function ProjectCard({
         </div>
       </div>
 
-      <div className="flex flex-row items-center justify-between gap-2 bg-white p-2.5 md:px-4 md:py-3">
+      <div className="flex flex-row items-center justify-between gap-2 bg-white p-2.5">
         <ProjectMetric
           label="Total"
           value={totalCount}
@@ -150,7 +151,7 @@ export default function ProjectCard({
         />
 
         <div
-          className="h-4 w-px shrink-0 bg-gray-100 md:h-5"
+          className="h-4 w-px shrink-0 bg-gray-200 md:h-5"
           aria-hidden="true"
         />
 
@@ -161,7 +162,7 @@ export default function ProjectCard({
         />
 
         <div
-          className="h-4 w-px shrink-0 bg-gray-100 md:h-5"
+          className="h-4 w-px shrink-0 bg-gray-200 md:h-5"
           aria-hidden="true"
         />
 

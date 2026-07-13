@@ -19,6 +19,7 @@ import {
   usePermissions,
 } from '../../providers/PermissionProvider';
 import { useAppLoader } from '../../providers/AppLoaderProvider';
+import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
 
 export default function Page() {
   const { setHeaderActionOverride, setHeaderCountOverride } =
@@ -210,84 +211,89 @@ export default function Page() {
     userList.find((user) => user.id === deletingUserId) ?? null;
 
   return (
-    <div className="">
-      <PermissionGuard
-        permission="users.view_list"
-        fallback={
-          <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
-            You do not have permission to view users.
-          </div>
-        }
-      >
-        {membersQuery.isLoading ? (
-          <UserCardsSkeleton />
-        ) : userList.length ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {userList.map((user) => (
-              <UserCard
-                key={user.id}
-                user={user}
-                onEdit={
-                  user.isInvitationAccepted && canEditUser
-                    ? (selectedUser) => setEditingUserId(selectedUser.id)
-                    : undefined
-                }
-                onDelete={
-                  canDeleteUser
-                    ? (selectedUser) => setDeletingUserId(selectedUser.id)
-                    : undefined
-                }
-                onResendInvite={
-                  !user.isInvitationAccepted && canCreateUser
-                    ? handleResendInvite
-                    : undefined
-                }
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="flex min-h-80 flex-col items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 py-10 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-400">
-              <UsersEmptyIcon />
-            </div>
-            <h2 className="mt-4 text-lg font-semibold text-gray-900">
-              No users yet.
-            </h2>
-            <p className="mt-2 max-w-md text-sm text-gray-500">
-              Invite team members or clients to give them access to projects,
-              tickets, and collaboration spaces.
-            </p>
-          </div>
-        )}
-      </PermissionGuard>
-
-      <AddUserModal
-        isOpen={addUserOpen && canCreateUser}
-        onClose={() => setAddUserOpen(false)}
-        onConfirm={handleCreateUser}
-        projects={projects}
-        roleOptions={roleOptions}
-      />
-
-      <AddUserModal
-        isOpen={Boolean(editingUser) && canEditUser}
-        onClose={() => setEditingUserId(null)}
-        onConfirm={handleEditUser}
-        mode="edit"
-        initialValues={
-          editingUser ? mapUserToFormValues(editingUser, roleOptions) : undefined
-        }
-        projects={projects}
-        roleOptions={roleOptions}
-      />
-
-      <DeleteUserModal
-        isOpen={Boolean(deletingUser) && canDeleteUser}
-        onClose={() => setDeletingUserId(null)}
-        onConfirm={handleDeleteUser}
-        userName={deletingUser?.name}
-      />
+     <div className="relative z-100 h-dvh py-5 pr-5">
+      <div className="flex h-full flex-col gap-3 rounded-4xl border border-white bg-white/40 p-3">
+            <DashboardSummaryBanner imageSrc={''} title={''} stats={[]}/>
+      </div>
     </div>
+    // <div className="">
+    //   <PermissionGuard
+    //     permission="users.view_list"
+    //     fallback={
+    //       <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
+    //         You do not have permission to view users.
+    //       </div>
+    //     }
+    //   >
+    //     {membersQuery.isLoading ? (
+    //       <UserCardsSkeleton />
+    //     ) : userList.length ? (
+    //       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+    //         {userList.map((user) => (
+    //           <UserCard
+    //             key={user.id}
+    //             user={user}
+    //             onEdit={
+    //               user.isInvitationAccepted && canEditUser
+    //                 ? (selectedUser) => setEditingUserId(selectedUser.id)
+    //                 : undefined
+    //             }
+    //             onDelete={
+    //               canDeleteUser
+    //                 ? (selectedUser) => setDeletingUserId(selectedUser.id)
+    //                 : undefined
+    //             }
+    //             onResendInvite={
+    //               !user.isInvitationAccepted && canCreateUser
+    //                 ? handleResendInvite
+    //                 : undefined
+    //             }
+    //           />
+    //         ))}
+    //       </div>
+    //     ) : (
+    //       <div className="flex min-h-80 flex-col items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 py-10 text-center">
+    //         <div className="flex h-14 w-14 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-400">
+    //           <UsersEmptyIcon />
+    //         </div>
+    //         <h2 className="mt-4 text-lg font-semibold text-gray-900">
+    //           No users yet.
+    //         </h2>
+    //         <p className="mt-2 max-w-md text-sm text-gray-500">
+    //           Invite team members or clients to give them access to projects,
+    //           tickets, and collaboration spaces.
+    //         </p>
+    //       </div>
+    //     )}
+    //   </PermissionGuard>
+
+    //   <AddUserModal
+    //     isOpen={addUserOpen && canCreateUser}
+    //     onClose={() => setAddUserOpen(false)}
+    //     onConfirm={handleCreateUser}
+    //     projects={projects}
+    //     roleOptions={roleOptions}
+    //   />
+
+    //   <AddUserModal
+    //     isOpen={Boolean(editingUser) && canEditUser}
+    //     onClose={() => setEditingUserId(null)}
+    //     onConfirm={handleEditUser}
+    //     mode="edit"
+    //     initialValues={
+    //       editingUser ? mapUserToFormValues(editingUser, roleOptions) : undefined
+    //     }
+    //     projects={projects}
+    //     roleOptions={roleOptions}
+    //   />
+
+    //   <DeleteUserModal
+    //     isOpen={Boolean(deletingUser) && canDeleteUser}
+    //     onClose={() => setDeletingUserId(null)}
+    //     onConfirm={handleDeleteUser}
+    //     userName={deletingUser?.name}
+    //   />
+    // </div>
   );
 }
 
