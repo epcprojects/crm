@@ -85,23 +85,37 @@ export async function POST(
     const { projectId } = await context.params;
     const formData = await request.formData().catch(() => null);
     const messageValue = formData?.get('message');
-    const attachment = formData?.get('attachments');
+    const parentIdValue = formData?.get('parentId');
+    const attachments = formData?.getAll('attachments') ?? [];
     const message =
       typeof messageValue === 'string' ? messageValue.trim() : undefined;
+    const parentId =
+      typeof parentIdValue === 'string' ? parentIdValue.trim() : undefined;
+    const validAttachments = attachments.filter(
+      (attachment): attachment is File =>
+        attachment instanceof File && attachment.size > 0,
+    );
 
-    if (!message) {
+    if (!message && !validAttachments.length) {
       return NextResponse.json(
-        { message: 'Message is required.' },
+        { message: 'Message or attachment is required.' },
         { status: 400 },
       );
     }
 
     const upstreamFormData = new FormData();
-    upstreamFormData.append('message', message);
 
-    if (attachment instanceof File && attachment.size > 0) {
-      upstreamFormData.append('attachments', attachment, attachment.name);
+    if (message) {
+      upstreamFormData.append('message', message);
     }
+
+    if (parentId) {
+      upstreamFormData.append('parentId', parentId);
+    }
+
+    validAttachments.forEach((attachment) => {
+      upstreamFormData.append('attachments', attachment, attachment.name);
+    });
 
     const response = await fetch(`${apiBaseUrl}/projects/${projectId}/thread`, {
       method: 'POST',

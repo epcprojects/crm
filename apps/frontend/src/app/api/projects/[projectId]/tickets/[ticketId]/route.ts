@@ -67,6 +67,7 @@ export async function GET(
 type UpdateTicketPayload = {
   title?: string;
   description?: string;
+  statusKey?: string;
   priorityKey?: string;
   assigneeId?: string;
   dueDate?: string;

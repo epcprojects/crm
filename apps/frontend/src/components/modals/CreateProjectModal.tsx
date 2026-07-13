@@ -128,10 +128,12 @@ export default function CreateProjectModal({
                   key={color}
                   type="button"
                   onClick={() => formik.setFieldValue('colorHex', color)}
-                  className={`flex h-7 w-7 items-center justify-center rounded-full border-2 transition ${
+                  className={`flex h-7 min-w-7 items-center justify-center rounded-full border-2 transition ${
                     isSelected ? 'border-white ring-2' : 'border-transparent'
                   }`}
-                  style={isSelected ? { boxShadow: `0 0 0 2px ${color}` } : undefined}
+                  style={
+                    isSelected ? { boxShadow: `0 0 0 2px ${color}` } : undefined
+                  }
                   aria-label={`Select color ${color}`}
                 >
                   <span

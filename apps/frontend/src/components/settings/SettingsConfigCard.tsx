@@ -8,7 +8,7 @@ export type SettingsConfigItem = {
   label: string;
   value: string;
   countLabel: string;
-  colorHex: string;
+  colorHex?: string;
 };
 
 type SettingsConfigCardProps = {
@@ -17,6 +17,7 @@ type SettingsConfigCardProps = {
   buttonLabel: string;
   items: SettingsConfigItem[];
   badgeVariant?: 'status' | 'priority';
+  isLoading?: boolean;
   onAdd?: () => void;
   onEdit?: (item: SettingsConfigItem) => void;
   onDelete?: (item: SettingsConfigItem) => void;
@@ -28,6 +29,7 @@ export default function SettingsConfigCard({
   buttonLabel,
   items,
   badgeVariant = 'status',
+  isLoading = false,
   onAdd,
   onEdit,
   onDelete,
@@ -42,13 +44,17 @@ export default function SettingsConfigCard({
           <p className="text-sm text-gray-700">{subtitle}</p>
         </div>
 
-        <ThemeButton icon={<PlusIcon />} onClick={onAdd}>
-          {buttonLabel}
-        </ThemeButton>
+        {onAdd ? (
+          <ThemeButton icon={<PlusIcon />} onClick={onAdd}>
+            {buttonLabel}
+          </ThemeButton>
+        ) : null}
       </div>
 
       <div className="mt-3 space-y-0">
-        {items.length ? (
+        {isLoading ? (
+          <SettingsConfigSkeleton />
+        ) : items.length ? (
           items.map((item) => (
             <div
               key={item.id}
@@ -57,32 +63,38 @@ export default function SettingsConfigCard({
               <div className="grid min-w-0 flex-1 grid-cols-3 items-center gap-3">
                 <SettingsBadge
                   label={item.label}
-                  colorHex={item.colorHex}
+                  colorHex={item.colorHex ?? '#667085'}
                   variant={badgeVariant}
                 />
                 <p className="text-sm text-gray-800 text-end">
                   {item.countLabel}
                 </p>
 
-                <div className="flex items-center justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={() => onEdit?.(item)}
-                    className="flex md:h-10 md:w-10 h-8.5 w-8.5 items-center justify-center rounded-lg border border-gray-200 text-primary-dark transition hover:bg-gray-50"
-                    aria-label={`Edit ${item.label}`}
-                  >
-                    <EditIcon />
-                  </button>
+                {onEdit || onDelete ? (
+                  <div className="flex items-center justify-end gap-3">
+                    {onEdit ? (
+                      <button
+                        type="button"
+                        onClick={() => onEdit(item)}
+                        className="flex md:h-10 md:w-10 h-8.5 w-8.5 items-center justify-center rounded-lg border border-gray-200 text-primary-dark transition hover:bg-gray-50"
+                        aria-label={`Edit ${item.label}`}
+                      >
+                        <EditIcon />
+                      </button>
+                    ) : null}
 
-                  <button
-                    type="button"
-                    onClick={() => onDelete?.(item)}
-                    className="flex md:h-10 md:w-10 h-8.5 w-8.5 items-center justify-center rounded-lg border border-red-500 text-red-500 transition hover:bg-red-50"
-                    aria-label={`Delete ${item.label}`}
-                  >
-                    <TrashIcon />
-                  </button>
-                </div>
+                    {onDelete ? (
+                      <button
+                        type="button"
+                        onClick={() => onDelete(item)}
+                        className="flex md:h-10 md:w-10 h-8.5 w-8.5 items-center justify-center rounded-lg border border-red-500 text-red-500 transition hover:bg-red-50"
+                        aria-label={`Delete ${item.label}`}
+                      >
+                        <TrashIcon />
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             </div>
           ))
@@ -103,6 +115,28 @@ export default function SettingsConfigCard({
   );
 }
 
+function SettingsConfigSkeleton() {
+  return (
+    <div className="space-y-0" aria-hidden="true">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div
+          key={index}
+          className="flex items-center justify-between gap-3 border-b border-gray-200 py-3 last:border-b-0 last:pb-0"
+        >
+          <div className="grid min-w-0 flex-1 grid-cols-3 items-center gap-3">
+            <div className="h-8 w-28 animate-pulse rounded-full bg-gray-100" />
+            <div className="ml-auto h-4 w-20 animate-pulse rounded bg-gray-100" />
+            <div className="flex items-center justify-end gap-3">
+              <div className="md:h-10 md:w-10 h-8.5 w-8.5 animate-pulse rounded-lg bg-gray-100" />
+              <div className="md:h-10 md:w-10 h-8.5 w-8.5 animate-pulse rounded-lg bg-gray-100" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function SettingsBadge({
   label,
   colorHex,
@@ -112,26 +146,57 @@ function SettingsBadge({
   colorHex: string;
   variant: 'status' | 'priority';
 }) {
+  const color = normalizeHexColor(colorHex);
+
   return (
     <span
       className={`inline-flex w-fit whitespace-nowrap items-center gap-1.5 border text-sm ${
         variant === 'priority'
-          ? 'rounded-md bg-white px-2 py-1 font-semibold shadow-xs'
+          ? 'rounded-md px-2 py-1 font-semibold shadow-xs'
           : 'rounded-full px-2 py-1 font-medium'
       }`}
       style={{
-        color: variant === 'priority' ? '#344054' : colorHex,
-        backgroundColor: variant === 'priority' ? '#FFFFFF' : `${colorHex}12`,
-        borderColor: variant === 'priority' ? '#D0D5DD' : `${colorHex}55`,
+        color: variant === 'priority' ? '#344054' : color,
+        backgroundColor:
+          variant === 'priority' ? '#FFFFFF' : withAlpha(color, 0.075),
+        borderColor:
+          variant === 'priority' ? '#D0D5DD' : withAlpha(color, 0.34),
       }}
     >
-      <span
-        className="inline-block h-2 w-2 rounded-full"
-        style={{ backgroundColor: colorHex }}
-      />
+      {variant === 'priority' ? (
+        <span
+          className="inline-block h-2 w-2 rounded-full"
+          style={{ backgroundColor: color }}
+        />
+      ) : null}
       {label}
     </span>
   );
+}
+
+function normalizeHexColor(colorHex: string | undefined) {
+  const trimmedColor = colorHex?.trim() || '#667085';
+  const color = trimmedColor.startsWith('#')
+    ? trimmedColor
+    : `#${trimmedColor}`;
+
+  return /^#([0-9a-f]{6}|[0-9a-f]{3})$/i.test(color) ? color : '#667085';
+}
+
+function withAlpha(colorHex: string, alpha: number) {
+  const hex = colorHex.slice(1);
+  const expandedHex =
+    hex.length === 3
+      ? hex
+          .split('')
+          .map((part) => part + part)
+          .join('')
+      : hex;
+  const red = Number.parseInt(expandedHex.slice(0, 2), 16);
+  const green = Number.parseInt(expandedHex.slice(2, 4), 16);
+  const blue = Number.parseInt(expandedHex.slice(4, 6), 16);
+
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 
 function EditIcon() {

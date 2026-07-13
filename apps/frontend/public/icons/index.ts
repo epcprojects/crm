@@ -28,9 +28,17 @@ import TrashIcon from './TrashIcon';
 import SearchIcon from './SearchIcon';
 import TicketIcon2 from './TicketIcon2';
 import EditIcon from './EditIcon';
+import DownloadIcon from './DownloadIcon';
+import SentEmailIcon from './SentEmailIcon';
+import AcceptedEmailIcon from './AcceptedEmailIcon';
+import FileTypePlaceholder from './FileTypePlaceholder';
 
 export {
   TicketIcon2,
+  FileTypePlaceholder,
+  SentEmailIcon,
+  AcceptedEmailIcon,
+  DownloadIcon,
   EditIcon,
   SearchIcon,
   APIIcon,

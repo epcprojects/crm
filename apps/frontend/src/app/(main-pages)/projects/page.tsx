@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useDashboardHeaderAction } from '../../../components/dashboard/dashboard-shell';
 import CreateProjectModal, {
@@ -11,24 +12,31 @@ import CreateTicketModal, {
   type CreateTicketFormValues,
 } from '../../../components/modals/CreateTicketModal';
 import {
-  createTicketAssigneeOptions,
-  createTicketPriorityOptions,
   createTicketProjectOptions,
 } from '../../../components/modals/create-ticket-modal.data';
 import ProjectCard from '../../../components/projects/ProjectCard';
 import { appToast } from '../../../components/toast/AppToast';
+import { useAppLoader } from '../../providers/AppLoaderProvider';
+import {
+  PermissionGuard,
+  usePermissions,
+} from '../../providers/PermissionProvider';
 import { createTicket } from '../../../lib/tickets';
 import {
   useCreateProjectMutation,
   useDeleteProjectMutation,
   useUpdateProjectMutation,
-  useProjectsQuery,
+  useProjectsInfiniteQuery,
+  projectsQueryKey,
 } from './projects.queries';
 import type { ProjectRecord } from './projects.data';
 
 export default function ProjectsPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { setHeaderActionOverride } = useDashboardHeaderAction();
+  const { setLoading } = useAppLoader();
+  const { hasPermission } = usePermissions();
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
@@ -40,22 +48,35 @@ export default function ProjectsPage() {
   } | null>(null);
   const [projectToEdit, setProjectToEdit] = useState<ProjectRecord | null>(null);
   const hasShownLoadError = useRef(false);
-  const projectsQuery = useProjectsQuery();
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const createProjectMutation = useCreateProjectMutation();
   const updateProjectMutation = useUpdateProjectMutation();
   const deleteProjectMutation = useDeleteProjectMutation();
-  const projectOptions = useMemo(
-    () => createTicketProjectOptions(projectsQuery.data ?? []),
+  const canViewProjectList = hasPermission('projects.view_list');
+  const canCreateProject = hasPermission('projects.create');
+  const canViewProjectDetail = hasPermission('projects.view_detail');
+  const canCreateTicket = hasPermission('tickets.create');
+  const canEditProject = hasPermission('projects.edit');
+  const canDeleteProject = hasPermission('projects.delete');
+  const projectsQuery = useProjectsInfiniteQuery(canViewProjectList, 12);
+  const projects = useMemo(
+    () => projectsQuery.data?.pages.flatMap((page) => page.items) ?? [],
     [projectsQuery.data],
+  );
+  const projectOptions = useMemo(
+    () => createTicketProjectOptions(projects),
+    [projects],
   );
 
   useEffect(() => {
-    setHeaderActionOverride(() => setCreateProjectOpen(true));
+    setHeaderActionOverride(
+      canCreateProject ? () => setCreateProjectOpen(true) : null,
+    );
 
     return () => {
       setHeaderActionOverride(null);
     };
-  }, [setHeaderActionOverride]);
+  }, [canCreateProject, setHeaderActionOverride]);
 
   useEffect(() => {
     if (projectsQuery.isError && !hasShownLoadError.current) {
@@ -72,9 +93,40 @@ export default function ProjectsPage() {
     }
   }, [projectsQuery.error, projectsQuery.isError]);
 
+  useEffect(() => {
+    const loadMoreElement = loadMoreRef.current;
+
+    if (!loadMoreElement || !projectsQuery.hasNextPage) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (
+          entries[0]?.isIntersecting &&
+          projectsQuery.hasNextPage &&
+          !projectsQuery.isFetchingNextPage
+        ) {
+          void projectsQuery.fetchNextPage();
+        }
+      },
+      { rootMargin: '240px' },
+    );
+
+    observer.observe(loadMoreElement);
+
+    return () => observer.disconnect();
+  }, [
+    projectsQuery.fetchNextPage,
+    projectsQuery.hasNextPage,
+    projectsQuery.isFetchingNextPage,
+  ]);
+
   const handleCreateProject = async (values: CreateProjectFormValues) => {
     try {
       if (projectToEdit) {
+        if (!canEditProject) return;
+        setLoading(true);
         await updateProjectMutation.mutateAsync({
           projectId: projectToEdit.id,
           values,
@@ -84,6 +136,8 @@ export default function ProjectsPage() {
         return;
       }
 
+      if (!canCreateProject) return;
+      setLoading(true);
       await createProjectMutation.mutateAsync(values);
       appToast.success('Project created successfully.');
     } catch (error) {
@@ -95,35 +149,67 @@ export default function ProjectsPage() {
             : 'Failed to create project.',
       );
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleCreateTicket = async (values: CreateTicketFormValues) => {
     try {
+      setLoading(true);
       await createTicket({
         projectId: values.project,
         title: values.title,
         description: values.description,
         statusKey: values.status,
-        assigneeId: values.assignee,
+        priorityKey: values.priority,
         dueDate: values.dueDate,
         attachments: values.attachments,
       });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard-project-tickets'],
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'recent-tickets'],
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'upcoming'],
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'critical-tickets'],
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'ticket-summary'],
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: projectsQueryKey,
+          refetchType: 'all',
+        }),
+      ]);
       appToast.success('Ticket created successfully.');
     } catch (error) {
       appToast.error(
         error instanceof Error ? error.message : 'Failed to create ticket.',
       );
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDeleteProject = async () => {
-    if (!projectToDelete) {
+    if (!projectToDelete || !canDeleteProject) {
       return;
     }
 
     try {
+      setLoading(true);
       await deleteProjectMutation.mutateAsync(projectToDelete.id);
       appToast.success('Project deleted successfully.');
       setProjectToDelete(null);
@@ -131,49 +217,92 @@ export default function ProjectsPage() {
       appToast.error(
         error instanceof Error ? error.message : 'Failed to delete project.',
       );
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="">
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {projectsQuery.isLoading
-          ? Array.from({ length: 6 }).map((_, index) => (
-              <ProjectCardSkeleton key={index} />
-            ))
-          : (projectsQuery.data ?? []).map((project) => (
-              <ProjectCard
-                key={project.id}
-                id={project.id}
-                initials={project.initials}
-                name={project.name}
-                category={project.category}
-                totalCount={project.totalCount}
-                openCount={project.openCount}
-                criticalCount={project.criticalCount}
-                colorHex={project.colorHex}
-                onClick={() => router.push(`/projects/${project.id}`)}
-                onAddTicket={() => {
-                  setSelectedProjectId(project.id);
-                  setCreateTicketOpen(true);
-                }}
-                onEdit={() => {
-                  setProjectToEdit(project);
-                  setCreateProjectOpen(true);
-                }}
-                onDelete={() =>
-                  setProjectToDelete({ id: project.id, name: project.name })
-                }
-                isDeleting={
-                  deleteProjectMutation.isPending &&
-                  deleteProjectMutation.variables === project.id
-                }
-              />
-            ))}
-      </div>
+      <PermissionGuard
+        permission="projects.view_list"
+        fallback={
+          <div className="flex min-h-80 items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 py-10 text-center text-sm text-gray-500">
+            You do not have permission to view projects.
+          </div>
+        }
+      >
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          {projectsQuery.isLoading
+            ? Array.from({ length: 6 }).map((_, index) => (
+                <ProjectCardSkeleton key={index} />
+              ))
+            : projects.map((project) => (
+                <ProjectCard
+                  key={project.id}
+                  id={project.id}
+                  initials={project.initials}
+                  name={project.name}
+                  category={project.category}
+                  totalCount={project.totalCount}
+                  openCount={project.openCount}
+                  criticalCount={project.criticalCount}
+                  colorHex={project.colorHex}
+                  onClick={
+                    canViewProjectDetail
+                      ? () => router.push(`/projects/${project.id}`)
+                      : undefined
+                  }
+                  onAddTicket={
+                    canCreateTicket
+                      ? () => {
+                          setSelectedProjectId(project.id);
+                          setCreateTicketOpen(true);
+                        }
+                      : undefined
+                  }
+                  onEdit={
+                    canEditProject
+                      ? () => {
+                          setProjectToEdit(project);
+                          setCreateProjectOpen(true);
+                        }
+                      : undefined
+                  }
+                  onDelete={
+                    canDeleteProject
+                      ? () =>
+                          setProjectToDelete({
+                            id: project.id,
+                            name: project.name,
+                          })
+                      : undefined
+                  }
+                  isDeleting={
+                    deleteProjectMutation.isPending &&
+                    deleteProjectMutation.variables === project.id
+                  }
+                />
+              ))}
+        </div>
+        {projectsQuery.hasNextPage ? (
+          <div ref={loadMoreRef} className="py-6">
+            {projectsQuery.isFetchingNextPage ? (
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <ProjectCardSkeleton key={`next-page-${index}`} />
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </PermissionGuard>
 
       <CreateProjectModal
-        isOpen={createProjectOpen}
+        isOpen={
+          createProjectOpen &&
+          (projectToEdit ? canEditProject : canCreateProject)
+        }
         onClose={() => {
           setCreateProjectOpen(false);
           setProjectToEdit(null);
@@ -220,8 +349,6 @@ export default function ProjectsPage() {
         }}
         onConfirm={handleCreateTicket}
         projectOptions={projectOptions}
-        assigneeOptions={createTicketAssigneeOptions}
-        priorityOptions={createTicketPriorityOptions}
         preselectedProjectId={selectedProjectId ?? undefined}
         disableProjectSelection={Boolean(selectedProjectId)}
       />

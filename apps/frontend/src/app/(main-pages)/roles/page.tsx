@@ -14,36 +14,47 @@ import AddRoleModal, {
 import DeleteRoleModal from '../../../components/modals/DeleteRoleModal';
 import RoleClaimsModal from '../../../components/modals/RoleClaimsModal';
 import RolesTable, {
+  RolesTableSkeleton,
   type RoleClaimRecord,
   type RoleRecord,
 } from '../../../components/tables/RolesTable';
 import { SearchIcon } from '../../../../public/icons';
 import { appToast } from '../../../components/toast/AppToast';
 import { useAppSelector } from '../../Redux/store';
+import {
+  PermissionGuard,
+  usePermissions,
+} from '../../providers/PermissionProvider';
 
 export default function RolesPage() {
   const { setHeaderActionOverride } = useDashboardHeaderAction();
   const queryClient = useQueryClient();
   const currentUserRoles = useAppSelector((state) => state.auth.user?.roles ?? []);
+  const { hasPermission } = usePermissions();
+  const canViewRoles = hasPermission('roles.view_list');
+  const canCreateRole = hasPermission('roles.create');
+  const canEditRole = hasPermission('roles.edit_permissions');
+  const canDeleteRole = hasPermission('roles.delete');
   const [addRoleOpen, setAddRoleOpen] = useState(false);
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
   const [deletingRoleId, setDeletingRoleId] = useState<string | null>(null);
   const [viewingClaimsRole, setViewingClaimsRole] =
     useState<RoleRecord | null>(null);
-  const [roleList, setRoleList] = useState<RoleRecord[]>([]);
   const [searchValue, setSearchValue] = useState('');
   const rolesQuery = useQuery({
     queryKey: ['roles'],
     queryFn: fetchRoles,
+    enabled: canViewRoles,
   });
   const permissionCatalogQuery = useQuery({
     queryKey: ['roles', 'permission-catalog'],
     queryFn: fetchPermissionCatalog,
+    enabled: canCreateRole || canEditRole,
   });
   const roleDetailQuery = useQuery({
     queryKey: ['roles', 'detail', editingRoleId],
     queryFn: () => fetchRoleById(editingRoleId ?? ''),
-    enabled: Boolean(editingRoleId),
+    enabled: Boolean(editingRoleId && canEditRole),
     staleTime: 0,
   });
   const createRoleMutation = useMutation({
@@ -125,21 +136,20 @@ export default function RolesPage() {
   });
 
   useEffect(() => {
-    setHeaderActionOverride(() => setAddRoleOpen(true));
+    if (canCreateRole) {
+      setHeaderActionOverride(() => setAddRoleOpen(true));
+    } else {
+      setHeaderActionOverride(null);
+    }
 
     return () => {
       setHeaderActionOverride(null);
     };
-  }, [setHeaderActionOverride]);
-
-  useEffect(() => {
-    if (rolesQuery.data) {
-      setRoleList(rolesQuery.data);
-    }
-  }, [rolesQuery.data]);
+  }, [canCreateRole, setHeaderActionOverride]);
 
   const filteredRoles = useMemo(() => {
     const normalizedSearch = searchValue.trim().toLowerCase();
+    const roleList = rolesQuery.data ?? [];
 
     return roleList.filter((role) => {
       if (!normalizedSearch) return true;
@@ -151,7 +161,7 @@ export default function RolesPage() {
         role.description.toLowerCase().includes(normalizedSearch)
       );
     });
-  }, [roleList, searchValue]);
+  }, [rolesQuery.data, searchValue]);
 
   const editingRole = roleDetailQuery.data ?? null;
   const editInitialValues = useMemo(() => {
@@ -170,23 +180,21 @@ export default function RolesPage() {
   }, [editingRole, permissionCatalogQuery.data]);
   const isEditRoleModalOpen = Boolean(editingRoleId && editInitialValues);
   const deletingRole =
-    roleList.find((role) => role.id === deletingRoleId) ?? null;
+    rolesQuery.data?.find((role) => role.id === deletingRoleId) ?? null;
 
   const handleCreateRole = async (values: AddRoleFormValues) => {
-    const payload = await createRoleMutation.mutateAsync(values);
-    const createdRole = getCreatedRoleRecord(payload, values);
+    if (!canCreateRole) {
+      return;
+    }
 
-    setRoleList((currentRoles) => [
-      createdRole,
-      ...currentRoles,
-    ]);
+    await createRoleMutation.mutateAsync(values);
     appToast.success('Role created successfully.');
   };
 
   const handleEditRole = async (values: AddRoleFormValues) => {
-    if (!editingRoleId || !editingRole) return;
+    if (!editingRoleId || !editingRole || !canEditRole) return;
 
-    const payload = await updateRoleMutation.mutateAsync({
+    await updateRoleMutation.mutateAsync({
       roleId: editingRoleId,
       body: {
         name: values.name,
@@ -195,74 +203,75 @@ export default function RolesPage() {
       },
     });
 
-    const updatedRole = mapApiRoleToRoleRecord(getApiRoleRecord(payload, values));
-
-    setRoleList((currentRoles) =>
-      currentRoles.map((role) => (role.id === editingRoleId ? updatedRole : role)),
-    );
     setEditingRoleId(null);
     appToast.success('Role updated successfully.');
   };
 
   const handleDeleteRole = async () => {
-    if (!deletingRoleId) return;
+    if (!deletingRoleId || !canDeleteRole) return;
 
     await deleteRoleMutation.mutateAsync(deletingRoleId);
-    setRoleList((currentRoles) =>
-      currentRoles.filter((role) => role.id !== deletingRoleId),
-    );
     setDeletingRoleId(null);
     appToast.success('Role deleted successfully.');
   };
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
-        <div className="relative flex w-full items-center md:max-w-xs">
-          <input
-            value={searchValue}
-            onChange={(event) => setSearchValue(event.target.value)}
-            placeholder="Search..."
-            className="h-10.5 w-full rounded-lg border border-gray-200 bg-white ps-7 px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
-          />
-          <span className="absolute start-2">
-            <SearchIcon />
-          </span>
-        </div>
-      </div>
-
-      {rolesQuery.isLoading ? (
-        <div className="flex min-h-80 items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 py-10 text-center text-sm text-gray-500">
-          Loading roles...
-        </div>
-      ) : roleList.length ? (
-        <RolesTable
-          roles={filteredRoles}
-          currentUserRoles={currentUserRoles}
-          initialPageSize={10}
-          pageSizeOptions={[10, 20, 30]}
-          onViewClaims={(role) => setViewingClaimsRole(role)}
-          onEdit={(role) => setEditingRoleId(role.id)}
-          onDelete={(role) => setDeletingRoleId(role.id)}
-        />
-      ) : (
-        <div className="flex min-h-80 flex-col items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 py-10 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-400">
-            <RolesEmptyIcon />
+      <PermissionGuard
+        permission="roles.view_list"
+        fallback={
+          <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
+            You do not have permission to view roles.
           </div>
-          <h2 className="mt-4 text-lg font-semibold text-gray-900">
-            No roles yet.
-          </h2>
-          <p className="mt-2 max-w-md text-sm text-gray-500">
-            Create roles to organize access levels and permissions across the
-            workspace.
-          </p>
+        }
+      >
+        <div className="flex flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
+          <div className="relative flex w-full items-center md:max-w-xs">
+            <input
+              value={searchValue}
+              onChange={(event) => setSearchValue(event.target.value)}
+              placeholder="Search..."
+              className="h-10.5 w-full rounded-lg border border-gray-200 bg-white ps-7 px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
+            />
+            <span className="absolute start-2">
+              <SearchIcon />
+            </span>
+          </div>
         </div>
-      )}
+
+        {rolesQuery.isLoading ? (
+          <RolesTableSkeleton />
+        ) : (rolesQuery.data?.length ?? 0) ? (
+          <RolesTable
+            roles={filteredRoles}
+            currentUserRoles={currentUserRoles}
+            initialPageSize={10}
+            pageSizeOptions={[10, 20, 30]}
+            onViewClaims={(role) => setViewingClaimsRole(role)}
+            onEdit={canEditRole ? (role) => setEditingRoleId(role.id) : undefined}
+            onDelete={
+              canDeleteRole ? (role) => setDeletingRoleId(role.id) : undefined
+            }
+          />
+        ) : (
+          <div className="flex min-h-80 flex-col items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 py-10 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-400">
+              <RolesEmptyIcon />
+            </div>
+            <h2 className="mt-4 text-lg font-semibold text-gray-900">
+              No roles yet.
+            </h2>
+            <p className="mt-2 max-w-md text-sm text-gray-500">
+              Create roles to organize access levels and permissions across the
+              workspace.
+            </p>
+          </div>
+        )}
+      </PermissionGuard>
 
       <AddRoleModal
         key="create-role-modal"
-        isOpen={addRoleOpen}
+        isOpen={addRoleOpen && canCreateRole}
         onClose={() => setAddRoleOpen(false)}
         onConfirm={handleCreateRole}
         permissionCatalog={permissionCatalogQuery.data}
@@ -272,7 +281,7 @@ export default function RolesPage() {
       {editingRoleId ? (
         <AddRoleModal
           key={`edit-role-${editingRoleId}-${editInitialValues?.permissions.join('|') ?? 'loading'}`}
-          isOpen={isEditRoleModalOpen}
+          isOpen={isEditRoleModalOpen && canEditRole}
           onClose={() => setEditingRoleId(null)}
           onConfirm={handleEditRole}
           mode="edit"
@@ -285,7 +294,7 @@ export default function RolesPage() {
       ) : null}
 
       <DeleteRoleModal
-        isOpen={Boolean(deletingRole)}
+        isOpen={Boolean(deletingRole) && canDeleteRole}
         onClose={() => setDeletingRoleId(null)}
         onConfirm={handleDeleteRole}
         roleName={deletingRole?.name}
@@ -298,30 +307,6 @@ export default function RolesPage() {
       />
     </div>
   );
-}
-
-function getCreatedRoleRecord(
-  payload: unknown,
-  values: AddRoleFormValues,
-): RoleRecord {
-  const roleSource = getRoleSource(payload);
-  const resolvedId =
-    getString(roleSource?.id) ??
-    getString(roleSource?._id) ??
-    getString(roleSource?.roleId) ??
-    crypto.randomUUID();
-
-  return {
-    id: resolvedId,
-    name: getString(roleSource?.name) ?? values.name,
-    normalizedName:
-      getString(roleSource?.normalizedName) ?? values.name.toUpperCase(),
-    description: getString(roleSource?.description) ?? values.description,
-    permissions: extractPermissions(roleSource, values.permissions),
-    roleClaims: mapRoleClaims(roleSource?.roleClaims),
-    createdAt: formatRoleDate(roleSource?.createdAt),
-    updatedAt: formatRoleDate(roleSource?.updatedAt),
-  };
 }
 
 function getRoleSource(payload: unknown): Record<string, unknown> | null {
@@ -478,25 +463,6 @@ function mapApiRoleToRoleRecord(role: ApiRoleRecord): RoleRecord {
     roleClaims: mapRoleClaims(role.roleClaims),
     createdAt: formatRoleDate(role.createdAt),
     updatedAt: formatRoleDate(role.updatedAt),
-  };
-}
-
-function getApiRoleRecord(
-  payload: unknown,
-  values: AddRoleFormValues,
-): ApiRoleRecord {
-  const roleSource = getRoleSource(payload);
-
-  return {
-    id: getString(roleSource?.id) ?? crypto.randomUUID(),
-    name: getString(roleSource?.name) ?? values.name,
-    normalizedName:
-      getString(roleSource?.normalizedName) ?? values.name.toUpperCase(),
-    description: getString(roleSource?.description) ?? values.description,
-    permissions: extractPermissions(roleSource, values.permissions),
-    createdAt: formatRoleDate(roleSource?.createdAt),
-    updatedAt: formatRoleDate(roleSource?.updatedAt),
-    roleClaims: mapRoleClaims(roleSource?.roleClaims),
   };
 }
 

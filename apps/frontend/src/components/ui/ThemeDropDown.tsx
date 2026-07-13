@@ -147,7 +147,7 @@ const Dropdown = ({
                 error
                   ? 'border-red-500 focus:ring-red-200'
                   : 'border-gray-200 focus:ring-gray-200'
-              } ${disabled ? 'cursor-not-allowed opacity-60' : ''}
+              } ${disabled ? 'cursor-not-allowed opacity-60 bg-gray-200!' : ''}
             `}
         >
           <span className="truncate">

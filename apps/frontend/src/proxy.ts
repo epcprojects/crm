@@ -1,19 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-enum UserRole {
-  SUPER_ADMIN = 'SUPER_ADMIN',
-  ADMIN = 'ADMIN',
-  PROJECT_MANAGER = 'PROJECT_MANAGER',
-  DEVELOPER = 'DEVELOPER',
-  VIEWER = 'VIEWER',
-}
-
 type JwtPayload = {
   exp?: number;
-  roles?: string[];
-  user?: {
-    roles?: string[];
-  };
 };
 
 const ACCESS_TOKEN_COOKIE = 'access_token';
@@ -24,17 +12,6 @@ const PUBLIC_ROUTES = [
   '/auth/set-password',
   '/auth/accept-invite',
 ];
-
-const ADMIN_ROUTES = [
-  '/dashboard',
-  '/tickets',
-  '/projects',
-  '/users',
-  '/roles',
-  '/settings',
-];
-const LIMITED_USER_ROUTES = ['/dashboard', '/tickets', '/projects'];
-const ADMIN_ONLY_ROUTES = ['/users', '/roles', '/settings'];
 
 function isExactOrNested(pathname: string, baseRoute: string) {
   return pathname === baseRoute || pathname.startsWith(`${baseRoute}/`);
@@ -65,14 +42,6 @@ function isTokenExpired(exp?: number) {
   return exp * 1000 <= Date.now();
 }
 
-function getUserRoles(payload: JwtPayload | null) {
-  return payload?.roles ?? payload?.user?.roles ?? [];
-}
-
-function hasAnyRole(roles: string[], allowedRoles: UserRole[]) {
-  return roles.some((role) => allowedRoles.includes(role as UserRole));
-}
-
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const tokenParam = request.nextUrl.searchParams.get('token')?.trim();
@@ -83,22 +52,10 @@ export function proxy(request: NextRequest) {
 
   const token = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
   const payload = token ? decodeJwtPayload(token) : null;
-  const roles = getUserRoles(payload);
   const isAuthenticated = Boolean(
     token && payload && !isTokenExpired(payload.exp),
   );
-
   const isPublicRoute = isRouteInSet(pathname, PUBLIC_ROUTES);
-  const isAdminRoute = isRouteInSet(pathname, ADMIN_ROUTES);
-  const isLimitedUserRoute = isRouteInSet(pathname, LIMITED_USER_ROUTES);
-  const isAdminOnlyRoute = isRouteInSet(pathname, ADMIN_ONLY_ROUTES);
-
-  const isAdmin = hasAnyRole(roles, [UserRole.SUPER_ADMIN, UserRole.ADMIN]);
-  const isLimitedUser = hasAnyRole(roles, [
-    UserRole.PROJECT_MANAGER,
-    UserRole.DEVELOPER,
-    UserRole.VIEWER,
-  ]);
 
   if (!isAuthenticated && !isPublicRoute) {
     return NextResponse.redirect(new URL('/login', request.url));
@@ -113,28 +70,6 @@ export function proxy(request: NextRequest) {
   }
 
   if (isAuthenticated && pathname === '/') {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
-  }
-
-  if (isAuthenticated && isAdmin) {
-    if (isAdminRoute) {
-      return NextResponse.next();
-    }
-
-    return NextResponse.redirect(new URL('/dashboard', request.url));
-  }
-
-  if (isAuthenticated && isLimitedUser) {
-    if (isAdminOnlyRoute) {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
-    }
-
-    if (isLimitedUserRoute) {
-      return NextResponse.next();
-    }
-  }
-
-  if (isAuthenticated) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 

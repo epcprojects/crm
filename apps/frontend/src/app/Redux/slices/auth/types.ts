@@ -2,6 +2,7 @@ export type UserProfile = {
   id: string;
   email: string;
   fullName: string;
+  userType?: UserType;
   roles: UserRole[];
   permissions: string[];
   organizationId?: string;
@@ -15,6 +16,8 @@ export type UserProfile = {
     organizationBalance?: number | string | null;
   } | null;
 };
+
+export type UserType = 'INTERNAL' | 'EXTERNAL';
 
 export type UserRole =
   | string

@@ -17,7 +17,7 @@ export default function StatusCard({
     <div
       className="
         group relative flex cursor-pointer items-center gap-3 overflow-hidden
-        rounded-xl md:rounded-2xl border border-gray-200 bg-gray-50 px-4 md:px-5.5 py-4 md:py-7
+        rounded-xl md:rounded-2xl border border-gray-200 bg-gray-50 px-3.5 md:px-5 py-3.5 md:py-6
         transition-all duration-500 ease-out
         hover:border-transparent hover:shadow-lg hover:shadow-primary/20
         md:gap-4
@@ -50,13 +50,13 @@ export default function StatusCard({
       <div className="relative z-10">
         <h2
           className="
-            text-sm font-semibold text-black
+            text-lg font-bold text-black
             transition-colors duration-500 ease-out
             group-hover:text-white
-            md:text-lg
+            md:text-2xl
           "
         >
-          {title}
+          {count}
         </h2>
 
         <span
@@ -67,7 +67,7 @@ export default function StatusCard({
             md:text-sm
           "
         >
-          {count}
+          {title}
         </span>
       </div>
 

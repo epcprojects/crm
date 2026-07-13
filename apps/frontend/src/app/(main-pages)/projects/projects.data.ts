@@ -17,8 +17,13 @@ export type ApiProjectRecord = {
   id: string;
   name: string;
   category: string;
-  brandColor: string;
-  logoLetter: string;
+  brandColor?: string;
+  logoLetter?: string;
+  stats?: {
+    tickets?: number;
+    openTickets?: number;
+    criticalTickets?: number;
+  };
   createdAt?: string;
   updatedAt?: string;
   deletedAt?: string | null;
@@ -35,6 +40,11 @@ export type ProjectFileRecord = {
   uploadedBy?: string;
   uploadedAt?: string;
   storageKey?: string;
+  extension?: string;
+  mimeType?: string;
+  source?: string;
+  sourceId?: string;
+  status?: string;
 };
 
 export const baseProjects: ProjectRecord[] = [
@@ -137,17 +147,23 @@ export function mapApiProjectToProjectRecord(
   project: ApiProjectRecord,
 ): ProjectRecord {
   const projectTickets = getProjectTickets(project.name);
+  const totalCount = project.stats?.tickets ?? projectTickets.length;
+  const openCount =
+    project.stats?.openTickets ??
+    projectTickets.filter((ticket) => ticket.status === 'Open').length;
+  const criticalCount =
+    project.stats?.criticalTickets ??
+    projectTickets.filter((ticket) => ticket.priority === 'Critical').length;
 
   return {
     id: project.id,
     initials: getProjectInitials(project),
     name: project.name,
     category: toTitleCase(project.category),
-    totalCount: projectTickets.length,
-    openCount: projectTickets.filter((ticket) => ticket.status === 'Open').length,
-    criticalCount: projectTickets.filter((ticket) => ticket.priority === 'Critical')
-      .length,
-    colorHex: project.brandColor,
+    totalCount,
+    openCount,
+    criticalCount,
+    colorHex: project.brandColor ?? '#6172F3',
     threadPosts: 0,
     filesCount: getProjectFiles(project.id, project.name).length,
   };

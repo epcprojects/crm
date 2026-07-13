@@ -63,15 +63,15 @@ export default function PermissionProvider({
     () => new Set(userPermissions),
     [userPermissions],
   );
-  const isSuperAdmin = useMemo(
-    () =>
-      (user?.roles ?? []).some((role) =>
-        typeof role === 'string'
-          ? role === 'SUPER_ADMIN'
-          : role.key === 'SUPER_ADMIN' || role.name === 'SUPER_ADMIN',
-      ),
-    [user?.roles],
-  );
+  // const isSuperAdmin = useMemo(
+  //   () =>
+  //     (user?.roles ?? []).some((role) =>
+  //       typeof role === 'string'
+  //         ? role === 'SUPER_ADMIN'
+  //         : role.key === 'SUPER_ADMIN' || role.name === 'SUPER_ADMIN',
+  //     ),
+  //   [user?.roles],
+  // );
 
   const hasPermission = useCallback(
     (permission: string) => {
@@ -81,13 +81,14 @@ export default function PermissionProvider({
         return false;
       }
 
-      if (isSuperAdmin && knownPermissions.has(normalizedPermission)) {
-        return true;
-      }
+      // if (isSuperAdmin && knownPermissions.has(normalizedPermission)) {
+      //   return true;
+      // }
 
       return userPermissionSet.has(normalizedPermission);
     },
-    [isSuperAdmin, knownPermissions, userPermissionSet],
+    [knownPermissions, userPermissionSet],
+    // [isSuperAdmin, knownPermissions, userPermissionSet],
   );
   const hasAnyPermission = useCallback(
     (permissions: string[]) =>

@@ -107,6 +107,7 @@ export async function POST(
     const title = formData.get('title');
     const description = formData.get('description');
     const statusKey = formData.get('statusKey');
+    const priorityKey = formData.get('priorityKey');
     const assigneeId = formData.get('assigneeId');
     const dueDate = formData.get('dueDate');
     const attachments = formData.getAll('attachments');
@@ -126,6 +127,10 @@ export async function POST(
 
     if (typeof statusKey === 'string' && statusKey.trim()) {
       upstreamFormData.append('statusKey', statusKey.trim());
+    }
+
+    if (typeof priorityKey === 'string' && priorityKey.trim()) {
+      upstreamFormData.append('priorityKey', priorityKey.trim());
     }
 
     if (typeof assigneeId === 'string' && assigneeId.trim()) {

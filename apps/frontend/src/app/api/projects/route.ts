@@ -66,7 +66,7 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('access_token')?.value;
@@ -84,7 +84,20 @@ export async function GET() {
       );
     }
 
-    const response = await fetch(`${apiBaseUrl}/projects`, {
+    const requestUrl = new URL(request.url);
+    const upstreamUrl = new URL(`${apiBaseUrl}/projects`);
+    const page = requestUrl.searchParams.get('page');
+    const limit = requestUrl.searchParams.get('limit');
+
+    if (page) {
+      upstreamUrl.searchParams.set('page', page);
+    }
+
+    if (limit) {
+      upstreamUrl.searchParams.set('limit', limit);
+    }
+
+    const response = await fetch(upstreamUrl.toString(), {
       method: 'GET',
       headers: {
         Accept: 'application/json',

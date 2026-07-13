@@ -33,9 +33,10 @@ export type TicketDetailRecord = RecentTicket & {
   dueDate: string;
   dueDateValue?: string;
   assigneeId?: string;
+  priorityKey?: string | null;
   attachments: TicketAttachment[];
   reporter: TicketPerson;
-  assigneeDetail: TicketPerson;
+  assigneeDetail: TicketPerson | null;
   replies: TicketReply[];
 };
 

@@ -1,6 +1,10 @@
 'use client';
 
-import { TrashIcon } from '../../../public/icons';
+import {
+  AcceptedEmailIcon,
+  SentEmailIcon,
+  TrashIcon,
+} from '../../../public/icons';
 import { useIsMobile } from '../hooks/useIsMobile';
 import ThemeButton from '../ui/ThemeButton';
 
@@ -14,12 +18,15 @@ export type UserCardProject = {
 export type UserCardRole = {
   label: string;
   tone: 'blue' | 'orange' | 'purple' | 'teal';
+  id?: string;
+  value?: string;
 };
 
 export type UserCardUser = {
   id: string;
   name: string;
   email: string;
+  isInvitationAccepted: boolean;
   initials: string;
   accentColor: string;
   avatarUrl?: string;
@@ -31,9 +38,15 @@ type UserCardProps = {
   user: UserCardUser;
   onEdit?: (user: UserCardUser) => void;
   onDelete?: (user: UserCardUser) => void;
+  onResendInvite?: (user: UserCardUser) => void;
 };
 
-export default function UserCard({ user, onEdit, onDelete }: UserCardProps) {
+export default function UserCard({
+  user,
+  onEdit,
+  onDelete,
+  onResendInvite,
+}: UserCardProps) {
   const isMobile = useIsMobile();
 
   return (
@@ -43,63 +56,145 @@ export default function UserCard({ user, onEdit, onDelete }: UserCardProps) {
         boxShadow: `inset ${isMobile ? '2px' : '4px'} 0 0 ${user.accentColor}, 0px 8px 24px rgba(16,24,40,0.08)`,
       }}
     >
-      <div className="flex items-start gap-3 md:gap-4">
-        <Avatar user={user} />
+      <div className="flex gap-2 flex-wrap items-start justify-between">
+        <div className="flex  flex-wrap flex-col gap-3">
+          <div className="flex items-start gap-3 md:gap-4">
+            <Avatar user={user} />
 
-        <div className="min-w-0">
-          <h2 className="truncate text-sm md:text-base font-semibold text-gray-900">
-            {user.name}
-          </h2>
-          {user.email ? (
-            <p className="truncate text-xs text-gray-600">{user.email}</p>
-          ) : null}
+            <div className="flex flex-col gap-2">
+              <div className="min-w-0">
+                <h2 className="truncate text-sm md:text-base font-semibold text-gray-900">
+                  {user.name}
+                </h2>
+                {user.email ? (
+                  <p className="truncate text-xs text-gray-600">{user.email}</p>
+                ) : null}
+              </div>
+              {onResendInvite ? (
+                <div className="text-warning-500 font-semibold text-xs flex items-center gap-1.5">
+                  <SentEmailIcon />
+                  Invite Sent
+                </div>
+              ) : (
+                <div className="text-green-500 font-semibold text-xs flex items-center gap-1.5">
+                  <AcceptedEmailIcon />
+                  Invite Accepted
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        {user.roles.map((role) => (
-          <Pill key={role.label} label={role.label} tone={role.tone} />
-        ))}
+        <div className="flex flex-wrap gap-2">
+          {user.roles.map((role) => (
+            <Pill key={role.label} label={role.label} tone={role.tone} />
+          ))}
+        </div>
       </div>
 
       <div className="my-3 md:my-4 h-px bg-gray-200" />
 
-      <div className="flex flex-wrap gap-2">
-        {user.projects.map((project) => (
-          <ProjectPill key={project.id} project={project} />
-        ))}
+      <div className="flex flex-col flex-wrap gap-2">
+        <span className="block">Assigned Projects</span>
+        <div className="flex gap-2 ">
+          {user.projects.map((project) => (
+            <ProjectPill key={project.id} project={project} />
+          ))}
+        </div>
       </div>
 
-      <div className="mt-5 flex items-center gap-3">
-        <ThemeButton
-          type="button"
-          onClick={() => onEdit?.(user)}
-          variant="secondary"
-          className="w-full"
-          size={isMobile ? 'md' : 'lg'}
-          icon={
-            <EditUserIcon
-              height={isMobile ? '14' : '18'}
-              width={isMobile ? '14' : '18'}
-            />
-          }
-        >
-          Edit User
-        </ThemeButton>
+      {onResendInvite || onEdit || onDelete ? (
+        <div className="mt-5 flex items-center gap-3">
+          {onResendInvite ? (
+            <ThemeButton
+              type="button"
+              variant="secondary"
+              onClick={() => onResendInvite(user)}
+              className="w-full"
+              size={isMobile ? 'md' : 'lg'}
+            >
+              Resend Invite
+            </ThemeButton>
+          ) : onEdit ? (
+            <ThemeButton
+              type="button"
+              onClick={() => onEdit(user)}
+              variant="secondary"
+              className="w-full"
+              size={isMobile ? 'md' : 'lg'}
+              icon={
+                <EditUserIcon
+                  height={isMobile ? '14' : '18'}
+                  width={isMobile ? '14' : '18'}
+                />
+              }
+            >
+              Edit User
+            </ThemeButton>
+          ) : null}
 
-        <button
-          type="button"
-          onClick={() => onDelete?.(user)}
-          className="flex md:h-11 h-9 min-w-9 md:min-w-11 items-center justify-center rounded-lg border border-red-500 text-red-500 transition hover:bg-red-50"
-          aria-label={`Delete ${user.name}`}
-        >
-          <TrashIcon
-            height={isMobile ? '16' : '18'}
-            width={isMobile ? '16' : '18'}
-          />
-        </button>
-      </div>
+          {onDelete ? (
+            <button
+              type="button"
+              onClick={() => onDelete(user)}
+              className="flex md:h-11 h-9 min-w-9 md:min-w-11 items-center justify-center rounded-lg border border-red-500 text-red-500 transition hover:bg-red-50"
+              aria-label={`Delete ${user.name}`}
+            >
+              <TrashIcon
+                height={isMobile ? '16' : '18'}
+                width={isMobile ? '16' : '18'}
+              />
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </article>
+  );
+}
+
+export function UserCardsSkeleton({ count = 6 }: { count?: number }) {
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" aria-hidden="true">
+      {Array.from({ length: count }).map((_, index) => (
+        <article
+          key={index}
+          className="rounded-2xl sm:border border-gray-100 bg-white p-4 drop-shadow-sm"
+          style={{
+            boxShadow:
+              'inset 4px 0 0 #EAECF0, 0px 8px 24px rgba(16,24,40,0.08)',
+          }}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="flex items-start gap-3 md:gap-4">
+              <div className="h-10.5 w-10.5 shrink-0 animate-pulse rounded-full bg-gray-100" />
+              <div className="flex flex-col gap-2">
+                <div className="h-4 w-32 animate-pulse rounded bg-gray-100" />
+                <div className="h-3 w-44 animate-pulse rounded bg-gray-100" />
+                <div className="h-3 w-24 animate-pulse rounded bg-gray-100" />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <div className="h-7 w-20 animate-pulse rounded-full bg-gray-100" />
+              <div className="h-7 w-24 animate-pulse rounded-full bg-gray-100" />
+            </div>
+          </div>
+
+          <div className="my-3 h-px bg-gray-200 md:my-4" />
+
+          <div className="flex flex-col gap-2">
+            <div className="h-4 w-32 animate-pulse rounded bg-gray-100" />
+            <div className="flex gap-2">
+              <div className="h-7 w-24 animate-pulse rounded-full bg-gray-100" />
+              <div className="h-7 w-28 animate-pulse rounded-full bg-gray-100" />
+            </div>
+          </div>
+
+          <div className="mt-5 flex items-center gap-3">
+            <div className="h-11 flex-1 animate-pulse rounded-lg bg-gray-100" />
+            <div className="h-11 w-11 animate-pulse rounded-lg bg-gray-100" />
+          </div>
+        </article>
+      ))}
+    </div>
   );
 }
 
@@ -144,7 +239,7 @@ function Pill({ label, tone }: { label: string; tone: UserCardRole['tone'] }) {
 function ProjectPill({ project }: { project: UserCardProject }) {
   return (
     <span
-      className="inline-flex items-center gap-2 rounded-full pe-2.5 ps-0.5 py-0.5  text-xs md:text-sm font-medium"
+      className="inline-flex w-fit items-center gap-2 rounded-full pe-2.5 ps-0.5 py-0.5  text-xs md:text-sm font-medium"
       style={{
         color: project.colorHex,
         backgroundColor: `${project.colorHex}1A`,

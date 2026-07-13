@@ -9,23 +9,27 @@ import {
   type PaginationState,
   type ColumnDef,
 } from '@tanstack/react-table';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import ThemeButton from '../ui/ThemeButton';
 import { ArrowUpRightIcon } from '../../../public/icons';
+import { useAppSelector } from '../../app/Redux/store';
 
-export type TicketStatus = 'Open' | 'In Progress' | 'Resolved' | 'Closed';
-export type TicketPriority = 'High' | 'Medium' | 'Low' | 'Critical';
+export type TicketStatus = string;
+export type TicketPriority = string;
 
 export type RecentTicket = {
   id: string;
+  ticketRefNo?: string;
   title: string;
   project: {
+    id?: string;
     initials: string;
     name: string;
   };
   status: TicketStatus;
   statusColor?: string;
-  priority: TicketPriority;
+  priority: TicketPriority | null;
+  priorityColor?: string;
   assignee: {
     name: string;
     initials: string;
@@ -33,14 +37,30 @@ export type RecentTicket = {
   date: string;
 };
 
-const statusStyles: Record<TicketStatus, string> = {
+export type TicketSortBy =
+  | 'id'
+  | 'title'
+  | 'project'
+  | 'status'
+  | 'priority'
+  | 'assignee'
+  | 'createdAt';
+
+export type TicketSortOrder = 'asc' | 'desc';
+
+export type TicketSortState = {
+  sortBy: TicketSortBy;
+  sortOrder: TicketSortOrder;
+};
+
+const statusStyles: Record<string, string> = {
   Open: 'border-red-200 bg-red-50 text-red-500',
   'In Progress': 'border-warning-200 bg-warning-50 text-warning-500',
   Resolved: 'border-green-200 bg-green-50 text-green-600',
   Closed: 'border-sky-200 bg-sky-50 text-sky-600',
 };
 
-const priorityStyles: Record<TicketPriority, string> = {
+const priorityStyles: Record<string, string> = {
   High: 'bg-red-500',
   Medium: 'bg-warning-500',
   Low: 'bg-green-500',
@@ -49,15 +69,17 @@ const priorityStyles: Record<TicketPriority, string> = {
 
 const baseColumns: ColumnDef<RecentTicket>[] = [
   {
+    id: 'id',
     accessorKey: 'id',
-    header: '#',
+    header: 'Reference No',
     cell: ({ row }) => (
-      <span className="font-semibold text-gray-900 text-sm">
-        {row.original.id}
+      <span className="font-normal text-gray-900 text-sm">
+        {row.original.ticketRefNo ?? row.original.id}
       </span>
     ),
   },
   {
+    id: 'title',
     accessorKey: 'title',
     header: 'Title',
     cell: ({ row }) => (
@@ -67,10 +89,11 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     ),
   },
   {
+    id: 'project',
     accessorKey: 'project.name',
     header: 'Project',
     cell: ({ row }) => (
-      <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-purple-100 py-0.75 pr-2.5 pl-0.75 text-sm font-medium text-purple-700">
+      <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-purple-100 py-0.75 pr-2.5 pl-0.75 text-xs font-medium text-purple-700">
         <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-medium">
           {row.original.project.initials}
         </span>
@@ -79,28 +102,40 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     ),
   },
   {
+    id: 'status',
     accessorKey: 'status',
     header: 'Status',
     cell: ({ row }) => renderStatusBadge(row.original),
   },
   {
+    id: 'priority',
     accessorKey: 'priority',
     header: 'Priority',
     cell: ({ row }) => (
-      <span className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2 py-1 text-sm font-semibold text-gray-700 shadow-xs">
+      <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-gray-200 bg-white px-2 py-1 text-sm font-meidum text-gray-700 shadow-xs">
         <span
-          className={`h-1.5 w-1.5 rounded-full ${priorityStyles[row.original.priority]}`}
+          className={`h-1.5 w-1.5 whitespace-nowrap rounded-full ${
+            row.original.priorityColor
+              ? ''
+              : (priorityStyles[row.original.priority ?? ''] ?? 'bg-gray-400')
+          }`}
+          style={
+            row.original.priorityColor
+              ? { backgroundColor: row.original.priorityColor }
+              : undefined
+          }
         />
-        {row.original.priority}
+        {row.original.priority ?? 'No Priority'}
       </span>
     ),
   },
   {
+    id: 'assignee',
     accessorKey: 'assignee.name',
     header: 'Assignee',
     cell: ({ row }) => (
       <span className="inline-flex items-center gap-2 text-gray-900 font-normal text-sm">
-        <span className="flex h-7.5 w-7.5 items-center justify-center rounded-full bg-linear-to-br from-orange-200 to-slate-800 text-sm font-medium text-white">
+        <span className="flex h-7.5 min-w-7.5 items-center justify-center rounded-full bg-linear-to-br from-orange-200 to-slate-800 text-xs font-medium text-white">
           {row.original.assignee.initials}
         </span>
         {row.original.assignee.name}
@@ -108,6 +143,7 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     ),
   },
   {
+    id: 'createdAt',
     accessorKey: 'date',
     header: 'Date',
     cell: ({ row }) => (
@@ -130,6 +166,8 @@ type RecentTicketsTableProps = {
   totalRows?: number;
   manualPagination?: boolean;
   onPaginationChange?: (pagination: PaginationState) => void;
+  sortState?: TicketSortState;
+  onSortChange?: (sortState: TicketSortState) => void;
 };
 
 export default function RecentTicketsTable({
@@ -137,17 +175,29 @@ export default function RecentTicketsTable({
   onViewAll,
   enablePagination = false,
   initialPageSize = 12,
-  pageSizeOptions = [12, 24, 48],
+  pageSizeOptions = [10, 25, 50, 100],
   onRowClick,
   hideProjectColumn = false,
   pagination: controlledPagination,
   totalRows: controlledTotalRows,
   manualPagination = false,
   onPaginationChange,
+  sortState,
+  onSortChange,
 }: RecentTicketsTableProps) {
-  const columns = hideProjectColumn
-    ? baseColumns.filter((_, index) => index !== 2)
-    : baseColumns;
+  const userType = useAppSelector((state) => state.auth.user?.userType);
+  const isExternalUser = userType === 'EXTERNAL';
+  const columns = baseColumns.filter((column) => {
+    if (hideProjectColumn && column.id === 'project') {
+      return false;
+    }
+
+    if (isExternalUser && column.id === 'assignee') {
+      return false;
+    }
+
+    return true;
+  });
 
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -217,6 +267,7 @@ export default function RecentTicketsTable({
                 key={row.id}
                 ticket={row.original}
                 onClick={onRowClick}
+                showAssignee={!isExternalUser}
               />
             ))
         ) : (
@@ -234,14 +285,19 @@ export default function RecentTicketsTable({
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
-                    className="border-b border-gray-200 px-4 py-3 text-sm font-semibold text-gray-900"
+                    className="border-b border-gray-200 px-4 py-3 text-xs font-semibold text-gray-900"
                   >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
+                    {header.isPlaceholder ? null : (
+                      <SortHeaderButton
+                        label={flexRender(
                           header.column.columnDef.header,
                           header.getContext(),
                         )}
+                        sortBy={getColumnSortBy(header.column.id)}
+                        sortState={sortState}
+                        onSortChange={onSortChange}
+                      />
+                    )}
                   </th>
                 ))}
               </tr>
@@ -352,7 +408,7 @@ export default function RecentTicketsTable({
             </div>
           </div>
         </div>
-      ) : (
+      ) : onViewAll ? (
         <div className="flex justify-center border-t border-gray-200 py-4.5">
           <ThemeButton onClick={onViewAll}>
             <div className="flex items-center gap-1.5">
@@ -360,7 +416,7 @@ export default function RecentTicketsTable({
             </div>
           </ThemeButton>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -368,9 +424,11 @@ export default function RecentTicketsTable({
 function TicketMobileCard({
   ticket,
   onClick,
+  showAssignee = true,
 }: {
   ticket: RecentTicket;
   onClick?: (ticket: RecentTicket) => void;
+  showAssignee?: boolean;
 }) {
   return (
     <button
@@ -381,34 +439,49 @@ function TicketMobileCard({
       }`}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-orange-200 to-slate-800 text-base font-medium text-white">
-            {ticket.assignee.initials}
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-base font-semibold text-gray-900">
-              {ticket.assignee.name}
-            </p>
-            <p className=" text-xs text-gray-600">{ticket.date}</p>
+        {showAssignee ? (
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-orange-200 to-slate-800 text-base font-medium text-white">
+              {ticket.assignee.initials}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-base font-semibold text-gray-900">
+                {ticket.assignee.name}
+              </p>
+              <p className=" text-xs text-gray-600">{ticket.date}</p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="min-w-0">
+            <p className="text-xs text-gray-600">{ticket.date}</p>
+          </div>
+        )}
 
         <div className="flex shrink-0 items-center gap-2">
           {renderStatusBadge(ticket)}
           <span className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2 py-1 text-sm font-semibold text-gray-700 shadow-xs">
             <span
-              className={`h-2 w-2 rounded-full ${priorityStyles[ticket.priority]}`}
+              className={`h-2 w-2 rounded-full ${
+                ticket.priorityColor
+                  ? ''
+                  : (priorityStyles[ticket.priority ?? ''] ?? 'bg-gray-400')
+              }`}
+              style={
+                ticket.priorityColor
+                  ? { backgroundColor: ticket.priorityColor }
+                  : undefined
+              }
             />
-            {ticket.priority}
+            {ticket.priority ?? 'No Priority'}
           </span>
         </div>
       </div>
 
       <div className="my-3 h-px bg-gray-200" />
 
-      <div className="flex items-center gap-3">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100 border border-gray-100 text-sm font-semibold text-gray-900">
-          {ticket.id}
+      <div className="flex items-center flex-wrap gap-3">
+        <span className="flex px-2 shrink-0 items-center justify-center rounded-full  text-sm font-semibold text-gray-900">
+          {ticket.ticketRefNo ?? ticket.id}
         </span>
         <p className="truncate text-sm text-gray-800">{ticket.title}</p>
       </div>
@@ -433,7 +506,10 @@ function renderStatusBadge(ticket: RecentTicket) {
   return (
     <span
       className={`inline-flex rounded-full border px-2 whitespace-nowrap py-1 text-xs font-semibold ${
-        ticket.statusColor ? '' : statusStyles[ticket.status]
+        ticket.statusColor
+          ? ''
+          : (statusStyles[ticket.status] ??
+            'border-gray-200 bg-gray-50 text-gray-600')
       }`}
       style={style}
     >
@@ -472,6 +548,54 @@ function withAlpha(color: string, alpha: number) {
   }
 
   return normalizedColor;
+}
+
+function SortHeaderButton({
+  label,
+  sortBy,
+  sortState,
+  onSortChange,
+}: {
+  label: ReactNode;
+  sortBy?: TicketSortBy;
+  sortState?: TicketSortState;
+  onSortChange?: (sortState: TicketSortState) => void;
+}) {
+  if (!sortBy || !onSortChange) {
+    return <>{label}</>;
+  }
+
+  const isActive = sortState?.sortBy === sortBy;
+  const nextSortOrder: TicketSortOrder =
+    isActive && sortState?.sortOrder === 'asc' ? 'desc' : 'asc';
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSortChange({ sortBy, sortOrder: nextSortOrder })}
+      className="inline-flex items-center gap-1.5 text-left transition hover:text-primary-dark"
+      aria-label={`Sort by ${String(label)}`}
+    >
+      <span>{label}</span>
+      <span className={isActive ? 'text-primary-dark' : 'text-gray-400'}>
+        {isActive ? (sortState?.sortOrder === 'asc' ? '↑' : '↓') : '↕'}
+      </span>
+    </button>
+  );
+}
+
+function getColumnSortBy(columnId: string): TicketSortBy | undefined {
+  const sortByMap: Record<string, TicketSortBy> = {
+    id: 'id',
+    title: 'title',
+    project: 'project',
+    status: 'status',
+    priority: 'priority',
+    assignee: 'assignee',
+    createdAt: 'createdAt',
+  };
+
+  return sortByMap[columnId];
 }
 
 function getVisiblePageNumbers(currentPage: number, totalPages: number) {

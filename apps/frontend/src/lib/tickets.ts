@@ -3,6 +3,7 @@ export type CreateTicketPayload = {
   title: string;
   description?: string;
   statusKey: string;
+  priorityKey?: string;
   assigneeId?: string;
   dueDate?: string;
   attachments?: File[];
@@ -16,6 +17,10 @@ export async function createTicket(payload: CreateTicketPayload) {
 
   if (payload.description?.trim()) {
     formData.append('description', payload.description.trim());
+  }
+
+  if (payload.priorityKey?.trim()) {
+    formData.append('priorityKey', payload.priorityKey.trim());
   }
 
   if (payload.assigneeId?.trim()) {

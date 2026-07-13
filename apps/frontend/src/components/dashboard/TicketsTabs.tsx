@@ -8,6 +8,7 @@ export type TicketTabKey = 'upcoming' | 'critical';
 
 export type TicketListItem = {
   id: string;
+  projectId?: string;
   title: string;
   date: string;
   owner: string;
@@ -26,9 +27,10 @@ export type TicketTab = {
 
 type TicketsTabsProps = {
   tabs: TicketTab[];
+  onTicketClick?: (ticket: TicketListItem) => void;
 };
 
-export default function TicketsTabs({ tabs }: TicketsTabsProps) {
+export default function TicketsTabs({ tabs, onTicketClick }: TicketsTabsProps) {
   return (
     <TabGroup className="rounded-xl w-[calc(100dvw-32px)] sm:w-full bg-white space-y-2">
       <TabList className="flex border-b  border-gray-200">
@@ -37,7 +39,7 @@ export default function TicketsTabs({ tabs }: TicketsTabsProps) {
             key={tab.key}
             className={({ selected }) =>
               clsx(
-                'w-1/2 border-b-2 px-3 pb-3 text-sm font-semibold outline-none transition',
+                'w-1/2 border-b-2 px-3 pb-2 text-sm font-bold outline-none transition',
                 selected
                   ? 'border-primary-dark text-primary-dark'
                   : 'border-transparent text-gray-500 hover:text-gray-700',
@@ -49,15 +51,32 @@ export default function TicketsTabs({ tabs }: TicketsTabsProps) {
         ))}
       </TabList>
 
-      <TabPanels className="px-4 pt-1 rounded-xl border mt-1.25 border-gray-200">
+      <TabPanels className="mt-1.25 max-h-[35rem] overflow-y-auto rounded-xl border border-gray-200 px-4 pt-1">
         {tabs.map((tab) => (
           <TabPanel key={tab.key} className="space-y-1 outline-none">
             {tab.tickets.length ? (
               tab.tickets.map((ticket, index) => (
                 <article
                   key={ticket.id}
+                  role={onTicketClick ? 'button' : undefined}
+                  tabIndex={onTicketClick ? 0 : undefined}
+                  onClick={
+                    onTicketClick ? () => onTicketClick(ticket) : undefined
+                  }
+                  onKeyDown={
+                    onTicketClick
+                      ? (event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            onTicketClick(ticket);
+                          }
+                        }
+                      : undefined
+                  }
                   className={clsx(
-                    'flex items-start gap-3 py-3',
+                    'flex items-start gap-3 py-3 outline-none transition',
+                    onTicketClick &&
+                      'cursor-pointer rounded-lg px-2 hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-primary/30',
                     index !== tab.tickets.length - 1 &&
                       'border-b border-gray-100',
                   )}
@@ -72,14 +91,16 @@ export default function TicketsTabs({ tabs }: TicketsTabsProps) {
                   </span>
 
                   <div className="min-w-0 flex-1">
-                    <p className="text-base font-medium leading-none text-gray-900">
+                    <p className="text-sm font-medium text-gray-900">
                       {ticket.title}
                     </p>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-sm">
-                      <span className="text-gray-600">{ticket.date}</span>
+                      <span className="text-gray-600 text-xs">
+                        {ticket.date}
+                      </span>
                       <span
                         className={clsx(
-                          'inline-flex rounded-full border px-2 py-0.5 text-xs font-medium',
+                          'inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium',
                           ticket.ownerColor,
                         )}
                       >
@@ -87,7 +108,7 @@ export default function TicketsTabs({ tabs }: TicketsTabsProps) {
                       </span>
                       <span
                         className={clsx(
-                          'inline-flex rounded-full border px-2 py-0.5 text-xs font-medium',
+                          'inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium',
                           ticket.tagClassName,
                         )}
                       >
