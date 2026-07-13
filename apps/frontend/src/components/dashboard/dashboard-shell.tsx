@@ -453,7 +453,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     pathname?.startsWith('/dashboard') ||
     pathname?.startsWith('/settings') ||
     pathname?.startsWith('/users') ||
-    pathname?.startsWith('/roles')||
+    pathname?.startsWith('/roles') ||
     pathname?.startsWith('/projects');
   const canUseCurrentHeaderAction = currentHeader.action?.permission
     ? hasPermission(currentHeader.action.permission)
@@ -490,9 +490,13 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             onClick={() => {
               '';
             }}
-            className="w-16 h-16 bg-white rounded-full flex items-center justify-center"
+            className="min-w-16 min-h-16 max-h-16 max-w-16 bg-white rounded-full flex items-center justify-center"
           >
-            <Image src={Images.index.logoIconImage} alt={'LOGO'} />
+            <Image
+              src={Images.index.logoIconImage}
+              className="h-8 w-8"
+              alt={'LOGO'}
+            />
           </button>
           <div className="flex flex-col h-full justify-between">
             <div className="flex-1 overflow-y-auto scrollbar-hide">

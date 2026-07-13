@@ -275,7 +275,7 @@ export default function ProjectThreadPanel({
                           ) : null}
                           {reply.attachments?.length ? (
                             <div
-                              className={`flex flex-wrap gap-2 ${reply.attachments.length > 1 && 'md:grid-cols-3'} ${!reply.message && reply.attachments && reply.attachments.length > 1 && 'p-2'} ${isCurrentUserReply ? 'rounded-tr-none' : 'rounded-tl-none'}`}
+                              className={`grid flex-wrap gap-2 ${reply.attachments.length > 1 && 'md:grid-cols-3'} ${!reply.message && reply.attachments && reply.attachments.length > 1 && 'p-2'} ${isCurrentUserReply ? 'rounded-tr-none' : 'rounded-tl-none'}`}
                             >
                               {reply.attachments.map((attachment) => (
                                 <div

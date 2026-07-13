@@ -429,7 +429,7 @@ export default function Page() {
                       </button>
                     ) : null}
 
-                    <button
+                    {/* <button
                       type="button"
                       className="border border-gray-200 bg-gray-100 py-2 px-2.5 rounded-lg flex flex-row items-center gap-0.75"
                     >
@@ -437,7 +437,7 @@ export default function Page() {
                       <p className="text-xs font-medium text-black-olive">
                         Filter
                       </p>
-                    </button>
+                    </button> */}
                   </div>
                 </div>
 
