@@ -37,6 +37,7 @@ import {
   projectsQueryKey,
   useProjectsQuery,
   useUpdateProjectMutation,
+  useCreateProjectMutation,
 } from '../projects/projects.queries';
 import { useIsMobile } from '../../../components/hooks/useIsMobile';
 import Link from 'next/link';
@@ -47,6 +48,7 @@ import {
 import { useAppLoader } from '../../providers/AppLoaderProvider';
 import ThemeButton from '../../../components/ui/ThemeButton';
 import { useAppSelector } from '../../Redux/store';
+import EmptyState from '../../../components/EmptyState';
 
 type TicketSummary = {
   open: number | null;
@@ -284,6 +286,32 @@ export default function Page() {
     (upcomingTicketsQuery.isLoading || criticalTicketsQuery.isLoading);
   const user = useAppSelector((state) => state.auth.user);
   const currentUserName = user?.fullName || 'Admin';
+  const canCreateProject = hasPermission('projects.create');
+  const [createProjectOpen, setCreateProjectOpen] = useState(false);
+  const createProjectMutation = useCreateProjectMutation();
+  const handleCreateProject = async (values: CreateProjectFormValues) => {
+    if (!canCreateProject) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      await createProjectMutation.mutateAsync(values);
+
+      appToast.success('Project created successfully.');
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to create project.',
+      );
+
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+  const displayedProjects = projectsQuery.data ?? [];
+  // const displayedProjects = (projectsQuery.data ?? []).slice(0, 0);
   return (
     <div className="py-5 pr-5 z-100 h-dvh relative">
       <div className="bg-white/40 border border-white rounded-3xl p-3 flex flex-row h-full gap-3">
@@ -451,19 +479,10 @@ export default function Page() {
                 ) : (
                   <RecentTicketsTable
                     tickets={recentTicketsQuery.data?.items ?? []}
-                    emptyStateButton={
-                      canCreateTicket ? (
-                        <ThemeButton
-                          className="rounded-full"
-                          variant="primaryGradient"
-                          icon={
-                            <PlusIcon fill="#3889FE" width="20" height="20" />
-                          }
-                          onClick={() => setCreateTicketOpen(true)}
-                        >
-                          New Ticket
-                        </ThemeButton>
-                      ) : undefined
+                    onEmptyButtonClick={
+                      canCreateTicket
+                        ? () => setCreateTicketOpen(true)
+                        : undefined
                     }
                     onViewAll={undefined}
                     onRowClick={
@@ -499,47 +518,70 @@ export default function Page() {
                   ) : null}
                 </div>
 
-                <div className="grid grid-cols-1 gap-3 ">
-                  {projectsQuery.isLoading
-                    ? Array.from({ length: 3 }).map((_, index) => (
-                        <ProjectCardSkeleton key={index} />
-                      ))
-                    : (projectsQuery.data ?? []).map((project) => (
-                        <ProjectCard
-                          key={project.id}
-                          id={project.id}
-                          initials={project.initials}
-                          name={project.name}
-                          category={project.category}
-                          totalCount={project.totalCount}
-                          openCount={project.openCount}
-                          criticalCount={project.criticalCount}
-                          colorHex={project.colorHex}
-                          onClick={
-                            canViewProjectDetail
-                              ? () => router.push(`/projects/${project.id}`)
-                              : undefined
-                          }
-                          onEdit={
-                            canEditProject
-                              ? () => setProjectToEdit(project)
-                              : undefined
-                          }
-                          onDelete={
-                            canDeleteProject
-                              ? () =>
-                                  setProjectToDelete({
-                                    id: project.id,
-                                    name: project.name,
-                                  })
-                              : undefined
-                          }
-                          isDeleting={
-                            deleteProjectMutation.isPending &&
-                            deleteProjectMutation.variables === project.id
-                          }
-                        />
-                      ))}
+                <div className="grid grid-cols-1 gap-3">
+                  {projectsQuery.isLoading ? (
+                    Array.from({ length: 3 }).map((_, index) => (
+                      <ProjectCardSkeleton key={index} />
+                    ))
+                  ) : displayedProjects.length === 0 ? (
+                    <EmptyState
+                      imageUrl="/images/EmptyProjectIcon.svg"
+                      imageAlt="No projects"
+                      title="No Projects"
+                      description="Projects will appear here once they are created."
+                      button={
+                        canCreateProject ? (
+                          <ThemeButton
+                            className="rounded-full"
+                            variant="primaryGradient"
+                            icon={
+                              <PlusIcon fill="#3889FE" width="20" height="20" />
+                            }
+                            onClick={() => setCreateProjectOpen(true)}
+                          >
+                            New Project
+                          </ThemeButton>
+                        ) : undefined
+                      }
+                    />
+                  ) : (
+                    displayedProjects.map((project) => (
+                      <ProjectCard
+                        key={project.id}
+                        id={project.id}
+                        initials={project.initials}
+                        name={project.name}
+                        category={project.category}
+                        totalCount={project.totalCount}
+                        openCount={project.openCount}
+                        criticalCount={project.criticalCount}
+                        colorHex={project.colorHex}
+                        onClick={
+                          canViewProjectDetail
+                            ? () => router.push(`/projects/${project.id}`)
+                            : undefined
+                        }
+                        onEdit={
+                          canEditProject
+                            ? () => setProjectToEdit(project)
+                            : undefined
+                        }
+                        onDelete={
+                          canDeleteProject
+                            ? () =>
+                                setProjectToDelete({
+                                  id: project.id,
+                                  name: project.name,
+                                })
+                            : undefined
+                        }
+                        isDeleting={
+                          deleteProjectMutation.isPending &&
+                          deleteProjectMutation.variables === project.id
+                        }
+                      />
+                    ))
+                  )}
                 </div>
               </div>
             </PermissionGuard>
@@ -553,7 +595,13 @@ export default function Page() {
         onConfirm={handleCreateTicket}
         projectOptions={projectOptions}
       />
-
+      <CreateProjectModal
+        isOpen={createProjectOpen && canCreateProject}
+        onClose={() => setCreateProjectOpen(false)}
+        onConfirm={handleCreateProject}
+        title="Create Project"
+        confirmLabel="Create Project"
+      />
       <CreateProjectModal
         isOpen={Boolean(projectToEdit) && canEditProject}
         onClose={() => setProjectToEdit(null)}

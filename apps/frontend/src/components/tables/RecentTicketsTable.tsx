@@ -11,7 +11,7 @@ import {
 } from '@tanstack/react-table';
 import { useState, type ReactNode } from 'react';
 import ThemeButton from '../ui/ThemeButton';
-import { ArrowUpRightIcon } from '../../../public/icons';
+import { ArrowUpRightIcon, PlusIcon } from '../../../public/icons';
 import { useAppSelector } from '../../app/Redux/store';
 import EmptyState from '../EmptyState';
 
@@ -169,13 +169,13 @@ type RecentTicketsTableProps = {
   onPaginationChange?: (pagination: PaginationState) => void;
   sortState?: TicketSortState;
   onSortChange?: (sortState: TicketSortState) => void;
-  emptyStateButton?: ReactNode;
+  onEmptyButtonClick?: () => void;
 };
 
 export default function RecentTicketsTable({
   tickets,
   onViewAll,
-  emptyStateButton,
+  onEmptyButtonClick,
   enablePagination = false,
   initialPageSize = 12,
   pageSizeOptions = [10, 25, 50, 100],
@@ -260,13 +260,24 @@ export default function RecentTicketsTable({
   const visiblePages = getVisiblePageNumbers(currentPage, totalPages);
   if (tickets.length === 0) {
     return (
-       <EmptyState
-      imageUrl="/images/RecentTicketEmpty.svg"
-      imageAlt="No recent tickets"
-      title="No Recent Tickets"
-      description="Recent tickets will appear here once they are created."
-      button={emptyStateButton}
-    />
+      <EmptyState
+        imageUrl="/images/RecentTicketEmpty.svg"
+        imageAlt="No recent tickets"
+        title="No Recent Tickets"
+        description="Recent tickets will appear here once they are created."
+        button={
+          onEmptyButtonClick ? (
+            <ThemeButton
+              className="rounded-full"
+              variant="primaryGradient"
+              icon={<PlusIcon fill="#3889FE" width="20" height="20" />}
+              onClick={onEmptyButtonClick}
+            >
+              New Ticket
+            </ThemeButton>
+          ) : undefined
+        }
+      />
     );
   }
   return (

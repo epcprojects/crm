@@ -22,6 +22,7 @@ import { useAppLoader } from '../../providers/AppLoaderProvider';
 import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
 import { FiltersIcon, PlusIcon, SearchIcon } from '../../../../public/icons';
 import ThemeButton from '../../../components/ui/ThemeButton';
+import EmptyState from '../../../components/EmptyState';
 
 export default function Page() {
   const { setHeaderActionOverride, setHeaderCountOverride } =
@@ -357,23 +358,34 @@ export default function Page() {
                       ))}
                     </div>
                   ) : (
-                    <div className="flex min-h-80 flex-col items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 py-10 text-center">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-400">
-                        <UsersEmptyIcon />
-                      </div>
-
-                      <h2 className="mt-4 text-lg font-semibold text-gray-900">
-                        {searchValue.trim()
-                          ? 'No matching users found.'
-                          : 'No users yet.'}
-                      </h2>
-
-                      <p className="mt-2 max-w-md text-sm text-gray-500">
-                        {searchValue.trim()
+                    <EmptyState
+                      imageUrl="/images/UsersIcon.svg"
+                      imageAlt="No users"
+                      title={
+                        searchValue.trim()
+                          ? 'No Matching Users'
+                          : 'No Users Yet'
+                      }
+                      description={
+                        searchValue.trim()
                           ? 'Try searching with a different name, email, role, or project.'
-                          : 'Invite team members or clients to give them access to projects, tickets, and collaboration spaces.'}
-                      </p>
-                    </div>
+                          : 'Invite team members or clients to give them access to projects, tickets, and collaboration spaces.'
+                      }
+                      button={
+                        !searchValue.trim() && canCreateUser ? (
+                          <ThemeButton
+                            className="rounded-full"
+                            variant="primaryGradient"
+                            icon={
+                              <PlusIcon fill="#3889FE" width="20" height="20" />
+                            }
+                            onClick={() => setAddUserOpen(true)}
+                          >
+                            Add User
+                          </ThemeButton>
+                        ) : undefined
+                      }
+                    />
                   )}
                 </div>
               </div>
