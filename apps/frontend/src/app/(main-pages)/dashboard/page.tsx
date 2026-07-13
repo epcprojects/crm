@@ -517,7 +517,7 @@ export default function Page() {
                   ) : null}
                 </div>
 
-                <div className="grid grid-cols-1 gap-3">
+                <div className="grid grid-cols-1 gap-3 px-3">
                   {projectsQuery.isLoading ? (
                     Array.from({ length: 3 }).map((_, index) => (
                       <ProjectCardSkeleton key={index} />
@@ -576,7 +576,6 @@ export default function Page() {
                       />
                     ))
                   )}
-                 
                 </div>
               </div>
             </PermissionGuard>
