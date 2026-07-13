@@ -406,16 +406,17 @@ export default function Page() {
 
   return (
     <>
-      <div className="relative z-100 h-dvh py-5 pr-5">
-        <div className="flex h-full flex-col gap-3 rounded-4xl border border-white bg-white/40 p-3">
+      <div className="relative z-100 h-dvh overflow-hidden py-5 pr-5">
+       <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden rounded-3xl border border-white bg-white/40 p-3">
+          <div className="shrink-0">
           <DashboardSummaryBanner
             imageSrc="/images/TicketsIcon.svg"
             imageAlt="Tickets"
             title="Tickets"
             stats={ticketSummaryStats}
           />
-
-          <div className="min-h-0 flex-1 overflow-y-auto rounded-[20px] bg-white p-3 md:p-4">
+</div>
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[20px] bg-white p-3 md:p-4">
             <PermissionGuard
               permission="tickets.view_list"
               fallback={
@@ -424,8 +425,8 @@ export default function Page() {
                 </div>
               }
             >
-              <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
-                <div className="flex flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
+             <div className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-hidden">
+             <div className="flex shrink-0 flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
                   {canFilterTickets ? (
                     <>
                       <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 md:max-w-50">
@@ -444,7 +445,7 @@ export default function Page() {
                       </div>
 
                       <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                        <div className="hidden items-center rounded-lg border border-gray-200 bg-white">
+                        <div className="flex  items-center rounded-lg border border-gray-200 bg-white">
                           <button
                             type="button"
                             onClick={() => setViewMode('table')}
@@ -513,7 +514,7 @@ export default function Page() {
                   ) : null}
                 </div>
 
-                <div className="min-h-0 flex-1">
+              <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
                   {viewMode === 'kanban' ? (
                     <TicketsKanbanView
                       tickets={sortedTickets}
