@@ -15,6 +15,7 @@ import {
 import { useAppSelector } from '../../../Redux/store';
 import { FileTypePlaceholder } from '../../../../../public/icons';
 import { getFileUrl } from '../../../../components/projects/ProjectFilesPanel';
+import DashboardSummaryBanner from '../../../../components/ui/DashboardSummaryBanner';
 
 export default function TicketDetailPage() {
   const params = useParams<{ ticketId: string }>();
@@ -471,300 +472,335 @@ export default function TicketDetailPage() {
   };
 
   return (
-    <div className="space-y-4 flex-1 w-full flex flex-col items-start -mt-16 sm:mt-0">
-      <button
-        type="button"
-        onClick={() => router.back()}
-        className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
-      >
-        <BackArrowIcon />
-        Back
-      </button>
-
-      <div className="grid grid-cols-1 flex-1 w-full gap-4 xl:grid-cols-12">
-        <div className="space-y-4 xl:col-span-9 flex flex-col">
-          <section className="rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-3 md:p-5">
-            <div className="sm:grid flex flex-wrap gap-4 border-b border-gray-200 pb-5 grid-cols-4">
-              <MetaItem
-                label="Ticket ID"
-                value={`${ticket.ticketRefNo ?? ticket.id}`}
-              />
-              <MetaItem label="Created" value={ticket.date} />
-              <div>
-                <span className="block text-sm text-gray-500">Project</span>
-                <span className="mt-1 inline-flex items-center gap-2 rounded-full bg-purple-100 py-0.75 pr-2.5 pl-0.75 text-sm font-medium text-purple-700">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-medium">
-                    {ticket.project.initials}
-                  </span>
-                  {ticket.project.name}
-                </span>
-              </div>
-              {/* {isDueDateOverdue ? ( */}
-              <div>
-                <span className="block text-sm text-gray-500">Date</span>
-                <div
-                  className={`flex items-start gap-2 rounded-lg h-fit pt-2  ${isDueDateOverdue ? 'text-[#B42318] ' : 'text-gray-700'} `}
-                >
-                  {/* <AlertIcon fill="#B42318" opacity="0" /> */}
-                  <div className="flex items-center gap-3  w-full">
-                    <p className="text-sm font-medium pt-0.25">
-                      {selectedDueDate}
-                    </p>
-                    {isDueDateOverdue && (
-                      <p className="text-sm font-medium  bg-[#F04438] text-white py-0.5 px-2.5 rounded-full">
-                        Overdue
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-              {/* ) : null} */}
-            </div>
-
-            <div className="pt-2 sm:pt-5">
-              {isEditingTitle ? (
-                <div>
-                  <input
-                    type="text"
-                    value={titleDraft}
-                    autoFocus
-                    disabled={updateTicketMutation.isPending}
-                    onChange={(event) => setTitleDraft(event.target.value)}
-                    onBlur={() => {
-                      void handleSaveTitle();
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') {
-                        event.preventDefault();
-                        void handleSaveTitle();
-                      }
-
-                      if (event.key === 'Escape') {
-                        setIsEditingTitle(false);
-                        setTitleDraft(ticket.title);
-                      }
-                    }}
-                    className="w-full border-b border-b-gray-400 pb-2 text-base font-semibold text-gray-900 outline-none  md:text-xl"
-                  />
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  disabled={!canEditTicketContent}
-                  onClick={() => {
-                    if (!canEditTicketContent) {
-                      return;
-                    }
-
-                    setIsEditingDescription(false);
-                    setDescriptionDraft(ticket.description);
-                    setIsEditingTitle(true);
-                  }}
-                  className="block w-full text-left disabled:cursor-default"
-                >
-                  <h2 className="text-base md:text-xl leading-8 font-semibold text-gray-900">
-                    {ticket.title}
-                  </h2>
-                </button>
-              )}
-
-              {isEditingDescription ? (
-                <div className="mt-4">
-                  <textarea
-                    value={descriptionDraft}
-                    autoFocus
-                    rows={5}
-                    disabled={updateTicketMutation.isPending}
-                    onChange={(event) =>
-                      setDescriptionDraft(event.target.value)
-                    }
-                    onBlur={() => {
-                      void handleSaveDescription();
-                    }}
-                    onKeyDown={(event) => {
-                      if (
-                        (event.ctrlKey || event.metaKey) &&
-                        event.key === 'Enter'
-                      ) {
-                        event.preventDefault();
-                        void handleSaveDescription();
-                      }
-
-                      if (event.key === 'Escape') {
-                        setIsEditingDescription(false);
-                        setDescriptionDraft(ticket.description);
-                      }
-                    }}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none "
-                  />
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  disabled={!canEditTicketContent}
-                  onClick={() => {
-                    if (!canEditTicketContent) {
-                      return;
-                    }
-
-                    setIsEditingTitle(false);
-                    setTitleDraft(ticket.title);
-                    setIsEditingDescription(true);
-                  }}
-                  className="mt-2 block w-full text-left disabled:cursor-default"
-                >
-                  <p className="text-sm text-gray-700">
-                    {ticket.description || 'Add description'}
-                  </p>
-                </button>
-              )}
-            </div>
-          </section>
-
-          <PermissionGuard permission="ticket_replies.view">
-            <TicketRepliesPanel
-              replies={
-                canViewReplies
-                  ? (ticketRepliesQuery.data ?? ticket.replies)
-                  : []
-              }
-              emptyTitle={
-                ticketRepliesQuery.isLoading
-                  ? 'Loading replies...'
-                  : 'No replies yet.'
-              }
-              emptyDescription={
-                ticketRepliesQuery.isLoading
-                  ? 'Fetching ticket replies.'
-                  : 'No responses have been added to this ticket yet.'
-              }
-              canCompose={canPostReplies}
-              canAttachFile={canAttachReplyFiles}
-              isSubmittingReply={createReplyMutation.isPending}
-              onSubmitReply={canPostReplies ? handleSubmitReply : undefined}
-              requireMessage={false}
-              currentUserId={currentUserId}
-            />
-          </PermissionGuard>
+    <div className="relative z-100 h-dvh overflow-hidden py-5 pr-5">
+      <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden rounded-3xl border border-white bg-white/40 p-3">
+        <div className="shrink-0">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
+          >
+            <BackArrowIcon />
+            Back
+          </button>
         </div>
 
-        <aside className="space-y-4 xl:col-span-3">
-          {!isExternalUser ? (
-            <section className="rounded-xl sm:rounded-2xl border border-gray-200 bg-white">
-              <h3 className="border-b border-gray-200 px-3 py-3 text-sm md:text-base font-semibold text-gray-900">
-                Status & Priority
-              </h3>
-              <div className="space-y-4 p-3 sm:p-4">
-                <Dropdown
-                  label="Status"
-                  options={statusOptions}
-                  value={selectedStatus}
-                  disabled={updateTicketMutation.isPending || !canEditStatus}
-                  onChange={handleStatusChange}
-                />
-                <Dropdown
-                  label="Priority"
-                  options={priorityOptions}
-                  value={selectedPriority}
-                  disabled={updateTicketMutation.isPending || !canEditPriority}
-                  onChange={handlePriorityChange}
-                />
-                <Dropdown
-                  label="Assignee"
-                  options={assigneeOptions}
-                  value={selectedAssigneeId}
-                  disabled={updateTicketMutation.isPending || !canEditAssignee}
-                  onChange={handleAssigneeChange}
-                />
-              </div>
-            </section>
-          ) : null}
-
-          <section className="rounded-xl sm:rounded-2xl border border-gray-200 bg-white">
-            <h3 className="border-b border-gray-200 px-3 sm:px-4 py-3 text-sm md:text-base font-semibold text-gray-900">
-              Attachments
-            </h3>
-            <div className="space-y-3 sm:p-4 p-3">
-              {ticket.attachments.length ? (
-                ticket.attachments.map((attachment) => (
-                  <a
-                    key={attachment.id}
-                    href={getAttachmentUrl(attachment.storageKey)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-3 rounded-xl border border-gray-200 p-2.5 transition hover:bg-gray-50"
-                  >
-                    {attachment.extension === 'png' ||
-                    attachment.extension === 'svg' ||
-                    attachment.extension === 'jpg' ||
-                    attachment.extension === 'jpeg' ? (
-                      <img
-                        className="rounded-sm border border-gray-200 h-10 w-10"
-                        src={getFileUrl(attachment.storageKey)}
-                      />
-                    ) : (
-                      <FileBadgeIcon extension={attachment.extension} />
-                    )}
-                    <div>
-                      <p className="text-sm font-semibold text-gray-800">
-                        {attachment.name}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {attachment.sizeLabel}
-                      </p>
-                    </div>
-                  </a>
-                ))
-              ) : (
-                <p className="text-sm text-gray-500">No attachments added.</p>
-              )}
-            </div>
-          </section>
-
-          {!isExternalUser ? (
-            <section className="rounded-xl sm:rounded-2xl border border-gray-200 bg-white">
-              <div className="flex items-center justify-between border-b border-gray-200 px-3 sm:px-4 py-3">
-                <h3 className="text-sm md:text-base font-semibold text-gray-900">
-                  Due Date
-                </h3>
-              </div>
-              <div className="p-3 sm:p-4">
-                <p className="mb-2 text-xs font-medium  tracking-wide text-gray-500">
-                  {selectedDueDate ? 'Select date' : 'No due date'}
-                </p>
-                <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2.5">
-                  <input
-                    type="date"
-                    value={selectedDueDate}
-                    min={minimumDueDate}
-                    disabled={updateTicketMutation.isPending || !canEditDueDate}
-                    onChange={(event) =>
-                      handleDueDateChange(event.target.value)
-                    }
-                    className="w-full bg-transparent text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:text-gray-400"
+        <div className="min-h-0 min-w-0 flex-1">
+          <div className="grid h-full min-h-0 min-w-0 grid-cols-1 gap-4 overflow-hidden xl:grid-cols-12 xl:grid-rows-[minmax(0,1fr)]">
+            <div className="flex min-w-0 flex-col space-y-4 xl:col-span-9">
+              <section className="rounded-xl border border-gray-200 bg-white p-3 sm:rounded-2xl md:p-5">
+                <div className="flex flex-wrap gap-4 border-b border-gray-200 pb-5 sm:grid sm:grid-cols-4">
+                  <MetaItem
+                    label="Ticket ID"
+                    value={`${ticket.ticketRefNo ?? ticket.id}`}
                   />
-                  {/* <CalendarIcon /> */}
-                </label>
-              </div>
-            </section>
-          ) : null}
 
-          {!isExternalUser ? (
-            <section className="rounded-2xl border border-gray-200 bg-white">
-              <h3 className="border-b border-gray-200 px-3 sm:px-4 py-3 text-sm md:text-base font-semibold text-gray-900">
-                People
-              </h3>
-              <div className="space-y-4 p-3 sm:p-4">
-                <PersonCard person={ticket.reporter} />
-                {ticket.assigneeDetail ? (
-                  <PersonCard person={ticket.assigneeDetail} />
-                ) : null}
+                  <MetaItem label="Created" value={ticket.date} />
+
+                  <div>
+                    <span className="block text-sm text-gray-500">Project</span>
+
+                    <span className="mt-1 inline-flex items-center gap-2 rounded-full bg-purple-100 py-0.75 pr-2.5 pl-0.75 text-sm font-medium text-purple-700">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-medium">
+                        {ticket.project.initials}
+                      </span>
+
+                      {ticket.project.name}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="block text-sm text-gray-500">Date</span>
+
+                    <div
+                      className={`flex h-fit items-start gap-2 rounded-lg pt-2 ${
+                        isDueDateOverdue ? 'text-[#B42318]' : 'text-gray-700'
+                      }`}
+                    >
+                      <div className="flex w-full items-center gap-3">
+                        <p className="pt-0.25 text-sm font-medium">
+                          {selectedDueDate}
+                        </p>
+
+                        {isDueDateOverdue ? (
+                          <p className="rounded-full bg-[#F04438] px-2.5 py-0.5 text-sm font-medium text-white">
+                            Overdue
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 sm:pt-5">
+                  {isEditingTitle ? (
+                    <div>
+                      <input
+                        type="text"
+                        value={titleDraft}
+                        autoFocus
+                        disabled={updateTicketMutation.isPending}
+                        onChange={(event) => setTitleDraft(event.target.value)}
+                        onBlur={() => {
+                          void handleSaveTitle();
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault();
+                            void handleSaveTitle();
+                          }
+
+                          if (event.key === 'Escape') {
+                            setIsEditingTitle(false);
+                            setTitleDraft(ticket.title);
+                          }
+                        }}
+                        className="w-full border-b border-b-gray-400 pb-2 text-base font-semibold text-gray-900 outline-none md:text-xl"
+                      />
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={!canEditTicketContent}
+                      onClick={() => {
+                        if (!canEditTicketContent) {
+                          return;
+                        }
+
+                        setIsEditingDescription(false);
+                        setDescriptionDraft(ticket.description);
+                        setIsEditingTitle(true);
+                      }}
+                      className="block w-full text-left disabled:cursor-default"
+                    >
+                      <h2 className="text-base font-semibold leading-8 text-gray-900 md:text-xl">
+                        {ticket.title}
+                      </h2>
+                    </button>
+                  )}
+
+                  {isEditingDescription ? (
+                    <div className="mt-4">
+                      <textarea
+                        value={descriptionDraft}
+                        autoFocus
+                        rows={5}
+                        disabled={updateTicketMutation.isPending}
+                        onChange={(event) =>
+                          setDescriptionDraft(event.target.value)
+                        }
+                        onBlur={() => {
+                          void handleSaveDescription();
+                        }}
+                        onKeyDown={(event) => {
+                          if (
+                            (event.ctrlKey || event.metaKey) &&
+                            event.key === 'Enter'
+                          ) {
+                            event.preventDefault();
+                            void handleSaveDescription();
+                          }
+
+                          if (event.key === 'Escape') {
+                            setIsEditingDescription(false);
+                            setDescriptionDraft(ticket.description);
+                          }
+                        }}
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none"
+                      />
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={!canEditTicketContent}
+                      onClick={() => {
+                        if (!canEditTicketContent) {
+                          return;
+                        }
+
+                        setIsEditingTitle(false);
+                        setTitleDraft(ticket.title);
+                        setIsEditingDescription(true);
+                      }}
+                      className="mt-2 block w-full text-left disabled:cursor-default"
+                    >
+                      <p className="text-sm text-gray-700">
+                        {ticket.description || 'Add description'}
+                      </p>
+                    </button>
+                  )}
+                </div>
+              </section>
+              <div className="min-h-0 flex-1 overflow-hidden">
+                <PermissionGuard permission="ticket_replies.view">
+                  <TicketRepliesPanel
+                    replies={
+                      canViewReplies
+                        ? (ticketRepliesQuery.data ?? ticket.replies)
+                        : []
+                    }
+                    emptyTitle={
+                      ticketRepliesQuery.isLoading
+                        ? 'Loading replies...'
+                        : 'No replies yet.'
+                    }
+                    emptyDescription={
+                      ticketRepliesQuery.isLoading
+                        ? 'Fetching ticket replies.'
+                        : 'No responses have been added to this ticket yet.'
+                    }
+                    canCompose={canPostReplies}
+                    canAttachFile={canAttachReplyFiles}
+                    isSubmittingReply={createReplyMutation.isPending}
+                    onSubmitReply={
+                      canPostReplies ? handleSubmitReply : undefined
+                    }
+                    requireMessage={false}
+                    currentUserId={currentUserId}
+                  />
+                </PermissionGuard>
               </div>
-            </section>
-          ) : null}
-        </aside>
+            </div>
+            <aside className="min-h-0 min-w-0 space-y-4 overflow-y-auto scrollbar-hide rounded-2xl bg-white p-5 xl:col-span-3 xl:h-full">
+              {!isExternalUser ? (
+                <section className="rounded-xl border border-gray-200 bg-white sm:rounded-2xl">
+                  <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 md:text-base">
+                    Status & Priority
+                  </h3>
+
+                  <div className="space-y-4 p-3 sm:p-4">
+                    <Dropdown
+                      label="Status"
+                      options={statusOptions}
+                      value={selectedStatus}
+                      disabled={
+                        updateTicketMutation.isPending || !canEditStatus
+                      }
+                      onChange={handleStatusChange}
+                    />
+
+                    <Dropdown
+                      label="Priority"
+                      options={priorityOptions}
+                      value={selectedPriority}
+                      disabled={
+                        updateTicketMutation.isPending || !canEditPriority
+                      }
+                      onChange={handlePriorityChange}
+                    />
+
+                    <Dropdown
+                      label="Assignee"
+                      options={assigneeOptions}
+                      value={selectedAssigneeId}
+                      disabled={
+                        updateTicketMutation.isPending || !canEditAssignee
+                      }
+                      onChange={handleAssigneeChange}
+                    />
+                  </div>
+                </section>
+              ) : null}
+
+              <section className="rounded-xl border border-gray-200 bg-white sm:rounded-2xl">
+                <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 sm:px-4 md:text-base">
+                  Attachments
+                </h3>
+
+                <div className="space-y-3 p-3 sm:p-4">
+                  {ticket.attachments.length ? (
+                    ticket.attachments.map((attachment) => (
+                      <a
+                        key={attachment.id}
+                        href={getAttachmentUrl(attachment.storageKey)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-3 rounded-xl border border-gray-200 p-2.5 transition hover:bg-gray-50"
+                      >
+                        {attachment.extension === 'png' ||
+                        attachment.extension === 'svg' ||
+                        attachment.extension === 'jpg' ||
+                        attachment.extension === 'jpeg' ? (
+                          <img
+                            alt={attachment.name}
+                            className="h-10 w-10 rounded-sm border border-gray-200"
+                            src={getFileUrl(attachment.storageKey)}
+                          />
+                        ) : (
+                          <FileBadgeIcon extension={attachment.extension} />
+                        )}
+
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-gray-800">
+                            {attachment.name}
+                          </p>
+
+                          <p className="text-sm text-gray-500">
+                            {attachment.sizeLabel}
+                          </p>
+                        </div>
+                      </a>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500">
+                      No attachments added.
+                    </p>
+                  )}
+                </div>
+              </section>
+
+              {!isExternalUser ? (
+                <section className="rounded-xl border border-gray-200 bg-white sm:rounded-2xl">
+                  <div className="flex items-center justify-between border-b border-gray-200 px-3 py-3 sm:px-4">
+                    <h3 className="text-sm font-semibold text-gray-900 md:text-base">
+                      Due Date
+                    </h3>
+                  </div>
+
+                  <div className="p-3 sm:p-4">
+                    <p className="mb-2 text-xs font-medium tracking-wide text-gray-500">
+                      {selectedDueDate ? 'Select date' : 'No due date'}
+                    </p>
+
+                    <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2.5">
+                      <input
+                        type="date"
+                        value={selectedDueDate}
+                        min={minimumDueDate}
+                        disabled={
+                          updateTicketMutation.isPending || !canEditDueDate
+                        }
+                        onChange={(event) =>
+                          handleDueDateChange(event.target.value)
+                        }
+                        className="w-full bg-transparent text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:text-gray-400"
+                      />
+                    </label>
+                  </div>
+                </section>
+              ) : null}
+
+              {!isExternalUser ? (
+                <section className="rounded-2xl border border-gray-200 bg-white">
+                  <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 sm:px-4 md:text-base">
+                    People
+                  </h3>
+
+                  <div className="space-y-4 p-3 sm:p-4">
+                    <PersonCard person={ticket.reporter} />
+
+                    {ticket.assigneeDetail ? (
+                      <PersonCard person={ticket.assigneeDetail} />
+                    ) : null}
+                  </div>
+                </section>
+              ) : null}
+            </aside>
+          </div>
+        </div>
       </div>
     </div>
+   
   );
 }
 

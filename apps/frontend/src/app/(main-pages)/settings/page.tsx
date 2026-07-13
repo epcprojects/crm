@@ -406,7 +406,7 @@ export default function Page() {
 
   return (
     <div className="py-5 pr-5 z-100 max-h-dvh h-dvh relative">
-      <div className="bg-white/40 border flex flex-col border-white rounded-4xl p-3  h-full space-y-3">
+      <div className="bg-white/40 border flex flex-col border-white rounded-3xl p-3  h-full space-y-3">
         <div className="bg-[url('/images/DashboardComponentBgImage.jpg')] w-full bg-center bg-no-repeat bg-cover rounded-[20px] p-7.5 bg-black/30 flex flex-col justify-between">
           <div className="flex items-center gap-3 md:gap-4">
             <Image

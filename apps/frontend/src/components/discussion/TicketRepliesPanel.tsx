@@ -132,8 +132,8 @@ export default function TicketRepliesPanel({
 
   return (
     <>
-      <section className="rounded-xl sm:rounded-2xl border flex-1 bg-white flex flex-col border-gray-200 ">
-        <div className="flex items-center justify-between border-b border-gray-200 px-3 py-2 sm:py-3 md:px-5">
+      <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white sm:rounded-2xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-3 py-2 sm:py-3 md:px-5">
           <div className="flex items-center gap-3">
             <h3 className="text-sm md:text-base font-semibold text-gray-900">
               {title}
@@ -149,7 +149,7 @@ export default function TicketRepliesPanel({
 
         <div
           ref={scrollContainerRef}
-          className="min-h-96 px-3 flex-1 py-5 md:px-5 max-h-[calc(100dvh-520px)] overflow-y-auto"
+          className="min-h-0 flex-1 overflow-y-auto scrollbar-hide px-3 py-5 md:px-5"
         >
           {headerReply ? (
             <div className="mb-4 border-b border-gray-200 pb-4">
@@ -350,7 +350,7 @@ export default function TicketRepliesPanel({
               })}
             </div>
           ) : (
-            <div className="flex min-h-80 flex-col h-full items-center justify-center text-center">
+           <div className="flex h-full min-h-0 flex-col items-center justify-center text-center">
               <EmptyRepliesIcon />
               <p className="mt-2 sm:mt-4 text-base md:text-lg font-semibold text-gray-600">
                 {emptyTitle}
@@ -363,7 +363,7 @@ export default function TicketRepliesPanel({
         </div>
 
         {canCompose ? (
-          <div className="px-2 py-4 md:px-5">
+          <div className="shrink-0 border-t border-gray-200 px-2 py-4 md:px-5">
             <div className="rounded-xl border border-gray-200 bg-white p-2 sm:p-3">
               <textarea
                 rows={3}

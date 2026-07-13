@@ -284,7 +284,7 @@ export default function Page() {
   const currentUserName = user?.fullName || 'Admin';
   return (
     <div className="py-5 pr-5 z-100 h-dvh relative">
-      <div className="bg-white/40 border border-white rounded-4xl p-3 flex flex-row h-full gap-3">
+      <div className="bg-white/40 border border-white rounded-3xl p-3 flex flex-row h-full gap-3">
         <PermissionGuard permission="dashboard.view_upcoming">
           <div
             className={` ${

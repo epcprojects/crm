@@ -272,7 +272,7 @@ export default function RolesTable({
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
-                    className="sticky top-0 z-10 border-b border-gray-200 px-4 py-3 text-xs font-semibold text-gray-900"
+                    className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50 px-4 py-3 text-xs font-semibold text-gray-900"
                   >
                     {header.isPlaceholder
                       ? null

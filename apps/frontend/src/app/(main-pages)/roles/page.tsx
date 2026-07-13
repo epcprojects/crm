@@ -219,7 +219,7 @@ export default function RolesPage() {
   return (
     <>
       <div className="relative z-100 h-dvh overflow-hidden py-5 pr-5">
-        <div className="flex h-full min-h-0 flex-col gap-3 rounded-4xl border border-white bg-white/40 p-3">
+        <div className="flex h-full min-h-0 flex-col gap-3 rounded-3xl border border-white bg-white/40 p-3">
           <DashboardSummaryBanner
             imageSrc="/images/UsersIcon.svg"
             imageAlt="Roles"

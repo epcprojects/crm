@@ -278,7 +278,7 @@ const projectSummaryStats = useMemo(
   return (
      <>
     <div className="relative z-100 h-dvh py-5 pr-5">
-      <div className="flex h-full flex-col gap-3 rounded-4xl border border-white bg-white/40 p-3">
+      <div className="flex h-full flex-col gap-3 rounded-3xl border border-white bg-white/40 p-3">
         <DashboardSummaryBanner
           imageSrc="/images/ProjectsIcon.svg"
           imageAlt="Projects"
