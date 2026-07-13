@@ -257,7 +257,7 @@ export default function RecentTicketsTable({
   const visiblePages = getVisiblePageNumbers(currentPage, totalPages);
 
   return (
-    <div className="overflow-y-auto scrollbar-hide rounded-xl w-[calc(100dvw-32px)] sm:w-full md:border md:border-gray-100 h-full bg-white">
+  <div className="flex h-full min-h-0 w-[calc(100dvw-32px)] flex-col overflow-hidden rounded-xl bg-white sm:w-full md:border md:border-gray-100">
       <div className="space-y-3 md:p-3 md:hidden">
         {table.getRowModel().rows.length ? (
           table
@@ -277,7 +277,7 @@ export default function RecentTicketsTable({
         )}
       </div>
 
-      <div className="hidden overflow-x-auto md:block">
+      <div className="hidden min-h-0 flex-1 overflow-x-auto overflow-y-scroll scrollbar-hide md:block">
         <table className="w-full  min-w-[880px] text-left">
           <thead className="bg-gray-50">
             {table.getHeaderGroups().map((headerGroup) => (
@@ -285,7 +285,7 @@ export default function RecentTicketsTable({
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
-                    className="border-b border-[#F3F4F6] px-4 py-3 text-xs font-semibold bg-[#F9FAFB] text-gray-900"
+                    className="sticky top-0 border-b border-[#F3F4F6] px-4 py-3 text-xs font-semibold bg-[#F9FAFB] text-gray-900"
                   >
                     {header.isPlaceholder ? null : (
                       <SortHeaderButton

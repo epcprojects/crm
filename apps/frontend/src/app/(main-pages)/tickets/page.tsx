@@ -17,7 +17,7 @@ import RecentTicketsTable, {
 import TicketsKanbanView from '../../../components/tickets/TicketsKanbanView';
 import { appToast } from '../../../components/toast/AppToast';
 import Dropdown from '../../../components/ui/ThemeDropDown';
-import { SearchIcon } from '../../../../public/icons';
+import { PlusIcon, SearchIcon } from '../../../../public/icons';
 import { createTicket } from '../../../lib/tickets';
 import {
   projectsQueryKey,
@@ -29,6 +29,7 @@ import {
 } from '../../providers/PermissionProvider';
 import { useAppLoader } from '../../providers/AppLoaderProvider';
 import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
+import ThemeButton from '../../../components/ui/ThemeButton';
 
 type TicketSummary = {
   open: number | null;
@@ -423,7 +424,7 @@ export default function Page() {
                 </div>
               }
             >
-              <div className="flex min-h-full flex-col gap-4">
+              <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
                 <div className="flex flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
                   {canFilterTickets ? (
                     <>
@@ -441,7 +442,6 @@ export default function Page() {
                           />
                         </div>
                       </div>
-                     
 
                       <div className="flex flex-col gap-3 md:flex-row md:items-center">
                         <div className="hidden items-center rounded-lg border border-gray-200 bg-white">
@@ -498,6 +498,16 @@ export default function Page() {
                             placeholder="All Priority"
                           />
                         </div>
+                        <ThemeButton
+                          className="rounded-full"
+                          variant="primaryGradient"
+                          icon={
+                            <PlusIcon fill="#3889FE" width="20" height="20" />
+                          }
+                          onClick={() => setCreateTicketOpen(true)}
+                        >
+                          New Ticket
+                        </ThemeButton>
                       </div>
                     </>
                   ) : null}
@@ -553,124 +563,7 @@ export default function Page() {
       />
     </>
 
-    // <div className="space-y-4">
-    //   <PermissionGuard
-    //     permission="tickets.view_list"
-    //     fallback={
-    //       <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
-    //         You do not have permission to view tickets.
-    //       </div>
-    //     }
-    //   >
-    //     <div className="flex flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
-    //       {canFilterTickets ? (
-    //         <>
-    //           <div className="relative flex w-full items-center md:max-w-xs">
-    //             <input
-    //               value={searchValue}
-    //               onChange={(event) => setSearchValue(event.target.value)}
-    //               placeholder="Search..."
-    //               className="h-10.5 w-full rounded-lg border border-gray-200 bg-white ps-7 px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
-    //             />
-    //             <span className="absolute start-2">
-    //               <SearchIcon />
-    //             </span>
-    //           </div>
-
-    //           <div className="flex flex-col gap-3 md:flex-row md:items-center">
-    //             <div className="hidden items-center rounded-lg border border-gray-200 bg-white ">
-    //               <button
-    //                 type="button"
-    //                 onClick={() => setViewMode('table')}
-    //                 className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
-    //                   viewMode === 'table'
-    //                     ? 'bg-primary-dark text-white shadow-sm'
-    //                     : 'text-gray-500 hover:bg-gray-50'
-    //                 }`}
-    //                 aria-label="Table view"
-    //               >
-    //                 <TableViewIcon />
-    //               </button>
-    //               <button
-    //                 type="button"
-    //                 onClick={() => setViewMode('kanban')}
-    //                 className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
-    //                   viewMode === 'kanban'
-    //                     ? 'bg-primary-dark text-white shadow-sm'
-    //                     : 'text-gray-500 hover:bg-gray-50'
-    //                 }`}
-    //                 aria-label="Kanban view"
-    //               >
-    //                 <KanbanViewIcon />
-    //               </button>
-    //             </div>
-    //             <div className="w-full md:w-44">
-    //               <Dropdown
-    //                 options={projectFilterOptions}
-    //                 value={selectedProject}
-    //                 onChange={setSelectedProject}
-    //                 placeholder="All Projects"
-    //               />
-    //             </div>
-    //             <div className="w-full md:w-38">
-    //               <Dropdown
-    //                 options={statusFilterOptions}
-    //                 value={selectedStatus}
-    //                 onChange={setSelectedStatus}
-    //                 placeholder="All Status"
-    //               />
-    //             </div>
-    //             <div className="w-full md:w-38">
-    //               <Dropdown
-    //                 options={priorityFilterOptions}
-    //                 value={selectedPriority}
-    //                 onChange={setSelectedPriority}
-    //                 placeholder="All Priority"
-    //               />
-    //             </div>
-    //           </div>
-    //         </>
-    //       ) : null}
-    //     </div>
-
-    //     {viewMode === 'kanban' ? (
-    //       <TicketsKanbanView
-    //         tickets={sortedTickets}
-    //         statusOptions={kanbanStatusOptions}
-    //         onTicketClick={canViewTicketDetail ? handleTicketClick : undefined}
-    //         onMoveTicket={(ticket, nextStatusKey) => {
-    //           void handleMoveTicket(ticket, nextStatusKey);
-    //         }}
-    //         canDragTickets={canEditTicketStatus}
-    //         movingTicketId={
-    //           moveTicketMutation.isPending
-    //             ? (moveTicketMutation.variables?.ticket.id ?? null)
-    //             : null
-    //         }
-    //       />
-    //     ) : (
-    //       <RecentTicketsTable
-    //         tickets={sortedTickets}
-    //         enablePagination
-    //         initialPageSize={10}
-    //         pageSizeOptions={[10, 25, 50, 100]}
-    //         pagination={pagination}
-    //         onPaginationChange={setPagination}
-    //         totalRows={ticketsQuery.data?.meta.total ?? 0}
-    //         manualPagination
-    //         sortState={sortState}
-    //         onSortChange={handleSortChange}
-    //         onRowClick={canViewTicketDetail ? handleTicketClick : undefined}
-    //       />
-    //     )}
-    //   </PermissionGuard>
-    //   <CreateTicketModal
-    //     isOpen={createTicketOpen && canCreateTicket}
-    //     onClose={() => setCreateTicketOpen(false)}
-    //     onConfirm={handleCreateTicket}
-    //     projectOptions={projectOptions}
-    //   />
-    // </div>
+   
   );
 }
 
