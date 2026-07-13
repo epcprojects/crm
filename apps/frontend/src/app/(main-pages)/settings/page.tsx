@@ -445,7 +445,12 @@ export default function Page() {
                 title="Ticket Statuses"
                 subtitle={`${statusItems.length} statuses · used across all projects`}
                 buttonLabel="Add Status"
+                emptyImageUrl="/images/EmptyStatusIcon.svg"
+                emptyImageAlt="No ticket statuses"
+                emptyTitle="No Statuses Yet"
+                emptyDescription="Create your first ticket status to get started."
                 items={statusItems}
+              
                 badgeVariant="status"
                 isLoading={ticketStatusesQuery.isLoading}
                 onAdd={
@@ -478,7 +483,12 @@ export default function Page() {
                 subtitle={`${priorityItems.length} levels · used across all projects`}
                 buttonLabel="Add Priority"
                 items={priorityItems}
+              
                 badgeVariant="priority"
+                emptyImageUrl="/images/EmptyPriorityIcon.svg"
+                emptyImageAlt="No priority levels"
+                emptyTitle="No Priority Levels Yet"
+                emptyDescription="Create your first priority level to get started."
                 isLoading={ticketPrioritiesQuery.isLoading}
                 onAdd={
                   canCreatePriority
