@@ -1,8 +1,4 @@
-import {
-  EditIcon,
-  TicketIcon2,
-  TrashIcon,
-} from '../../../public/icons';
+import { EditIcon, TicketIcon2, TrashIcon } from '../../../public/icons';
 import Tooltip from '../tooltip';
 
 type ProjectCardProps = {
@@ -32,10 +28,7 @@ function ProjectMetric({
 }) {
   return (
     <div className="flex  items-center justify-center min-w-21.75 gap-1.5 md:gap-2">
-   
-      <p className="truncate text-xs text-gray-600 ">
-        {label}
-      </p>
+      <p className="truncate text-xs text-gray-600 ">{label}</p>
 
       <span
         className={`flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full px-1 text-[10px] leading-3.5 text-black shadow-[0_0_18px_0_rgb(0_0_0/0.14)]  ${tone}`}
@@ -103,7 +96,6 @@ export default function ProjectCard({
               <span className="flex h-5.5 w-5.5 items-center justify-center rounded-full bg-[#E1E5FF] md:h-6.5 md:w-6.5">
                 <TicketIcon2 />
               </span>
-
               Add Ticket
             </button>
           ) : null}
@@ -143,28 +135,10 @@ export default function ProjectCard({
         </div>
       </div>
 
-      <div className="flex flex-row items-center justify-between gap-2 bg-white p-2.5">
-        <ProjectMetric
-          label="Total"
-          value={totalCount}
-          tone="bg-[#AAEFC6]"
-        />
+      <div className="grid grid-cols-3 divide-x divide-gray-200 gap-2 bg-white p-2.5">
+        <ProjectMetric label="Total" value={totalCount} tone="bg-[#AAEFC6]" />
 
-        <div
-          className="h-4 w-px shrink-0 bg-gray-200 md:h-5"
-          aria-hidden="true"
-        />
-
-        <ProjectMetric
-          label="Open"
-          value={openCount}
-          tone="bg-warning-200"
-        />
-
-        <div
-          className="h-4 w-px shrink-0 bg-gray-200 md:h-5"
-          aria-hidden="true"
-        />
+        <ProjectMetric label="Open" value={openCount} tone="bg-warning-200" />
 
         <ProjectMetric
           label="Critical"
