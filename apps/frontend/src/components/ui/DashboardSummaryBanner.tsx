@@ -21,7 +21,7 @@ export default function DashboardSummaryBanner({
   imageAlt = '',
 }: DashboardSummaryBannerProps) {
   return (
-    <div className="relative flex w-full flex-col gap-3 overflow-hidden rounded-[10px] bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat px-4 py-4 xl:flex-row xl:items-center xl:gap-4 xl:rounded-[20px] xl:px-7.5 xl:py-6">
+    <div className="relative flex w-full flex-col gap-2 xl:gap-3 overflow-hidden rounded-[10px] bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat px-4 py-4 xl:flex-row xl:items-center xl:gap-4 xl:rounded-[20px] xl:px-7.5 xl:py-6">
       {/* Background overlay */}
       <div className="absolute inset-0 bg-black/30" aria-hidden="true" />
 
@@ -35,7 +35,7 @@ export default function DashboardSummaryBanner({
           className="h-10 w-10 shrink-0 backdrop-blur-3xl drop-shadow xl:h-12 xl:w-12"
         />
 
-        <p className="min-w-0 truncate text-2xl text-white xl:hidden">
+        <p className="min-w-0 truncate text-xl xl:text-2xl text-white xl:hidden">
           {title}
         </p>
       </div>
@@ -45,7 +45,7 @@ export default function DashboardSummaryBanner({
         <p className="hidden text-[32px] text-white xl:block">{title}</p>
 
         {stats?.length ? (
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border border-white/12 bg-white/10 px-3 py-2.5 backdrop-blur-3xl drop-shadow-[0_14px_44px_0_rgb(0_0_0/0.45)] xl:flex xl:max-w-full xl:flex-row xl:items-center xl:gap-5.5 xl:px-4">
+          <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/12 bg-white/10 p-2 backdrop-blur-3xl drop-shadow-[0_14px_44px_0_rgb(0_0_0/0.45)] xl:flex xl:max-w-full xl:flex-row xl:items-center xl:gap-5.5 xl:px-4">
             {stats.map((item, index) => (
               <Fragment key={`${item.title}-${index}`}>
                 {index > 0 ? (

@@ -65,8 +65,8 @@ const Page = () => {
   });
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-white/40 border border-white flex-1 md:min-h-[calc(100dvh-32px)] min-h-[calc(100dvh-16px)] rounded-3xl md:rounded-4xl">
-      <div className="md:p-8 flex flex-col relative items-center justify-center w-full bg-white rounded-[20px]">
+   <div className="grid h-full min-h-0 flex-1 grid-cols-1 gap-3 rounded-3xl xl:grid-cols-2 xl:rounded-4xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
+      <div className="xl:p-8 p-4 flex flex-col relative items-center justify-center w-full bg-white rounded-[20px]">
         <Image
           alt="harper tech help logo"
           className="md:absolute mb-4 top-2 left-2 md:left-4 md:top-4"

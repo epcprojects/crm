@@ -357,7 +357,7 @@ export default function RecentTicketsTable({
       </div>
 
       {enablePagination ? (
-        <div className="flex justify-between sm:flex-col gap-3 md:border-t border-gray-200 md:px-4 py-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex justify-between sm:flex-col gap-3 md:border-t border-gray-200 xl:px-4 py-0.5 xl:py-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <span className="sm:inline-block hidden">Showing per page</span>
             <select

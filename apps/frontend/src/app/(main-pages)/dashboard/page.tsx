@@ -312,7 +312,7 @@ export default function Page() {
   const displayedProjects = projectsQuery.data ?? [];
   // const displayedProjects = (projectsQuery.data ?? []).slice(0, 0);
   return (
-    <div className="xl:py-5 p-4 xl:pr-5 z-100 h-full xl:h-dvh relative">
+    <div className="xl:py-5 xl:pr-5 px-4 pt-2 pb-0 z-100 h-full xl:h-dvh relative">
       {/* <div className="bg-white/40 border border-white rounded-3xl p-3 flex flex-row h-full gap-3"> */}
       <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden xl:rounded-3xl  bg-gray-200 xl:flex-row xl:border xl:border-white xl:bg-white/40 xl:p-3">
         <PermissionGuard permission="dashboard.view_upcoming">
@@ -347,8 +347,8 @@ export default function Page() {
             {isStatsLoading ? (
               <DashboardStatsSkeleton />
             ) : (
-              <div className="flex w-full flex-col justify-between gap-6 rounded-[10px] xl:rounded-[20px] bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat p-4 sm:p-5 xl:gap-8.5 xl:p-7.5">
-                <div className="flex flex-col items-start gap-4 sm:flex-row sm:gap-6">
+              <div className="flex w-full flex-col justify-between gap-2 xl:gap-6 rounded-[10px] xl:rounded-[20px] bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat p-4 sm:p-5 xl:gap-8.5 xl:p-7.5">
+                <div className="flex flex-col items-start gap-2 xl:flex-row xl:gap-6">
                   <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                     <p className="text-2xl text-white sm:text-[32px]">
                       <span className="font-bold">Good day</span>,{' '}
@@ -372,7 +372,7 @@ export default function Page() {
                   ) : null}
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
+                <div className="grid grid-cols-2 gap-1.5 xl:grid-cols-4 xl:gap-5">
                   <StatusCard
                     title="Open"
                     count={formatSummaryCount(ticketSummary?.open)}

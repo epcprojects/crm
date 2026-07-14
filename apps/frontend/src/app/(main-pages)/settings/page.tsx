@@ -429,7 +429,7 @@ export default function Page() {
      ]
      
   return (
-    <div className="relative z-100 xl:h-dvh h-full overflow-hidden p-4 xl:py-5 xl:pr-5">
+    <div className="relative z-100 xl:h-dvh h-full overflow-hidden p-4 xl:py-5 xl:pr-5 px-4 pt-2 pb-0">
       <div className="flex h-full min-h-0 flex-col space-y-3 xl:rounded-3xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
       <DashboardSummaryBanner imageSrc={'/images/SettingsPageIcon.svg'} title={'Settings'} stats={projectSummaryStats}/>
         <div className="flex xl:flex-row flex-col  items-center gap-3 rounded-[10px] xl:rounded-full border border-warning-200 bg-[#FFFAEB] p-1 text-[#69410A]">
