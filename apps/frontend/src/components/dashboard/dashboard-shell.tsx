@@ -447,7 +447,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             type="button"
           />
         ) : null}
-        <div className="hidden w-24 2xl:w-29 shrink-0 lg:block" />
+        <div className="hidden w-24 2xl:w-29 shrink-0 xl:block" />
         <aside
           className={`fixed inset-y-0  left-0 z-40 hidden xl:flex flex-col gap-10 bg-gray-200 px-4  2xl:px-6 pt-4  2xl:pt-6 pb-4 2xl:pb-8 transition-transform duration-300 ease-out  ${
             mobileOpen ? '' : '-translate-x-full lg:translate-x-0'
