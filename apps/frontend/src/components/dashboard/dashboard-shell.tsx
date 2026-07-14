@@ -438,7 +438,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   return (
     <DashboardHeaderActionContext.Provider value={headerActionContextValue}>
-      <div className="flex h-dvh min-h-0 overflow-hidden bg-white text-slate-900">
+      <div className="flex h-dvh min-h-0  bg-white text-slate-900">
         {mobileOpen ? (
           <button
             aria-label="Close navigation"
@@ -465,7 +465,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               alt={'LOGO'}
             />
           </button>
-          <div className="flex flex-col h-full justify-between">
+          <div className="flex flex-col h-full  min-h-0 flex-1  justify-between">
             <div className="flex-1 overflow-y-auto scrollbar-hide">
               {isSidebarLoading ? (
                 <SidebarNavSkeleton />
@@ -481,10 +481,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                         key={item.href}
                         href={item.href}
                         onClick={() => setMobileOpen(false)}
-                        className="flex w-fit flex-col items-center gap-2.5 scrollbar-hide"
+                        className="flex w-fit flex-col items-center gap-1.5 2xl:gap-2.5 scrollbar-hide"
                       >
                         <div
-                          className={`w-14 h-14 rounded-full flex items-center justify-center transition ${
+                          className={`2xl:w-14 2xl:h-14 w-10 h-10 rounded-full flex items-center justify-center transition ${
                             isActive
                               ? 'bg-linear-to-l from-primary-light to-primary-dark text-white'
                               : 'bg-white text-gray-700 hover:bg-gray-100 hover:text-primary'
@@ -493,7 +493,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                           {item.icon(isActive)}
                         </div>
 
-                        <p className={`text-sm transition text-gray-900`}>
+                        <p className={`2xl:text-sm text-xs transition text-gray-900`}>
                           {item.label}
                         </p>
                       </Link>
@@ -503,14 +503,14 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               )}
             </div>
 
-            <div className="relative z-300">
+            <div className="relativen self-center z-300">
               <Menu as="div" className="relative z-300">
                 <MenuButton
-                  className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-left outline-none ring-1 ring-gray-200 transition hover:bg-gray-50"
+                  className="flex 2xl:h-14 2xl:w-14 w-10 h-10 items-center justify-center rounded-full bg-white text-left outline-none ring-1 ring-gray-200 transition hover:bg-gray-50"
                   title={currentAccount.name}
                 >
                   {/* fallback initials */}
-                  <span className="flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-br from-slate-700 to-slate-950 text-sm font-semibold text-white">
+                  <span className="flex 2xl:h-14 2xl:w-14 w-10 h-10 items-center justify-center rounded-full bg-linear-to-br from-slate-700 to-slate-950 text-sm font-semibold text-white">
                     {currentAccount.initials}
                   </span>
                 </MenuButton>
