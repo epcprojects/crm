@@ -268,8 +268,8 @@ export default function Page() {
   const hasSearch = Boolean(searchValue.trim());
   return (
     <>
-      <div className="relative z-100 h-[calc(100dvh-4.5rem)] overflow-hidden py-5 pr-5 sm:h-dvh">
-        <div className="flex h-full min-h-0 flex-col gap-3 rounded-4xl border border-white bg-white/40 p-3">
+      <div className="relative z-100 h-full overflow-hidden p-4 xl:py-5 xl:pr-5 xl:h-dvh">
+        <div className="flex h-full min-h-0 flex-col gap-3 xl:rounded-3xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <DashboardSummaryBanner
             imageSrc="/images/UsersIcon.svg"
             imageAlt="Users"
@@ -277,7 +277,7 @@ export default function Page() {
             stats={userStats}
           />
 
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden rounded-[20px] bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden rounded-[10px] xl:rounded-[20px] bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
             <PermissionGuard
               permission="users.view_list"
               fallback={
@@ -329,7 +329,7 @@ export default function Page() {
                   </div>
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-y-auto">
+                <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hide">
                   {membersQuery.isLoading ? (
                     <UserCardsSkeleton />
                   ) : filteredUserList.length ? (

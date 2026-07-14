@@ -224,7 +224,7 @@ export default function RolesTable({
   }
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white">
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 md:hidden">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto scrollbar-hide p-3 xl:hidden">
         {table.getRowModel().rows.length ? (
           table.getRowModel().rows.map((row) => {
             const role = row.original;
@@ -275,13 +275,20 @@ export default function RolesTable({
             );
           })
         ) : (
-          <div className="px-4 py-8 text-center text-sm text-gray-500">
-            No roles found.
+          <div className="flex h-full min-h-0  justify-center">
+            <EmptyState
+              imageUrl="/images/NoRolesIcon.svg"
+              imageAlt="No Roles Yet"
+              title="No Roles Yet"
+              description="Create your first role to manage user access."
+              buttonLabel={onAddRole ? 'Add Role' : undefined}
+              onButtonClick={onAddRole}
+            />
           </div>
         )}
       </div>
 
-      <div className="hidden min-h-0 flex-1 overflow-x-auto overflow-y-auto md:block">
+      <div className="hidden min-h-0 flex-1 overflow-x-auto overflow-y-auto xl:block">
         <table className="w-full min-w-215 text-left">
           <thead className="bg-gray-50">
             {table.getHeaderGroups().map((headerGroup) => (

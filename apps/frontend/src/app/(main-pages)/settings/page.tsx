@@ -18,6 +18,7 @@ import {
   usePermissions,
 } from '../../providers/PermissionProvider';
 import Image from 'next/image';
+import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
 
 type ApiTicketStatus = {
   id: string;
@@ -404,28 +405,39 @@ export default function Page() {
   };
 
   const isMobile = useIsMobile();
-
+  const projectSummaryStats =  [
+       {
+         title: 'Total Statuses',
+         count: 8,
+         color: '#17B26A',
+       },
+       {
+         title: 'Priority Levels',
+         count: 8,
+         color: '#7A5AF8',
+       },
+       {
+         title: 'Tickets Using Statuses',
+         count: 3,
+         color: '#F79009',
+       },
+       {
+         title: 'Tickets Using Priorities',
+         count: 4,
+         color: '#F04438',
+       },
+     ]
+     
   return (
-    <div className="relative z-100 h-dvh overflow-hidden py-5 pr-5">
-      <div className="flex h-full min-h-0 flex-col space-y-3 rounded-3xl border border-white bg-white/40 p-3">
-        <div className="bg-[url('/images/DashboardComponentBgImage.jpg')] w-full bg-center bg-no-repeat bg-cover rounded-[20px] p-7.5 bg-black/30 flex flex-col justify-between">
-          <div className="flex items-center gap-3 md:gap-4">
-            <Image
-              alt="settings"
-              src={'/images/settingsPageIcon.svg'}
-              width={48}
-              height={48}
-              className="w-12 h-12 backdrop-blur-3xl drop-shadow"
-            />
-            <h2 className="text-white text-3xl font-normal">Settings</h2>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 rounded-full border border-warning-200 bg-[#FFFAEB] p-1 text-[#69410A]">
-          <span className=" bg-white flex items-center justify-center  drop-shadow rounded-full h-10 min-w-10">
+    <div className="relative z-100 xl:h-dvh h-full overflow-hidden p-4 xl:py-5 xl:pr-5">
+      <div className="flex h-full min-h-0 flex-col space-y-3 xl:rounded-3xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
+      <DashboardSummaryBanner imageSrc={'/images/SettingsPageIcon.svg'} title={'Settings'} stats={projectSummaryStats}/>
+        <div className="flex xl:flex-row flex-col  items-center gap-3 rounded-[10px] xl:rounded-full border border-warning-200 bg-[#FFFAEB] p-1 text-[#69410A]">
+          <span className=" bg-white hidden xl:flex items-center justify-center  drop-shadow rounded-full   h-10 min-w-10 ">
             <TipIcon />
           </span>
           <p className="text-sm leading-6 text-gray-700">
-            <span className="inline-block pe-2 sm:hidden">
+            <span className="inline-block pe-2 xl:hidden">
               <TipIcon
                 height={isMobile ? '16' : '20'}
                 width={isMobile ? '16' : '20'}
@@ -439,7 +451,7 @@ export default function Page() {
           </p>
         </div>
         {canViewSettings ? (
-          <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 md:gap-4 xl:grid-cols-2">
+         <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-1 gap-2 overflow-y-auto  scrollbar-hide md:gap-4 xl:auto-rows-fr xl:grid-cols-2 xl:overflow-hidden ">
             <PermissionGuard permission="settings.view_statuses">
               <SettingsConfigCard
                 title="Ticket Statuses"

@@ -65,7 +65,7 @@ export default function UserCard({
               ))}
             </div>
           </div>
-          <div>
+          <div className="xl:block hidden">
             {onResendInvite ? (
               <div className="text-warning-600 font-semibold text-xs flex items-center gap-1.5">
                 <SentEmailIcon />
@@ -78,6 +78,19 @@ export default function UserCard({
               </div>
             )}
           </div>
+        </div>
+        <div className="xl:hidden block">
+          {onResendInvite ? (
+            <div className="text-warning-600 font-semibold text-xs flex items-center gap-1.5">
+              <SentEmailIcon />
+              Invite Sent
+            </div>
+          ) : (
+            <div className="text-green-500 font-semibold text-xs flex items-center gap-1.5">
+              <AcceptedEmailIcon />
+              Invite Accepted
+            </div>
+          )}
         </div>
         <div className="flex  flex-wrap gap-2">
           {user.projects.map((project) => (

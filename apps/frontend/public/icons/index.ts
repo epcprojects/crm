@@ -34,7 +34,13 @@ import AcceptedEmailIcon from './AcceptedEmailIcon';
 import FileTypePlaceholder from './FileTypePlaceholder';
 import FiltersIcon from './FiltersIcon';
 import RolesIcon from './RolesIcon';
+import MoreIcon from './MoreIcon';
+import ArrowRightIcon from './ArrowRightIcon';
+import CrossIcon from './CrossIcon';
 export {
+  ArrowRightIcon,
+  CrossIcon,
+  MoreIcon,
   RolesIcon,
   FiltersIcon,
   TicketIcon2,

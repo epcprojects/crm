@@ -277,8 +277,8 @@ export default function ProjectsPage() {
 
   return (
     <>
-      <div className="relative z-100 h-dvh py-5 pr-5">
-        <div className="flex h-full flex-col gap-3 rounded-3xl border border-white bg-white/40 p-3">
+      <div className="relative z-100 h-full xl:h-dvh xl:py-5 p-4 xl:pr-5">
+        <div className="flex h-full flex-col gap-3 xl:rounded-3xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <DashboardSummaryBanner
             imageSrc="/images/ProjectsIcon.svg"
             imageAlt="Projects"
@@ -286,7 +286,7 @@ export default function ProjectsPage() {
             stats={projectSummaryStats}
           />
 
-          <div className="flex min-h-0 flex-1 flex-col gap-4 rounded-[20px] bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 rounded-[10px] xl:rounded-[20px] bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
             <PermissionGuard
               permission="projects.view_list"
               fallback={
@@ -326,7 +326,7 @@ export default function ProjectsPage() {
                   ) : null}
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hide pr-1">
                   {projectsQuery.isLoading ? (
                     <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-4">
                       {Array.from({ length: 6 }).map((_, index) => (
@@ -334,7 +334,7 @@ export default function ProjectsPage() {
                       ))}
                     </div>
                   ) : filteredProjects.length > 0 ? (
-                    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-4">
+                    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-4 ">
                       {filteredProjects.map((project) => (
                         <ProjectCard
                           key={project.id}
@@ -415,6 +415,7 @@ export default function ProjectsPage() {
                 </div>
               </div>
             </PermissionGuard>
+            
           </div>
         </div>
       </div>

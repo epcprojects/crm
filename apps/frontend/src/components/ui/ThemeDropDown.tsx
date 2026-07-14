@@ -165,7 +165,7 @@ const Dropdown = ({
         <MenuItems
           modal={false}
           transition
-          className="absolute left-0 top-full mt-2 z-60 w-full max-h-64 overflow-hidden bg-white border border-gray-200 rounded-lg shadow-[0px_14px_34px_rgba(0,0,0,0.1)] p-1 text-sm transition duration-100 ease-out focus:outline-none data-closed:scale-95 data-closed:opacity-0"
+          className="absolute left-0 top-full mt-2 z-110  w-full max-h-64 overflow-hidden bg-white border border-gray-200 rounded-lg shadow-[0px_14px_34px_rgba(0,0,0,0.1)] p-1 text-sm transition duration-100 ease-out focus:outline-none data-closed:scale-95 data-closed:opacity-0"
           onBlur={resetQuery}
           onKeyDown={(e) => {
             if (e.key === 'Escape') resetQuery();
@@ -186,7 +186,7 @@ const Dropdown = ({
           )}
 
           <div
-            className="space-y-1 overflow-y-auto overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="space-y-1 overflow-y-auto overscroll-contain [-ms-overflow-style:none] scrollbar-none [&::-webkit-scrollbar]:hidden"
             style={{ maxHeight: maxMenuHeight }}
             onWheel={(e) => e.stopPropagation()}
             onTouchMove={(e) => e.stopPropagation()}

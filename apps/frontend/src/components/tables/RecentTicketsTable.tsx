@@ -271,8 +271,8 @@ export default function RecentTicketsTable({
     );
   }
   return (
-    <div className="flex h-full min-h-0  flex-col overflow-hidden rounded-xl bg-white sm:w-full md:border md:border-gray-200">
-      <div className="space-y-3 md:p-3 md:hidden">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl bg-white xl:w-full xl:border xl:border-gray-200">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain xl:p-3 scrollbar-hide xl:hidden">
         {table.getRowModel().rows.length ? (
           table
             .getRowModel()
@@ -285,13 +285,18 @@ export default function RecentTicketsTable({
               />
             ))
         ) : (
-          <div className="rounded-xl border border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500">
-            No tickets found.
-          </div>
+          <EmptyState
+            imageUrl="/images/RecentTicketEmpty.svg"
+            imageAlt="No recent tickets"
+            title="No Recent Tickets"
+            description="Recent tickets will appear here once they are created."
+            buttonLabel="New Ticket"
+            onButtonClick={onEmptyButtonClick}
+          />
         )}
       </div>
 
-      <div className="hidden min-h-0 flex-1 overflow-x-auto overflow-y-scroll scrollbar-hide md:block">
+      <div className="hidden min-h-0 flex-1 overflow-x-auto overflow-y-auto scrollbar-hide xl:block">
         <table className="w-full  min-w-220 text-left">
           <thead className="bg-gray-50">
             {table.getHeaderGroups().map((headerGroup) => (
@@ -390,7 +395,7 @@ export default function RecentTicketsTable({
                 pageNumber === 'ellipsis' ? (
                   <span
                     key={`ellipsis-${index}`}
-                    className="px-2 text-sm text-gray-500"
+                    className="px-2 xl:block hidden text-sm text-gray-500"
                   >
                     ...
                   </span>
@@ -399,7 +404,7 @@ export default function RecentTicketsTable({
                     key={pageNumber}
                     type="button"
                     onClick={() => table.setPageIndex(pageNumber - 1)}
-                    className={`min-w-8 rounded-md px-2 py-1 text-sm transition ${
+                    className={`min-w-8 rounded-md px-2 py-1 xl:block hidden text-sm transition ${
                       currentPage === pageNumber
                         ? 'bg-gray-100 font-semibold text-gray-900'
                         : 'text-gray-600 hover:bg-gray-100'

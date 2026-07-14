@@ -61,7 +61,7 @@ export default function TicketsTabs({ tabs, onTicketClick }: TicketsTabsProps) {
     });
   }, [activeIndex]);
   return (
-    <div className="rounded-[20px] shadow-[0_0_35px_0_rgb(0_0_0/0.04)] min-w-81 max-w-81  2xl:min-w-82.5 w-full 2xl:max-w-82.5  h-full bg-white space-y-2 py-4  flex flex-col gap-3 ">
+    <div className="rounded-[10px] xl:rounded-[20px] shadow-[0_0_35px_0_rgb(0_0_0/0.04)] min-w-78 max-w-none lg:min-w-81 lg:max-w-81  2xl:min-w-82.5 w-full 2xl:max-w-82.5  h-full bg-white space-y-2 py-4  flex flex-col gap-3 ">
       <div className="px-4.5">
         <div className="relative grid w-full grid-cols-2 gap-1 rounded-full border border-gray-200 bg-gray-50 p-1">
           <div

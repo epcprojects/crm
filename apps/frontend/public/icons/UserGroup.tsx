@@ -1,10 +1,10 @@
 import React from 'react';
 
-const UserGroup = ({ fill = '#374151', opacity = '0.4' }) => {
+const UserGroup = ({ fill = '#374151', opacity = '0.4',width="26",height="26" }) => {
   return (
     <svg
-      width="26"
-      height="26"
+      width={width}
+      height={height}
       viewBox="0 0 26 26"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"

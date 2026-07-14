@@ -45,19 +45,55 @@ export default function SettingsConfigCard({
 }: SettingsConfigCardProps) {
   const itemColumnLabel = badgeVariant === 'priority' ? 'Priority' : 'Status';
 
+  const renderActions = (item: SettingsConfigItem) => {
+    if (!onEdit && !onDelete) return null;
+
+    return (
+      <div className="flex shrink-0 items-center justify-end gap-3">
+        {onEdit ? (
+          <button
+            type="button"
+            onClick={() => onEdit(item)}
+            className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-gray-200 text-primary-dark transition hover:bg-gray-50 xl:h-10 xl:w-10"
+            aria-label={`Edit ${item.label}`}
+          >
+            <EditIcon />
+          </button>
+        ) : null}
+
+        {onDelete ? (
+          <button
+            type="button"
+            onClick={() => onDelete(item)}
+            className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-red-500 text-red-500 transition hover:bg-red-50 xl:h-10 xl:w-10"
+            aria-label={`Delete ${item.label}`}
+          >
+            <TrashIcon />
+          </button>
+        ) : null}
+      </div>
+    );
+  };
+
   return (
-    <section className="flex h-full min-h-0 flex-col rounded-2xl border border-gray-200 bg-white p-2.5 md:p-5">
-      <div className="flex items-start flex-col gap-4 sm:flex-row sm:justify-between">
+    <section className="flex h-auto min-h-0 flex-col rounded-2xl border border-gray-200 bg-white p-2.5 xl:h-full xl:p-5">
+      <div className="flex flex-col items-start gap-1 xl:gap-4 xl:flex-row xl:justify-between">
         <div>
-          <h2 className="text-base md:text-lg font-medium text-gray-900">
+          <h2 className="text-base font-medium text-gray-900 xl:text-lg">
             {title}
           </h2>
         </div>
 
         {onAdd ? (
-          <ThemeButton icon={<PlusIcon />} onClick={onAdd}>
-            {buttonLabel}
-          </ThemeButton>
+          <div className="w-full xl:w-auto">
+            <ThemeButton
+              className="w-full xl:w-auto"
+              icon={<PlusIcon />}
+              onClick={onAdd}
+            >
+              {buttonLabel}
+            </ThemeButton>
+          </div>
         ) : null}
       </div>
 
@@ -74,71 +110,134 @@ export default function SettingsConfigCard({
         </div>
       ) : (
         <div className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200">
-          <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_300px] items-center gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3 text-xs font-medium text-gray-500">
-            <p>{itemColumnLabel}</p>
-            <p>Slug</p>
-            <p className="text-right">Actions</p>
+          {/* Mobile and tablet cards */}
+          <div className="space-y-3 p-3 xl:hidden">
+            {isLoading ? (
+              <SettingsConfigMobileSkeleton />
+            ) : (
+              items.map((item) => (
+                <article
+                  key={item.id}
+                  className="rounded-xl border border-gray-200 bg-white p-4"
+                >
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                        {itemColumnLabel}
+                      </p>
+
+                      <div className="mt-1.5">
+                        <SettingsBadge
+                          label={item.label}
+                          colorHex={item.colorHex ?? '#667085'}
+                          variant={badgeVariant}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-end justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                          Slug
+                        </p>
+
+                        <p className="mt-1 truncate text-sm text-gray-700">
+                          {item.value}
+                        </p>
+                      </div>
+
+                      {renderActions(item)}
+                    </div>
+                  </div>
+                </article>
+              ))
+            )}
           </div>
 
-          {isLoading ? (
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              <SettingsConfigSkeleton />
+          {/* Existing XL desktop table */}
+          <div className="hidden min-h-0 flex-1 flex-col xl:flex">
+            <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_300px] items-center gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3 text-xs font-medium text-gray-500">
+              <p>{itemColumnLabel}</p>
+              <p>Slug</p>
+              <p className="text-right">Actions</p>
             </div>
-          ) : (
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              {items.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 last:border-b-0"
-                >
-                  <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_300px] items-center gap-3">
-                    <SettingsBadge
-                      label={item.label}
-                      colorHex={item.colorHex ?? '#667085'}
-                      variant={badgeVariant}
-                    />
 
-                    <p className="truncate text-sm text-gray-700">
-                      {item.value}
-                    </p>
+            {isLoading ? (
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <SettingsConfigDesktopSkeleton />
+              </div>
+            ) : (
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                {items.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 last:border-b-0"
+                  >
+                    <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_300px] items-center gap-3">
+                      <SettingsBadge
+                        label={item.label}
+                        colorHex={item.colorHex ?? '#667085'}
+                        variant={badgeVariant}
+                      />
 
-                    {onEdit || onDelete ? (
-                      <div className="flex items-center justify-end gap-3">
-                        {onEdit ? (
-                          <button
-                            type="button"
-                            onClick={() => onEdit(item)}
-                            className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-gray-200 text-primary-dark transition hover:bg-gray-50 md:h-10 md:w-10"
-                            aria-label={`Edit ${item.label}`}
-                          >
-                            <EditIcon />
-                          </button>
-                        ) : null}
+                      <p className="truncate text-sm text-gray-700">
+                        {item.value}
+                      </p>
 
-                        {onDelete ? (
-                          <button
-                            type="button"
-                            onClick={() => onDelete(item)}
-                            className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-red-500 text-red-500 transition hover:bg-red-50 md:h-10 md:w-10"
-                            aria-label={`Delete ${item.label}`}
-                          >
-                            <TrashIcon />
-                          </button>
-                        ) : null}
-                      </div>
-                    ) : null}
+                      {renderActions(item)}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </section>
   );
 }
 
-function SettingsConfigSkeleton() {
+function SettingsConfigMobileSkeleton() {
+  return (
+    <div className="space-y-3 animate-pulse" aria-hidden="true">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <article
+          key={index}
+          className="rounded-xl border border-gray-200 bg-white p-4"
+        >
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="h-3 w-16 rounded bg-gray-100" />
+              <div
+                className={`h-8 rounded-full bg-gray-100 ${
+                  index % 2 === 0 ? 'w-28' : 'w-24'
+                }`}
+              />
+            </div>
+
+            <div className="flex items-end justify-between gap-3">
+              <div className="flex-1 space-y-2">
+                <div className="h-3 w-10 rounded bg-gray-100" />
+                <div
+                  className={`h-4 rounded bg-gray-100 ${
+                    index % 2 === 0 ? 'w-24' : 'w-32'
+                  }`}
+                />
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="h-8.5 w-8.5 rounded-lg bg-gray-100" />
+                <div className="h-8.5 w-8.5 rounded-lg bg-gray-100" />
+              </div>
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function SettingsConfigDesktopSkeleton() {
   return (
     <div className="animate-pulse" aria-hidden="true">
       {Array.from({ length: 4 }).map((_, index) => (
@@ -147,24 +246,21 @@ function SettingsConfigSkeleton() {
           className="border-b border-gray-200 px-4 py-3 last:border-b-0"
         >
           <div className="grid min-w-0 grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_300px] items-center gap-3">
-            {/* Status or priority badge */}
             <div
               className={`h-8 rounded bg-gray-100 ${
                 index % 2 === 0 ? 'w-28' : 'w-24'
               }`}
             />
 
-            {/* Slug */}
             <div
               className={`h-4 rounded bg-gray-100 ${
                 index % 2 === 0 ? 'w-24' : 'w-32'
               }`}
             />
 
-            {/* Actions */}
             <div className="flex items-center justify-end gap-3">
-              <div className="h-8.5 w-8.5 rounded-lg bg-gray-100 md:h-10 md:w-10" />
-              <div className="h-8.5 w-8.5 rounded-lg bg-gray-100 md:h-10 md:w-10" />
+              <div className="h-10 w-10 rounded-lg bg-gray-100" />
+              <div className="h-10 w-10 rounded-lg bg-gray-100" />
             </div>
           </div>
         </div>

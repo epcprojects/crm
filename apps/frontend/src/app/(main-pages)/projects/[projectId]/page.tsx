@@ -516,8 +516,8 @@ export default function ProjectDetailPage() {
   ];
   return (
     <>
-      <div className="relative z-100 h-dvh overflow-hidden py-5 pr-5">
-        <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden rounded-3xl border border-white bg-white/40 p-3">
+      <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 xl:pr-5 p-4">
+        <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden xl:rounded-3xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <div className="shrink-0">
             <button
               type="button"
@@ -583,13 +583,13 @@ export default function ProjectDetailPage() {
             </section>
 
             <TabGroup className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
-              <TabList className="flex shrink-0 overflow-x-auto border-y border-gray-200">
+              <TabList className="flex shrink-0 overflow-x-auto scrollbar-hide border-y border-gray-200">
                 {visibleProjectTabs.map((tab) => (
                   <Tab
                     key={tab}
                     className={({ selected }) =>
                       clsx(
-                        'shrink-0 border-b-2 px-4 py-3 text-sm font-semibold outline-none transition',
+                        'shrink-0 border-b-2 px-2 xl:px-4 py-3 text-sm font-semibold outline-none transition',
                         selected
                           ? 'border-primary-dark text-primary-dark'
                           : 'border-transparent text-gray-500 hover:text-gray-700',
@@ -661,112 +661,106 @@ export default function ProjectDetailPage() {
                 </PermissionGuard>
 
                 <PermissionGuard permission="thread.view">
-                  <TabPanel className="h-full min-h-0 min-w-0 overflow-hidden">
-                    <div
-                      className={`grid h-full min-h-0 min-w-0 overflow-hidden rounded-xl border border-gray-200 md:rounded-2xl ${
-                        selectedThreadMessageId && !isMobile
-                          ? 'xl:grid-cols-[minmax(0,1fr)_400px] xl:grid-rows-[minmax(0,1fr)] xl:divide-x xl:divide-gray-200'
-                          : 'grid-cols-1'
-                      }`}
-                    >
-                      {(!isMobile || !selectedThreadMessageId) && (
-                        <div className="h-full min-h-0 min-w-0 overflow-hidden">
-                          <ProjectThreadPanel
-                            title="Discussion"
-                            replies={projectThreadQuery.data ?? []}
-                            emptyTitle={
-                              projectThreadQuery.isLoading
-                                ? 'Loading discussion...'
-                                : 'No replies yet.'
-                            }
-                            emptyDescription={
-                              projectThreadQuery.isLoading
-                                ? 'Fetching project discussion messages.'
-                                : 'No discussion messages have been added to this project yet.'
-                            }
-                            composerPlaceholder="Post the project thread..."
-                            onSubmitReply={
-                              canPostThreadMessage
-                                ? handleSubmitReply
-                                : undefined
-                            }
-                            isSubmittingReply={
-                              createProjectThreadMutation.isPending &&
-                              !selectedThreadMessageId
-                            }
-                            canCompose={canPostThreadMessage}
-                            canAttachFile={canAttachThreadFile}
-                            requireMessage={false}
-                            currentUserId={currentUserId}
-                            showReplyMeta
-                            onReplyClick={(reply) =>
-                              setSelectedThreadMessageId(reply.id)
-                            }
-                            onDeleteAttachment={handleDeleteThreadAttachment}
-                            deletingAttachmentId={
-                              deleteProjectFileMutation.isPending
-                                ? deleteProjectFileMutation.variables?.fileId
-                                : undefined
-                            }
-                          />
-                        </div>
-                      )}
+  <TabPanel className="h-full min-h-0 min-w-0 overflow-hidden">
+    <div
+      className={`grid h-full min-h-0 min-w-0 overflow-hidden rounded-xl border border-gray-200 md:rounded-2xl ${
+        selectedThreadMessageId && !isMobile
+          ? 'xl:grid-cols-[minmax(0,1fr)_400px] xl:grid-rows-[minmax(0,1fr)] xl:divide-x xl:divide-gray-200'
+          : 'grid-cols-1'
+      }`}
+    >
+      {(!isMobile || !selectedThreadMessageId) && (
+        <div className="h-full min-h-0 min-w-0 overflow-hidden">
+          <ProjectThreadPanel
+            title="Discussion"
+            replies={projectThreadQuery.data ?? []}
+            emptyTitle={
+              projectThreadQuery.isLoading
+                ? 'Loading discussion...'
+                : 'No replies yet.'
+            }
+            emptyDescription={
+              projectThreadQuery.isLoading
+                ? 'Fetching project discussion messages.'
+                : 'No discussion messages have been added to this project yet.'
+            }
+            composerPlaceholder="Post the project thread..."
+            onSubmitReply={
+              canPostThreadMessage ? handleSubmitReply : undefined
+            }
+            isSubmittingReply={
+              createProjectThreadMutation.isPending &&
+              !selectedThreadMessageId
+            }
+            canCompose={canPostThreadMessage}
+            canAttachFile={canAttachThreadFile}
+            requireMessage={false}
+            currentUserId={currentUserId}
+            showReplyMeta
+            onReplyClick={(reply) =>
+              setSelectedThreadMessageId(reply.id)
+            }
+            onDeleteAttachment={handleDeleteThreadAttachment}
+            deletingAttachmentId={
+              deleteProjectFileMutation.isPending
+                ? deleteProjectFileMutation.variables?.fileId
+                : undefined
+            }
+          />
+        </div>
+      )}
 
-                      {selectedThreadMessageId ? (
-                        <div className="h-full min-h-0 min-w-0 overflow-hidden">
-                          <ProjectThreadPanel
-                            title="Thread"
-                            subtitle=""
-                            headerAction={
-                              <button
-                                type="button"
-                                onClick={() => setSelectedThreadMessageId('')}
-                                className="flex h-6 w-6 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100"
-                                aria-label="Close thread"
-                              >
-                                <CloseCrossIcon />
-                              </button>
-                            }
-                            headerReply={selectedThreadHeader}
-                            replies={selectedThreadReplies}
-                            emptyTitle={
-                              projectThreadDetailQuery.isLoading
-                                ? 'Loading thread...'
-                                : 'No replies yet.'
-                            }
-                            emptyDescription={
-                              projectThreadDetailQuery.isLoading
-                                ? 'Fetching thread replies.'
-                                : 'No replies have been added to this thread yet.'
-                            }
-                            composerPlaceholder="Reply to thread..."
-                            onSubmitReply={
-                              canPostThreadReply
-                                ? handleSubmitThreadReply
-                                : undefined
-                            }
-                            isSubmittingReply={
-                              createProjectThreadMutation.isPending &&
-                              Boolean(selectedThreadMessageId)
-                            }
-                            canCompose={canPostThreadReply}
-                            canAttachFile={
-                              canAttachThreadFile && canPostThreadReply
-                            }
-                            requireMessage={false}
-                            currentUserId={currentUserId}
-                            onDeleteAttachment={handleDeleteThreadAttachment}
-                            deletingAttachmentId={
-                              deleteProjectFileMutation.isPending
-                                ? deleteProjectFileMutation.variables?.fileId
-                                : undefined
-                            }
-                          />
-                        </div>
-                      ) : null}
-                    </div>
-                  </TabPanel>
-                </PermissionGuard>
+      {selectedThreadMessageId ? (
+        <div className="h-full min-h-0 min-w-0 overflow-hidden">
+          <ProjectThreadPanel
+            title="Thread"
+            subtitle=""
+            headerAction={
+              <button
+                type="button"
+                onClick={() => setSelectedThreadMessageId('')}
+                className="flex h-6 w-6 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100"
+                aria-label="Close thread"
+              >
+                <CloseCrossIcon />
+              </button>
+            }
+            headerReply={selectedThreadHeader}
+            replies={selectedThreadReplies}
+            emptyTitle={
+              projectThreadDetailQuery.isLoading
+                ? 'Loading thread...'
+                : 'No replies yet.'
+            }
+            emptyDescription={
+              projectThreadDetailQuery.isLoading
+                ? 'Fetching thread replies.'
+                : 'No replies have been added to this thread yet.'
+            }
+            composerPlaceholder="Reply to thread..."
+            onSubmitReply={
+              canPostThreadReply ? handleSubmitThreadReply : undefined
+            }
+            isSubmittingReply={
+              createProjectThreadMutation.isPending &&
+              Boolean(selectedThreadMessageId)
+            }
+            canCompose={canPostThreadReply}
+            canAttachFile={canAttachThreadFile && canPostThreadReply}
+            requireMessage={false}
+            currentUserId={currentUserId}
+            onDeleteAttachment={handleDeleteThreadAttachment}
+            deletingAttachmentId={
+              deleteProjectFileMutation.isPending
+                ? deleteProjectFileMutation.variables?.fileId
+                : undefined
+            }
+          />
+        </div>
+      ) : null}
+    </div>
+  </TabPanel>
+</PermissionGuard>
 
                 <PermissionGuard permission="files.view">
                   <TabPanel className="h-full min-h-0 min-w-0 overflow-hidden">

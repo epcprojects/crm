@@ -218,8 +218,8 @@ export default function RolesPage() {
 
   return (
     <>
-      <div className="relative z-100 h-dvh overflow-hidden py-5 pr-5">
-        <div className="flex h-full min-h-0 flex-col gap-3 rounded-3xl border border-white bg-white/40 p-3">
+      <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 p-4 xl:pr-5">
+        <div className="flex h-full min-h-0 flex-col gap-3 xl:rounded-3xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <DashboardSummaryBanner
             imageSrc="/images/RolesIconImage.svg"
             imageAlt="Roles"
@@ -227,7 +227,7 @@ export default function RolesPage() {
             stats={[]}
           />
 
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden rounded-[20px] bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden rounded-[10px] xl:rounded-[20px] bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
             <PermissionGuard
               permission="roles.view_list"
               fallback={

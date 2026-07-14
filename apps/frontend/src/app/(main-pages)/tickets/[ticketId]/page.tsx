@@ -471,8 +471,8 @@ export default function TicketDetailPage() {
   };
 
   return (
-    <div className="relative z-100 h-dvh overflow-hidden py-5 pr-5">
-      <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden rounded-3xl border border-white bg-white/40 p-3">
+    <div className="relative z-100 h-full xl:h-dvh overflow-hidden p-4 xl:py-5 xl:pr-5">
+      <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden  xl:rounded-3xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
         <div className="shrink-0">
           <button
             type="button"
@@ -484,8 +484,8 @@ export default function TicketDetailPage() {
           </button>
         </div>
 
-        <div className="min-h-0 min-w-0 flex-1">
-          <div className="grid h-full min-h-0 min-w-0 grid-cols-1 gap-4 overflow-hidden xl:grid-cols-12 xl:grid-rows-[minmax(0,1fr)]">
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain  scrollbar-hide xl:overflow-hidden ">
+          <div className="grid h-auto min-h-0 min-w-0 grid-cols-1 gap-4 overflow-visible xl:h-full xl:grid-cols-12 xl:grid-rows-[minmax(0,1fr)] xl:overflow-hidden">
             <div className="flex min-w-0 flex-col space-y-4 xl:col-span-9">
               <section className="rounded-xl border border-gray-200 bg-white p-3 sm:rounded-2xl md:p-5">
                 <div className="flex flex-wrap gap-4 border-b border-gray-200 pb-5 sm:grid sm:grid-cols-4">
@@ -630,7 +630,7 @@ export default function TicketDetailPage() {
                   )}
                 </div>
               </section>
-              <div className="min-h-0 flex-1 overflow-hidden">
+             <div className="min-h-0 xl:flex-1 xl:overflow-hidden">
                 <PermissionGuard permission="ticket_replies.view">
                   <TicketRepliesPanel
                     replies={

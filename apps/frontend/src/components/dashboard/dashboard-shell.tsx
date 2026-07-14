@@ -39,6 +39,8 @@ import ChangePasswordModal, {
 import { appToast } from '../toast/AppToast';
 import ThemeButton from '../ui/ThemeButton';
 import { useIsMobile } from '../hooks/useIsMobile';
+import MobileBottomNavigation from './MobileBottomNavigation';
+import MobileTopHeader from './MobileTopHeader';
 
 type NavItem = {
   href: string;
@@ -447,8 +449,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         ) : null}
         <div className="hidden w-24 2xl:w-29 shrink-0 lg:block" />
         <aside
-          className={`fixed inset-y-0  left-0 z-40 flex flex-col gap-10 bg-gray-200 px-4  2xl:px-6 pt-4  2xl:pt-6 pb-4 2xl:pb-8 transition-transform duration-300 ease-out  ${
-            mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+          className={`fixed inset-y-0  left-0 z-40 hidden xl:flex flex-col gap-10 bg-gray-200 px-4  2xl:px-6 pt-4  2xl:pt-6 pb-4 2xl:pb-8 transition-transform duration-300 ease-out  ${
+            mobileOpen ? '' : '-translate-x-full lg:translate-x-0'
           }`}
         >
           <button
@@ -551,6 +553,53 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         </aside>
 
         <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-gray-200 transition-all duration-300 ease-out">
+          <MobileTopHeader
+            profileMenu={
+              <Menu as="div" className="relative z-100">
+                <MenuButton
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-left outline-none ring-1 ring-gray-200 transition hover:bg-gray-50"
+                  title={currentAccount.name}
+                >
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-linear-to-br from-slate-700 to-slate-950 text-sm font-semibold text-white">
+                    {currentAccount.initials}
+                  </span>
+                </MenuButton>
+
+                <MenuItems
+                  anchor="bottom end"
+                  className="z-300 mt-3 w-52 origin-top-right rounded-xl bg-white p-1 ring-1 ring-gray-200 focus:outline-none sm:w-66"
+                >
+                  <MenuItem>
+                    <button
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-black transition data-focus:bg-gray-50 sm:gap-3 md:text-base"
+                      onClick={handleChangePassword}
+                      type="button"
+                    >
+                      <PasswordMenuIcon
+                        height={isMobile ? '20' : '24'}
+                        width={isMobile ? '20' : '24'}
+                      />
+                      Change Password
+                    </button>
+                  </MenuItem>
+
+                  <MenuItem>
+                    <button
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-red-500 transition data-focus:bg-red-50 sm:gap-3 md:text-base"
+                      onClick={handleLogout}
+                      type="button"
+                    >
+                      <LogoutMenuIcon
+                        height={isMobile ? '20' : '24'}
+                        width={isMobile ? '20' : '24'}
+                      />
+                      Logout
+                    </button>
+                  </MenuItem>
+                </MenuItems>
+              </Menu>
+            }
+          />
           {!shouldHideHeader ? (
             <header className="sticky top-0 z-20 border-b border-gray-200 bg-white w-full backdrop-blur">
               <div className="flex py-4 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
@@ -595,12 +644,16 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           ) : null}
 
           <main
-            className={` flex flex-col flex-1  ${
-              shouldHideHeader ? '' : 'md:pt-28'
+            className={`flex min-h-0 flex-1 flex-col overflow-hidden ${
+              shouldHideHeader ? '' : 'xl:pt-28'
             }`}
           >
             {shouldShowNoAccessPage ? <NoAccessPage /> : children}
           </main>
+          <MobileBottomNavigation
+            items={visibleNavigationItems}
+            isLoading={isSidebarLoading}
+          />
         </div>
 
         <ChangePasswordModal

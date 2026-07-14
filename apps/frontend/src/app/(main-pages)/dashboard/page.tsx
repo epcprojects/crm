@@ -312,12 +312,13 @@ export default function Page() {
   const displayedProjects = projectsQuery.data ?? [];
   // const displayedProjects = (projectsQuery.data ?? []).slice(0, 0);
   return (
-    <div className="py-5 pr-5 z-100 h-dvh relative">
-      <div className="bg-white/40 border border-white rounded-3xl p-3 flex flex-row h-full gap-3">
+    <div className="xl:py-5 p-4 xl:pr-5 z-100 h-full xl:h-dvh relative">
+      {/* <div className="bg-white/40 border border-white rounded-3xl p-3 flex flex-row h-full gap-3"> */}
+      <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden xl:rounded-3xl  bg-gray-200 xl:flex-row xl:border xl:border-white xl:bg-white/40 xl:p-3">
         <PermissionGuard permission="dashboard.view_upcoming">
           <div
-            className={` ${
-              canViewRecentTickets ? 'md:col-span-4' : 'md:col-span-14'
+            className={`order-2 min-h-0 flex-1 overflow-hidden xl:order-0 xl:h-full xl:flex-none ${
+              canViewRecentTickets ? 'xl:w-82.5' : 'xl:flex-1'
             }`}
           >
             {isUpcomingTicketsLoading ? (
@@ -341,27 +342,27 @@ export default function Page() {
             )}
           </div>
         </PermissionGuard>
-        <div className="flex flex-col gap-3 flex-1">
+        <div className="order-1 flex shrink-0 min-w-0 flex-col gap-3 xl:order-2 xl:min-h-0 xl:flex-1 xl:shrink">
           <PermissionGuard permission="dashboard.view_stats">
             {isStatsLoading ? (
               <DashboardStatsSkeleton />
             ) : (
-              <div className="bg-[url('/images/DashboardComponentBgImage.jpg')] w-full bg-center bg-no-repeat bg-cover gap-8.5 rounded-[20px] p-7.5 bg-black/30 flex flex-col justify-between">
-                <div className="flex flex-row gap-6 items-start">
-                  <div className="flex flex-col flex-1 gap-1.5">
-                    <p className="text-[32px] text-white">
+              <div className="flex w-full flex-col justify-between gap-6 rounded-[10px] xl:rounded-[20px] bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat p-4 sm:p-5 xl:gap-8.5 xl:p-7.5">
+                <div className="flex flex-col items-start gap-4 sm:flex-row sm:gap-6">
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    <p className="text-2xl text-white sm:text-[32px]">
                       <span className="font-bold">Good day</span>,{' '}
                       {currentUserName} 👋
                     </p>
 
-                    <p className="text-lg text-gray-100">
+                    <p className="text-sm text-gray-100 sm:text-lg">
                       Here's what's happening across your companies
                     </p>
                   </div>
 
                   {canCreateTicket ? (
                     <ThemeButton
-                      className="rounded-full"
+                      className="shrink-0 rounded-full"
                       variant="primaryGradient"
                       icon={<PlusIcon fill="#3889FE" width="20" height="20" />}
                       onClick={() => setCreateTicketOpen(true)}
@@ -371,14 +372,14 @@ export default function Page() {
                   ) : null}
                 </div>
 
-                <div className="grid grid-cols-4 gap-5">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
                   <StatusCard
                     title="Open"
                     count={formatSummaryCount(ticketSummary?.open)}
                     icon={
                       <FolderIcon
-                        width={isMobile ? '20' : '24'}
-                        height={isMobile ? '20' : '24'}
+                        width={isMobile ? '12' : '24'}
+                        height={isMobile ? '12' : '24'}
                         fill="white"
                       />
                     }
@@ -389,8 +390,8 @@ export default function Page() {
                     count={formatSummaryCount(ticketSummary?.inProgress)}
                     icon={
                       <ClockIcon
-                        width={isMobile ? '20' : '24'}
-                        height={isMobile ? '20' : '24'}
+                        width={isMobile ? '12' : '24'}
+                        height={isMobile ? '12' : '24'}
                         fill="white"
                       />
                     }
@@ -401,8 +402,8 @@ export default function Page() {
                     count={formatSummaryCount(ticketSummary?.resolved)}
                     icon={
                       <CheckMarkCircleIcon
-                        width={isMobile ? '20' : '24'}
-                        height={isMobile ? '20' : '24'}
+                        width={isMobile ? '12' : '24'}
+                        height={isMobile ? '12' : '24'}
                         fill="white"
                       />
                     }
@@ -413,8 +414,8 @@ export default function Page() {
                     count={formatSummaryCount(ticketSummary?.critical)}
                     icon={
                       <AlertIcon
-                        width={isMobile ? '20' : '24'}
-                        height={isMobile ? '20' : '24'}
+                        width={isMobile ? '12' : '24'}
+                        height={isMobile ? '12' : '24'}
                         fill="white"
                       />
                     }
@@ -423,7 +424,7 @@ export default function Page() {
               </div>
             )}
           </PermissionGuard>
-          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_340px] min-h-0 flex-1 flex-row gap-3">
+          <div className="hidden min-h-0 flex-1 gap-3 xl:grid xl:grid-cols-[minmax(0,1fr)_340px]">
             <PermissionGuard permission="dashboard.view_recent_tickets">
               <div
                 className={`bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)]  flex flex-1 flex-col min-h-0 gap-3.5 rounded-[20px] p-3 h-full `}
