@@ -17,7 +17,6 @@ import {
   PermissionGuard,
   usePermissions,
 } from '../../providers/PermissionProvider';
-import Image from 'next/image';
 import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
 
 type ApiTicketStatus = {

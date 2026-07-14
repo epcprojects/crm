@@ -408,7 +408,6 @@ export default function Page() {
       statusKey: nextStatusKey,
     });
   };
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   return (
     <>
