@@ -170,7 +170,12 @@ export function UserCardsSkeleton({ count = 6 }: { count?: number }) {
               <div className="flex min-w-0 flex-1 flex-col gap-2">
                 {/* Name and email */}
                 <div className="space-y-1.5">
-                  <div className="h-3.5 w-24 rounded bg-gray-200" />
+                  <div
+                    className={`h-3.5 rounded bg-gray-200 ${
+                      index % 2 === 0 ? 'w-24' : 'w-28'
+                    }`}
+                  />
+
                   <div className="h-3 w-36 max-w-full rounded bg-gray-200" />
                 </div>
 
@@ -181,11 +186,17 @@ export function UserCardsSkeleton({ count = 6 }: { count?: number }) {
                 </div>
               </div>
 
-              {/* Invitation status */}
-              <div className="flex shrink-0 items-center gap-1.5">
+              {/* Invitation status — XL desktop */}
+              <div className="hidden shrink-0 items-center gap-1.5 xl:flex">
                 <div className="h-4 w-4 rounded bg-gray-200" />
                 <div className="h-3 w-16 rounded bg-gray-200" />
               </div>
+            </div>
+
+            {/* Invitation status — Mobile/tablet */}
+            <div className="flex items-center gap-1.5 xl:hidden">
+              <div className="h-4 w-4 rounded bg-gray-200" />
+              <div className="h-3 w-20 rounded bg-gray-200" />
             </div>
 
             {/* Projects */}
@@ -195,7 +206,8 @@ export function UserCardsSkeleton({ count = 6 }: { count?: number }) {
                   key={projectIndex}
                   className="flex items-center gap-2 rounded-full border border-gray-200 bg-white py-0.5 pr-2.5 pl-0.5"
                 >
-                  <div className="h-6 w-6 rounded-full bg-gray-200" />
+                  <div className="h-6 w-6 shrink-0 rounded-full bg-gray-200" />
+
                   <div
                     className={`h-3 rounded bg-gray-200 ${
                       projectIndex === 0 ? 'w-16' : 'w-20'
@@ -209,8 +221,9 @@ export function UserCardsSkeleton({ count = 6 }: { count?: number }) {
           {/* Actions */}
           <div className="rounded-b-2xl bg-white p-2.5">
             <div className="flex gap-2">
-              <div className="h-11 flex-1 rounded-lg bg-gray-100" />
-              <div className="h-11 w-11 shrink-0 rounded-lg bg-gray-100" />
+              <div className="h-10 min-w-0 flex-1 rounded-lg bg-gray-100 xl:h-11" />
+
+              <div className="h-10 w-10 shrink-0 rounded-lg bg-gray-100 xl:h-11 xl:w-11" />
             </div>
           </div>
         </article>
