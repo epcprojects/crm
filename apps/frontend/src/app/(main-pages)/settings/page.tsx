@@ -411,7 +411,7 @@ export default function Page() {
         <div className="bg-[url('/images/DashboardComponentBgImage.jpg')] w-full bg-center bg-no-repeat bg-cover rounded-[20px] p-7.5 bg-black/30 flex flex-col justify-between">
           <div className="flex items-center gap-3 md:gap-4">
             <Image
-              alt=""
+              alt="settings"
               src={'/images/settingsPageIcon.svg'}
               width={48}
               height={48}

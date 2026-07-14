@@ -29,6 +29,7 @@ import {
 import { useAppLoader } from '../../providers/AppLoaderProvider';
 import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
 import ThemeButton from '../../../components/ui/ThemeButton';
+import { RecentTicketsTableSkeleton } from '../dashboard/page';
 
 type TicketSummary = {
   open: number | null;
@@ -514,7 +515,9 @@ export default function Page() {
                 </div>
 
                 <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-                  {viewMode === 'kanban' ? (
+                  {ticketsQuery.isLoading ? (
+                    <RecentTicketsTableSkeleton />
+                  ) : viewMode === 'kanban' ? (
                     <TicketsKanbanView
                       tickets={sortedTickets}
                       statusOptions={kanbanStatusOptions}

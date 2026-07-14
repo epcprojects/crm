@@ -140,46 +140,65 @@ export default function UserCard({
 export function UserCardsSkeleton({ count = 6 }: { count?: number }) {
   return (
     <div
-      className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+      className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
       aria-hidden="true"
     >
       {Array.from({ length: count }).map((_, index) => (
         <article
           key={index}
-          className="rounded-2xl sm:border border-gray-200 bg-white p-4 drop-shadow-sm"
-          style={{
-            boxShadow:
-              'inset 4px 0 0 #EAECF0, 0px 8px 24px rgba(16,24,40,0.08)',
-          }}
+          className="flex animate-pulse flex-col overflow-hidden rounded-2xl border border-gray-200 bg-gray-50"
         >
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <div className="flex items-start gap-3 md:gap-4">
-              <div className="h-10.5 w-10.5 shrink-0 animate-pulse rounded-full bg-gray-100" />
-              <div className="flex flex-col gap-2">
-                <div className="h-4 w-32 animate-pulse rounded bg-gray-100" />
-                <div className="h-3 w-44 animate-pulse rounded bg-gray-100" />
-                <div className="h-3 w-24 animate-pulse rounded bg-gray-100" />
+          {/* User information */}
+          <div className="flex flex-1 flex-col gap-4 rounded-t-2xl bg-gray-50 p-2.5">
+            <div className="flex gap-4">
+              {/* Avatar */}
+              <div className="h-10.5 w-10.5 shrink-0 rounded-full bg-white shadow-sm" />
+
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                {/* Name and email */}
+                <div className="space-y-1.5">
+                  <div className="h-3.5 w-24 rounded bg-gray-200" />
+                  <div className="h-3 w-36 max-w-full rounded bg-gray-200" />
+                </div>
+
+                {/* Roles */}
+                <div className="flex flex-wrap gap-2">
+                  <div className="h-7 w-16 rounded-full bg-gray-200" />
+                  <div className="h-7 w-20 rounded-full bg-gray-200" />
+                </div>
+              </div>
+
+              {/* Invitation status */}
+              <div className="flex shrink-0 items-center gap-1.5">
+                <div className="h-4 w-4 rounded bg-gray-200" />
+                <div className="h-3 w-16 rounded bg-gray-200" />
               </div>
             </div>
+
+            {/* Projects */}
             <div className="flex flex-wrap gap-2">
-              <div className="h-7 w-20 animate-pulse rounded-full bg-gray-100" />
-              <div className="h-7 w-24 animate-pulse rounded-full bg-gray-100" />
+              {Array.from({ length: 2 }).map((_, projectIndex) => (
+                <div
+                  key={projectIndex}
+                  className="flex items-center gap-2 rounded-full border border-gray-200 bg-white py-0.5 pr-2.5 pl-0.5"
+                >
+                  <div className="h-6 w-6 rounded-full bg-gray-200" />
+                  <div
+                    className={`h-3 rounded bg-gray-200 ${
+                      projectIndex === 0 ? 'w-16' : 'w-20'
+                    }`}
+                  />
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="my-3 h-px bg-gray-200 md:my-4" />
-
-          <div className="flex flex-col gap-2">
-            <div className="h-4 w-32 animate-pulse rounded bg-gray-100" />
+          {/* Actions */}
+          <div className="rounded-b-2xl bg-white p-2.5">
             <div className="flex gap-2">
-              <div className="h-7 w-24 animate-pulse rounded-full bg-gray-100" />
-              <div className="h-7 w-28 animate-pulse rounded-full bg-gray-100" />
+              <div className="h-11 flex-1 rounded-lg bg-gray-100" />
+              <div className="h-11 w-11 shrink-0 rounded-lg bg-gray-100" />
             </div>
-          </div>
-
-          <div className="mt-5 flex items-center gap-3">
-            <div className="h-11 flex-1 animate-pulse rounded-lg bg-gray-100" />
-            <div className="h-11 w-11 animate-pulse rounded-lg bg-gray-100" />
           </div>
         </article>
       ))}

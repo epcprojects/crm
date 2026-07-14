@@ -11,6 +11,7 @@ import {
 import { useState } from 'react';
 import { EyeOpenedIcon, TrashIcon } from '../../../public/icons';
 import Tooltip from '../tooltip';
+import EmptyState from '../EmptyState';
 
 export type RoleRecord = {
   id: string;
@@ -40,6 +41,7 @@ type RolesTableProps = {
   onViewClaims?: (role: RoleRecord) => void;
   onEdit?: (role: RoleRecord) => void;
   onDelete?: (role: RoleRecord) => void;
+  onAddRole?: () => void;
 };
 
 type RolesActionProps = Pick<
@@ -49,12 +51,7 @@ type RolesActionProps = Pick<
 
 function renderRoleActions(
   role: RoleRecord,
-  {
-    currentUserRoles = [],
-    onViewClaims,
-    onEdit,
-    onDelete,
-  }: RolesActionProps,
+  { currentUserRoles = [], onViewClaims, onEdit, onDelete }: RolesActionProps,
 ) {
   const currentUserRoleSet = new Set(
     currentUserRoles.map(getNormalizedUserRole).filter(Boolean),
@@ -69,7 +66,11 @@ function renderRoleActions(
 
   return (
     <div className="flex w-fit items-end justify-end gap-3">
-      <Tooltip hide={role.roleClaims.length < 1} content="" heading="View Claims">
+      <Tooltip
+        hide={role.roleClaims.length < 1}
+        content=""
+        heading="View Claims"
+      >
         <button
           type="button"
           disabled={role.roleClaims.length < 1}
@@ -139,7 +140,9 @@ function getColumns({
       accessorKey: 'description',
       header: 'Description',
       cell: ({ row }) => (
-        <span className="text-sm text-gray-800">{row.original.description}</span>
+        <span className="text-sm text-gray-800">
+          {row.original.description}
+        </span>
       ),
     },
     {
@@ -173,6 +176,7 @@ export default function RolesTable({
   onViewClaims,
   onEdit,
   onDelete,
+  onAddRole,
 }: RolesTableProps) {
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -204,10 +208,23 @@ export default function RolesTable({
     totalRows,
   );
   const visiblePages = getVisiblePageNumbers(currentPage, totalPages);
-
+  if (roles.length === 0) {
+    return (
+      <div className="flex h-full min-h-0  justify-center">
+        <EmptyState
+          imageUrl="/images/NoRolesIcon.svg"
+          imageAlt="No Roles Yet"
+          title="No Roles Yet"
+          description="Create your first role to manage user access."
+          buttonLabel={onAddRole ? 'Add Role' : undefined}
+          onButtonClick={onAddRole}
+        />
+      </div>
+    );
+  }
   return (
-   <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white">
-   <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 md:hidden">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 md:hidden">
         {table.getRowModel().rows.length ? (
           table.getRowModel().rows.map((row) => {
             const role = row.original;

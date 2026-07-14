@@ -23,6 +23,7 @@ import {
 } from '../../providers/PermissionProvider';
 import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
 import ThemeButton from '../../../components/ui/ThemeButton';
+import EmptyState from '../../../components/EmptyState';
 
 export default function RolesPage() {
   const { setHeaderActionOverride } = useDashboardHeaderAction();
@@ -147,7 +148,6 @@ export default function RolesPage() {
       setHeaderActionOverride(null);
     };
   }, [canCreateRole, setHeaderActionOverride]);
-
   const filteredRoles = useMemo(() => {
     const normalizedSearch = searchValue.trim().toLowerCase();
     const roleList = rolesQuery.data ?? [];
@@ -221,7 +221,7 @@ export default function RolesPage() {
       <div className="relative z-100 h-dvh overflow-hidden py-5 pr-5">
         <div className="flex h-full min-h-0 flex-col gap-3 rounded-3xl border border-white bg-white/40 p-3">
           <DashboardSummaryBanner
-            imageSrc="/images/UsersIcon.svg"
+            imageSrc="/images/RolesIconImage.svg"
             imageAlt="Roles"
             title="Roles"
             stats={[]}
@@ -284,21 +284,36 @@ export default function RolesPage() {
                           ? (role) => setDeletingRoleId(role.id)
                           : undefined
                       }
+                      onAddRole={
+                        canCreateRole ? () => setAddRoleOpen(true) : undefined
+                      }
                     />
                   ) : (
-                    <div className="flex min-h-80 flex-col items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 py-10 text-center">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-400">
-                        <RolesEmptyIcon />
-                      </div>
-
-                      <h2 className="mt-4 text-lg font-semibold text-gray-900">
-                        No roles yet.
-                      </h2>
-
-                      <p className="mt-2 max-w-md text-sm text-gray-500">
-                        Create roles to organize access levels and permissions
-                        across the workspace.
-                      </p>
+                    <div className="flex h-full min-h-80 items-center justify-center">
+                      <EmptyState
+                        imageUrl="/images/NoRolesIcon.svg"
+                        imageAlt={
+                          searchValue.trim() ? 'No matching roles' : 'No roles'
+                        }
+                        title={
+                          searchValue.trim() ? 'No Roles Found' : 'No Roles Yet'
+                        }
+                        description={
+                          searchValue.trim()
+                            ? 'No roles match your search. Try a different keyword.'
+                            : 'Create your first role to manage user access.'
+                        }
+                        buttonLabel={
+                          !searchValue.trim() && canCreateRole
+                            ? 'Add Role'
+                            : undefined
+                        }
+                        onButtonClick={
+                          !searchValue.trim() && canCreateRole
+                            ? () => setAddRoleOpen(true)
+                            : undefined
+                        }
+                      />
                     </div>
                   )}
                 </div>
@@ -347,7 +362,6 @@ export default function RolesPage() {
         role={viewingClaimsRole}
       />
     </>
-   
   );
 }
 

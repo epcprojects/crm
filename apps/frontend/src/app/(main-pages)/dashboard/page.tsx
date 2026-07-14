@@ -638,25 +638,34 @@ export default function Page() {
 
 function ProjectCardSkeleton() {
   return (
-    <div className="animate-pulse rounded-xl border border-gray-200 bg-white p-2.5 shadow-xs md:rounded-2xl md:p-4">
-      <div className="flex items-center gap-3 md:gap-4">
-        <div className="h-9 w-9 rounded-full bg-gray-200 md:h-10.5 md:w-10.5" />
-        <div className="flex-1 space-y-2">
-          <div className="h-4 w-32 rounded bg-gray-200" />
-          <div className="h-3 w-20 rounded bg-gray-100" />
+    <div className="animate-pulse overflow-hidden rounded-xl border border-gray-200 shadow-xs md:rounded-2xl">
+      {/* Project header */}
+      <div className="flex items-start justify-between gap-3 bg-gray-100 px-2.5 py-3.5 md:gap-4 md:px-4 md:py-4">
+        <div className="flex min-w-0 flex-1 items-center gap-3 md:gap-4">
+          {/* Project initials */}
+          <div className="h-9 w-9 shrink-0 rounded-full bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.06)] md:h-10.5 md:w-10.5" />
+
+          {/* Project name and category */}
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <div className="h-3.5 w-32 max-w-full rounded bg-gray-300" />
+            <div className="h-2.5 w-20 rounded bg-gray-200" />
+          </div>
         </div>
       </div>
 
-      <div className="my-3 h-px bg-gray-200 md:my-4" />
-
-      <div className="grid grid-cols-3 gap-2">
+      {/* Project metrics */}
+      <div className="grid grid-cols-3 divide-x divide-gray-200 bg-white p-2.5">
         {Array.from({ length: 3 }).map((_, index) => (
           <div
             key={index}
-            className="flex items-center justify-between rounded-full bg-gray-50 px-3 py-1.5"
+            className="flex min-w-0 items-center justify-center gap-1.5 px-1 md:gap-2"
           >
-            <div className="h-3 w-10 rounded bg-gray-200" />
-            <div className="h-5 w-6 rounded-full bg-gray-200" />
+            <div
+              className={`h-3 rounded bg-gray-200 ${
+                index === 2 ? 'w-11' : 'w-8'
+              }`}
+            />
+            <div className="h-4 w-4 shrink-0 rounded-full bg-gray-200 shadow-[0_0_18px_0_rgb(0_0_0/0.08)]" />
           </div>
         ))}
       </div>
@@ -666,26 +675,47 @@ function ProjectCardSkeleton() {
 
 function DashboardStatsSkeleton() {
   return (
-    <div className="grid md:grid-cols-4 gap-3 md:gap-5">
-      {Array.from({ length: 4 }).map((_, index) => (
-        <div
-          key={index}
-          className="animate-pulse rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-3.5 md:rounded-2xl md:px-5 md:py-6"
-        >
-          <div className="flex items-center gap-3 md:gap-4">
-            <div className="h-10 w-10 rounded-full bg-gray-200 md:h-12 md:w-12" />
-            <div className="space-y-2">
-              <div className="h-6 w-14 rounded bg-gray-200 md:h-7 md:w-16" />
-              <div className="h-3 w-20 rounded bg-gray-200 md:w-24" />
+    <div className="flex w-full animate-pulse flex-col justify-between gap-8.5 rounded-[20px] bg-gray-800 p-7.5">
+      {/* Header */}
+      <div className="flex items-start gap-6">
+        <div className="flex flex-1 flex-col gap-2">
+          <div className="h-9 w-72 rounded-lg bg-white/20" />
+          <div className="h-5 w-96 max-w-full rounded bg-white/10" />
+        </div>
+
+        {/* New Ticket button */}
+        <div className="h-10 w-32 shrink-0 rounded-full bg-white/20" />
+      </div>
+
+      {/* Status cards */}
+      <div className="grid grid-cols-4 gap-5">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div
+            key={index}
+            className="rounded-full border border-white/6 py-2 pr-4 pl-2 shadow-[0_14px_44px_0_rgb(0_0_0/20%)]"
+          >
+            <div className="flex items-center gap-3">
+              {/* Icon */}
+              <div className="h-12 w-12 shrink-0 rounded-full bg-white/20" />
+
+              {/* Label and count */}
+              <div className="flex flex-1 items-center justify-between gap-3">
+                <div
+                  className={`h-4 rounded bg-white/15 ${
+                    index === 1 ? 'w-20' : 'w-14'
+                  }`}
+                />
+                <div className="h-7 w-8 rounded bg-white/25" />
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
 
-function RecentTicketsTableSkeleton() {
+export function RecentTicketsTableSkeleton() {
   return (
     <div className="animate-pulse overflow-hidden rounded-2xl border border-gray-200 bg-white">
       <div className="border-b border-gray-200 px-4 py-4 md:px-6">
@@ -713,21 +743,42 @@ function RecentTicketsTableSkeleton() {
 
 function DashboardTabsSkeleton() {
   return (
-    <div className="w-[calc(100dvw-32px)] space-y-2 rounded-xl bg-white sm:w-full">
-      <div className="flex border-b border-gray-200">
-        <div className="h-9 w-1/2 animate-pulse rounded-tl bg-gray-100" />
-        <div className="h-9 w-1/2 animate-pulse rounded-tr bg-gray-50" />
+    <div className="flex h-full min-w-82.5 animate-pulse flex-col gap-3 rounded-[20px] bg-white py-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+      {/* Pill-shaped tabs */}
+      <div className="px-4.5">
+        <div className="grid w-full grid-cols-2 gap-1 rounded-full border border-gray-200 bg-gray-50 p-1">
+          <div className="h-7 rounded-full bg-white shadow-[0_0_25px_0_rgb(27_28_29/0.08)]" />
+          <div className="h-7 rounded-full bg-gray-100" />
+        </div>
       </div>
-      <div className="space-y-3 rounded-xl border border-gray-200 px-4 py-3">
+
+      {/* Ticket rows */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4.5">
         {Array.from({ length: 5 }).map((_, index) => (
           <div
             key={index}
-            className="flex items-start gap-3 border-b border-gray-200 py-3 last:border-b-0"
+            className="flex items-start gap-3 border-b border-gray-200 py-4 last:border-b-0"
           >
-            <div className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-gray-200" />
-            <div className="min-w-0 flex-1 space-y-2">
-              <div className="h-4 w-3/4 rounded bg-gray-200" />
-              <div className="h-3 w-full rounded bg-gray-100" />
+            {/* Project icon */}
+            <div className="h-9 w-9 shrink-0 rounded-full bg-gray-200 shadow-[0_0_35px_0_rgb(0_0_0/0.08)]" />
+
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              {/* Ticket title */}
+              <div
+                className={`h-3.5 rounded bg-gray-200 ${
+                  index % 2 === 0 ? 'w-4/5' : 'w-2/3'
+                }`}
+              />
+
+              {/* Date and tags */}
+              <div className="flex items-center gap-3">
+                <div className="h-3 w-16 shrink-0 rounded bg-gray-100" />
+
+                <div className="flex gap-1.5">
+                  <div className="h-4.5 w-14 rounded-full bg-gray-100" />
+                  <div className="h-4.5 w-12 rounded-full bg-gray-100" />
+                </div>
+              </div>
             </div>
           </div>
         ))}

@@ -23,7 +23,6 @@ export default function DashboardSummaryBanner({
   return (
     <div className="flex w-full flex-col gap-4 overflow-hidden relative rounded-[20px]  bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat px-4 py-5 md:flex-row md:items-center md:px-7.5 md:py-6">
       <div className="bg-black/30 absolute h-full w-full"></div>
-
       <Image
         alt={imageAlt}
         src={imageSrc}

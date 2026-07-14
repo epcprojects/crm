@@ -933,32 +933,139 @@ function CloseCrossIcon() {
 
 function ProjectDetailSkeleton({ onBack }: { onBack: () => void }) {
   return (
-    <div className="flex w-full flex-1 flex-col items-start space-y-4 -mt-16 sm:mt-0">
-      <button
-        type="button"
-        onClick={onBack}
-        className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
-      >
-        <BackArrowIcon />
-        Back
-      </button>
+    <div
+      className="relative z-100 h-dvh overflow-hidden py-5 pr-5"
+      aria-hidden="true"
+    >
+      <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden rounded-3xl border border-white bg-white/40 p-3">
+        {/* Back button */}
+        <div className="shrink-0">
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
+            aria-hidden="false"
+          >
+            <BackArrowIcon />
+            Back
+          </button>
+        </div>
 
-      <div className="w-full animate-pulse space-y-4">
-        <div className="flex items-center gap-4">
-          <div className="h-19 w-19 rounded-full bg-gray-200" />
-          <div className="space-y-3">
-            <div className="h-5 w-40 rounded bg-gray-200" />
-            <div className="h-4 w-24 rounded-full bg-gray-100" />
-            <div className="flex gap-4">
-              <div className="h-9 w-16 rounded bg-gray-100" />
-              <div className="h-9 w-16 rounded bg-gray-100" />
-              <div className="h-9 w-16 rounded bg-gray-100" />
+        {/* Project detail card */}
+        <div className="flex min-h-0 min-w-0 flex-1 animate-pulse flex-col gap-4 overflow-hidden rounded-[20px] bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
+          {/* Project summary */}
+          <section className="w-full shrink-0">
+            <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
+              <div className="h-12 w-12 shrink-0 rounded-full bg-gray-200 sm:h-19 sm:w-19" />
+
+              <div className="min-w-0 flex-1">
+                {/* Name and category */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="h-5 w-40 rounded bg-gray-200" />
+                  <div className="h-6 w-24 rounded-full bg-gray-100" />
+                </div>
+
+                {/* Summary metrics */}
+                <div className="mt-3 flex max-w-full flex-wrap items-center gap-x-5 gap-y-2">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-gray-200" />
+                      <div
+                        className={`h-3.5 rounded bg-gray-200 ${
+                          index === 1 ? 'w-20' : 'w-12'
+                        }`}
+                      />
+                      <div className="h-4 w-6 rounded bg-gray-200" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Tabs */}
+          <div className="flex shrink-0 overflow-hidden border-y border-gray-200">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={index}
+                className={`border-b-2 px-4 py-3 ${
+                  index === 0
+                    ? 'border-gray-300'
+                    : 'border-transparent'
+                }`}
+              >
+                <div
+                  className={`h-4 rounded bg-gray-200 ${
+                    index === 3 ? 'w-16' : 'w-12'
+                  }`}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Active tab content */}
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
+            {/* Search/filter row */}
+            <div className="flex shrink-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="h-10 w-full rounded-lg border border-gray-200 bg-gray-100 md:max-w-xs" />
+
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-36 rounded-lg border border-gray-200 bg-gray-100" />
+                <div className="h-10 w-36 rounded-lg border border-gray-200 bg-gray-100" />
+                <div className="h-10 w-28 rounded-full bg-gray-200" />
+              </div>
+            </div>
+
+            {/* Tickets table */}
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white">
+              {/* Table header */}
+              <div className="grid grid-cols-6 gap-4 border-b border-gray-200 bg-gray-50 px-4 py-4">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="h-4 rounded bg-gray-200"
+                  />
+                ))}
+              </div>
+
+              {/* Table rows */}
+              <div className="min-h-0 flex-1 overflow-hidden">
+                {Array.from({ length: 6 }).map((_, rowIndex) => (
+                  <div
+                    key={rowIndex}
+                    className="grid grid-cols-6 gap-4 border-b border-gray-200 px-4 py-4 last:border-b-0"
+                  >
+                    {Array.from({ length: 6 }).map(
+                      (_, cellIndex) => (
+                        <div
+                          key={cellIndex}
+                          className={`h-4 rounded ${
+                            cellIndex === 3 || cellIndex === 4
+                              ? 'bg-gray-200'
+                              : 'bg-gray-100'
+                          }`}
+                        />
+                      ),
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Pagination */}
+              <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3">
+                <div className="h-8 w-32 rounded bg-gray-100" />
+                <div className="flex gap-2">
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="h-8 w-8 rounded-md bg-gray-100"
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
-
-        <div className="h-12 w-full rounded bg-gray-100" />
-        <div className="h-96 w-full rounded-2xl border border-gray-200 bg-white" />
       </div>
     </div>
   );

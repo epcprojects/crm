@@ -140,19 +140,31 @@ export default function SettingsConfigCard({
 
 function SettingsConfigSkeleton() {
   return (
-    <div className="space-y-0" aria-hidden="true">
+    <div className="animate-pulse" aria-hidden="true">
       {Array.from({ length: 4 }).map((_, index) => (
         <div
           key={index}
-          className="flex items-center justify-between gap-3 border-b border-gray-200 py-3 last:border-b-0 last:pb-0"
+          className="border-b border-gray-200 px-4 py-3 last:border-b-0"
         >
-          <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto_auto] items-center gap-3 px-4">
-            <div className="h-8 w-28 animate-pulse rounded-full bg-gray-100" />
-            <div className="h-4 w-24 animate-pulse rounded bg-gray-100" />
-            <div className="ml-auto h-4 w-20 animate-pulse rounded bg-gray-100" />
+          <div className="grid min-w-0 grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_300px] items-center gap-3">
+            {/* Status or priority badge */}
+            <div
+              className={`h-8 rounded bg-gray-100 ${
+                index % 2 === 0 ? 'w-28' : 'w-24'
+              }`}
+            />
+
+            {/* Slug */}
+            <div
+              className={`h-4 rounded bg-gray-100 ${
+                index % 2 === 0 ? 'w-24' : 'w-32'
+              }`}
+            />
+
+            {/* Actions */}
             <div className="flex items-center justify-end gap-3">
-              <div className="md:h-10 md:w-10 h-8.5 w-8.5 animate-pulse rounded-lg bg-gray-100" />
-              <div className="md:h-10 md:w-10 h-8.5 w-8.5 animate-pulse rounded-lg bg-gray-100" />
+              <div className="h-8.5 w-8.5 rounded-lg bg-gray-100 md:h-10 md:w-10" />
+              <div className="h-8.5 w-8.5 rounded-lg bg-gray-100 md:h-10 md:w-10" />
             </div>
           </div>
         </div>

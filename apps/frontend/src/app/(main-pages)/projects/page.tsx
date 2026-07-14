@@ -474,160 +474,39 @@ export default function ProjectsPage() {
         disableProjectSelection={Boolean(selectedProjectId)}
       />
     </>
-    // <div className="">
-    //   <PermissionGuard
-    //     permission="projects.view_list"
-    //     fallback={
-    //       <div className="flex min-h-80 items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 py-10 text-center text-sm text-gray-500">
-    //         You do not have permission to view projects.
-    //       </div>
-    //     }
-    //   >
-    //     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-    //       {projectsQuery.isLoading
-    //         ? Array.from({ length: 6 }).map((_, index) => (
-    //             <ProjectCardSkeleton key={index} />
-    //           ))
-    //         : projects.map((project) => (
-    //             <ProjectCard
-    //               key={project.id}
-    //               id={project.id}
-    //               initials={project.initials}
-    //               name={project.name}
-    //               category={project.category}
-    //               totalCount={project.totalCount}
-    //               openCount={project.openCount}
-    //               criticalCount={project.criticalCount}
-    //               colorHex={project.colorHex}
-    //               onClick={
-    //                 canViewProjectDetail
-    //                   ? () => router.push(`/projects/${project.id}`)
-    //                   : undefined
-    //               }
-    //               onAddTicket={
-    //                 canCreateTicket
-    //                   ? () => {
-    //                       setSelectedProjectId(project.id);
-    //                       setCreateTicketOpen(true);
-    //                     }
-    //                   : undefined
-    //               }
-    //               onEdit={
-    //                 canEditProject
-    //                   ? () => {
-    //                       setProjectToEdit(project);
-    //                       setCreateProjectOpen(true);
-    //                     }
-    //                   : undefined
-    //               }
-    //               onDelete={
-    //                 canDeleteProject
-    //                   ? () =>
-    //                       setProjectToDelete({
-    //                         id: project.id,
-    //                         name: project.name,
-    //                       })
-    //                   : undefined
-    //               }
-    //               isDeleting={
-    //                 deleteProjectMutation.isPending &&
-    //                 deleteProjectMutation.variables === project.id
-    //               }
-    //             />
-    //           ))}
-    //     </div>
-    //     {projectsQuery.hasNextPage ? (
-    //       <div ref={loadMoreRef} className="py-6">
-    //         {projectsQuery.isFetchingNextPage ? (
-    //           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-    //             {Array.from({ length: 3 }).map((_, index) => (
-    //               <ProjectCardSkeleton key={`next-page-${index}`} />
-    //             ))}
-    //           </div>
-    //         ) : null}
-    //       </div>
-    //     ) : null}
-    //   </PermissionGuard>
-
-    //   <CreateProjectModal
-    //     isOpen={
-    //       createProjectOpen &&
-    //       (projectToEdit ? canEditProject : canCreateProject)
-    //     }
-    //     onClose={() => {
-    //       setCreateProjectOpen(false);
-    //       setProjectToEdit(null);
-    //     }}
-    //     onConfirm={handleCreateProject}
-    //     initialValues={
-    //       projectToEdit
-    //         ? {
-    //             name: projectToEdit.name,
-    //             category: projectToEdit.category,
-    //             colorHex: projectToEdit.colorHex,
-    //           }
-    //         : undefined
-    //     }
-    //     title={projectToEdit ? 'Edit Project' : 'Create Project'}
-    //     confirmLabel={projectToEdit ? 'Update Project' : 'Create Project'}
-    //   />
-
-    //   <ConfirmActionModal
-    //     isOpen={Boolean(projectToDelete)}
-    //     onClose={() => setProjectToDelete(null)}
-    //     title="Delete Project?"
-    //     message={
-    //       <>
-    //         Are you sure you want to delete{' '}
-    //         <span className="font-semibold">
-    //           “{projectToDelete?.name ?? 'this project'}”
-    //         </span>
-    //         ? This action cannot be undone.
-    //       </>
-    //     }
-    //     confirmLabel="Yes, Delete"
-    //     cancelLabel="Cancel"
-    //     variant="danger"
-    //     isSubmitting={deleteProjectMutation.isPending}
-    //     onConfirm={handleDeleteProject}
-    //   />
-
-    //   <CreateTicketModal
-    //     isOpen={createTicketOpen}
-    //     onClose={() => {
-    //       setCreateTicketOpen(false);
-    //       setSelectedProjectId(null);
-    //     }}
-    //     onConfirm={handleCreateTicket}
-    //     projectOptions={projectOptions}
-    //     preselectedProjectId={selectedProjectId ?? undefined}
-    //     disableProjectSelection={Boolean(selectedProjectId)}
-    //   />
-    // </div>
+   
   );
 }
 
 function ProjectCardSkeleton() {
   return (
-    <div className="animate-pulse rounded-xl border border-gray-200 bg-white p-2.5 shadow-xs md:rounded-2xl md:p-4">
-      <div className="flex items-center gap-3 md:gap-4">
-        <div className="h-9 w-9 rounded-full bg-gray-200 md:h-10.5 md:w-10.5" />
-        <div className="flex-1 space-y-2">
-          <div className="h-4 w-32 rounded bg-gray-200" />
-          <div className="h-3 w-20 rounded bg-gray-100" />
+    <div className="animate-pulse overflow-hidden rounded-xl border border-gray-200 shadow-xs md:rounded-2xl">
+      {/* Gray header */}
+      <div className="flex items-start justify-between gap-3 bg-gray-100 px-2.5 py-3.5 md:gap-4 md:px-4 md:py-4">
+        <div className="flex min-w-0 flex-1 items-center gap-3 md:gap-4">
+          <div className="h-9 w-9 shrink-0 rounded-full bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.06)] md:h-10.5 md:w-10.5" />
+
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <div className="h-3.5 w-28 max-w-full rounded bg-gray-300" />
+            <div className="h-3 w-20 rounded bg-gray-200" />
+          </div>
         </div>
       </div>
 
-      <div className="my-3 h-px bg-gray-200 md:my-4" />
-
-      <div className="grid grid-cols-3 gap-2">
+      {/* Metrics footer */}
+      <div className="grid grid-cols-3 divide-x divide-gray-200 bg-white p-2.5">
         {Array.from({ length: 3 }).map((_, index) => (
           <div
             key={index}
-            className="flex items-center justify-between rounded-full bg-gray-50 px-3 py-1.5"
+            className="flex min-w-0 items-center justify-center gap-1.5 px-1 md:gap-2"
           >
-            <div className="h-3 w-10 rounded bg-gray-200" />
-            <div className="h-5 w-6 rounded-full bg-gray-200" />
+            <div
+              className={`h-3 rounded bg-gray-200 ${
+                index === 2 ? 'w-10' : 'w-8'
+              }`}
+            />
+
+            <div className="h-4 w-4 shrink-0 rounded-full bg-gray-200 shadow-[0_0_18px_0_rgb(0_0_0/0.08)]" />
           </div>
         ))}
       </div>
