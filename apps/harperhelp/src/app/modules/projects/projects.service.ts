@@ -177,6 +177,35 @@ export class ProjectsService {
     return this.projectRepo.findOne({ where: { id } });
   }
 
+  // function for having summary of project section, return total project, active proejcts, open tickets and critical issues:
+
+async getGlobalProjectSummary(user) {
+  const result = await this.projectRepo
+    .createQueryBuilder('p')
+    .innerJoin('p.members', 'u', 'u.id = :userId', {
+      userId: user.id,
+    })
+    .leftJoin(
+      'tickets',
+      't',
+      't."projectId" = p.id',
+    )
+    .select([
+      `COUNT(DISTINCT p.id) AS total`,
+      `COUNT(DISTINCT CASE WHEN p.isActive = true THEN p.id END) AS active`,
+      `COUNT(CASE WHEN UPPER(t."statusKey") = 'OPEN' THEN 1 END) AS open`,
+      `COUNT(CASE WHEN UPPER(t."priorityKey") = 'CRITICAL' THEN 1 END) AS critical`,
+    ])
+    .getRawOne();
+
+  return {
+    totalProjects: Number(result.total ?? 0),
+    activeProjects: Number(result.active ?? 0),
+    openTickets: Number(result.open ?? 0),
+    criticalIssues: Number(result.critical ?? 0),
+  };
+}
+
   async findProjectMembers(projectId: string, user) {
     return this.projectRepo
       .createQueryBuilder('project')

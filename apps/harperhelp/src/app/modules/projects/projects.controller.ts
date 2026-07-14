@@ -66,6 +66,15 @@ export class ProjectsController {
     return this.projectsService.findAllNames();
   }
 
+    @Get('project-summary')
+    @ApiOperation({
+    summary:
+    'Get project dashboard summary. Returns total projects, active projects, open tickets, and critical issues.',
+    })
+    getGlobalProjectSummary(@GetUser() user) {
+    return this.projectsService.getGlobalProjectSummary(user);
+    }  
+
   @Get('members')
   // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({
@@ -114,6 +123,9 @@ export class ProjectsController {
   findProjectMembers(@Param('id') id: string, @GetUser() user) {
     return this.projectsService.findProjectMembers(id, user);
   }
+
+
+
 
   // ---------------- UPLOAD FILES ----------------
   @Post(':projectId/files')
