@@ -445,9 +445,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             type="button"
           />
         ) : null}
-        <div className="hidden w-29 shrink-0 lg:block" />
+        <div className="hidden w-24 2xl:w-29 shrink-0 lg:block" />
         <aside
-          className={`fixed inset-y-0  left-0 z-40 flex flex-col gap-10 bg-gray-200 px-6 pt-6 pb-8 transition-transform duration-300 ease-out  ${
+          className={`fixed inset-y-0  left-0 z-40 flex flex-col gap-10 bg-gray-200 px-4  2xl:px-6 pt-4  2xl:pt-6 pb-4 2xl:pb-8 transition-transform duration-300 ease-out  ${
             mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           }`}
         >
@@ -469,7 +469,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                 <SidebarNavSkeleton />
               ) : (
                 <nav
-                  className={`flex flex-col w-fit items-center gap-2.5 md:gap-5 scrollbar-hide`}
+                  className={`flex flex-col w-fit items-center gap-2.5 2xl:gap-5 scrollbar-hide`}
                 >
                   {visibleNavigationItems.map((item) => {
                     const isActive = pathname === item.href;
