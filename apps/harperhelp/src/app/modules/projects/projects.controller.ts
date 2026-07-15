@@ -32,6 +32,7 @@ import { ProjectsFilesService } from './services/project-files.service';
 import { User } from '../users/entities/user.entity';
 import { Authorize } from '../../../common/guards/authorize.guard';
 import { GetProjectsQueryDto } from './dto/get-projects-query.dto';
+import { GetMembersQueryDto } from './dto/get-members-query.dto';
 
 @Controller('projects')
 @ApiBearerAuth('JWT-auth')
@@ -79,10 +80,10 @@ export class ProjectsController {
   @Get('members')
   // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({
-    summary: 'Get list of all members with their assigned projects.',
-  })
-  findMembersWithProjects() {
-    return this.projectsService.findMembersWithProjects();
+    summary: 
+    'Get members with their assigned projects and roles. Supports search and optional filters.',})
+  findMembersWithProjects(@Query() query: GetMembersQueryDto) {
+    return this.projectsService.findMembersWithProjects(query);
   }
 
   @Get(':id')

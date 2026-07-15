@@ -9,6 +9,7 @@ import { UserRole } from '../users/entities/user.roles.entity';
 import { SystemRoles, UserType } from '@harperhelp/types';
 import { Ticket } from '../tickets/entities/ticket.entity';
 import { GetProjectsQueryDto } from './dto/get-projects-query.dto';
+import { GetMembersQueryDto } from './dto/get-members-query.dto';
 
 @Injectable()
 export class ProjectsService {
@@ -296,32 +297,150 @@ async getGlobalProjectSummary(user) {
       .getRawMany();
   }
 
-  async findMembersWithProjects() {
-    const users = await this.projectRepo.manager
-      .getRepository(User)
+  async findMembersWithProjects(query: GetMembersQueryDto) {
+    const {
+      search, 
+      isInvitationAccepted,
+      projectId,
+      roleId,
+    } = query
+
+
+    const userRepository = this.projectRepo.manager.getRepository(User);
+
+    const baseQuery = userRepository
       .createQueryBuilder('u')
-      .leftJoinAndSelect('u.projects', 'p')
-      .leftJoinAndMapMany('u.userRoles', UserRole, 'ur', 'ur.userId = u.id')
-      .leftJoinAndSelect('ur.role', 'r')
-      .where('u.fullName != :name', { name: 'Super Admin' })
-      .select([
-        'u.id',
-        'u.fullName',
-        'u.email',
-        'u.isInvitationAccepted',
+      .where('u.fullName != :superAdminName', {
+        superAdminName: 'Super Admin',
+       });
 
-        'p.id',
-        'p.name',
-
-        'ur.id',
-
-        'r.id',
-        'r.name',
-      ])
-      .getMany();
-
-    return users;
+    if (search?.trim()) {
+    baseQuery.andWhere(
+      `
+      (
+        u.fullName ILIKE :search
+        OR u.email ILIKE :search
+      )
+      `,
+      {
+        search: `%${search.trim()}%`,
+      },
+    );
   }
+
+    if (isInvitationAccepted !== undefined) {
+    baseQuery.andWhere(
+      'u.isInvitationAccepted = :isInvitationAccepted',
+      {
+        isInvitationAccepted,
+      },
+    );
+  }
+    if (projectId) {
+    baseQuery.andWhere(
+      `
+      EXISTS (
+        SELECT 1
+        FROM user_projects_join upj
+        WHERE upj."usersId" = u.id
+          AND upj."projectsId" = :projectId
+      )
+      `,
+      {
+        projectId,
+      },
+    );
+  }
+  if (roleId) {
+    baseQuery.andWhere(
+      `
+      EXISTS (
+        SELECT 1
+        FROM user_roles filter_ur
+        WHERE filter_ur."userId" = u.id
+          AND filter_ur."roleId" = :roleId
+      )
+      `,
+      {
+        roleId,
+      },
+    );
+  }
+
+   const summaryResult = await baseQuery
+    .clone()
+    .select([
+      `COUNT(DISTINCT u.id) AS total`,
+      `
+      COUNT(
+        DISTINCT CASE
+          WHEN u.isActive = true THEN u.id
+        END
+      ) AS active
+      `,
+      `
+      COUNT(
+        DISTINCT CASE
+          WHEN u.isInvitationAccepted = false THEN u.id
+        END
+      ) AS pending
+      `,
+      `
+      COUNT(
+        DISTINCT CASE
+          WHEN UPPER(u.userType) = 'EXTERNAL' THEN u.id
+        END
+      ) AS external
+      `,
+    ])
+    .getRawOne<{
+      total: string;
+      active: string;
+      pending: string;
+      external: string;
+    }>();
+
+
+    const users = await baseQuery
+    .clone()
+    .leftJoinAndSelect('u.projects', 'p')
+    .leftJoinAndMapMany(
+      'u.userRoles',
+      UserRole,
+      'ur',
+      'ur.userId = u.id',
+    )
+    .leftJoinAndSelect('ur.role', 'r')
+    .select([
+      'u.id',
+      'u.fullName',
+      'u.email',
+      'u.isActive',
+      'u.isInvitationAccepted',
+      'u.userType',
+
+      'p.id',
+      'p.name',
+
+      'ur.id',
+
+      'r.id',
+      'r.name',
+    ])
+    .orderBy('u.fullName', 'ASC')
+    .getMany();
+
+  return {
+    items: users,
+
+    summary: {
+      totalUsers: Number(summaryResult?.total ?? 0),
+      activeUsers: Number(summaryResult?.active ?? 0),
+      pendingInvites: Number(summaryResult?.pending ?? 0),
+      externalUsers: Number(summaryResult?.external ?? 0),
+    },
+  };
+}
 
   update(id: string, updateProjectDto: UpdateProjectDto) {
     this.projectRepo.update(id, updateProjectDto);
