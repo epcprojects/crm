@@ -13,6 +13,7 @@ import { useState, type ReactNode } from 'react';
 import ThemeButton from '../ui/ThemeButton';
 import { ArrowUpRightIcon } from '../../../public/icons';
 import { useAppSelector } from '../../app/Redux/store';
+import EmptyState from '../EmptyState';
 
 export type TicketStatus = string;
 export type TicketPriority = string;
@@ -83,7 +84,7 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     accessorKey: 'title',
     header: 'Title',
     cell: ({ row }) => (
-      <span className="block max-w-52 whitespace-break-spaces text-sm text-gray-900">
+      <span className="block max-w-52 whitespace-break-spaces text-sm text-gray-800">
         {row.original.title}
       </span>
     ),
@@ -93,8 +94,8 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     accessorKey: 'project.name',
     header: 'Project',
     cell: ({ row }) => (
-      <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-purple-100 py-0.75 pr-2.5 pl-0.75 text-xs font-medium text-purple-700">
-        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-medium">
+      <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-gray-200 bg-white py-0.5 pr-2.5 pl-0.5 text-xs  text-gray-800">
+        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs text-gray-900">
           {row.original.project.initials}
         </span>
         {row.original.project.name}
@@ -168,11 +169,13 @@ type RecentTicketsTableProps = {
   onPaginationChange?: (pagination: PaginationState) => void;
   sortState?: TicketSortState;
   onSortChange?: (sortState: TicketSortState) => void;
+  onEmptyButtonClick?: () => void;
 };
 
 export default function RecentTicketsTable({
   tickets,
   onViewAll,
+  onEmptyButtonClick,
   enablePagination = false,
   initialPageSize = 12,
   pageSizeOptions = [10, 25, 50, 100],
@@ -255,10 +258,21 @@ export default function RecentTicketsTable({
       )
     : totalRows;
   const visiblePages = getVisiblePageNumbers(currentPage, totalPages);
-
+  if (tickets.length === 0) {
+    return (
+      <EmptyState
+        imageUrl="/images/RecentTicketEmpty.svg"
+        imageAlt="No recent tickets"
+        title="No Recent Tickets"
+        description="Recent tickets will appear here once they are created."
+        buttonLabel="New Ticket"
+        onButtonClick={onEmptyButtonClick}
+      />
+    );
+  }
   return (
-    <div className="overflow-hidden rounded-xl w-[calc(100dvw-32px)] sm:w-full md:border md:border-gray-200 bg-white">
-      <div className="space-y-3 md:p-3 md:hidden">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl bg-white xl:w-full xl:border xl:border-gray-200">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain xl:p-3 scrollbar-hide xl:hidden">
         {table.getRowModel().rows.length ? (
           table
             .getRowModel()
@@ -271,21 +285,26 @@ export default function RecentTicketsTable({
               />
             ))
         ) : (
-          <div className="rounded-xl border border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500">
-            No tickets found.
-          </div>
+          <EmptyState
+            imageUrl="/images/RecentTicketEmpty.svg"
+            imageAlt="No recent tickets"
+            title="No Recent Tickets"
+            description="Recent tickets will appear here once they are created."
+            buttonLabel="New Ticket"
+            onButtonClick={onEmptyButtonClick}
+          />
         )}
       </div>
 
-      <div className="hidden overflow-x-auto md:block">
-        <table className="w-full  min-w-[880px] text-left">
+      <div className="hidden min-h-0 flex-1 overflow-x-auto overflow-y-auto scrollbar-hide xl:block">
+        <table className="w-full  min-w-220 text-left">
           <thead className="bg-gray-50">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
-                    className="border-b border-gray-200 px-4 py-3 text-xs font-semibold text-gray-900"
+                    className="sticky top-0 border-b border-[#F3F4F6] px-4 py-3 text-xs font-semibold bg-[#F9FAFB] text-gray-900"
                   >
                     {header.isPlaceholder ? null : (
                       <SortHeaderButton
@@ -338,7 +357,7 @@ export default function RecentTicketsTable({
       </div>
 
       {enablePagination ? (
-        <div className="flex justify-between sm:flex-col gap-3 md:border-t border-gray-200 md:px-4 py-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex justify-between sm:flex-col gap-3 md:border-t border-gray-200 xl:px-4 py-0.5 xl:py-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <span className="sm:inline-block hidden">Showing per page</span>
             <select
@@ -376,7 +395,7 @@ export default function RecentTicketsTable({
                 pageNumber === 'ellipsis' ? (
                   <span
                     key={`ellipsis-${index}`}
-                    className="px-2 text-sm text-gray-500"
+                    className="px-2 xl:block hidden text-sm text-gray-500"
                   >
                     ...
                   </span>
@@ -385,7 +404,7 @@ export default function RecentTicketsTable({
                     key={pageNumber}
                     type="button"
                     onClick={() => table.setPageIndex(pageNumber - 1)}
-                    className={`min-w-8 rounded-md px-2 py-1 text-sm transition ${
+                    className={`min-w-8 rounded-md px-2 py-1 xl:block hidden text-sm transition ${
                       currentPage === pageNumber
                         ? 'bg-gray-100 font-semibold text-gray-900'
                         : 'text-gray-600 hover:bg-gray-100'
