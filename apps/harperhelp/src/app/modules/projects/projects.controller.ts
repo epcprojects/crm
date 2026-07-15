@@ -53,9 +53,10 @@ export class ProjectsController {
     return this.projectsService.createProject(createProjectDto, user);
   }
 
+
   @Get()
-  @ApiOperation({ summary: 'Find all projects' })
-  findAll(@Query() query: GetProjectsQueryDto, @GetUser() user) {
+  @ApiOperation({ summary: 'Find all projects with search and pagination.'})
+  findAll(@Query() query: GetProjectsQueryDto, @GetUser() user,) {
     return this.projectsService.findAll(query, user);
   }
 

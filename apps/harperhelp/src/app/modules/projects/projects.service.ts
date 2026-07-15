@@ -78,91 +78,108 @@ export class ProjectsService {
     delete savedProject['members'];
 
     return {
-      ...savedProject,
+      ...savedProject, 
     };
   }
 
-  async findAll(query: GetProjectsQueryDto, user) {
-    const { page = 1, limit = 10, search } = query;
 
-    const qb = this.projectRepo
-      .createQueryBuilder('p')
-      .innerJoin('p.members', 'u', 'u.id = :userId', {
-        userId: user.id,
-      })
-      .leftJoin(Ticket, 't', 't.projectId = p.id');
+  async findAll(query: GetProjectsQueryDto, user: { id: string }) {
+  const { page =1, limit=10, search } = query;
 
-    if (search) {
-      qb.andWhere('(p.name ILIKE :search OR p.category ILIKE :search)', {
-        search: `%${search}%`,
-      });
-    }
+  const qb = this.projectRepo
+    .createQueryBuilder('p')
+    .innerJoin('p.members', 'u', 'u.id = :userId', {
+      userId: user.id,
+    })
+    .leftJoin(Ticket, 't', 't.projectId = p.id');
 
-    const projects = await qb
-      .select([
-        'p.id as id',
-        'p.name as name',
-        'p.category as category',
-        'p.brandColor as brandColor',
-        'p.logoLetter as logoLetter',
-      ])
-
-      // ticket stats
-      .addSelect('COUNT(t.id)', 'ticketCount')
-      .addSelect(
-        `
-      COUNT(CASE WHEN UPPER(t.statusKey) = 'OPEN' THEN 1 END)
-      `,
-        'openTicketCount',
+  if (search?.trim()) {
+    qb.andWhere(
+      `
+      (
+        p.name ILIKE :search
+        OR p.category ILIKE :search
+        OR p.projectCode ILIKE :search
       )
-      .addSelect(
-        `
-      COUNT(CASE WHEN UPPER(t.priorityKey) = 'CRITICAL' THEN 1 END)
       `,
-        'criticalTicketCount',
-      )
-
-      // total rows after filtering
-      .addSelect('COUNT(*) OVER()', 'totalCount')
-
-      .groupBy('p.id')
-      .addGroupBy('p.name')
-      .addGroupBy('p.category')
-      .addGroupBy('p.brandColor')
-      .addGroupBy('p.logoLetter')
-
-      .orderBy('p.createdAt', 'DESC')
-      .limit(limit)
-      .offset((page - 1) * limit)
-
-      .getRawMany();
-
-    const total = projects.length ? Number(projects[0].totalCount) : 0;
-
-    return {
-      items: projects.map((p) => ({
-        id: p.id,
-        name: p.name,
-        category: p.category,
-        brandColor: p.brandColor,
-        logoLetter: p.logoLetter,
-        stats: {
-          tickets: Number(p.ticketCount),
-          openTickets: Number(p.openTicketCount),
-          criticalTickets: Number(p.criticalTicketCount),
-        },
-      })),
-
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-        hasNext: page * limit < total,
-        hasPrevious: page > 1,
+      {
+        search: `%${search.trim()}%`,
       },
-    };
+    );
   }
+
+  const projects = await qb
+    .select([
+      'p.id AS id',
+      'p.name AS name',
+      'p.category AS category',
+      'p.projectCode AS "projectCode"',
+      'p.brandColor AS "brandColor"',
+      'p.logoLetter AS "logoLetter"',
+    ])
+    .addSelect('COUNT(t.id)', '"ticketCount"')
+    .addSelect(
+      `
+      COUNT(
+        CASE
+          WHEN UPPER(t.statusKey) = 'OPEN'
+          THEN 1
+        END
+      )
+      `,
+      '"openTicketCount"',
+    )
+    .addSelect(
+      `
+      COUNT(
+        CASE
+          WHEN UPPER(t.priorityKey) = 'CRITICAL'
+          THEN 1
+        END
+      )
+      `,
+      '"criticalTicketCount"',
+    )
+    .groupBy('p.id')
+    .addGroupBy('p.name')
+    .addGroupBy('p.category')
+    .addGroupBy('p.projectCode')
+    .addGroupBy('p.brandColor')
+    .addGroupBy('p.logoLetter')
+    .orderBy('p.createdAt', 'DESC')
+    .offset((page-1)* limit)
+    .limit(limit)
+    .getRawMany();
+
+  const total = projects.length
+    ? Number(projects[0].totalCount)
+    : 0;
+
+  return {
+    items: projects.map((project) => ({
+      id: project.id,
+      name: project.name,
+      category: project.category,
+      projectCode: project.projectCode,
+      brandColor: project.brandColor,
+      logoLetter: project.logoLetter,
+      stats: {
+        tickets: Number(project.ticketCount ?? 0),
+        openTickets: Number(project.openTicketCount ?? 0),
+        criticalTickets: Number(project.criticalTicketCount ?? 0),
+      },
+    })),
+
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      hasNext: page * limit < total,
+      hasPrevious: page > 1,
+    },
+  };
+}
 
   findAllNames() {
     return this.projectRepo.find({
