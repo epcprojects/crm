@@ -10,6 +10,7 @@ import Dropdown from '../ui/ThemeDropDown';
 import { type CreateTicketDropdownOption } from './create-ticket-modal.data';
 import { CloseIcon } from '../../../public/icons';
 import { useAppSelector } from '../../app/Redux/store';
+import { appToast } from '../toast/AppToast';
 import {
   ALLOWED_ATTACHMENT_ACCEPT,
   ALLOWED_ATTACHMENT_HELPER_TEXT,
@@ -182,22 +183,44 @@ export default function CreateTicketModal({
     statusOptions,
   ]);
 
-  const setAttachments = (files: FileList | File[]) => {
-    const nextFiles = mergeAttachmentFiles(
-      formik.values.attachments,
-      Array.from(files),
-    );
-    const validationError = validateAttachments(nextFiles);
+ const setAttachments = (files: FileList | File[]) => {
+  const currentFiles = formik.values.attachments;
+  const nextFiles = mergeAttachmentFiles(currentFiles, Array.from(files));
 
-    if (validationError) {
-      setAttachmentError(validationError);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
+  const validationError = validateAttachments(nextFiles);
+
+  if (validationError) {
+    setAttachmentError(validationError);
+    appToast.error(validationError);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
 
-    setAttachmentError('');
-    formik.setFieldValue('attachments', nextFiles);
-  };
+    return;
+  }
+
+  const addedFilesCount = nextFiles.length - currentFiles.length;
+
+  setAttachmentError('');
+  formik.setFieldValue('attachments', nextFiles);
+
+  if (addedFilesCount === 1) {
+    const addedFile = nextFiles[nextFiles.length - 1];
+
+    appToast.success(`${addedFile.name} added successfully.`);
+  } else if (addedFilesCount > 1) {
+    appToast.success(
+      `${addedFilesCount} files added successfully.`,
+    );
+  } else {
+    appToast.info('This file has already been added.');
+  }
+
+  if (fileInputRef.current) {
+    fileInputRef.current.value = '';
+  }
+};
 
   const handleRemoveAttachment = (fileName: string) => {
     const nextAttachments = formik.values.attachments.filter(
@@ -285,7 +308,7 @@ export default function CreateTicketModal({
             />
           )}
 
-          {isExternalUser ? null : (
+          {/* {isExternalUser ? null : ( */}
             <Dropdown
               label="Priority"
               options={priorityOptions}
@@ -297,7 +320,7 @@ export default function CreateTicketModal({
               }
               placeholder="Select priority"
             />
-          )}
+          {/* )} */}
         </div>
 
         <ThemeInput

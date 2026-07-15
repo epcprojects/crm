@@ -448,7 +448,7 @@ export default function Page() {
                         value={searchValue}
                         onChange={(event) => setSearchValue(event.target.value)}
                         placeholder="Search"
-                        className="min-w-0 bg-transparent placeholder:text-gray-400 text-sm text-gray-700 outline-none"
+                        className="min-w-0 bg-transparent placeholder:text-gray-400 text-base text-gray-700 outline-none"
                       />
                     </div>
 

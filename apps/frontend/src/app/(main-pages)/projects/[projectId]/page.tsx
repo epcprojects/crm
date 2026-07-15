@@ -617,7 +617,7 @@ export default function ProjectDetailPage() {
                                 setSearchValue(event.target.value)
                               }
                               placeholder="Search"
-                              className="min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400"
+                              className="min-w-0 flex-1 bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400"
                             />
                           </div>
                         </div>

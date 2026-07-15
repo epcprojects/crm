@@ -507,28 +507,29 @@ export default function TicketDetailPage() {
                       {ticket.project.name}
                     </span>
                   </div>
+                  {selectedDueDate ? (
+                    <div>
+                      <span className="block text-sm text-gray-500">Due Date</span>
 
-                  <div>
-                    <span className="block text-sm text-gray-500">Date</span>
-
-                    <div
-                      className={`flex h-fit items-start gap-2 rounded-lg pt-2 ${
-                        isDueDateOverdue ? 'text-[#B42318]' : 'text-gray-700'
-                      }`}
-                    >
-                      <div className="flex w-full items-center gap-3">
-                        <p className="pt-px text-sm font-medium">
-                          {selectedDueDate}
-                        </p>
-
-                        {isDueDateOverdue ? (
-                          <p className="rounded-full bg-[#F04438] px-2.5 py-0.5 text-sm font-medium text-white">
-                            Overdue
+                      <div
+                        className={`flex h-fit items-start gap-2 rounded-lg pt-2 ${
+                          isDueDateOverdue ? 'text-[#B42318]' : 'text-gray-700'
+                        }`}
+                      >
+                        <div className="flex w-full items-center gap-3">
+                          <p className="pt-px text-sm font-medium">
+                            {selectedDueDate}
                           </p>
-                        ) : null}
+
+                          {isDueDateOverdue ? (
+                            <p className="rounded-full bg-[#F04438] px-2.5 py-0.5 text-sm font-medium text-white">
+                              Overdue
+                            </p>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ) : null}
                 </div>
 
                 <div className="pt-2 sm:pt-5">
@@ -630,7 +631,7 @@ export default function TicketDetailPage() {
                   )}
                 </div>
               </section>
-             <div className="min-h-0 xl:flex-1 xl:overflow-hidden">
+              <div className="min-h-0 xl:flex-1 xl:overflow-hidden">
                 <PermissionGuard permission="ticket_replies.view">
                   <TicketRepliesPanel
                     replies={
@@ -772,7 +773,7 @@ export default function TicketDetailPage() {
                         onChange={(event) =>
                           handleDueDateChange(event.target.value)
                         }
-                        className="w-full bg-transparent text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:text-gray-400"
+                        className="w-full bg-transparent text-base text-gray-900 outline-none disabled:cursor-not-allowed disabled:text-gray-400"
                       />
                     </label>
                   </div>
