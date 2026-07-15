@@ -11,6 +11,7 @@ import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { RoleClaim } from './entities/role.claim.entity';
 import { UserRole } from '../users/entities/user.roles.entity';
+import { GetRoleQueryDTO } from './dto/get-role-query.dto';
 
 @Injectable()
 export class RolesService {
@@ -51,16 +52,28 @@ export class RolesService {
     return this.findOne(role.id);
   }
 
-  async findAll(): Promise<Role[]> {
-    return this.roleRepository.find({
-      relations: {
-        roleClaims: true,
+async findAll(query: GetRoleQueryDTO): Promise<Role[]> {
+  const qb = this.roleRepository
+    .createQueryBuilder('role')
+    .leftJoinAndSelect('role.roleClaims', 'roleClaim')
+    .orderBy('role.createdAt', 'DESC');
+
+  if (query.search?.trim()) {
+    qb.andWhere(
+      `
+      (
+        role.name ILIKE :search
+        OR role.description ILIKE :search
+      )
+      `,
+      {
+        search: `%${query.search.trim()}%`,
       },
-      order: {
-        createdAt: 'DESC',
-      },
-    });
+    );
   }
+
+  return qb.getMany();
+}
 
   async findOne(id: string): Promise<Role> {
     const role = await this.roleRepository.findOne({
