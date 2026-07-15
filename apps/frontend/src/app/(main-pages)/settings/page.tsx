@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -16,6 +17,7 @@ import {
   PermissionGuard,
   usePermissions,
 } from '../../providers/PermissionProvider';
+import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
 
 type ApiTicketStatus = {
   id: string;
@@ -402,98 +404,133 @@ export default function Page() {
   };
 
   const isMobile = useIsMobile();
-
+  const projectSummaryStats =  [
+       {
+         title: 'Total Statuses',
+         count: 8,
+         color: '#17B26A',
+       },
+       {
+         title: 'Priority Levels',
+         count: 8,
+         color: '#7A5AF8',
+       },
+       {
+         title: 'Tickets Using Statuses',
+         count: 3,
+         color: '#F79009',
+       },
+       {
+         title: 'Tickets Using Priorities',
+         count: 4,
+         color: '#F04438',
+       },
+     ]
+     
   return (
-    <div className="space-y-6">
-      <div className="flex items-start gap-3 rounded-xl border border-warning-200 bg-[#FFFAEB] px-4 py-3 text-[#69410A]">
-        <span className="mt-1 hidden sm:inline-block">
-          <TipIcon />
-        </span>
-        <p className="text-sm leading-6">
-          <span className="inline-block pe-2 sm:hidden">
-            <TipIcon
-              height={isMobile ? '16' : '20'}
-              width={isMobile ? '16' : '20'}
-            />
+    <div className="relative z-100 xl:h-dvh h-full overflow-hidden p-4 xl:py-5 xl:pr-5 px-4 pt-2 pb-0">
+      <div className="flex h-full min-h-0 flex-col space-y-3 xl:rounded-3xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
+      <DashboardSummaryBanner imageSrc={'/images/SettingsPageIcon.svg'} title={'Settings'} stats={projectSummaryStats}/>
+        <div className="flex xl:flex-row flex-col  items-center gap-3 rounded-[10px] xl:rounded-full border border-warning-200 bg-[#FFFAEB] p-1 text-[#69410A]">
+          <span className=" bg-white hidden xl:flex items-center justify-center  drop-shadow rounded-full   h-10 min-w-10 ">
+            <TipIcon />
           </span>
-          <span className="font-semibold">Tip:</span> Statuses and priorities
-          defined here appear in every dropdown across the app — new tickets,
-          ticket detail editors, and list filters. You can&apos;t delete one
-          that&apos;s currently assigned to a ticket; reassign those tickets
-          first.
-        </p>
-      </div>
-      {canViewSettings ? (
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <PermissionGuard permission="settings.view_statuses">
-            <SettingsConfigCard
-              title="Ticket Statuses"
-              subtitle={`${statusItems.length} statuses · used across all projects`}
-              buttonLabel="Add Status"
-              items={statusItems}
-              badgeVariant="status"
-              isLoading={ticketStatusesQuery.isLoading}
-              onAdd={
-                canCreateStatus
-                  ? () => {
-                      setStatusModalMode('create');
-                      setEditingStatusId('new-status');
-                    }
-                  : undefined
-              }
-              onEdit={
-                canEditStatus
-                  ? (item) => {
-                      setStatusModalMode('edit');
-                      setEditingStatusId(item.id);
-                    }
-                  : undefined
-              }
-              onDelete={
-                canDeleteStatus
-                  ? (item) => setStatusToDelete(item)
-                  : undefined
-              }
-            />
-          </PermissionGuard>
+          <p className="text-sm leading-6 text-gray-700">
+            <span className="inline-block pe-2 xl:hidden">
+              <TipIcon
+                height={isMobile ? '16' : '20'}
+                width={isMobile ? '16' : '20'}
+              />
+            </span>
+            <span className="font-semibold text-gray-900">Tip:</span> Statuses
+            and priorities defined here appear in every dropdown across the app
+            — new tickets, ticket detail editors, and list filters. You
+            can&apos;t delete one that&apos;s currently assigned to a ticket;
+            reassign those tickets first.
+          </p>
+        </div>
+        {canViewSettings ? (
+         <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-1 gap-2 overflow-y-auto  scrollbar-hide md:gap-4 xl:auto-rows-fr xl:grid-cols-2 xl:overflow-hidden ">
+            <PermissionGuard permission="settings.view_statuses">
+              <SettingsConfigCard
+                title="Ticket Statuses"
+                subtitle={`${statusItems.length} statuses · used across all projects`}
+                buttonLabel="Add Status"
+                emptyImageUrl="/images/EmptyStatusIcon.svg"
+                emptyImageAlt="No ticket statuses"
+                emptyTitle="No Statuses Yet"
+                emptyDescription="Create your first ticket status to get started."
+                items={statusItems}
+              
+                badgeVariant="status"
+                isLoading={ticketStatusesQuery.isLoading}
+                onAdd={
+                  canCreateStatus
+                    ? () => {
+                        setStatusModalMode('create');
+                        setEditingStatusId('new-status');
+                      }
+                    : undefined
+                }
+                onEdit={
+                  canEditStatus
+                    ? (item) => {
+                        setStatusModalMode('edit');
+                        setEditingStatusId(item.id);
+                      }
+                    : undefined
+                }
+                onDelete={
+                  canDeleteStatus
+                    ? (item) => setStatusToDelete(item)
+                    : undefined
+                }
+              />
+            </PermissionGuard>
 
-          <PermissionGuard permission="settings.view_priorities">
-            <SettingsConfigCard
-              title="Priority Levels"
-              subtitle={`${priorityItems.length} levels · used across all projects`}
-              buttonLabel="Add Priority"
-              items={priorityItems}
-              badgeVariant="priority"
-              isLoading={ticketPrioritiesQuery.isLoading}
-              onAdd={
-                canCreatePriority
-                  ? () => {
-                      setPriorityModalMode('create');
-                      setEditingPriorityId('new-priority');
-                    }
-                  : undefined
-              }
-              onEdit={
-                canEditPriority
-                  ? (item) => {
-                      setPriorityModalMode('edit');
-                      setEditingPriorityId(item.id);
-                    }
-                  : undefined
-              }
-              onDelete={
-                canDeletePriority
-                  ? (item) => setPriorityToDelete(item)
-                  : undefined
-              }
-            />
-          </PermissionGuard>
-        </div>
-      ) : (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
-          You do not have permission to view settings.
-        </div>
-      )}
+            <PermissionGuard permission="settings.view_priorities">
+              <SettingsConfigCard
+                title="Priority Levels"
+                subtitle={`${priorityItems.length} levels · used across all projects`}
+                buttonLabel="Add Priority"
+                items={priorityItems}
+              
+                badgeVariant="priority"
+                emptyImageUrl="/images/EmptyPriorityIcon.svg"
+                emptyImageAlt="No priority levels"
+                emptyTitle="No Priority Levels Yet"
+                emptyDescription="Create your first priority level to get started."
+                isLoading={ticketPrioritiesQuery.isLoading}
+                onAdd={
+                  canCreatePriority
+                    ? () => {
+                        setPriorityModalMode('create');
+                        setEditingPriorityId('new-priority');
+                      }
+                    : undefined
+                }
+                onEdit={
+                  canEditPriority
+                    ? (item) => {
+                        setPriorityModalMode('edit');
+                        setEditingPriorityId(item.id);
+                      }
+                    : undefined
+                }
+                onDelete={
+                  canDeletePriority
+                    ? (item) => setPriorityToDelete(item)
+                    : undefined
+                }
+              />
+            </PermissionGuard>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
+            You do not have permission to view settings.
+          </div>
+        )}
+      </div>
 
       <SettingsItemModal
         isOpen={

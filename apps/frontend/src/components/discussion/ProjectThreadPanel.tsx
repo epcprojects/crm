@@ -132,7 +132,7 @@ export default function ProjectThreadPanel({
 
   return (
     <>
-      <section className=" flex-1 bg-white flex flex-col ">
+      <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white">
         <div className="flex items-center justify-between border-b border-gray-200 px-3 py-2 sm:py-3 md:px-5">
           <div className="flex items-center gap-3">
             <h3 className="text-sm md:text-base font-semibold text-gray-900">
@@ -149,7 +149,7 @@ export default function ProjectThreadPanel({
 
         <div
           ref={scrollContainerRef}
-          className="min-h-96 px-3 flex-1 py-5 md:px-5 max-h-[calc(100dvh-520px)] overflow-y-auto"
+          className="min-h-0 flex-1 overflow-y-auto px-3 py-5 scrollbar-hide md:px-5"
         >
           {headerReply ? (
             <div className="  pb-4">
@@ -275,12 +275,12 @@ export default function ProjectThreadPanel({
                           ) : null}
                           {reply.attachments?.length ? (
                             <div
-                              className={`flex flex-wrap gap-2 ${reply.attachments.length > 1 && 'md:grid-cols-3'} ${!reply.message && reply.attachments && reply.attachments.length > 1 && 'p-2'} ${isCurrentUserReply ? 'rounded-tr-none' : 'rounded-tl-none'}`}
+                              className={`grid flex-wrap gap-2 ${reply.attachments.length > 1 && 'md:grid-cols-3'} ${!reply.message && reply.attachments && reply.attachments.length > 1 && 'p-2'} ${isCurrentUserReply ? 'rounded-tr-none' : 'rounded-tl-none'}`}
                             >
                               {reply.attachments.map((attachment) => (
                                 <div
                                   key={attachment.id}
-                                  className={`flex  min-w-0 w-fit items-start gap-3 ${reply.attachments && reply.attachments.length > 2 && 'md:min-w-40'}  rounded-xl  ${!isImageAttachment(attachment.extension) || (reply.attachments && reply.attachments.length > 1 && 'p-0.5 w-full md:min-w-72 border border-gray-200')} transition bg-gray-50`}
+                                  className={`flex  min-w-0  w-fit items-start gap-3 ${reply.attachments && reply.attachments.length > 1 && 'md:min-w-40'}  rounded-xl  ${!isImageAttachment(attachment.extension) || (reply.attachments && reply.attachments.length > 1 && 'p-0.5 w-full md:min-w-72 border border-gray-200')} transition bg-gray-50`}
                                 >
                                   <a
                                     href={getAttachmentUrl(

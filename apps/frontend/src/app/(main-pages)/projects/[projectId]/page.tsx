@@ -45,7 +45,6 @@ import {
 } from '../../../providers/PermissionProvider';
 import { useAppSelector } from '../../../Redux/store';
 import Calendar from '../../../../components/calendar/Calendar';
-
 const projectTabs = ['Tickets', 'Thread', 'Files', 'Calendar'] as const;
 
 export default function ProjectDetailPage() {
@@ -485,268 +484,324 @@ export default function ProjectDetailPage() {
       </div>
     );
   }
-
+  const projectSummaryStats = [
+    ...(canViewTickets
+      ? [
+          {
+            title: 'Tickets',
+            count: projectTicketsQuery.data?.meta.total ?? 0,
+            color: '#F04438',
+          },
+        ]
+      : []),
+    ...(canViewThread
+      ? [
+          {
+            title: 'Thread Posts',
+            count: projectThreadQuery.data?.length ?? 0,
+            color: '#F79009',
+          },
+        ]
+      : []),
+    ...(canViewFiles
+      ? [
+          {
+            title: 'Files',
+            count:
+              uploadedFilesState.length + (projectFilesQuery.data?.length ?? 0),
+            color: '#17B26A',
+          },
+        ]
+      : []),
+  ];
   return (
-    <div className="space-y-4 flex flex-col flex-1 items-start w-full -mt-16 sm:mt-0">
-      <button
-        type="button"
-        onClick={() => router.back()}
-        className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
-      >
-        <BackArrowIcon />
-        Back
-      </button>
-
-      <section className="w-full">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3 sm:gap-4">
-            <span
-              className="flex h-12 min-w-12 sm:h-19 sm:w-19 items-center justify-center rounded-full text-lg md:text-3xl font-semibold"
-              style={{
-                backgroundColor: `${project.colorHex}22`,
-                color: project.colorHex,
-              }}
+    <>
+      <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 xl:pr-5 px-4 pt-2 pb-0 p-4">
+        <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden xl:rounded-3xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
+          <div className="shrink-0">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
             >
-              {project.initials}
-            </span>
-            <div>
-              <div className="flex items-center gap-3">
-                <h2 className="text-base md:text-lg font-semibold text-gray-900">
-                  {project.name}
-                </h2>
-                <span className="rounded-full border border-green-200 bg-green-50 px-2.5 py-0.5 text-sm font-medium text-green-600">
-                  {project.category}
-                </span>
-              </div>
+              <BackArrowIcon />
+              Back
+            </button>
+          </div>
 
-              <div className="mt-1.5 sm:mt-2.5 flex-wrap flex items-center gap-4 sm:gap-8">
-                {canViewTickets ? (
-                  <Metric
-                    label="Tickets"
-                    value={String(
-                      projectTicketsQuery.data?.meta.total ?? 0,
-                    ).padStart(2, '0')}
-                  />
-                ) : null}
-                {canViewThread ? (
-                  <Metric
-                    label="Thread posts"
-                    value={String(
-                      projectThreadQuery.data?.length ?? 0,
-                    ).padStart(2, '0')}
-                  />
-                ) : null}
-                {canViewFiles ? (
-                  <Metric
-                    label="Files"
-                    value={String(
-                      uploadedFilesState.length +
-                        (projectFilesQuery.data?.length ?? 0),
-                    ).padStart(2, '0')}
-                  />
-                ) : null}
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden rounded-[20px] bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
+            <section className="w-full shrink-0">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
+                  <span
+                    className="flex h-12 min-w-12 shrink-0 items-center justify-center rounded-full text-lg font-semibold sm:h-19 sm:w-19 md:text-3xl"
+                    style={{
+                      backgroundColor: `${project.colorHex}22`,
+                      color: project.colorHex,
+                    }}
+                  >
+                    {project.initials}
+                  </span>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h2 className="truncate text-base font-semibold text-gray-900 md:text-lg">
+                        {project.name}
+                      </h2>
+
+                      <span className="rounded-full border border-green-200 bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-600 sm:text-sm">
+                        {project.category}
+                      </span>
+                    </div>
+
+                    {projectSummaryStats.length ? (
+                      <div className="mt-3 flex max-w-full flex-wrap items-center gap-x-5 gap-y-2">
+                        {projectSummaryStats.map((item, index) => (
+                          <div
+                            key={`${item.title}-${index}`}
+                            className="flex items-center gap-2"
+                          >
+                            <span
+                              className="h-2.5 w-2.5 shrink-0 rounded-full"
+                              style={{ backgroundColor: item.color }}
+                            />
+
+                            <span className="whitespace-nowrap text-xs text-gray-500 sm:text-sm">
+                              {item.title}
+                            </span>
+
+                            <span className="whitespace-nowrap text-sm font-semibold text-gray-900">
+                              {item.count}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
               </div>
-            </div>
+            </section>
+
+            <TabGroup className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
+              <TabList className="flex shrink-0 overflow-x-auto scrollbar-hide border-y border-gray-200">
+                {visibleProjectTabs.map((tab) => (
+                  <Tab
+                    key={tab}
+                    className={({ selected }) =>
+                      clsx(
+                        'shrink-0 border-b-2 px-2 xl:px-4 py-3 text-sm font-semibold outline-none transition',
+                        selected
+                          ? 'border-primary-dark text-primary-dark'
+                          : 'border-transparent text-gray-500 hover:text-gray-700',
+                      )
+                    }
+                  >
+                    {tab}
+                  </Tab>
+                ))}
+              </TabList>
+
+              <TabPanels className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                <PermissionGuard permission="tickets.view_list">
+                  <TabPanel className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-hidden">
+                    <div className="flex shrink-0 flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
+                      {canFilterTickets ? (
+                        <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 md:max-w-xs">
+                          <div className="flex items-center gap-2">
+                            <SearchIcon fill="#374151" />
+
+                            <input
+                              type="text"
+                              value={searchValue}
+                              onChange={(event) =>
+                                setSearchValue(event.target.value)
+                              }
+                              placeholder="Search"
+                              className="min-w-0 flex-1 bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400"
+                            />
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {canCreateTicket ? (
+                        <ThemeButton
+                          className="shrink-0 rounded-full"
+                          variant="primaryGradient"
+                          icon={
+                            <PlusIcon fill="#3889FE" width="20" height="20" />
+                          }
+                          onClick={() => setCreateTicketOpen(true)}
+                        >
+                          New Ticket
+                        </ThemeButton>
+                      ) : null}
+                    </div>
+
+                    <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+                      <RecentTicketsTable
+                        tickets={projectTickets}
+                        enablePagination
+                        pageSizeOptions={[10, 25, 50, 100]}
+                        pagination={ticketsPagination}
+                        onPaginationChange={setTicketsPagination}
+                        totalRows={projectTicketsQuery.data?.meta.total ?? 0}
+                        manualPagination
+                        onRowClick={
+                          canViewTicketDetail
+                            ? (ticket) =>
+                                router.push(
+                                  `/tickets/${ticket.id}?projectId=${projectId}`,
+                                )
+                            : undefined
+                        }
+                        hideProjectColumn
+                      />
+                    </div>
+                  </TabPanel>
+                </PermissionGuard>
+
+                <PermissionGuard permission="thread.view">
+  <TabPanel className="h-full min-h-0 min-w-0 overflow-hidden">
+    <div
+      className={`grid h-full min-h-0 min-w-0 overflow-hidden rounded-xl border border-gray-200 md:rounded-2xl ${
+        selectedThreadMessageId && !isMobile
+          ? 'xl:grid-cols-[minmax(0,1fr)_400px] xl:grid-rows-[minmax(0,1fr)] xl:divide-x xl:divide-gray-200'
+          : 'grid-cols-1'
+      }`}
+    >
+      {(!isMobile || !selectedThreadMessageId) && (
+        <div className="h-full min-h-0 min-w-0 overflow-hidden">
+          <ProjectThreadPanel
+            title="Discussion"
+            replies={projectThreadQuery.data ?? []}
+            emptyTitle={
+              projectThreadQuery.isLoading
+                ? 'Loading discussion...'
+                : 'No replies yet.'
+            }
+            emptyDescription={
+              projectThreadQuery.isLoading
+                ? 'Fetching project discussion messages.'
+                : 'No discussion messages have been added to this project yet.'
+            }
+            composerPlaceholder="Post the project thread..."
+            onSubmitReply={
+              canPostThreadMessage ? handleSubmitReply : undefined
+            }
+            isSubmittingReply={
+              createProjectThreadMutation.isPending &&
+              !selectedThreadMessageId
+            }
+            canCompose={canPostThreadMessage}
+            canAttachFile={canAttachThreadFile}
+            requireMessage={false}
+            currentUserId={currentUserId}
+            showReplyMeta
+            onReplyClick={(reply) =>
+              setSelectedThreadMessageId(reply.id)
+            }
+            onDeleteAttachment={handleDeleteThreadAttachment}
+            deletingAttachmentId={
+              deleteProjectFileMutation.isPending
+                ? deleteProjectFileMutation.variables?.fileId
+                : undefined
+            }
+          />
+        </div>
+      )}
+
+      {selectedThreadMessageId ? (
+        <div className="h-full min-h-0 min-w-0 overflow-hidden">
+          <ProjectThreadPanel
+            title="Thread"
+            subtitle=""
+            headerAction={
+              <button
+                type="button"
+                onClick={() => setSelectedThreadMessageId('')}
+                className="flex h-6 w-6 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100"
+                aria-label="Close thread"
+              >
+                <CloseCrossIcon />
+              </button>
+            }
+            headerReply={selectedThreadHeader}
+            replies={selectedThreadReplies}
+            emptyTitle={
+              projectThreadDetailQuery.isLoading
+                ? 'Loading thread...'
+                : 'No replies yet.'
+            }
+            emptyDescription={
+              projectThreadDetailQuery.isLoading
+                ? 'Fetching thread replies.'
+                : 'No replies have been added to this thread yet.'
+            }
+            composerPlaceholder="Reply to thread..."
+            onSubmitReply={
+              canPostThreadReply ? handleSubmitThreadReply : undefined
+            }
+            isSubmittingReply={
+              createProjectThreadMutation.isPending &&
+              Boolean(selectedThreadMessageId)
+            }
+            canCompose={canPostThreadReply}
+            canAttachFile={canAttachThreadFile && canPostThreadReply}
+            requireMessage={false}
+            currentUserId={currentUserId}
+            onDeleteAttachment={handleDeleteThreadAttachment}
+            deletingAttachmentId={
+              deleteProjectFileMutation.isPending
+                ? deleteProjectFileMutation.variables?.fileId
+                : undefined
+            }
+          />
+        </div>
+      ) : null}
+    </div>
+  </TabPanel>
+</PermissionGuard>
+
+                <PermissionGuard permission="files.view">
+                  <TabPanel className="h-full min-h-0 min-w-0 overflow-hidden">
+                    <ProjectFilesPanel
+                      files={projectFiles}
+                      searchValue={fileSearchValue}
+                      onSearchChange={setFileSearchValue}
+                      onUploadClick={
+                        canUploadFiles
+                          ? () => setUploadFileOpen(true)
+                          : undefined
+                      }
+                      onDeleteFile={setFileToDelete}
+                      canDownloadFile={canDownloadFiles}
+                      deletingFileId={
+                        deleteProjectFileMutation.isPending
+                          ? deleteProjectFileMutation.variables?.fileId
+                          : undefined
+                      }
+                      subtitle={
+                        projectFilesQuery.isLoading
+                          ? 'Loading files...'
+                          : `${
+                              uploadedFilesState.length +
+                              (projectFilesQuery.data?.length ?? 0)
+                            } files`
+                      }
+                    />
+                  </TabPanel>
+                </PermissionGuard>
+
+                <PermissionGuard permission="calendar.view_grid">
+                  <TabPanel className="h-full min-h-0 overflow-y-auto">
+                    <Calendar projectId={projectId} />
+                  </TabPanel>
+                </PermissionGuard>
+              </TabPanels>
+            </TabGroup>
           </div>
         </div>
-      </section>
-
-      <TabGroup className="space-y-4 flex flex-1 flex-col w-full">
-        <TabList className="flex border-y border-gray-200">
-          {visibleProjectTabs.map((tab) => (
-            <Tab
-              key={tab}
-              className={({ selected }) =>
-                clsx(
-                  'border-b-2 px-4 py-3 text-sm font-semibold outline-none transition',
-                  selected
-                    ? 'border-primary-dark text-primary-dark'
-                    : 'border-transparent text-gray-500 hover:text-gray-700',
-                )
-              }
-            >
-              {tab}
-            </Tab>
-          ))}
-        </TabList>
-
-        <TabPanels className={'flex-1 flex flex-col'}>
-          <PermissionGuard permission="tickets.view_list">
-            <TabPanel className="space-y-4">
-              <div className="flex flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
-                {canFilterTickets ? (
-                  <div className="relative flex w-full items-center md:max-w-xs">
-                    <input
-                      value={searchValue}
-                      onChange={(event) => setSearchValue(event.target.value)}
-                      placeholder="Search..."
-                      className="h-10.5 w-full rounded-lg border border-gray-200 bg-white ps-7 px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
-                    />
-                    <span className="absolute inset-s-2">
-                      <SearchIcon />
-                    </span>
-                  </div>
-                ) : null}
-
-                {canCreateTicket ? (
-                  <ThemeButton
-                    icon={<PlusIcon />}
-                    onClick={() => setCreateTicketOpen(true)}
-                  >
-                    New Ticket
-                  </ThemeButton>
-                ) : null}
-              </div>
-
-              <RecentTicketsTable
-                tickets={projectTickets}
-                enablePagination
-                pageSizeOptions={[10, 25, 50, 100]}
-                pagination={ticketsPagination}
-                onPaginationChange={setTicketsPagination}
-                totalRows={projectTicketsQuery.data?.meta.total ?? 0}
-                manualPagination
-                onRowClick={
-                  canViewTicketDetail
-                    ? (ticket) =>
-                        router.push(
-                          `/tickets/${ticket.id}?projectId=${projectId}`,
-                        )
-                    : undefined
-                }
-                hideProjectColumn
-              />
-            </TabPanel>
-          </PermissionGuard>
-
-          <PermissionGuard permission="thread.view">
-            <TabPanel className={'flex flex-col flex-1 '}>
-              <div
-                className={`grid flex-1 border border-gray-200 overflow-hidden rounded-xl md:rounded-2xl ${
-                  selectedThreadMessageId && !isMobile
-                    ? 'xl:grid-cols-[minmax(0,1fr)_400px] divide-x divide-gray-200'
-                    : 'grid-cols-1'
-                }`}
-              >
-                {(!isMobile || !selectedThreadMessageId) && (
-                  <ProjectThreadPanel
-                    title="Discussion"
-                    replies={projectThreadQuery.data ?? []}
-                    emptyTitle={
-                      projectThreadQuery.isLoading
-                        ? 'Loading discussion...'
-                        : 'No replies yet.'
-                    }
-                    emptyDescription={
-                      projectThreadQuery.isLoading
-                        ? 'Fetching project discussion messages.'
-                        : 'No discussion messages have been added to this project yet.'
-                    }
-                    composerPlaceholder="Post the project thread..."
-                    onSubmitReply={
-                      canPostThreadMessage ? handleSubmitReply : undefined
-                    }
-                    isSubmittingReply={
-                      createProjectThreadMutation.isPending &&
-                      !selectedThreadMessageId
-                    }
-                    canCompose={canPostThreadMessage}
-                    canAttachFile={canAttachThreadFile}
-                    requireMessage={false}
-                    currentUserId={currentUserId}
-                    showReplyMeta
-                    onReplyClick={(reply) => setSelectedThreadMessageId(reply.id)}
-                    onDeleteAttachment={handleDeleteThreadAttachment}
-                    deletingAttachmentId={
-                      deleteProjectFileMutation.isPending
-                        ? deleteProjectFileMutation.variables?.fileId
-                        : undefined
-                    }
-                  />
-                )}
-
-                {selectedThreadMessageId ? (
-                  <ProjectThreadPanel
-                    title="Thread"
-                    subtitle=""
-                    headerAction={
-                      <button
-                        type="button"
-                        onClick={() => setSelectedThreadMessageId('')}
-                        className="flex h-6 w-6 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100"
-                        aria-label="Close thread"
-                      >
-                        <CloseCrossIcon />
-                      </button>
-                    }
-                    headerReply={selectedThreadHeader}
-                    replies={selectedThreadReplies}
-                    emptyTitle={
-                      projectThreadDetailQuery.isLoading
-                        ? 'Loading thread...'
-                        : 'No replies yet.'
-                    }
-                    emptyDescription={
-                      projectThreadDetailQuery.isLoading
-                        ? 'Fetching thread replies.'
-                        : 'No replies have been added to this thread yet.'
-                    }
-                    composerPlaceholder="Reply to thread..."
-                    onSubmitReply={
-                      canPostThreadReply ? handleSubmitThreadReply : undefined
-                    }
-                    isSubmittingReply={
-                      createProjectThreadMutation.isPending &&
-                      Boolean(selectedThreadMessageId)
-                    }
-                    canCompose={canPostThreadReply}
-                    canAttachFile={canAttachThreadFile && canPostThreadReply}
-                    requireMessage={false}
-                    currentUserId={currentUserId}
-                    onDeleteAttachment={handleDeleteThreadAttachment}
-                    deletingAttachmentId={
-                      deleteProjectFileMutation.isPending
-                        ? deleteProjectFileMutation.variables?.fileId
-                        : undefined
-                    }
-                  />
-                ) : null}
-              </div>
-            </TabPanel>
-          </PermissionGuard>
-
-          <PermissionGuard permission="files.view">
-            <TabPanel className={'flex flex-col flex-1 '}>
-              <ProjectFilesPanel
-                files={projectFiles}
-                searchValue={fileSearchValue}
-                onSearchChange={setFileSearchValue}
-                onUploadClick={
-                  canUploadFiles ? () => setUploadFileOpen(true) : undefined
-                }
-                onDeleteFile={setFileToDelete}
-                canDownloadFile={canDownloadFiles}
-                deletingFileId={
-                  deleteProjectFileMutation.isPending
-                    ? deleteProjectFileMutation.variables?.fileId
-                    : undefined
-                }
-                subtitle={
-                  projectFilesQuery.isLoading
-                    ? 'Loading files...'
-                    : `${uploadedFilesState.length + (projectFilesQuery.data?.length ?? 0)} files`
-                }
-              />
-            </TabPanel>
-          </PermissionGuard>
-
-          <PermissionGuard permission="calendar.view_grid">
-            <TabPanel>
-              <Calendar projectId={projectId} />
-            </TabPanel>
-          </PermissionGuard>
-        </TabPanels>
-      </TabGroup>
+      </div>
 
       <CreateTicketModal
         isOpen={createTicketOpen && canCreateTicket}
@@ -782,7 +837,7 @@ export default function ProjectDetailPage() {
         isSubmitting={deleteProjectFileMutation.isPending}
         onConfirm={handleDeleteFile}
       />
-    </div>
+    </>
   );
 }
 
@@ -833,15 +888,6 @@ function normalizeStatusValue(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, '');
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="sm:min-w-16 border-r border-gray-200 pr-4 sm:pr-6 last:border-r-0 last:pr-0">
-      <p className="text-sm text-gray-500 whitespace-nowrap">{label}</p>
-      <p className="text-sm font-semibold text-gray-800">{value}</p>
-    </div>
-  );
-}
-
 function BackArrowIcon() {
   return (
     <svg
@@ -881,32 +927,139 @@ function CloseCrossIcon() {
 
 function ProjectDetailSkeleton({ onBack }: { onBack: () => void }) {
   return (
-    <div className="flex w-full flex-1 flex-col items-start space-y-4 -mt-16 sm:mt-0">
-      <button
-        type="button"
-        onClick={onBack}
-        className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
-      >
-        <BackArrowIcon />
-        Back
-      </button>
+    <div
+      className="relative z-100 h-dvh overflow-hidden py-5 pr-5"
+      aria-hidden="true"
+    >
+      <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden rounded-3xl border border-white bg-white/40 p-3">
+        {/* Back button */}
+        <div className="shrink-0">
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
+            aria-hidden="false"
+          >
+            <BackArrowIcon />
+            Back
+          </button>
+        </div>
 
-      <div className="w-full animate-pulse space-y-4">
-        <div className="flex items-center gap-4">
-          <div className="h-19 w-19 rounded-full bg-gray-200" />
-          <div className="space-y-3">
-            <div className="h-5 w-40 rounded bg-gray-200" />
-            <div className="h-4 w-24 rounded-full bg-gray-100" />
-            <div className="flex gap-4">
-              <div className="h-9 w-16 rounded bg-gray-100" />
-              <div className="h-9 w-16 rounded bg-gray-100" />
-              <div className="h-9 w-16 rounded bg-gray-100" />
+        {/* Project detail card */}
+        <div className="flex min-h-0 min-w-0 flex-1 animate-pulse flex-col gap-4 overflow-hidden rounded-[20px] bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
+          {/* Project summary */}
+          <section className="w-full shrink-0">
+            <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
+              <div className="h-12 w-12 shrink-0 rounded-full bg-gray-200 sm:h-19 sm:w-19" />
+
+              <div className="min-w-0 flex-1">
+                {/* Name and category */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="h-5 w-40 rounded bg-gray-200" />
+                  <div className="h-6 w-24 rounded-full bg-gray-100" />
+                </div>
+
+                {/* Summary metrics */}
+                <div className="mt-3 flex max-w-full flex-wrap items-center gap-x-5 gap-y-2">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-gray-200" />
+                      <div
+                        className={`h-3.5 rounded bg-gray-200 ${
+                          index === 1 ? 'w-20' : 'w-12'
+                        }`}
+                      />
+                      <div className="h-4 w-6 rounded bg-gray-200" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Tabs */}
+          <div className="flex shrink-0 overflow-hidden border-y border-gray-200">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={index}
+                className={`border-b-2 px-4 py-3 ${
+                  index === 0
+                    ? 'border-gray-300'
+                    : 'border-transparent'
+                }`}
+              >
+                <div
+                  className={`h-4 rounded bg-gray-200 ${
+                    index === 3 ? 'w-16' : 'w-12'
+                  }`}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Active tab content */}
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
+            {/* Search/filter row */}
+            <div className="flex shrink-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="h-10 w-full rounded-lg border border-gray-200 bg-gray-100 md:max-w-xs" />
+
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-36 rounded-lg border border-gray-200 bg-gray-100" />
+                <div className="h-10 w-36 rounded-lg border border-gray-200 bg-gray-100" />
+                <div className="h-10 w-28 rounded-full bg-gray-200" />
+              </div>
+            </div>
+
+            {/* Tickets table */}
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white">
+              {/* Table header */}
+              <div className="grid grid-cols-6 gap-4 border-b border-gray-200 bg-gray-50 px-4 py-4">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="h-4 rounded bg-gray-200"
+                  />
+                ))}
+              </div>
+
+              {/* Table rows */}
+              <div className="min-h-0 flex-1 overflow-hidden">
+                {Array.from({ length: 6 }).map((_, rowIndex) => (
+                  <div
+                    key={rowIndex}
+                    className="grid grid-cols-6 gap-4 border-b border-gray-200 px-4 py-4 last:border-b-0"
+                  >
+                    {Array.from({ length: 6 }).map(
+                      (_, cellIndex) => (
+                        <div
+                          key={cellIndex}
+                          className={`h-4 rounded ${
+                            cellIndex === 3 || cellIndex === 4
+                              ? 'bg-gray-200'
+                              : 'bg-gray-100'
+                          }`}
+                        />
+                      ),
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Pagination */}
+              <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3">
+                <div className="h-8 w-32 rounded bg-gray-100" />
+                <div className="flex gap-2">
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="h-8 w-8 rounded-md bg-gray-100"
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
-
-        <div className="h-12 w-full rounded bg-gray-100" />
-        <div className="h-96 w-full rounded-2xl border border-gray-200 bg-white" />
       </div>
     </div>
   );
