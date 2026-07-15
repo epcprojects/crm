@@ -178,82 +178,157 @@ export class TicketsService {
   }
 
   //
-  async findAllProjects(query: GetTicketsQueryDto, user) {
-    const qb = this.ticketRepo
-      .createQueryBuilder('t')
-      .leftJoin('t.project', 'p')
-      .innerJoin('p.members', 'u', 'u.id = :userId', {
-        userId: user.id,
-      })
-      .leftJoin('t.status', 's')
-      .leftJoin('t.priority', 'pr')
-      .leftJoin('t.assignee', 'a');
+ async findAllProjects(query: GetTicketsQueryDto, user) {
+  const qb = this.ticketRepo
+    .createQueryBuilder('t')
+    .leftJoin('t.project', 'p')
+    .innerJoin('p.members', 'u', 'u.id = :userId', {
+      userId: user.id,
+    })
+    .leftJoin('t.status', 's')
+    .leftJoin('t.priority', 'pr')
+    .leftJoin('t.assignee', 'a');
 
-    if (query.statusKey) {
-      qb.andWhere('t.statusKey = :statusKey', {
-        statusKey: query.statusKey,
-      });
-    }
-
-    if (query.priorityKey) {
-      qb.andWhere('t.priorityKey = :priorityKey', {
-        priorityKey: query.priorityKey,
-      });
-    }
-
-    if (query.assigneeId) {
-      qb.andWhere('t.assigneeId = :assigneeId', {
-        assigneeId: query.assigneeId,
-      });
-    }
-
-    if (query.search) {
-      qb.andWhere('(t.title ILIKE :search OR t.description ILIKE :search)', {
-        search: `%${query.search}%`,
-      });
-    }
-
-    qb.select([
-      't.id',
-      't.title',
-      't.createdAt',
-      't.ticketRefNo',
-
-      'p.id',
-      'p.name',
-
-      's.key',
-      's.label',
-      's.color',
-
-      'pr.key',
-      'pr.label',
-      'pr.color',
-
-      'a.id',
-      'a.fullName',
-      'a.email',
-    ]);
-
-    qb.orderBy('t.createdAt', 'DESC')
-      .skip((query.page - 1) * query.limit)
-      .take(query.limit);
-
-    const [items, total] = await qb.getManyAndCount();
-
-    return {
-      items,
-      meta: {
-        page: query.page,
-        limit: query.limit,
-        total,
-        totalPages: Math.ceil(total / query.limit),
-        hasNext: query.page * query.limit < total,
-        hasPrevious: query.page > 1,
-      },
-    };
+  if (query.statusKey) {
+    qb.andWhere('t.statusKey = :statusKey', {
+      statusKey: query.statusKey,
+    });
   }
 
+  if (query.priorityKey) {
+    qb.andWhere('t.priorityKey = :priorityKey', {
+      priorityKey: query.priorityKey,
+    });
+  }
+
+  if (query.assigneeId) {
+    qb.andWhere('t.assigneeId = :assigneeId', {
+      assigneeId: query.assigneeId,
+    });
+  }
+
+  if (query.search?.trim()) {
+    qb.andWhere(
+      `
+      (
+        t.title ILIKE :search
+        OR t.description ILIKE :search
+        OR t.ticketRefNo ILIKE :search
+      )
+      `,
+      {
+        search: `%${query.search.trim()}%`,
+      },
+    );
+  }
+
+  /*
+   * Clone the filtered query before adding pagination and item selection.
+   * The summary will represent all matching tickets, not only the current page.
+   */
+  const summaryQuery = qb.clone();
+
+  const summaryResult = await summaryQuery
+    .select([
+      `
+      COALESCE(
+        SUM(
+          CASE
+            WHEN UPPER(t.statusKey) = 'OPEN'
+            THEN 1
+            ELSE 0
+          END
+        ),
+        0
+      ) AS open
+      `,
+      `
+      COALESCE(
+        SUM(
+          CASE
+            WHEN UPPER(t.statusKey) = 'INPROGRESS'
+            THEN 1
+            ELSE 0
+          END
+        ),
+        0
+      ) AS inprogress
+      `,
+      `
+      COALESCE(
+        SUM(
+          CASE
+            WHEN UPPER(t.statusKey) = 'RESOLVED'
+            THEN 1
+            ELSE 0
+          END
+        ),
+        0
+      ) AS resolved
+      `,
+      `
+      COALESCE(
+        SUM(
+          CASE
+            WHEN UPPER(t.priorityKey) = 'CRITICAL'
+            THEN 1
+            ELSE 0
+          END
+        ),
+        0
+      ) AS critical
+      `,
+    ])
+    .getRawOne();
+
+  qb.select([
+    't.id',
+    't.title',
+    't.createdAt',
+    't.ticketRefNo',
+
+    'p.id',
+    'p.name',
+
+    's.key',
+    's.label',
+    's.color',
+
+    'pr.key',
+    'pr.label',
+    'pr.color',
+
+    'a.id',
+    'a.fullName',
+    'a.email',
+  ]);
+
+  qb.orderBy('t.createdAt', 'DESC')
+    .skip((query.page - 1) * query.limit)
+    .take(query.limit);
+
+  const [items, total] = await qb.getManyAndCount();
+
+  return {
+    items,
+
+    summary: {
+      open: Number(summaryResult?.open ?? 0),
+      inProgress: Number(summaryResult?.inprogress ?? 0),
+      resolved: Number(summaryResult?.resolved ?? 0),
+      critical: Number(summaryResult?.critical ?? 0),
+    },
+
+    meta: {
+      page: query.page,
+      limit: query.limit,
+      total,
+      totalPages: Math.ceil(total / query.limit),
+      hasNext: query.page * query.limit < total,
+      hasPrevious: query.page > 1,
+    },
+  };
+}
   // ---------------- FIND ONE ----------------
   async findOne(projectId: string, ticketId: string) {
     const ticket = await this.ticketRepo
