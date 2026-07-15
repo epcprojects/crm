@@ -55,7 +55,7 @@ export class ProjectsController {
 
 
   @Get()
-  @ApiOperation({ summary: 'Find all projects with search and pagination.'})
+  @ApiOperation({ summary: 'Find all projects with search and pagination, returns summary too, based on search'})
   findAll(@Query() query: GetProjectsQueryDto, @GetUser() user,) {
     return this.projectsService.findAll(query, user);
   }

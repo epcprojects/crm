@@ -84,17 +84,18 @@ export class ProjectsService {
 
 
   async findAll(query: GetProjectsQueryDto, user: { id: string }) {
-  const { page =1, limit=10, search } = query;
+  const { page = 1, limit = 10, search } = query;
+  const searchTerm = search?.trim();
 
-  const qb = this.projectRepo
+  const baseQuery = this.projectRepo
     .createQueryBuilder('p')
     .innerJoin('p.members', 'u', 'u.id = :userId', {
       userId: user.id,
     })
     .leftJoin(Ticket, 't', 't.projectId = p.id');
 
-  if (search?.trim()) {
-    qb.andWhere(
+  if (searchTerm) {
+    baseQuery.andWhere(
       `
       (
         p.name ILIKE :search
@@ -102,12 +103,53 @@ export class ProjectsService {
       )
       `,
       {
-        search: `%${search.trim()}%`,
+        search: `%${searchTerm}%`,
       },
     );
   }
 
-  const projects = await qb
+  /*
+   * Summary is calculated from all matching projects and tickets
+   * before pagination is applied.
+   */
+  const summaryResult = await baseQuery
+    .clone()
+    .select([
+      `COUNT(DISTINCT p.id) AS total`,
+      `
+      COUNT(
+        DISTINCT CASE
+          WHEN p.isActive = true THEN p.id
+        END
+      ) AS active
+      `,
+      `
+      COUNT(
+        CASE
+          WHEN UPPER(t.statusKey) = 'OPEN' THEN 1
+        END
+      ) AS open
+      `,
+      `
+      COUNT(
+        CASE
+          WHEN UPPER(t.priorityKey) = 'CRITICAL' THEN 1
+        END
+      ) AS critical
+      `,
+    ])
+    .getRawOne<{
+      total: string;
+      active: string;
+      open: string;
+      critical: string;
+    }>();
+
+  /*
+   * Fetch paginated project cards with their individual ticket stats.
+   */
+  const projects = await baseQuery
+    .clone()
     .select([
       'p.id AS id',
       'p.name AS name',
@@ -121,8 +163,7 @@ export class ProjectsService {
       `
       COUNT(
         CASE
-          WHEN UPPER(t.statusKey) = 'OPEN'
-          THEN 1
+          WHEN UPPER(t.statusKey) = 'OPEN' THEN 1
         END
       )
       `,
@@ -132,8 +173,7 @@ export class ProjectsService {
       `
       COUNT(
         CASE
-          WHEN UPPER(t.priorityKey) = 'CRITICAL'
-          THEN 1
+          WHEN UPPER(t.priorityKey) = 'CRITICAL' THEN 1
         END
       )
       `,
@@ -146,13 +186,11 @@ export class ProjectsService {
     .addGroupBy('p.brandColor')
     .addGroupBy('p.logoLetter')
     .orderBy('p.createdAt', 'DESC')
-    .offset((page-1)* limit)
+    .offset((page - 1) * limit)
     .limit(limit)
     .getRawMany();
 
-  const total = projects.length
-    ? Number(projects[0].totalCount)
-    : 0;
+  const total = Number(summaryResult?.total ?? 0);
 
   return {
     items: projects.map((project) => ({
@@ -162,12 +200,20 @@ export class ProjectsService {
       projectCode: project.projectCode,
       brandColor: project.brandColor,
       logoLetter: project.logoLetter,
+
       stats: {
         tickets: Number(project.ticketCount ?? 0),
         openTickets: Number(project.openTicketCount ?? 0),
         criticalTickets: Number(project.criticalTicketCount ?? 0),
       },
     })),
+
+    summary: {
+      totalProjects: total,
+      activeProjects: Number(summaryResult?.active ?? 0),
+      openTickets: Number(summaryResult?.open ?? 0),
+      criticalIssues: Number(summaryResult?.critical ?? 0),
+    },
 
     meta: {
       page,
@@ -178,7 +224,7 @@ export class ProjectsService {
       hasPrevious: page > 1,
     },
   };
-}
+}y
 
   findAllNames() {
     return this.projectRepo.find({
