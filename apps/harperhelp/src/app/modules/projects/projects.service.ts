@@ -99,7 +99,6 @@ export class ProjectsService {
       (
         p.name ILIKE :search
         OR p.category ILIKE :search
-        OR p.projectCode ILIKE :search
       )
       `,
       {
