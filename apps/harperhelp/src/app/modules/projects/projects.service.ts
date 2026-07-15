@@ -158,7 +158,7 @@ export class ProjectsService {
       'p.brandColor AS "brandColor"',
       'p.logoLetter AS "logoLetter"',
     ])
-    .addSelect('COUNT(t.id)', '"ticketCount"')
+    .addSelect('COUNT(t.id)', 'ticketCount')
     .addSelect(
       `
       COUNT(
@@ -167,7 +167,7 @@ export class ProjectsService {
         END
       )
       `,
-      '"openTicketCount"',
+      'openTicketCount',
     )
     .addSelect(
       `
@@ -177,7 +177,7 @@ export class ProjectsService {
         END
       )
       `,
-      '"criticalTicketCount"',
+      'criticalTicketCount',
     )
     .groupBy('p.id')
     .addGroupBy('p.name')
