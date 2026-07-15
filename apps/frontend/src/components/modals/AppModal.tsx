@@ -173,7 +173,7 @@ const AppModal: React.FC<AppModalProps> = ({
             <div
               className={`${
                 btnFullWidth && 'gap-6'
-              }  bg-white  flex gap-2 sm:rounded-b-xl items-center p-2 md:p-4 justify-center`}
+              }  bg-white border-t border-t-gray-200  flex gap-2 sm:rounded-b-xl items-center p-2 md:p-4 justify-center`}
             >
               {!hideCancelBtn && (
                 <div className=" w-full">
