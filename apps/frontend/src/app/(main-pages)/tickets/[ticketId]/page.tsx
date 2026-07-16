@@ -471,7 +471,7 @@ export default function TicketDetailPage() {
   };
 
   return (
-    <div className="relative z-100 h-full xl:h-dvh overflow-hidden p-4 xl:py-5 xl:pr-5 px-4 pt-2 pb-0">
+    <div className="relative z-100 h-full xl:h-dvh overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0">
       <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden  xl:rounded-3xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
         <div className="shrink-0">
           <button
@@ -494,7 +494,7 @@ export default function TicketDetailPage() {
                     value={`${ticket.ticketRefNo ?? ticket.id}`}
                   />
 
-                  <MetaItem label="Created" value={ticket.date} />
+                  <MetaItem label="Created on" value={ticket.date} />
 
                   <div>
                     <span className="block text-sm text-gray-500">Project</span>
