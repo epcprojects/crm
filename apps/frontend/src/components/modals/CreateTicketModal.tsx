@@ -8,7 +8,7 @@ import AppModal from './AppModal';
 import ThemeInput from '../ui/ThemeInput';
 import Dropdown from '../ui/ThemeDropDown';
 import { type CreateTicketDropdownOption } from './create-ticket-modal.data';
-import { CloseIcon } from '../../../public/icons';
+import { CloseIcon, FileTypePlaceholder } from '../../../public/icons';
 import { useAppSelector } from '../../app/Redux/store';
 import { appToast } from '../toast/AppToast';
 import {
@@ -16,6 +16,7 @@ import {
   ALLOWED_ATTACHMENT_HELPER_TEXT,
   validateAttachments,
 } from '../../lib/attachments';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 export type CreateTicketFormValues = {
   project: string;
@@ -176,51 +177,44 @@ export default function CreateTicketModal({
     if (!formik.values.status && statusOptions[0]?.value) {
       formik.setFieldValue('status', statusOptions[0].value);
     }
-  }, [
-    formik.values.status,
-    isExternalUser,
-    openStatusValue,
-    statusOptions,
-  ]);
+  }, [formik.values.status, isExternalUser, openStatusValue, statusOptions]);
 
- const setAttachments = (files: FileList | File[]) => {
-  const currentFiles = formik.values.attachments;
-  const nextFiles = mergeAttachmentFiles(currentFiles, Array.from(files));
+  const setAttachments = (files: FileList | File[]) => {
+    const currentFiles = formik.values.attachments;
+    const nextFiles = mergeAttachmentFiles(currentFiles, Array.from(files));
 
-  const validationError = validateAttachments(nextFiles);
+    const validationError = validateAttachments(nextFiles);
 
-  if (validationError) {
-    setAttachmentError(validationError);
-    appToast.error(validationError);
+    if (validationError) {
+      setAttachmentError(validationError);
+      appToast.error(validationError);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+
+      return;
+    }
+
+    const addedFilesCount = nextFiles.length - currentFiles.length;
+
+    setAttachmentError('');
+    formik.setFieldValue('attachments', nextFiles);
+
+    if (addedFilesCount === 1) {
+      const addedFile = nextFiles[nextFiles.length - 1];
+
+      appToast.success(`${addedFile.name} added successfully.`);
+    } else if (addedFilesCount > 1) {
+      appToast.success(`${addedFilesCount} files added successfully.`);
+    } else {
+      appToast.info('This file has already been added.');
+    }
 
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-
-    return;
-  }
-
-  const addedFilesCount = nextFiles.length - currentFiles.length;
-
-  setAttachmentError('');
-  formik.setFieldValue('attachments', nextFiles);
-
-  if (addedFilesCount === 1) {
-    const addedFile = nextFiles[nextFiles.length - 1];
-
-    appToast.success(`${addedFile.name} added successfully.`);
-  } else if (addedFilesCount > 1) {
-    appToast.success(
-      `${addedFilesCount} files added successfully.`,
-    );
-  } else {
-    appToast.info('This file has already been added.');
-  }
-
-  if (fileInputRef.current) {
-    fileInputRef.current.value = '';
-  }
-};
+  };
 
   const handleRemoveAttachment = (fileName: string) => {
     const nextAttachments = formik.values.attachments.filter(
@@ -229,7 +223,7 @@ export default function CreateTicketModal({
     formik.setFieldValue('attachments', nextAttachments);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
-
+  const isMobile = useIsMobile();
   return (
     <AppModal
       isOpen={isOpen}
@@ -241,74 +235,76 @@ export default function CreateTicketModal({
       onCancel={onClose}
       onConfirm={() => formik.submitForm()}
       confimBtnDisable={formik.isSubmitting}
-      scrollNeeded={true}
       roundedCustom
       outSideClickClose={false}
-      size="medium"
+      size="extraLarge"
+      scrollNeeded ={isMobile?true:false}
     >
-      <div className="space-y-4 p-4 md:p-5">
-        <Dropdown
-          label="Project"
-          required
-          options={projectOptions}
-          value={formik.values.project}
-          onChange={(value) => formik.setFieldValue('project', value)}
-          error={Boolean(formik.touched.project && formik.errors.project)}
-          errorMessage={formik.touched.project ? formik.errors.project : ''}
-          disabled={disableProjectSelection}
-        />
+      {/* space-y-4 p-4 md:p-5 */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 divide-x divide-gray-200">
+        <div className="space-y-4 p-4 md:p-5">
+          <Dropdown
+            label="Project"
+            required
+            options={projectOptions}
+            value={formik.values.project}
+            onChange={(value) => formik.setFieldValue('project', value)}
+            error={Boolean(formik.touched.project && formik.errors.project)}
+            errorMessage={formik.touched.project ? formik.errors.project : ''}
+            disabled={disableProjectSelection}
+          />
 
-        <ThemeInput
-          label="Title"
-          required
-          name="title"
-          value={formik.values.title}
-          onChange={formik.handleChange}
-          onBlur={formik.handleBlur}
-          errorText={formik.touched.title ? formik.errors.title : ''}
-          placeholder="Enter ticket title"
-        />
-
-        <div className="w-full">
-          <label className="mb-1.5 block text-sm font-normal text-gray-800 md:text-base">
-            Description
-          </label>
-          <textarea
-            name="description"
-            value={formik.values.description}
+          <ThemeInput
+            label="Title"
+            required
+            name="title"
+            value={formik.values.title}
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
-            placeholder="Describe the issue in detail..."
-            rows={4}
-            maxLength={MAX_DESCRIPTION_LENGTH}
-            className="w-full  rounded-lg border border-gray-200 bg-transparent px-3.5 py-2 text-sm font-medium text-gray-700 outline-none placeholder:text-gray-300 focus:border-gray-400 md:text-base"
+            errorText={formik.touched.title ? formik.errors.title : ''}
+            placeholder="Enter ticket title"
           />
-          <div className="mt-1 flex items-center justify-between gap-3">
-            <p className="text-xs text-red-600">
-              {formik.touched.description && formik.errors.description
-                ? formik.errors.description
-                : ''}
-            </p>
-            <p className="shrink-0 text-xs text-gray-500">
-              {formik.values.description.length}/{MAX_DESCRIPTION_LENGTH}
-            </p>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {isExternalUser ? null : (
-            <Dropdown
-              label="Status"
-              required
-              options={statusOptions}
-              value={formik.values.status}
-              onChange={(value) => formik.setFieldValue('status', value)}
-              error={Boolean(formik.touched.status && formik.errors.status)}
-              errorMessage={formik.touched.status ? formik.errors.status : ''}
+          <div className="w-full">
+            <label className="mb-1.5 block text-sm font-normal text-gray-800 md:text-base">
+              Description
+            </label>
+            <textarea
+              name="description"
+              value={formik.values.description}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              placeholder="Describe the issue in detail..."
+              rows={4}
+              maxLength={MAX_DESCRIPTION_LENGTH}
+              className="w-full  rounded-lg border border-gray-200 bg-transparent px-3.5 py-2 text-sm font-medium text-gray-700 outline-none placeholder:text-gray-300 focus:border-gray-400 md:text-base"
             />
-          )}
+            <div className="mt-1 flex items-center justify-between gap-3">
+              <p className="text-xs text-red-600">
+                {formik.touched.description && formik.errors.description
+                  ? formik.errors.description
+                  : ''}
+              </p>
+              <p className="shrink-0 text-xs text-gray-500">
+                {formik.values.description.length}/{MAX_DESCRIPTION_LENGTH}
+              </p>
+            </div>
+          </div>
 
-          {/* {isExternalUser ? null : ( */}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {isExternalUser ? null : (
+              <Dropdown
+                label="Status"
+                required
+                options={statusOptions}
+                value={formik.values.status}
+                onChange={(value) => formik.setFieldValue('status', value)}
+                error={Boolean(formik.touched.status && formik.errors.status)}
+                errorMessage={formik.touched.status ? formik.errors.status : ''}
+              />
+            )}
+
+            {/* {isExternalUser ? null : ( */}
             <Dropdown
               label="Priority"
               options={priorityOptions}
@@ -320,21 +316,21 @@ export default function CreateTicketModal({
               }
               placeholder="Select priority"
             />
-          {/* )} */}
+            {/* )} */}
+          </div>
+
+          <ThemeInput
+            label="Due Date (optional)"
+            type="date"
+            name="dueDate"
+            value={formik.values.dueDate}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+            min={getTodayInputValue()}
+            errorText={formik.touched.dueDate ? formik.errors.dueDate : ''}
+          />
         </div>
-
-        <ThemeInput
-          label="Due Date (optional)"
-          type="date"
-          name="dueDate"
-          value={formik.values.dueDate}
-          onChange={formik.handleChange}
-          onBlur={formik.handleBlur}
-          min={getTodayInputValue()}
-          errorText={formik.touched.dueDate ? formik.errors.dueDate : ''}
-        />
-
-        <div className="w-full">
+        <div className="w-full p-5 space-y-3">
           <label className="mb-1.5 block text-sm font-normal text-gray-800 md:text-base">
             Attachments (optional)
           </label>
@@ -385,8 +381,8 @@ export default function CreateTicketModal({
             </span>
           </button>
 
-          {formik.values.attachments.length ? (
-            <div className="mt-2 space-y-1">
+          {/* {formik.values.attachments.length ? (
+            <div className="mt-3  grid grid-cols-2 gap-2">
               {formik.values.attachments.map((file) => (
                 <div
                   key={file.name}
@@ -404,7 +400,38 @@ export default function CreateTicketModal({
                 </div>
               ))}
             </div>
-          ) : null}
+          ) : null} */}
+          {formik.values.attachments.length ? (
+  <div className="mt-3 grid max-h-103 min-h-0 grid-cols-1 gap-2 overflow-y-auto overscroll-contain pr-1 scrollbar-hide sm:grid-cols-2">
+    {formik.values.attachments.map((file) => (
+      <div
+        key={`${file.name}-${file.size}-${file.lastModified}`}
+        className="flex min-w-0 items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 py-0.5 pr-2 pl-0.5"
+      >
+        <LocalAttachmentPreview file={file} />
+
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-gray-700">
+            {file.name}
+          </p>
+
+          <p className="text-xs text-gray-500">
+            {formatAttachmentSize(file.size)}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => handleRemoveAttachment(file.name)}
+          className="flex h-3 w-3 shrink-0 items-center justify-center rounded-full transition hover:bg-gray-100"
+          aria-label={`Remove ${file.name}`}
+        >
+          <CloseIcon  />
+        </button>
+      </div>
+    ))}
+  </div>
+) : null}
 
           {attachmentError ? (
             <p className="mt-2 text-xs text-red-600">{attachmentError}</p>
@@ -425,7 +452,114 @@ type ApiTicketStatus = {
 type ApiTicketPriority = ApiTicketStatus & {
   sortOrder: number;
 };
+function AttachmentFileIcon({ extension }: { extension?: string }) {
+  const label = normalizeAttachmentExtension(extension);
+  const badgeClassName = getAttachmentBadgeClassName(label);
 
+  return (
+    <span className="relative flex h-8 w-8 shrink-0 items-center justify-center">
+      <FileTypePlaceholder />
+
+      <span
+        className={`absolute top-4 rounded-xs px-1 py-0.75 text-[9px] font-bold uppercase leading-none text-white ${badgeClassName}`}
+      >
+        {label}
+      </span>
+    </span>
+  );
+}
+
+function getFileExtension(fileName: string, mimeType?: string) {
+  const extension = fileName.split('.').pop();
+
+  if (extension && extension !== fileName) {
+    return extension;
+  }
+
+  return mimeType?.split('/').pop() ?? 'file';
+}
+
+function normalizeAttachmentExtension(extension?: string) {
+  const normalizedExtension = (extension ?? 'file')
+    .replace(/^svg\+xml$/i, 'svg')
+    .replace(/^application\//i, '')
+    .replace(/^image\//i, '')
+    .trim()
+    .toUpperCase();
+
+  if (normalizedExtension === 'JPEG') {
+    return 'JPG';
+  }
+
+  return normalizedExtension.slice(0, 4) || 'FILE';
+}
+
+function getAttachmentBadgeClassName(extension: string) {
+  if (extension === 'PDF') return 'bg-red-500';
+
+  if (extension === 'DOC' || extension === 'DOCX') {
+    return 'bg-blue-600';
+  }
+
+  if (extension === 'XLS' || extension === 'XLSX') {
+    return 'bg-green-600';
+  }
+
+  if (['PNG', 'JPG', 'JPEG', 'SVG'].includes(extension)) {
+    return 'bg-violet-500';
+  }
+
+  if (extension === 'ZIP') {
+    return 'bg-gray-600';
+  }
+
+  return 'bg-[#10175A]';
+}
+
+function formatAttachmentSize(sizeInBytes: number) {
+  if (sizeInBytes < 1024) {
+    return `${sizeInBytes} B`;
+  }
+
+  if (sizeInBytes < 1024 * 1024) {
+    return `${(sizeInBytes / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(sizeInBytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+function LocalAttachmentPreview({ file }: { file: File }) {
+  const [previewUrl, setPreviewUrl] = useState('');
+
+  const isImage = file.type.startsWith('image/');
+
+  useEffect(() => {
+    if (!isImage) {
+      setPreviewUrl('');
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
+
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [file, isImage]);
+
+  if (isImage && previewUrl) {
+    return (
+      <img
+        src={previewUrl}
+        alt={file.name}
+        className="h-8 w-8 shrink-0 rounded-md border border-gray-200 object-cover"
+      />
+    );
+  }
+
+  return (
+    <AttachmentFileIcon extension={getFileExtension(file.name, file.type)} />
+  );
+}
 async function fetchTicketStatuses() {
   const response = await fetch('/api/ticket-statuses', {
     method: 'GET',

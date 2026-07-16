@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode,type ClipboardEvent, } from 'react';
 import {
   ALLOWED_ATTACHMENT_ACCEPT,
   validateAttachments,
@@ -120,7 +120,43 @@ export default function TicketRepliesPanel({
     setAttachments(selectedFiles);
     setAttachmentError('');
   };
+  const handleAttachmentPaste = (
+  event: ClipboardEvent<HTMLTextAreaElement>,
+) => {
+  if (!canAttachFile || isSubmittingReply) {
+    return;
+  }
 
+  const pastedFiles = Array.from(event.clipboardData.items)
+    .filter((item) => item.kind === 'file')
+    .map((item) => item.getAsFile())
+    .filter((file): file is File => Boolean(file));
+
+  // Clipboard mein sirf text hai to normal text paste hone do
+  if (!pastedFiles.length) {
+    return;
+  }
+
+  event.preventDefault();
+
+  const fileMap = new Map<string, File>();
+
+  [...attachments, ...pastedFiles].forEach((file) => {
+    const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
+    fileMap.set(fileKey, file);
+  });
+
+  const nextAttachments = Array.from(fileMap.values());
+  const validationError = validateAttachments(nextAttachments);
+
+  if (validationError) {
+    setAttachmentError(validationError);
+    return;
+  }
+
+  setAttachments(nextAttachments);
+  setAttachmentError('');
+};
   const handleConfirmDeleteAttachment = async () => {
     if (!attachmentToDelete || !onDeleteAttachment) {
       return;
@@ -370,6 +406,7 @@ export default function TicketRepliesPanel({
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
                 placeholder={composerPlaceholder}
+                onPaste={handleAttachmentPaste}
                 disabled={isSubmittingReply}
                 className="min-h-16 md:min-h-28 w-full resize-none bg-transparent px-2 py-1 text-sm text-gray-700 outline-none placeholder:text-gray-400"
               />

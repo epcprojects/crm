@@ -268,7 +268,7 @@ export default function Page() {
   const hasSearch = Boolean(searchValue.trim());
   return (
     <>
-      <div className="relative z-100 h-full overflow-hidden p-4 xl:py-5 xl:pr-5 px-4 pt-2 pb-0 xl:h-dvh">
+      <div className="relative z-100 h-full overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 xl:h-dvh">
         <div className="flex h-full min-h-0 flex-col gap-3 xl:rounded-3xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <DashboardSummaryBanner
             imageSrc="/images/UsersIcon.svg"

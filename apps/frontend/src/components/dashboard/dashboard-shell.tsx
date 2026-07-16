@@ -438,7 +438,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   return (
     <DashboardHeaderActionContext.Provider value={headerActionContextValue}>
-      <div className="flex h-dvh min-h-0  bg-white text-slate-900">
+      <div className="flex h-dvh min-h-0  bg-gray-200 text-slate-900">
         {mobileOpen ? (
           <button
             aria-label="Close navigation"
@@ -447,21 +447,19 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             type="button"
           />
         ) : null}
-        <div className="hidden w-24 2xl:w-29 shrink-0 xl:block" />
+        <div className="hidden w-22.5 2xl:w-29.25  shrink-0 xl:block" />
         <aside
-          className={`fixed inset-y-0  left-0 z-40 hidden xl:flex flex-col gap-10 bg-gray-200 px-4  2xl:px-6 pt-4  2xl:pt-6 pb-4 2xl:pb-8 transition-transform duration-300 ease-out  ${
+          className={`fixed inset-y-0  left-0 z-40 hidden xl:flex flex-col items-center gap-10 bg-gray-200 px-4  2xl:px-6 pt-4  2xl:pt-6 pb-4 2xl:pb-8 transition-transform duration-300 ease-out  ${
             mobileOpen ? '' : '-translate-x-full lg:translate-x-0'
           }`}
         >
           <button
-            onClick={() => {
-              '';
-            }}
-            className="min-w-16 min-h-16 max-h-16 max-w-16 bg-white rounded-full flex items-center justify-center"
+            onClick={() => router.push('/dashboard')}
+            className="2xl:min-w-16 2xl:min-h-16 max-h-16 max-w-16 w-10 h-10 bg-white rounded-full flex items-center justify-center"
           >
             <Image
               src={Images.index.logoIconImage}
-              className="h-8 w-8"
+              className="2xl:h-8 h-6 w-6 2xl:w-8"
               alt={'LOGO'}
             />
           </button>
@@ -484,16 +482,21 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                         className="flex w-fit flex-col items-center gap-1.5 2xl:gap-2.5 scrollbar-hide"
                       >
                         <div
-                          className={`2xl:w-14 2xl:h-14 w-10 h-10 rounded-full flex items-center justify-center transition ${
-                            isActive
-                              ? 'bg-linear-to-l from-primary-light to-primary-dark text-white'
-                              : 'bg-white text-gray-700 hover:bg-gray-100 hover:text-primary'
-                          }`}
+                          className={`2xl:w-14 2xl:h-14 w-10 h-10 rounded-full flex items-center justify-center transition
+                             [&>svg]:h-5 [&>svg]:w-5
+    2xl:[&>svg]:h-6.5 2xl:[&>svg]:w-6.5
+                            ${
+                              isActive
+                                ? 'bg-linear-to-l from-primary-light to-primary-dark text-white'
+                                : 'bg-white text-gray-700 hover:bg-gray-100 hover:text-primary'
+                            }`}
                         >
                           {item.icon(isActive)}
                         </div>
 
-                        <p className={`2xl:text-sm text-xs transition text-gray-900`}>
+                        <p
+                          className={`2xl:text-sm text-xs transition text-gray-900`}
+                        >
                           {item.label}
                         </p>
                       </Link>
