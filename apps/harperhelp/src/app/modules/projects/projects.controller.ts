@@ -42,7 +42,7 @@ export class ProjectsController {
     private readonly projectsService: ProjectsService,
 
     private readonly projectsFilesService: ProjectsFilesService,
-  ) {}
+  ) { }
 
   @Post()
   // @Authorize({
@@ -56,7 +56,7 @@ export class ProjectsController {
 
 
   @Get()
-  @ApiOperation({ summary: 'Find all projects with search and pagination, returns summary too, based on search'})
+  @ApiOperation({ summary: 'Find all projects with search and pagination, returns summary too, based on search' })
   findAll(@Query() query: GetProjectsQueryDto, @GetUser() user,) {
     return this.projectsService.findAll(query, user);
   }
@@ -68,20 +68,21 @@ export class ProjectsController {
     return this.projectsService.findAllNames();
   }
 
-    @Get('project-summary')
-    @ApiOperation({
+  @Get('project-summary')
+  @ApiOperation({
     summary:
-    'Get project dashboard summary. Returns total projects, active projects, open tickets, and critical issues.',
-    })
-    getGlobalProjectSummary(@GetUser() user) {
+      'Get project dashboard summary. Returns total projects, active projects, open tickets, and critical issues.',
+  })
+  getGlobalProjectSummary(@GetUser() user) {
     return this.projectsService.getGlobalProjectSummary(user);
-    }  
+  }
 
   @Get('members')
   // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({
-    summary: 
-    'Get members with their assigned projects and roles. Supports search and optional filters.',})
+    summary:
+      'Get members with their assigned projects and roles. Supports search and optional filters.',
+  })
   findMembersWithProjects(@Query() query: GetMembersQueryDto) {
     return this.projectsService.findMembersWithProjects(query);
   }

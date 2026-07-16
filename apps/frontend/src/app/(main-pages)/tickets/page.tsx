@@ -74,7 +74,7 @@ export default function Page() {
     queryFn: fetchTicketStatuses,
     enabled: canFilterTickets,
   });
-  
+
   const ticketPrioritiesQuery = useQuery({
     queryKey: ['ticket-priorities'],
     queryFn: fetchTicketPriorities,
@@ -85,7 +85,7 @@ export default function Page() {
   //   queryFn: fetchTicketSummary,
   //   enabled: canViewTickets,
   // });
-  
+
   const ticketsQuery = useQuery({
     queryKey: [
       'dashboard-project-tickets',
@@ -163,6 +163,7 @@ export default function Page() {
     ],
     [projectsQuery.data],
   );
+
   const kanbanStatusOptions = useMemo(
     () =>
       (ticketStatusesQuery.data ?? []).map((status) => ({
@@ -252,10 +253,10 @@ export default function Page() {
             items: current.items.map((currentTicket) =>
               currentTicket.id === ticket.id
                 ? {
-                    ...currentTicket,
-                    status: nextStatus?.label ?? currentTicket.status,
-                    statusColor: nextStatus?.color ?? currentTicket.statusColor,
-                  }
+                  ...currentTicket,
+                  status: nextStatus?.label ?? currentTicket.status,
+                  statusColor: nextStatus?.color ?? currentTicket.statusColor,
+                }
                 : currentTicket,
             ),
           };
@@ -455,11 +456,10 @@ export default function Page() {
                           {({ open }) => (
                             <>
                               <PopoverButton
-                                className={`flex h-10 shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium outline-none ${
-                                  open
-                                    ? 'border-primary  text-white'
-                                    : 'border-gray-200 bg-white text-gray-700'
-                                }`}
+                                className={`flex h-10 shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium outline-none ${open
+                                  ? 'border-primary  text-white'
+                                  : 'border-gray-200 bg-white text-gray-700'
+                                  }`}
                                 aria-label="Open filters"
                               >
                                 <FiltersIcon />
@@ -510,11 +510,10 @@ export default function Page() {
                           <button
                             type="button"
                             onClick={() => setViewMode('table')}
-                            className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
-                              viewMode === 'table'
-                                ? 'bg-primary-dark text-white shadow-sm'
-                                : 'text-gray-500 hover:bg-gray-50'
-                            }`}
+                            className={`flex h-9 w-9 items-center justify-center rounded-md transition ${viewMode === 'table'
+                              ? 'bg-primary-dark text-white shadow-sm'
+                              : 'text-gray-500 hover:bg-gray-50'
+                              }`}
                             aria-label="Table view"
                           >
                             <TableViewIcon />
@@ -523,11 +522,10 @@ export default function Page() {
                           <button
                             type="button"
                             onClick={() => setViewMode('kanban')}
-                            className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
-                              viewMode === 'kanban'
-                                ? 'bg-primary-dark text-white shadow-sm'
-                                : 'text-gray-500 hover:bg-gray-50'
-                            }`}
+                            className={`flex h-9 w-9 items-center justify-center rounded-md transition ${viewMode === 'kanban'
+                              ? 'bg-primary-dark text-white shadow-sm'
+                              : 'text-gray-500 hover:bg-gray-50'
+                              }`}
                             aria-label="Kanban view"
                           >
                             <KanbanViewIcon />
@@ -639,7 +637,7 @@ type ApiTicketSetting = {
 
 type DashboardTicketsResponse = {
   items: RecentTicket[];
-  summary: TicketSummary[];
+  summary: TicketSummary;
   meta: {
     page: number;
     limit: number;
@@ -678,7 +676,7 @@ type ApiDashboardTicket = {
 
 type ApiDashboardTicketsResponse = {
   items: ApiDashboardTicket[];
-  summary: TicketSummary[];
+  summary: TicketSummary;
   meta: DashboardTicketsResponse['meta'];
 };
 
@@ -823,10 +821,10 @@ function isApiDashboardTicketsResponse(
 ): value is ApiDashboardTicketsResponse {
   return Boolean(
     value &&
-      typeof value === 'object' &&
-      Array.isArray((value as ApiDashboardTicketsResponse).items) &&
-      (value as ApiDashboardTicketsResponse).meta &&
-      typeof (value as ApiDashboardTicketsResponse).meta === 'object',
+    typeof value === 'object' &&
+    Array.isArray((value as ApiDashboardTicketsResponse).items) &&
+    (value as ApiDashboardTicketsResponse).meta &&
+    typeof (value as ApiDashboardTicketsResponse).meta === 'object',
   );
 }
 // async function fetchTicketSummary(): Promise<TicketSummary> {
@@ -857,11 +855,11 @@ function isApiDashboardTicketsResponse(
 function isTicketSummary(value: unknown): value is TicketSummary {
   return Boolean(
     value &&
-      typeof value === 'object' &&
-      'open' in value &&
-      'inProgress' in value &&
-      'resolved' in value &&
-      'critical' in value,
+    typeof value === 'object' &&
+    'open' in value &&
+    'inProgress' in value &&
+    'resolved' in value &&
+    'critical' in value,
   );
 }
 function mapApiDashboardTicketToRecentTicket(

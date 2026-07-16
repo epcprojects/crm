@@ -41,6 +41,7 @@ export class GetMembersQueryDto {
   })
   @IsOptional()
   @IsUUID()
+  // @IsString()
   projectId?: string;
 
   @ApiPropertyOptional({
@@ -48,6 +49,6 @@ export class GetMembersQueryDto {
     format: 'uuid',
   })
   @IsOptional()
-  @IsUUID()
+  // @IsUUID()
   roleId?: string;
 }

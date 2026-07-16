@@ -88,6 +88,7 @@ export async function GET(request: Request) {
     const upstreamUrl = new URL(`${apiBaseUrl}/projects`);
     const page = requestUrl.searchParams.get('page');
     const limit = requestUrl.searchParams.get('limit');
+    const search = requestUrl.searchParams.get('search')
 
     if (page) {
       upstreamUrl.searchParams.set('page', page);
@@ -95,6 +96,10 @@ export async function GET(request: Request) {
 
     if (limit) {
       upstreamUrl.searchParams.set('limit', limit);
+    }
+
+    if (search?.trim()) {
+      upstreamUrl.searchParams.set('search', search);
     }
 
     const response = await fetch(upstreamUrl.toString(), {

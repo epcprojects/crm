@@ -143,18 +143,18 @@ export default function Page() {
       ticketTabs.map((tab) =>
         tab.key === 'upcoming'
           ? {
-              ...tab,
-              tickets: (upcomingTicketsQuery.data ?? []).map(
-                mapApiDashboardTicketToTicketListItem,
-              ),
-            }
+            ...tab,
+            tickets: (upcomingTicketsQuery.data ?? []).map(
+              mapApiDashboardTicketToTicketListItem,
+            ),
+          }
           : tab.key === 'critical'
             ? {
-                ...tab,
-                tickets: (criticalTicketsQuery.data?.items ?? []).map(
-                  mapRecentTicketToTicketListItem,
-                ),
-              }
+              ...tab,
+              tickets: (criticalTicketsQuery.data?.items ?? []).map(
+                mapRecentTicketToTicketListItem,
+              ),
+            }
             : tab,
       ),
     [criticalTicketsQuery.data?.items, upcomingTicketsQuery.data],
@@ -317,9 +317,8 @@ export default function Page() {
       <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden xl:rounded-3xl  bg-gray-200 xl:flex-row xl:border xl:border-white xl:bg-white/40 xl:p-3">
         <PermissionGuard permission="dashboard.view_upcoming">
           <div
-            className={`order-2 min-h-0 flex-1 overflow-hidden xl:order-0 xl:h-full xl:flex-none ${
-              canViewRecentTickets ? 'xl:w-82.5' : 'xl:flex-1'
-            }`}
+            className={`order-2 min-h-0 flex-1 overflow-hidden xl:order-0 xl:h-full xl:flex-none ${canViewRecentTickets ? 'xl:w-82.5' : 'xl:flex-1'
+              }`}
           >
             {isUpcomingTicketsLoading ? (
               <DashboardTabsSkeleton />
@@ -329,13 +328,12 @@ export default function Page() {
                 onTicketClick={
                   canViewTicketDetail
                     ? (ticket) =>
-                        router.push(
-                          `/tickets/${ticket.id}${
-                            ticket.projectId
-                              ? `?projectId=${ticket.projectId}`
-                              : ''
-                          }`,
-                        )
+                      router.push(
+                        `/tickets/${ticket.id}${ticket.projectId
+                          ? `?projectId=${ticket.projectId}`
+                          : ''
+                        }`,
+                      )
                     : undefined
                 }
               />
@@ -488,9 +486,9 @@ export default function Page() {
                     onRowClick={
                       canViewTicketDetail
                         ? (ticket) =>
-                            router.push(
-                              `/tickets/${ticket.id}?projectId=${ticket.project.id}`,
-                            )
+                          router.push(
+                            `/tickets/${ticket.id}?projectId=${ticket.project.id}`,
+                          )
                         : undefined
                     }
                   />
@@ -533,9 +531,9 @@ export default function Page() {
                       onButtonClick={
                         canCreateProject
                           ? () => {
-                              setProjectToEdit(null);
-                              setCreateProjectOpen(true);
-                            }
+                            setProjectToEdit(null);
+                            setCreateProjectOpen(true);
+                          }
                           : undefined
                       }
                     />
@@ -564,10 +562,10 @@ export default function Page() {
                         onDelete={
                           canDeleteProject
                             ? () =>
-                                setProjectToDelete({
-                                  id: project.id,
-                                  name: project.name,
-                                })
+                              setProjectToDelete({
+                                id: project.id,
+                                name: project.name,
+                              })
                             : undefined
                         }
                         isDeleting={
@@ -604,10 +602,10 @@ export default function Page() {
         initialValues={
           projectToEdit
             ? {
-                name: projectToEdit.name,
-                category: projectToEdit.category,
-                colorHex: projectToEdit.colorHex,
-              }
+              name: projectToEdit.name,
+              category: projectToEdit.category,
+              colorHex: projectToEdit.colorHex,
+            }
             : undefined
         }
         title="Edit Project"
@@ -662,9 +660,8 @@ function ProjectCardSkeleton() {
             className="flex min-w-0 items-center justify-center gap-1.5 px-1 md:gap-2"
           >
             <div
-              className={`h-3 rounded bg-gray-200 ${
-                index === 2 ? 'w-11' : 'w-8'
-              }`}
+              className={`h-3 rounded bg-gray-200 ${index === 2 ? 'w-11' : 'w-8'
+                }`}
             />
             <div className="h-4 w-4 shrink-0 rounded-full bg-gray-200 shadow-[0_0_18px_0_rgb(0_0_0/0.08)]" />
           </div>
@@ -703,11 +700,10 @@ function DashboardStatsSkeleton() {
               {/* Label and count */}
               <div className="flex min-w-0 flex-1 flex-col gap-1.5 xl:flex-row xl:items-center xl:justify-between xl:gap-3">
                 <div
-                  className={`h-3 rounded bg-white/15 xl:h-4 ${
-                    index === 1
+                  className={`h-3 rounded bg-white/15 xl:h-4 ${index === 1
                       ? 'w-16 xl:w-20'
                       : 'w-11 xl:w-14'
-                  }`}
+                    }`}
                 />
 
                 <div className="h-5 w-7 rounded bg-white/25 xl:h-7 xl:w-8" />
@@ -740,9 +736,8 @@ export function RecentTicketsTableSkeleton() {
 
                 <div className="min-w-0 space-y-2">
                   <div
-                    className={`h-4 rounded bg-gray-200 ${
-                      index % 2 === 0 ? 'w-28' : 'w-24'
-                    }`}
+                    className={`h-4 rounded bg-gray-200 ${index % 2 === 0 ? 'w-28' : 'w-24'
+                      }`}
                   />
                   <div className="h-3 w-16 rounded bg-gray-100" />
                 </div>
@@ -761,9 +756,8 @@ export function RecentTicketsTableSkeleton() {
               <div className="h-5 w-16 shrink-0 rounded-full bg-gray-100" />
 
               <div
-                className={`h-4 rounded bg-gray-100 ${
-                  index % 2 === 0 ? 'w-40' : 'w-32'
-                }`}
+                className={`h-4 rounded bg-gray-100 ${index % 2 === 0 ? 'w-40' : 'w-32'
+                  }`}
               />
             </div>
 
@@ -839,9 +833,8 @@ function DashboardTabsSkeleton() {
             <div className="flex min-w-0 flex-1 flex-col gap-2">
               {/* Ticket title */}
               <div
-                className={`h-3.5 max-w-full rounded bg-gray-200 ${
-                  index % 2 === 0 ? 'w-4/5' : 'w-2/3'
-                }`}
+                className={`h-3.5 max-w-full rounded bg-gray-200 ${index % 2 === 0 ? 'w-4/5' : 'w-2/3'
+                  }`}
               />
 
               {/* Date, owner and tag */}
@@ -890,11 +883,11 @@ async function fetchTicketSummary(): Promise<TicketSummary> {
 function isTicketSummary(value: unknown): value is TicketSummary {
   return Boolean(
     value &&
-      typeof value === 'object' &&
-      'open' in value &&
-      'inProgress' in value &&
-      'resolved' in value &&
-      'critical' in value,
+    typeof value === 'object' &&
+    'open' in value &&
+    'inProgress' in value &&
+    'resolved' in value &&
+    'critical' in value,
   );
 }
 
@@ -995,7 +988,7 @@ async function fetchDashboardTickets({
   }
 
   const response = await fetch(
-    `/api/dashboard/projects?${searchParams.toString()}`,
+    `/api/dashboard/tickets?${searchParams.toString()}`,
     {
       method: 'GET',
       headers: {
@@ -1029,10 +1022,10 @@ function isApiDashboardTicketsResponse(
 ): value is ApiDashboardTicketsResponse {
   return Boolean(
     value &&
-      typeof value === 'object' &&
-      Array.isArray((value as ApiDashboardTicketsResponse).items) &&
-      (value as ApiDashboardTicketsResponse).meta &&
-      typeof (value as ApiDashboardTicketsResponse).meta === 'object',
+    typeof value === 'object' &&
+    Array.isArray((value as ApiDashboardTicketsResponse).items) &&
+    (value as ApiDashboardTicketsResponse).meta &&
+    typeof (value as ApiDashboardTicketsResponse).meta === 'object',
   );
 }
 

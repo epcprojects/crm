@@ -39,6 +39,7 @@ export default function ProjectsPage() {
   const { setHeaderActionOverride } = useDashboardHeaderAction();
   const { setLoading } = useAppLoader();
   const { hasPermission } = usePermissions();
+  const [searchValue, setSearchValue] = useState('');
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
@@ -62,7 +63,7 @@ export default function ProjectsPage() {
   const canCreateTicket = hasPermission('tickets.create');
   const canEditProject = hasPermission('projects.edit');
   const canDeleteProject = hasPermission('projects.delete');
-  const projectsQuery = useProjectsInfiniteQuery(canViewProjectList, 12);
+  const projectsQuery = useProjectsInfiniteQuery(canViewProjectList, 12,searchValue);
   const projects = useMemo(
     () => projectsQuery.data?.pages.flatMap((page) => page.items) ?? [],
     [projectsQuery.data],
@@ -225,55 +226,40 @@ export default function ProjectsPage() {
       setLoading(false);
     }
   };
-  const [searchValue, setSearchValue] = useState('');
 
-  const filteredProjects = useMemo(() => {
-    const search = searchValue.trim().toLowerCase();
 
-    if (!search) {
-      return projects;
-    }
+  const filteredProjects = projects;
+  const projectSummary =
+  projectsQuery.data?.pages[0]?.summary;
 
-    return projects.filter((project) =>
-      [project.name, project.category, project.initials].some((value) =>
-        value.toLowerCase().includes(search),
-      ),
-    );
-  }, [projects, searchValue]);
   const totalProjects =
     projectsQuery.data?.pages[0]?.meta.total ?? projects.length;
 
   const projectSummaryStats = useMemo(
-    () => [
-      {
-        title: 'Total Projects',
-        count: totalProjects,
-        color: '#F04438',
-      },
-      {
-        title: 'Active Projects',
-        count: totalProjects,
-        color: '#F79009',
-      },
-      {
-        title: 'Open Tickets',
-        count: projects.reduce(
-          (total, project) => total + project.openCount,
-          0,
-        ),
-        color: '#17B26A',
-      },
-      {
-        title: 'Critical Issues',
-        count: projects.reduce(
-          (total, project) => total + project.criticalCount,
-          0,
-        ),
-        color: '#7A5AF8',
-      },
-    ],
-    [projects, totalProjects],
-  );
+  () => [
+    {
+      title: 'Total Projects',
+      count: projectSummary?.totalProjects ?? 0,
+      color: '#F04438',
+    },
+    {
+      title: 'Active Projects',
+      count: projectSummary?.activeProjects ?? 0,
+      color: '#F79009',
+    },
+    {
+      title: 'Open Tickets',
+      count: projectSummary?.openTickets ?? 0,
+      color: '#17B26A',
+    },
+    {
+      title: 'Critical Issues',
+      count: projectSummary?.criticalIssues ?? 0,
+      color: '#7A5AF8',
+    },
+  ],
+  [projectSummary],
+);
 
   return (
     <>

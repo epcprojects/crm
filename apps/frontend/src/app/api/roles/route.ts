@@ -108,7 +108,7 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('access_token')?.value;
@@ -125,8 +125,15 @@ export async function GET() {
         { status: 500 },
       );
     }
+    const requestUrl = new URL(request.url)
+    const upstreamUrl = new URL(`${apiBaseUrl}/roles`);
+    const search = requestUrl.searchParams.get('search')
 
-    const response = await fetch(`${apiBaseUrl}/roles`, {
+
+    if (search?.trim()) {
+      upstreamUrl.searchParams.set('search', search);
+    }
+    const response = await fetch(upstreamUrl.toString(), {
       method: 'GET',
       headers: {
         Accept: 'application/json',

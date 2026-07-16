@@ -11,7 +11,7 @@ function getApiBaseUrl() {
   return baseUrl.replace(/\/docs\/?$/, '');
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('access_token')?.value;
@@ -28,8 +28,14 @@ export async function GET() {
         { status: 500 },
       );
     }
+    const requestUrl = new URL(request.url);
+    const upstreamUrl = new URL(`${apiBaseUrl}/projects/members`);
 
-    const response = await fetch(`${apiBaseUrl}/projects/members`, {
+    requestUrl.searchParams.forEach((value, key) => {
+      upstreamUrl.searchParams.set(key, value);
+    });
+
+    const response = await fetch(upstreamUrl.toString(), {
       method: 'GET',
       headers: {
         Accept: 'application/json',
@@ -47,7 +53,7 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json(Array.isArray(data) ? data : [], { status: 200 });
+    return NextResponse.json(data, { status: 200 });
   } catch {
     return NextResponse.json(
       { message: 'Something went wrong while fetching members.' },

@@ -35,6 +35,14 @@ type ProjectThreadDetail = {
 type ProjectsQueryOptions = {
   page?: number;
   limit?: number;
+  search?: string;
+};
+
+type ProjectSummary = {
+  totalProjects: number | null;
+  activeProjects: number | null;
+  openTickets: number | null;
+  criticalIssues: number | null;
 };
 
 type ProjectsPaginationMeta = {
@@ -48,6 +56,7 @@ type ProjectsPaginationMeta = {
 
 type ProjectsResponse = {
   items: ProjectRecord[];
+  summary: ProjectSummary; //TODO: later on,may need to remove []
   meta: ProjectsPaginationMeta;
 };
 
@@ -63,11 +72,15 @@ export function useProjectsQuery(
   });
 }
 
-export function useProjectsInfiniteQuery(enabled = true, limit = 12) {
+export function useProjectsInfiniteQuery(
+  enabled = true, limit = 12, search= '',) {
+    
+  const normalizedSearch = search.trim();
+
   return useInfiniteQuery({
-    queryKey: [...projectsQueryKey, 'infinite', limit],
+    queryKey: [...projectsQueryKey, 'infinite', limit,search],
     queryFn: ({ pageParam }) =>
-      fetchProjects({ page: Number(pageParam), limit }),
+      fetchProjects({ page: Number(pageParam), limit ,search:normalizedSearch,}),
     enabled,
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
@@ -202,14 +215,20 @@ export function useDeleteProjectFileMutation() {
 async function fetchProjects({
   page,
   limit,
+  search,
 }: {
   page: number;
   limit: number;
+  search?: string;
 }): Promise<ProjectsResponse> {
   const searchParams = new URLSearchParams({
     page: String(page),
     limit: String(limit),
   });
+
+  if (search?.trim()){
+    searchParams.set('search', search.trim());
+  }
   const response = await fetch(`/api/projects?${searchParams.toString()}`, {
     method: 'GET',
     headers: {
@@ -222,6 +241,7 @@ async function fetchProjects({
     | ApiProjectRecord[]
     | {
         items?: ApiProjectRecord[];
+        summary?: Partial<ProjectSummary>;
         meta?: Partial<ProjectsPaginationMeta>;
       }
     | { message?: string }
@@ -244,6 +264,7 @@ function normalizeProjectsResponse(
     | ApiProjectRecord[]
     | {
         items?: ApiProjectRecord[];
+        summary?: Partial<ProjectSummary>;
         meta?: Partial<ProjectsPaginationMeta>;
       }
     | { message?: string }
@@ -254,6 +275,12 @@ function normalizeProjectsResponse(
   if (Array.isArray(payload)) {
     return {
       items: payload.map(mapApiProjectToProjectRecord),
+      summary: {
+        totalProjects: payload.length,
+        activeProjects: payload.length,
+        openTickets: 0,
+        criticalIssues: 0,
+    },
       meta: {
         page,
         limit,
@@ -275,6 +302,15 @@ function normalizeProjectsResponse(
 
   return {
     items: payload.items.map(mapApiProjectToProjectRecord),
+    summary: {
+    totalProjects:  payload.summary?.totalProjects ??  payload.meta?.total ??   payload.items.length,
+
+    activeProjects: payload.summary?.activeProjects ?? 0,
+
+    openTickets:  payload.summary?.openTickets ?? 0,
+
+    criticalIssues:   payload.summary?.criticalIssues ?? 0,   
+    },
     meta: {
       page: payload.meta?.page ?? page,
       limit: payload.meta?.limit ?? limit,
