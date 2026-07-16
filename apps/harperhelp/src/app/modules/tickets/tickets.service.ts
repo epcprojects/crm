@@ -207,6 +207,13 @@ export class TicketsService {
     });
   }
 
+  if (query.projectId) {
+    qb.andWhere('t.projectId = :projectId', {
+      projectId: query.projectId,
+    });
+  }
+
+
   if (query.search?.trim()) {
     qb.andWhere(
       `

@@ -74,16 +74,18 @@ export default function Page() {
     queryFn: fetchTicketStatuses,
     enabled: canFilterTickets,
   });
+  
   const ticketPrioritiesQuery = useQuery({
     queryKey: ['ticket-priorities'],
     queryFn: fetchTicketPriorities,
     enabled: canFilterTickets,
   });
-  const ticketSummaryQuery = useQuery({
-    queryKey: ['dashboard', 'ticket-summary'],
-    queryFn: fetchTicketSummary,
-    enabled: canViewTickets,
-  });
+  // const ticketSummaryQuery = useQuery({
+  //   queryKey: ['dashboard', 'ticket-summary'],
+  //   queryFn: fetchTicketSummary,
+  //   enabled: canViewTickets,
+  // });
+  
   const ticketsQuery = useQuery({
     queryKey: [
       'dashboard-project-tickets',
@@ -110,26 +112,26 @@ export default function Page() {
     () => [
       {
         title: 'Open',
-        count: ticketSummaryQuery.data?.open ?? 0,
+        count: ticketsQuery.data?.summary?.open ?? 0,
         color: '#F04438',
       },
       {
         title: 'InProgress',
-        count: ticketSummaryQuery.data?.inProgress ?? 0,
+        count: ticketsQuery.data?.summary?.inProgress ?? 0,
         color: '#F79009',
       },
       {
         title: 'Resolved',
-        count: ticketSummaryQuery.data?.resolved ?? 0,
+        count: ticketsQuery.data?.summary?.resolved ?? 0,
         color: '#17B26A',
       },
       {
         title: 'Critical',
-        count: ticketSummaryQuery.data?.critical ?? 0,
+        count: ticketsQuery.data?.summary?.critical ?? 0,
         color: '#7A5AF8',
       },
     ],
-    [ticketSummaryQuery.data],
+    [ticketsQuery.data],
   );
   const projectOptions = useMemo(
     () => createTicketProjectOptions(projectsQuery.data ?? []),
@@ -637,6 +639,7 @@ type ApiTicketSetting = {
 
 type DashboardTicketsResponse = {
   items: RecentTicket[];
+  summary: TicketSummary[];
   meta: {
     page: number;
     limit: number;
@@ -675,6 +678,7 @@ type ApiDashboardTicket = {
 
 type ApiDashboardTicketsResponse = {
   items: ApiDashboardTicket[];
+  summary: TicketSummary[];
   meta: DashboardTicketsResponse['meta'];
 };
 
@@ -715,7 +719,7 @@ async function fetchDashboardTickets({
   }
 
   const response = await fetch(
-    `/api/dashboard/projects?${searchParams.toString()}`,
+    `/api/dashboard/tickets?${searchParams.toString()}`,
     {
       method: 'GET',
       headers: {
@@ -740,6 +744,7 @@ async function fetchDashboardTickets({
 
   return {
     items: payload.items.map(mapApiDashboardTicketToRecentTicket),
+    summary: payload.summary,
     meta: payload.meta,
   };
 }
@@ -824,30 +829,30 @@ function isApiDashboardTicketsResponse(
       typeof (value as ApiDashboardTicketsResponse).meta === 'object',
   );
 }
-async function fetchTicketSummary(): Promise<TicketSummary> {
-  const response = await fetch('/api/dashboard/ticket-summary', {
-    method: 'GET',
-    headers: {
-      Accept: 'application/json',
-    },
-    cache: 'no-store',
-  });
+// async function fetchTicketSummary(): Promise<TicketSummary> {
+//   const response = await fetch('/api/dashboard/ticket-summary', {
+//     method: 'GET',
+//     headers: {
+//       Accept: 'application/json',
+//     },
+//     cache: 'no-store',
+//   });
 
-  const payload = (await response.json().catch(() => null)) as
-    | TicketSummary
-    | { message?: string }
-    | null;
+//   const payload = (await response.json().catch(() => null)) as
+//     | TicketSummary
+//     | { message?: string }
+//     | null;
 
-  if (!response.ok || !isTicketSummary(payload)) {
-    throw new Error(
-      payload && typeof payload === 'object' && 'message' in payload
-        ? payload.message || 'Failed to fetch ticket summary.'
-        : 'Failed to fetch ticket summary.',
-    );
-  }
+//   if (!response.ok || !isTicketSummary(payload)) {
+//     throw new Error(
+//       payload && typeof payload === 'object' && 'message' in payload
+//         ? payload.message || 'Failed to fetch ticket summary.'
+//         : 'Failed to fetch ticket summary.',
+//     );
+//   }
 
-  return payload;
-}
+//   return payload;
+// }
 
 function isTicketSummary(value: unknown): value is TicketSummary {
   return Boolean(

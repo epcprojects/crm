@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     }
 
     const requestUrl = new URL(request.url);
-    const upstreamUrl = new URL(`${apiBaseUrl}/dashboard/projects`);
+    const upstreamUrl = new URL(`${apiBaseUrl}/dashboard/tickets`);
 
     for (const key of [
       'statusKey',
