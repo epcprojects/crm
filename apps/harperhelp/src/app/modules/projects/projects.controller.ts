@@ -168,8 +168,8 @@ export class ProjectsController {
     status: 200,
     description: 'List of project files',
   })
-  async getFiles(@Param('projectId') projectId: string) {
-    return this.projectsFilesService.getProjectFiles(projectId);
+  async getFiles(@Param('projectId') projectId: string, @GetUser() user) {
+    return this.projectsFilesService.getProjectFiles(projectId, user);
   }
 
   // ---------------- DELETE FILE ----------------

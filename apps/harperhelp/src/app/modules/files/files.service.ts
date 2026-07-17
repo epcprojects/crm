@@ -1,14 +1,17 @@
 import { Injectable } from '@nestjs/common';
-import { FileSource, FileStatus } from '@harperhelp/types';
+import { FileSource, FileStatus, UserType } from '@harperhelp/types';
 import { FileRecord } from './entities/file.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { UtilityService } from '../utility/utility.service';
 
 @Injectable()
 export class FilesService {
   constructor(
     @InjectRepository(FileRecord)
     private readonly fileRepository: Repository<FileRecord>,
+
+    private readonly utilityService: UtilityService,
   ) {}
 
   async create(data: Partial<FileRecord>) {
@@ -35,7 +38,14 @@ export class FilesService {
       .getMany();
   }
 
-  async findByProject(projectId: string) {
+  async findByProject(projectId: string, user?: any) {
+    if (user && user?.userType === UserType.EXTERNAL) {
+      return this.fileRepository.find({
+        where: { projectId, status: FileStatus.ACTIVE, uploadedBy: user.id },
+        order: { createdAt: 'ASC' },
+      });
+    }
+
     return this.fileRepository.find({
       where: { projectId, status: FileStatus.ACTIVE },
       order: { createdAt: 'ASC' },
@@ -49,9 +59,10 @@ export class FilesService {
   }
 
   async delete(fileId: string) {
-    await this.fileRepository.update(fileId, {
-      status: FileStatus.DELETED,
-    });
+    const file = await this.fileRepository.findOneByOrFail({ id: fileId });
+
+    await this.fileRepository.delete(fileId);
+    await this.utilityService.deleteFile(file.storageKey);
 
     return { success: true };
   }

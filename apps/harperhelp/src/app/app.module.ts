@@ -12,6 +12,7 @@ import { ProjectsModule } from './modules/projects/projects.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { UtilityModule } from './modules/utility/utility.module';
 import { FilesModule } from './modules/files/files.module';
+import { CalendarModule } from './modules/calendar/calendar.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { FilesModule } from './modules/files/files.module';
     TicketsModule,
     UtilityModule,
     FilesModule,
+    CalendarModule,
   ],
   controllers: [AppController],
   providers: [AppService],

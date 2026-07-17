@@ -66,7 +66,6 @@ export class UtilityService {
       );
     } catch (err) {
       console.debug('error deleteting utility:', err);
-      return false;
     }
   }
 

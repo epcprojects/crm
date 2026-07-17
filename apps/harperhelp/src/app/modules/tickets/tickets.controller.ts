@@ -20,11 +20,15 @@ import {
   ApiBody,
   ApiConsumes,
   ApiOperation,
+  ApiQuery,
+  ApiResponse,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'apps/harperhelp/src/common/guards/jwt-auth.guard';
 import { RolesGuard } from 'apps/harperhelp/src/common/guards/roles.guard';
 import { GetUser } from 'apps/harperhelp/src/common/decorators/get-user.decorator';
 import { GetTicketsQueryDto } from './dto/get-tickets-query.dto';
+import { CalendarView } from '@harperhelp/types';
+import { CalendarQueryDto } from '../calendar/dto/calendar-query.dto';
 
 @Controller('projects/:pid/tickets')
 @ApiBearerAuth('JWT-auth')
@@ -40,6 +44,59 @@ export class TicketsController {
   })
   findAll(@Param('pid') pid: string, @Query() query: GetTicketsQueryDto) {
     return this.ticketsService.findAll(pid, query);
+  }
+
+  // ---------------- LIST BY CALENDAR -----------------
+  @Get('calendar')
+  @ApiOperation({
+    summary: 'Get tickets by calendar view (returns title + dueDate)',
+    description: `
+Returns tickets whose dueDate falls within the range for the requested view.
+Response is scoped to: **id, title, dueDate, priority, status**.
+
+View ranges:
+- **day**   -> single date only
+- **week**  -> Monday-Sunday of the week containing the date
+- **month** -> full calendar month
+- **year**  -> full calendar year (Jan 1 - Dec 31)
+    `,
+  })
+  @ApiQuery({
+    name: 'view',
+    enum: CalendarView,
+    required: true,
+    example: 'month',
+  })
+  @ApiQuery({
+    name: 'date',
+    required: true,
+    example: '2026-06-01',
+    description: 'Any date within the target period (YYYY-MM-DD)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Tickets with dueDate in the requested range',
+    schema: {
+      example: [
+        {
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          title: 'Fix login crash on iOS',
+          dueDate: '2026-06-20',
+          priority: 'critical',
+          status: 'in_progress',
+        },
+        {
+          id: '6ba7b810-9dad-11d1-80b4-00c04fd430c8',
+          title: 'Implement bulk lead export',
+          dueDate: '2026-06-25',
+          priority: 'high',
+          status: 'open',
+        },
+      ],
+    },
+  })
+  findByView(@Param('pid') pid: string, @Query() query: CalendarQueryDto) {
+    return this.ticketsService.findByView(pid, query);
   }
 
   // ---------------- CREATE ----------------
@@ -64,7 +121,7 @@ export class TicketsController {
         dueDate: {
           type: 'string',
           format: 'date-time',
-          nullable: true
+          nullable: true,
         },
         attachments: {
           type: 'array',
@@ -147,14 +204,17 @@ export class DashboardController {
   }
 
   @Get('ticket-summary')
-    @ApiOperation({summary: 'Get tickets summary. Returns Open, In Progress, Resolved and Critical counts.'})
+  @ApiOperation({
+    summary:
+      'Get tickets summary. Returns Open, In Progress, Resolved and Critical counts.',
+  })
   getGlobalTicketSummary(@GetUser() user) {
     return this.ticketsService.getGlobalTicketSummary(user);
   }
 
   @Get('upcoming')
-  @ApiOperation({summary: 'Get upcoming tickets'})
-  getUpcomingTickets(@GetUser() user){
-    return this.ticketsService.getUpcomingTickets(user)
+  @ApiOperation({ summary: 'Get upcoming tickets' })
+  getUpcomingTickets(@GetUser() user) {
+    return this.ticketsService.getUpcomingTickets(user);
   }
 }

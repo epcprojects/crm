@@ -23,6 +23,11 @@ export class GetTicketsQueryDto {
   @IsUUID()
   assigneeId?: string;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  projectId?: string;
+
   @ApiProperty()
   @Type(() => Number)
   @IsOptional()
