@@ -8,6 +8,7 @@ import {
   AlertIcon,
   CheckMarkCircleIcon,
   ClockIcon,
+  FiltersIcon,
   FolderIcon,
   PlusIcon,
   SearchIcon,
@@ -48,6 +49,8 @@ import { useAppLoader } from '../../providers/AppLoaderProvider';
 import ThemeButton from '../../../components/ui/ThemeButton';
 import { useAppSelector } from '../../Redux/store';
 import EmptyState from '../../../components/EmptyState';
+import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
+import Dropdown from '../../../components/ui/ThemeDropDown';
 
 type TicketSummary = {
   open: number | null;
@@ -69,6 +72,14 @@ const ticketTabs: TicketTab[] = [
   },
 ];
 
+type ApiTicketSetting = {
+  id: string;
+  key: string;
+  label: string;
+  color: string;
+  sortOrder: number;
+};
+
 export default function Page() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -87,6 +98,8 @@ export default function Page() {
   const canEditProject = hasPermission('projects.edit');
   const canDeleteProject = hasPermission('projects.delete');
   const [searchValue, setSearchValue] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [selectedPriority, setSelectedPriority] = useState('all');
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [projectToEdit, setProjectToEdit] = useState<ProjectRecord | null>(
     null,
@@ -101,19 +114,78 @@ export default function Page() {
       limit: 3,
     },
   );
+
+
+  const ticketStatusesQuery = useQuery({
+    queryKey: ['ticket-statuses'],
+    queryFn: fetchTicketStatuses,
+    enabled: canViewRecentTickets,
+  });
+
+  const ticketPrioritiesQuery = useQuery({
+    queryKey: ['ticket-priorities'],
+    queryFn: fetchTicketPriorities,
+    enabled: canViewRecentTickets,
+  });
+
+  const statusFilterOptions = useMemo(
+    () => [
+      {
+        label: 'All Status',
+        value: 'all',
+      },
+      ...(ticketStatusesQuery.data ?? []).map(
+        mapTicketSettingToDropdownOption,
+      ),
+    ],
+    [ticketStatusesQuery.data],
+  );
+
+  const priorityFilterOptions = useMemo(
+    () => [
+      {
+        label: 'All Priority',
+        value: 'all',
+      },
+      ...(ticketPrioritiesQuery.data ?? []).map(
+        mapTicketSettingToDropdownOption,
+      ),
+    ],
+    [ticketPrioritiesQuery.data],
+  );
   const ticketSummaryQuery = useQuery({
     queryKey: ['dashboard', 'ticket-summary'],
     queryFn: fetchTicketSummary,
     enabled: canViewStats,
   });
+
   const recentTicketsQuery = useQuery({
-    queryKey: ['dashboard', 'recent-tickets', searchValue.trim()],
+    queryKey: [
+      'dashboard',
+      'recent-tickets',
+      searchValue.trim(),
+      selectedStatus,
+      selectedPriority,
+    ],
+
     queryFn: () =>
       fetchDashboardTickets({
         page: 1,
         limit: 20,
-        search: searchValue.trim(),
+
+        search: searchValue.trim() || undefined,
+
+        statusKey:
+          selectedStatus === 'all'
+            ? undefined
+            : selectedStatus,
+
+        priorityKey:
+          selectedPriority === 'all'
+            ? undefined
+            : selectedPriority,
       }),
+
     enabled: canViewRecentTickets,
   });
   const criticalTicketsQuery = useQuery({
@@ -438,6 +510,87 @@ export default function Page() {
                     </div>
                   </div>
 
+                  {/* Compact filters: below xl only */}
+                  <Popover as="div" className="relative xl:hidden">
+                    {({ open }) => (
+                      <>
+                        <PopoverButton
+                          className={`flex h-10 shrink-0 items-center justify-center gap-1 rounded-lg border px-3 text-xs font-medium outline-none ${open ||
+                            selectedStatus !== 'all' ||
+                            selectedPriority !== 'all'
+                            ? 'border-primary bg-primary/5 text-primary'
+                            : 'border-gray-200 bg-gray-100 text-black-olive'
+                            }`}
+                          aria-label="Open ticket filters"
+                        >
+                          <FiltersIcon />
+                          <span>Filter</span>
+                        </PopoverButton>
+
+                        <PopoverPanel
+                          anchor="bottom end"
+                          transition
+                          className="z-100 mt-2 flex w-56 origin-top-right flex-col gap-3 overflow-visible! rounded-xl border border-gray-200 bg-white p-3 shadow-[0_14px_44px_rgb(0_0_0/0.14)] outline-none transition duration-150 data-closed:-translate-y-2 data-closed:scale-95 data-closed:opacity-0"
+                        >
+                          <div className="relative w-full overflow-visible">
+                            <Dropdown
+                              options={statusFilterOptions}
+                              value={selectedStatus}
+                              onChange={setSelectedStatus}
+                              placeholder="All Status"
+                              maxMenuHeight={150}
+                            />
+                          </div>
+
+                          <div className="relative w-full overflow-visible">
+                            <Dropdown
+                              options={priorityFilterOptions}
+                              value={selectedPriority}
+                              onChange={setSelectedPriority}
+                              placeholder="All Priority"
+                              maxMenuHeight={150}
+                            />
+                          </div>
+
+                          {selectedStatus !== 'all' ||
+                            selectedPriority !== 'all' ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedStatus('all');
+                                setSelectedPriority('all');
+                              }}
+                              className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                            >
+                              Clear Filters
+                            </button>
+                          ) : null}
+                        </PopoverPanel>
+                      </>
+                    )}
+                  </Popover>
+
+                  {/* Desktop filters: xl and above */}
+                  <div className="hidden items-center gap-2 xl:flex">
+                    <div className="w-38">
+                      <Dropdown
+                        options={statusFilterOptions}
+                        value={selectedStatus}
+                        onChange={setSelectedStatus}
+                        placeholder="All Status"
+                      />
+                    </div>
+
+                    <div className="w-38">
+                      <Dropdown
+                        options={priorityFilterOptions}
+                        value={selectedPriority}
+                        onChange={setSelectedPriority}
+                        placeholder="All Priority"
+                      />
+                    </div>
+                  </div>
+
                   <div className="flex flex-row gap-2">
                     <div className="border border-gray-200 bg-white py-2 px-2.5 flex items-center gap-2 justify-between flex-row rounded-lg">
                       <SearchIcon fill="#374151" />
@@ -701,8 +854,8 @@ function DashboardStatsSkeleton() {
               <div className="flex min-w-0 flex-1 flex-col gap-1.5 xl:flex-row xl:items-center xl:justify-between xl:gap-3">
                 <div
                   className={`h-3 rounded bg-white/15 xl:h-4 ${index === 1
-                      ? 'w-16 xl:w-20'
-                      : 'w-11 xl:w-14'
+                    ? 'w-16 xl:w-20'
+                    : 'w-11 xl:w-14'
                     }`}
                 />
 
@@ -855,6 +1008,81 @@ function DashboardTabsSkeleton() {
   );
 }
 
+
+function sortTicketSettings(settings: ApiTicketSetting[]) {
+  return [...settings].sort(
+    (first, second) =>
+      first.sortOrder - second.sortOrder,
+  );
+}
+
+function mapTicketSettingToDropdownOption(
+  setting: ApiTicketSetting,
+) {
+  return {
+    label: setting.label,
+    value:
+      setting.key,
+    icon: (
+      <span
+        className="inline-block h-2.25 w-2.5 rounded-full"
+        style={{
+          backgroundColor: setting.color,
+        }}
+      />
+    ),
+  };
+}
+async function fetchTicketStatuses(): Promise<ApiTicketSetting[]> {
+  const response = await fetch('/api/ticket-statuses', {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiTicketSetting[]
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !Array.isArray(payload)) {
+    throw new Error(
+      !Array.isArray(payload)
+        ? payload?.message || 'Failed to fetch ticket statuses.'
+        : 'Failed to fetch ticket statuses.',
+    );
+  }
+
+  return sortTicketSettings(payload);
+}
+
+async function fetchTicketPriorities(): Promise<ApiTicketSetting[]> {
+  const response = await fetch('/api/ticket-priorities', {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiTicketSetting[]
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !Array.isArray(payload)) {
+    throw new Error(
+      !Array.isArray(payload)
+        ? payload?.message || 'Failed to fetch ticket priorities.'
+        : 'Failed to fetch ticket priorities.',
+    );
+  }
+
+  return sortTicketSettings(payload);
+}
+
 async function fetchTicketSummary(): Promise<TicketSummary> {
   const response = await fetch('/api/dashboard/ticket-summary', {
     method: 'GET',
@@ -966,11 +1194,13 @@ async function fetchUpcomingTickets(): Promise<ApiDashboardTicket[]> {
 async function fetchDashboardTickets({
   page,
   limit,
+  statusKey,
   priorityKey,
   search,
 }: {
   page: number;
   limit: number;
+  statusKey?: string;
   priorityKey?: string;
   search?: string;
 }): Promise<DashboardTicketsResponse> {
@@ -986,6 +1216,10 @@ async function fetchDashboardTickets({
   if (search) {
     searchParams.set('search', search);
   }
+  if (statusKey) {
+    searchParams.set('statusKey', statusKey);
+  }
+
 
   const response = await fetch(
     `/api/dashboard/tickets?${searchParams.toString()}`,

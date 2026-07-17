@@ -34,16 +34,21 @@ export async function GET(
 
     const { projectId } = await context.params;
     const upstreamUrl = new URL(`${apiBaseUrl}/projects/${projectId}/tickets`);
-    const page = request.nextUrl.searchParams.get('page');
-    const limit = request.nextUrl.searchParams.get('limit');
+    request.nextUrl.searchParams.forEach(
+      (value, key) => {
+        upstreamUrl.searchParams.set(key, value);
+      },
+    );
+    // const page = request.nextUrl.searchParams.get('page');
+    // const limit = request.nextUrl.searchParams.get('limit');
 
-    if (page) {
-      upstreamUrl.searchParams.set('page', page);
-    }
+    // if (page) {
+    //   upstreamUrl.searchParams.set('page', page);
+    // }
 
-    if (limit) {
-      upstreamUrl.searchParams.set('limit', limit);
-    }
+    // if (limit) {
+    //   upstreamUrl.searchParams.set('limit', limit);
+    // }
 
     const response = await fetch(upstreamUrl.toString(), {
       method: 'GET',
