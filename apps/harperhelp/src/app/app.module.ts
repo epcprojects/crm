@@ -13,6 +13,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { UtilityModule } from './modules/utility/utility.module';
 import { FilesModule } from './modules/files/files.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
+import { ChatModule } from './modules/chat/chat.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { CalendarModule } from './modules/calendar/calendar.module';
     UtilityModule,
     FilesModule,
     CalendarModule,
+    ChatModule,
   ],
   controllers: [AppController],
   providers: [AppService],

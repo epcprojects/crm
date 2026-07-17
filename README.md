@@ -2,7 +2,7 @@
 
 ### Generate nest module
 
-npx nx generate @nx/nest:resource --path=apps/harperhelp/src/app/modules/calendar/calendar --crud
+npx nx generate @nx/nest:resource --path=apps/harperhelp/src/app/modules/chat/chat --crud
 
 Email: `superadmin@harperhelp.local`  
 Password: `SuperAdmin123!`
