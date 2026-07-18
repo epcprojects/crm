@@ -4,6 +4,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import TicketRepliesPanel from '../../../../components/discussion/TicketRepliesPanel';
+import AppModal, {
+  ModalPosition,
+} from '../../../../components/modals/AppModal';
+import ConfirmActionModal from '../../../../components/modals/ConfirmActionModal';
+import {
+  useTicketChat,
+  type ChatChannel,
+  type ChatMessage,
+} from '../../../../components/hooks/useTicketChat';
 import Dropdown from '../../../../components/ui/ThemeDropDown';
 import { appToast } from '../../../../components/toast/AppToast';
 import { getTicketById, type TicketPerson } from '../tickets.data';
@@ -193,6 +202,23 @@ export default function TicketDetailPage() {
   });
 
   const ticket = ticketDetailQuery.data ?? fallbackTicket;
+  const [chatDrawerChannel, setChatDrawerChannel] =
+    useState<ChatChannel | null>(null);
+  const isChatDrawerOpen = Boolean(chatDrawerChannel);
+  const {
+    messages: chatMessages,
+    connected: chatConnected,
+    loading: chatLoading,
+    typingUsers,
+    sendMessage,
+    markRead,
+    deleteMessage,
+  } = useTicketChat({
+    projectId: isChatDrawerOpen ? projectId : '',
+    ticketId: isChatDrawerOpen ? ticketId : '',
+    channel: chatDrawerChannel ?? 'external',
+    enabled: isChatDrawerOpen,
+  });
   const isTicketLoading =
     Boolean(projectId && ticketId && canViewTicketDetail) &&
     ticketDetailQuery.isLoading &&
@@ -203,6 +229,12 @@ export default function TicketDetailPage() {
   const [selectedDueDate, setSelectedDueDate] = useState('');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [isSendingChatMessage, setIsSendingChatMessage] = useState(false);
+  const [deletingChatMessageId, setDeletingChatMessageId] = useState('');
+  const [chatMessagePendingDelete, setChatMessagePendingDelete] = useState<{
+    id: string;
+    message: string;
+  } | null>(null);
   const [titleDraft, setTitleDraft] = useState('');
   const [descriptionDraft, setDescriptionDraft] = useState('');
   const todayInputValue = getTodayInputValue();
@@ -274,6 +306,40 @@ export default function TicketDetailPage() {
     setTitleDraft(ticket.title);
     setDescriptionDraft(ticket.description);
   }, [ticket]);
+
+  useEffect(() => {
+    if (
+      !isChatDrawerOpen ||
+      !chatDrawerChannel ||
+      !currentUserId ||
+      !chatMessages.length
+    ) {
+      return;
+    }
+
+    const unreadMessageIds = chatMessages
+      .filter(
+        (message) =>
+          message.receiverId === currentUserId &&
+          !message.isRead &&
+          message.senderId !== currentUserId,
+      )
+      .map((message) => message.id);
+
+    if (!unreadMessageIds.length) {
+      return;
+    }
+
+    void markRead(unreadMessageIds).catch(() => {
+      // Keep the UI responsive if read-receipt sync fails.
+    });
+  }, [
+    chatDrawerChannel,
+    chatMessages,
+    currentUserId,
+    isChatDrawerOpen,
+    markRead,
+  ]);
 
   if (!canViewTicketDetail) {
     return (
@@ -415,6 +481,85 @@ export default function TicketDetailPage() {
     });
   };
 
+  const handleSubmitChatMessage = async ({
+    message,
+    attachments,
+  }: {
+    message: string;
+    attachments: File[];
+  }) => {
+    if (!chatDrawerChannel) {
+      return;
+    }
+
+    const receiverId = getChatReceiverId({
+      ticket,
+      currentUserId,
+      fallbackMemberIds: (membersQuery.data ?? []).map((member) => member.id),
+      channel: chatDrawerChannel,
+    });
+
+    if (!receiverId) {
+      appToast.error('No chat receiver could be determined for this ticket.');
+      return;
+    }
+
+    try {
+      setIsSendingChatMessage(true);
+
+      const trimmedMessage = message.trim();
+
+      if (trimmedMessage) {
+        await sendMessage({
+          receiverId,
+          message: trimmedMessage,
+          messageType: 'text',
+        });
+      }
+
+      if (attachments.length) {
+        const uploadedFiles = await uploadChatAttachments(
+          projectId,
+          attachments,
+        );
+        const attachmentUrls = uploadedFiles
+          .map((file) => buildAttachmentUrl(file.storageKey))
+          .filter((url) => Boolean(url));
+
+        if (attachmentUrls.length) {
+          await sendMessage({
+            receiverId,
+            message:
+              trimmedMessage ||
+              `Sent ${attachmentUrls.length} attachment${
+                attachmentUrls.length === 1 ? '' : 's'
+              }`,
+            messageType: 'attachment',
+            attachmentUrls,
+          });
+        }
+      }
+
+      appToast.success('Chat updated successfully.');
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'ticket-summary'],
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: projectsQueryKey,
+          refetchType: 'all',
+        }),
+      ]);
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to send message.',
+      );
+    } finally {
+      setIsSendingChatMessage(false);
+    }
+  };
+
   const handleSaveTitle = async () => {
     if (!canEditTicketContent) {
       return;
@@ -470,18 +615,62 @@ export default function TicketDetailPage() {
     setIsEditingDescription(false);
   };
 
+  const handleDeleteChatMessage = (reply: { id: string; message: string }) => {
+    setChatMessagePendingDelete(reply);
+  };
+
+  const handleConfirmDeleteChatMessage = async () => {
+    if (!chatMessagePendingDelete) {
+      return;
+    }
+
+    try {
+      setDeletingChatMessageId(chatMessagePendingDelete.id);
+      await deleteMessage(chatMessagePendingDelete.id);
+      appToast.success('Message deleted successfully.');
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to delete message.',
+      );
+    } finally {
+      setDeletingChatMessageId('');
+      setChatMessagePendingDelete(null);
+    }
+  };
+
   return (
     <div className="relative z-100 h-full xl:h-dvh overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0">
       <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden  xl:rounded-3xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
         <div className="shrink-0">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
-          >
-            <BackArrowIcon />
-            Back
-          </button>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
+            >
+              <BackArrowIcon />
+              Back
+            </button>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {!isExternalUser ? (
+                <button
+                  type="button"
+                  onClick={() => setChatDrawerChannel('internal')}
+                  className="inline-flex items-center gap-2 rounded-lg border border-[#10175A] bg-white px-4 py-2 text-sm font-medium text-[#10175A] transition hover:bg-[#F4F6FF]"
+                >
+                  Internal Chat
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => setChatDrawerChannel('external')}
+                className="inline-flex items-center gap-2 rounded-lg bg-[#10175A] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#1C257A]"
+              >
+                External Chat
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain  scrollbar-hide xl:overflow-hidden ">
@@ -509,7 +698,9 @@ export default function TicketDetailPage() {
                   </div>
                   {selectedDueDate ? (
                     <div>
-                      <span className="block text-sm text-gray-500">Due Date</span>
+                      <span className="block text-sm text-gray-500">
+                        Due Date
+                      </span>
 
                       <div
                         className={`flex h-fit items-start gap-2 rounded-lg pt-2 ${
@@ -799,6 +990,93 @@ export default function TicketDetailPage() {
           </div>
         </div>
       </div>
+
+      <AppModal
+        isOpen={isChatDrawerOpen}
+        onClose={() => setChatDrawerChannel(null)}
+        title={
+          chatDrawerChannel === 'internal' ? 'Internal Chat' : 'External Chat'
+        }
+        subtitle={getChatSubtitle({
+          connected: chatConnected,
+          loading: chatLoading,
+          typingUsers,
+        })}
+        position={ModalPosition.RIGHT}
+        size="extraLarge"
+        showFooter={false}
+        bodyPaddingClasses="p-0"
+      >
+        <div className="relative flex h-full min-h-0 flex-col bg-[#F8FAFC]">
+          {isSendingChatMessage ? (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/75 backdrop-blur">
+              <div className="flex min-w-[260px] flex-col items-center gap-4 rounded-2xl px-8 py-7 text-center">
+                <span className="h-10 w-10 animate-spin rounded-full border-4 border-[#BFDBFE] border-t-[#1D4ED8]" />
+                {/* <div className="space-y-1">
+                  <p className="text-base font-semibold text-[#1E3A8A]">
+                    Uploading attachments
+                  </p>
+                  <p className="text-sm text-[#3B82F6]">
+                    Please wait while we upload files and send your message.
+                  </p>
+                </div> */}
+              </div>
+            </div>
+          ) : null}
+          <div className="min-h-0 flex-1 p-4 relative">
+            {chatConnected ? (
+              <span className="min-w-2.5 h-2.5 bg-green-500  animate-pulse rounded-full block absolute top-9 end-8"></span>
+            ) : (
+              <span className="min-w-2 h-2 bg-red-500 rounded-full block absolute top-9 end-8"></span>
+            )}
+            <TicketRepliesPanel
+              title={
+                chatDrawerChannel === 'internal' ? 'Team Chat' : 'Client Chat'
+              }
+              subtitle=""
+              replies={chatMessages.map(mapChatMessageToDiscussionReply)}
+              emptyTitle={chatLoading ? 'Loading chat...' : 'No messages yet.'}
+              emptyDescription={
+                chatLoading
+                  ? 'Fetching message history.'
+                  : 'Start the conversation on this ticket.'
+              }
+              canCompose={canPostReplies}
+              canAttachFile={canAttachReplyFiles}
+              isSubmittingReply={isSendingChatMessage}
+              onSubmitReply={
+                canPostReplies ? handleSubmitChatMessage : undefined
+              }
+              requireMessage={false}
+              currentUserId={currentUserId}
+              onDeleteReply={handleDeleteChatMessage}
+              deletingReplyId={deletingChatMessageId}
+            />
+          </div>
+        </div>
+      </AppModal>
+
+      <ConfirmActionModal
+        isOpen={Boolean(chatMessagePendingDelete)}
+        onClose={() => {
+          if (deletingChatMessageId) {
+            return;
+          }
+
+          setChatMessagePendingDelete(null);
+        }}
+        title="Delete Message?"
+        message={
+          chatMessagePendingDelete?.message.trim()
+            ? 'Are you sure you want to delete this message? This action cannot be undone.'
+            : 'Are you sure you want to delete this attachment message? This action cannot be undone.'
+        }
+        confirmLabel="Yes, Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isSubmitting={Boolean(deletingChatMessageId)}
+        onConfirm={handleConfirmDeleteChatMessage}
+      />
     </div>
   );
 }
@@ -1026,6 +1304,7 @@ type UpdateTicketPayloadInput = {
   statusKey?: string | null;
   priorityKey?: string | null;
   assigneeId?: string | null;
+  reporterId?: string | null;
   dueDate?: string | null;
 };
 
@@ -1080,6 +1359,7 @@ function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
     dueDate: ticket.dueDate ? formatTicketDate(ticket.dueDate) : 'No due date',
     dueDateValue: ticket.dueDate ?? '',
     assigneeId: ticket.assigneeId ?? '',
+    reporterId: ticket.reporterId ?? '',
     priorityKey: ticket.priorityKey,
     attachments: ticket.attachments.map((attachment) => ({
       id: attachment.id,
@@ -1101,6 +1381,66 @@ function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
         }
       : null,
     replies: [],
+  };
+}
+
+function mapChatMessageToDiscussionReply(message: ChatMessage) {
+  const authorName =
+    message.sender?.fullName ??
+    message.sender?.name ??
+    (message.senderId ? `User ${message.senderId.slice(-4)}` : 'User');
+  const isDeleted =
+    message.message.trim() === '[Message deleted]' ||
+    message.message.trim() === 'Message deleted';
+  const readReceipt =
+    message.isRead && message.senderId
+      ? 'Read'
+      : message.senderId
+        ? 'Sent'
+        : '';
+  const resolvedAttachmentUrls = Array.isArray(message.attachmentUrls)
+    ? message.attachmentUrls.filter(
+        (url): url is string =>
+          typeof url === 'string' && url.trim().length > 0,
+      )
+    : message.attachmentUrl
+      ? [message.attachmentUrl]
+      : [];
+
+  return {
+    id: message.id,
+    authorId: message.senderId,
+    author: {
+      name: authorName,
+      initials: getInitials(authorName),
+    },
+    createdAt: `${formatReplyDate(message.createdAt)}${readReceipt ? ` • ${readReceipt}` : ''}`,
+    message:
+      message.messageType === 'attachment'
+        ? isDeleted
+          ? 'Message deleted'
+          : message.message.trim() &&
+              message.message.trim() !== message.attachmentName?.trim() &&
+              !/^sent \d+ attachments?$/i.test(message.message.trim())
+            ? message.message.trim()
+            : ''
+        : isDeleted
+          ? 'Message deleted'
+          : message.message.trim(),
+    attachments:
+      message.messageType === 'attachment' && resolvedAttachmentUrls.length
+        ? resolvedAttachmentUrls.map((attachmentUrl, index) => ({
+            id: `${message.id}-attachment-${index}`,
+            name:
+              index === 0 && message.attachmentName?.trim()
+                ? message.attachmentName.trim()
+                : extractFileNameFromUrl(attachmentUrl) ||
+                  `Attachment ${index + 1}`,
+            extension: getAttachmentExtension(attachmentUrl),
+            storageKey: attachmentUrl,
+            url: attachmentUrl,
+          }))
+        : [],
   };
 }
 
@@ -1136,6 +1476,223 @@ function mapApiTicketReplyAttachment(attachment: ApiTicketReplyAttachment) {
     extension: attachment.extension ?? attachment.mimeType ?? undefined,
     storageKey: attachment.storageKey ?? undefined,
   };
+}
+
+function getChatReceiverId({
+  ticket,
+  currentUserId,
+  fallbackMemberIds,
+  channel,
+}: {
+  ticket:
+    | ReturnType<typeof mapApiTicketDetailToRecord>
+    | ReturnType<typeof getTicketById>
+    | null;
+  currentUserId: string;
+  fallbackMemberIds: string[];
+  channel: ChatChannel;
+}) {
+  if (!ticket) {
+    return '';
+  }
+
+  const assigneeId = 'assigneeId' in ticket ? (ticket.assigneeId ?? '') : '';
+  const reporterId = 'reporterId' in ticket ? (ticket.reporterId ?? '') : '';
+
+  if (channel === 'external') {
+    if (currentUserId && currentUserId === reporterId) {
+      return (
+        assigneeId ||
+        fallbackMemberIds.find((memberId) => memberId !== currentUserId) ||
+        ''
+      );
+    }
+
+    return (
+      reporterId ||
+      fallbackMemberIds.find((memberId) => memberId !== currentUserId) ||
+      ''
+    );
+  }
+
+  if (assigneeId && assigneeId !== currentUserId) {
+    return assigneeId;
+  }
+
+  return fallbackMemberIds.find((memberId) => memberId !== currentUserId) || '';
+}
+
+function getChatSubtitle({
+  connected,
+  loading,
+  typingUsers,
+}: {
+  connected: boolean;
+  loading: boolean;
+  typingUsers: Array<{ userId: string; name: string }>;
+}) {
+  if (loading) {
+    return 'Connecting to live chat...';
+  }
+
+  if (typingUsers.length) {
+    return `${typingUsers.map((user) => user.name).join(', ')} typing...`;
+  }
+
+  return connected ? 'Live sync connected' : 'Live sync disconnected';
+}
+
+type UploadedProjectFile = {
+  id?: string;
+  originalName?: string | null;
+  name?: string | null;
+  storageKey?: string | null;
+  sizeBytes?: string | number | null;
+  extension?: string | null;
+  mimeType?: string | null;
+};
+
+async function uploadChatAttachments(
+  projectId: string,
+  attachments: File[],
+): Promise<UploadedProjectFile[]> {
+  const formData = new FormData();
+
+  attachments.forEach((file) => {
+    formData.append('files', file, file.name);
+  });
+
+  const response = await fetch(`/api/projects/${projectId}/files`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | UploadedProjectFile[]
+    | {
+        message?: string;
+        data?: UploadedProjectFile[];
+        items?: UploadedProjectFile[];
+      }
+    | null;
+
+  if (!response.ok) {
+    throw new Error(
+      payload && !Array.isArray(payload)
+        ? payload.message || 'Failed to upload chat attachments.'
+        : 'Failed to upload chat attachments.',
+    );
+  }
+
+  const uploadedFiles = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.data)
+      ? payload.data
+      : Array.isArray(payload?.items)
+        ? payload.items
+        : [];
+
+  if (!uploadedFiles.length) {
+    return [];
+  }
+
+  const expectedFileKeys = attachments.map((file) =>
+    buildUploadedFileMatchKey({
+      name: file.name,
+      sizeBytes: file.size,
+    }),
+  );
+  const remainingKeys = [...expectedFileKeys];
+  const matchedFiles = uploadedFiles.filter((file) => {
+    const fileKey = buildUploadedFileMatchKey({
+      name: file.originalName ?? file.name ?? '',
+      sizeBytes: file.sizeBytes,
+    });
+    const matchingIndex = remainingKeys.indexOf(fileKey);
+
+    if (matchingIndex === -1) {
+      return false;
+    }
+
+    remainingKeys.splice(matchingIndex, 1);
+    return true;
+  });
+
+  if (matchedFiles.length) {
+    return matchedFiles;
+  }
+
+  return uploadedFiles.slice(-attachments.length);
+}
+
+function extractFileNameFromUrl(url: string) {
+  try {
+    const parsedUrl = new URL(url);
+    const pathnameParts = parsedUrl.pathname.split('/').filter(Boolean);
+    return pathnameParts.at(-1) ?? '';
+  } catch {
+    return url.split('/').filter(Boolean).at(-1) ?? '';
+  }
+}
+
+function getAttachmentExtension(value?: string | null) {
+  const name = value?.trim() ?? '';
+  const lastSegment = name.split('.').pop()?.trim();
+
+  if (!lastSegment || lastSegment === name) {
+    return undefined;
+  }
+
+  return lastSegment.toLowerCase();
+}
+
+function buildAttachmentUrl(storageKey?: string | null) {
+  if (!storageKey) {
+    return '';
+  }
+
+  if (/^https?:\/\//i.test(storageKey)) {
+    return storageKey;
+  }
+
+  const cloudfrontUrl = process.env.NEXT_PUBLIC_CLOUDFRONT_URL?.trim() ?? '';
+  const normalizedBaseUrl = cloudfrontUrl.replace(/\/+$/, '');
+  const normalizedStorageKey = storageKey.replace(/^\/+/, '');
+  const encodedStorageKey = normalizedStorageKey
+    .split('/')
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+
+  if (normalizedBaseUrl && encodedStorageKey) {
+    return `${normalizedBaseUrl}/${encodedStorageKey}`;
+  }
+
+  if (typeof window !== 'undefined' && normalizedStorageKey) {
+    const searchParams = new URLSearchParams({
+      storageKey: normalizedStorageKey,
+      fileName: extractFileNameFromUrl(normalizedStorageKey) || 'attachment',
+    });
+
+    return `${window.location.origin}/api/projects/files/download?${searchParams.toString()}`;
+  }
+
+  return '';
+}
+
+function toNumber(value: string | number | null | undefined) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function buildUploadedFileMatchKey({
+  name,
+  sizeBytes,
+}: {
+  name: string;
+  sizeBytes: string | number | null | undefined;
+}) {
+  return `${name.trim().toLowerCase()}::${toNumber(sizeBytes) ?? ''}`;
 }
 
 function getInitials(value: string) {

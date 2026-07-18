@@ -32,6 +32,8 @@ type DiscussionPanelProps = {
   onReplyClick?: (reply: DiscussionReply) => void;
   onDeleteAttachment?: (attachment: DiscussionAttachment) => void;
   deletingAttachmentId?: string;
+  onDeleteReply?: (reply: DiscussionReply) => void;
+  deletingReplyId?: string;
 };
 
 export default function TicketRepliesPanel({
@@ -53,6 +55,8 @@ export default function TicketRepliesPanel({
   onReplyClick,
   onDeleteAttachment,
   deletingAttachmentId,
+  onDeleteReply,
+  deletingReplyId,
 }: DiscussionPanelProps) {
   const [message, setMessage] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -362,18 +366,33 @@ export default function TicketRepliesPanel({
                         </div>
                       ) : null}
 
-                      {showReplyMeta ? (
-                        <button
-                          type="button"
-                          onClick={() => onReplyClick?.(reply)}
-                          disabled={!onReplyClick}
-                          className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 transition hover:text-gray-700"
-                        >
-                          <ReplyArrowIcon />
-                          {reply.replyCount && reply.replyCount > 0
-                            ? `${reply.replyCount} ${reply.replyCount === 1 ? 'Reply' : 'Replies'}`
-                            : 'Reply'}
-                        </button>
+                      {showReplyMeta || (onDeleteReply && isCurrentUserReply) ? (
+                        <div className="mt-2 flex items-center gap-3">
+                          {showReplyMeta ? (
+                            <button
+                              type="button"
+                              onClick={() => onReplyClick?.(reply)}
+                              disabled={!onReplyClick}
+                              className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 transition hover:text-gray-700"
+                            >
+                              <ReplyArrowIcon />
+                              {reply.replyCount && reply.replyCount > 0
+                                ? `${reply.replyCount} ${reply.replyCount === 1 ? 'Reply' : 'Replies'}`
+                                : 'Reply'}
+                            </button>
+                          ) : null}
+                          {onDeleteReply && isCurrentUserReply ? (
+                            <button
+                              type="button"
+                              onClick={() => onDeleteReply(reply)}
+                              disabled={deletingReplyId === reply.id}
+                              className="inline-flex items-center gap-1.5 text-xs font-medium text-red-500 transition hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <AttachmentTrashIcon />
+                              Delete
+                            </button>
+                          ) : null}
+                        </div>
                       ) : null}
                     </div>
                     {isCurrentUserReply ? (
@@ -519,6 +538,10 @@ export default function TicketRepliesPanel({
 }
 
 function getAttachmentUrl(storageKey?: string) {
+  if (typeof storageKey === 'string' && /^https?:\/\//i.test(storageKey)) {
+    return storageKey;
+  }
+
   if (!storageKey) {
     return '#';
   }
