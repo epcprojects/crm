@@ -45,9 +45,9 @@ export class ChatMessagesController {
   ) {
     // this.service.assertAccess(user.role, channel);
 
-    if (user.userType === UserType.EXTERNAL) {
-      await this.service.assertExternalTicketAccess(user.id, ticketId);
-    }
+    // if (user.userType === UserType.EXTERNAL) {
+    //   await this.service.assertExternalTicketAccess(user.id, ticketId);
+    // }
 
     return this.service.getMessages(channel, ticketId, query);
   }
@@ -64,9 +64,9 @@ export class ChatMessagesController {
   ) {
     // this.service.assertAccess(user.role, channel);
 
-    if (user.userType === UserType.EXTERNAL) {
-      await this.service.assertExternalTicketAccess(user.id, ticketId);
-    }
+    // if (user.userType === UserType.EXTERNAL) {
+    //   await this.service.assertExternalTicketAccess(user.id, ticketId);
+    // }
 
     const message = await this.service.send(
       channel,
@@ -128,6 +128,6 @@ export class ChatMessagesController {
     @Param('ticketId') ticketId: string,
     @GetUser() user: any,
   ): Promise<UnreadCountDto> {
-    return this.service.getUnreadCounts(ticketId, user.id, user.role);
+    return this.service.getUnreadCounts(ticketId, user.id, user.userType);
   }
 }

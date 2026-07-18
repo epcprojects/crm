@@ -4,35 +4,42 @@ import {
   IsEnum,
   IsOptional,
   IsNumber,
-  IsUrl,
   MaxLength,
   IsNotEmpty,
+  IsArray,
 } from 'class-validator';
 import { MessageType } from '../entities/chat-message-internal.entity';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class SendMessageDto {
   @IsUUID()
+  @ApiProperty()
   receiverId: string;
 
+  @ApiPropertyOptional()
   @IsEnum(MessageType)
   @IsOptional()
   messageType?: MessageType = MessageType.TEXT;
 
+  @ApiProperty()
   @IsString()
   @IsNotEmpty()
   @MaxLength(5000)
   message: string;
 
   // Populated server-side after S3 upload — not supplied raw by client
+  @ApiPropertyOptional({ type: [String] })
   @IsOptional()
-  @IsUrl()
-  attachmentUrl?: string;
+  @IsArray()
+  attachmentUrls?: string[];
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @MaxLength(255)
   attachmentName?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsNumber()
   attachmentSize?: number;
@@ -44,11 +51,13 @@ export class MarkReadDto {
 }
 
 export class GetMessagesQueryDto {
+  @ApiPropertyOptional()
   @IsOptional()
   @IsNumber()
   limit?: number = 50;
 
   // cursor-based pagination — pass createdAt of oldest loaded message
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   before?: string;

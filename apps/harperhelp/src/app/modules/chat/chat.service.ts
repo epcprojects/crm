@@ -10,6 +10,7 @@ import { ChatMessageInternal } from './entities/chat-message-internal.entity';
 import { ChatMessageExternal } from './entities/chat-message-external.entity';
 import { SendMessageDto, GetMessagesQueryDto } from './dto/chat-message.dto';
 import { Ticket } from '../tickets/entities/ticket.entity';
+import { UserType } from 'libs/shared/types/src/lib/types';
 
 export type ChatChannel = 'internal' | 'external';
 
@@ -85,7 +86,7 @@ export class ChatMessagesService {
       receiverId: dto.receiverId,
       messageType: dto.messageType,
       message: dto.message,
-      attachmentUrl: dto.attachmentUrl ?? null,
+      attachmentUrls: dto.attachmentUrls ?? null,
       attachmentName: dto.attachmentName ?? null,
       attachmentSize: dto.attachmentSize ?? null,
     });
@@ -146,16 +147,13 @@ export class ChatMessagesService {
   }
 
   // - Unread counts
-
   async getUnreadCounts(
     ticketId: string,
     userId: string,
-    role: string,
+    userType: string,
   ): Promise<{ internal: number; external: number }> {
-    const allowed = this.getAllowedChannels(role);
-
     const [internal, external] = await Promise.all([
-      allowed.includes('internal')
+      userType === UserType.INTERNAL
         ? this.internalRepo.count({
             where: {
               ticketId,
@@ -166,7 +164,7 @@ export class ChatMessagesService {
           })
         : Promise.resolve(0),
 
-      allowed.includes('external')
+      userType === UserType.EXTERNAL
         ? this.externalRepo.count({
             where: {
               ticketId,

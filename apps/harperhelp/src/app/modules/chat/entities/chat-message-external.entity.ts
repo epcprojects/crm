@@ -1,6 +1,12 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn, Index,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Ticket } from '../../tickets/entities/ticket.entity';
@@ -37,8 +43,13 @@ export class ChatMessageExternal {
   @Column({ type: 'text' })
   message: string;
 
-  @Column({ name: 'attachment_url', type: 'text', nullable: true })
-  attachmentUrl: string | null;
+  @Column({
+    name: 'attachment_urls',
+    type: 'text',
+    array: true,
+    nullable: true,
+  })
+  attachmentUrls: string[] | null;
 
   @Column({ name: 'attachment_name', type: 'text', nullable: true })
   attachmentName: string | null;
