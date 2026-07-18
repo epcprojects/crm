@@ -17,12 +17,14 @@ import { TicketPrioritiesController } from './ticket.priorities.controller';
 import { TicketPrioritiesService } from './services/ticket.priorities.service';
 import { TicketSequence } from './entities/ticket.sequence.entity';
 import { Project } from '../projects/entities/project.entity';
+import { TicketsKanbanView } from './entities/tickets-kanban-view.entity';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       Ticket,
       TicketStatus,
+      TicketsKanbanView,
       TicketPriority,
       FileRecord,
       TicketReply,
@@ -46,4 +48,4 @@ import { Project } from '../projects/entities/project.entity';
     TicketPrioritiesService,
   ],
 })
-export class TicketsModule {}
+export class TicketsModule { }

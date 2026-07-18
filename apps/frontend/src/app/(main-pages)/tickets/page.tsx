@@ -73,6 +73,7 @@ export default function Page() {
     queryKey: ['ticket-statuses'],
     queryFn: fetchTicketStatuses,
     enabled: canFilterTickets,
+    // refetchOnMount: true,
   });
 
   const ticketPrioritiesQuery = useQuery({
@@ -167,12 +168,14 @@ export default function Page() {
   const kanbanStatusOptions = useMemo(
     () =>
       (ticketStatusesQuery.data ?? []).map((status) => ({
+        id: status.id,
         label: status.label,
         value: status.key,
         color: status.color,
       })),
     [ticketStatusesQuery.data],
   );
+
   const sortedTickets = useMemo(
     () => sortTicketsLocally(ticketsQuery.data?.items ?? [], sortState),
     [sortState, ticketsQuery.data?.items],
@@ -304,6 +307,87 @@ export default function Page() {
     },
   });
 
+
+  const reorderStatusMutation = useMutation({
+    mutationFn: async ({
+      statusId,
+      newIndex,
+    }: {
+      statusId: string;
+      newIndex: number;
+    }) => {
+      const response = await fetch('/api/ticket-statuses/reorder', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ statusId, newIndex }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(data?.message || 'Failed to reorder ticket statuses.');
+      }
+
+      return { statusId, newIndex };
+    },
+    onMutate: async ({ statusId, newIndex }) => {
+      await queryClient.cancelQueries({ queryKey: ['ticket-statuses'] });
+
+      const previousStatuses = queryClient.getQueryData<ApiTicketSetting[]>([
+        'ticket-statuses',
+      ]);
+
+      queryClient.setQueryData<ApiTicketSetting[]>(
+        ['ticket-statuses'],
+        (current) => {
+          if (!current) {
+            return current;
+          }
+
+          const draggedIndex = current.findIndex(
+            (status) => status.id === statusId,
+          );
+
+          if (draggedIndex === -1) {
+            return current;
+          }
+
+          const nextOrder = [...current];
+          const [draggedStatus] = nextOrder.splice(draggedIndex, 1);
+          nextOrder.splice(newIndex, 0, draggedStatus);
+
+          return nextOrder;
+        },
+      );
+
+      return { previousStatuses };
+    },
+    onError: (error, _variables, context) => {
+      if (context?.previousStatuses) {
+        queryClient.setQueryData(['ticket-statuses'], context.previousStatuses);
+      }
+
+      appToast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to reorder ticket statuses.',
+      );
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['ticket-statuses'] });
+    },
+  });
+
+  const handleReorderStatusColumn = (statusId: string, newIndex: number) => {
+    if (!canFilterTickets || reorderStatusMutation.isPending) {
+      return;
+    }
+
+    reorderStatusMutation.mutate({ statusId, newIndex });
+  };
   const handleCreateTicket = async (values: CreateTicketFormValues) => {
     if (!canCreateTicket) {
       return;
@@ -580,13 +664,13 @@ export default function Page() {
                     <TicketsKanbanView
                       tickets={sortedTickets}
                       statusOptions={kanbanStatusOptions}
-                      onTicketClick={
-                        canViewTicketDetail ? handleTicketClick : undefined
-                      }
+                      onTicketClick={canViewTicketDetail ? handleTicketClick : undefined}
                       onMoveTicket={(ticket, nextStatusKey) => {
                         void handleMoveTicket(ticket, nextStatusKey);
                       }}
+                      onReorderColumn={handleReorderStatusColumn}
                       canDragTickets={canEditTicketStatus}
+                      canDragColumns={canFilterTickets}
                       movingTicketId={
                         moveTicketMutation.isPending
                           ? (moveTicketMutation.variables?.ticket.id ?? null)
@@ -769,9 +853,8 @@ async function fetchTicketStatuses() {
     );
   }
 
-  return sortTicketSettings(payload);
+  return payload;
 }
-
 async function fetchTicketPriorities() {
   const response = await fetch('/api/ticket-priorities', {
     method: 'GET',

@@ -10,16 +10,21 @@ import { TicketStatus } from '../entities/ticket.statuses.entity';
 import { CreateTicketStatusDto } from '../dto/create-ticket-status.dto';
 import { UpdateTicketStatusDto } from '../dto/update-ticket-status.dto';
 import { Ticket } from '../entities/ticket.entity';
+import { TicketsKanbanView } from '../entities/tickets-kanban-view.entity';
+import { ReorderTicketStatusDto } from '../dto/reorder-ticket-status.dto';
 
 @Injectable()
 export class TicketStatusesService {
   constructor(
+    @InjectRepository(TicketsKanbanView)
+    private readonly kanbanViewRepo: Repository<TicketsKanbanView>,
+
     @InjectRepository(TicketStatus)
     private readonly statusRepo: Repository<TicketStatus>,
 
     @InjectRepository(Ticket)
     private readonly ticketRepo: Repository<Ticket>,
-  ) {}
+  ) { }
 
   async create(dto: CreateTicketStatusDto) {
     try {
@@ -40,7 +45,90 @@ export class TicketStatusesService {
     }
   }
 
-  async findAll() {
+  async reorder(
+    dto: ReorderTicketStatusDto,
+    user: { id: string },
+  ) {
+    return this.statusRepo.manager.transaction(async (manager) => {
+      const kanbanRepo = manager.getRepository(TicketsKanbanView);
+      const statusRepo = manager.getRepository(TicketStatus);
+
+      let userSorting = await kanbanRepo.find({
+        where: {
+          userId: user.id,
+        },
+        order: {
+          sortOrder: 'ASC',
+        },
+      });
+
+      // First time user -> copy default ordering
+      if (userSorting.length === 0) {
+        const defaultStatuses = await statusRepo.find({
+          order: {
+            sortOrder: 'ASC',
+            createdAt: 'ASC',
+          },
+        });
+
+        userSorting = defaultStatuses.map((status) =>
+          kanbanRepo.create({
+            userId: user.id,
+            statusId: status.id,
+            sortOrder: status.sortOrder,
+          }),
+        );
+
+        await kanbanRepo.save(userSorting);
+      }
+
+      const currentIndex = userSorting.findIndex(
+        (item) => item.statusId === dto.statusId,
+      );
+
+      if (currentIndex === -1) {
+        throw new NotFoundException('Ticket status not found.');
+      }
+
+      const [movedStatus] = userSorting.splice(currentIndex, 1);
+
+      userSorting.splice(dto.newIndex, 0, movedStatus);
+
+      userSorting.forEach((item, index) => {
+        item.sortOrder = index;
+      });
+
+      await kanbanRepo.save(userSorting);
+
+      return {
+        success: true,
+      };
+    });
+  }
+
+  async findAll(user: { id: string }) {
+    const userSorting = await this.kanbanViewRepo.find({
+      where: {
+        userId: user.id,
+      },
+      relations: {
+        status: true,
+      },
+      order: {
+        sortOrder: 'ASC',
+      },
+    });
+
+    if (userSorting.length > 0) {
+      return userSorting.map(({ status, sortOrder }) => ({
+        id: status.id,
+        key: status.key,
+        label: status.label,
+        color: status.color,
+        sortOrder,
+      }));
+    }
+
     return this.statusRepo.find({
       order: {
         sortOrder: 'ASC',
