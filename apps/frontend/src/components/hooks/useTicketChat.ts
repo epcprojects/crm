@@ -11,7 +11,6 @@ export type ChatMessage = {
   projectId: string;
   ticketId: string;
   senderId: string;
-  receiverId: string;
   messageType: 'text' | 'attachment';
   message: string;
   attachmentUrl?: string | null;
@@ -44,7 +43,6 @@ function isChatMessage(value: unknown): value is ChatMessage {
       'projectId' in value &&
       'ticketId' in value &&
       'senderId' in value &&
-      'receiverId' in value &&
       'message' in value,
   );
 }
@@ -182,7 +180,9 @@ export function useTicketChat({
           }
 
           setMessages((current) => {
-            const exists = current.some((message) => message.id === payload.message.id);
+            const exists = current.some(
+              (message) => message.id === payload.message.id,
+            );
 
             if (exists) {
               return current.map((message) =>
@@ -227,7 +227,9 @@ export function useTicketChat({
           }
 
           setTypingUsers((current) => {
-            const filtered = current.filter((user) => user.userId !== payload.userId);
+            const filtered = current.filter(
+              (user) => user.userId !== payload.userId,
+            );
 
             if (!payload.isTyping) {
               return filtered;
@@ -291,7 +293,6 @@ export function useTicketChat({
 
   const sendMessage = useCallback(
     async ({
-      receiverId,
       message,
       messageType = 'text',
       attachmentUrl,
@@ -299,7 +300,6 @@ export function useTicketChat({
       attachmentName,
       attachmentSize,
     }: {
-      receiverId: string;
       message: string;
       messageType?: 'text' | 'attachment';
       attachmentUrl?: string;
@@ -316,7 +316,6 @@ export function useTicketChat({
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            receiverId,
             message,
             messageType,
             attachmentUrl,
@@ -370,9 +369,10 @@ export function useTicketChat({
         },
       );
 
-      const payload = (await response.json().catch(() => null)) as
-        | { success?: boolean; message?: string }
-        | null;
+      const payload = (await response.json().catch(() => null)) as {
+        success?: boolean;
+        message?: string;
+      } | null;
 
       if (!response.ok) {
         throw new Error(payload?.message || 'Failed to mark messages as read.');
@@ -405,9 +405,10 @@ export function useTicketChat({
         },
       );
 
-      const payload = (await response.json().catch(() => null)) as
-        | { success?: boolean; message?: string }
-        | null;
+      const payload = (await response.json().catch(() => null)) as {
+        success?: boolean;
+        message?: string;
+      } | null;
 
       if (!response.ok) {
         throw new Error(payload?.message || 'Failed to delete message.');

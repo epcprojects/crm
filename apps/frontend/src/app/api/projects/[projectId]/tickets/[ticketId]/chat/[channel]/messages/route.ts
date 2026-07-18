@@ -71,7 +71,6 @@ export async function GET(
 }
 
 type SendMessagePayload = {
-  receiverId: string;
   message: string;
   messageType?: 'text' | 'attachment';
   attachmentUrl?: string;
@@ -108,9 +107,9 @@ export async function POST(
     }
 
     const { projectId, ticketId, channel } = await context.params;
-    const body = (await request.json().catch(() => null)) as
-      | SendMessagePayload
-      | null;
+    const body = (await request
+      .json()
+      .catch(() => null)) as SendMessagePayload | null;
 
     const response = await fetch(
       `${apiBaseUrl}/projects/${projectId}/tickets/${ticketId}/chat/${channel}/messages`,

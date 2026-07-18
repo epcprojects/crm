@@ -44,6 +44,8 @@ export default function TicketDetailPage() {
   const canEditPriority = hasPermission('tickets.edit_priority');
   const canEditAssignee = hasPermission('tickets.edit_assignee');
   const canEditDueDate = hasPermission('tickets.edit_due_date');
+  const canViewExternalChatBtn = hasPermission('tickets.external_chat');
+  const canViewInternalChatBtn = hasPermission('tickets.internal_chat');
   const canEditTicketContent = !isExternalUser;
 
   const fallbackTicket = useMemo(() => getTicketById(ticketId), [ticketId]);
@@ -207,9 +209,7 @@ export default function TicketDetailPage() {
   const isChatDrawerOpen = Boolean(chatDrawerChannel);
   const {
     messages: chatMessages,
-    connected: chatConnected,
     loading: chatLoading,
-    typingUsers,
     sendMessage,
     markRead,
     deleteMessage,
@@ -320,7 +320,7 @@ export default function TicketDetailPage() {
     const unreadMessageIds = chatMessages
       .filter(
         (message) =>
-          message.receiverId === currentUserId &&
+          message.id === currentUserId &&
           !message.isRead &&
           message.senderId !== currentUserId,
       )
@@ -492,18 +492,6 @@ export default function TicketDetailPage() {
       return;
     }
 
-    const receiverId = getChatReceiverId({
-      ticket,
-      currentUserId,
-      fallbackMemberIds: (membersQuery.data ?? []).map((member) => member.id),
-      channel: chatDrawerChannel,
-    });
-
-    if (!receiverId) {
-      appToast.error('No chat receiver could be determined for this ticket.');
-      return;
-    }
-
     try {
       setIsSendingChatMessage(true);
 
@@ -511,7 +499,6 @@ export default function TicketDetailPage() {
 
       if (trimmedMessage) {
         await sendMessage({
-          receiverId,
           message: trimmedMessage,
           messageType: 'text',
         });
@@ -528,7 +515,6 @@ export default function TicketDetailPage() {
 
         if (attachmentUrls.length) {
           await sendMessage({
-            receiverId,
             message:
               trimmedMessage ||
               `Sent ${attachmentUrls.length} attachment${
@@ -653,7 +639,7 @@ export default function TicketDetailPage() {
             </button>
 
             <div className="flex flex-wrap items-center gap-2">
-              {!isExternalUser ? (
+              {canViewInternalChatBtn && (
                 <button
                   type="button"
                   onClick={() => setChatDrawerChannel('internal')}
@@ -661,14 +647,16 @@ export default function TicketDetailPage() {
                 >
                   Internal Chat
                 </button>
-              ) : null}
-              <button
-                type="button"
-                onClick={() => setChatDrawerChannel('external')}
-                className="inline-flex items-center gap-2 rounded-lg bg-[#10175A] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#1C257A]"
-              >
-                External Chat
-              </button>
+              )}
+              {canViewExternalChatBtn && (
+                <button
+                  type="button"
+                  onClick={() => setChatDrawerChannel('external')}
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#10175A] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#1C257A]"
+                >
+                  External Chat
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -994,23 +982,22 @@ export default function TicketDetailPage() {
       <AppModal
         isOpen={isChatDrawerOpen}
         onClose={() => setChatDrawerChannel(null)}
-        title={
-          chatDrawerChannel === 'internal' ? 'Internal Chat' : 'External Chat'
-        }
-        subtitle={getChatSubtitle({
-          connected: chatConnected,
-          loading: chatLoading,
-          typingUsers,
-        })}
+        title={chatDrawerChannel === 'internal' ? 'Chat' : 'Chat'}
+        // subtitle={getChatSubtitle({
+        //   connected: chatConnected,
+        //   loading: chatLoading,
+        //   typingUsers,
+        // })}
         position={ModalPosition.RIGHT}
         size="extraLarge"
         showFooter={false}
-        bodyPaddingClasses="p-0"
+        bodyPaddingClasses="p-0!"
+        outSideClickClose={false}
       >
         <div className="relative flex h-full min-h-0 flex-col bg-[#F8FAFC]">
           {isSendingChatMessage ? (
             <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/75 backdrop-blur">
-              <div className="flex min-w-[260px] flex-col items-center gap-4 rounded-2xl px-8 py-7 text-center">
+              <div className="flex min-w-65 flex-col items-center gap-4 rounded-2xl px-8 py-7 text-center">
                 <span className="h-10 w-10 animate-spin rounded-full border-4 border-[#BFDBFE] border-t-[#1D4ED8]" />
                 {/* <div className="space-y-1">
                   <p className="text-base font-semibold text-[#1E3A8A]">
@@ -1023,13 +1010,15 @@ export default function TicketDetailPage() {
               </div>
             </div>
           ) : null}
-          <div className="min-h-0 flex-1 p-4 relative">
-            {chatConnected ? (
-              <span className="min-w-2.5 h-2.5 bg-green-500  animate-pulse rounded-full block absolute top-9 end-8"></span>
+          <div className="min-h-0 flex-1  relative">
+            {/* {chatConnected ? (
+              <span className="min-w-2.5 h-2.5 bg-green-500  animate-pulse rounded-full block absolute z-100 -top-9 end-8"></span>
             ) : (
-              <span className="min-w-2 h-2 bg-red-500 rounded-full block absolute top-9 end-8"></span>
-            )}
+              <span className="min-w-2 h-2 bg-red-500 rounded-full block absolute -top-9 end-8"></span>
+            )} */}
             <TicketRepliesPanel
+              hideHeader={true}
+              className="rounded-none!"
               title={
                 chatDrawerChannel === 'internal' ? 'Team Chat' : 'Client Chat'
               }
@@ -1476,70 +1465,6 @@ function mapApiTicketReplyAttachment(attachment: ApiTicketReplyAttachment) {
     extension: attachment.extension ?? attachment.mimeType ?? undefined,
     storageKey: attachment.storageKey ?? undefined,
   };
-}
-
-function getChatReceiverId({
-  ticket,
-  currentUserId,
-  fallbackMemberIds,
-  channel,
-}: {
-  ticket:
-    | ReturnType<typeof mapApiTicketDetailToRecord>
-    | ReturnType<typeof getTicketById>
-    | null;
-  currentUserId: string;
-  fallbackMemberIds: string[];
-  channel: ChatChannel;
-}) {
-  if (!ticket) {
-    return '';
-  }
-
-  const assigneeId = 'assigneeId' in ticket ? (ticket.assigneeId ?? '') : '';
-  const reporterId = 'reporterId' in ticket ? (ticket.reporterId ?? '') : '';
-
-  if (channel === 'external') {
-    if (currentUserId && currentUserId === reporterId) {
-      return (
-        assigneeId ||
-        fallbackMemberIds.find((memberId) => memberId !== currentUserId) ||
-        ''
-      );
-    }
-
-    return (
-      reporterId ||
-      fallbackMemberIds.find((memberId) => memberId !== currentUserId) ||
-      ''
-    );
-  }
-
-  if (assigneeId && assigneeId !== currentUserId) {
-    return assigneeId;
-  }
-
-  return fallbackMemberIds.find((memberId) => memberId !== currentUserId) || '';
-}
-
-function getChatSubtitle({
-  connected,
-  loading,
-  typingUsers,
-}: {
-  connected: boolean;
-  loading: boolean;
-  typingUsers: Array<{ userId: string; name: string }>;
-}) {
-  if (loading) {
-    return 'Connecting to live chat...';
-  }
-
-  if (typingUsers.length) {
-    return `${typingUsers.map((user) => user.name).join(', ')} typing...`;
-  }
-
-  return connected ? 'Live sync connected' : 'Live sync disconnected';
 }
 
 type UploadedProjectFile = {
