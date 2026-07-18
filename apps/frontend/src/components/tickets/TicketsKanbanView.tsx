@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { RecentTicket } from '../tables/RecentTicketsTable';
 
 type TicketStatusOption = {
@@ -16,6 +16,7 @@ type TicketsKanbanViewProps = {
   onMoveTicket?: (ticket: RecentTicket, nextStatusKey: string) => void;
   canDragTickets?: boolean;
   movingTicketId?: string | null;
+  canDragColumns?: boolean;
 };
 
 const defaultStatusTone = {
@@ -32,10 +33,16 @@ export default function TicketsKanbanView({
   onMoveTicket,
   canDragTickets = false,
   movingTicketId = null,
+  canDragColumns = true,
 }: TicketsKanbanViewProps) {
   const [draggingTicketId, setDraggingTicketId] = useState<string | null>(null);
   const [hoveredColumnKey, setHoveredColumnKey] = useState<string | null>(null);
-  const columns = useMemo(() => {
+  const [draggingColumnKey, setDraggingColumnKey] = useState<string | null>(
+    null,
+  );
+
+  const [columnOrder, setColumnOrder] = useState<string[]>([]);
+  const generatedColumns = useMemo(() => {
     const normalizedOptions = statusOptions.map((status) => ({
       key: status.value,
       label: status.label,
@@ -45,6 +52,7 @@ export default function TicketsKanbanView({
     const existingLabels = new Set(
       normalizedOptions.map((status) => status.label.trim().toLowerCase()),
     );
+
     const extraStatuses = Array.from(
       new Set(
         tickets
@@ -59,13 +67,59 @@ export default function TicketsKanbanView({
         color: undefined,
       }));
 
-    const allColumns = [...normalizedOptions, ...extraStatuses];
-
-    return allColumns.map((column) => ({
+    return [...normalizedOptions, ...extraStatuses].map((column) => ({
       ...column,
       tickets: tickets.filter((ticket) => ticket.status === column.label),
     }));
   }, [statusOptions, tickets]);
+
+  useEffect(() => {
+    setColumnOrder((currentOrder) => {
+      const availableKeys = generatedColumns.map((column) => column.key);
+
+      const existingKeys = currentOrder.filter((key) =>
+        availableKeys.includes(key),
+      );
+
+      const newKeys = availableKeys.filter(
+        (key) => !existingKeys.includes(key),
+      );
+
+      return [...existingKeys, ...newKeys];
+    });
+  }, [generatedColumns]);
+
+  const columns = useMemo(() => {
+    const orderIndex = new Map(columnOrder.map((key, index) => [key, index]));
+
+    return [...generatedColumns].sort((firstColumn, secondColumn) => {
+      return (
+        (orderIndex.get(firstColumn.key) ?? Number.MAX_SAFE_INTEGER) -
+        (orderIndex.get(secondColumn.key) ?? Number.MAX_SAFE_INTEGER)
+      );
+    });
+  }, [columnOrder, generatedColumns]);
+  const moveColumn = (draggedColumnKey: string, targetColumnKey: string) => {
+    if (draggedColumnKey === targetColumnKey) {
+      return;
+    }
+
+    setColumnOrder((currentOrder) => {
+      const nextOrder = [...currentOrder];
+
+      const draggedIndex = nextOrder.indexOf(draggedColumnKey);
+      const targetIndex = nextOrder.indexOf(targetColumnKey);
+
+      if (draggedIndex === -1 || targetIndex === -1) {
+        return currentOrder;
+      }
+
+      nextOrder.splice(draggedIndex, 1);
+      nextOrder.splice(targetIndex, 0, draggedColumnKey);
+
+      return nextOrder;
+    });
+  };
 
   if (!columns.length) {
     return (
@@ -76,38 +130,100 @@ export default function TicketsKanbanView({
   }
 
   return (
-    <div className="overflow-x-auto pb-2">
-      <div className="flex min-w-max gap-6">
+    <div className="h-full max-h-full min-h-0 w-full min-w-0 overflow-x-auto overflow-y-hidden overscroll-contain scrollbar-hide">
+      <div className="flex h-full min-h-0 min-w-max items-start gap-4 pb-2">
         {columns.map((column) => {
           const tone = getStatusTone(column.color);
 
           return (
             <section
               key={column.key}
-              className={`flex w-[350px] shrink-0 flex-col gap-5 rounded-2xl transition ${
-                hoveredColumnKey === column.key ? 'bg-gray-50/80' : ''
-              }`}
-              onDragOver={(event) => {
-                if (!canDragTickets) {
+              draggable={canDragColumns}
+              onDragStart={(event) => {
+                /*
+                 * Ticket drag event section tak bubble hota hai.
+                 * Agar ticket data already set hai to column drag start nahi karna.
+                 */
+                if (
+                  !canDragColumns ||
+                  event.dataTransfer.types.includes('application/x-ticket-id')
+                ) {
                   return;
                 }
 
-                event.preventDefault();
-                setHoveredColumnKey(column.key);
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData(
+                  'application/x-column-key',
+                  column.key,
+                );
+
+                setDraggingColumnKey(column.key);
               }}
-              onDragLeave={() => {
+              onDragEnd={() => {
+                setDraggingColumnKey(null);
+                setHoveredColumnKey(null);
+              }}
+              className={`flex h-full min-h-0 w-[350px] shrink-0 p-2 flex-col gap-3 rounded-2xl transition ${
+                hoveredColumnKey === column.key ? 'bg-gray-50/80' : ''
+              } ${
+                draggingColumnKey === column.key
+                  ? 'cursor-grabbing opacity-60 ring-2 ring-primary/20'
+                  : canDragColumns
+                    ? 'cursor-grab'
+                    : ''
+              }`}
+              style={{
+                backgroundColor: tone.background,
+              }}
+              onDragOver={(event) => {
+                const isTicketDrag = event.dataTransfer.types.includes(
+                  'application/x-ticket-id',
+                );
+
+                const isColumnDrag = event.dataTransfer.types.includes(
+                  'application/x-column-key',
+                );
+
+                if (
+                  (isTicketDrag && canDragTickets) ||
+                  (isColumnDrag && canDragColumns)
+                ) {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = 'move';
+                  setHoveredColumnKey(column.key);
+                }
+              }}
+              onDragLeave={(event) => {
+                if (event.currentTarget.contains(event.relatedTarget as Node)) {
+                  return;
+                }
+
                 if (hoveredColumnKey === column.key) {
                   setHoveredColumnKey(null);
                 }
               }}
               onDrop={(event) => {
-                if (!canDragTickets) {
+                event.preventDefault();
+
+                const draggedColumnKey = event.dataTransfer.getData(
+                  'application/x-column-key',
+                );
+
+                if (draggedColumnKey && canDragColumns) {
+                  moveColumn(draggedColumnKey, column.key);
+                  setDraggingColumnKey(null);
+                  setHoveredColumnKey(null);
                   return;
                 }
 
-                event.preventDefault();
                 const draggedTicketId =
-                  event.dataTransfer.getData('text/plain') || draggingTicketId;
+                  event.dataTransfer.getData('application/x-ticket-id') ||
+                  draggingTicketId;
+
+                if (!canDragTickets || !draggedTicketId) {
+                  return;
+                }
+
                 const draggedTicket = tickets.find(
                   (ticket) => ticket.id === draggedTicketId,
                 );
@@ -123,7 +239,7 @@ export default function TicketsKanbanView({
               }}
             >
               <div
-                className="relative flex items-center gap-2 rounded-lg px-3 py-3"
+                className="sticky top-0 z-10 relative flex items-center gap-2 rounded-lg px-3 py-3"
                 style={{
                   backgroundColor: tone.background,
                 }}
@@ -155,7 +271,7 @@ export default function TicketsKanbanView({
               </div>
 
               <div
-                className={`flex min-h-40 flex-1 flex-col gap-5 rounded-xl transition ${
+                className={`flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto scrollbar-hide rounded-xl pr-1 transition ${
                   hoveredColumnKey === column.key
                     ? 'border border-dashed border-gray-200 bg-primary/5'
                     : ''
@@ -165,6 +281,7 @@ export default function TicketsKanbanView({
                   column.tickets.map((ticket) => (
                     <button
                       key={ticket.id}
+                      data-ticket-card="true"
                       type="button"
                       draggable={canDragTickets && movingTicketId !== ticket.id}
                       onDragStart={(event) => {
@@ -172,8 +289,13 @@ export default function TicketsKanbanView({
                           return;
                         }
 
+                        event.stopPropagation();
                         event.dataTransfer.effectAllowed = 'move';
-                        event.dataTransfer.setData('text/plain', ticket.id);
+                        event.dataTransfer.setData(
+                          'application/x-ticket-id',
+                          ticket.id,
+                        );
+
                         setDraggingTicketId(ticket.id);
                       }}
                       onDragEnd={() => {

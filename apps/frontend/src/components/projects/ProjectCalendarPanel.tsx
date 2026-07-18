@@ -233,7 +233,7 @@ export default function ProjectCalendarPanel({
               {upcomingEvents.map((event, index) => (
                 <div
                   key={event.id}
-                  className={clsx(index > 0 && 'border-t border-gray-100 pt-4')}
+                  className={clsx(index > 0 && 'border-t border-gray-200 pt-4')}
                 >
                   <div className="flex items-start gap-3">
                     <span
@@ -281,7 +281,7 @@ export default function ProjectCalendarPanel({
               />
             ))}
           </div>
-          <div className="mt-5 border-t border-gray-100 pt-4 text-sm text-gray-500">
+          <div className="mt-5 border-t border-gray-200 pt-4 text-sm text-gray-500">
             <p>{allEvents.length} events in this project calendar</p>
           </div>
         </SidebarCard>

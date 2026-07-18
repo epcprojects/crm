@@ -11,6 +11,7 @@ import {
 import { useState } from 'react';
 import { EyeOpenedIcon, TrashIcon } from '../../../public/icons';
 import Tooltip from '../tooltip';
+import EmptyState from '../EmptyState';
 
 export type RoleRecord = {
   id: string;
@@ -40,6 +41,7 @@ type RolesTableProps = {
   onViewClaims?: (role: RoleRecord) => void;
   onEdit?: (role: RoleRecord) => void;
   onDelete?: (role: RoleRecord) => void;
+  onAddRole?: () => void;
 };
 
 type RolesActionProps = Pick<
@@ -49,12 +51,7 @@ type RolesActionProps = Pick<
 
 function renderRoleActions(
   role: RoleRecord,
-  {
-    currentUserRoles = [],
-    onViewClaims,
-    onEdit,
-    onDelete,
-  }: RolesActionProps,
+  { currentUserRoles = [], onViewClaims, onEdit, onDelete }: RolesActionProps,
 ) {
   const currentUserRoleSet = new Set(
     currentUserRoles.map(getNormalizedUserRole).filter(Boolean),
@@ -69,7 +66,11 @@ function renderRoleActions(
 
   return (
     <div className="flex w-fit items-end justify-end gap-3">
-      <Tooltip hide={role.roleClaims.length < 1} content="" heading="View Claims">
+      <Tooltip
+        hide={role.roleClaims.length < 1}
+        content=""
+        heading="View Claims"
+      >
         <button
           type="button"
           disabled={role.roleClaims.length < 1}
@@ -139,7 +140,9 @@ function getColumns({
       accessorKey: 'description',
       header: 'Description',
       cell: ({ row }) => (
-        <span className="text-sm text-gray-800">{row.original.description}</span>
+        <span className="text-sm text-gray-800">
+          {row.original.description}
+        </span>
       ),
     },
     {
@@ -173,6 +176,7 @@ export default function RolesTable({
   onViewClaims,
   onEdit,
   onDelete,
+  onAddRole,
 }: RolesTableProps) {
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -204,10 +208,23 @@ export default function RolesTable({
     totalRows,
   );
   const visiblePages = getVisiblePageNumbers(currentPage, totalPages);
-
+  if (roles.length === 0) {
+    return (
+      <div className="flex h-full min-h-0  justify-center">
+        <EmptyState
+          imageUrl="/images/NoRolesIcon.svg"
+          imageAlt="No Roles Yet"
+          title="No Roles Yet"
+          description="Create your first role to manage user access."
+          buttonLabel={onAddRole ? 'Add Role' : undefined}
+          onButtonClick={onAddRole}
+        />
+      </div>
+    );
+  }
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-      <div className="space-y-3 p-3 md:hidden">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto scrollbar-hide p-3 xl:hidden">
         {table.getRowModel().rows.length ? (
           table.getRowModel().rows.map((row) => {
             const role = row.original;
@@ -258,13 +275,20 @@ export default function RolesTable({
             );
           })
         ) : (
-          <div className="px-4 py-8 text-center text-sm text-gray-500">
-            No roles found.
+          <div className="flex h-full min-h-0  justify-center">
+            <EmptyState
+              imageUrl="/images/NoRolesIcon.svg"
+              imageAlt="No Roles Yet"
+              title="No Roles Yet"
+              description="Create your first role to manage user access."
+              buttonLabel={onAddRole ? 'Add Role' : undefined}
+              onButtonClick={onAddRole}
+            />
           </div>
         )}
       </div>
 
-      <div className="hidden overflow-x-auto md:block">
+      <div className="hidden min-h-0 flex-1 overflow-x-auto overflow-y-auto xl:block">
         <table className="w-full min-w-215 text-left">
           <thead className="bg-gray-50">
             {table.getHeaderGroups().map((headerGroup) => (
@@ -272,7 +296,7 @@ export default function RolesTable({
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
-                    className="border-b border-gray-200 px-4 py-3 text-xs font-semibold text-gray-900"
+                    className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50 px-4 py-3 text-xs font-semibold text-gray-900"
                   >
                     {header.isPlaceholder
                       ? null
@@ -316,7 +340,7 @@ export default function RolesTable({
         </table>
       </div>
 
-      <div className="flex justify-between gap-3 border-t border-gray-200 px-4 py-3 sm:flex-col md:flex-row md:items-center md:justify-between">
+      <div className="mt-auto flex shrink-0 justify-between gap-3 border-t border-gray-200 bg-white px-4 py-3 sm:flex-col md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2 text-sm text-gray-600">
           <span className="hidden sm:inline-block">Showing per page</span>
           <select

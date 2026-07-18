@@ -11,9 +11,7 @@ import ConfirmActionModal from '../../../components/modals/ConfirmActionModal';
 import CreateTicketModal, {
   type CreateTicketFormValues,
 } from '../../../components/modals/CreateTicketModal';
-import {
-  createTicketProjectOptions,
-} from '../../../components/modals/create-ticket-modal.data';
+import { createTicketProjectOptions } from '../../../components/modals/create-ticket-modal.data';
 import ProjectCard from '../../../components/projects/ProjectCard';
 import { appToast } from '../../../components/toast/AppToast';
 import { useAppLoader } from '../../providers/AppLoaderProvider';
@@ -30,6 +28,10 @@ import {
   projectsQueryKey,
 } from './projects.queries';
 import type { ProjectRecord } from './projects.data';
+import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
+import { PlusIcon, SearchIcon } from '../../../../public/icons';
+import ThemeButton from '../../../components/ui/ThemeButton';
+import EmptyState from '../../../components/EmptyState';
 
 export default function ProjectsPage() {
   const router = useRouter();
@@ -46,7 +48,9 @@ export default function ProjectsPage() {
     id: string;
     name: string;
   } | null>(null);
-  const [projectToEdit, setProjectToEdit] = useState<ProjectRecord | null>(null);
+  const [projectToEdit, setProjectToEdit] = useState<ProjectRecord | null>(
+    null,
+  );
   const hasShownLoadError = useRef(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const createProjectMutation = useCreateProjectMutation();
@@ -221,82 +225,200 @@ export default function ProjectsPage() {
       setLoading(false);
     }
   };
+  const [searchValue, setSearchValue] = useState('');
+
+  const filteredProjects = useMemo(() => {
+    const search = searchValue.trim().toLowerCase();
+
+    if (!search) {
+      return projects;
+    }
+
+    return projects.filter((project) =>
+      [project.name, project.category, project.initials].some((value) =>
+        value.toLowerCase().includes(search),
+      ),
+    );
+  }, [projects, searchValue]);
+  const totalProjects =
+    projectsQuery.data?.pages[0]?.meta.total ?? projects.length;
+
+  const projectSummaryStats = useMemo(
+    () => [
+      {
+        title: 'Total Projects',
+        count: totalProjects,
+        color: '#F04438',
+      },
+      {
+        title: 'Active Projects',
+        count: totalProjects,
+        color: '#F79009',
+      },
+      {
+        title: 'Open Tickets',
+        count: projects.reduce(
+          (total, project) => total + project.openCount,
+          0,
+        ),
+        color: '#17B26A',
+      },
+      {
+        title: 'Critical Issues',
+        count: projects.reduce(
+          (total, project) => total + project.criticalCount,
+          0,
+        ),
+        color: '#7A5AF8',
+      },
+    ],
+    [projects, totalProjects],
+  );
 
   return (
-    <div className="">
-      <PermissionGuard
-        permission="projects.view_list"
-        fallback={
-          <div className="flex min-h-80 items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 py-10 text-center text-sm text-gray-500">
-            You do not have permission to view projects.
-          </div>
-        }
-      >
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          {projectsQuery.isLoading
-            ? Array.from({ length: 6 }).map((_, index) => (
-                <ProjectCardSkeleton key={index} />
-              ))
-            : projects.map((project) => (
-                <ProjectCard
-                  key={project.id}
-                  id={project.id}
-                  initials={project.initials}
-                  name={project.name}
-                  category={project.category}
-                  totalCount={project.totalCount}
-                  openCount={project.openCount}
-                  criticalCount={project.criticalCount}
-                  colorHex={project.colorHex}
-                  onClick={
-                    canViewProjectDetail
-                      ? () => router.push(`/projects/${project.id}`)
-                      : undefined
-                  }
-                  onAddTicket={
-                    canCreateTicket
-                      ? () => {
-                          setSelectedProjectId(project.id);
-                          setCreateTicketOpen(true);
-                        }
-                      : undefined
-                  }
-                  onEdit={
-                    canEditProject
-                      ? () => {
-                          setProjectToEdit(project);
-                          setCreateProjectOpen(true);
-                        }
-                      : undefined
-                  }
-                  onDelete={
-                    canDeleteProject
-                      ? () =>
-                          setProjectToDelete({
-                            id: project.id,
-                            name: project.name,
-                          })
-                      : undefined
-                  }
-                  isDeleting={
-                    deleteProjectMutation.isPending &&
-                    deleteProjectMutation.variables === project.id
-                  }
-                />
-              ))}
-        </div>
-        {projectsQuery.hasNextPage ? (
-          <div ref={loadMoreRef} className="py-6">
-            {projectsQuery.isFetchingNextPage ? (
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                {Array.from({ length: 3 }).map((_, index) => (
-                  <ProjectCardSkeleton key={`next-page-${index}`} />
-                ))}
+    <>
+      <div className="relative z-100 h-full xl:h-dvh xl:py-5 px-4 xl:px-0 pt-2 pb-0 xl:pr-5">
+        <div className="flex h-full flex-col gap-3 xl:rounded-3xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
+          <DashboardSummaryBanner
+            imageSrc="/images/ProjectsIcon.svg"
+            imageAlt="Projects"
+            title="Projects"
+            stats={projectSummaryStats}
+          />
+
+          <div className="flex min-h-0 flex-1 flex-col gap-4 rounded-[10px] xl:rounded-[20px] bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
+            <PermissionGuard
+              permission="projects.view_list"
+              fallback={
+                <div className="flex min-h-80 flex-1 items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 py-10 text-center text-sm text-gray-500">
+                  You do not have permission to view projects.
+                </div>
+              }
+            >
+              <div className="flex min-h-0 flex-1 flex-col gap-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 sm:max-w-50">
+                    <div className="flex items-center gap-2">
+                      <SearchIcon fill="#374151" />
+
+                      <input
+                        type="text"
+                        value={searchValue}
+                        onChange={(event) => setSearchValue(event.target.value)}
+                        placeholder="Search"
+                        className="min-w-0 flex-1 bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400"
+                      />
+                    </div>
+                  </div>
+
+                  {canCreateProject ? (
+                    <ThemeButton
+                      className="shrink-0 rounded-full"
+                      variant="primaryGradient"
+                      icon={<PlusIcon fill="#3889FE" width="20" height="20" />}
+                      onClick={() => {
+                        setProjectToEdit(null);
+                        setCreateProjectOpen(true);
+                      }}
+                    >
+                      New Project
+                    </ThemeButton>
+                  ) : null}
+                </div>
+
+                <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hide pr-1">
+                  {projectsQuery.isLoading ? (
+                    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-4">
+                      {Array.from({ length: 6 }).map((_, index) => (
+                        <ProjectCardSkeleton key={index} />
+                      ))}
+                    </div>
+                  ) : filteredProjects.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-4 ">
+                      {filteredProjects.map((project) => (
+                        <ProjectCard
+                          key={project.id}
+                          id={project.id}
+                          initials={project.initials}
+                          name={project.name}
+                          category={project.category}
+                          totalCount={project.totalCount}
+                          openCount={project.openCount}
+                          criticalCount={project.criticalCount}
+                          colorHex={project.colorHex}
+                          onClick={
+                            canViewProjectDetail
+                              ? () => router.push(`/projects/${project.id}`)
+                              : undefined
+                          }
+                          onAddTicket={
+                            canCreateTicket
+                              ? () => {
+                                  setSelectedProjectId(project.id);
+                                  setCreateTicketOpen(true);
+                                }
+                              : undefined
+                          }
+                          onEdit={
+                            canEditProject
+                              ? () => {
+                                  setProjectToEdit(project);
+                                  setCreateProjectOpen(true);
+                                }
+                              : undefined
+                          }
+                          onDelete={
+                            canDeleteProject
+                              ? () =>
+                                  setProjectToDelete({
+                                    id: project.id,
+                                    name: project.name,
+                                  })
+                              : undefined
+                          }
+                          isDeleting={
+                            deleteProjectMutation.isPending &&
+                            deleteProjectMutation.variables === project.id
+                          }
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyState
+                      imageUrl="/images/EmptyProjectIcon.svg"
+                      imageAlt="No projects"
+                      title="No Projects"
+                      description="Projects will appear here once they are created."
+                      buttonLabel="New Project"
+                      onButtonClick={
+                        canCreateProject
+                          ? () => {
+                              setProjectToEdit(null);
+                              setCreateProjectOpen(true);
+                            }
+                          : undefined
+                      }
+                    />
+                  )}
+
+                  {projectsQuery.hasNextPage ? (
+                    <div ref={loadMoreRef} className="py-6">
+                      {projectsQuery.isFetchingNextPage ? (
+                        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                          {Array.from({ length: 3 }).map((_, index) => (
+                            <ProjectCardSkeleton key={`next-page-${index}`} />
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
               </div>
-            ) : null}
+            </PermissionGuard>
+            
           </div>
-        ) : null}
-      </PermissionGuard>
+        </div>
+      </div>
 
       <CreateProjectModal
         isOpen={
@@ -342,7 +464,7 @@ export default function ProjectsPage() {
       />
 
       <CreateTicketModal
-        isOpen={createTicketOpen}
+        isOpen={createTicketOpen && canCreateTicket}
         onClose={() => {
           setCreateTicketOpen(false);
           setSelectedProjectId(null);
@@ -352,31 +474,40 @@ export default function ProjectsPage() {
         preselectedProjectId={selectedProjectId ?? undefined}
         disableProjectSelection={Boolean(selectedProjectId)}
       />
-    </div>
+    </>
+   
   );
 }
 
 function ProjectCardSkeleton() {
   return (
-    <div className="animate-pulse rounded-xl border border-gray-200 bg-white p-2.5 shadow-xs md:rounded-2xl md:p-4">
-      <div className="flex items-center gap-3 md:gap-4">
-        <div className="h-9 w-9 rounded-full bg-gray-200 md:h-10.5 md:w-10.5" />
-        <div className="flex-1 space-y-2">
-          <div className="h-4 w-32 rounded bg-gray-200" />
-          <div className="h-3 w-20 rounded bg-gray-100" />
+    <div className="animate-pulse overflow-hidden rounded-xl border border-gray-200 shadow-xs md:rounded-2xl">
+      {/* Gray header */}
+      <div className="flex items-start justify-between gap-3 bg-gray-100 px-2.5 py-3.5 md:gap-4 md:px-4 md:py-4">
+        <div className="flex min-w-0 flex-1 items-center gap-3 md:gap-4">
+          <div className="h-9 w-9 shrink-0 rounded-full bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.06)] md:h-10.5 md:w-10.5" />
+
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <div className="h-3.5 w-28 max-w-full rounded bg-gray-300" />
+            <div className="h-3 w-20 rounded bg-gray-200" />
+          </div>
         </div>
       </div>
 
-      <div className="my-3 h-px bg-gray-200 md:my-4" />
-
-      <div className="grid grid-cols-3 gap-2">
+      {/* Metrics footer */}
+      <div className="grid grid-cols-3 divide-x divide-gray-200 bg-white p-2.5">
         {Array.from({ length: 3 }).map((_, index) => (
           <div
             key={index}
-            className="flex items-center justify-between rounded-full bg-gray-50 px-3 py-1.5"
+            className="flex min-w-0 items-center justify-center gap-1.5 px-1 md:gap-2"
           >
-            <div className="h-3 w-10 rounded bg-gray-200" />
-            <div className="h-5 w-6 rounded-full bg-gray-200" />
+            <div
+              className={`h-3 rounded bg-gray-200 ${
+                index === 2 ? 'w-10' : 'w-8'
+              }`}
+            />
+
+            <div className="h-4 w-4 shrink-0 rounded-full bg-gray-200 shadow-[0_0_18px_0_rgb(0_0_0/0.08)]" />
           </div>
         ))}
       </div>

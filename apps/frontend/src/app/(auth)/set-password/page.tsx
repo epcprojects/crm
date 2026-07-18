@@ -101,10 +101,10 @@ const Page = () => {
     <div className="grid grid-cols-1 md:grid-cols-2 p-3 bg-white flex-1 md:min-h-[calc(100dvh-32px)] min-h-[calc(100dvh-16px)] rounded-3xl md:rounded-4xl">
       <div className="md:p-8 flex flex-col relative items-center justify-center w-full">
         <Image
-          alt="harper tech help logo"
-          className="md:absolute mb-4 top-2 left-2 md:left-4 md:top-4"
-          src={Images.index.logoWithText}
-        />
+                 alt="harper tech help logo"
+                 className="md:absolute mb-4 top-2 left-2 md:left-4 md:top-4"
+                 src={Images.auth.NewLogo}
+               />
         <div className="md:flex-1 max-w-117 w-full flex items-center justify-center flex-col">
           <div className="space-y-2">
             <h2 className="text-black text-xl md:text-2xl font-bold text-center">
@@ -165,11 +165,11 @@ const Page = () => {
         </div>
       </div>
 
-      <div className="bg-linear-to-t rounded-3xl hidden md:flex items-center justify-center from-primary-dark via-[#6719FC] to-[#3165F6] backdrop-blur-3xl relative">
+      <div className=" rounded-3xl hidden md:flex items-center justify-center bg-[url('/images/HarperLoginBg.jpg')] bg-center bg-no-repeat backdrop-blur-3xl relative">
         <Image
           alt="harper tech help logo"
           className="top-0 end-0 w-80 absolute"
-          src={Images.index.logoTransparent2}
+          src={Images.auth.NewLogoTransparent2}
         />
         <div className="flex-1 flex items-center space-y-8 md:space-y-12 px-4  justify-center flex-col">
           <div className="max-w-160 w-full space-y-3">

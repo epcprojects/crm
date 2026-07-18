@@ -1,6 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type ClipboardEvent,
+} from 'react';
 import {
   ALLOWED_ATTACHMENT_ACCEPT,
   validateAttachments,
@@ -32,6 +38,10 @@ type DiscussionPanelProps = {
   onReplyClick?: (reply: DiscussionReply) => void;
   onDeleteAttachment?: (attachment: DiscussionAttachment) => void;
   deletingAttachmentId?: string;
+  onDeleteReply?: (reply: DiscussionReply) => void;
+  deletingReplyId?: string;
+  hideHeader?: boolean;
+  className?: string;
 };
 
 export default function TicketRepliesPanel({
@@ -53,6 +63,10 @@ export default function TicketRepliesPanel({
   onReplyClick,
   onDeleteAttachment,
   deletingAttachmentId,
+  onDeleteReply,
+  deletingReplyId,
+  hideHeader = false,
+  className,
 }: DiscussionPanelProps) {
   const [message, setMessage] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -120,7 +134,43 @@ export default function TicketRepliesPanel({
     setAttachments(selectedFiles);
     setAttachmentError('');
   };
+  const handleAttachmentPaste = (
+    event: ClipboardEvent<HTMLTextAreaElement>,
+  ) => {
+    if (!canAttachFile || isSubmittingReply) {
+      return;
+    }
 
+    const pastedFiles = Array.from(event.clipboardData.items)
+      .filter((item) => item.kind === 'file')
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => Boolean(file));
+
+    // Clipboard mein sirf text hai to normal text paste hone do
+    if (!pastedFiles.length) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const fileMap = new Map<string, File>();
+
+    [...attachments, ...pastedFiles].forEach((file) => {
+      const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
+      fileMap.set(fileKey, file);
+    });
+
+    const nextAttachments = Array.from(fileMap.values());
+    const validationError = validateAttachments(nextAttachments);
+
+    if (validationError) {
+      setAttachmentError(validationError);
+      return;
+    }
+
+    setAttachments(nextAttachments);
+    setAttachmentError('');
+  };
   const handleConfirmDeleteAttachment = async () => {
     if (!attachmentToDelete || !onDeleteAttachment) {
       return;
@@ -132,24 +182,28 @@ export default function TicketRepliesPanel({
 
   return (
     <>
-      <section className="rounded-xl sm:rounded-2xl border flex-1 bg-white flex flex-col border-gray-200 ">
-        <div className="flex items-center justify-between border-b border-gray-200 px-3 py-2 sm:py-3 md:px-5">
-          <div className="flex items-center gap-3">
-            <h3 className="text-sm md:text-base font-semibold text-gray-900">
-              {title}
-            </h3>
+      <section
+        className={`flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white ${className}`}
+      >
+        {!hideHeader && (
+          <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-3 py-2 sm:py-3 md:px-5">
+            <div className="flex items-center gap-3">
+              <h3 className="text-sm md:text-base font-semibold text-gray-900">
+                {title}
+              </h3>
+            </div>
+            <div className="flex items-center gap-3">
+              {subtitle ? (
+                <p className="text-sm text-gray-900">{subtitle}</p>
+              ) : null}
+              {headerAction}
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            {subtitle ? (
-              <p className="text-sm text-gray-900">{subtitle}</p>
-            ) : null}
-            {headerAction}
-          </div>
-        </div>
+        )}
 
         <div
           ref={scrollContainerRef}
-          className="min-h-96 px-3 flex-1 py-5 md:px-5 max-h-[calc(100dvh-520px)] overflow-y-auto"
+          className="min-h-0 flex-1 overflow-y-auto scrollbar-hide px-3 py-5 md:px-5"
         >
           {headerReply ? (
             <div className="mb-4 border-b border-gray-200 pb-4">
@@ -326,18 +380,34 @@ export default function TicketRepliesPanel({
                         </div>
                       ) : null}
 
-                      {showReplyMeta ? (
-                        <button
-                          type="button"
-                          onClick={() => onReplyClick?.(reply)}
-                          disabled={!onReplyClick}
-                          className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 transition hover:text-gray-700"
-                        >
-                          <ReplyArrowIcon />
-                          {reply.replyCount && reply.replyCount > 0
-                            ? `${reply.replyCount} ${reply.replyCount === 1 ? 'Reply' : 'Replies'}`
-                            : 'Reply'}
-                        </button>
+                      {showReplyMeta ||
+                      (onDeleteReply && isCurrentUserReply) ? (
+                        <div className="mt-2 flex items-center gap-3">
+                          {showReplyMeta ? (
+                            <button
+                              type="button"
+                              onClick={() => onReplyClick?.(reply)}
+                              disabled={!onReplyClick}
+                              className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 transition hover:text-gray-700"
+                            >
+                              <ReplyArrowIcon />
+                              {reply.replyCount && reply.replyCount > 0
+                                ? `${reply.replyCount} ${reply.replyCount === 1 ? 'Reply' : 'Replies'}`
+                                : 'Reply'}
+                            </button>
+                          ) : null}
+                          {onDeleteReply && isCurrentUserReply ? (
+                            <button
+                              type="button"
+                              onClick={() => onDeleteReply(reply)}
+                              disabled={deletingReplyId === reply.id}
+                              className="inline-flex items-center gap-1.5 text-xs font-medium text-red-500 transition hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <AttachmentTrashIcon />
+                              Delete
+                            </button>
+                          ) : null}
+                        </div>
                       ) : null}
                     </div>
                     {isCurrentUserReply ? (
@@ -350,7 +420,7 @@ export default function TicketRepliesPanel({
               })}
             </div>
           ) : (
-            <div className="flex min-h-80 flex-col h-full items-center justify-center text-center">
+            <div className="flex h-full min-h-0 flex-col items-center justify-center text-center">
               <EmptyRepliesIcon />
               <p className="mt-2 sm:mt-4 text-base md:text-lg font-semibold text-gray-600">
                 {emptyTitle}
@@ -363,15 +433,16 @@ export default function TicketRepliesPanel({
         </div>
 
         {canCompose ? (
-          <div className="px-2 py-4 md:px-5">
+          <div className="shrink-0 border-t border-gray-200 px-2 py-4 md:px-5">
             <div className="rounded-xl border border-gray-200 bg-white p-2 sm:p-3">
               <textarea
                 rows={3}
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
                 placeholder={composerPlaceholder}
+                onPaste={handleAttachmentPaste}
                 disabled={isSubmittingReply}
-                className="min-h-16 md:min-h-28 w-full resize-none bg-transparent px-2 py-1 text-sm text-gray-700 outline-none placeholder:text-gray-400"
+                className="min-h-14 md:min-h-18 w-full resize-none bg-transparent px-2 py-1 text-sm text-gray-700 outline-none placeholder:text-gray-400"
               />
 
               <input
@@ -482,6 +553,10 @@ export default function TicketRepliesPanel({
 }
 
 function getAttachmentUrl(storageKey?: string) {
+  if (typeof storageKey === 'string' && /^https?:\/\//i.test(storageKey)) {
+    return storageKey;
+  }
+
   if (!storageKey) {
     return '#';
   }

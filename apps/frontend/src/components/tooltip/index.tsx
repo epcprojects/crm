@@ -33,7 +33,7 @@ export default function Tooltip({
             side={side}
             hidden={hide}
             sideOffset={sideOffset}
-            className={`px-3 py-2 text-xs font-semibold max-w-[320px] text-border-primary bg-black rounded-lg shadow-lg z-50 select-none ${className}`}
+            className={`px-3 py-2 text-xs font-semibold max-w-[320px] text-border-primary bg-black rounded-lg shadow-lg z-50 select-none ${className} relative z-500`}
           >
             <h2 className="text-white"> {heading}</h2>
             {content}

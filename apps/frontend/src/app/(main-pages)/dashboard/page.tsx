@@ -9,7 +9,8 @@ import {
   CheckMarkCircleIcon,
   ClockIcon,
   FolderIcon,
-  ProfileIcon,
+  PlusIcon,
+  SearchIcon,
 } from '../../../../public/icons';
 import TicketsTabs, {
   type TicketTab,
@@ -22,9 +23,7 @@ import ConfirmActionModal from '../../../components/modals/ConfirmActionModal';
 import CreateProjectModal, {
   type CreateProjectFormValues,
 } from '../../../components/modals/CreateProjectModal';
-import {
-  createTicketProjectOptions,
-} from '../../../components/modals/create-ticket-modal.data';
+import { createTicketProjectOptions } from '../../../components/modals/create-ticket-modal.data';
 import ProjectCard from '../../../components/projects/ProjectCard';
 import RecentTicketsTable, {
   type RecentTicket,
@@ -37,6 +36,7 @@ import {
   projectsQueryKey,
   useProjectsQuery,
   useUpdateProjectMutation,
+  useCreateProjectMutation,
 } from '../projects/projects.queries';
 import { useIsMobile } from '../../../components/hooks/useIsMobile';
 import Link from 'next/link';
@@ -45,6 +45,9 @@ import {
   usePermissions,
 } from '../../providers/PermissionProvider';
 import { useAppLoader } from '../../providers/AppLoaderProvider';
+import ThemeButton from '../../../components/ui/ThemeButton';
+import { useAppSelector } from '../../Redux/store';
+import EmptyState from '../../../components/EmptyState';
 
 type TicketSummary = {
   open: number | null;
@@ -83,6 +86,7 @@ export default function Page() {
   const canViewProjectDetail = hasPermission('projects.view_detail');
   const canEditProject = hasPermission('projects.edit');
   const canDeleteProject = hasPermission('projects.delete');
+  const [searchValue, setSearchValue] = useState('');
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [projectToEdit, setProjectToEdit] = useState<ProjectRecord | null>(
     null,
@@ -103,11 +107,12 @@ export default function Page() {
     enabled: canViewStats,
   });
   const recentTicketsQuery = useQuery({
-    queryKey: ['dashboard', 'recent-tickets'],
+    queryKey: ['dashboard', 'recent-tickets', searchValue.trim()],
     queryFn: () =>
       fetchDashboardTickets({
         page: 1,
-        limit: 7,
+        limit: 20,
+        search: searchValue.trim(),
       }),
     enabled: canViewRecentTickets,
   });
@@ -278,161 +283,42 @@ export default function Page() {
   const isUpcomingTicketsLoading =
     canViewUpcoming &&
     (upcomingTicketsQuery.isLoading || criticalTicketsQuery.isLoading);
+  const user = useAppSelector((state) => state.auth.user);
+  const currentUserName = user?.fullName || 'Admin';
+  const canCreateProject = hasPermission('projects.create');
+  const [createProjectOpen, setCreateProjectOpen] = useState(false);
+  const createProjectMutation = useCreateProjectMutation();
+  const handleCreateProject = async (values: CreateProjectFormValues) => {
+    if (!canCreateProject) {
+      return;
+    }
 
+    try {
+      setLoading(true);
+
+      await createProjectMutation.mutateAsync(values);
+
+      appToast.success('Project created successfully.');
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to create project.',
+      );
+
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+  const displayedProjects = projectsQuery.data ?? [];
+  // const displayedProjects = (projectsQuery.data ?? []).slice(0, 0);
   return (
-    <div className="space-y-6">
-      <PermissionGuard permission="dashboard.view_stats">
-        {isStatsLoading ? (
-          <DashboardStatsSkeleton />
-        ) : (
-          <div className="grid md:grid-cols-4 gap-3 md:gap-5">
-            <StatusCard
-              icon={
-                <FolderIcon
-                  width={isMobile ? '20' : '24'}
-                  height={isMobile ? '20' : '24'}
-                  fill="currentColor"
-                />
-              }
-              title="Open"
-              count={formatSummaryCount(ticketSummary?.open)}
-            />
-            <StatusCard
-              icon={
-                <ClockIcon
-                  width={isMobile ? '20' : '24'}
-                  height={isMobile ? '20' : '24'}
-                  fill="currentColor"
-                />
-              }
-              title="In Progress"
-              count={formatSummaryCount(ticketSummary?.inProgress)}
-            />
-            <StatusCard
-              icon={
-                <CheckMarkCircleIcon
-                  width={isMobile ? '20' : '24'}
-                  height={isMobile ? '20' : '24'}
-                  fill="currentColor"
-                />
-              }
-              title="Resolved"
-              count={formatSummaryCount(ticketSummary?.resolved)}
-            />
-            <StatusCard
-              icon={
-                <AlertIcon
-                  width={isMobile ? '20' : '24'}
-                  height={isMobile ? '20' : '24'}
-                  fill="currentColor"
-                />
-              }
-              title="Critical"
-              count={formatSummaryCount(ticketSummary?.critical)}
-            />
-          </div>
-        )}
-      </PermissionGuard>
-
-      <PermissionGuard permission="dashboard.view_project_cards">
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 justify-between">
-            <div className="flex items-center gap-2 md:gap-2.5">
-              <ProfileIcon />
-              <h2 className="text-sm md:text-base font-bold text-black">
-                Projects
-              </h2>
-            </div>
-
-            {canViewProjectsList ? (
-              <Link
-                href={'/projects'}
-                className="text-primary font-medium text-sm hover:underline underline-offset-2"
-              >
-                View All
-              </Link>
-            ) : null}
-          </div>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            {projectsQuery.isLoading
-              ? Array.from({ length: 3 }).map((_, index) => (
-                  <ProjectCardSkeleton key={index} />
-                ))
-              : (projectsQuery.data ?? []).map((project) => (
-                  <ProjectCard
-                    key={project.id}
-                    id={project.id}
-                    initials={project.initials}
-                    name={project.name}
-                    category={project.category}
-                    totalCount={project.totalCount}
-                    openCount={project.openCount}
-                    criticalCount={project.criticalCount}
-                    colorHex={project.colorHex}
-                    onClick={
-                      canViewProjectDetail
-                        ? () => router.push(`/projects/${project.id}`)
-                        : undefined
-                    }
-                    onEdit={
-                      canEditProject
-                        ? () => setProjectToEdit(project)
-                        : undefined
-                    }
-                    onDelete={
-                      canDeleteProject
-                        ? () =>
-                            setProjectToDelete({
-                              id: project.id,
-                              name: project.name,
-                            })
-                        : undefined
-                    }
-                    isDeleting={
-                      deleteProjectMutation.isPending &&
-                      deleteProjectMutation.variables === project.id
-                    }
-                  />
-                ))}
-          </div>
-        </div>
-      </PermissionGuard>
-
-      <div className="grid md:grid-cols-14 gap-4 md:gap-6">
-        <PermissionGuard permission="dashboard.view_recent_tickets">
-          <div
-            className={`space-y-4 ${
-              canViewUpcoming ? 'md:col-span-10' : 'md:col-span-14'
-            }`}
-          >
-            <div className="flex items-center gap-2 md:gap-2.5">
-              <ClockIcon opacity={0} />
-              <h2 className="text-sm md:text-base font-bold text-black">
-                Recent Tickets
-              </h2>
-            </div>
-            {isRecentTicketsLoading ? (
-              <RecentTicketsTableSkeleton />
-            ) : (
-              <RecentTicketsTable
-                tickets={recentTicketsQuery.data?.items ?? []}
-                onViewAll={canViewTicketsList ? handleViewAllTickets : undefined}
-                onRowClick={
-                  canViewTicketDetail
-                    ? (ticket) =>
-                        router.push(
-                          `/tickets/${ticket.id}?projectId=${ticket.project.id}`,
-                        )
-                    : undefined
-                }
-              />
-            )}
-          </div>
-        </PermissionGuard>
+    <div className="xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 z-100 h-full xl:h-dvh relative">
+      {/* <div className="bg-white/40 border border-white rounded-3xl p-3 flex flex-row h-full gap-3"> */}
+      <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden xl:rounded-3xl  bg-gray-200 xl:flex-row xl:border xl:border-white xl:bg-white/40 xl:p-3">
         <PermissionGuard permission="dashboard.view_upcoming">
           <div
-            className={` ${
-              canViewRecentTickets ? 'md:col-span-4' : 'md:col-span-14'
+            className={`order-2 min-h-0 flex-1 overflow-hidden xl:order-0 xl:h-full xl:flex-none ${
+              canViewRecentTickets ? 'xl:w-82.5' : 'xl:flex-1'
             }`}
           >
             {isUpcomingTicketsLoading ? (
@@ -456,6 +342,246 @@ export default function Page() {
             )}
           </div>
         </PermissionGuard>
+        <div className="order-1 flex shrink-0 min-w-0 flex-col gap-3 xl:order-2 xl:min-h-0 xl:flex-1 xl:shrink">
+          <PermissionGuard permission="dashboard.view_stats">
+            {isStatsLoading ? (
+              <DashboardStatsSkeleton />
+            ) : (
+              <div className="flex w-full flex-col justify-between gap-2 xl:gap-6 rounded-[10px] xl:rounded-[20px] bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat p-4 sm:p-5 xl:gap-8.5 xl:p-7.5">
+                <div className="flex flex-col items-start gap-2 xl:flex-row xl:gap-6">
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    <p className="text-2xl text-white sm:text-[32px]">
+                      <span className="font-bold">Good day</span>,{' '}
+                      {currentUserName} 👋
+                    </p>
+
+                    <p className="text-sm text-gray-100 sm:text-lg">
+                      Here's what's happening across your companies
+                    </p>
+                  </div>
+
+                  {canCreateTicket ? (
+                    <ThemeButton
+                      className="shrink-0 rounded-full"
+                      variant="primaryGradient"
+                      icon={<PlusIcon fill="#3889FE" width="20" height="20" />}
+                      onClick={() => setCreateTicketOpen(true)}
+                    >
+                      New Ticket
+                    </ThemeButton>
+                  ) : null}
+                </div>
+
+                <div className="grid grid-cols-2 gap-1.5 xl:grid-cols-4 xl:gap-5">
+                  <StatusCard
+                    title="Open"
+                    count={formatSummaryCount(ticketSummary?.open)}
+                    icon={
+                      <FolderIcon
+                        width={isMobile ? '12' : '24'}
+                        height={isMobile ? '12' : '24'}
+                        fill="white"
+                      />
+                    }
+                  />
+
+                  <StatusCard
+                    title="In Progress"
+                    count={formatSummaryCount(ticketSummary?.inProgress)}
+                    icon={
+                      <ClockIcon
+                        width={isMobile ? '12' : '24'}
+                        height={isMobile ? '12' : '24'}
+                        fill="white"
+                      />
+                    }
+                  />
+
+                  <StatusCard
+                    title="Resolved"
+                    count={formatSummaryCount(ticketSummary?.resolved)}
+                    icon={
+                      <CheckMarkCircleIcon
+                        width={isMobile ? '12' : '24'}
+                        height={isMobile ? '12' : '24'}
+                        fill="white"
+                      />
+                    }
+                  />
+
+                  <StatusCard
+                    title="Critical"
+                    count={formatSummaryCount(ticketSummary?.critical)}
+                    icon={
+                      <AlertIcon
+                        width={isMobile ? '12' : '24'}
+                        height={isMobile ? '12' : '24'}
+                        fill="white"
+                      />
+                    }
+                  />
+                </div>
+              </div>
+            )}
+          </PermissionGuard>
+          <div className="hidden min-h-0 flex-1 gap-3 xl:grid xl:grid-cols-[minmax(0,1fr)_340px]">
+            <PermissionGuard permission="dashboard.view_recent_tickets">
+              <div
+                className={`bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)]  flex flex-1 flex-col min-h-0 gap-3.5 rounded-[20px] p-3 h-full `}
+              >
+                <div className="flex flex-row  flex-wrap gap-3 justify-between items-center">
+                  <div className="flex flex-row gap-2.5 items-center">
+                    <p className="text-lg font-medium text-black">
+                      Recent Tickets
+                    </p>
+
+                    <div className="w-7.5 h-7.5 flex items-center justify-center text-sm text-bright-gray rounded-full bg-gray-100">
+                      {recentTicketsQuery.data?.items?.length ?? 0}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-row gap-2">
+                    <div className="border border-gray-200 bg-white py-2 px-2.5 flex items-center gap-2 justify-between flex-row rounded-lg">
+                      <SearchIcon fill="#374151" />
+                      <input
+                        type="text"
+                        value={searchValue}
+                        onChange={(event) => setSearchValue(event.target.value)}
+                        placeholder="Search"
+                        className="min-w-0 bg-transparent placeholder:text-gray-400 text-base text-gray-700 outline-none"
+                      />
+                    </div>
+
+                    {canViewTicketsList ? (
+                      <button
+                        type="button"
+                        onClick={handleViewAllTickets}
+                        className="border text-xs font-medium text-black-olive border-gray-200 bg-white rounded-lg py-2 px-2.5 flex items-center justify-center"
+                      >
+                        View All
+                      </button>
+                    ) : null}
+
+                    {/* <button
+                      type="button"
+                      className="border border-gray-200 bg-gray-100 py-2 px-2.5 rounded-lg flex flex-row items-center gap-0.75"
+                    >
+                      <FiltersIcon />
+                      <p className="text-xs font-medium text-black-olive">
+                        Filter
+                      </p>
+                    </button> */}
+                  </div>
+                </div>
+
+                {isRecentTicketsLoading ? (
+                  <RecentTicketsTableSkeleton />
+                ) : (
+                  <RecentTicketsTable
+                    tickets={recentTicketsQuery.data?.items ?? []}
+                    onEmptyButtonClick={
+                      canCreateTicket
+                        ? () => setCreateTicketOpen(true)
+                        : undefined
+                    }
+                    onViewAll={undefined}
+                    onRowClick={
+                      canViewTicketDetail
+                        ? (ticket) =>
+                            router.push(
+                              `/tickets/${ticket.id}?projectId=${ticket.project.id}`,
+                            )
+                        : undefined
+                    }
+                  />
+                )}
+              </div>
+            </PermissionGuard>
+            <PermissionGuard permission="dashboard.view_project_cards">
+              <div className="bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)] flex-1 overflow-y-auto scrollbar-hide rounded-[20px]  flex flex-col gap-3.5 ">
+                <div className="flex flex-row justify-between items-center sticky z-10 top-0 px-4 pt-4 bg-white">
+                  <div className="flex flex-row gap-2.5 items-center">
+                    <p className="text-black font-medium text-lg">Projects</p>
+
+                    <div className="w-7.5 h-7.5 text-sm text-bright-gray bg-gray-100 rounded-full flex items-center justify-center">
+                      {projectsQuery.data?.length ?? 0}
+                    </div>
+                  </div>
+
+                  {canViewProjectsList ? (
+                    <Link
+                      href="/projects"
+                      className="bg-white border border-soft-peach py-2 px-2.5 rounded-lg flex items-center justify-center text-xs font-medium text-black-olive"
+                    >
+                      View All
+                    </Link>
+                  ) : null}
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 px-3">
+                  {projectsQuery.isLoading ? (
+                    Array.from({ length: 3 }).map((_, index) => (
+                      <ProjectCardSkeleton key={index} />
+                    ))
+                  ) : displayedProjects.length === 0 ? (
+                    <EmptyState
+                      imageUrl="/images/EmptyProjectIcon.svg"
+                      imageAlt="No projects"
+                      title="No Projects"
+                      description="Projects will appear here once they are created."
+                      buttonLabel="New Project"
+                      onButtonClick={
+                        canCreateProject
+                          ? () => {
+                              setProjectToEdit(null);
+                              setCreateProjectOpen(true);
+                            }
+                          : undefined
+                      }
+                    />
+                  ) : (
+                    displayedProjects.map((project) => (
+                      <ProjectCard
+                        key={project.id}
+                        id={project.id}
+                        initials={project.initials}
+                        name={project.name}
+                        category={project.category}
+                        totalCount={project.totalCount}
+                        openCount={project.openCount}
+                        criticalCount={project.criticalCount}
+                        colorHex={project.colorHex}
+                        onClick={
+                          canViewProjectDetail
+                            ? () => router.push(`/projects/${project.id}`)
+                            : undefined
+                        }
+                        onEdit={
+                          canEditProject
+                            ? () => setProjectToEdit(project)
+                            : undefined
+                        }
+                        onDelete={
+                          canDeleteProject
+                            ? () =>
+                                setProjectToDelete({
+                                  id: project.id,
+                                  name: project.name,
+                                })
+                            : undefined
+                        }
+                        isDeleting={
+                          deleteProjectMutation.isPending &&
+                          deleteProjectMutation.variables === project.id
+                        }
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
+            </PermissionGuard>
+          </div>
+        </div>
       </div>
 
       <CreateTicketModal
@@ -464,7 +590,13 @@ export default function Page() {
         onConfirm={handleCreateTicket}
         projectOptions={projectOptions}
       />
-
+      <CreateProjectModal
+        isOpen={createProjectOpen && canCreateProject}
+        onClose={() => setCreateProjectOpen(false)}
+        onConfirm={handleCreateProject}
+        title="Create Project"
+        confirmLabel="Create Project"
+      />
       <CreateProjectModal
         isOpen={Boolean(projectToEdit) && canEditProject}
         onClose={() => setProjectToEdit(null)}
@@ -507,25 +639,34 @@ export default function Page() {
 
 function ProjectCardSkeleton() {
   return (
-    <div className="animate-pulse rounded-xl border border-gray-200 bg-white p-2.5 shadow-xs md:rounded-2xl md:p-4">
-      <div className="flex items-center gap-3 md:gap-4">
-        <div className="h-9 w-9 rounded-full bg-gray-200 md:h-10.5 md:w-10.5" />
-        <div className="flex-1 space-y-2">
-          <div className="h-4 w-32 rounded bg-gray-200" />
-          <div className="h-3 w-20 rounded bg-gray-100" />
+    <div className="animate-pulse overflow-hidden rounded-xl border border-gray-200 shadow-xs md:rounded-2xl">
+      {/* Project header */}
+      <div className="flex items-start justify-between gap-3 bg-gray-100 px-2.5 py-3.5 md:gap-4 md:px-4 md:py-4">
+        <div className="flex min-w-0 flex-1 items-center gap-3 md:gap-4">
+          {/* Project initials */}
+          <div className="h-9 w-9 shrink-0 rounded-full bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.06)] md:h-10.5 md:w-10.5" />
+
+          {/* Project name and category */}
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <div className="h-3.5 w-32 max-w-full rounded bg-gray-300" />
+            <div className="h-2.5 w-20 rounded bg-gray-200" />
+          </div>
         </div>
       </div>
 
-      <div className="my-3 h-px bg-gray-200 md:my-4" />
-
-      <div className="grid grid-cols-3 gap-2">
+      {/* Project metrics */}
+      <div className="grid grid-cols-3 divide-x divide-gray-200 bg-white p-2.5">
         {Array.from({ length: 3 }).map((_, index) => (
           <div
             key={index}
-            className="flex items-center justify-between rounded-full bg-gray-50 px-3 py-1.5"
+            className="flex min-w-0 items-center justify-center gap-1.5 px-1 md:gap-2"
           >
-            <div className="h-3 w-10 rounded bg-gray-200" />
-            <div className="h-5 w-6 rounded-full bg-gray-200" />
+            <div
+              className={`h-3 rounded bg-gray-200 ${
+                index === 2 ? 'w-11' : 'w-8'
+              }`}
+            />
+            <div className="h-4 w-4 shrink-0 rounded-full bg-gray-200 shadow-[0_0_18px_0_rgb(0_0_0/0.08)]" />
           </div>
         ))}
       </div>
@@ -535,47 +676,43 @@ function ProjectCardSkeleton() {
 
 function DashboardStatsSkeleton() {
   return (
-    <div className="grid md:grid-cols-4 gap-3 md:gap-5">
-      {Array.from({ length: 4 }).map((_, index) => (
-        <div
-          key={index}
-          className="animate-pulse rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-3.5 md:rounded-2xl md:px-5 md:py-6"
-        >
-          <div className="flex items-center gap-3 md:gap-4">
-            <div className="h-10 w-10 rounded-full bg-gray-200 md:h-12 md:w-12" />
-            <div className="space-y-2">
-              <div className="h-6 w-14 rounded bg-gray-200 md:h-7 md:w-16" />
-              <div className="h-3 w-20 rounded bg-gray-200 md:w-24" />
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+    <div className="flex w-full animate-pulse flex-col justify-between gap-6 rounded-[10px] bg-gray-800 p-4 sm:p-5 xl:gap-8.5 xl:rounded-[20px] xl:p-7.5">
+      {/* Header */}
+      <div className="flex flex-col items-stretch gap-4 xl:flex-row xl:items-start xl:gap-6">
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <div className="h-7 w-52 max-w-full rounded-lg bg-white/20 sm:w-64 xl:h-9 xl:w-72" />
 
-function RecentTicketsTableSkeleton() {
-  return (
-    <div className="animate-pulse overflow-hidden rounded-2xl border border-gray-200 bg-white">
-      <div className="border-b border-gray-200 px-4 py-4 md:px-6">
-        <div className="grid grid-cols-5 gap-4">
-          {Array.from({ length: 5 }).map((_, index) => (
-            <div key={index} className="h-4 rounded bg-gray-200" />
-          ))}
+          <div className="h-4 w-full max-w-80 rounded bg-white/10 xl:h-5 xl:max-w-96" />
         </div>
+
+        {/* New Ticket button */}
+        <div className="h-10 w-full shrink-0 rounded-full bg-white/20 xl:w-32" />
       </div>
-      <div className="space-y-0">
-        {Array.from({ length: 6 }).map((_, rowIndex) => (
+
+      {/* Status cards */}
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4 xl:gap-5">
+        {Array.from({ length: 4 }).map((_, index) => (
           <div
-            key={rowIndex}
-            className="grid grid-cols-5 gap-4 border-b border-gray-100 px-4 py-4 last:border-b-0 md:px-6"
+            key={index}
+            className="min-w-0 rounded-xl border border-white/6 px-2 py-2 shadow-[0_14px_44px_0_rgb(0_0_0/20%)] sm:px-3 xl:rounded-full xl:py-2 xl:pr-4 xl:pl-2"
           >
-            {Array.from({ length: 5 }).map((_, cellIndex) => (
-              <div
-                key={cellIndex}
-                className="h-5 rounded bg-gray-100"
-              />
-            ))}
+            <div className="flex min-w-0 items-center gap-2 xl:gap-3">
+              {/* Icon */}
+              <div className="h-9 w-9 shrink-0 rounded-full bg-white/20 sm:h-10 sm:w-10 xl:h-12 xl:w-12" />
+
+              {/* Label and count */}
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5 xl:flex-row xl:items-center xl:justify-between xl:gap-3">
+                <div
+                  className={`h-3 rounded bg-white/15 xl:h-4 ${
+                    index === 1
+                      ? 'w-16 xl:w-20'
+                      : 'w-11 xl:w-14'
+                  }`}
+                />
+
+                <div className="h-5 w-7 rounded bg-white/25 xl:h-7 xl:w-8" />
+              </div>
+            </div>
           </div>
         ))}
       </div>
@@ -583,23 +720,140 @@ function RecentTicketsTableSkeleton() {
   );
 }
 
+export function RecentTicketsTableSkeleton() {
+  return (
+    <div
+      className="flex h-full min-h-0 animate-pulse flex-col overflow-hidden rounded-xl bg-white xl:w-full xl:border xl:border-gray-200"
+      aria-hidden="true"
+    >
+      {/* Mobile skeleton cards */}
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain scrollbar-hide xl:hidden">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div
+            key={index}
+            className="w-full rounded-xl border border-gray-200 bg-white p-3"
+          >
+            {/* Assignee, status and priority */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="h-9 w-9 shrink-0 rounded-full bg-gray-200" />
+
+                <div className="min-w-0 space-y-2">
+                  <div
+                    className={`h-4 rounded bg-gray-200 ${
+                      index % 2 === 0 ? 'w-28' : 'w-24'
+                    }`}
+                  />
+                  <div className="h-3 w-16 rounded bg-gray-100" />
+                </div>
+              </div>
+
+              <div className="flex shrink-0 items-center gap-2">
+                <div className="h-7 w-16 rounded-full bg-gray-100" />
+                <div className="h-7 w-18 rounded-md bg-gray-100" />
+              </div>
+            </div>
+
+            <div className="my-3 h-px bg-gray-200" />
+
+            {/* Ticket reference and title */}
+            <div className="flex items-center gap-3">
+              <div className="h-5 w-16 shrink-0 rounded-full bg-gray-100" />
+
+              <div
+                className={`h-4 rounded bg-gray-100 ${
+                  index % 2 === 0 ? 'w-40' : 'w-32'
+                }`}
+              />
+            </div>
+
+            {/* Project */}
+            <div className="mt-2">
+              <div className="flex h-7 w-32 items-center gap-2 rounded-full bg-purple-50 p-0.5 pr-3">
+                <div className="h-6 w-6 shrink-0 rounded-full bg-white" />
+                <div className="h-3 w-20 rounded bg-purple-100" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* XL desktop table skeleton */}
+      <div className="hidden min-h-0 flex-1 overflow-hidden xl:block">
+        <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
+          <div className="grid grid-cols-5 gap-4">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div
+                key={index}
+                className="h-4 rounded bg-gray-200"
+              />
+            ))}
+          </div>
+        </div>
+
+        <div>
+          {Array.from({ length: 6 }).map((_, rowIndex) => (
+            <div
+              key={rowIndex}
+              className="grid grid-cols-5 gap-4 border-b border-gray-200 px-4 py-4 last:border-b-0"
+            >
+              {Array.from({ length: 5 }).map((_, cellIndex) => (
+                <div
+                  key={cellIndex}
+                  className="h-5 rounded bg-gray-100"
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DashboardTabsSkeleton() {
   return (
-    <div className="w-[calc(100dvw-32px)] space-y-2 rounded-xl bg-white sm:w-full">
-      <div className="flex border-b border-gray-200">
-        <div className="h-9 w-1/2 animate-pulse rounded-tl bg-gray-100" />
-        <div className="h-9 w-1/2 animate-pulse rounded-tr bg-gray-50" />
+    <div
+      className="flex h-full min-w-0 w-full animate-pulse flex-col gap-3 rounded-[10px] bg-white py-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] xl:min-w-81 xl:max-w-81 xl:rounded-[20px] 2xl:min-w-82.5 2xl:max-w-82.5"
+      aria-hidden="true"
+    >
+      {/* Pill-shaped tabs */}
+      <div className="shrink-0 px-3 sm:px-4.5">
+        <div className="grid w-full grid-cols-2 gap-1 rounded-full border border-gray-200 bg-gray-50 p-1">
+          <div className="h-7 rounded-full bg-white shadow-[0_0_25px_0_rgb(27_28_29/0.08)]" />
+
+          <div className="h-7 rounded-full bg-gray-100" />
+        </div>
       </div>
-      <div className="space-y-3 rounded-xl border border-gray-200 px-4 py-3">
+
+      {/* Ticket rows */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 scrollbar-hide sm:px-4.5">
         {Array.from({ length: 5 }).map((_, index) => (
           <div
             key={index}
-            className="flex items-start gap-3 border-b border-gray-100 py-3 last:border-b-0"
+            className="flex items-start gap-3 border-b border-gray-200 py-3 last:border-b-0 sm:py-4"
           >
-            <div className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-gray-200" />
-            <div className="min-w-0 flex-1 space-y-2">
-              <div className="h-4 w-3/4 rounded bg-gray-200" />
-              <div className="h-3 w-full rounded bg-gray-100" />
+            {/* Project icon */}
+            <div className="h-9 w-9 shrink-0 rounded-full bg-gray-200 shadow-[0_0_35px_0_rgb(0_0_0/0.08)]" />
+
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              {/* Ticket title */}
+              <div
+                className={`h-3.5 max-w-full rounded bg-gray-200 ${
+                  index % 2 === 0 ? 'w-4/5' : 'w-2/3'
+                }`}
+              />
+
+              {/* Date, owner and tag */}
+              <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
+                <div className="h-3 w-14 shrink-0 rounded bg-gray-100 sm:w-16" />
+
+                <div className="flex min-w-0 flex-wrap gap-1.5">
+                  <div className="h-4.5 w-12 rounded-full bg-gray-100 sm:w-14" />
+
+                  <div className="h-4.5 w-10 rounded-full bg-gray-100 sm:w-12" />
+                </div>
+              </div>
             </div>
           </div>
         ))}
@@ -720,10 +974,12 @@ async function fetchDashboardTickets({
   page,
   limit,
   priorityKey,
+  search,
 }: {
   page: number;
   limit: number;
   priorityKey?: string;
+  search?: string;
 }): Promise<DashboardTicketsResponse> {
   const searchParams = new URLSearchParams({
     page: String(page),
@@ -732,6 +988,10 @@ async function fetchDashboardTickets({
 
   if (priorityKey) {
     searchParams.set('priorityKey', priorityKey);
+  }
+
+  if (search) {
+    searchParams.set('search', search);
   }
 
   const response = await fetch(
@@ -888,9 +1148,9 @@ function formatTicketDate(value: string) {
     return '-';
   }
 
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(date);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
 }
