@@ -16,8 +16,4 @@ export class CreateTicketStatusDto {
   @IsOptional()
   @IsHexColor()
   color?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  sortOrder?: number;
 }

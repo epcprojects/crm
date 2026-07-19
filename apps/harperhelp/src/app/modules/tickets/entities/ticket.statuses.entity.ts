@@ -1,4 +1,4 @@
-import { Column, Entity } from 'typeorm';
+import { Column, Entity, Generated } from 'typeorm';
 import { TimestampEntity } from '@harperhelp/interfaces';
 
 @Entity('ticket_statuses')
@@ -12,6 +12,7 @@ export class TicketStatus extends TimestampEntity {
   @Column({ length: 7, default: '#888780' })
   color: string;
 
-  @Column({ default: 0 })
+  @Column({ type: 'int' })
+  @Generated('increment')
   sortOrder: number;
 }

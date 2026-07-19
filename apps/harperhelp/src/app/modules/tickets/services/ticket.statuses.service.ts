@@ -45,41 +45,48 @@ export class TicketStatusesService {
     }
   }
 
-  async reorder(
-    dto: ReorderTicketStatusDto,
-    user: { id: string },
-  ) {
+  async reorder(dto: ReorderTicketStatusDto, user: { id: string }) {
     return this.statusRepo.manager.transaction(async (manager) => {
       const kanbanRepo = manager.getRepository(TicketsKanbanView);
       const statusRepo = manager.getRepository(TicketStatus);
 
-      let userSorting = await kanbanRepo.find({
-        where: {
-          userId: user.id,
-        },
-        order: {
-          sortOrder: 'ASC',
-        },
-      });
+      const [userSorting, allStatuses] = await Promise.all([
+        kanbanRepo.find({
+          where: { userId: user.id },
+          order: { sortOrder: 'ASC' },
+        }),
+        statusRepo.find({
+          order: { sortOrder: 'ASC', createdAt: 'ASC' },
+        }),
+      ]);
 
-      // First time user -> copy default ordering
-      if (userSorting.length === 0) {
-        const defaultStatuses = await statusRepo.find({
-          order: {
-            sortOrder: 'ASC',
-            createdAt: 'ASC',
-          },
-        });
+      const existingStatusIds = new Set(
+        userSorting.map((item) => item.statusId),
+      );
+      const missingStatuses = allStatuses.filter(
+        (status) => !existingStatusIds.has(status.id),
+      );
 
-        userSorting = defaultStatuses.map((status) =>
-          kanbanRepo.create({
-            userId: user.id,
-            statusId: status.id,
-            sortOrder: status.sortOrder,
-          }),
-        );
+      // Same fix as findAll, but here we actually need real rows to
+      // reorder against — so create (not yet saved) entities for
+      // whatever's missing and fold them into the working array. This
+      // covers both a brand-new user (userSorting empty) and an
+      // existing user missing a status created since their last save.
+      if (missingStatuses.length > 0) {
+        let nextSortOrder =
+          userSorting.length > 0
+            ? Math.max(...userSorting.map((item) => item.sortOrder)) + 1
+            : 0;
 
-        await kanbanRepo.save(userSorting);
+        for (const status of missingStatuses) {
+          userSorting.push(
+            kanbanRepo.create({
+              userId: user.id,
+              statusId: status.id,
+              sortOrder: nextSortOrder++,
+            }),
+          );
+        }
       }
 
       const currentIndex = userSorting.findIndex(
@@ -91,7 +98,6 @@ export class TicketStatusesService {
       }
 
       const [movedStatus] = userSorting.splice(currentIndex, 1);
-
       userSorting.splice(dto.newIndex, 0, movedStatus);
 
       userSorting.forEach((item, index) => {
@@ -100,41 +106,54 @@ export class TicketStatusesService {
 
       await kanbanRepo.save(userSorting);
 
-      return {
-        success: true,
-      };
+      return { success: true };
     });
   }
 
   async findAll(user: { id: string }) {
-    const userSorting = await this.kanbanViewRepo.find({
-      where: {
-        userId: user.id,
-      },
-      relations: {
-        status: true,
-      },
-      order: {
-        sortOrder: 'ASC',
-      },
-    });
+    const [userSorting, allStatuses] = await Promise.all([
+      this.kanbanViewRepo.find({
+        where: { userId: user.id },
+        relations: { status: true },
+        order: { sortOrder: 'ASC' },
+      }),
+      this.statusRepo.find({
+        order: { sortOrder: 'ASC', createdAt: 'ASC' },
+      }),
+    ]);
 
-    if (userSorting.length > 0) {
-      return userSorting.map(({ status, sortOrder }) => ({
-        id: status.id,
-        key: status.key,
-        label: status.label,
-        color: status.color,
-        sortOrder,
-      }));
-    }
+    const existingStatusIds = new Set(
+      userSorting.map((item) => item.statusId),
+    );
+    const missingStatuses = allStatuses.filter(
+      (status) => !existingStatusIds.has(status.id),
+    );
 
-    return this.statusRepo.find({
-      order: {
-        sortOrder: 'ASC',
-        createdAt: 'ASC',
-      },
-    });
+    const orderedExisting = userSorting.map(({ status, sortOrder }) => ({
+      id: status.id,
+      key: status.key,
+      label: status.label,
+      color: status.color,
+      sortOrder,
+    }));
+
+    // Statuses created after the user last saved an order have no row
+    // in tickets_kanban_view yet — computed here, not persisted, and
+    // appended after the user's saved ones in global sortOrder.
+    let nextSortOrder =
+      userSorting.length > 0
+        ? Math.max(...userSorting.map((item) => item.sortOrder)) + 1
+        : 0;
+
+    const orderedMissing = missingStatuses.map((status) => ({
+      id: status.id,
+      key: status.key,
+      label: status.label,
+      color: status.color,
+      sortOrder: nextSortOrder++,
+    }));
+
+    return [...orderedExisting, ...orderedMissing];
   }
 
   async findOne(id: string) {
