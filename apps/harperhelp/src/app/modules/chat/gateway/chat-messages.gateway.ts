@@ -28,7 +28,7 @@ interface TypingPayload {
 @WebSocketGateway({
   namespace: '/chat',
   cors: {
-    origin: process.env.FRONTEND_URL,
+    origin: [process.env.FRONTEND_APP_URL, 'http://localhost:3000'],
     credentials: true,
   },
 })

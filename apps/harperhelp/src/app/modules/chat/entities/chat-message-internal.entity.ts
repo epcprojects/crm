@@ -33,8 +33,8 @@ export class ChatMessageInternal {
   @Column({ name: 'sender_id', type: 'uuid' })
   senderId: string;
 
-  @Column({ name: 'receiver_id', type: 'uuid' })
-  receiverId: string;
+  // @Column({ name: 'receiver_id', type: 'uuid' })
+  // receiverId: string;
 
   @Column({
     name: 'message_type',

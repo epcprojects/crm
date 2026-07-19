@@ -12,10 +12,6 @@ import { MessageType } from '../entities/chat-message-internal.entity';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class SendMessageDto {
-  @IsUUID()
-  @ApiProperty()
-  receiverId: string;
-
   @ApiPropertyOptional()
   @IsEnum(MessageType)
   @IsOptional()

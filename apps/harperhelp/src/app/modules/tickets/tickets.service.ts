@@ -17,6 +17,8 @@ import { Project } from '../projects/entities/project.entity';
 import { format } from 'date-fns';
 import { CalendarQueryDto } from '../calendar/dto/calendar-query.dto';
 import { getDateRange } from '@harperhelp/utils';
+import { NotificationsService } from '../notifications/notifications.service';
+import { EmailEventType } from '../notifications/notifications.types';
 
 @Injectable()
 export class TicketsService {
@@ -32,6 +34,7 @@ export class TicketsService {
 
     private readonly filesService: FilesService,
     private readonly utilityService: UtilityService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   // ---------------- CREATE ----------------
@@ -53,7 +56,7 @@ export class TicketsService {
       throw new NotFoundException('Project not found');
     }
 
-    return this.dataSource
+    const saved = await this.dataSource
       .transaction(async (manager) => {
         const dateKey = format(new Date(), 'yyyyMMdd');
 
@@ -103,6 +106,68 @@ export class TicketsService {
 
         throw new BadRequestException(error.message);
       });
+
+    // After successful transaction, dispatch ticket created notification (non-blocking)
+    try {
+      const ticket = await this.ticketRepo.findOne({
+        where: { id: saved.id },
+        relations: {
+          reporter: true,
+          assignee: true,
+          project: {
+            members: true,
+          },
+        },
+      });
+
+      const members = (ticket.project?.members || []).map((m) => ({
+        name: m.fullName,
+        email: m.email,
+      }));
+
+      const participantsMap = new Map<
+        string,
+        { name: string; email: string }
+      >();
+      for (const m of members) participantsMap.set(m.email, m);
+      if (ticket.reporter)
+        participantsMap.set(ticket.reporter.email, {
+          name: ticket.reporter.fullName,
+          email: ticket.reporter.email,
+        });
+      if (ticket.assignee)
+        participantsMap.set(ticket.assignee.email, {
+          name: ticket.assignee.fullName,
+          email: ticket.assignee.email,
+        });
+
+      const participants = Array.from(participantsMap.values());
+
+      await this.notificationsService.dispatch({
+        type: EmailEventType.TICKET_CREATED,
+        payload: {
+          ticketId: saved.id,
+          ticketNumber: saved.ticketRefNo,
+          title: saved.title,
+          description: saved.description || '',
+          priority: saved.priorityKey || '',
+          status: saved.statusKey || '',
+          projectName: ticket.project?.name || '',
+          createdBy: {
+            name: ticket.reporter?.fullName || '',
+            email: ticket.reporter?.email || '',
+          },
+          assignee: ticket.assignee
+            ? { name: ticket.assignee.fullName, email: ticket.assignee.email }
+            : undefined,
+          participants,
+        },
+      });
+    } catch (err) {
+      // ignore dispatch errors
+    }
+
+    return saved;
   }
 
   //

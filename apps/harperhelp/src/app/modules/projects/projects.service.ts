@@ -9,6 +9,8 @@ import { UserRole } from '../users/entities/user.roles.entity';
 import { SystemRoles, UserType } from '@harperhelp/types';
 import { Ticket } from '../tickets/entities/ticket.entity';
 import { GetProjectsQueryDto } from './dto/get-projects-query.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { EmailEventType } from '../notifications/notifications.types';
 
 @Injectable()
 export class ProjectsService {
@@ -24,6 +26,7 @@ export class ProjectsService {
 
     @InjectRepository(Ticket)
     private readonly ticketRepo: Repository<Ticket>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async createProject(dto: CreateProjectDto, currentUser: User) {
@@ -76,6 +79,34 @@ export class ProjectsService {
       .add([...memberIds]);
 
     delete savedProject['members'];
+
+    // Dispatch a project created notification (non-blocking)
+    try {
+      const userRepo = this.dataSource.manager.getRepository(User);
+      const memberUsers = await userRepo.find({
+        where: { id: Array.from(memberIds) as any },
+        select: { fullName: true, email: true },
+      });
+
+      const members = memberUsers.map((u) => ({
+        name: u.fullName,
+        email: u.email,
+      }));
+
+      await this.notificationsService.dispatch({
+        type: EmailEventType.PROJECT_CREATED,
+        payload: {
+          projectId: savedProject.id,
+          projectName: savedProject.name,
+          projectCode,
+          createdBy: { name: currentUser.fullName, email: currentUser.email },
+          members,
+        },
+      });
+    } catch (err) {
+      // do not fail project creation if notification dispatch fails
+      // log later if needed
+    }
 
     return {
       ...savedProject,

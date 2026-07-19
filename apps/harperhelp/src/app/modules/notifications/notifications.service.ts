@@ -25,6 +25,7 @@ import {
   buildAssigneeUpdatedEmail,
   buildAttachmentAddedEmail,
 } from './templates/common';
+import { SqsNotificationQueueService } from './queue/sqs-notification-queue.service';
 
 @Injectable()
 export class NotificationsService {
@@ -33,14 +34,21 @@ export class NotificationsService {
   private readonly appName: string;
   private readonly fromEmail: string;
   private readonly fromName: string;
+  private readonly queueUrl?: string;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly queueService: SqsNotificationQueueService,
+  ) {
     sgMail.setApiKey(this.configService.get<string>('sendgrid.apiKey'));
 
     this.appUrl = this.configService.get<string>('app.hostUrl');
     this.fromEmail = this.configService.get<string>('sendgrid.fromEmail');
     this.fromName = 'HarperHelp';
     this.appName = 'HarperHelpDesk';
+    this.queueUrl = this.configService.get<string>(
+      'aws.sqs.notificationQueueUrl',
+    );
   }
 
   private async sendEmail(msg: sgMail.MailDataRequired) {
@@ -122,6 +130,11 @@ export class NotificationsService {
   // Public dispatch method (use this everywhere in the app)
 
   async dispatch(event: EmailNotificationEvent): Promise<void> {
+    if (this.queueUrl) {
+      await this.queueService.publish(event);
+      return;
+    }
+
     switch (event.type) {
       case EmailEventType.PROJECT_CREATED:
         return this.onProjectCreated(event.payload);

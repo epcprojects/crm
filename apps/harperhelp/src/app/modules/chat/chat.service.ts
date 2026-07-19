@@ -83,7 +83,7 @@ export class ChatMessagesService {
       projectId,
       ticketId,
       senderId,
-      receiverId: dto.receiverId,
+      // receiverId: dto.receiverId,
       messageType: dto.messageType,
       message: dto.message,
       attachmentUrls: dto.attachmentUrls ?? null,
@@ -98,7 +98,6 @@ export class ChatMessagesService {
       where: { id: saved.id },
       relations: {
         sender: true,
-        receiver: true,
       },
     });
   }
@@ -120,7 +119,6 @@ export class ChatMessagesService {
       where,
       relations: {
         sender: true,
-        receiver: true,
       },
       order: { createdAt: 'ASC' },
       take: query.limit ?? 50,
@@ -128,7 +126,6 @@ export class ChatMessagesService {
   }
 
   // - Mark read
-
   async markRead(
     channel: ChatChannel,
     ticketId: string,
@@ -141,7 +138,7 @@ export class ChatMessagesService {
       .set({ isRead: true, readAt: new Date() })
       .where('id IN (:...ids)', { ids: messageIds })
       .andWhere('ticket_id = :ticketId', { ticketId })
-      .andWhere('receiver_id = :receiverId', { receiverId })
+      // .andWhere('receiver_id = :receiverId', { receiverId })
       .andWhere('is_read = false')
       .execute();
   }
@@ -157,7 +154,7 @@ export class ChatMessagesService {
         ? this.internalRepo.count({
             where: {
               ticketId,
-              receiverId: userId,
+              senderId: userId,
               isRead: false,
               isDeleted: false,
             },
@@ -168,7 +165,7 @@ export class ChatMessagesService {
         ? this.externalRepo.count({
             where: {
               ticketId,
-              receiverId: userId,
+              senderId: userId,
               isRead: false,
               isDeleted: false,
             },
