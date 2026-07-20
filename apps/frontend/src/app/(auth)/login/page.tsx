@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Images } from '../../ui/images';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useFormik } from 'formik';
@@ -13,7 +13,9 @@ import {
 } from '../../Redux/slices/auth/authThunks';
 import {
   selectAuthError,
+  selectAuthProfile,
   selectAuthStatus,
+  selectIsAuthenticated,
 } from '../../Redux/slices/auth/authSelectors';
 import { appToast } from '../../../components/toast/AppToast';
 import ThemeInput from '../../../components/ui/ThemeInput';
@@ -43,8 +45,31 @@ const Page = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
+  const hasRedirectedRef = useRef(false);
   const authStatus = useAppSelector(selectAuthStatus);
   const authError = useAppSelector(selectAuthError);
+  const authProfile = useAppSelector(selectAuthProfile);
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
+
+  useEffect(() => {
+    if (!isAuthenticated || !authProfile || hasRedirectedRef.current) {
+      return;
+    }
+
+    hasRedirectedRef.current = true;
+
+    const redirectAuthenticatedUser = async () => {
+      const redirectPath = await resolveAuthorizedReturnUrl(
+        searchParams.get('returnurl'),
+        authProfile,
+      );
+
+      router.replace(redirectPath);
+    };
+
+    void redirectAuthenticatedUser();
+  }, [authProfile, isAuthenticated, router, searchParams]);
+
   const formik = useFormik<LoginFormValues>({
     initialValues: {
       email: '',
