@@ -879,10 +879,10 @@ export default function TicketDetailPage() {
 
                     <span className="mt-1 inline-flex items-center gap-2 rounded-full bg-purple-100 py-0.75 pr-2.5 pl-0.75 text-sm font-medium text-purple-700">
                       <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-medium">
-                        {ticket.createdByDetail?.initials ?? 'NA'}
+                        {(ticket as any).createdByDetail?.initials ?? 'NA'}
                       </span>
 
-                      {ticket.createdByDetail?.name ?? 'Unknown'}
+                      {(ticket as any).createdByDetail?.name ?? 'Unknown'}
                     </span>
                   </div>
 
