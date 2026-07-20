@@ -19,10 +19,14 @@ import { CalendarQueryDto } from '../calendar/dto/calendar-query.dto';
 import { getDateRange } from '@harperhelp/utils';
 import { NotificationsService } from '../notifications/notifications.service';
 import { EmailEventType } from '../notifications/notifications.types';
+import { User } from '../users/entities/user.entity';
 
 @Injectable()
 export class TicketsService {
   constructor(
+    @InjectRepository(User)
+private readonly userRepo: Repository<User>,
+
     @InjectRepository(Ticket)
     private readonly ticketRepo: Repository<Ticket>,
 
@@ -463,43 +467,89 @@ export class TicketsService {
   };
 }
   // ---------------- FIND ONE ----------------
-  async findOne(projectId: string, ticketId: string) {
-    const ticket = await this.ticketRepo
-      .createQueryBuilder('t')
-      .leftJoinAndSelect('t.project', 'p')
-      .leftJoinAndSelect('t.assignee', 'a')
-      .leftJoinAndSelect('t.reporter', 'r')
-      .where('t.id = :ticketId', { ticketId })
-      .andWhere('t.projectId = :projectId', { projectId })
-      .select([
-        't',
+  // async findOne(projectId: string, ticketId: string) {
+  //   const ticket = await this.ticketRepo
+  //     .createQueryBuilder('t')
+  //     .leftJoinAndSelect('t.project', 'p')
+  //     .leftJoinAndSelect('t.assignee', 'a')
+  //     .leftJoinAndSelect('t.reporter', 'r')
+  //     .where('t.id = :ticketId', { ticketId })
+  //     .andWhere('t.projectId = :projectId', { projectId })
+  //     .select([
+  //       't',
 
-        'p.id',
-        'p.name',
-        'p.brandColor',
+  //       'p.id',
+  //       'p.name',
+  //       'p.brandColor',
 
-        'a.id',
-        'a.fullName',
+  //       'a.id',
+  //       'a.fullName',
 
-        'r.id',
-        'r.fullName',
-      ])
-      .getOne();
+  //       'r.id',
+  //       'r.fullName',
+  //     ])
+  //     .getOne();
 
-    if (!ticket) {
-      throw new NotFoundException('Ticket not found');
-    }
+  //   if (!ticket) {
+  //     throw new NotFoundException('Ticket not found');
+  //   }
 
-    const attachments = await this.filesService.findBySource(
-      FileSource.TICKET,
-      ticketId,
-    );
+  //   const attachments = await this.filesService.findBySource(
+  //     FileSource.TICKET,
+  //     ticketId,
+  //   );
 
-    return {
-      ...ticket,
-      attachments,
-    };
+  //   return {
+  //     ...ticket,
+  //     attachments,
+  //   };
+  // }
+
+
+  // ---------------- FIND ONE ----------------
+async findOne(projectId: string, ticketId: string) {
+  const ticket = await this.ticketRepo
+    .createQueryBuilder('t')
+    .leftJoinAndSelect('t.project', 'p')
+    .leftJoinAndSelect('t.assignee', 'a')
+    .leftJoinAndSelect('t.reporter', 'r')
+    .where('t.id = :ticketId', { ticketId })
+    .andWhere('t.projectId = :projectId', { projectId })
+    .select([
+      't',
+
+      'p.id',
+      'p.name',
+      'p.brandColor',
+
+      'a.id',
+      'a.fullName',
+
+      'r.id',
+      'r.fullName',
+    ])
+    .getOne();
+
+  if (!ticket) {
+    throw new NotFoundException('Ticket not found');
   }
+
+  const [attachments, createdByUser] = await Promise.all([
+    this.filesService.findBySource(FileSource.TICKET, ticketId),
+ticket.createdBy
+  ? this.userRepo.findOne({
+      where: { id: ticket.createdBy },
+      select: { id: true, fullName: true },
+    })
+  : Promise.resolve(null),
+  ]);
+
+  return {
+    ...ticket,
+    createdBy: createdByUser,
+    attachments,
+  };
+}
 
   // ---------------- UPDATE ----------------
   async update(

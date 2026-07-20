@@ -20,6 +20,7 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'apps/harperhelp/src/common/guards/jwt-auth.guard';
 import { RolesGuard } from 'apps/harperhelp/src/common/guards/roles.guard';
+import { FileSizeGuard } from 'apps/harperhelp/src/common/guards/file-size.guard';
 
 @Controller('projects/:pid/thread')
 @ApiBearerAuth('JWT-auth')
@@ -36,6 +37,7 @@ export class ThreadController {
   }
 
   @Post()
+  @UseGuards(FileSizeGuard)
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -59,7 +61,7 @@ export class ThreadController {
       required: ['message'],
     },
   })
-  @UseInterceptors(FilesInterceptor('attachments', 10))
+  @UseInterceptors(FilesInterceptor('attachments'))
   @ApiOperation({
     description: 'Create a thread message for a project.',
   })
