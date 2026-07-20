@@ -116,7 +116,7 @@ export default function LoginPageClient() {
         />
         <div className="md:flex-1 max-w-117 w-full flex items-center justify-center flex-col">
           <h2 className="text-black text-xl mb-6 md:mb-8 md:text-3xl font-bold text-center">
-            Welcome back ðŸ‘‹
+            Welcome back 👋
           </h2>
 
           <form
