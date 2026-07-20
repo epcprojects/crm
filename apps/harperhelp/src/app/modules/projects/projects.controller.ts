@@ -33,6 +33,7 @@ import { User } from '../users/entities/user.entity';
 import { Authorize } from '../../../common/guards/authorize.guard';
 import { GetProjectsQueryDto } from './dto/get-projects-query.dto';
 import { GetMembersQueryDto } from './dto/get-members-query.dto';
+import { FileSizeGuard } from 'apps/harperhelp/src/common/guards/file-size.guard';
 
 @Controller('projects')
 @ApiBearerAuth('JWT-auth')
@@ -132,6 +133,7 @@ export class ProjectsController {
 
   // ---------------- UPLOAD FILES ----------------
   @Post(':projectId/files')
+  @UseGuards(FileSizeGuard)
   @UseInterceptors(FilesInterceptor('files'))
   @ApiOperation({ summary: 'Upload files to a project' })
   @ApiConsumes('multipart/form-data')
