@@ -12,7 +12,6 @@ export class TicketStatus extends TimestampEntity {
   @Column({ length: 7, default: '#888780' })
   color: string;
 
-  @Column({ type: 'int' })
-  @Generated('increment')
+  @Column({ default: 0 })
   sortOrder: number;
 }

@@ -153,7 +153,7 @@ export default function Page() {
     mutationFn: async ({
       body,
     }: {
-      body: Pick<ApiTicketStatus, 'key' | 'label' | 'color'>;
+      body: Pick<ApiTicketStatus, 'key' | 'label' | 'color' | 'sortOrder'>;
     }) => {
       const response = await fetch('/api/ticket-statuses', {
         method: 'POST',
@@ -295,6 +295,8 @@ export default function Page() {
           key: values.value,
           label: values.label,
           color: values.colorHex,
+          sortOrder: statusItems.length,
+
         },
       });
 
