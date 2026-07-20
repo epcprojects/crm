@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import React, { useState } from 'react';
 import { Images } from '../../ui/images';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useFormik } from 'formik';
 import * as yup from 'yup';
 import { useAppDispatch, useAppSelector } from '../../Redux/store';
@@ -19,6 +19,7 @@ import { appToast } from '../../../components/toast/AppToast';
 import ThemeInput from '../../../components/ui/ThemeInput';
 import ForgotPasswordModal from '../../../components/modals/ForgotPasswordModal';
 import ThemeButton from '../../../components/ui/ThemeButton';
+import { resolveAuthorizedReturnUrl } from '../../../lib/auth/return-url';
 
 type LoginFormValues = {
   email: string;
@@ -40,6 +41,7 @@ const loginSchema = yup.object({
 const Page = () => {
   const dispatch = useAppDispatch();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
   const authStatus = useAppSelector(selectAuthStatus);
   const authError = useAppSelector(selectAuthError);
@@ -58,8 +60,15 @@ const Page = () => {
       );
 
       if (signInThunk.fulfilled.match(result)) {
-        await dispatch(fetchMyProfileThunk());
-        router.replace('/dashboard');
+        const profileResult = await dispatch(fetchMyProfileThunk());
+        const redirectPath = await resolveAuthorizedReturnUrl(
+          searchParams.get('returnurl'),
+          fetchMyProfileThunk.fulfilled.match(profileResult)
+            ? profileResult.payload
+            : result.payload.user,
+        );
+
+        router.replace(redirectPath);
       }
     },
   });
