@@ -71,7 +71,7 @@ export default function ThemeInput({
   return (
     <div className={clsx('w-full', wrapperClassName)}>
       {label && (
-        <label className="block mb-1.5 text-sm font-normal text-gray-800 md:text-base">
+        <label className="block mb-1.5 text-sm font-normal text-gray-800 ">
           {label} {required && <span className="text-red-500"> *</span>}
         </label>
       )}
