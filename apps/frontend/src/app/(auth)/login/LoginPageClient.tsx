@@ -44,6 +44,7 @@ export default function LoginPageClient() {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const returnUrl = searchParams.get('returnurl');
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
   const hasRedirectedRef = useRef(false);
   const authStatus = useAppSelector(selectAuthStatus);
@@ -98,6 +99,12 @@ export default function LoginPageClient() {
     },
   });
 
+  const shouldHideLoginUi = Boolean(returnUrl) && authStatus === 'loading';
+
+  if (shouldHideLoginUi || isAuthenticated) {
+    return null;
+  }
+
   return (
     <div className="grid h-full min-h-0 flex-1 grid-cols-1 gap-3 rounded-3xl xl:grid-cols-2 xl:rounded-4xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
       <div className="xl:p-8 p-4 flex flex-col relative items-center justify-center w-full bg-white rounded-[20px]">
@@ -108,7 +115,7 @@ export default function LoginPageClient() {
         />
         <div className="md:flex-1 max-w-117 w-full flex items-center justify-center flex-col">
           <h2 className="text-black text-xl mb-6 md:mb-8 md:text-3xl font-bold text-center">
-            Welcome back ðŸ‘‹
+           Welcome back 👋
           </h2>
 
           <form
