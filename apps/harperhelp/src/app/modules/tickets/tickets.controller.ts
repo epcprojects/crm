@@ -29,6 +29,7 @@ import { GetUser } from 'apps/harperhelp/src/common/decorators/get-user.decorato
 import { GetTicketsQueryDto } from './dto/get-tickets-query.dto';
 import { CalendarView } from '@harperhelp/types';
 import { CalendarQueryDto } from '../calendar/dto/calendar-query.dto';
+import { FileSizeGuard } from 'apps/harperhelp/src/common/guards/file-size.guard';
 
 @Controller('projects/:pid/tickets')
 @ApiBearerAuth('JWT-auth')
@@ -101,6 +102,7 @@ View ranges:
 
   // ---------------- CREATE ----------------
   @Post()
+  @UseGuards(FileSizeGuard)
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -137,7 +139,7 @@ View ranges:
   @ApiOperation({
     summary: 'Create a ticket.',
   })
-  @UseInterceptors(FilesInterceptor('attachments', 10))
+  @UseInterceptors(FilesInterceptor('attachments'))
   create(
     @Param('pid') pid: string,
     @Body() dto: CreateTicketDto,

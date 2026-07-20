@@ -4,6 +4,9 @@ export function environment() {
       hostUrl: process.env.FRONTEND_APP_URL || 'http://localhost:4200',
       environment: 'production',
     },
+    file_size: {
+  max_attachment_size: parseInt(process.env.MAX_ATTACHMENT_SIZE || '10', 10),
+},
     postgres: {
       type: 'postgres',
       url: process.env.DATABASE_URL || '',

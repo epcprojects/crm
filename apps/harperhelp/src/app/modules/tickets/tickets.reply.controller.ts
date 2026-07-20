@@ -20,6 +20,7 @@ import {
 import { GetUser } from 'apps/harperhelp/src/common/decorators/get-user.decorator';
 import { JwtAuthGuard } from 'apps/harperhelp/src/common/guards/jwt-auth.guard';
 import { RolesGuard } from 'apps/harperhelp/src/common/guards/roles.guard';
+import { FileSizeGuard } from 'apps/harperhelp/src/common/guards/file-size.guard';
 
 @Controller('tickets/:ticketId')
 @ApiBearerAuth('JWT-auth')
@@ -36,6 +37,7 @@ export class TicketRepliesController {
   }
 
   @Post('projects/:pid')
+  @UseGuards(FileSizeGuard)
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -55,7 +57,7 @@ export class TicketRepliesController {
       required: ['message'],
     },
   })
-  @UseInterceptors(FilesInterceptor('attachments', 10))
+  @UseInterceptors(FilesInterceptor('attachments'))
   @ApiOperation({
     description: 'Creates a reply for a ticket. it also accepts attachments.',
   })

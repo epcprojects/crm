@@ -40,8 +40,8 @@ export default function TicketsKanbanView({
   const [draggingTicketId, setDraggingTicketId] = useState<string | null>(null);
   const [hoveredColumnKey, setHoveredColumnKey] = useState<string | null>(null);
   const [draggingColumnKey, setDraggingColumnKey] = useState<string | null>(
-  null,
-);
+    null,
+  );
 
   const generatedColumns = useMemo(() => {
     const normalizedOptions = statusOptions.map((status) => ({
@@ -52,11 +52,9 @@ export default function TicketsKanbanView({
       isCustom: false,
     }));
 
-  const existingLabels = new Set(
-    normalizedOptions.map((status) =>
-      status.label.trim().toLowerCase(),
-    ),
-  );
+    const existingLabels = new Set(
+      normalizedOptions.map((status) => status.label.trim().toLowerCase()),
+    );
 
     const extraStatuses = Array.from(
       new Set(
@@ -126,7 +124,7 @@ export default function TicketsKanbanView({
 
   return (
     <div className="h-full max-h-full min-h-0 w-full min-w-0 overflow-x-auto overflow-y-hidden overscroll-contain scrollbar-hide">
-      <div className="flex h-full min-h-0 min-w-max items-start gap-4 pb-2">
+      <div className="flex h-full min-h-0 min-w-max items-stretch gap-4 pb-2">
         {columns.map((column) => {
           const tone = getStatusTone(column.color);
           const isDraggableColumn = canDragColumns && !column.isCustom;
@@ -144,20 +142,25 @@ export default function TicketsKanbanView({
                 }
 
                 event.dataTransfer.effectAllowed = 'move';
-                event.dataTransfer.setData('application/x-column-key', column.key);
+                event.dataTransfer.setData(
+                  'application/x-column-key',
+                  column.key,
+                );
                 setDraggingColumnKey(column.key);
               }}
               onDragEnd={() => {
                 setDraggingColumnKey(null);
                 setHoveredColumnKey(null);
               }}
-              className={`flex w-[350px] shrink-0 flex-col gap-5 rounded-2xl transition ${hoveredColumnKey === column.key ? 'bg-gray-50/80' : ''
-                } ${draggingColumnKey === column.key
+              className={`flex h-full min-h-0 w-[350px] p-2 shrink-0 flex-col rounded-2xl transition ${
+                hoveredColumnKey === column.key ? 'bg-gray-50/80' : ''
+              } ${
+                draggingColumnKey === column.key
                   ? 'cursor-grabbing opacity-60 ring-2 ring-primary/20'
                   : isDraggableColumn
                     ? 'cursor-grab'
                     : ''
-                }`}
+              }`}
               onDragOver={(event) => {
                 const isTicketDrag = event.dataTransfer.types.includes(
                   'application/x-ticket-id',
@@ -198,9 +201,9 @@ export default function TicketsKanbanView({
                   return;
                 }
 
-    const draggedTicketId =
-      event.dataTransfer.getData('application/x-ticket-id') ||
-      draggingTicketId;
+                const draggedTicketId =
+                  event.dataTransfer.getData('application/x-ticket-id') ||
+                  draggingTicketId;
 
                 if (!canDragTickets || !draggedTicketId) {
                   return;
@@ -218,6 +221,9 @@ export default function TicketsKanbanView({
                 }
 
                 onMoveTicket?.(draggedTicket, column.key);
+              }}
+              style={{
+                backgroundColor: tone.background,
               }}
             >
               <div
@@ -240,23 +246,14 @@ export default function TicketsKanbanView({
                 >
                   {column.label}
                 </span>
-                {/* <span
-                  className="ml-auto inline-flex h-7 min-w-7 items-center justify-center rounded-full border px-2 text-xs font-medium"
-                  style={{
-                    color: tone.text,
-                    borderColor: tone.border,
-                    backgroundColor: '#ffffffcc',
-                  }}
-                >
-                  {column.tickets.length}
-                </span> */}
               </div>
 
               <div
-                className={`flex min-h-40 flex-1 flex-col gap-5 rounded-xl transition ${hoveredColumnKey === column.key
-                  ? 'border border-dashed border-gray-200 bg-primary/5'
-                  : ''
-                  }`}
+                className={`mt-5 flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto scrollbar-hide rounded-xl transition ${
+                  hoveredColumnKey === column.key
+                    ? 'border border-dashed border-gray-200 bg-primary/5'
+                    : ''
+                }`}
               >
                 {column.tickets.length ? (
                   column.tickets.map((ticket) => (
@@ -284,13 +281,15 @@ export default function TicketsKanbanView({
                         setHoveredColumnKey(null);
                       }}
                       onClick={() => onTicketClick?.(ticket)}
-                      className={`rounded-xl border border-gray-200 bg-white p-3  text-left shadow-xs transition hover:border-gray-300 hover:shadow-sm ${draggingTicketId === ticket.id
-                        ? 'opacity-60 ring-2 ring-primary/20'
-                        : ''
-                        } ${movingTicketId === ticket.id
+                      className={`rounded-xl border border-gray-200 bg-white p-3  text-left shadow-xs transition hover:border-gray-300 hover:shadow-sm ${
+                        draggingTicketId === ticket.id
+                          ? 'opacity-60 ring-2 ring-primary/20'
+                          : ''
+                      } ${
+                        movingTicketId === ticket.id
                           ? 'cursor-wait opacity-70'
                           : ''
-                        } ${canDragTickets ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                      } ${canDragTickets ? 'cursor-grab active:cursor-grabbing' : ''}`}
                     >
                       <div className="space-y-2.5">
                         <p className="line-clamp-2 text-base font-semibold  text-gray-900">
