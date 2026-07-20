@@ -69,7 +69,7 @@ button[aria-disabled='true'] {
 }
 
 .hide-scrollbar {
-  -ms-overflow-style: none; /* IE and Edge */
+  -ms-overflow-style: none; /* IE and Edge. */
   scrollbar-width: none; /* Firefox */
 }
 
