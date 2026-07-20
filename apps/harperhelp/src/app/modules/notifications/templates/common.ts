@@ -6,9 +6,11 @@ import {
   TicketPriorityUpdatedPayload,
   TicketAssigneeUpdatedPayload,
   TicketAttachmentAddedPayload,
+  ProjectAssignedPayload,
+  ThreadMessageCreatedPayload,
 } from '../notifications.types';
 
-// Shared HTML shell 
+// Shared HTML shell
 
 const COLORS = {
   primary: '#4F46E5',
@@ -92,7 +94,7 @@ function badge(text: string, color: string): string {
   return `<span class="badge" style="background:${color}20;color:${color};">${text}</span>`;
 }
 
-//  Template builders 
+//  Template builders
 
 export function buildProjectCreatedEmail(
   p: ProjectCreatedPayload,
@@ -131,6 +133,29 @@ export function buildProjectCreatedEmail(
   };
 }
 
+export function buildProjectAssignedEmail(
+  p: ProjectAssignedPayload,
+  appUrl: string,
+  appName: string,
+): { subject: string; html: string } {
+  const body = `
+    ${header('🎉 Project Assigned', appName)}
+    <div class="body">
+      <p style="margin:0 0 18px;font-size:15px;color:#111827;font-weight:600;">${p.projectName}</p>
+      <div class="meta-row"><span class="meta-label">Assigned By</span>${p.createdBy.name}</div>
+    </div>
+    ${footer(appName, appUrl)}`;
+
+  return {
+    subject: `Project "${p.projectName}" has been assigned to you`,
+    html: shell(
+      `Project Assigned: ${p.projectName}`,
+      `${p.createdBy.name} assigned you to a new project`,
+      body,
+    ),
+  };
+}
+
 export function buildTicketCreatedEmail(
   p: TicketCreatedPayload,
   appUrl: string,
@@ -151,9 +176,9 @@ export function buildTicketCreatedEmail(
       ${p.assignee ? `<div class="meta-row"><span class="meta-label">Assigned To</span>${p.assignee.name}</div>` : ''}
       <hr class="divider" />
       <p style="font-size:13px;color:${COLORS.muted};margin:0 0 8px;">Description</p>
-      <div class="comment-box">${p.description}</div>
+      ${p.description ? `<div class="comment-box">${p.description}</div>` : ''}
       <hr class="divider" />
-      <a href="${appUrl}/tickets/${p.ticketId}" class="btn">View Ticket</a>
+      <a href="${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}" class="btn" style="text-decoration:none;color:#ffffff;padding:8px 16px;border-radius:4px;display:inline-block;">View Ticket</a>
     </div>
     ${footer(appName, appUrl)}`;
 
@@ -333,6 +358,31 @@ export function buildAttachmentAddedEmail(
     html: shell(
       `Attachment: ${p.ticketTitle}`,
       `${p.uploadedBy.name} added an attachment`,
+      body,
+    ),
+  };
+}
+
+export function buildThreadMessageCreatedEmail(
+  p: ThreadMessageCreatedPayload,
+  appUrl: string,
+  appName: string,
+): { subject: string; html: string } {
+  const body = `
+    ${header('💬 New Thread Message', appName)}
+    <div class="body">
+      <p style="margin:0 0 18px;font-size:15px;color:#111827;font-weight:600;">New message in project</p>
+      <div class="meta-row"><span class="meta-label">Posted By</span>${p.createdBy.name}</div>
+      <hr class="divider" />
+      <a href="${appUrl}/projects/${p.projectId}?t=1" class="btn">View Message</a>
+    </div>
+    ${footer(appName, appUrl)}`;
+
+  return {
+    subject: `New thread message in project`,
+    html: shell(
+      `New Thread Message`,
+      `${p.createdBy.name} posted a new message`,
       body,
     ),
   };

@@ -10,6 +10,8 @@ import { FilesService } from '../../files/files.service';
 import { UtilityService } from '../../utility/utility.service';
 import { ThreadMessage } from '../entities/thread-messages.entity';
 import { CreateThreadMessageDto } from '../dto/create-thread-message.dto';
+import { EmailEventType } from '../../notifications/notifications.types';
+import { NotificationsService } from '../../notifications/notifications.service';
 
 @Injectable()
 export class ThreadService {
@@ -19,12 +21,13 @@ export class ThreadService {
 
     private readonly filesService: FilesService,
     private readonly utilityService: UtilityService,
+    private readonly notificationService: NotificationsService,
   ) {}
 
   async create(
     projectId: string,
     dto: CreateThreadMessageDto,
-    userId: string,
+    user: any,
     files?: Express.Multer.File[],
   ) {
     if (!dto.message && !files.length) {
@@ -35,8 +38,8 @@ export class ThreadService {
       this.repo.create({
         projectId,
         message: dto.message,
-        authorId: userId,
-        createdBy: userId,
+        authorId: user.id,
+        createdBy: user.id,
         parentId: dto.parentId,
       }),
     );
@@ -46,10 +49,28 @@ export class ThreadService {
     }
 
     if (files?.length) {
-      await this.uploadAttachments(message.id, projectId, files, userId);
+      await this.uploadAttachments(message.id, projectId, files, user.id);
     }
 
-    return this.findOne(message.id);
+    const msg = await this.findOne(message.id, true);
+
+    const participants = msg.project.members.map((m) => ({
+      name: m.fullName,
+      email: m.email,
+    }));
+
+    // Call notification service to send email notifications to participants of the thread
+    await this.notificationService.dispatch({
+      type: EmailEventType.THREAD_MESSAGE_CREATED,
+      payload: {
+        messageId: message.id,
+        projectId,
+        createdBy: { name: user.fullName, email: user.email },
+        participants,
+      },
+    });
+
+    return msg;
   }
 
   // TODO: optimize N+1 issue
@@ -91,8 +112,11 @@ export class ThreadService {
     );
   }
 
-  async findOne(id: string) {
-    const msg = await this.repo.findOne({ where: { id } });
+  async findOne(id: string, members: boolean = false) {
+    const msg = await this.repo.findOne({
+      where: { id },
+      ...(members ? { relations: { project: { members: true } } } : {}),
+    });
 
     const attachments = await this.filesService.findBySource(
       FileSource.THREAD,

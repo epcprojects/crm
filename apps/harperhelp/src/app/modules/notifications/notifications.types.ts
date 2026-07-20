@@ -1,5 +1,7 @@
 export enum EmailEventType {
   PROJECT_CREATED = 'project.created',
+  PROJECT_ASSIGNED = 'project.assigned',
+  THREAD_MESSAGE_CREATED = 'thread.message_created',
   TICKET_CREATED = 'ticket.created',
   TICKET_REPLY_POSTED = 'ticket.reply_posted',
   TICKET_STATUS_UPDATED = 'ticket.status_updated',
@@ -13,7 +15,7 @@ export interface EmailRecipient {
   name: string;
 }
 
-// Payload shapes per event 
+// Payload shapes per event
 
 export interface ProjectCreatedPayload {
   projectId: string;
@@ -24,6 +26,12 @@ export interface ProjectCreatedPayload {
   members: EmailRecipient[];
 }
 
+export interface ProjectAssignedPayload
+  extends Omit<
+    ProjectCreatedPayload,
+    'projectId' | 'projectCode' | 'description'
+  > {}
+
 export interface TicketCreatedPayload {
   ticketId: string;
   ticketNumber: string; // e.g. PROJ-20240101-0000001
@@ -31,6 +39,7 @@ export interface TicketCreatedPayload {
   description: string;
   priority: string;
   status: string;
+  projectId: string;
   projectName: string;
   createdBy: EmailRecipient;
   assignee?: EmailRecipient;
@@ -92,13 +101,37 @@ export interface TicketAttachmentAddedPayload {
   participants: EmailRecipient[];
 }
 
-// Union event type used internally 
+export interface ThreadMessageCreatedPayload {
+  messageId: string;
+  projectId: string;
+  createdBy: EmailRecipient;
+  participants: EmailRecipient[];
+}
+
+// Union event type used internally
 
 export type EmailNotificationEvent =
   | { type: EmailEventType.PROJECT_CREATED; payload: ProjectCreatedPayload }
+  | { type: EmailEventType.PROJECT_ASSIGNED; payload: ProjectAssignedPayload } 
+  | {type: EmailEventType.THREAD_MESSAGE_CREATED; payload: ThreadMessageCreatedPayload }
   | { type: EmailEventType.TICKET_CREATED; payload: TicketCreatedPayload }
-  | { type: EmailEventType.TICKET_REPLY_POSTED; payload: TicketReplyPostedPayload }
-  | { type: EmailEventType.TICKET_STATUS_UPDATED; payload: TicketStatusUpdatedPayload }
-  | { type: EmailEventType.TICKET_PRIORITY_UPDATED; payload: TicketPriorityUpdatedPayload }
-  | { type: EmailEventType.TICKET_ASSIGNEE_UPDATED; payload: TicketAssigneeUpdatedPayload }
-  | { type: EmailEventType.TICKET_ATTACHMENT_ADDED; payload: TicketAttachmentAddedPayload };
+  | {
+      type: EmailEventType.TICKET_REPLY_POSTED;
+      payload: TicketReplyPostedPayload;
+    }
+  | {
+      type: EmailEventType.TICKET_STATUS_UPDATED;
+      payload: TicketStatusUpdatedPayload;
+    }
+  | {
+      type: EmailEventType.TICKET_PRIORITY_UPDATED;
+      payload: TicketPriorityUpdatedPayload;
+    }
+  | {
+      type: EmailEventType.TICKET_ASSIGNEE_UPDATED;
+      payload: TicketAssigneeUpdatedPayload;
+    }
+  | {
+      type: EmailEventType.TICKET_ATTACHMENT_ADDED;
+      payload: TicketAttachmentAddedPayload;
+    };
