@@ -222,6 +222,10 @@ function formatFileSource(source?: string) {
 }
 
 export function getFileUrl(storageKey?: string) {
+  if (typeof storageKey === 'string' && /^https?:\/\//i.test(storageKey)) {
+    return storageKey;
+  }
+
   if (!storageKey) {
     return '';
   }

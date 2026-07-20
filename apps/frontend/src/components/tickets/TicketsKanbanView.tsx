@@ -38,101 +38,88 @@ export default function TicketsKanbanView({
   const [draggingTicketId, setDraggingTicketId] = useState<string | null>(null);
   const [hoveredColumnKey, setHoveredColumnKey] = useState<string | null>(null);
   const [draggingColumnKey, setDraggingColumnKey] = useState<string | null>(
-  null,
-);
-
-const [columnOrder, setColumnOrder] = useState<string[]>([]);
- const generatedColumns = useMemo(() => {
-  const normalizedOptions = statusOptions.map((status) => ({
-    key: status.value,
-    label: status.label,
-    color: status.color,
-  }));
-
-  const existingLabels = new Set(
-    normalizedOptions.map((status) =>
-      status.label.trim().toLowerCase(),
-    ),
+    null,
   );
 
-  const extraStatuses = Array.from(
-    new Set(
-      tickets
-        .map((ticket) => ticket.status?.trim())
-        .filter((status): status is string => Boolean(status)),
-    ),
-  )
-    .filter(
-      (status) =>
-        !existingLabels.has(status.trim().toLowerCase()),
-    )
-    .map((status) => ({
-      key: `custom:${status}`,
-      label: status,
-      color: undefined,
+  const [columnOrder, setColumnOrder] = useState<string[]>([]);
+  const generatedColumns = useMemo(() => {
+    const normalizedOptions = statusOptions.map((status) => ({
+      key: status.value,
+      label: status.label,
+      color: status.color,
     }));
 
-  return [...normalizedOptions, ...extraStatuses].map((column) => ({
-    ...column,
-    tickets: tickets.filter(
-      (ticket) => ticket.status === column.label,
-    ),
-  }));
-}, [statusOptions, tickets]);
-
-useEffect(() => {
-  setColumnOrder((currentOrder) => {
-    const availableKeys = generatedColumns.map((column) => column.key);
-
-    const existingKeys = currentOrder.filter((key) =>
-      availableKeys.includes(key),
+    const existingLabels = new Set(
+      normalizedOptions.map((status) => status.label.trim().toLowerCase()),
     );
 
-    const newKeys = availableKeys.filter(
-      (key) => !existingKeys.includes(key),
-    );
+    const extraStatuses = Array.from(
+      new Set(
+        tickets
+          .map((ticket) => ticket.status?.trim())
+          .filter((status): status is string => Boolean(status)),
+      ),
+    )
+      .filter((status) => !existingLabels.has(status.trim().toLowerCase()))
+      .map((status) => ({
+        key: `custom:${status}`,
+        label: status,
+        color: undefined,
+      }));
 
-    return [...existingKeys, ...newKeys];
-  });
-}, [generatedColumns]);
+    return [...normalizedOptions, ...extraStatuses].map((column) => ({
+      ...column,
+      tickets: tickets.filter((ticket) => ticket.status === column.label),
+    }));
+  }, [statusOptions, tickets]);
 
-const columns = useMemo(() => {
-  const orderIndex = new Map(
-    columnOrder.map((key, index) => [key, index]),
-  );
+  useEffect(() => {
+    setColumnOrder((currentOrder) => {
+      const availableKeys = generatedColumns.map((column) => column.key);
 
-  return [...generatedColumns].sort((firstColumn, secondColumn) => {
-    return (
-      (orderIndex.get(firstColumn.key) ?? Number.MAX_SAFE_INTEGER) -
-      (orderIndex.get(secondColumn.key) ?? Number.MAX_SAFE_INTEGER)
-    );
-  });
-}, [columnOrder, generatedColumns]);
-const moveColumn = (
-  draggedColumnKey: string,
-  targetColumnKey: string,
-) => {
-  if (draggedColumnKey === targetColumnKey) {
-    return;
-  }
+      const existingKeys = currentOrder.filter((key) =>
+        availableKeys.includes(key),
+      );
 
-  setColumnOrder((currentOrder) => {
-    const nextOrder = [...currentOrder];
+      const newKeys = availableKeys.filter(
+        (key) => !existingKeys.includes(key),
+      );
 
-    const draggedIndex = nextOrder.indexOf(draggedColumnKey);
-    const targetIndex = nextOrder.indexOf(targetColumnKey);
+      return [...existingKeys, ...newKeys];
+    });
+  }, [generatedColumns]);
 
-    if (draggedIndex === -1 || targetIndex === -1) {
-      return currentOrder;
+  const columns = useMemo(() => {
+    const orderIndex = new Map(columnOrder.map((key, index) => [key, index]));
+
+    return [...generatedColumns].sort((firstColumn, secondColumn) => {
+      return (
+        (orderIndex.get(firstColumn.key) ?? Number.MAX_SAFE_INTEGER) -
+        (orderIndex.get(secondColumn.key) ?? Number.MAX_SAFE_INTEGER)
+      );
+    });
+  }, [columnOrder, generatedColumns]);
+  const moveColumn = (draggedColumnKey: string, targetColumnKey: string) => {
+    if (draggedColumnKey === targetColumnKey) {
+      return;
     }
 
-    nextOrder.splice(draggedIndex, 1);
-    nextOrder.splice(targetIndex, 0, draggedColumnKey);
+    setColumnOrder((currentOrder) => {
+      const nextOrder = [...currentOrder];
 
-    return nextOrder;
-  });
-};
-  
+      const draggedIndex = nextOrder.indexOf(draggedColumnKey);
+      const targetIndex = nextOrder.indexOf(targetColumnKey);
+
+      if (draggedIndex === -1 || targetIndex === -1) {
+        return currentOrder;
+      }
+
+      nextOrder.splice(draggedIndex, 1);
+      nextOrder.splice(targetIndex, 0, draggedColumnKey);
+
+      return nextOrder;
+    });
+  };
 
   if (!columns.length) {
     return (
@@ -143,113 +130,116 @@ const moveColumn = (
   }
 
   return (
-    <div className="h-full max-h-full min-h-0 w-full min-w-0 overflow-auto overscroll-contain scrollbar-hide">
-      <div className="flex min-h-full min-w-max items-start gap-6 pb-2">
+    <div className="h-full max-h-full min-h-0 w-full min-w-0 overflow-x-auto overflow-y-hidden overscroll-contain scrollbar-hide">
+      <div className="flex h-full min-h-0 min-w-max items-start gap-4 pb-2">
         {columns.map((column) => {
           const tone = getStatusTone(column.color);
 
           return (
             <section
-  key={column.key}
-  draggable={canDragColumns}
-  onDragStart={(event) => {
-    /*
-     * Ticket drag event section tak bubble hota hai.
-     * Agar ticket data already set hai to column drag start nahi karna.
-     */
-    if (
-      !canDragColumns ||
-      event.dataTransfer.types.includes('application/x-ticket-id')
-    ) {
-      return;
-    }
+              key={column.key}
+              draggable={canDragColumns}
+              onDragStart={(event) => {
+                /*
+                 * Ticket drag event section tak bubble hota hai.
+                 * Agar ticket data already set hai to column drag start nahi karna.
+                 */
+                if (
+                  !canDragColumns ||
+                  event.dataTransfer.types.includes('application/x-ticket-id')
+                ) {
+                  return;
+                }
 
-    event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData(
-      'application/x-column-key',
-      column.key,
-    );
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData(
+                  'application/x-column-key',
+                  column.key,
+                );
 
-    setDraggingColumnKey(column.key);
-  }}
-  onDragEnd={() => {
-    setDraggingColumnKey(null);
-    setHoveredColumnKey(null);
-  }}
-  className={`flex w-[350px] shrink-0 flex-col gap-5 rounded-2xl transition ${
-    hoveredColumnKey === column.key ? 'bg-gray-50/80' : ''
-  } ${
-    draggingColumnKey === column.key
-      ? 'cursor-grabbing opacity-60 ring-2 ring-primary/20'
-      : canDragColumns
-        ? 'cursor-grab'
-        : ''
-  }`}
-  onDragOver={(event) => {
-    const isTicketDrag = event.dataTransfer.types.includes(
-      'application/x-ticket-id',
-    );
+                setDraggingColumnKey(column.key);
+              }}
+              onDragEnd={() => {
+                setDraggingColumnKey(null);
+                setHoveredColumnKey(null);
+              }}
+              className={`flex h-full min-h-0 w-[350px] shrink-0 p-2 flex-col gap-3 rounded-2xl transition ${
+                hoveredColumnKey === column.key ? 'bg-gray-50/80' : ''
+              } ${
+                draggingColumnKey === column.key
+                  ? 'cursor-grabbing opacity-60 ring-2 ring-primary/20'
+                  : canDragColumns
+                    ? 'cursor-grab'
+                    : ''
+              }`}
+              style={{
+                backgroundColor: tone.background,
+              }}
+              onDragOver={(event) => {
+                const isTicketDrag = event.dataTransfer.types.includes(
+                  'application/x-ticket-id',
+                );
 
-    const isColumnDrag = event.dataTransfer.types.includes(
-      'application/x-column-key',
-    );
+                const isColumnDrag = event.dataTransfer.types.includes(
+                  'application/x-column-key',
+                );
 
-    if (
-      (isTicketDrag && canDragTickets) ||
-      (isColumnDrag && canDragColumns)
-    ) {
-      event.preventDefault();
-      event.dataTransfer.dropEffect = 'move';
-      setHoveredColumnKey(column.key);
-    }
-  }}
-  onDragLeave={(event) => {
-    if (event.currentTarget.contains(event.relatedTarget as Node)) {
-      return;
-    }
+                if (
+                  (isTicketDrag && canDragTickets) ||
+                  (isColumnDrag && canDragColumns)
+                ) {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = 'move';
+                  setHoveredColumnKey(column.key);
+                }
+              }}
+              onDragLeave={(event) => {
+                if (event.currentTarget.contains(event.relatedTarget as Node)) {
+                  return;
+                }
 
-    if (hoveredColumnKey === column.key) {
-      setHoveredColumnKey(null);
-    }
-  }}
-  onDrop={(event) => {
-    event.preventDefault();
+                if (hoveredColumnKey === column.key) {
+                  setHoveredColumnKey(null);
+                }
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
 
-    const draggedColumnKey = event.dataTransfer.getData(
-      'application/x-column-key',
-    );
+                const draggedColumnKey = event.dataTransfer.getData(
+                  'application/x-column-key',
+                );
 
-    if (draggedColumnKey && canDragColumns) {
-      moveColumn(draggedColumnKey, column.key);
-      setDraggingColumnKey(null);
-      setHoveredColumnKey(null);
-      return;
-    }
+                if (draggedColumnKey && canDragColumns) {
+                  moveColumn(draggedColumnKey, column.key);
+                  setDraggingColumnKey(null);
+                  setHoveredColumnKey(null);
+                  return;
+                }
 
-    const draggedTicketId =
-      event.dataTransfer.getData('application/x-ticket-id') ||
-      draggingTicketId;
+                const draggedTicketId =
+                  event.dataTransfer.getData('application/x-ticket-id') ||
+                  draggingTicketId;
 
-    if (!canDragTickets || !draggedTicketId) {
-      return;
-    }
+                if (!canDragTickets || !draggedTicketId) {
+                  return;
+                }
 
-    const draggedTicket = tickets.find(
-      (ticket) => ticket.id === draggedTicketId,
-    );
+                const draggedTicket = tickets.find(
+                  (ticket) => ticket.id === draggedTicketId,
+                );
 
-    setHoveredColumnKey(null);
-    setDraggingTicketId(null);
+                setHoveredColumnKey(null);
+                setDraggingTicketId(null);
 
-    if (!draggedTicket || draggedTicket.status === column.label) {
-      return;
-    }
+                if (!draggedTicket || draggedTicket.status === column.label) {
+                  return;
+                }
 
-    onMoveTicket?.(draggedTicket, column.key);
-  }}
->
+                onMoveTicket?.(draggedTicket, column.key);
+              }}
+            >
               <div
-                className="relative flex items-center gap-2 rounded-lg px-3 py-3"
+                className="sticky top-0 z-10 relative flex items-center gap-2 rounded-lg px-3 py-3"
                 style={{
                   backgroundColor: tone.background,
                 }}
@@ -281,7 +271,7 @@ const moveColumn = (
               </div>
 
               <div
-                className={`flex min-h-40 flex-1 flex-col gap-5 rounded-xl transition ${
+                className={`flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto scrollbar-hide rounded-xl pr-1 transition ${
                   hoveredColumnKey === column.key
                     ? 'border border-dashed border-gray-200 bg-primary/5'
                     : ''
@@ -295,19 +285,19 @@ const moveColumn = (
                       type="button"
                       draggable={canDragTickets && movingTicketId !== ticket.id}
                       onDragStart={(event) => {
-  if (!canDragTickets) {
-    return;
-  }
+                        if (!canDragTickets) {
+                          return;
+                        }
 
-  event.stopPropagation();
-  event.dataTransfer.effectAllowed = 'move';
-  event.dataTransfer.setData(
-    'application/x-ticket-id',
-    ticket.id,
-  );
+                        event.stopPropagation();
+                        event.dataTransfer.effectAllowed = 'move';
+                        event.dataTransfer.setData(
+                          'application/x-ticket-id',
+                          ticket.id,
+                        );
 
-  setDraggingTicketId(ticket.id);
-}}
+                        setDraggingTicketId(ticket.id);
+                      }}
                       onDragEnd={() => {
                         setDraggingTicketId(null);
                         setHoveredColumnKey(null);
