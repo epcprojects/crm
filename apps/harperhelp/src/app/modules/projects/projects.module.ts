@@ -12,12 +12,14 @@ import { FilesModule } from '../files/files.module';
 import { ProjectsFilesService } from './services/project-files.service';
 import { UserRole } from '../users/entities/user.roles.entity';
 import { Ticket } from '../tickets/entities/ticket.entity';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Project, Ticket, ThreadMessage, UserRole]),
     UtilityModule,
     FilesModule,
+    NotificationsModule,
   ],
   controllers: [ProjectsController, ThreadController],
   providers: [ProjectsService, ThreadService, ProjectsFilesService],

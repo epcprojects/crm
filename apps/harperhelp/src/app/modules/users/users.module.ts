@@ -10,16 +10,19 @@ import { User } from './entities/user.entity';
 
 import { UserRole } from './entities/user.roles.entity';
 import { Role } from '../roles/entities/role.entity';
-import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { Project } from '../projects/entities/project.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Role, UserRole, Project])],
+  imports: [
+    TypeOrmModule.forFeature([User, Role, UserRole, Project]),
+    NotificationsModule,
+  ],
 
   controllers: [UsersController],
 
-  providers: [UsersService, NotificationsService],
+  providers: [UsersService],
 
-  exports: [UsersService, NotificationsService],
+  exports: [UsersService],
 })
 export class UsersModule {}

@@ -104,5 +104,5 @@ export class Ticket extends BaseEntity {
     type: 'timestamptz',
     nullable: true,
   })
-  dueDate?: Date;
+  dueDate?: string;
 }

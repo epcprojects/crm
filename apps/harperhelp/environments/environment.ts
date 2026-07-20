@@ -19,5 +19,11 @@ export function environment() {
       apiKey: process.env.SENDGRID_API_KEY,
       fromEmail: process.env.SENDGRID_FROM_EMAIL,
     },
+    aws: {
+      region: process.env.AWS_REGION || 'us-east-1',
+      sqs: {
+        notificationQueueUrl: process.env.NOTIFICATION_QUEUE_URL,
+      },
+    },
   };
 }

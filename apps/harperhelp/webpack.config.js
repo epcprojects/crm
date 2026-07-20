@@ -2,13 +2,23 @@ const { NxAppWebpackPlugin } = require('@nx/webpack/app-plugin');
 const { join } = require('path');
 
 module.exports = {
+  entry: {
+    main: './src/main.ts',
+    'lambda/notifications':
+      './src/app/modules/notifications/queue/lambda/index.ts',
+  },
   output: {
     path: join(__dirname, '../../dist/apps/harperhelp'),
+    filename: '[name].js',
     clean: true,
+    libraryTarget: 'commonjs2',
     ...(process.env.NODE_ENV !== 'production' && {
       devtoolModuleFilenameTemplate: '[absolute-resource-path]',
     }),
   },
+  target: 'node',
+  mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
+  externalsPresets: { node: true },
   plugins: [
     new NxAppWebpackPlugin({
       target: 'node',

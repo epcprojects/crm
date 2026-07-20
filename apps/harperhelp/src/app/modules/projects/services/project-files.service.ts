@@ -53,8 +53,8 @@ export class ProjectsFilesService {
     return this.filesService.findBySource(FileSource.PROJECT, projectId);
   }
 
-  async getProjectFiles(projectId: string) {
-    const files = await this.filesService.findByProject(projectId);
+  async getProjectFiles(projectId: string, user) {
+    const files = await this.filesService.findByProject(projectId, user);
 
     return files;
   }
