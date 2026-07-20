@@ -375,6 +375,9 @@ export default function TicketRepliesPanel({
                         <span className="text-xs text-gray-700">
                           {reply.createdAt}
                         </span>
+                        {isCurrentUserReply && reply.status ? (
+                          <ChatStatusIcon status={reply.status} />
+                        ) : null}
                       </div>
                       {reply.message || reply.attachments?.length ? (
                         <div
@@ -770,6 +773,45 @@ function mergeAttachmentFiles(currentFiles: File[], newFiles: File[]) {
 
 function getAttachmentFileKey(file: File) {
   return `${file.name}-${file.size}-${file.lastModified}`;
+}
+
+function ChatStatusIcon({
+  status,
+}: {
+  status: 'sent' | 'read';
+}) {
+  const strokeColor = status === 'read' ? '#304FFD' : '#98A2B3';
+
+  return (
+    <span
+      className="inline-flex items-center"
+      aria-label={status === 'read' ? 'Read' : 'Sent'}
+      title={status === 'read' ? 'Read' : 'Sent'}
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 16 16"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M2.75 8.5L5.25 11L9.75 5.5"
+          stroke={strokeColor}
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M6.25 8.5L8.75 11L13.25 5.5"
+          stroke={strokeColor}
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </span>
+  );
 }
 
 function getFileExtension(fileName: string, mimeType?: string) {

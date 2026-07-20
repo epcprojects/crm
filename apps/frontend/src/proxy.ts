@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  getLoginPathWithReturnUrl,
+  sanitizeReturnUrl,
+} from './lib/auth/return-url';
 
 type JwtPayload = {
   exp?: number;
@@ -58,12 +62,28 @@ export function proxy(request: NextRequest) {
   const isPublicRoute = isRouteInSet(pathname, PUBLIC_ROUTES);
 
   if (!isAuthenticated && !isPublicRoute) {
-    return NextResponse.redirect(new URL('/login', request.url));
+    return NextResponse.redirect(
+      new URL(
+        getLoginPathWithReturnUrl(
+          request.nextUrl.pathname,
+          request.nextUrl.search,
+        ),
+        request.url,
+      ),
+    );
   }
 
   if (isAuthenticated && isPublicRoute) {
     if (isPasswordTokenRoute && tokenParam) {
       return NextResponse.next();
+    }
+
+    const returnUrl = sanitizeReturnUrl(
+      request.nextUrl.searchParams.get('returnurl'),
+    );
+
+    if (pathname === '/login' && returnUrl) {
+      return NextResponse.redirect(new URL(returnUrl, request.url));
     }
 
     return NextResponse.redirect(new URL('/dashboard', request.url));

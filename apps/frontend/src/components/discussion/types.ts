@@ -4,6 +4,7 @@ export type DiscussionReply = {
   id: string;
   authorId?: string;
   replyCount?: number;
+  status?: 'sent' | 'read';
   author: {
     name: string;
     initials: string;

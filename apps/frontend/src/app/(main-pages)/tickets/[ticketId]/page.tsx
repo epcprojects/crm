@@ -399,6 +399,14 @@ export default function TicketDetailPage() {
         if (payload.channel === 'external') {
           setHasUnreadExternalChat(true);
         }
+
+        appToast.info(
+          getIncomingChatToastMessage(payload.channel, payload.message),
+          {
+            position: 'top-right',
+            toastId: `ticket-chat-${payload.channel}-${payload.message.id}`,
+          },
+        );
       };
 
       socket.on('connect', joinUnreadRooms);
@@ -482,9 +490,7 @@ export default function TicketDetailPage() {
 
     const unreadMessageIds = chatMessages
       .filter(
-        (message) =>
-          !message.isRead &&
-          message.senderId !== currentUserId,
+        (message) => !message.isRead && message.senderId !== currentUserId,
       )
       .map((message) => message.id);
 
@@ -708,7 +714,7 @@ export default function TicketDetailPage() {
         }
       }
 
-      appToast.success('Chat updated successfully.');
+      // appToast.success('Chat updated successfully.');
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'ticket-summary'],
@@ -1576,12 +1582,6 @@ function mapChatMessageToDiscussionReply(message: ChatMessage) {
   const isDeleted =
     message.message.trim() === '[Message deleted]' ||
     message.message.trim() === 'Message deleted';
-  const readReceipt =
-    message.isRead && message.senderId
-      ? 'Read'
-      : message.senderId
-        ? 'Sent'
-        : '';
   const resolvedAttachmentUrls = Array.isArray(message.attachmentUrls)
     ? message.attachmentUrls.filter(
         (url): url is string =>
@@ -1598,7 +1598,8 @@ function mapChatMessageToDiscussionReply(message: ChatMessage) {
       name: authorName,
       initials: getInitials(authorName),
     },
-    createdAt: `${formatReplyDate(message.createdAt)}${readReceipt ? ` • ${readReceipt}` : ''}`,
+    createdAt: formatReplyDate(message.createdAt),
+    status: message.isRead ? ('read' as const) : ('sent' as const),
     message:
       message.messageType === 'attachment'
         ? isDeleted
@@ -1939,6 +1940,33 @@ async function fetchUnreadIndicator(
   }
 
   return false;
+}
+
+function getIncomingChatToastMessage(
+  channel: ChatChannel,
+  message: ChatMessage,
+) {
+  const channelLabel =
+    channel === 'internal' ? 'Internal chat' : 'External chat';
+  const senderName =
+    message.sender?.fullName?.trim() ||
+    message.sender?.name?.trim() ||
+    'Someone';
+  const messagePreview = message.message.trim();
+
+  if (message.messageType === 'attachment' && !messagePreview) {
+    return `New message in: ${senderName} sent an attachment.`;
+  }
+
+  if (message.messageType === 'attachment') {
+    return `New message: ${senderName} sent ${messagePreview}.`;
+  }
+
+  if (!messagePreview) {
+    return `New message in from ${senderName}.`;
+  }
+
+  return `New message from ${senderName}: ${messagePreview}`;
 }
 
 function toDateInputValue(value: string) {
