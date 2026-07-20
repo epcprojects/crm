@@ -5,7 +5,6 @@ type CreateTicketStatusPayload = {
   key?: string;
   label?: string;
   color?: string;
-  sortOrder?: number;
 };
 
 function getApiBaseUrl() {

@@ -44,8 +44,8 @@ export default function RolesPage() {
   );
   const [searchValue, setSearchValue] = useState('');
   const rolesQuery = useQuery({
-    queryKey: ['roles'],
-    queryFn: fetchRoles,
+    queryKey: ['roles', searchValue.trim()],
+    queryFn: () => fetchRoles(searchValue.trim()),
     enabled: canViewRoles,
   });
   const permissionCatalogQuery = useQuery({
@@ -148,21 +148,6 @@ export default function RolesPage() {
       setHeaderActionOverride(null);
     };
   }, [canCreateRole, setHeaderActionOverride]);
-  const filteredRoles = useMemo(() => {
-    const normalizedSearch = searchValue.trim().toLowerCase();
-    const roleList = rolesQuery.data ?? [];
-
-    return roleList.filter((role) => {
-      if (!normalizedSearch) return true;
-
-      return (
-        role.id.toLowerCase().includes(normalizedSearch) ||
-        role.name.toLowerCase().includes(normalizedSearch) ||
-        role.normalizedName.toLowerCase().includes(normalizedSearch) ||
-        role.description.toLowerCase().includes(normalizedSearch)
-      );
-    });
-  }, [rolesQuery.data, searchValue]);
 
   const editingRole = roleDetailQuery.data ?? null;
   const editInitialValues = useMemo(() => {
@@ -267,9 +252,9 @@ export default function RolesPage() {
                 <div className="min-h-0 flex-1 overflow-hidden">
                   {rolesQuery.isLoading ? (
                     <RolesTableSkeleton />
-                  ) : (rolesQuery.data?.length ?? 0) ? (
+                  ) : (rolesQuery.data?.length ?? 0) > 0 ? (
                     <RolesTable
-                      roles={filteredRoles}
+                      roles={rolesQuery.data ?? []}
                       currentUserRoles={currentUserRoles}
                       initialPageSize={10}
                       pageSizeOptions={[10, 20, 30]}
@@ -334,9 +319,8 @@ export default function RolesPage() {
 
       {editingRoleId ? (
         <AddRoleModal
-          key={`edit-role-${editingRoleId}-${
-            editInitialValues?.permissions.join('|') ?? 'loading'
-          }`}
+          key={`edit-role-${editingRoleId}-${editInitialValues?.permissions.join('|') ?? 'loading'
+            }`}
           isOpen={isEditRoleModalOpen && canEditRole}
           onClose={() => setEditingRoleId(null)}
           onConfirm={handleEditRole}
@@ -399,22 +383,30 @@ function formatRoleDate(value: unknown) {
   return rawValue;
 }
 
-async function fetchRoles() {
-  const response = await fetch('/api/roles', {
-    method: 'GET',
-    headers: {
-      Accept: 'application/json',
-    },
-    cache: 'no-store',
-  });
+async function fetchRoles(search?: string) {
+  const searchParams = new URLSearchParams();
+
+  if (search?.trim()) {
+    searchParams.set('search', search.trim())
+  }
+  const queryString = searchParams.toString();
+  const response = await fetch(
+    `/api/roles${queryString ? `?${queryString}` : ''}`,
+    {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+    });
 
   const payload = (await response.json().catch(() => null)) as
     | ApiRoleRecord[]
     | {
-        roles?: ApiRoleRecord[];
-        data?: ApiRoleRecord[];
-        items?: ApiRoleRecord[];
-      }
+      roles?: ApiRoleRecord[];
+      data?: ApiRoleRecord[];
+      items?: ApiRoleRecord[];
+    }
     | { message?: string }
     | null;
   const roles = extractApiRoles(payload);
@@ -457,11 +449,11 @@ async function fetchPermissionCatalog() {
     label: getString(item.label) ?? getString(item.module) ?? 'Unknown',
     permissions: Array.isArray(item.permissions)
       ? item.permissions
-          .filter(
-            (permission): permission is string =>
-              typeof permission === 'string',
-          )
-          .map(normalizePermission)
+        .filter(
+          (permission): permission is string =>
+            typeof permission === 'string',
+        )
+        .map(normalizePermission)
       : [],
   }));
 }
@@ -591,10 +583,10 @@ function extractPermissions(
   const sourceRecord = source as Record<string, unknown>;
   const permissionsFromPayload = Array.isArray(sourceRecord.permissions)
     ? sourceRecord.permissions
-        .filter(
-          (permission): permission is string => typeof permission === 'string',
-        )
-        .map(normalizePermission)
+      .filter(
+        (permission): permission is string => typeof permission === 'string',
+      )
+      .map(normalizePermission)
     : [];
 
   if (permissionsFromPayload.length) {

@@ -1,4 +1,4 @@
-import { Column, Entity } from 'typeorm';
+import { Column, Entity, Generated } from 'typeorm';
 import { TimestampEntity } from '@harperhelp/interfaces';
 
 @Entity('ticket_statuses')

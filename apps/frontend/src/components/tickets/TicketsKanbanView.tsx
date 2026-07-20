@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { RecentTicket } from '../tables/RecentTicketsTable';
 
 type TicketStatusOption = {
+  id: string;
   label: string;
   value: string;
   color?: string;
@@ -14,11 +15,11 @@ type TicketsKanbanViewProps = {
   statusOptions: TicketStatusOption[];
   onTicketClick?: (ticket: RecentTicket) => void;
   onMoveTicket?: (ticket: RecentTicket, nextStatusKey: string) => void;
+  onReorderColumn?: (statusId: string, newIndex: number) => void;
   canDragTickets?: boolean;
   movingTicketId?: string | null;
   canDragColumns?: boolean;
 };
-
 const defaultStatusTone = {
   background: '#f3f4f6',
   border: '#e5e7eb',
@@ -31,6 +32,7 @@ export default function TicketsKanbanView({
   statusOptions,
   onTicketClick,
   onMoveTicket,
+  onReorderColumn,
   canDragTickets = false,
   movingTicketId = null,
   canDragColumns = true,
@@ -38,20 +40,23 @@ export default function TicketsKanbanView({
   const [draggingTicketId, setDraggingTicketId] = useState<string | null>(null);
   const [hoveredColumnKey, setHoveredColumnKey] = useState<string | null>(null);
   const [draggingColumnKey, setDraggingColumnKey] = useState<string | null>(
-    null,
-  );
+  null,
+);
 
-  const [columnOrder, setColumnOrder] = useState<string[]>([]);
   const generatedColumns = useMemo(() => {
     const normalizedOptions = statusOptions.map((status) => ({
       key: status.value,
+      id: status.id as string | null,
       label: status.label,
       color: status.color,
+      isCustom: false,
     }));
 
-    const existingLabels = new Set(
-      normalizedOptions.map((status) => status.label.trim().toLowerCase()),
-    );
+  const existingLabels = new Set(
+    normalizedOptions.map((status) =>
+      status.label.trim().toLowerCase(),
+    ),
+  );
 
     const extraStatuses = Array.from(
       new Set(
@@ -63,8 +68,10 @@ export default function TicketsKanbanView({
       .filter((status) => !existingLabels.has(status.trim().toLowerCase()))
       .map((status) => ({
         key: `custom:${status}`,
+        id: null,
         label: status,
         color: undefined,
+        isCustom: true,
       }));
 
     return [...normalizedOptions, ...extraStatuses].map((column) => ({
@@ -73,52 +80,40 @@ export default function TicketsKanbanView({
     }));
   }, [statusOptions, tickets]);
 
-  useEffect(() => {
-    setColumnOrder((currentOrder) => {
-      const availableKeys = generatedColumns.map((column) => column.key);
+  // Real (backend-backed) statuses keep the order given by the API — the
+  // user's saved order, or the global fallback. Custom/unmatched-status
+  // columns are display-only and always render after them; they can't be
+  // reordered because they have no statusId to persist against.
+  const realColumns = useMemo(
+    () => generatedColumns.filter((column) => !column.isCustom),
+    [generatedColumns],
+  );
+  const customColumns = useMemo(
+    () => generatedColumns.filter((column) => column.isCustom),
+    [generatedColumns],
+  );
+  const columns = useMemo(
+    () => [...realColumns, ...customColumns],
+    [realColumns, customColumns],
+  );
 
-      const existingKeys = currentOrder.filter((key) =>
-        availableKeys.includes(key),
-      );
-
-      const newKeys = availableKeys.filter(
-        (key) => !existingKeys.includes(key),
-      );
-
-      return [...existingKeys, ...newKeys];
-    });
-  }, [generatedColumns]);
-
-  const columns = useMemo(() => {
-    const orderIndex = new Map(columnOrder.map((key, index) => [key, index]));
-
-    return [...generatedColumns].sort((firstColumn, secondColumn) => {
-      return (
-        (orderIndex.get(firstColumn.key) ?? Number.MAX_SAFE_INTEGER) -
-        (orderIndex.get(secondColumn.key) ?? Number.MAX_SAFE_INTEGER)
-      );
-    });
-  }, [columnOrder, generatedColumns]);
   const moveColumn = (draggedColumnKey: string, targetColumnKey: string) => {
     if (draggedColumnKey === targetColumnKey) {
       return;
     }
 
-    setColumnOrder((currentOrder) => {
-      const nextOrder = [...currentOrder];
+    const draggedColumn = realColumns.find(
+      (column) => column.key === draggedColumnKey,
+    );
+    const targetIndex = realColumns.findIndex(
+      (column) => column.key === targetColumnKey,
+    );
 
-      const draggedIndex = nextOrder.indexOf(draggedColumnKey);
-      const targetIndex = nextOrder.indexOf(targetColumnKey);
+    if (!draggedColumn?.id || targetIndex === -1) {
+      return;
+    }
 
-      if (draggedIndex === -1 || targetIndex === -1) {
-        return currentOrder;
-      }
-
-      nextOrder.splice(draggedIndex, 1);
-      nextOrder.splice(targetIndex, 0, draggedColumnKey);
-
-      return nextOrder;
-    });
+    onReorderColumn?.(draggedColumn.id, targetIndex);
   };
 
   if (!columns.length) {
@@ -134,59 +129,46 @@ export default function TicketsKanbanView({
       <div className="flex h-full min-h-0 min-w-max items-start gap-4 pb-2">
         {columns.map((column) => {
           const tone = getStatusTone(column.color);
+          const isDraggableColumn = canDragColumns && !column.isCustom;
 
           return (
             <section
               key={column.key}
-              draggable={canDragColumns}
+              draggable={isDraggableColumn}
               onDragStart={(event) => {
-                /*
-                 * Ticket drag event section tak bubble hota hai.
-                 * Agar ticket data already set hai to column drag start nahi karna.
-                 */
                 if (
-                  !canDragColumns ||
+                  !isDraggableColumn ||
                   event.dataTransfer.types.includes('application/x-ticket-id')
                 ) {
                   return;
                 }
 
                 event.dataTransfer.effectAllowed = 'move';
-                event.dataTransfer.setData(
-                  'application/x-column-key',
-                  column.key,
-                );
-
+                event.dataTransfer.setData('application/x-column-key', column.key);
                 setDraggingColumnKey(column.key);
               }}
               onDragEnd={() => {
                 setDraggingColumnKey(null);
                 setHoveredColumnKey(null);
               }}
-              className={`flex h-full min-h-0 w-[350px] shrink-0 p-2 flex-col gap-3 rounded-2xl transition ${
-                hoveredColumnKey === column.key ? 'bg-gray-50/80' : ''
-              } ${
-                draggingColumnKey === column.key
+              className={`flex w-[350px] shrink-0 flex-col gap-5 rounded-2xl transition ${hoveredColumnKey === column.key ? 'bg-gray-50/80' : ''
+                } ${draggingColumnKey === column.key
                   ? 'cursor-grabbing opacity-60 ring-2 ring-primary/20'
-                  : canDragColumns
+                  : isDraggableColumn
                     ? 'cursor-grab'
                     : ''
-              }`}
-              style={{
-                backgroundColor: tone.background,
-              }}
+                }`}
               onDragOver={(event) => {
                 const isTicketDrag = event.dataTransfer.types.includes(
                   'application/x-ticket-id',
                 );
-
                 const isColumnDrag = event.dataTransfer.types.includes(
                   'application/x-column-key',
                 );
 
                 if (
                   (isTicketDrag && canDragTickets) ||
-                  (isColumnDrag && canDragColumns)
+                  (isColumnDrag && isDraggableColumn)
                 ) {
                   event.preventDefault();
                   event.dataTransfer.dropEffect = 'move';
@@ -209,16 +191,16 @@ export default function TicketsKanbanView({
                   'application/x-column-key',
                 );
 
-                if (draggedColumnKey && canDragColumns) {
+                if (draggedColumnKey && isDraggableColumn) {
                   moveColumn(draggedColumnKey, column.key);
                   setDraggingColumnKey(null);
                   setHoveredColumnKey(null);
                   return;
                 }
 
-                const draggedTicketId =
-                  event.dataTransfer.getData('application/x-ticket-id') ||
-                  draggingTicketId;
+    const draggedTicketId =
+      event.dataTransfer.getData('application/x-ticket-id') ||
+      draggingTicketId;
 
                 if (!canDragTickets || !draggedTicketId) {
                   return;
@@ -271,11 +253,10 @@ export default function TicketsKanbanView({
               </div>
 
               <div
-                className={`flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto scrollbar-hide rounded-xl pr-1 transition ${
-                  hoveredColumnKey === column.key
-                    ? 'border border-dashed border-gray-200 bg-primary/5'
-                    : ''
-                }`}
+                className={`flex min-h-40 flex-1 flex-col gap-5 rounded-xl transition ${hoveredColumnKey === column.key
+                  ? 'border border-dashed border-gray-200 bg-primary/5'
+                  : ''
+                  }`}
               >
                 {column.tickets.length ? (
                   column.tickets.map((ticket) => (
@@ -303,15 +284,13 @@ export default function TicketsKanbanView({
                         setHoveredColumnKey(null);
                       }}
                       onClick={() => onTicketClick?.(ticket)}
-                      className={`rounded-xl border border-gray-200 bg-white p-3  text-left shadow-xs transition hover:border-gray-300 hover:shadow-sm ${
-                        draggingTicketId === ticket.id
-                          ? 'opacity-60 ring-2 ring-primary/20'
-                          : ''
-                      } ${
-                        movingTicketId === ticket.id
+                      className={`rounded-xl border border-gray-200 bg-white p-3  text-left shadow-xs transition hover:border-gray-300 hover:shadow-sm ${draggingTicketId === ticket.id
+                        ? 'opacity-60 ring-2 ring-primary/20'
+                        : ''
+                        } ${movingTicketId === ticket.id
                           ? 'cursor-wait opacity-70'
                           : ''
-                      } ${canDragTickets ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                        } ${canDragTickets ? 'cursor-grab active:cursor-grabbing' : ''}`}
                     >
                       <div className="space-y-2.5">
                         <p className="line-clamp-2 text-base font-semibold  text-gray-900">

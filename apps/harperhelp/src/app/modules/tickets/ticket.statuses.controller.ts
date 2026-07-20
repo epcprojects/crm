@@ -17,12 +17,14 @@ import { JwtAuthGuard } from 'apps/harperhelp/src/common/guards/jwt-auth.guard';
 import { RolesGuard } from 'apps/harperhelp/src/common/guards/roles.guard';
 import { SystemRoles } from '@harperhelp/types';
 import { Roles } from 'apps/harperhelp/src/common/decorators/roles.decorator';
+import { GetUser } from 'apps/harperhelp/src/common/decorators/get-user.decorator';
+import { ReorderTicketStatusDto } from './dto/reorder-ticket-status.dto';
 
 @Controller('ticket-statuses')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class TicketStatusesController {
-  constructor(private readonly service: TicketStatusesService) {}
+  constructor(private readonly service: TicketStatusesService) { }
 
   @Post()
   // @Roles(SystemRoles.SUPER_ADMIN)
@@ -30,11 +32,24 @@ export class TicketStatusesController {
   create(@Body() dto: CreateTicketStatusDto) {
     return this.service.create(dto);
   }
-
   @Get()
-  @ApiOperation({ summary: 'Get All Statuses which can be used for tickets.' })
-  findAll() {
-    return this.service.findAll();
+  @ApiOperation({
+    summary: 'Get All Statuses which can be used for tickets.',
+  })
+  findAll(@GetUser() user) {
+    return this.service.findAll(user);
+  }
+
+
+  @Patch('reorder')
+  @ApiOperation({
+    summary: 'Reorder ticket status columns for the current user',
+  })
+  reorder(
+    @Body() dto: ReorderTicketStatusDto,
+    @GetUser() user,
+  ) {
+    return this.service.reorder(dto, user);
   }
 
   @Get(':id')

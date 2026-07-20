@@ -35,6 +35,14 @@ type ProjectThreadDetail = {
 type ProjectsQueryOptions = {
   page?: number;
   limit?: number;
+  search?: string;
+};
+
+type ProjectSummary = {
+  totalProjects: number | null;
+  activeProjects: number | null;
+  openTickets: number | null;
+  criticalIssues: number | null;
 };
 
 type ProjectsPaginationMeta = {
@@ -48,6 +56,7 @@ type ProjectsPaginationMeta = {
 
 type ProjectsResponse = {
   items: ProjectRecord[];
+  summary: ProjectSummary; //TODO: later on,may need to remove []
   meta: ProjectsPaginationMeta;
 };
 
@@ -63,11 +72,15 @@ export function useProjectsQuery(
   });
 }
 
-export function useProjectsInfiniteQuery(enabled = true, limit = 12) {
+export function useProjectsInfiniteQuery(
+  enabled = true, limit = 12, search = '',) {
+
+  const normalizedSearch = search.trim();
+
   return useInfiniteQuery({
-    queryKey: [...projectsQueryKey, 'infinite', limit],
+    queryKey: [...projectsQueryKey, 'infinite', limit, search],
     queryFn: ({ pageParam }) =>
-      fetchProjects({ page: Number(pageParam), limit }),
+      fetchProjects({ page: Number(pageParam), limit, search: normalizedSearch, }),
     enabled,
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
@@ -152,15 +165,45 @@ export function useProjectThreadDetailQuery(
   });
 }
 
+type ProjectTicketsQueryOptions = {
+  page: number;
+  limit: number;
+  search?: string;
+  statusKey?: string;
+  priorityKey?: string;
+};
+
 export function useProjectTicketsQuery(
   projectId: string,
-  page: number,
-  limit: number,
+  {
+    page,
+    limit,
+    search,
+    statusKey,
+    priorityKey,
+  }: ProjectTicketsQueryOptions,
   enabled = true,
 ) {
   return useQuery({
-    queryKey: [...projectTicketsQueryKey, projectId, page, limit],
-    queryFn: () => fetchProjectTickets(projectId, page, limit),
+    queryKey: [
+      ...projectTicketsQueryKey,
+      projectId,
+      page,
+      limit,
+      search ?? '',
+      statusKey ?? 'all',
+      priorityKey ?? 'all',
+    ],
+
+    queryFn: () =>
+      fetchProjectTickets(projectId, {
+        page,
+        limit,
+        search,
+        statusKey,
+        priorityKey,
+      }),
+
     enabled: Boolean(projectId && enabled),
   });
 }
@@ -202,14 +245,20 @@ export function useDeleteProjectFileMutation() {
 async function fetchProjects({
   page,
   limit,
+  search,
 }: {
   page: number;
   limit: number;
+  search?: string;
 }): Promise<ProjectsResponse> {
   const searchParams = new URLSearchParams({
     page: String(page),
     limit: String(limit),
   });
+
+  if (search?.trim()) {
+    searchParams.set('search', search.trim());
+  }
   const response = await fetch(`/api/projects?${searchParams.toString()}`, {
     method: 'GET',
     headers: {
@@ -221,9 +270,10 @@ async function fetchProjects({
   const payload = (await response.json().catch(() => null)) as
     | ApiProjectRecord[]
     | {
-        items?: ApiProjectRecord[];
-        meta?: Partial<ProjectsPaginationMeta>;
-      }
+      items?: ApiProjectRecord[];
+      summary?: Partial<ProjectSummary>;
+      meta?: Partial<ProjectsPaginationMeta>;
+    }
     | { message?: string }
     | null;
   const projectsResponse = normalizeProjectsResponse(payload, page, limit);
@@ -243,9 +293,10 @@ function normalizeProjectsResponse(
   payload:
     | ApiProjectRecord[]
     | {
-        items?: ApiProjectRecord[];
-        meta?: Partial<ProjectsPaginationMeta>;
-      }
+      items?: ApiProjectRecord[];
+      summary?: Partial<ProjectSummary>;
+      meta?: Partial<ProjectsPaginationMeta>;
+    }
     | { message?: string }
     | null,
   page: number,
@@ -254,6 +305,12 @@ function normalizeProjectsResponse(
   if (Array.isArray(payload)) {
     return {
       items: payload.map(mapApiProjectToProjectRecord),
+      summary: {
+        totalProjects: payload.length,
+        activeProjects: payload.length,
+        openTickets: 0,
+        criticalIssues: 0,
+      },
       meta: {
         page,
         limit,
@@ -275,6 +332,15 @@ function normalizeProjectsResponse(
 
   return {
     items: payload.items.map(mapApiProjectToProjectRecord),
+    summary: {
+      totalProjects: payload.summary?.totalProjects ?? payload.meta?.total ?? payload.items.length,
+
+      activeProjects: payload.summary?.activeProjects ?? 0,
+
+      openTickets: payload.summary?.openTickets ?? 0,
+
+      criticalIssues: payload.summary?.criticalIssues ?? 0,
+    },
     meta: {
       page: payload.meta?.page ?? page,
       limit: payload.meta?.limit ?? limit,
@@ -388,12 +454,12 @@ function getProjectLogoLetter(name: string) {
 function isApiProjectRecord(value: unknown): value is ApiProjectRecord {
   return Boolean(
     value &&
-      typeof value === 'object' &&
-      'id' in value &&
-      'name' in value &&
-      'category' in value &&
-      'brandColor' in value &&
-      'logoLetter' in value,
+    typeof value === 'object' &&
+    'id' in value &&
+    'name' in value &&
+    'category' in value &&
+    'brandColor' in value &&
+    'logoLetter' in value,
   );
 }
 
@@ -550,11 +616,32 @@ async function fetchProjectThreadDetail(projectId: string, messageId: string) {
   return normalizeProjectThreadDetail(payload, messageId);
 }
 
-async function fetchProjectTickets(projectId: string, page: number, limit: number) {
+async function fetchProjectTickets(
+  projectId: string,
+  {
+    page,
+    limit,
+    search,
+    statusKey,
+    priorityKey,
+  }: ProjectTicketsQueryOptions,
+) {
   const searchParams = new URLSearchParams({
     page: String(page),
     limit: String(limit),
   });
+
+  if (search?.trim()) {
+    searchParams.set('search', search.trim());
+  }
+
+  if (statusKey) {
+    searchParams.set('statusKey', statusKey);
+  }
+
+  if (priorityKey) {
+    searchParams.set('priorityKey', priorityKey);
+  }
 
   const response = await fetch(
     `/api/projects/${projectId}/tickets?${searchParams.toString()}`,
@@ -572,16 +659,22 @@ async function fetchProjectTickets(projectId: string, page: number, limit: numbe
     | { message?: string }
     | null;
 
-  if (!response.ok || !isApiProjectTicketsResponse(payload)) {
+  if (
+    !response.ok ||
+    !isApiProjectTicketsResponse(payload)
+  ) {
     throw new Error(
       isProjectErrorPayload(payload)
-        ? payload.message || 'Failed to fetch project tickets.'
+        ? payload.message ||
+        'Failed to fetch project tickets.'
         : 'Failed to fetch project tickets.',
     );
   }
 
   return {
-    items: payload.items.map(mapApiProjectTicketToRecentTicket),
+    items: payload.items.map(
+      mapApiProjectTicketToRecentTicket,
+    ),
     meta: payload.meta,
   };
 }
@@ -840,10 +933,10 @@ function isApiProjectTicketsResponse(
 ): value is ApiProjectTicketsResponse {
   return Boolean(
     value &&
-      typeof value === 'object' &&
-      'items' in value &&
-      'meta' in value &&
-      Array.isArray((value as ApiProjectTicketsResponse).items),
+    typeof value === 'object' &&
+    'items' in value &&
+    'meta' in value &&
+    Array.isArray((value as ApiProjectTicketsResponse).items),
   );
 }
 

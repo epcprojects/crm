@@ -69,17 +69,20 @@ export default function Page() {
     queryKey: ['ticket-statuses'],
     queryFn: fetchTicketStatuses,
     enabled: canFilterTickets,
+    // refetchOnMount: true,
   });
+
   const ticketPrioritiesQuery = useQuery({
     queryKey: ['ticket-priorities'],
     queryFn: fetchTicketPriorities,
     enabled: canFilterTickets,
   });
-  const ticketSummaryQuery = useQuery({
-    queryKey: ['dashboard', 'ticket-summary'],
-    queryFn: fetchTicketSummary,
-    enabled: canViewTickets,
-  });
+  // const ticketSummaryQuery = useQuery({
+  //   queryKey: ['dashboard', 'ticket-summary'],
+  //   queryFn: fetchTicketSummary,
+  //   enabled: canViewTickets,
+  // });
+
   const ticketsQuery = useQuery({
     queryKey: [
       'dashboard-project-tickets',
@@ -106,26 +109,26 @@ export default function Page() {
     () => [
       {
         title: 'Open',
-        count: ticketSummaryQuery.data?.open ?? 0,
+        count: ticketsQuery.data?.summary?.open ?? 0,
         color: '#F04438',
       },
       {
         title: 'InProgress',
-        count: ticketSummaryQuery.data?.inProgress ?? 0,
+        count: ticketsQuery.data?.summary?.inProgress ?? 0,
         color: '#F79009',
       },
       {
         title: 'Resolved',
-        count: ticketSummaryQuery.data?.resolved ?? 0,
+        count: ticketsQuery.data?.summary?.resolved ?? 0,
         color: '#17B26A',
       },
       {
         title: 'Critical',
-        count: ticketSummaryQuery.data?.critical ?? 0,
+        count: ticketsQuery.data?.summary?.critical ?? 0,
         color: '#7A5AF8',
       },
     ],
-    [ticketSummaryQuery.data],
+    [ticketsQuery.data],
   );
   const projectOptions = useMemo(
     () => createTicketProjectOptions(projectsQuery.data ?? []),
@@ -157,15 +160,18 @@ export default function Page() {
     ],
     [projectsQuery.data],
   );
+
   const kanbanStatusOptions = useMemo(
     () =>
       (ticketStatusesQuery.data ?? []).map((status) => ({
+        id: status.id,
         label: status.label,
         value: status.key,
         color: status.color,
       })),
     [ticketStatusesQuery.data],
   );
+
   const sortedTickets = useMemo(
     () => sortTicketsLocally(ticketsQuery.data?.items ?? [], sortState),
     [sortState, ticketsQuery.data?.items],
@@ -246,10 +252,10 @@ export default function Page() {
             items: current.items.map((currentTicket) =>
               currentTicket.id === ticket.id
                 ? {
-                    ...currentTicket,
-                    status: nextStatus?.label ?? currentTicket.status,
-                    statusColor: nextStatus?.color ?? currentTicket.statusColor,
-                  }
+                  ...currentTicket,
+                  status: nextStatus?.label ?? currentTicket.status,
+                  statusColor: nextStatus?.color ?? currentTicket.statusColor,
+                }
                 : currentTicket,
             ),
           };
@@ -297,6 +303,87 @@ export default function Page() {
     },
   });
 
+
+  const reorderStatusMutation = useMutation({
+    mutationFn: async ({
+      statusId,
+      newIndex,
+    }: {
+      statusId: string;
+      newIndex: number;
+    }) => {
+      const response = await fetch('/api/ticket-statuses/reorder', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ statusId, newIndex }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(data?.message || 'Failed to reorder ticket statuses.');
+      }
+
+      return { statusId, newIndex };
+    },
+    onMutate: async ({ statusId, newIndex }) => {
+      await queryClient.cancelQueries({ queryKey: ['ticket-statuses'] });
+
+      const previousStatuses = queryClient.getQueryData<ApiTicketSetting[]>([
+        'ticket-statuses',
+      ]);
+
+      queryClient.setQueryData<ApiTicketSetting[]>(
+        ['ticket-statuses'],
+        (current) => {
+          if (!current) {
+            return current;
+          }
+
+          const draggedIndex = current.findIndex(
+            (status) => status.id === statusId,
+          );
+
+          if (draggedIndex === -1) {
+            return current;
+          }
+
+          const nextOrder = [...current];
+          const [draggedStatus] = nextOrder.splice(draggedIndex, 1);
+          nextOrder.splice(newIndex, 0, draggedStatus);
+
+          return nextOrder;
+        },
+      );
+
+      return { previousStatuses };
+    },
+    onError: (error, _variables, context) => {
+      if (context?.previousStatuses) {
+        queryClient.setQueryData(['ticket-statuses'], context.previousStatuses);
+      }
+
+      appToast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to reorder ticket statuses.',
+      );
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['ticket-statuses'] });
+    },
+  });
+
+  const handleReorderStatusColumn = (statusId: string, newIndex: number) => {
+    if (!canFilterTickets || reorderStatusMutation.isPending) {
+      return;
+    }
+
+    reorderStatusMutation.mutate({ statusId, newIndex });
+  };
   const handleCreateTicket = async (values: CreateTicketFormValues) => {
     if (!canCreateTicket) {
       return;
@@ -449,11 +536,10 @@ export default function Page() {
                           {({ open }) => (
                             <>
                               <PopoverButton
-                                className={`flex h-10 shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium outline-none ${
-                                  open
-                                    ? 'border-primary  text-white'
-                                    : 'border-gray-200 bg-white text-gray-700'
-                                }`}
+                                className={`flex h-10 shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium outline-none ${open
+                                  ? 'border-primary  text-white'
+                                  : 'border-gray-200 bg-white text-gray-700'
+                                  }`}
                                 aria-label="Open filters"
                               >
                                 <FiltersIcon />
@@ -504,11 +590,10 @@ export default function Page() {
                           <button
                             type="button"
                             onClick={() => setViewMode('table')}
-                            className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
-                              viewMode === 'table'
-                                ? 'bg-primary-dark text-white shadow-sm'
-                                : 'text-gray-500 hover:bg-gray-50'
-                            }`}
+                            className={`flex h-9 w-9 items-center justify-center rounded-md transition ${viewMode === 'table'
+                              ? 'bg-primary-dark text-white shadow-sm'
+                              : 'text-gray-500 hover:bg-gray-50'
+                              }`}
                             aria-label="Table view"
                           >
                             <TableViewIcon />
@@ -517,11 +602,10 @@ export default function Page() {
                           <button
                             type="button"
                             onClick={() => setViewMode('kanban')}
-                            className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
-                              viewMode === 'kanban'
-                                ? 'bg-primary-dark text-white shadow-sm'
-                                : 'text-gray-500 hover:bg-gray-50'
-                            }`}
+                            className={`flex h-9 w-9 items-center justify-center rounded-md transition ${viewMode === 'kanban'
+                              ? 'bg-primary-dark text-white shadow-sm'
+                              : 'text-gray-500 hover:bg-gray-50'
+                              }`}
                             aria-label="Kanban view"
                           >
                             <KanbanViewIcon />
@@ -578,13 +662,13 @@ export default function Page() {
                     <TicketsKanbanView
                       tickets={sortedTickets}
                       statusOptions={kanbanStatusOptions}
-                      onTicketClick={
-                        canViewTicketDetail ? handleTicketClick : undefined
-                      }
+                      onTicketClick={canViewTicketDetail ? handleTicketClick : undefined}
                       onMoveTicket={(ticket, nextStatusKey) => {
                         void handleMoveTicket(ticket, nextStatusKey);
                       }}
+                      onReorderColumn={handleReorderStatusColumn}
                       canDragTickets={canEditTicketStatus}
+                      canDragColumns={canFilterTickets}
                       movingTicketId={
                         moveTicketMutation.isPending
                           ? (moveTicketMutation.variables?.ticket.id ?? null)
@@ -635,6 +719,7 @@ type ApiTicketSetting = {
 
 type DashboardTicketsResponse = {
   items: RecentTicket[];
+  summary: TicketSummary;
   meta: {
     page: number;
     limit: number;
@@ -673,6 +758,7 @@ type ApiDashboardTicket = {
 
 type ApiDashboardTicketsResponse = {
   items: ApiDashboardTicket[];
+  summary: TicketSummary;
   meta: DashboardTicketsResponse['meta'];
 };
 
@@ -713,7 +799,7 @@ async function fetchDashboardTickets({
   }
 
   const response = await fetch(
-    `/api/dashboard/projects?${searchParams.toString()}`,
+    `/api/dashboard/tickets?${searchParams.toString()}`,
     {
       method: 'GET',
       headers: {
@@ -738,6 +824,7 @@ async function fetchDashboardTickets({
 
   return {
     items: payload.items.map(mapApiDashboardTicketToRecentTicket),
+    summary: payload.summary,
     meta: payload.meta,
   };
 }
@@ -764,9 +851,8 @@ async function fetchTicketStatuses() {
     );
   }
 
-  return sortTicketSettings(payload);
+  return payload;
 }
-
 async function fetchTicketPriorities() {
   const response = await fetch('/api/ticket-priorities', {
     method: 'GET',
@@ -816,45 +902,45 @@ function isApiDashboardTicketsResponse(
 ): value is ApiDashboardTicketsResponse {
   return Boolean(
     value &&
-      typeof value === 'object' &&
-      Array.isArray((value as ApiDashboardTicketsResponse).items) &&
-      (value as ApiDashboardTicketsResponse).meta &&
-      typeof (value as ApiDashboardTicketsResponse).meta === 'object',
+    typeof value === 'object' &&
+    Array.isArray((value as ApiDashboardTicketsResponse).items) &&
+    (value as ApiDashboardTicketsResponse).meta &&
+    typeof (value as ApiDashboardTicketsResponse).meta === 'object',
   );
 }
-async function fetchTicketSummary(): Promise<TicketSummary> {
-  const response = await fetch('/api/dashboard/ticket-summary', {
-    method: 'GET',
-    headers: {
-      Accept: 'application/json',
-    },
-    cache: 'no-store',
-  });
+// async function fetchTicketSummary(): Promise<TicketSummary> {
+//   const response = await fetch('/api/dashboard/ticket-summary', {
+//     method: 'GET',
+//     headers: {
+//       Accept: 'application/json',
+//     },
+//     cache: 'no-store',
+//   });
 
-  const payload = (await response.json().catch(() => null)) as
-    | TicketSummary
-    | { message?: string }
-    | null;
+//   const payload = (await response.json().catch(() => null)) as
+//     | TicketSummary
+//     | { message?: string }
+//     | null;
 
-  if (!response.ok || !isTicketSummary(payload)) {
-    throw new Error(
-      payload && typeof payload === 'object' && 'message' in payload
-        ? payload.message || 'Failed to fetch ticket summary.'
-        : 'Failed to fetch ticket summary.',
-    );
-  }
+//   if (!response.ok || !isTicketSummary(payload)) {
+//     throw new Error(
+//       payload && typeof payload === 'object' && 'message' in payload
+//         ? payload.message || 'Failed to fetch ticket summary.'
+//         : 'Failed to fetch ticket summary.',
+//     );
+//   }
 
-  return payload;
-}
+//   return payload;
+// }
 
 function isTicketSummary(value: unknown): value is TicketSummary {
   return Boolean(
     value &&
-      typeof value === 'object' &&
-      'open' in value &&
-      'inProgress' in value &&
-      'resolved' in value &&
-      'critical' in value,
+    typeof value === 'object' &&
+    'open' in value &&
+    'inProgress' in value &&
+    'resolved' in value &&
+    'critical' in value,
   );
 }
 function mapApiDashboardTicketToRecentTicket(

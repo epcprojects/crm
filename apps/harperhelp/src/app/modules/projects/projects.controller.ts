@@ -32,6 +32,7 @@ import { ProjectsFilesService } from './services/project-files.service';
 import { User } from '../users/entities/user.entity';
 import { Authorize } from '../../../common/guards/authorize.guard';
 import { GetProjectsQueryDto } from './dto/get-projects-query.dto';
+import { GetMembersQueryDto } from './dto/get-members-query.dto';
 
 @Controller('projects')
 @ApiBearerAuth('JWT-auth')
@@ -41,7 +42,7 @@ export class ProjectsController {
     private readonly projectsService: ProjectsService,
 
     private readonly projectsFilesService: ProjectsFilesService,
-  ) {}
+  ) { }
 
   @Post()
   // @Authorize({
@@ -53,9 +54,10 @@ export class ProjectsController {
     return this.projectsService.createProject(createProjectDto, user);
   }
 
+
   @Get()
-  @ApiOperation({ summary: 'Find all projects' })
-  findAll(@Query() query: GetProjectsQueryDto, @GetUser() user) {
+  @ApiOperation({ summary: 'Find all projects with search and pagination, returns summary too, based on search' })
+  findAll(@Query() query: GetProjectsQueryDto, @GetUser() user,) {
     return this.projectsService.findAll(query, user);
   }
 
@@ -66,13 +68,23 @@ export class ProjectsController {
     return this.projectsService.findAllNames();
   }
 
+  @Get('project-summary')
+  @ApiOperation({
+    summary:
+      'Get project dashboard summary. Returns total projects, active projects, open tickets, and critical issues.',
+  })
+  getGlobalProjectSummary(@GetUser() user) {
+    return this.projectsService.getGlobalProjectSummary(user);
+  }
+
   @Get('members')
   // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({
-    summary: 'Get list of all members with their assigned projects.',
+    summary:
+      'Get members with their assigned projects and roles. Supports search and optional filters.',
   })
-  findMembersWithProjects() {
-    return this.projectsService.findMembersWithProjects();
+  findMembersWithProjects(@Query() query: GetMembersQueryDto) {
+    return this.projectsService.findMembersWithProjects(query);
   }
 
   @Get(':id')
@@ -114,6 +126,9 @@ export class ProjectsController {
   findProjectMembers(@Param('id') id: string, @GetUser() user) {
     return this.projectsService.findProjectMembers(id, user);
   }
+
+
+
 
   // ---------------- UPLOAD FILES ----------------
   @Post(':projectId/files')

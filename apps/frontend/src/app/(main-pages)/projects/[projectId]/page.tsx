@@ -1,6 +1,15 @@
 'use client';
 
-import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
+import {
+  Popover,
+  PopoverButton,
+  PopoverPanel,
+  Tab,
+  TabGroup,
+  TabList,
+  TabPanel,
+  TabPanels,
+} from '@headlessui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -20,7 +29,12 @@ import ProjectFilesPanel, {
 import { createTicketProjectOptions } from '../../../../components/modals/create-ticket-modal.data';
 import RecentTicketsTable from '../../../../components/tables/RecentTicketsTable';
 import { appToast } from '../../../../components/toast/AppToast';
-import { SearchIcon, PlusIcon } from '../../../../../public/icons';
+import {
+  FiltersIcon,
+  SearchIcon,
+  PlusIcon,
+} from '../../../../../public/icons';
+import Dropdown from '../../../../components/ui/ThemeDropDown';
 import ThemeButton from '../../../../components/ui/ThemeButton';
 import { useIsMobile } from '../../../../components/hooks/useIsMobile';
 import { useAppLoader } from '../../../providers/AppLoaderProvider';
@@ -70,6 +84,8 @@ export default function ProjectDetailPage() {
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [uploadFileOpen, setUploadFileOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [selectedPriority, setSelectedPriority] = useState('all');
   const [fileSearchValue, setFileSearchValue] = useState('');
   const [uploadedFilesState, setUploadedFilesState] = useState<
     ProjectFileRecord[]
@@ -95,11 +111,24 @@ export default function ProjectDetailPage() {
     selectedThreadMessageId,
     canViewThread,
   );
+
+
   const projectFilesQuery = useProjectFilesQuery(projectId, canViewFiles);
   const projectTicketsQuery = useProjectTicketsQuery(
     projectId,
-    ticketsPagination.pageIndex + 1,
-    ticketsPagination.pageSize,
+    {
+      page: ticketsPagination.pageIndex + 1,
+      limit: ticketsPagination.pageSize,
+      search: searchValue.trim() || undefined,
+      statusKey:
+        selectedStatus === 'all'
+          ? undefined
+          : selectedStatus,
+      priorityKey:
+        selectedPriority === 'all'
+          ? undefined
+          : selectedPriority,
+    },
     canViewTickets,
   );
   const uploadProjectFilesMutation = useUploadProjectFilesMutation();
@@ -110,6 +139,38 @@ export default function ProjectDetailPage() {
     queryFn: fetchTicketStatuses,
     enabled: canViewTickets,
   });
+  const ticketPrioritiesQuery = useQuery({
+    queryKey: ['ticket-priorities'],
+    queryFn: fetchTicketPriorities,
+    enabled: canViewTickets,
+  });
+
+  const statusFilterOptions = useMemo(
+    () => [
+      {
+        label: 'All Status',
+        value: 'all',
+      },
+      ...(ticketStatusesQuery.data ?? []).map(
+        mapTicketSettingToDropdownOption,
+      ),
+    ],
+    [ticketStatusesQuery.data],
+  );
+
+  const priorityFilterOptions = useMemo(
+    () => [
+      {
+        label: 'All Priority',
+        value: 'all',
+      },
+      ...(ticketPrioritiesQuery.data ?? []).map(
+        mapTicketSettingToDropdownOption,
+      ),
+    ],
+    [ticketPrioritiesQuery.data],
+  );
+
   const project = projectDetailQuery.data;
 
   const createProjectThreadMutation = useMutation({
@@ -188,6 +249,9 @@ export default function ProjectDetailPage() {
     }));
     setUploadedFilesState([]);
     setSelectedThreadMessageId('');
+    setSelectedStatus('all');
+    setSelectedPriority('all');
+    setSearchValue('');
   }, [projectId]);
 
   useEffect(() => {
@@ -205,29 +269,22 @@ export default function ProjectDetailPage() {
     }
   }, [projectDetailQuery.error, projectDetailQuery.isError]);
 
-  const projectTickets = useMemo(() => {
-    const normalizedSearch = searchValue.trim().toLowerCase();
-    const tickets = (projectTicketsQuery.data?.items ?? []).map((ticket) => ({
-      ...ticket,
-      statusColor: getTicketStatusColor(
-        ticket.status,
-        ticketStatusesQuery.data,
-      ),
-    }));
-
-    return tickets.filter((ticket) => {
-      if (!normalizedSearch) return true;
-
-      return (
-        (ticket.ticketRefNo ?? ticket.id)
-          .toLowerCase()
-          .includes(normalizedSearch) ||
-        ticket.title.toLowerCase().includes(normalizedSearch) ||
-        ticket.assignee.name.toLowerCase().includes(normalizedSearch)
-      );
-    });
-  }, [projectTicketsQuery.data?.items, searchValue]);
-
+  const projectTickets = useMemo(
+    () =>
+      (projectTicketsQuery.data?.items ?? []).map((ticket) => ({
+        ...ticket,
+        statusColor:
+          ticket.statusColor ??
+          getTicketStatusColor(
+            ticket.status,
+            ticketStatusesQuery.data,
+          ),
+      })),
+    [
+      projectTicketsQuery.data?.items,
+      ticketStatusesQuery.data,
+    ],
+  );
   const projectFiles = useMemo(() => {
     const normalizedSearch = fileSearchValue.trim().toLowerCase();
     const files = [...uploadedFilesState, ...(projectFilesQuery.data ?? [])];
@@ -387,12 +444,12 @@ export default function ProjectDetailPage() {
         }),
         selectedThreadMessageId
           ? queryClient.invalidateQueries({
-              queryKey: [
-                ...projectThreadDetailQueryKey,
-                projectId,
-                selectedThreadMessageId,
-              ],
-            })
+            queryKey: [
+              ...projectThreadDetailQueryKey,
+              projectId,
+              selectedThreadMessageId,
+            ],
+          })
           : Promise.resolve(),
       ]);
       appToast.success('Attachment deleted successfully.');
@@ -487,31 +544,31 @@ export default function ProjectDetailPage() {
   const projectSummaryStats = [
     ...(canViewTickets
       ? [
-          {
-            title: 'Tickets',
-            count: projectTicketsQuery.data?.meta.total ?? 0,
-            color: '#F04438',
-          },
-        ]
+        {
+          title: 'Tickets',
+          count: projectTicketsQuery.data?.meta.total ?? 0,
+          color: '#F04438',
+        },
+      ]
       : []),
     ...(canViewThread
       ? [
-          {
-            title: 'Thread Posts',
-            count: projectThreadQuery.data?.length ?? 0,
-            color: '#F79009',
-          },
-        ]
+        {
+          title: 'Thread Posts',
+          count: projectThreadQuery.data?.length ?? 0,
+          color: '#F79009',
+        },
+      ]
       : []),
     ...(canViewFiles
       ? [
-          {
-            title: 'Files',
-            count:
-              uploadedFilesState.length + (projectFilesQuery.data?.length ?? 0),
-            color: '#17B26A',
-          },
-        ]
+        {
+          title: 'Files',
+          count:
+            uploadedFilesState.length + (projectFilesQuery.data?.length ?? 0),
+          color: '#17B26A',
+        },
+      ]
       : []),
   ];
   return (
@@ -606,37 +663,141 @@ export default function ProjectDetailPage() {
                   <TabPanel className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-hidden">
                     <div className="flex shrink-0 flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
                       {canFilterTickets ? (
-                        <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 md:max-w-xs">
-                          <div className="flex items-center gap-2">
-                            <SearchIcon fill="#374151" />
+                        <>
+                          <div className="flex items-center gap-3">
+                            <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 md:max-w-xs">
+                              <div className="flex items-center gap-2">
+                                <SearchIcon fill="#374151" />
 
-                            <input
-                              type="text"
-                              value={searchValue}
-                              onChange={(event) =>
-                                setSearchValue(event.target.value)
-                              }
-                              placeholder="Search"
-                              className="min-w-0 flex-1 bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400"
-                            />
+                                <input
+                                  type="text"
+                                  value={searchValue}
+                                  onChange={(event) =>
+                                    setSearchValue(event.target.value)
+                                  }
+                                  placeholder="Search"
+                                  className="min-w-0 flex-1 bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Mobile/tablet filter button */}
+                            <Popover as="div" className="relative xl:hidden">
+                              {({ open }) => (
+                                <>
+                                  <PopoverButton
+                                    className={`flex h-10 shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium outline-none ${open ||
+                                      selectedStatus !== 'all' ||
+                                      selectedPriority !== 'all'
+                                      ? 'border-primary bg-primary/5 text-primary'
+                                      : 'border-gray-200 bg-white text-gray-700'
+                                      }`}
+                                    aria-label="Open ticket filters"
+                                  >
+                                    <FiltersIcon />
+                                  </PopoverButton>
+
+                                  <PopoverPanel
+                                    anchor="bottom end"
+                                    transition
+                                    className="z-100 mt-2 flex w-56 origin-top-right flex-col gap-3 overflow-visible! rounded-xl border border-gray-200 bg-white p-3 shadow-[0_14px_44px_rgb(0_0_0/0.14)] outline-none transition duration-150 data-closed:-translate-y-2 data-closed:scale-95 data-closed:opacity-0"
+                                  >
+                                    <div className="relative w-full overflow-visible">
+                                      <Dropdown
+                                        options={statusFilterOptions}
+                                        value={selectedStatus}
+                                        onChange={setSelectedStatus}
+                                        placeholder="All Status"
+                                        maxMenuHeight={150}
+                                      />
+                                    </div>
+
+                                    <div className="relative w-full overflow-visible">
+                                      <Dropdown
+                                        options={priorityFilterOptions}
+                                        value={selectedPriority}
+                                        onChange={setSelectedPriority}
+                                        placeholder="All Priority"
+                                        maxMenuHeight={150}
+                                      />
+                                    </div>
+
+                                    {selectedStatus !== 'all' ||
+                                      selectedPriority !== 'all' ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedStatus('all');
+                                          setSelectedPriority('all');
+                                        }}
+                                        className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                                      >
+                                        Clear Filters
+                                      </button>
+                                    ) : null}
+                                  </PopoverPanel>
+                                </>
+                              )}
+                            </Popover>
                           </div>
+
+                          <div className="flex items-center gap-3">
+                            {/* Desktop inline filters */}
+                            <div className="hidden w-38 xl:block">
+                              <Dropdown
+                                options={statusFilterOptions}
+                                value={selectedStatus}
+                                onChange={setSelectedStatus}
+                                placeholder="All Status"
+                              />
+                            </div>
+
+                            <div className="hidden w-38 xl:block">
+                              <Dropdown
+                                options={priorityFilterOptions}
+                                value={selectedPriority}
+                                onChange={setSelectedPriority}
+                                placeholder="All Priority"
+                              />
+                            </div>
+
+                            {canCreateTicket ? (
+                              <ThemeButton
+                                className="shrink-0 rounded-full"
+                                variant="primaryGradient"
+                                icon={
+                                  <PlusIcon
+                                    fill="#3889FE"
+                                    width="20"
+                                    height="20"
+                                  />
+                                }
+                                onClick={() => setCreateTicketOpen(true)}
+                              >
+                                New Ticket
+                              </ThemeButton>
+                            ) : null}
+                          </div>
+                        </>
+                      ) : canCreateTicket ? (
+                        <div className="ml-auto">
+                          <ThemeButton
+                            className="shrink-0 rounded-full"
+                            variant="primaryGradient"
+                            icon={
+                              <PlusIcon
+                                fill="#3889FE"
+                                width="20"
+                                height="20"
+                              />
+                            }
+                            onClick={() => setCreateTicketOpen(true)}
+                          >
+                            New Ticket
+                          </ThemeButton>
                         </div>
                       ) : null}
-
-                      {canCreateTicket ? (
-                        <ThemeButton
-                          className="shrink-0 rounded-full"
-                          variant="primaryGradient"
-                          icon={
-                            <PlusIcon fill="#3889FE" width="20" height="20" />
-                          }
-                          onClick={() => setCreateTicketOpen(true)}
-                        >
-                          New Ticket
-                        </ThemeButton>
-                      ) : null}
                     </div>
-
                     <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
                       <RecentTicketsTable
                         tickets={projectTickets}
@@ -649,25 +810,25 @@ export default function ProjectDetailPage() {
                         onRowClick={
                           canViewTicketDetail
                             ? (ticket) =>
-                                router.push(
-                                  `/tickets/${ticket.id}?projectId=${projectId}`,
-                                )
+                              router.push(
+                                `/tickets/${ticket.id}?projectId=${projectId}`,
+                              )
                             : undefined
                         }
                         hideProjectColumn
                       />
                     </div>
+
                   </TabPanel>
                 </PermissionGuard>
 
                 <PermissionGuard permission="thread.view">
                   <TabPanel className="h-full min-h-0 min-w-0 overflow-hidden">
                     <div
-                      className={`grid h-full min-h-0 min-w-0 overflow-hidden rounded-xl border border-gray-200 md:rounded-2xl ${
-                        selectedThreadMessageId && !isMobile
-                          ? 'xl:grid-cols-[minmax(0,1fr)_400px] xl:grid-rows-[minmax(0,1fr)] xl:divide-x xl:divide-gray-200'
-                          : 'grid-cols-1'
-                      }`}
+                      className={`grid h-full min-h-0 min-w-0 overflow-hidden rounded-xl border border-gray-200 md:rounded-2xl ${selectedThreadMessageId && !isMobile
+                        ? 'xl:grid-cols-[minmax(0,1fr)_400px] xl:grid-rows-[minmax(0,1fr)] xl:divide-x xl:divide-gray-200'
+                        : 'grid-cols-1'
+                        }`}
                     >
                       {(!isMobile || !selectedThreadMessageId) && (
                         <div className="h-full min-h-0 min-w-0 overflow-hidden">
@@ -789,10 +950,9 @@ export default function ProjectDetailPage() {
                       subtitle={
                         projectFilesQuery.isLoading
                           ? 'Loading files...'
-                          : `${
-                              uploadedFilesState.length +
-                              (projectFilesQuery.data?.length ?? 0)
-                            } files`
+                          : `${uploadedFilesState.length +
+                          (projectFilesQuery.data?.length ?? 0)
+                          } files`
                       }
                     />
                   </TabPanel>
@@ -847,13 +1007,30 @@ export default function ProjectDetailPage() {
   );
 }
 
-type ApiTicketStatus = {
+type ApiTicketSetting = {
   id: string;
   key: string;
   label: string;
   color: string;
+  sortOrder?: number;
 };
 
+function mapTicketSettingToDropdownOption(
+  setting: ApiTicketSetting,
+) {
+  return {
+    label: setting.label,
+    value: setting.key,
+    icon: (
+      <span
+        className="inline-block h-2.25 w-2.5 rounded-full"
+        style={{
+          backgroundColor: setting.color,
+        }}
+      />
+    ),
+  };
+}
 async function fetchTicketStatuses() {
   const response = await fetch('/api/ticket-statuses', {
     method: 'GET',
@@ -864,7 +1041,7 @@ async function fetchTicketStatuses() {
   });
 
   const payload = (await response.json().catch(() => null)) as
-    | ApiTicketStatus[]
+    | ApiTicketSetting[]
     | { message?: string }
     | null;
 
@@ -879,7 +1056,33 @@ async function fetchTicketStatuses() {
   return payload;
 }
 
-function getTicketStatusColor(status: string, statuses?: ApiTicketStatus[]) {
+async function fetchTicketPriorities() {
+  const response = await fetch('/api/ticket-priorities', {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiTicketSetting[]
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !Array.isArray(payload)) {
+    throw new Error(
+      !Array.isArray(payload)
+        ? payload?.message || 'Failed to fetch ticket priorities.'
+        : 'Failed to fetch ticket priorities.',
+    );
+  }
+
+  return payload;
+}
+
+
+function getTicketStatusColor(status: string, statuses?: ApiTicketSetting[]) {
   const normalizedStatus = normalizeStatusValue(status);
 
   return statuses?.find((item) => {
@@ -971,9 +1174,8 @@ function ProjectDetailSkeleton({ onBack }: { onBack: () => void }) {
                     <div key={index} className="flex items-center gap-2">
                       <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-gray-200" />
                       <div
-                        className={`h-3.5 rounded bg-gray-200 ${
-                          index === 1 ? 'w-20' : 'w-12'
-                        }`}
+                        className={`h-3.5 rounded bg-gray-200 ${index === 1 ? 'w-20' : 'w-12'
+                          }`}
                       />
                       <div className="h-4 w-6 rounded bg-gray-200" />
                     </div>
@@ -988,14 +1190,12 @@ function ProjectDetailSkeleton({ onBack }: { onBack: () => void }) {
             {Array.from({ length: 4 }).map((_, index) => (
               <div
                 key={index}
-                className={`border-b-2 px-4 py-3 ${
-                  index === 0 ? 'border-gray-300' : 'border-transparent'
-                }`}
+                className={`border-b-2 px-4 py-3 ${index === 0 ? 'border-gray-300' : 'border-transparent'
+                  }`}
               >
                 <div
-                  className={`h-4 rounded bg-gray-200 ${
-                    index === 3 ? 'w-16' : 'w-12'
-                  }`}
+                  className={`h-4 rounded bg-gray-200 ${index === 3 ? 'w-16' : 'w-12'
+                    }`}
                 />
               </div>
             ))}
@@ -1033,11 +1233,10 @@ function ProjectDetailSkeleton({ onBack }: { onBack: () => void }) {
                     {Array.from({ length: 6 }).map((_, cellIndex) => (
                       <div
                         key={cellIndex}
-                        className={`h-4 rounded ${
-                          cellIndex === 3 || cellIndex === 4
-                            ? 'bg-gray-200'
-                            : 'bg-gray-100'
-                        }`}
+                        className={`h-4 rounded ${cellIndex === 3 || cellIndex === 4
+                          ? 'bg-gray-200'
+                          : 'bg-gray-100'
+                          }`}
                       />
                     ))}
                   </div>

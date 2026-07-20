@@ -198,7 +198,7 @@ View ranges:
 export class DashboardController {
   constructor(private readonly ticketsService: TicketsService) {}
 
-  @Get('projects')
+  @Get('tickets')
   findAll(@Query() query: GetTicketsQueryDto, @GetUser() user) {
     return this.ticketsService.findAllProjects(query, user);
   }

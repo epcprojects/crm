@@ -23,6 +23,8 @@ import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanne
 import { FiltersIcon, PlusIcon, SearchIcon } from '../../../../public/icons';
 import ThemeButton from '../../../components/ui/ThemeButton';
 import EmptyState from '../../../components/EmptyState';
+import Dropdown from 'apps/frontend/src/components/ui/ThemeDropDown';
+import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 
 export default function Page() {
   const { setHeaderActionOverride, setHeaderCountOverride } =
@@ -30,9 +32,14 @@ export default function Page() {
   const queryClient = useQueryClient();
   const { setLoading } = useAppLoader();
   const [addUserOpen, setAddUserOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState('');
+  const [selectedInvitationStatus, setSelectedInvitationStatus] = useState<'all' | 'accepted' | 'pending'>('all');
+  const [selectedProjectId, setSelectedProjectId] = useState('all');
+  const [selectedRoleId, setSelectedRoleId] = useState('all');
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
-  const [userList, setUserList] = useState<UserCardUser[]>([]);
+
+  // const [userList, setUserList] = useState<UserCardUser[]>([]);
   const { hasPermission } = usePermissions();
   const canViewUsers = hasPermission('users.view_list');
   const canCreateUser = hasPermission('users.create');
@@ -43,16 +50,46 @@ export default function Page() {
     () => projectsQuery.data ?? [],
     [projectsQuery.data],
   );
+
+
   const membersQuery = useQuery({
-    queryKey: ['project-members'],
-    queryFn: () => fetchProjectMembers(projects),
+    queryKey: [
+      'project-members',
+      searchValue.trim(),
+      selectedInvitationStatus,
+      selectedProjectId,
+      selectedRoleId,
+    ],
+
+    queryFn: () =>
+      fetchProjectMembers(projects, {
+        search: searchValue.trim() || undefined,
+
+        isInvitationAccepted:
+          selectedInvitationStatus === 'all'
+            ? undefined
+            : selectedInvitationStatus === 'accepted',
+
+        projectId:
+          selectedProjectId === 'all'
+            ? undefined
+            : selectedProjectId,
+
+        roleId:
+          selectedRoleId === 'all'
+            ? undefined
+            : selectedRoleId,
+      }),
+
     enabled: projectsQuery.isSuccess && canViewUsers,
   });
+
   const rolesQuery = useQuery({
     queryKey: ['roles', 'user-invite-options'],
     queryFn: fetchRoleOptions,
-    enabled: canCreateUser || canEditUser,
+    enabled: canViewUsers || canCreateUser || canEditUser,
   });
+
   const roleOptions = useMemo(() => rolesQuery.data ?? [], [rolesQuery.data]);
   const inviteUserMutation = useMutation({
     mutationFn: async (values: AddUserFormValues) => {
@@ -103,6 +140,12 @@ export default function Page() {
       await queryClient.invalidateQueries({ queryKey: ['project-members'] });
     },
   });
+
+  const userList = useMemo(
+    () => membersQuery.data?.items ?? [],
+    [membersQuery.data],
+  );
+
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
       const response = await fetch(`/api/users/${userId}`, {
@@ -135,19 +178,22 @@ export default function Page() {
     };
   }, [canCreateUser, setHeaderActionOverride]);
 
-  useEffect(() => {
-    if (membersQuery.data) {
-      setUserList(membersQuery.data);
-    }
-  }, [membersQuery.data]);
+  // useEffect(() => {
+  //   if (membersQuery.data) {
+  //     setUserList(membersQuery.data);
+  //   }
+  // }, [membersQuery.data]);
 
   useEffect(() => {
-    setHeaderCountOverride(canViewUsers ? userList.length : null);
-
+    setHeaderCountOverride(
+      canViewUsers
+        ? membersQuery.data?.summary.totalUsers ?? 0
+        : null,
+    );
     return () => {
       setHeaderCountOverride(null);
     };
-  }, [canViewUsers, setHeaderCountOverride, userList.length]);
+  }, [canViewUsers, membersQuery.data?.summary.totalUsers, setHeaderCountOverride]);
 
   const handleCreateUser = async (values: AddUserFormValues) => {
     if (!canCreateUser) {
@@ -210,62 +256,107 @@ export default function Page() {
     }
   };
 
+  type MemberSummary = {
+    totalUsers: number;
+    activeUsers: number;
+    pendingInvites: number;
+    externalUsers: number;
+  };
+
+  type ProjectMembersResponse = {
+    items: UserCardUser[];
+    summary: MemberSummary;
+  };
+
   const editingUser =
     userList.find((user) => user.id === editingUserId) ?? null;
   const deletingUser =
     userList.find((user) => user.id === deletingUserId) ?? null;
-  const [searchValue, setSearchValue] = useState('');
-  const filteredUserList = useMemo(() => {
-    const search = searchValue.trim().toLowerCase();
 
-    if (!search) {
-      return userList;
-    }
+  const projectFilterOptions = useMemo(
+    () => [
+      {
+        label: 'All Projects',
+        value: 'all',
+      },
+      ...projects.map((project) => ({
+        label: project.name,
+        value: project.id,
+      })),
+    ],
+    [projects],
+  );
 
-    return userList.filter((user) => {
-      const searchableValues = [
-        user.name,
-        user.email,
-        ...user.roles.map((role) => role.label),
-        ...user.projects.map((project) => project.name),
-      ];
+  const invitationFilterOptions = useMemo(
+    () => [
+      {
+        label: 'All Invitations',
+        value: 'all',
+      },
+      {
+        label: 'Accepted',
+        value: 'accepted',
+      },
+      {
+        label: 'Pending',
+        value: 'pending',
+      },
+    ],
+    [],
+  );
 
-      return searchableValues.some((value) =>
-        value.toLowerCase().includes(search),
-      );
-    });
-  }, [searchValue, userList]);
+  const roleFilterOptions = useMemo(
+    () => [
+      {
+        label: 'All Roles',
+        value: 'all',
+      },
+      ...roleOptions
+        .filter((role) => role.id)
+        .map((role) => ({
+          label: role.label,
+          value: role.id as string,
+        })),
+    ],
+    [roleOptions],
+  );
+
+  const memberSummary = membersQuery.data?.summary;
 
   const userStats = useMemo(
     () => [
       {
         title: 'Total Users',
-        count: userList.length,
+        count: memberSummary?.totalUsers ?? 0,
         color: '#F04438',
       },
       {
         title: 'Active Users',
-        count: userList.filter((user) => user.isInvitationAccepted).length,
+        count: memberSummary?.activeUsers ?? 0,
         color: '#F79009',
       },
       {
         title: 'Pending Invites',
-        count: userList.filter((user) => !user.isInvitationAccepted).length,
+        count: memberSummary?.pendingInvites ?? 0,
         color: '#17B26A',
       },
       {
         title: 'External Users',
-        count: userList.filter((user) =>
-          user.roles.some((role) =>
-            normalizeRoleName(role.label).includes('EXTERNAL'),
-          ),
-        ).length,
+        count: memberSummary?.externalUsers ?? 0,
         color: '#7A5AF8',
       },
     ],
-    [userList],
+    [memberSummary],
   );
+
   const hasSearch = Boolean(searchValue.trim());
+
+  const hasFilters =
+    selectedInvitationStatus !== 'all' ||
+    selectedRoleId !== 'all' ||
+    selectedProjectId !== 'all';
+
+  const hasSearchOrFilters = hasSearch || hasFilters;
   return (
     <>
       <div className="relative z-100 h-full overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 xl:h-dvh">
@@ -301,18 +392,92 @@ export default function Page() {
                       />
                     </div>
                   </div>
+                  <Popover as="div" className="relative xl:hidden">
+                    {({ open }) => (
+                      <>
+                        <PopoverButton
+                          className={`flex h-10 shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium outline-none ${open
+                            ? 'border-primary  text-white'
+                            : 'border-gray-200 bg-white text-gray-700'
+                            }`}
+                          aria-label="Open filters"
+                        >
+                          <FiltersIcon />
+                        </PopoverButton>
 
+                        <PopoverPanel
+                          anchor="bottom end"
+                          transition
+                          className="z-100 mt-2 flex w-56 origin-top-right flex-col gap-3 overflow-visible!  rounded-xl border border-gray-200 bg-white p-3 shadow-[0_14px_44px_rgb(0_0_0/0.14)] outline-none transition duration-150 data-closed:-translate-y-2 data-closed:scale-95 data-closed:opacity-0"
+                        >
+                          <div className="relative w-full overflow-visible">
+                            <Dropdown
+                              options={invitationFilterOptions}
+                              value={selectedInvitationStatus}
+                              onChange={(value) =>
+                                setSelectedInvitationStatus(
+                                  value as 'all' | 'accepted' | 'pending',
+                                )
+                              }
+                              placeholder="All Invitations"
+                              maxMenuHeight={150}
+                            />
+                          </div>
+
+                          <div className="relative w-full overflow-visible">
+                            <Dropdown
+                              options={roleFilterOptions}
+                              value={selectedRoleId}
+                              onChange={setSelectedRoleId}
+                              placeholder="All Roles"
+                              maxMenuHeight={150}
+                            />
+                          </div>
+
+                          <div className="relative w-full overflow-visible">
+                            <Dropdown
+                              options={projectFilterOptions}
+                              value={selectedProjectId}
+                              onChange={setSelectedProjectId}
+                              placeholder="All Projects"
+                              maxMenuHeight={150}
+                            />
+                          </div>
+                        </PopoverPanel>
+                      </>
+                    )}
+                  </Popover>
                   <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      className="flex items-center gap-0.75 rounded-lg border border-gray-200 bg-gray-100 px-2.5 py-2"
-                    >
-                      <FiltersIcon />
+                    <div className="w-full hidden xl:block xl:w-44">
+                      <Dropdown
+                        options={invitationFilterOptions}
+                        value={selectedInvitationStatus}
+                        onChange={(value) =>
+                          setSelectedInvitationStatus(
+                            value as 'all' | 'accepted' | 'pending',
+                          )
+                        }
+                        placeholder="All Invitations"
+                      />
+                    </div>
 
-                      <span className="text-xs font-medium text-black-olive">
-                        Filter
-                      </span>
-                    </button>
+                    <div className="w-full hidden xl:block xl:w-38">
+                      <Dropdown
+                        options={roleFilterOptions}
+                        value={selectedRoleId}
+                        onChange={setSelectedRoleId}
+                        placeholder="All Roles"
+                      />
+                    </div>
+
+                    <div className="w-full hidden xl:block xl:w-38">
+                      <Dropdown
+                        options={projectFilterOptions}
+                        value={selectedProjectId}
+                        onChange={setSelectedProjectId}
+                        placeholder="All Projects"
+                      />
+                    </div>
 
                     {canCreateUser ? (
                       <ThemeButton
@@ -332,22 +497,22 @@ export default function Page() {
                 <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hide">
                   {membersQuery.isLoading ? (
                     <UserCardsSkeleton />
-                  ) : filteredUserList.length ? (
+                  ) : userList.length ? (
                     <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                      {filteredUserList.map((user) => (
+                      {userList.map((user) => (
                         <UserCard
                           key={user.id}
                           user={user}
                           onEdit={
                             user.isInvitationAccepted && canEditUser
                               ? (selectedUser) =>
-                                  setEditingUserId(selectedUser.id)
+                                setEditingUserId(selectedUser.id)
                               : undefined
                           }
                           onDelete={
                             canDeleteUser
                               ? (selectedUser) =>
-                                  setDeletingUserId(selectedUser.id)
+                                setDeletingUserId(selectedUser.id)
                               : undefined
                           }
                           onResendInvite={
@@ -361,18 +526,18 @@ export default function Page() {
                   ) : (
                     <EmptyState
                       imageUrl={
-                        hasSearch
+                        hasSearchOrFilters
                           ? '/images/UsersSearchIcon.svg'
                           : '/images/UsersEmptyIcon.svg'
                       }
                       imageAlt={hasSearch ? 'No search results' : 'No users'}
-                      title={hasSearch ? 'No Results Found' : 'No Users Yet'}
+                      title={hasSearchOrFilters ? 'No Results Found' : 'No Users Yet'}
                       description={
                         hasSearch
                           ? "We couldn't find matching results for your search. Try a different keyword or clear the filters."
                           : 'Add your first team member to get started.'
                       }
-                      buttonLabel={hasSearch ? 'Clear Search' : 'Add User'}
+                      buttonLabel={hasSearchOrFilters ? 'Clear Search' : 'Add User'}
                       buttonIcon={
                         hasSearch ? (
                           <SearchIcon fill="#3889FE" />
@@ -381,7 +546,7 @@ export default function Page() {
                         )
                       }
                       onButtonClick={
-                        hasSearch
+                        hasSearchOrFilters
                           ? () => setSearchValue('')
                           : canCreateUser
                             ? () => setAddUserOpen(true)
@@ -451,35 +616,106 @@ function getUpdateUserPayload(values: AddUserFormValues) {
     projectIds: values.projectAccess,
   };
 }
+type ProjectMembersQuery = {
+  search?: string;
+  isInvitationAccepted?: boolean;
+  projectId?: string;
+  roleId?: string;
+};
 
-async function fetchProjectMembers(projects: ProjectRecord[]) {
-  const response = await fetch('/api/projects/members', {
-    method: 'GET',
-    headers: {
-      Accept: 'application/json',
-    },
-    cache: 'no-store',
-  });
+type MemberSummary = {
+  totalUsers: number;
+  activeUsers: number;
+  pendingInvites: number;
+  externalUsers: number;
+};
 
-  const payload = (await response.json().catch(() => null)) as
-    | ApiProjectMember[]
-    | { message?: string }
-    | null;
+type ProjectMembersResponse = {
+  items: UserCardUser[];
+  summary: MemberSummary;
+};
 
-  if (!response.ok || !Array.isArray(payload)) {
-    throw new Error(
-      !Array.isArray(payload) ? payload?.message : 'Failed to fetch users.',
+async function fetchProjectMembers(
+  projects: ProjectRecord[],
+  query: ProjectMembersQuery,
+): Promise<ProjectMembersResponse> {
+  const searchParams = new URLSearchParams();
+
+  if (query.search?.trim()) {
+    searchParams.set('search', query.search.trim());
+  }
+
+  if (query.isInvitationAccepted !== undefined) {
+    searchParams.set(
+      'isInvitationAccepted',
+      String(query.isInvitationAccepted),
     );
   }
 
-  return payload.map((member) => mapApiMemberToUserCard(member, projects));
+  if (query.projectId) {
+    searchParams.set('projectId', query.projectId);
+  }
+
+  if (query.roleId) {
+    searchParams.set('roleId', query.roleId);
+  }
+
+  const queryString = searchParams.toString();
+
+  const response = await fetch(
+    `/api/projects/members${queryString ? `?${queryString}` : ''}`,
+    {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+    },
+  );
+
+  const payload = (await response.json().catch(() => null)) as
+    | {
+      items?: ApiProjectMember[];
+      summary?: Partial<MemberSummary>;
+    }
+    | { message?: string }
+    | null;
+
+  if (
+    !response.ok ||
+    !payload ||
+    typeof payload !== 'object' ||
+    !('items' in payload) ||
+    !Array.isArray(payload.items)
+  ) {
+    throw new Error(
+      payload && 'message' in payload
+        ? payload.message || 'Failed to fetch users.'
+        : 'Failed to fetch users.',
+    );
+  }
+
+  return {
+    items: payload.items.map((member) =>
+      mapApiMemberToUserCard(member, projects),
+    ),
+
+    summary: {
+      totalUsers: payload.summary?.totalUsers ?? 0,
+      activeUsers: payload.summary?.activeUsers ?? 0,
+      pendingInvites: payload.summary?.pendingInvites ?? 0,
+      externalUsers: payload.summary?.externalUsers ?? 0,
+    },
+  };
 }
 
 type ApiProjectMember = {
   id: string;
   email: string;
   fullName: string;
+  isActive: boolean;
   isInvitationAccepted: boolean;
+  userType: 'INTERNAL' | 'EXTERNAL' | string;
   projects: Array<{
     id: string;
     name: string;

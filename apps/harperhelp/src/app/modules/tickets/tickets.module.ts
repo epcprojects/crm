@@ -18,12 +18,14 @@ import { TicketPrioritiesService } from './services/ticket.priorities.service';
 import { TicketSequence } from './entities/ticket.sequence.entity';
 import { Project } from '../projects/entities/project.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { TicketsKanbanView } from './entities/tickets-kanban-view.entity';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       Ticket,
       TicketStatus,
+      TicketsKanbanView,
       TicketPriority,
       FileRecord,
       TicketReply,

@@ -27,7 +27,7 @@ export class GetTicketsQueryDto {
   @IsOptional()
   @IsString()
   projectId?: string;
-
+  
   @ApiProperty()
   @Type(() => Number)
   @IsOptional()

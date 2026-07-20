@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 
 import { RolesService } from './roles.service';
@@ -19,6 +20,7 @@ import { SystemRoles } from '@harperhelp/types';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { MODULE_DEFINITIONS } from '@harperhelp/utils';
 import { GetUser } from 'apps/harperhelp/src/common/decorators/get-user.decorator';
+import {  GetRoleQueryDTO } from './dto/get-role-query.dto';
 
 @Controller('roles')
 @ApiBearerAuth('JWT-auth')
@@ -34,9 +36,9 @@ export class RolesController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get All Roles' })
-  findAll() {
-    return this.rolesService.findAll();
+  @ApiOperation({ summary: 'Get All Roles with optional Search' })
+  findAll(@Query() query: GetRoleQueryDTO,) {
+    return this.rolesService.findAll(query);
   }
 
   @Get('permissions/catalog')
