@@ -665,13 +665,25 @@ export default function TicketDetailPage() {
           <div className="grid h-auto min-h-0 min-w-0 grid-cols-1 gap-4 overflow-visible xl:h-full xl:grid-cols-12 xl:grid-rows-[minmax(0,1fr)] xl:overflow-hidden">
             <div className="flex min-w-0 flex-col space-y-4 xl:col-span-9">
               <section className="rounded-xl border border-gray-200 bg-white p-3 sm:rounded-2xl md:p-5">
-                <div className="flex flex-wrap gap-4 border-b border-gray-200 pb-5 sm:grid sm:grid-cols-4">
+                <div className="flex flex-wrap gap-4 border-b border-gray-200 pb-5 sm:grid sm:grid-cols-5">
                   <MetaItem
                     label="Ticket ID"
                     value={`${ticket.ticketRefNo ?? ticket.id}`}
                   />
 
                   <MetaItem label="Created on" value={ticket.date} />
+
+                  <div>
+                    <span className="block text-sm text-gray-500">Created By</span>
+
+                    <span className="mt-1 inline-flex items-center gap-2 rounded-full bg-purple-100 py-0.75 pr-2.5 pl-0.75 text-sm font-medium text-purple-700">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-medium">
+                        {ticket.createdByDetail?.initials ?? 'NA'}
+                      </span>
+
+                      {ticket.createdByDetail?.name ?? 'Unknown'}
+                    </span>
+                  </div>
 
                   <div>
                     <span className="block text-sm text-gray-500">Project</span>
@@ -1258,7 +1270,7 @@ type ApiTicketDetail = {
   updatedAt?: string;
   deletedAt?: string | null;
   isActive?: boolean;
-  createdBy?: string | null;
+  createdBy?: { id: string; fullName?: string | null } | null;
   updatedBy?: string | null;
   projectId: string;
   title: string;
@@ -1327,6 +1339,8 @@ function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
     ticket.assignee?.fullName ?? ticket.assignee?.name ?? 'Unassigned';
   const reporterName =
     ticket.reporter?.fullName ?? ticket.reporter?.name ?? 'Reporter';
+   
+    const createdByName = ticket.createdBy?.fullName ?? 'Unknown';
 
   return {
     id: ticket.id,
@@ -1367,6 +1381,12 @@ function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
           role: 'Assignee',
           name: assigneeName,
           initials: getInitials(assigneeName),
+        }
+      : null,
+      createdByDetail: ticket.createdBy
+      ? {
+          name: createdByName,
+          initials: getInitials(createdByName),
         }
       : null,
     replies: [],

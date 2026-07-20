@@ -19,6 +19,7 @@ import { TicketSequence } from './entities/ticket.sequence.entity';
 import { Project } from '../projects/entities/project.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { TicketsKanbanView } from './entities/tickets-kanban-view.entity';
+import { User } from '../users/entities/user.entity';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { TicketsKanbanView } from './entities/tickets-kanban-view.entity';
       TicketReply,
       TicketSequence,
       Project,
+      User,
     ]),
     NotificationsModule,
   ],
