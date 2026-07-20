@@ -5,9 +5,10 @@ import {
   ALLOWED_ATTACHMENT_ACCEPT,
   validateAttachments,
 } from '../../lib/attachments';
-import { FileTypePlaceholder } from '../../../public/icons';
+import { FileTypePlaceholder, TrashIcon } from '../../../public/icons';
 import { getFileUrl } from '../projects/ProjectFilesPanel';
 import ConfirmActionModal from '../modals/ConfirmActionModal';
+import ImageGalleryLightbox from '../ui/ImageGalleryLightbox';
 import type { DiscussionAttachment, DiscussionReply } from './types';
 
 type DiscussionPanelProps = {
@@ -32,6 +33,14 @@ type DiscussionPanelProps = {
   onReplyClick?: (reply: DiscussionReply) => void;
   onDeleteAttachment?: (attachment: DiscussionAttachment) => void;
   deletingAttachmentId?: string;
+};
+
+type GalleryImage = {
+  attachmentId: string;
+  storageKey?: string;
+  fileName?: string;
+  src: string;
+  alt: string;
 };
 
 export default function ProjectThreadPanel({
@@ -59,8 +68,16 @@ export default function ProjectThreadPanel({
   const [attachmentError, setAttachmentError] = useState('');
   const [attachmentToDelete, setAttachmentToDelete] =
     useState<DiscussionAttachment | null>(null);
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+  const [activeGalleryIndex, setActiveGalleryIndex] = useState<number | null>(
+    null,
+  );
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const conversationImages = getGalleryImagesFromDiscussion(
+    headerReply,
+    replies,
+  );
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -101,15 +118,14 @@ export default function ProjectThreadPanel({
     const selectedFiles = files ? Array.from(files) : [];
 
     if (!selectedFiles.length) {
-      setAttachments([]);
       setAttachmentError('');
       return;
     }
 
-    const validationError = validateAttachments(selectedFiles);
+    const nextAttachments = mergeAttachmentFiles(attachments, selectedFiles);
+    const validationError = validateAttachments(nextAttachments);
 
     if (validationError) {
-      setAttachments([]);
       setAttachmentError(validationError);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -117,8 +133,11 @@ export default function ProjectThreadPanel({
       return;
     }
 
-    setAttachments(selectedFiles);
+    setAttachments(nextAttachments);
     setAttachmentError('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleConfirmDeleteAttachment = async () => {
@@ -128,6 +147,40 @@ export default function ProjectThreadPanel({
 
     await onDeleteAttachment(attachmentToDelete);
     setAttachmentToDelete(null);
+  };
+
+  const openGallery = (images: GalleryImage[], index: number) => {
+    if (!images.length || index < 0) {
+      return;
+    }
+
+    setGalleryImages(images);
+    setActiveGalleryIndex(index);
+  };
+
+  const closeGallery = () => {
+    setActiveGalleryIndex(null);
+    setGalleryImages([]);
+  };
+
+  const showPreviousGalleryImage = () => {
+    setActiveGalleryIndex((current) =>
+      current === null || !galleryImages.length
+        ? null
+        : (current - 1 + galleryImages.length) % galleryImages.length,
+    );
+  };
+
+  const showNextGalleryImage = () => {
+    setActiveGalleryIndex((current) =>
+      current === null || !galleryImages.length
+        ? null
+        : (current + 1) % galleryImages.length,
+    );
+  };
+
+  const selectGalleryImage = (index: number) => {
+    setActiveGalleryIndex(index);
   };
 
   return (
@@ -183,6 +236,18 @@ export default function ProjectThreadPanel({
                             target="_blank"
                             rel="noreferrer"
                             className="flex min-w-0 flex-1 items-start gap-3"
+                            onClick={(event) => {
+                              if (!isImageAttachment(attachment.extension)) {
+                                return;
+                              }
+
+                              event.preventDefault();
+                              const index = conversationImages.findIndex(
+                                (image) =>
+                                  image.attachmentId === attachment.id,
+                              );
+                              openGallery(conversationImages, index);
+                            }}
                           >
                             {isImageAttachment(attachment.extension) ? (
                               <img
@@ -289,6 +354,22 @@ export default function ProjectThreadPanel({
                                     target="_blank"
                                     rel="noreferrer"
                                     className="flex min-w-0 flex-1 items-start gap-3"
+                                    onClick={(event) => {
+                                      if (
+                                        !isImageAttachment(
+                                          attachment.extension,
+                                        )
+                                      ) {
+                                        return;
+                                      }
+
+                                      event.preventDefault();
+                                      const index = conversationImages.findIndex(
+                                        (image) =>
+                                          image.attachmentId === attachment.id,
+                                      );
+                                      openGallery(conversationImages, index);
+                                    }}
                                   >
                                     {isImageAttachment(attachment.extension) &&
                                     reply.attachments &&
@@ -435,15 +516,21 @@ export default function ProjectThreadPanel({
             />
 
             {attachments.length ? (
-              <div className="mt-3 grid grid-cols-3 gap-2">
+              <div className="mt-3 grid max-h-52 min-h-0 grid-cols-1 gap-2 overflow-y-auto overscroll-contain pr-1 scrollbar-hide sm:grid-cols-2 lg:grid-cols-3">
                 {attachments.map((attachment) => (
                   <div
-                    key={`${attachment.name}-${attachment.lastModified}`}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2"
+                    key={`${attachment.name}-${attachment.size}-${attachment.lastModified}`}
+                    className="flex min-w-0 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 py-0.5 pr-2 pl-0.5"
                   >
-                    <p className="truncate text-sm text-gray-700">
-                      {attachment.name}
-                    </p>
+                    <LocalAttachmentPreview file={attachment} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-gray-700">
+                        {attachment.name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {formatAttachmentSize(attachment.size)}
+                      </p>
+                    </div>
                     <button
                       type="button"
                       onClick={() => {
@@ -458,7 +545,7 @@ export default function ProjectThreadPanel({
                       disabled={isSubmittingReply}
                       className="text-xs font-medium text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      Remove
+                      <TrashIcon width="16" height="16" />
                     </button>
                   </div>
                 ))}
@@ -520,6 +607,15 @@ export default function ProjectThreadPanel({
         }
         onConfirm={handleConfirmDeleteAttachment}
       />
+      <ImageGalleryLightbox
+        images={galleryImages}
+        activeIndex={activeGalleryIndex}
+        title={title}
+        onClose={closeGallery}
+        onSelect={selectGalleryImage}
+        onPrevious={showPreviousGalleryImage}
+        onNext={showNextGalleryImage}
+      />
     </>
   );
 }
@@ -536,6 +632,47 @@ function getAttachmentUrl(storageKey?: string) {
   return normalizedBaseUrl
     ? `${normalizedBaseUrl}/${normalizedStorageKey}`
     : '#';
+}
+
+function getGalleryImagesFromAttachments(
+  attachments: DiscussionAttachment[],
+  authorName: string,
+) {
+  return attachments
+    .filter((attachment) => isImageAttachment(attachment.extension))
+    .map((attachment, index) => ({
+      attachmentId: attachment.id,
+      storageKey: attachment.storageKey,
+      fileName: attachment.name,
+      src: getFileUrl(attachment.storageKey),
+      alt: `${authorName} attachment ${index + 1}`,
+    }));
+}
+
+function getGalleryImagesFromDiscussion(
+  headerReply: DiscussionReply | null | undefined,
+  replies: DiscussionReply[],
+) {
+  const images: GalleryImage[] = [];
+
+  if (headerReply?.attachments?.length) {
+    images.push(
+      ...getGalleryImagesFromAttachments(
+        headerReply.attachments,
+        headerReply.author.name,
+      ),
+    );
+  }
+
+  replies.forEach((reply) => {
+    if (!reply.attachments?.length) {
+      return;
+    }
+
+    images.push(...getGalleryImagesFromAttachments(reply.attachments, reply.author.name));
+  });
+
+  return images;
 }
 
 function AttachmentFileIcon({ extension }: { extension?: string }) {
@@ -587,6 +724,75 @@ function getAttachmentBadgeClassName(extension: string) {
   if (['PNG', 'JPG', 'JPEG', 'SVG'].includes(extension)) return 'bg-violet-500';
   if (extension === 'ZIP') return 'bg-gray-600';
   return 'bg-[#10175A]';
+}
+
+function mergeAttachmentFiles(currentFiles: File[], newFiles: File[]) {
+  const fileMap = new Map<string, File>();
+
+  [...currentFiles, ...newFiles].forEach((file) => {
+    fileMap.set(getAttachmentFileKey(file), file);
+  });
+
+  return Array.from(fileMap.values());
+}
+
+function getAttachmentFileKey(file: File) {
+  return `${file.name}-${file.size}-${file.lastModified}`;
+}
+
+function getFileExtension(fileName: string, mimeType?: string) {
+  const extension = fileName.split('.').pop();
+
+  if (extension && extension !== fileName) {
+    return extension;
+  }
+
+  return mimeType?.split('/').pop() ?? 'file';
+}
+
+function formatAttachmentSize(sizeInBytes: number) {
+  if (sizeInBytes < 1024) {
+    return `${sizeInBytes} B`;
+  }
+
+  if (sizeInBytes < 1024 * 1024) {
+    return `${(sizeInBytes / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(sizeInBytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function LocalAttachmentPreview({ file }: { file: File }) {
+  const [previewUrl, setPreviewUrl] = useState('');
+  const isImage = file.type.startsWith('image/');
+
+  useEffect(() => {
+    if (!isImage) {
+      setPreviewUrl('');
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
+
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [file, isImage]);
+
+  if (isImage && previewUrl) {
+    return (
+      <img
+        src={previewUrl}
+        alt={file.name}
+        className="h-9 w-9 shrink-0 rounded-md border border-gray-200 object-cover"
+      />
+    );
+  }
+
+  return (
+    <AttachmentFileIcon extension={getFileExtension(file.name, file.type)} />
+  );
 }
 
 // function AttachmentTrashIcon() {

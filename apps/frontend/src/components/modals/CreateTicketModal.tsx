@@ -238,7 +238,7 @@ export default function CreateTicketModal({
       roundedCustom
       outSideClickClose={false}
       size="extraLarge"
-      scrollNeeded ={isMobile?true:false}
+      scrollNeeded={isMobile ? true : false}
     >
       {/* space-y-4 p-4 md:p-5 */}
       <div className="grid grid-cols-1 xl:grid-cols-2 divide-x divide-gray-200">
@@ -291,7 +291,9 @@ export default function CreateTicketModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div
+            className={`grid grid-cols-1 items-center gap-4 md:grid-cols-2 `}
+          >
             {isExternalUser ? null : (
               <Dropdown
                 label="Status"
@@ -317,18 +319,19 @@ export default function CreateTicketModal({
               placeholder="Select priority"
             />
             {/* )} */}
+            <div className={`${isExternalUser ? 'col-span-1' : 'col-span-2'}`}>
+              <ThemeInput
+                label="Due Date (optional)"
+                type="date"
+                name="dueDate"
+                value={formik.values.dueDate}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                min={getTodayInputValue()}
+                errorText={formik.touched.dueDate ? formik.errors.dueDate : ''}
+              />
+            </div>
           </div>
-
-          <ThemeInput
-            label="Due Date (optional)"
-            type="date"
-            name="dueDate"
-            value={formik.values.dueDate}
-            onChange={formik.handleChange}
-            onBlur={formik.handleBlur}
-            min={getTodayInputValue()}
-            errorText={formik.touched.dueDate ? formik.errors.dueDate : ''}
-          />
         </div>
         <div className="w-full p-5 space-y-3">
           <label className="mb-1.5 block text-sm font-normal text-gray-800 md:text-base">
@@ -402,36 +405,36 @@ export default function CreateTicketModal({
             </div>
           ) : null} */}
           {formik.values.attachments.length ? (
-  <div className="mt-3 grid max-h-103 min-h-0 grid-cols-1 gap-2 overflow-y-auto overscroll-contain pr-1 scrollbar-hide sm:grid-cols-2">
-    {formik.values.attachments.map((file) => (
-      <div
-        key={`${file.name}-${file.size}-${file.lastModified}`}
-        className="flex min-w-0 items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 py-0.5 pr-2 pl-0.5"
-      >
-        <LocalAttachmentPreview file={file} />
+            <div className="mt-3 grid max-h-103 min-h-0 grid-cols-1 gap-2 overflow-y-auto overscroll-contain pr-1 scrollbar-hide sm:grid-cols-2">
+              {formik.values.attachments.map((file) => (
+                <div
+                  key={`${file.name}-${file.size}-${file.lastModified}`}
+                  className="flex min-w-0 items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 py-0.5 pr-2 pl-0.5"
+                >
+                  <LocalAttachmentPreview file={file} />
 
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-gray-700">
-            {file.name}
-          </p>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-gray-700">
+                      {file.name}
+                    </p>
 
-          <p className="text-xs text-gray-500">
-            {formatAttachmentSize(file.size)}
-          </p>
-        </div>
+                    <p className="text-xs text-gray-500">
+                      {formatAttachmentSize(file.size)}
+                    </p>
+                  </div>
 
-        <button
-          type="button"
-          onClick={() => handleRemoveAttachment(file.name)}
-          className="flex h-3 w-3 shrink-0 items-center justify-center rounded-full transition hover:bg-gray-100"
-          aria-label={`Remove ${file.name}`}
-        >
-          <CloseIcon  />
-        </button>
-      </div>
-    ))}
-  </div>
-) : null}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveAttachment(file.name)}
+                    className="flex h-3 w-3 shrink-0 items-center justify-center rounded-full transition hover:bg-gray-100"
+                    aria-label={`Remove ${file.name}`}
+                  >
+                    <CloseIcon />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
 
           {attachmentError ? (
             <p className="mt-2 text-xs text-red-600">{attachmentError}</p>
