@@ -17,6 +17,7 @@ import { TicketPrioritiesController } from './ticket.priorities.controller';
 import { TicketPrioritiesService } from './services/ticket.priorities.service';
 import { TicketSequence } from './entities/ticket.sequence.entity';
 import { Project } from '../projects/entities/project.entity';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { TicketsKanbanView } from './entities/tickets-kanban-view.entity';
 
 @Module({
@@ -29,8 +30,9 @@ import { TicketsKanbanView } from './entities/tickets-kanban-view.entity';
       FileRecord,
       TicketReply,
       TicketSequence,
-      Project
+      Project,
     ]),
+    NotificationsModule,
   ],
   controllers: [
     TicketsController,
@@ -48,4 +50,4 @@ import { TicketsKanbanView } from './entities/tickets-kanban-view.entity';
     TicketPrioritiesService,
   ],
 })
-export class TicketsModule { }
+export class TicketsModule {}

@@ -30,11 +30,7 @@ import { useAppLoader } from '../../providers/AppLoaderProvider';
 import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
 import ThemeButton from '../../../components/ui/ThemeButton';
 import { RecentTicketsTableSkeleton } from '../dashboard/page';
-import {
-  Popover,
-  PopoverButton,
-  PopoverPanel,
-} from '@headlessui/react';
+import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 
 type TicketSummary = {
   open: number | null;
@@ -625,14 +621,16 @@ export default function Page() {
                           />
                         </div>
 
-                        <div className="w-full hidden xl:block xl:w-38">
-                          <Dropdown
-                            options={statusFilterOptions}
-                            value={selectedStatus}
-                            onChange={setSelectedStatus}
-                            placeholder="All Status"
-                          />
-                        </div>
+                        {viewMode === 'table' && (
+                          <div className="w-full hidden xl:block xl:w-38">
+                            <Dropdown
+                              options={statusFilterOptions}
+                              value={selectedStatus}
+                              onChange={setSelectedStatus}
+                              placeholder="All Status"
+                            />
+                          </div>
+                        )}
 
                         <div className="w-full hidden xl:block xl:w-38">
                           <Dropdown

@@ -36,4 +36,11 @@ export enum FileStatus {
   DELETED = 'deleted',
 }
 
+export enum CalendarView {
+  DAY = 'day',
+  WEEK = 'week',
+  MONTH = 'month',
+  YEAR = 'year',
+}
+
 export * from './tickets.types';

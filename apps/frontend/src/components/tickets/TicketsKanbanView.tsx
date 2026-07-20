@@ -40,8 +40,8 @@ export default function TicketsKanbanView({
   const [draggingTicketId, setDraggingTicketId] = useState<string | null>(null);
   const [hoveredColumnKey, setHoveredColumnKey] = useState<string | null>(null);
   const [draggingColumnKey, setDraggingColumnKey] = useState<string | null>(
-    null,
-  );
+  null,
+);
 
   const generatedColumns = useMemo(() => {
     const normalizedOptions = statusOptions.map((status) => ({
@@ -52,9 +52,11 @@ export default function TicketsKanbanView({
       isCustom: false,
     }));
 
-    const existingLabels = new Set(
-      normalizedOptions.map((status) => status.label.trim().toLowerCase()),
-    );
+  const existingLabels = new Set(
+    normalizedOptions.map((status) =>
+      status.label.trim().toLowerCase(),
+    ),
+  );
 
     const extraStatuses = Array.from(
       new Set(
@@ -123,8 +125,8 @@ export default function TicketsKanbanView({
   }
 
   return (
-    <div className="h-full max-h-full min-h-0 w-full min-w-0 overflow-auto overscroll-contain scrollbar-hide">
-      <div className="flex min-h-full min-w-max items-start gap-6 pb-2">
+    <div className="h-full max-h-full min-h-0 w-full min-w-0 overflow-x-auto overflow-y-hidden overscroll-contain scrollbar-hide">
+      <div className="flex h-full min-h-0 min-w-max items-start gap-4 pb-2">
         {columns.map((column) => {
           const tone = getStatusTone(column.color);
           const isDraggableColumn = canDragColumns && !column.isCustom;
@@ -196,9 +198,9 @@ export default function TicketsKanbanView({
                   return;
                 }
 
-                const draggedTicketId =
-                  event.dataTransfer.getData('application/x-ticket-id') ||
-                  draggingTicketId;
+    const draggedTicketId =
+      event.dataTransfer.getData('application/x-ticket-id') ||
+      draggingTicketId;
 
                 if (!canDragTickets || !draggedTicketId) {
                   return;
@@ -219,7 +221,7 @@ export default function TicketsKanbanView({
               }}
             >
               <div
-                className="relative flex items-center gap-2 rounded-lg px-3 py-3"
+                className="sticky top-0 z-10 relative flex items-center gap-2 rounded-lg px-3 py-3"
                 style={{
                   backgroundColor: tone.background,
                 }}

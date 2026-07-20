@@ -19,4 +19,5 @@ export type DiscussionAttachment = {
   sizeLabel?: string;
   extension?: string;
   storageKey?: string;
+  url?: string;
 };

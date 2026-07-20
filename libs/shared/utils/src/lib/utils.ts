@@ -5,7 +5,7 @@ export function generateRandomToken() {
   return randomBytes(32).toString('hex');
 }
 
-// 
+//
 export const MODULE_DEFINITIONS: {
   key: string;
   label: string;
@@ -37,6 +37,8 @@ export const MODULE_DEFINITIONS: {
       'edit_priority',
       'edit_assignee',
       'edit_due_date',
+      'external_chat',
+      'internal_chat',
       'filter',
     ],
   },
@@ -48,7 +50,13 @@ export const MODULE_DEFINITIONS: {
   {
     key: 'thread',
     label: 'Thread',
-    actions: ['view', 'post_message', 'post_reply', 'attach_file'],
+    actions: [
+      'view',
+      'view_replies',
+      'post_message',
+      'post_reply',
+      'attach_file',
+    ],
   },
   { key: 'files', label: 'Files', actions: ['view', 'upload', 'download'] },
   {

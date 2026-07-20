@@ -25,7 +25,7 @@ export class GetTicketsQueryDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsUUID()
+  @IsString()
   projectId?: string;
   
   @ApiProperty()

@@ -10,6 +10,9 @@ import { FilesService } from '../../files/files.service';
 import { UtilityService } from '../../utility/utility.service';
 import { TicketReply } from '../entities/ticket.reply.entity';
 import { CreateReplyDto } from '../dto/create-reply.dto';
+import { NotificationsService } from '../../notifications/notifications.service';
+import { EmailEventType } from '../../notifications/notifications.types';
+import { Ticket } from '../entities/ticket.entity';
 
 @Injectable()
 export class TicketRepliesService {
@@ -19,6 +22,7 @@ export class TicketRepliesService {
 
     private readonly filesService: FilesService,
     private readonly utilityService: UtilityService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(
@@ -46,6 +50,69 @@ export class TicketRepliesService {
 
     if (files?.length) {
       await this.uploadAttachments(reply.id, files, userId, projectId);
+    }
+
+    // Dispatch reply notification (non-blocking)
+    try {
+      const ticket = await this.replyRepo.manager
+        .getRepository(Ticket)
+        .findOne({
+          where: { id: ticketId },
+          relations: {
+            reporter: true,
+            assignee: true,
+            project: {
+              members: true,
+            },
+          },
+        });
+
+      const members = (ticket.project?.members || []).map((m) => ({
+        name: m.fullName,
+        email: m.email,
+      }));
+
+      const participantsMap = new Map<
+        string,
+        { name: string; email: string }
+      >();
+      for (const m of members) participantsMap.set(m.email, m);
+      if (ticket.reporter)
+        participantsMap.set(ticket.reporter.email, {
+          name: ticket.reporter.fullName,
+          email: ticket.reporter.email,
+        });
+      if (ticket.assignee)
+        participantsMap.set(ticket.assignee.email, {
+          name: ticket.assignee.fullName,
+          email: ticket.assignee.email,
+        });
+
+      const participants = Array.from(participantsMap.values());
+
+      await this.notificationsService.dispatch({
+        type: EmailEventType.TICKET_REPLY_POSTED,
+        payload: {
+          ticketId: ticketId,
+          ticketNumber: ticket.ticketRefNo,
+          ticketTitle: ticket.title,
+          projectName: ticket.project?.name || '',
+          replyContent: reply.message,
+          isInternal: reply.isInternal,
+          postedBy: {
+            name:
+              (
+                await this.replyRepo.manager
+                  .getRepository('users')
+                  .findOne({ where: { id: userId } })
+              )?.fullName || '',
+            email: '',
+          },
+          participants,
+        },
+      });
+    } catch (err) {
+      // ignore
     }
 
     return this.findOne(reply.id);

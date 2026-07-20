@@ -8,7 +8,7 @@
     "build": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "webpack-cli build",
+        "command": "webpack-cli build && node build-lambda.js",
         "args": ["--node-env=production"],
         "cwd": "apps/harperhelp"
       },

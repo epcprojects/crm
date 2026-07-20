@@ -14,6 +14,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 
 import { UsersModule } from '../users/users.module';
 
+import { NotificationsModule } from '../notifications/notifications.module';
+
 @Module({
   imports: [
     UsersModule,
@@ -21,6 +23,8 @@ import { UsersModule } from '../users/users.module';
     PassportModule,
 
     ConfigModule,
+
+    NotificationsModule,
 
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -40,5 +44,7 @@ import { UsersModule } from '../users/users.module';
   controllers: [AuthController],
 
   providers: [AuthService, JwtStrategy],
+
+  exports: [JwtModule],
 })
 export class AuthModule {}
