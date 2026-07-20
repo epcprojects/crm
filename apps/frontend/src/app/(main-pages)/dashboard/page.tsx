@@ -570,6 +570,18 @@ export default function Page() {
                     )}
                   </Popover>
 
+                  <div className="flex flex-row gap-2">
+                    <div className="border border-gray-200 bg-white py-2 px-2.5 flex items-center gap-2 justify-between flex-row rounded-lg">
+                      <SearchIcon fill="#374151" />
+                      <input
+                        type="text"
+                        value={searchValue}
+                        onChange={(event) => setSearchValue(event.target.value)}
+                        placeholder="Search"
+                        className="min-w-0 bg-transparent placeholder:text-gray-400 text-base text-gray-700 outline-none"
+                      />
+                    </div>
+                    
                   {/* Desktop filters: xl and above */}
                   <div className="hidden items-center gap-2 xl:flex">
                     <div className="w-38">
@@ -591,17 +603,7 @@ export default function Page() {
                     </div>
                   </div>
 
-                  <div className="flex flex-row gap-2">
-                    <div className="border border-gray-200 bg-white py-2 px-2.5 flex items-center gap-2 justify-between flex-row rounded-lg">
-                      <SearchIcon fill="#374151" />
-                      <input
-                        type="text"
-                        value={searchValue}
-                        onChange={(event) => setSearchValue(event.target.value)}
-                        placeholder="Search"
-                        className="min-w-0 bg-transparent placeholder:text-gray-400 text-base text-gray-700 outline-none"
-                      />
-                    </div>
+
 
                     {canViewTicketsList ? (
                       <button
