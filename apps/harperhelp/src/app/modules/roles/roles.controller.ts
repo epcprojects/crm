@@ -8,18 +8,19 @@ import {
   Delete,
   UseGuards,
   Query,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 
 import { RolesService } from './roles.service';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { JwtAuthGuard } from 'apps/harperhelp/src/common/guards/jwt-auth.guard';
-import { RolesGuard } from 'apps/harperhelp/src/common/guards/roles.guard';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../common/guards/roles.guard';
 import { SystemRoles } from '@harperhelp/types';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { MODULE_DEFINITIONS } from '@harperhelp/utils';
-import { GetUser } from 'apps/harperhelp/src/common/decorators/get-user.decorator';
+import { GetUser } from '../../../common/decorators/get-user.decorator';
 import {  GetRoleQueryDTO } from './dto/get-role-query.dto';
 
 @Controller('roles')
@@ -60,21 +61,21 @@ export class RolesController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get role based on id.' })
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.rolesService.findOne(id);
   }
 
   @Patch(':id')
   // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({ summary: 'Update existing role.' })
-  update(@Param('id') id: string, @Body() updateRoleDto: UpdateRoleDto) {
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() updateRoleDto: UpdateRoleDto) {
     return this.rolesService.update(id, updateRoleDto);
   }
 
   @Delete(':id')
   // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({ summary: 'Remove specific role from system.' })
-  remove(@Param('id') id: string) {
+  remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.rolesService.remove(id);
   }
 }

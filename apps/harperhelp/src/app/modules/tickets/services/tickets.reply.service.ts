@@ -37,7 +37,14 @@ export class TicketRepliesService {
         'Atleast one message is required to send a reply.',
       );
     }
-
+    // const project = await this.ticketRepo.manager
+    //   .getRepository('projects')
+    //   .findOne({ where: { id: projectId } });
+    // if (!project) throw new NotFoundException('Project not found');
+        const ticket = await this.ticketRepo.findOne({
+      where: { id: ticketId },
+    });
+    if (!ticket) throw new NotFoundException('Ticket not found');
     const reply = await this.replyRepo.save(
       this.replyRepo.create({
         ticketId,
@@ -120,6 +127,10 @@ export class TicketRepliesService {
 
   // TODO: optimize N+1 issue
   async findByTicket(ticketId: string) {
+    const ticket = await this.replyRepo.manager
+      .getRepository(Ticket)
+      .findOne({ where: { id: ticketId } });
+    if (!ticket) throw new NotFoundException('Ticket not found');
     const replies = await this.replyRepo.find({
       where: { ticketId },
       order: { createdAt: 'ASC' },

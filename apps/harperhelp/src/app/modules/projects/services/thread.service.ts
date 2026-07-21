@@ -12,6 +12,7 @@ import { ThreadMessage } from '../entities/thread-messages.entity';
 import { CreateThreadMessageDto } from '../dto/create-thread-message.dto';
 import { EmailEventType } from '../../notifications/notifications.types';
 import { NotificationsService } from '../../notifications/notifications.service';
+import { Project } from '../entities/project.entity';
 
 @Injectable()
 export class ThreadService {
@@ -34,6 +35,10 @@ export class ThreadService {
       throw new BadRequestException('Atleast one message is required.');
     }
 
+    const project = await this.repo.manager
+      .getRepository(Project)
+      .findOne({ where: { id: projectId }, relations: { members: true } });
+    if (!project) throw new NotFoundException('Project not found');
     const message = await this.repo.save(
       this.repo.create({
         projectId,
@@ -75,6 +80,10 @@ export class ThreadService {
 
   // TODO: optimize N+1 issue
   async findAll(projectId: string) {
+    const project = await this.repo.manager
+      .getRepository(Project)
+      .findOne({ where: { id: projectId }, relations: { members: true } });
+    if (!project) throw new NotFoundException('Project not found');
     const messages = await this.repo.find({
       where: {
         projectId,

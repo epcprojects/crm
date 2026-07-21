@@ -4,12 +4,13 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { JwtAuthGuard } from 'apps/harperhelp/src/common/guards/jwt-auth.guard';
-import { RolesGuard } from 'apps/harperhelp/src/common/guards/roles.guard';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../common/guards/roles.guard';
 import { TicketPrioritiesService } from './services/ticket.priorities.service';
 import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { CreateTicketPriorityDto } from './dto/create-ticket-priority.dto';
@@ -43,7 +44,7 @@ export class TicketPrioritiesController {
   @ApiOperation({
     summary: 'Find Ticket Priority',
   })
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.ticketPrioritiesService.findOne(id);
   }
 
@@ -51,7 +52,7 @@ export class TicketPrioritiesController {
   @ApiOperation({
     summary: 'Update Ticket Priority',
   })
-  update(@Param('id') id: string, @Body() dto: UpdateTicketPriorityDto) {
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateTicketPriorityDto) {
     return this.ticketPrioritiesService.update(id, dto);
   }
 
@@ -59,7 +60,7 @@ export class TicketPrioritiesController {
   @ApiOperation({
     summary: 'Delete Ticket Priority',
   })
-  remove(@Param('id') id: string) {
+  remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.ticketPrioritiesService.remove(id);
   }
 }

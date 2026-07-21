@@ -17,6 +17,10 @@ export class CalendarService {
   // CREATE
 
   async create(pid: string, dto: CreateEventDto): Promise<Event> {
+    const project = await this.eventRepo.manager
+      .getRepository('projects')
+      .findOne({ where: { id: pid } });
+    if (!project) throw new NotFoundException('Project not found');
     const event = this.eventRepo.create({ ...dto, projectId: pid });
     return this.eventRepo.save(event);
   }
@@ -32,6 +36,10 @@ export class CalendarService {
    * GET /calendar/events?view=year&date=2026-01-01
    */
   async findByView(pid: string, query: CalendarQueryDto): Promise<Event[]> {
+    const project = await this.eventRepo.manager
+      .getRepository('projects')
+      .findOne({ where: { id: pid } });
+    if (!project) throw new NotFoundException('Project not found');
     const { start, end } = getDateRange(query.view, query.date);
 
     return this.eventRepo.find({
@@ -55,6 +63,10 @@ export class CalendarService {
   // READ single
 
   async findOne(pid: string, id: string): Promise<Event> {
+    const project = await this.eventRepo.manager
+      .getRepository('projects')
+      .findOne({ where: { id: pid } });
+    if (!project) throw new NotFoundException('Project not found');
     const event = await this.eventRepo.findOne({
       where: { id, projectId: pid },
     });
@@ -65,6 +77,10 @@ export class CalendarService {
   // READ all (no filter)
 
   async findAll(pid: string): Promise<Event[]> {
+    const project = await this.eventRepo.manager
+      .getRepository('projects')
+      .findOne({ where: { id: pid } });
+    if (!project) throw new NotFoundException('Project not found');
     return this.eventRepo.find({
       order: { date: 'ASC' },
       where: { projectId: pid },

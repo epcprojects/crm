@@ -8,6 +8,7 @@ import {
   Param,
   Query,
   UseGuards,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 
 import { ChatMessagesService, ChatChannel } from './chat.service';
@@ -21,11 +22,13 @@ import {
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { GetUser } from '../../../common/decorators/get-user.decorator';
 import { UserType } from '@harperhelp/types';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 // Route: /projects/:projectId/tickets/:ticketId/chat/:channel
 // channel param is 'internal' or 'external'
-
+@ApiTags('Chat Messages')
 @Controller('projects/:projectId/tickets/:ticketId/chat/:channel')
+@ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard)
 export class ChatMessagesController {
   constructor(
@@ -37,8 +40,8 @@ export class ChatMessagesController {
 
   @Get('messages')
   async getMessages(
-    @Param('projectId') projectId: string,
-    @Param('ticketId') ticketId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('ticketId', ParseUUIDPipe) ticketId: string,
     @Param('channel') channel: ChatChannel,
     @Query() query: GetMessagesQueryDto,
     @GetUser() user: any,
@@ -56,8 +59,8 @@ export class ChatMessagesController {
 
   @Post('messages')
   async sendMessage(
-    @Param('projectId') projectId: string,
-    @Param('ticketId') ticketId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('ticketId', ParseUUIDPipe) ticketId: string,
     @Param('channel') channel: ChatChannel,
     @Body() dto: SendMessageDto,
     @GetUser() user: any,
@@ -86,8 +89,8 @@ export class ChatMessagesController {
 
   @Patch('messages/read')
   async markRead(
-    @Param('projectId') projectId: string,
-    @Param('ticketId') ticketId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('ticketId', ParseUUIDPipe) ticketId: string,
     @Param('channel') channel: ChatChannel,
     @Body() dto: MarkReadDto,
     @GetUser() user: any,
@@ -125,7 +128,7 @@ export class ChatMessagesController {
 
   @Get('unread')
   async getUnreadCounts(
-    @Param('ticketId') ticketId: string,
+    @Param('ticketId', ParseUUIDPipe) ticketId: string,
     @GetUser() user: any,
   ): Promise<UnreadCountDto> {
     return this.service.getUnreadCounts(ticketId, user.id, user.userType);
