@@ -376,6 +376,9 @@ export default function Page() {
           : 'Failed to reorder ticket statuses.',
       );
     },
+    onSuccess: () => {
+      appToast.success('Ticket statuses reordered successfully.');
+    },
     onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: ['ticket-statuses'] });
     },

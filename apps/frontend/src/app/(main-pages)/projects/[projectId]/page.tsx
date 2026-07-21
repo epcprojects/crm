@@ -1025,7 +1025,7 @@ export default function ProjectDetailPage() {
 function renderProjectTabIcon(tab: (typeof projectTabs)[number]) {
   if (tab === 'Tickets') {
     return (
-      <TicketsIcon width="20" height="20" fill="currentColor" opacity="0.4" />
+      <TicketsIcon width="20" height="20" fill="currentColor" opacity="0" />
     );
   }
 
