@@ -93,6 +93,7 @@ export class TicketRepliesService {
       await this.notificationsService.dispatch({
         type: EmailEventType.TICKET_REPLY_POSTED,
         payload: {
+          projectId: ticket?.project?.id,
           ticketId: ticketId,
           ticketNumber: ticket.ticketRefNo,
           ticketTitle: ticket.title,

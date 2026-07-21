@@ -47,6 +47,7 @@ export interface TicketCreatedPayload {
 }
 
 export interface TicketReplyPostedPayload {
+  projectId: string
   ticketId: string;
   ticketNumber: string;
   ticketTitle: string;

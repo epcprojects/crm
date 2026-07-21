@@ -208,11 +208,10 @@ export function buildTicketReplyEmail(
       <p style="margin:0 0 18px;font-size:15px;color:#111827;font-weight:600;">${p.ticketTitle}</p>
       ${p.isInternal ? `<div class="internal-banner">🔒 <strong>Internal Note</strong> — visible to team members only</div>` : ''}
       <div class="meta-row"><span class="meta-label">Posted By</span>${p.postedBy.name}</div>
-      <div class="meta-row"><span class="meta-label">Channel</span>${badge(channelLabel, p.isInternal ? COLORS.warning : COLORS.info)}</div>
       <hr class="divider" />
-      <div class="comment-box">${p.replyContent}</div>
+      ${p.replyContent ? `<div class="comment-box">${p.replyContent}</div>` : ''}
       <hr class="divider" />
-      <a href="${appUrl}/tickets/${p.ticketId}" class="btn">View Thread</a>
+      <a href="${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}" class="btn" style="text-decoration:none;color:#ffffff;padding:8px 16px;border-radius:4px;display:inline-block;">View Reply</a>
     </div>
     ${footer(appName, appUrl)}`;
 
@@ -374,7 +373,7 @@ export function buildThreadMessageCreatedEmail(
       <p style="margin:0 0 18px;font-size:15px;color:#111827;font-weight:600;">New message in project</p>
       <div class="meta-row"><span class="meta-label">Posted By</span>${p.createdBy.name}</div>
       <hr class="divider" />
-      <a href="${appUrl}/projects/${p.projectId}?t=1" class="btn">View Message</a>
+      <a href="${appUrl}/projects/${p.projectId}?t=1" class="btn" style="text-decoration:none;color:#ffffff;padding:8px 16px;border-radius:4px;display:inline-block;">View Message</a>
     </div>
     ${footer(appName, appUrl)}`;
 
