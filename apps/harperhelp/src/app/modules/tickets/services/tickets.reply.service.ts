@@ -41,9 +41,9 @@ export class TicketRepliesService {
     //   .getRepository('projects')
     //   .findOne({ where: { id: projectId } });
     // if (!project) throw new NotFoundException('Project not found');
-        const ticket = await this.ticketRepo.findOne({
-      where: { id: ticketId },
-    });
+        const ticket = await this.replyRepo.manager
+      .getRepository(Ticket)
+      .findOne({ where: { id: ticketId } });
     if (!ticket) throw new NotFoundException('Ticket not found');
     const reply = await this.replyRepo.save(
       this.replyRepo.create({
