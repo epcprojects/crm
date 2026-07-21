@@ -100,7 +100,7 @@ export default function ProjectDetailPage() {
   const [selectedThreadMessageId, setSelectedThreadMessageId] = useState('');
   const [ticketsPagination, setTicketsPagination] = useState({
     pageIndex: 0,
-    pageSize: 12,
+    pageSize: 10,
   });
   const projectId = String(params?.projectId ?? '');
   const hasShownError = useRef(false);
@@ -675,7 +675,7 @@ export default function ProjectDetailPage() {
                 ))}
               </TabList>
 
-              <TabPanels className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+              <TabPanels className="flex min-h-0 min-w-0 flex-1 flex-col pb-4 md:pb-4 overflow-hidden">
                 <PermissionGuard permission="tickets.view_list">
                   <TabPanel className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-hidden">
                     <div className="flex shrink-0 flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">

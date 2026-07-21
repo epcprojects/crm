@@ -71,7 +71,7 @@ export default function DashboardSummaryBanner({
       </div>
 
       <div
-        className={`${badge ? 'flex-col w-full' : 'xl:flex-row xl:items-center'} relative flex min-w-0 flex-1  flex-col gap-3   xl:justify-between xl:gap-4`}
+        className={`${badge ? 'flex-wrap' : 'xl:flex-row xl:items-center'} relative flex min-w-0 flex-1  flex-col md:flex-row gap-3   xl:justify-between xl:gap-4`}
       >
         {/* Desktop title */}
         <div className="flex items-center gap-4">

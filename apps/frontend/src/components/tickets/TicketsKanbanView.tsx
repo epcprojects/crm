@@ -123,7 +123,7 @@ export default function TicketsKanbanView({
   }
 
   return (
-    <div className="h-full max-h-full min-h-0 w-full min-w-0 overflow-x-auto overflow-y-hidden overscroll-contain scrollbar-hide">
+    <div className="h-full max-h-full min-h-0 w-full min-w-0 overflow-x-auto overflow-y-hidden overscroll-contain scrollbar-thin">
       <div className="flex h-full min-h-0 min-w-max items-stretch gap-3 pb-2">
         {columns.map((column) => {
           const tone = getStatusTone(column.color);

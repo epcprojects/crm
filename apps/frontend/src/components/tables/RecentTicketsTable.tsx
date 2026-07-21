@@ -94,11 +94,11 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     accessorKey: 'project.name',
     header: 'Project',
     cell: ({ row }) => (
-      <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-gray-200 bg-white py-0.5 pr-2.5 pl-0.5 text-xs  text-gray-800">
-        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs text-gray-900">
+      <span className="inline-flex max-w-60 items-center gap-2 whitespace-nowrap rounded-full border border-gray-200 bg-white py-0.5 pr-2.5 pl-0.5 text-xs  text-gray-800">
+        <span className="flex h-6 w-6 items-center shrink-0 justify-center rounded-full bg-gray-100 text-xs text-gray-900">
           {row.original.project.initials}
         </span>
-        {row.original.project.name}
+        <span className="truncate"> {row.original.project.name}</span>
       </span>
     ),
   },
@@ -177,7 +177,7 @@ export default function RecentTicketsTable({
   onViewAll,
   onEmptyButtonClick,
   enablePagination = false,
-  initialPageSize = 12,
+  initialPageSize = 10,
   pageSizeOptions = [10, 25, 50, 100],
   onRowClick,
   hideProjectColumn = false,

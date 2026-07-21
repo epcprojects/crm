@@ -105,7 +105,8 @@ export function useProjectDetailQuery(projectId: string, enabled = true) {
     queryKey: [...projectsQueryKey, projectId],
     queryFn: () => fetchProjectById(projectId),
     enabled: Boolean(projectId && enabled),
-    initialData: () => {
+    refetchOnMount: 'always',
+    placeholderData: () => {
       const projectQueries = queryClient.getQueriesData<ProjectRecord[]>({
         queryKey: projectsQueryKey,
       });
@@ -136,9 +137,15 @@ export function useUpdateProjectMutation() {
 
   return useMutation({
     mutationFn: updateProject,
-    onSuccess: async (_data, variables) => {
+    onSuccess: async (updatedProject, variables) => {
+      queryClient.setQueryData(
+        [...projectsQueryKey, variables.projectId],
+        updatedProject,
+      );
+
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
+        queryClient.invalidateQueries({ queryKey: projectNamesQueryKey }),
         queryClient.invalidateQueries({
           queryKey: [...projectsQueryKey, variables.projectId],
         }),
@@ -482,7 +489,17 @@ async function updateProject({
     throw new Error(payload?.message || 'Failed to update project.');
   }
 
-  return payload;
+  if (isApiProjectRecord(payload)) {
+    return mapApiProjectToProjectRecord(payload);
+  }
+
+  return {
+    id: projectId,
+    name: values.name,
+    category: values.category,
+    colorHex: values.colorHex,
+    initials: getInitials(values.name),
+  } as ProjectRecord;
 }
 
 async function deleteProject(projectId: string) {

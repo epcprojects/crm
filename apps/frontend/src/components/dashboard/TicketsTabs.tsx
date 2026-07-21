@@ -141,15 +141,15 @@ export default function TicketsTabs({ tabs, onTicketClick }: TicketsTabsProps) {
                       {ticket.title}
                     </p>
 
-                    <div className="flex flex-row gap-3 items-center">
+                    <div className="flex flex-row gap-3 items-end">
                       <p className="shrink-0 text-gray-600 text-xs">
                         {ticket.date}
                       </p>
 
-                      <div className="flex flex-row flex-wrap gap-1.5">
+                      <div className="flex flex-row overflow-hidden w-full gap-1.5">
                         <span
                           className={clsx(
-                            'inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium',
+                            ' rounded-full border px-2 truncate py-0.5 text-[10px] font-medium',
                             ticket.ownerColor,
                           )}
                         >

@@ -1032,17 +1032,12 @@ export default function TicketDetailPage() {
                 value={(ticket as any).createdByDetail?.name ?? 'Unknown'}
               />
 
-              <div>
-                <span className="block text-sm text-gray-300">Project</span>
+              <MetaItem
+                label="Project"
+                hideTooltip={false}
+                value={ticket.project.name}
+              />
 
-                <span className="mt-1 inline-flex items-center gap-2 rounded-full bg-purple-100 py-0.75 pr-2.5 pl-0.75 text-sm font-medium text-purple-700">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-white text-xs font-medium">
-                    {ticket.project.initials}
-                  </span>
-
-                  {ticket.project.name}
-                </span>
-              </div>
               {selectedDueDate ? (
                 <div>
                   <span className="block text-sm text-gray-300">Due Date</span>
@@ -1337,31 +1332,33 @@ export default function TicketDetailPage() {
                   <div className="space-y-3 p-3 sm:p-4">
                     {ticket.attachments.length ? (
                       ticket.attachments.map((attachment) => (
-                        <a
-                          key={attachment.id}
-                          href={getAttachmentUrl(attachment.storageKey)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center gap-3 rounded-xl border border-gray-200 p-2.5 transition hover:bg-gray-50"
-                          onClick={(event) => {
-                            if (!isImageAttachmentExtension(attachment.extension)) {
-                              return;
-                            }
+                      <a
+                        key={attachment.id}
+                        href={getAttachmentUrl(attachment.storageKey)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-3 rounded-xl border border-gray-200 p-2.5 transition hover:bg-gray-50"
+                        onClick={(event) => {
+                          if (
+                            !isImageAttachmentExtension(attachment.extension)
+                          ) {
+                            return;
+                          }
 
-                            event.preventDefault();
-                            const index = ticketAttachmentGalleryImages.findIndex(
-                              (image) => image.attachmentId === attachment.id,
-                            );
+                          event.preventDefault();
+                          const index = ticketAttachmentGalleryImages.findIndex(
+                            (image) => image.attachmentId === attachment.id,
+                          );
 
-                            openGallery(ticketAttachmentGalleryImages, index);
-                          }}
-                        >
-                          {isImageAttachmentExtension(attachment.extension) ? (
-                            <img
-                              alt={attachment.name}
-                              className="h-10 w-10 rounded-sm border border-gray-200"
-                              src={getFileUrl(attachment.storageKey)}
-                            />
+                          openGallery(ticketAttachmentGalleryImages, index);
+                        }}
+                      >
+                        {isImageAttachmentExtension(attachment.extension) ? (
+                          <img
+                            alt={attachment.name}
+                            className="h-10 w-10 rounded-sm border border-gray-200"
+                            src={getFileUrl(attachment.storageKey)}
+                          />
                         ) : (
                           <FileBadgeIcon extension={attachment.extension} />
                         )}
@@ -1375,15 +1372,20 @@ export default function TicketDetailPage() {
                             {attachment.sizeLabel}
                           </p>
                         </div>
-                      </a>
-                    ))
-                  ) : (
-                    <p className="text-sm text-gray-500">
-                      No attachments added.
-                    </p>
-                  )}
-                </div>
-              </section>
+                        </a>
+                      ))
+                    ) : (
+                      <div className="py-2">
+                        <EmptyState
+                          imageUrl="/images/EmptyProjectIcon.svg"
+                          imageAlt="No attachments"
+                          title="No Attachments"
+                          description="No attachments have been added to this ticket yet."
+                        />
+                      </div>
+                    )}
+                  </div>
+                </section>
 
               {!isExternalUser ? (
                 <section className="rounded-xl border border-gray-200 bg-white sm:rounded-2xl">
@@ -1494,11 +1496,11 @@ export default function TicketDetailPage() {
         </div>
       </AppModal>
 
-        <ConfirmActionModal
-          isOpen={Boolean(chatMessagePendingDelete)}
-          onClose={() => {
-            if (deletingChatMessageId) {
-              return;
+      <ConfirmActionModal
+        isOpen={Boolean(chatMessagePendingDelete)}
+        onClose={() => {
+          if (deletingChatMessageId) {
+            return;
           }
 
           setChatMessagePendingDelete(null);
@@ -1512,21 +1514,21 @@ export default function TicketDetailPage() {
         confirmLabel="Yes, Delete"
         cancelLabel="Cancel"
         variant="danger"
-          isSubmitting={Boolean(deletingChatMessageId)}
-          onConfirm={handleConfirmDeleteChatMessage}
-        />
-        <ImageGalleryLightbox
-          images={galleryImages}
-          activeIndex={activeGalleryIndex}
-          title="Ticket attachments"
-          onClose={closeGallery}
-          onSelect={selectGalleryImage}
-          onPrevious={showPreviousGalleryImage}
-          onNext={showNextGalleryImage}
-        />
-      </div>
-    );
-  }
+        isSubmitting={Boolean(deletingChatMessageId)}
+        onConfirm={handleConfirmDeleteChatMessage}
+      />
+      <ImageGalleryLightbox
+        images={galleryImages}
+        activeIndex={activeGalleryIndex}
+        title="Ticket attachments"
+        onClose={closeGallery}
+        onSelect={selectGalleryImage}
+        onPrevious={showPreviousGalleryImage}
+        onNext={showNextGalleryImage}
+      />
+    </div>
+  );
+}
 
 async function fetchTicketDetail(projectId: string, ticketId: string) {
   const response = await fetch(
@@ -2337,13 +2339,29 @@ function isImageAttachmentExtension(extension?: string) {
   );
 }
 
-function MetaItem({ label, value }: { label: string; value: string }) {
+function MetaItem({
+  label,
+  value,
+  hideTooltip = true,
+}: {
+  label: string;
+  value: string;
+  hideTooltip?: boolean;
+}) {
   return (
-    <div>
+    <div className="w-fit">
       <span className="block text-xs sm:text-sm text-gray-300">{label}</span>
-      <p className="sm:mt-1 text-sm sm:text-base font-semibold text-white">
-        {value}
-      </p>
+      <Tooltip
+        heading={value}
+        className="w-fit"
+        side="bottom"
+        content={''}
+        hide={hideTooltip}
+      >
+        <p className="sm:mt-1 text-sm truncate sm:text-base font-semibold text-white">
+          {value}
+        </p>
+      </Tooltip>
     </div>
   );
 }
