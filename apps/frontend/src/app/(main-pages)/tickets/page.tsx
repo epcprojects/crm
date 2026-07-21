@@ -16,7 +16,7 @@ import RecentTicketsTable, {
 import TicketsKanbanView from '../../../components/tickets/TicketsKanbanView';
 import { appToast } from '../../../components/toast/AppToast';
 import Dropdown from '../../../components/ui/ThemeDropDown';
-import { FiltersIcon, PlusIcon, SearchIcon } from '../../../../public/icons';
+import { DownloadIcon, FiltersIcon, PlusIcon, SearchIcon } from '../../../../public/icons';
 import { createTicket } from '../../../lib/tickets';
 import {
   projectsQueryKey,
@@ -43,6 +43,7 @@ export default function Page() {
   const queryClient = useQueryClient();
   const { setLoading } = useAppLoader();
   const { setHeaderActionOverride } = useDashboardHeaderAction();
+  const [isExportingTickets, setIsExportingTickets] = useState(false);
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
@@ -189,6 +190,58 @@ export default function Page() {
       ),
     [ticketStatusesQuery.data],
   );
+
+const handleExportTickets = async () => {
+  try {
+    setIsExportingTickets(true);
+
+    const exportParams = new URLSearchParams();
+
+    if (searchValue.trim()) {
+      exportParams.set('search', searchValue.trim());
+    }
+
+    if (selectedStatus !== 'all') {
+      exportParams.set('statusKey', selectedStatus);
+    }
+
+    if (selectedPriority !== 'all') {
+      exportParams.set('priorityKey', selectedPriority);
+    }
+
+    if (selectedProject !== 'all') {
+      exportParams.set('projectId', selectedProject);
+    }
+
+    const response = await fetch(
+      `/api/tickets/export?${exportParams.toString()}`,
+      { method: 'GET' },
+    );
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      throw new Error(payload?.message || 'Failed to export tickets.');
+    }
+
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `tickets-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(downloadUrl);
+
+    appToast.success('Tickets exported successfully.');
+  } catch (error) {
+    appToast.error(
+      error instanceof Error ? error.message : 'Failed to export tickets.',
+    );
+  } finally {
+    setIsExportingTickets(false);
+  }
+};
 
   const moveTicketMutation = useMutation({
     mutationFn: async ({
@@ -650,6 +703,16 @@ export default function Page() {
                         >
                           New Ticket
                         </ThemeButton>
+
+                        <ThemeButton
+  className="rounded-full"
+  variant="primaryGradient"
+  icon={<DownloadIcon />}
+  onClick={handleExportTickets}
+  disabled={isExportingTickets}
+>
+  {isExportingTickets ? 'Exporting...' : 'Export Tickets'}
+</ThemeButton>
                       </div>
                     </>
                   ) : null}

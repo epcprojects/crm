@@ -23,13 +23,13 @@ import {
   ApiQuery,
   ApiResponse,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from 'apps/harperhelp/src/common/guards/jwt-auth.guard';
-import { RolesGuard } from 'apps/harperhelp/src/common/guards/roles.guard';
-import { GetUser } from 'apps/harperhelp/src/common/decorators/get-user.decorator';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../common/guards/roles.guard';
+import { GetUser } from '../../../common/decorators/get-user.decorator';
 import { GetTicketsQueryDto } from './dto/get-tickets-query.dto';
 import { CalendarView } from '@harperhelp/types';
 import { CalendarQueryDto } from '../calendar/dto/calendar-query.dto';
-import { FileSizeGuard } from 'apps/harperhelp/src/common/guards/file-size.guard';
+import { FileSizeGuard } from '../../../common/guards/file-size.guard';
 
 @Controller('projects/:pid/tickets')
 @ApiBearerAuth('JWT-auth')

@@ -8,6 +8,7 @@ import {
   AlertIcon,
   CheckMarkCircleIcon,
   ClockIcon,
+  DownloadIcon,
   FiltersIcon,
   FolderIcon,
   PlusIcon,
@@ -98,6 +99,7 @@ export default function Page() {
   const canEditProject = hasPermission('projects.edit');
   const canDeleteProject = hasPermission('projects.delete');
   const [searchValue, setSearchValue] = useState('');
+  const [isExportingTickets, setIsExportingTickets] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedPriority, setSelectedPriority] = useState('all');
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
@@ -231,6 +233,55 @@ export default function Page() {
       ),
     [criticalTicketsQuery.data?.items, upcomingTicketsQuery.data],
   );
+
+
+const handleExportTickets = async () => {
+  try {
+    setIsExportingTickets(true);
+
+    const exportParams = new URLSearchParams();
+
+    if (searchValue.trim()) {
+      exportParams.set('search', searchValue.trim());
+    }
+
+    if (selectedStatus !== 'all') {
+      exportParams.set('statusKey', selectedStatus);
+    }
+
+    if (selectedPriority !== 'all') {
+      exportParams.set('priorityKey', selectedPriority);
+    }
+
+    const response = await fetch(
+      `/api/dashboard/tickets/export?${exportParams.toString()}`,
+      { method: 'GET' },
+    );
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      throw new Error(payload?.message || 'Failed to export tickets.');
+    }
+
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `recent-tickets-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(downloadUrl);
+
+    appToast.success('Tickets exported successfully.');
+  } catch (error) {
+    appToast.error(
+      error instanceof Error ? error.message : 'Failed to export tickets.',
+    );
+  } finally {
+    setIsExportingTickets(false);
+  }
+};
 
   const handleViewAllTickets = () => {
     if (!canViewTicketsList) {
@@ -429,6 +480,16 @@ export default function Page() {
                       Here's what's happening across your companies
                     </p>
                   </div>
+
+<ThemeButton
+  className="shrink-0 rounded-full"
+  variant="primaryGradient"
+  icon={<DownloadIcon />}
+  onClick={handleExportTickets}
+  disabled={isExportingTickets}
+>
+  {isExportingTickets ? 'Exporting...' : 'Export Tickets'}
+</ThemeButton>
 
                   {canCreateTicket ? (
                     <ThemeButton
