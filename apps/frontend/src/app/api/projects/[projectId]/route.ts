@@ -1,6 +1,9 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 function getProjectsApiBaseUrl() {
   const baseUrl = process.env.API_BASE_URL?.trim();
 
@@ -51,7 +54,12 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(data, { status: 200 });
+    return NextResponse.json(data, {
+      status: 200,
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      },
+    });
   } catch {
     return NextResponse.json(
       { message: 'Something went wrong while fetching the project.' },
@@ -103,7 +111,12 @@ export async function PATCH(
       );
     }
 
-    return NextResponse.json(data, { status: response.status });
+    return NextResponse.json(data, {
+      status: response.status,
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      },
+    });
   } catch {
     return NextResponse.json(
       { message: 'Something went wrong while updating the project.' },

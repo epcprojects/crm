@@ -1,6 +1,7 @@
 import type { UserProfile } from '../../app/Redux/slices/auth/types';
 
 export const DEFAULT_POST_LOGIN_PATH = '/dashboard';
+export const RETURN_URL_FALLBACK_PATH = '/page-not-found';
 
 const PUBLIC_ROUTES = [
   '/login',
@@ -73,7 +74,7 @@ export async function resolveAuthorizedReturnUrl(
   const hasAccess = await canAccessRoute(parsedUrl, user);
 
   if (!hasAccess) {
-    return DEFAULT_POST_LOGIN_PATH;
+    return RETURN_URL_FALLBACK_PATH;
   }
 
   return `${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;

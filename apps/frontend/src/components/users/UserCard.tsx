@@ -6,6 +6,7 @@ import {
   TrashIcon,
 } from '../../../public/icons';
 import { useIsMobile } from '../hooks/useIsMobile';
+import Tooltip from '../tooltip';
 import ThemeButton from '../ui/ThemeButton';
 
 export type UserCardProject = {
@@ -287,7 +288,13 @@ function ProjectPill({ project }: { project: UserCardProject }) {
       >
         {project.initials}
       </span>
-      <span className="text-xs text-gray-800">{project.name}</span>
+      <Tooltip content="" heading={project.name}>
+        <div className="max-w-44 cursor-pointer truncate w-full">
+          <span className="text-xs text-gray-800 truncate max-w-44">
+            {project.name}
+          </span>
+        </div>
+      </Tooltip>
     </span>
   );
 }

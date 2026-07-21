@@ -28,6 +28,7 @@ export type CreateTicketFormValues = {
   attachments: File[];
 };
 
+const MAX_TITLE_LENGTH = 250;
 const MAX_DESCRIPTION_LENGTH = 4000;
 
 type CreateTicketModalProps = {
@@ -56,7 +57,13 @@ export default function CreateTicketModal({
     () =>
       yup.object({
         project: yup.string().required('Project is required'),
-        title: yup.string().required('Title is required'),
+        title: yup
+          .string()
+          .max(
+            MAX_TITLE_LENGTH,
+            `Title must be ${MAX_TITLE_LENGTH} characters or less`,
+          )
+          .required('Title is required'),
         description: yup
           .string()
           .max(
@@ -259,11 +266,22 @@ export default function CreateTicketModal({
             required
             name="title"
             value={formik.values.title}
-            onChange={formik.handleChange}
+            onChange={(event) => {
+              if (event.target.value.length > MAX_TITLE_LENGTH) {
+                return;
+              }
+
+              formik.handleChange(event);
+            }}
             onBlur={formik.handleBlur}
             errorText={formik.touched.title ? formik.errors.title : ''}
             placeholder="Enter ticket title"
           />
+          <div className="-mt-2 flex items-center justify-end">
+            <p className="shrink-0 text-xs text-gray-500">
+              {formik.values.title.length}/{MAX_TITLE_LENGTH}
+            </p>
+          </div>
 
           <div className="w-full">
             <label className="mb-1.5 block text-sm font-normal text-gray-800 md:text-base">

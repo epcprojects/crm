@@ -10,6 +10,7 @@ import {
   mapApiProjectToProjectRecord,
   type ProjectRecord,
   type ApiProjectRecord,
+  type ProjectNameRecord,
   type ProjectFileRecord,
 } from './projects.data';
 import type { CreateProjectFormValues } from '../../../components/modals/CreateProjectModal';
@@ -22,6 +23,7 @@ import type {
 } from '../../../components/tables/RecentTicketsTable';
 
 export const projectsQueryKey = ['projects'];
+export const projectNamesQueryKey = ['project-names'];
 export const projectThreadQueryKey = ['project-thread'];
 export const projectThreadDetailQueryKey = ['project-thread-detail'];
 export const projectTicketsQueryKey = ['project-tickets'];
@@ -72,6 +74,14 @@ export function useProjectsQuery(
   });
 }
 
+export function useProjectNamesQuery(enabled = true) {
+  return useQuery({
+    queryKey: projectNamesQueryKey,
+    queryFn: fetchProjectNames,
+    enabled,
+  });
+}
+
 export function useProjectsInfiniteQuery(
   enabled = true, limit = 12, search = '',) {
 
@@ -95,7 +105,8 @@ export function useProjectDetailQuery(projectId: string, enabled = true) {
     queryKey: [...projectsQueryKey, projectId],
     queryFn: () => fetchProjectById(projectId),
     enabled: Boolean(projectId && enabled),
-    initialData: () => {
+    refetchOnMount: 'always',
+    placeholderData: () => {
       const projectQueries = queryClient.getQueriesData<ProjectRecord[]>({
         queryKey: projectsQueryKey,
       });
@@ -113,7 +124,10 @@ export function useCreateProjectMutation() {
   return useMutation({
     mutationFn: createProject,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: projectsQueryKey });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
+        queryClient.invalidateQueries({ queryKey: projectNamesQueryKey }),
+      ]);
     },
   });
 }
@@ -123,9 +137,15 @@ export function useUpdateProjectMutation() {
 
   return useMutation({
     mutationFn: updateProject,
-    onSuccess: async (_data, variables) => {
+    onSuccess: async (updatedProject, variables) => {
+      queryClient.setQueryData(
+        [...projectsQueryKey, variables.projectId],
+        updatedProject,
+      );
+
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
+        queryClient.invalidateQueries({ queryKey: projectNamesQueryKey }),
         queryClient.invalidateQueries({
           queryKey: [...projectsQueryKey, variables.projectId],
         }),
@@ -140,7 +160,10 @@ export function useDeleteProjectMutation() {
   return useMutation({
     mutationFn: deleteProject,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: projectsQueryKey });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
+        queryClient.invalidateQueries({ queryKey: projectNamesQueryKey }),
+      ]);
     },
   });
 }
@@ -289,6 +312,45 @@ async function fetchProjects({
   return projectsResponse;
 }
 
+type ApiProjectNameRecord = {
+  id?: string;
+  name?: string;
+};
+
+async function fetchProjectNames(): Promise<ProjectNameRecord[]> {
+  const response = await fetch('/api/projects/names', {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiProjectNameRecord[]
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !Array.isArray(payload)) {
+    throw new Error(
+      !Array.isArray(payload)
+        ? payload?.message || 'Failed to fetch project names.'
+        : 'Failed to fetch project names.',
+    );
+  }
+
+  return payload.flatMap((project) => {
+    const id = project.id?.trim();
+    const name = project.name?.trim();
+
+    if (!id || !name) {
+      return [];
+    }
+
+    return [{ id, name }];
+  });
+}
+
 function normalizeProjectsResponse(
   payload:
     | ApiProjectRecord[]
@@ -427,7 +489,17 @@ async function updateProject({
     throw new Error(payload?.message || 'Failed to update project.');
   }
 
-  return payload;
+  if (isApiProjectRecord(payload)) {
+    return mapApiProjectToProjectRecord(payload);
+  }
+
+  return {
+    id: projectId,
+    name: values.name,
+    category: values.category,
+    colorHex: values.colorHex,
+    initials: getInitials(values.name),
+  } as ProjectRecord;
 }
 
 async function deleteProject(projectId: string) {

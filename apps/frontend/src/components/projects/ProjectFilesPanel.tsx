@@ -1,6 +1,8 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import ThemeButton from '../ui/ThemeButton';
+import EmptyState from '../EmptyState';
 import {
   DownloadIcon,
   EyeOpenedIcon,
@@ -9,6 +11,7 @@ import {
   SearchIcon,
   TrashIcon,
 } from '../../../public/icons';
+import ImageGalleryLightbox from '../ui/ImageGalleryLightbox';
 
 export type ProjectFileRecord = {
   id: string;
@@ -37,6 +40,13 @@ type ProjectFilesPanelProps = {
   subtitle?: string;
 };
 
+type GalleryImage = {
+  storageKey?: string;
+  fileName?: string;
+  src: string;
+  alt: string;
+};
+
 export default function ProjectFilesPanel({
   files,
   searchValue,
@@ -48,6 +58,24 @@ export default function ProjectFilesPanel({
   title = 'Project Files',
   subtitle = 'Internal team only',
 }: ProjectFilesPanelProps) {
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+  const [activeGalleryIndex, setActiveGalleryIndex] = useState<number | null>(
+    null,
+  );
+  const imageFiles = useMemo(
+    () =>
+      files
+        .filter((file) => isImageFile(file.extension))
+        .map((file) => ({
+          storageKey: file.storageKey,
+          fileName: file.name,
+          src: getFileUrl(file.storageKey),
+          alt: file.name,
+        }))
+        .filter((file) => Boolean(file.src)),
+    [files],
+  );
+
   const handleViewFile = (storageKey?: string) => {
     const fileUrl = getFileUrl(storageKey);
 
@@ -75,8 +103,46 @@ export default function ProjectFilesPanel({
     document.body.removeChild(link);
   };
 
+  const handlePreviewFile = (file: ProjectFileRecord) => {
+    if (isImageFile(file.extension)) {
+      const imageIndex = imageFiles.findIndex(
+        (image) => image.storageKey === file.storageKey && image.fileName === file.name,
+      );
+
+      if (imageIndex >= 0) {
+        setGalleryImages(imageFiles);
+        setActiveGalleryIndex(imageIndex);
+        return;
+      }
+    }
+
+    handleViewFile(file.storageKey);
+  };
+
+  const closeGallery = () => {
+    setActiveGalleryIndex(null);
+    setGalleryImages([]);
+  };
+
+  const showPreviousGalleryImage = () => {
+    setActiveGalleryIndex((current) =>
+      current === null || !galleryImages.length
+        ? null
+        : (current - 1 + galleryImages.length) % galleryImages.length,
+    );
+  };
+
+  const showNextGalleryImage = () => {
+    setActiveGalleryIndex((current) =>
+      current === null || !galleryImages.length
+        ? null
+        : (current + 1) % galleryImages.length,
+    );
+  };
+
   return (
-    <div className="flex flex-1 flex-col space-y-4">
+    <>
+      <div className="flex flex-1 flex-col space-y-4">
       <div className="flex flex-col gap-3 rounded-2xl md:flex-row md:items-center md:justify-between">
         <div className="relative flex w-full items-center md:max-w-xs">
           <input
@@ -108,98 +174,126 @@ export default function ProjectFilesPanel({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {files.map((file) => (
-            <div
-              key={file.id}
-              className="border-b border-gray-200 px-3 py-4 last:border-b-0 sm:px-4"
-            >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
-                  {isImageFile(file.extension) ? (
-                    <img
-                      className="h-10 w-10 shrink-0 rounded-sm border border-gray-200"
-                      src={getFileUrl(file.storageKey)}
-                    />
-                  ) : (
-                    <div className="shrink-0">
-                      <FileTypeIcon type={file.extension ?? file.type} />
-                    </div>
-                  )}
+          {files.length ? (
+            files.map((file) => (
+              <div
+                key={file.id}
+                onClick={() => handlePreviewFile(file)}
+                className="border-b cursor-pointer border-gray-200 px-3 py-4 last:border-b-0 sm:px-4"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
+                    {isImageFile(file.extension) ? (
+                      <img
+                        className="h-10 w-10 shrink-0 rounded-sm border border-gray-200"
+                        src={getFileUrl(file.storageKey)}
+                      />
+                    ) : (
+                      <div className="shrink-0">
+                        <FileTypeIcon type={file.extension ?? file.type} />
+                      </div>
+                    )}
 
-                  <div className="min-w-0 flex-1">
-                    <p
-                      onClick={() => handleViewFile(file.storageKey)}
-                      className="w-full cursor-pointer truncate text-sm font-semibold leading-[1.2] text-gray-900"
-                    >
-                      {file.name}
-                    </p>
+                    <div className="min-w-0 flex-1">
+                      <p className="w-full  truncate text-sm font-semibold leading-[1.2] text-gray-900">
+                        {file.name}
+                      </p>
 
-                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-700">
-                      {file.size ? <p>{file.size}</p> : null}
-                      {file.size && file.uploadedAt ? (
-                        <span className="inline-block h-1 w-1 rounded-full bg-gray-400" />
-                      ) : null}
-                      {file.uploadedAt ? <p>{file.uploadedAt}</p> : null}
-                    </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-700">
+                        {file.size ? <p>{file.size}</p> : null}
+                        {file.size && file.uploadedAt ? (
+                          <span className="inline-block h-1 w-1 rounded-full bg-gray-400" />
+                        ) : null}
+                        {file.uploadedAt ? <p>{file.uploadedAt}</p> : null}
+                      </div>
 
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {getFileMetadataItems(file).map((item) => (
-                        <div
-                          key={`${file.id}-${item.label}`}
-                          className={`rounded-full border px-2 py-0.5 text-xs ${
-                            item.value === 'Thread'
-                              ? 'border-[#D9D6FE] bg-[#F4F3FF] text-[#5925DC]'
-                              : 'border-[#B9E6FE] bg-[#F0F9FF] text-[#026AA2]'
-                          }`}
-                        >
-                          <span>
-                            <span className="font-medium">{item.label}</span>{' '}
-                            {item.value}
-                          </span>
-                        </div>
-                      ))}
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {getFileMetadataItems(file).map((item) => (
+                          <div
+                            key={`${file.id}-${item.label}`}
+                            className={`rounded-full border px-2 py-0.5 text-xs ${
+                              item.value === 'Thread'
+                                ? 'border-[#D9D6FE] bg-[#F4F3FF] text-[#5925DC]'
+                                : 'border-[#B9E6FE] bg-[#F0F9FF] text-[#026AA2]'
+                            }`}
+                          >
+                            <span>
+                              <span className="font-medium">{item.label}</span>{' '}
+                              {item.value}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex items-center justify-end gap-2 sm:justify-start">
-                  {canDownloadFile ? (
+                  <div className="flex items-center justify-end gap-2 sm:justify-start">
+                    {canDownloadFile ? (
+                      <ThemeButton
+                        variant="secondary"
+                        className="h-9 w-9 items-center justify-center bg-white! hover:bg-gray-100!"
+                        onClick={(e) => {
+                          handleDownloadFile(file);
+                          e.stopPropagation();
+                        }}
+                        disabled={!file.storageKey}
+                      >
+                        <DownloadIcon />
+                      </ThemeButton>
+                    ) : null}
+
                     <ThemeButton
                       variant="secondary"
                       className="h-9 w-9 items-center justify-center bg-white! hover:bg-gray-100!"
-                      onClick={() => handleDownloadFile(file)}
-                      disabled={!file.storageKey}
+                      onClick={(e) => {
+                        handlePreviewFile(file);
+                        e.stopPropagation();
+                      }}
+                      disabled={!getFileUrl(file.storageKey)}
                     >
-                      <DownloadIcon />
+                      <EyeOpenedIcon />
                     </ThemeButton>
-                  ) : null}
 
-                  <ThemeButton
-                    variant="secondary"
-                    className="h-9 w-9 items-center justify-center bg-white! hover:bg-gray-100!"
-                    onClick={() => handleViewFile(file.storageKey)}
-                    disabled={!getFileUrl(file.storageKey)}
-                  >
-                    <EyeOpenedIcon />
-                  </ThemeButton>
-
-                  {onDeleteFile ? (
-                    <ThemeButton
-                      variant="secondary"
-                      className="h-9 w-9 items-center justify-center bg-white! hover:bg-red-50!"
-                      onClick={() => onDeleteFile(file)}
-                      disabled={deletingFileId === file.id}
-                    >
-                      <TrashIcon />
-                    </ThemeButton>
-                  ) : null}
+                    {onDeleteFile ? (
+                      <ThemeButton
+                        variant="secondary"
+                        className="h-9 w-9 items-center justify-center bg-white! hover:bg-red-50!"
+                        onClick={(e) => {
+                          onDeleteFile(file);
+                          e.stopPropagation();
+                        }}
+                        disabled={deletingFileId === file.id}
+                      >
+                        <TrashIcon />
+                      </ThemeButton>
+                    ) : null}
+                  </div>
                 </div>
               </div>
+            ))
+          ) : (
+            <div className="flex min-h-full items-center justify-center p-6">
+              <EmptyState
+                imageUrl="/images/EmptyProjectIcon.svg"
+                imageAlt="No project files"
+                title="No Files"
+                description="No files have been uploaded to this project yet."
+              />
             </div>
-          ))}
+          )}
         </div>
       </div>
-    </div>
+      </div>
+      <ImageGalleryLightbox
+        images={galleryImages}
+        activeIndex={activeGalleryIndex}
+        title={title}
+        onClose={closeGallery}
+        onSelect={setActiveGalleryIndex}
+        onPrevious={showPreviousGalleryImage}
+        onNext={showNextGalleryImage}
+      />
+    </>
   );
 }
 
