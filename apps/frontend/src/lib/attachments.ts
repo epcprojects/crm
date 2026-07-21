@@ -11,13 +11,14 @@ export const ALLOWED_ATTACHMENT_EXTENSIONS = [
   '.xlsx',
   '.pdf',
   '.zip',
+  '.webp',
 ];
 
 export const ALLOWED_ATTACHMENT_ACCEPT =
   ALLOWED_ATTACHMENT_EXTENSIONS.join(',');
 
 export const ALLOWED_ATTACHMENT_HELPER_TEXT =
-  'JPG, PNG, SVG, Word, Excel, PDF, or ZIP up to 5MB';
+  'JPG, PNG, SVG, Word, Excel, PDF, webp, or ZIP up to 5MB';
 
 export const ALLOWED_ATTACHMENT_ERROR_TEXT = `Allowed file types: ${ALLOWED_ATTACHMENT_EXTENSIONS.join(', ')}`;
 

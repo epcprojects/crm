@@ -32,6 +32,15 @@ import { getFileUrl } from '../../../../components/projects/ProjectFilesPanel';
 import Tooltip from '../../../../components/tooltip';
 import Image from 'next/image';
 import EmptyState from '../../../../components/EmptyState';
+import ImageGalleryLightbox from '../../../../components/ui/ImageGalleryLightbox';
+
+type GalleryImage = {
+  attachmentId: string;
+  storageKey?: string;
+  fileName?: string;
+  src: string;
+  alt: string;
+};
 
 export default function TicketDetailPage() {
   const params = useParams<{ ticketId: string }>();
@@ -250,6 +259,10 @@ export default function TicketDetailPage() {
     id: string;
     message: string;
   } | null>(null);
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+  const [activeGalleryIndex, setActiveGalleryIndex] = useState<number | null>(
+    null,
+  );
   const unreadListenerSocketRef = useRef<ReturnType<
     typeof getChatSocket
   > | null>(null);
@@ -313,6 +326,11 @@ export default function TicketDetailPage() {
       ''
     );
   }, [assigneeOptions, selectedAssignee, ticket]);
+
+  const ticketAttachmentGalleryImages = useMemo(
+    () => buildTicketAttachmentGalleryImages(ticket?.attachments ?? []),
+    [ticket?.attachments],
+  );
 
   useEffect(() => {
     if (!ticket) {
@@ -612,6 +630,40 @@ export default function TicketDetailPage() {
     }
 
     setChatDrawerChannel(channel);
+  };
+
+  const openGallery = (images: GalleryImage[], index: number) => {
+    if (!images.length || index < 0) {
+      return;
+    }
+
+    setGalleryImages(images);
+    setActiveGalleryIndex(index);
+  };
+
+  const closeGallery = () => {
+    setActiveGalleryIndex(null);
+    setGalleryImages([]);
+  };
+
+  const selectGalleryImage = (index: number) => {
+    setActiveGalleryIndex(index);
+  };
+
+  const showPreviousGalleryImage = () => {
+    setActiveGalleryIndex((current) =>
+      current === null || !galleryImages.length
+        ? current
+        : (current - 1 + galleryImages.length) % galleryImages.length,
+    );
+  };
+
+  const showNextGalleryImage = () => {
+    setActiveGalleryIndex((current) =>
+      current === null || !galleryImages.length
+        ? current
+        : (current + 1) % galleryImages.length,
+    );
   };
 
   if (!canViewTicketDetail) {
@@ -1282,25 +1334,34 @@ export default function TicketDetailPage() {
                   Attachments
                 </h3>
 
-                <div className="space-y-3 p-3 sm:p-4">
-                  {ticket.attachments.length ? (
-                    ticket.attachments.map((attachment) => (
-                      <a
-                        key={attachment.id}
-                        href={getAttachmentUrl(attachment.storageKey)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-3 rounded-xl border border-gray-200 p-2.5 transition hover:bg-gray-50"
-                      >
-                        {attachment.extension === 'png' ||
-                        attachment.extension === 'svg' ||
-                        attachment.extension === 'jpg' ||
-                        attachment.extension === 'jpeg' ? (
-                          <img
-                            alt={attachment.name}
-                            className="h-10 w-10 rounded-sm border border-gray-200"
-                            src={getFileUrl(attachment.storageKey)}
-                          />
+                  <div className="space-y-3 p-3 sm:p-4">
+                    {ticket.attachments.length ? (
+                      ticket.attachments.map((attachment) => (
+                        <a
+                          key={attachment.id}
+                          href={getAttachmentUrl(attachment.storageKey)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-3 rounded-xl border border-gray-200 p-2.5 transition hover:bg-gray-50"
+                          onClick={(event) => {
+                            if (!isImageAttachmentExtension(attachment.extension)) {
+                              return;
+                            }
+
+                            event.preventDefault();
+                            const index = ticketAttachmentGalleryImages.findIndex(
+                              (image) => image.attachmentId === attachment.id,
+                            );
+
+                            openGallery(ticketAttachmentGalleryImages, index);
+                          }}
+                        >
+                          {isImageAttachmentExtension(attachment.extension) ? (
+                            <img
+                              alt={attachment.name}
+                              className="h-10 w-10 rounded-sm border border-gray-200"
+                              src={getFileUrl(attachment.storageKey)}
+                            />
                         ) : (
                           <FileBadgeIcon extension={attachment.extension} />
                         )}
@@ -1433,11 +1494,11 @@ export default function TicketDetailPage() {
         </div>
       </AppModal>
 
-      <ConfirmActionModal
-        isOpen={Boolean(chatMessagePendingDelete)}
-        onClose={() => {
-          if (deletingChatMessageId) {
-            return;
+        <ConfirmActionModal
+          isOpen={Boolean(chatMessagePendingDelete)}
+          onClose={() => {
+            if (deletingChatMessageId) {
+              return;
           }
 
           setChatMessagePendingDelete(null);
@@ -1451,12 +1512,21 @@ export default function TicketDetailPage() {
         confirmLabel="Yes, Delete"
         cancelLabel="Cancel"
         variant="danger"
-        isSubmitting={Boolean(deletingChatMessageId)}
-        onConfirm={handleConfirmDeleteChatMessage}
-      />
-    </div>
-  );
-}
+          isSubmitting={Boolean(deletingChatMessageId)}
+          onConfirm={handleConfirmDeleteChatMessage}
+        />
+        <ImageGalleryLightbox
+          images={galleryImages}
+          activeIndex={activeGalleryIndex}
+          title="Ticket attachments"
+          onClose={closeGallery}
+          onSelect={selectGalleryImage}
+          onPrevious={showPreviousGalleryImage}
+          onNext={showNextGalleryImage}
+        />
+      </div>
+    );
+  }
 
 async function fetchTicketDetail(projectId: string, ticketId: string) {
   const response = await fetch(
@@ -1951,6 +2021,25 @@ function extractFileNameFromUrl(url: string) {
   }
 }
 
+function buildTicketAttachmentGalleryImages(
+  attachments: {
+    id: string;
+    name: string;
+    extension?: string;
+    storageKey?: string;
+  }[],
+) {
+  return attachments
+    .filter((attachment) => isImageAttachmentExtension(attachment.extension))
+    .map((attachment, index) => ({
+      attachmentId: attachment.id,
+      storageKey: attachment.storageKey,
+      fileName: attachment.name,
+      src: getFileUrl(attachment.storageKey),
+      alt: `${attachment.name} preview ${index + 1}`,
+    }));
+}
+
 function getAttachmentExtension(value?: string | null) {
   const name = value?.trim() ?? '';
   const lastSegment = name.split('.').pop()?.trim();
@@ -2235,6 +2324,17 @@ function getAttachmentUrl(storageKey?: string) {
   return normalizedBaseUrl
     ? `${normalizedBaseUrl}/${normalizedStorageKey}`
     : '#';
+}
+
+function isImageAttachmentExtension(extension?: string) {
+  const normalizedExtension = extension?.trim().toLowerCase();
+
+  return (
+    normalizedExtension === 'png' ||
+    normalizedExtension === 'svg' ||
+    normalizedExtension === 'jpg' ||
+    normalizedExtension === 'jpeg'
+  );
 }
 
 function MetaItem({ label, value }: { label: string; value: string }) {

@@ -274,9 +274,7 @@ export default function TicketRepliesPanel({
                     </span>
                   </div>
                   {headerReply.message ? (
-                    <p className="text-sm font-normal text-gray-900">
-                      {headerReply.message}
-                    </p>
+                    <ExpandableMessageText message={headerReply.message} />
                   ) : null}
                   {headerReply.attachments?.length ? (
                     <div className="mt-2 grid gap-2">
@@ -383,9 +381,7 @@ export default function TicketRepliesPanel({
                           className={`w-full rounded-xl ${isCurrentUserReply ? 'rounded-tr-none' : 'rounded-tl-none'} ${reply.message && 'space-y-2 border border-gray-200 p-3 shadow-xs'}  bg-white  `}
                         >
                           {reply.message ? (
-                            <p className="text-sm font-normal text-gray-900">
-                              {reply.message}
-                            </p>
+                            <ExpandableMessageText message={reply.message} />
                           ) : null}
                           {reply.attachments?.length ? (
                             <div
@@ -666,6 +662,75 @@ function getAttachmentUrl(storageKey?: string) {
   return normalizedBaseUrl
     ? `${normalizedBaseUrl}/${normalizedStorageKey}`
     : '#';
+}
+
+function ExpandableMessageText({ message }: { message: string }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [shouldShowToggle, setShouldShowToggle] = useState(false);
+  const measureRef = useRef<HTMLParagraphElement | null>(null);
+  const overflowMeasureRef = useRef<HTMLParagraphElement | null>(null);
+
+  useEffect(() => {
+    const element = measureRef.current;
+    const overflowElement = overflowMeasureRef.current;
+
+    if (!element || !overflowElement) {
+      return;
+    }
+
+    const updateOverflowState = () => {
+      const computedStyle = window.getComputedStyle(element);
+      const lineHeight = Number.parseFloat(computedStyle.lineHeight);
+
+      if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
+        setShouldShowToggle(false);
+        return;
+      }
+
+      setShouldShowToggle(overflowElement.scrollHeight > lineHeight * 2 + 1);
+    };
+
+    updateOverflowState();
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateOverflowState();
+    });
+
+    resizeObserver.observe(element);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [message]);
+
+  return (
+    <div>
+      <p
+        ref={measureRef}
+        className={`text-sm font-normal whitespace-pre-wrap break-words text-gray-900 ${
+          isExpanded ? '' : 'line-clamp-2'
+        }`}
+      >
+        {message}
+      </p>
+      <p
+        ref={overflowMeasureRef}
+        aria-hidden="true"
+        className="pointer-events-none invisible absolute left-0 top-0 -z-10 line-clamp-none w-full whitespace-pre-wrap break-words text-sm font-normal text-gray-900"
+      >
+        {message}
+      </p>
+      {shouldShowToggle ? (
+        <button
+          type="button"
+          className="mt-1 text-sm font-medium text-[#8A38F5]"
+          onClick={() => setIsExpanded((current) => !current)}
+        >
+          {isExpanded ? 'read less' : 'read more'}
+        </button>
+      ) : null}
+    </div>
+  );
 }
 
 function getGalleryImagesFromAttachments(
