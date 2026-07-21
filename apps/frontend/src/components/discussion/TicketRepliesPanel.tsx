@@ -297,8 +297,7 @@ export default function TicketRepliesPanel({
 
                               event.preventDefault();
                               const index = conversationImages.findIndex(
-                                (image) =>
-                                  image.attachmentId === attachment.id,
+                                (image) => image.attachmentId === attachment.id,
                               );
                               openGallery(conversationImages, index);
                             }}
@@ -406,18 +405,18 @@ export default function TicketRepliesPanel({
                                     className="flex min-w-0 flex-1 items-start gap-3"
                                     onClick={(event) => {
                                       if (
-                                        !isImageAttachment(
-                                          attachment.extension,
-                                        )
+                                        !isImageAttachment(attachment.extension)
                                       ) {
                                         return;
                                       }
 
                                       event.preventDefault();
-                                      const index = conversationImages.findIndex(
-                                        (image) =>
-                                          image.attachmentId === attachment.id,
-                                      );
+                                      const index =
+                                        conversationImages.findIndex(
+                                          (image) =>
+                                            image.attachmentId ===
+                                            attachment.id,
+                                        );
                                       openGallery(conversationImages, index);
                                     }}
                                   >
@@ -541,11 +540,11 @@ export default function TicketRepliesPanel({
               />
 
               {attachments.length ? (
-                <div className="mt-3 grid max-h-52 min-h-0 grid-cols-1 gap-2 overflow-y-auto overscroll-contain pr-1 scrollbar-hide sm:grid-cols-2 lg:grid-cols-3">
+                <div className="mt-3 flex items-center max-h-32 flex-wrap min-h-0 grid-cols-1 gap-2 overflow-y-auto overscroll-contain pr-1 scrollbar-thin sm:grid-cols-2 lg:grid-cols-3">
                   {attachments.map((attachment) => (
                     <div
                       key={`${attachment.name}-${attachment.size}-${attachment.lastModified}`}
-                      className="flex min-w-0 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 py-0.5 pr-2 pl-0.5"
+                      className="flex min-w-0 items-center gap-3 max-w-48 rounded-lg border border-gray-200 bg-gray-50 py-0.5 pr-2 pl-0.5"
                     >
                       <LocalAttachmentPreview file={attachment} />
                       <div className="min-w-0 flex-1">
@@ -704,7 +703,9 @@ function getGalleryImagesFromDiscussion(
       return;
     }
 
-    images.push(...getGalleryImagesFromAttachments(reply.attachments, reply.author.name));
+    images.push(
+      ...getGalleryImagesFromAttachments(reply.attachments, reply.author.name),
+    );
   });
 
   return images;
@@ -775,11 +776,7 @@ function getAttachmentFileKey(file: File) {
   return `${file.name}-${file.size}-${file.lastModified}`;
 }
 
-function ChatStatusIcon({
-  status,
-}: {
-  status: 'sent' | 'read';
-}) {
+function ChatStatusIcon({ status }: { status: 'sent' | 'read' }) {
   const strokeColor = status === 'read' ? '#304FFD' : '#98A2B3';
 
   return (

@@ -6,7 +6,7 @@ import * as yup from 'yup';
 import AppModal from './AppModal';
 import ThemeInput from '../ui/ThemeInput';
 import Dropdown from '../ui/ThemeDropDown';
-import type { ProjectRecord } from '../../app/(main-pages)/projects/projects.data';
+import type { ProjectNameRecord } from '../../app/(main-pages)/projects/projects.data';
 
 export type AddUserType = 'internal' | 'external';
 
@@ -24,7 +24,7 @@ type AddUserModalProps = {
   onConfirm?: (values: AddUserFormValues) => Promise<void> | void;
   mode?: 'create' | 'edit';
   initialValues?: AddUserFormValues;
-  projects?: ProjectRecord[];
+  projects?: ProjectNameRecord[];
   roleOptions?: Array<{ label: string; value: string }>;
 };
 
@@ -186,6 +186,13 @@ export default function AddUserModal({
           <div className="flex flex-wrap gap-2">
             {projects.map((project) => {
               const isSelected = formik.values.projectAccess.includes(project.id);
+              const initials = project.name
+                .split(' ')
+                .filter(Boolean)
+                .slice(0, 2)
+                .map((part) => part[0])
+                .join('')
+                .toUpperCase();
 
               return (
                 <button
@@ -208,14 +215,14 @@ export default function AddUserModal({
                   style={
                     isSelected
                       ? {
-                          borderColor: `${project.colorHex}66`,
-                          color: project.colorHex,
-                          backgroundColor: `${project.colorHex}12`,
+                          borderColor: '#A78BFA',
+                          color: '#7C3AED',
+                          backgroundColor: '#F5F3FF',
                         }
                       : undefined
                   }
                 >
-                  <span>{project.initials}</span>
+                  <span>{initials || 'PR'}</span>
                   <span>{project.name}</span>
                   <span className="text-base leading-none">
                     {isSelected ? '×' : '+'}

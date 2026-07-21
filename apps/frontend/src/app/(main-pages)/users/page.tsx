@@ -12,8 +12,8 @@ import UserCard, {
   UserCardsSkeleton,
   type UserCardUser,
 } from '../../../components/users/UserCard';
-import type { ProjectRecord } from '../projects/projects.data';
-import { useProjectsQuery } from '../projects/projects.queries';
+import type { ProjectNameRecord } from '../projects/projects.data';
+import { useProjectNamesQuery } from '../projects/projects.queries';
 import {
   PermissionGuard,
   usePermissions,
@@ -23,7 +23,7 @@ import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanne
 import { FiltersIcon, PlusIcon, SearchIcon } from '../../../../public/icons';
 import ThemeButton from '../../../components/ui/ThemeButton';
 import EmptyState from '../../../components/EmptyState';
-import Dropdown from 'apps/frontend/src/components/ui/ThemeDropDown';
+import Dropdown from '../../../components/ui/ThemeDropDown';
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 
 export default function Page() {
@@ -45,7 +45,7 @@ export default function Page() {
   const canCreateUser = hasPermission('users.create');
   const canEditUser = hasPermission('users.edit');
   const canDeleteUser = hasPermission('users.delete');
-  const projectsQuery = useProjectsQuery();
+  const projectsQuery = useProjectNamesQuery();
   const projects = useMemo(
     () => projectsQuery.data ?? [],
     [projectsQuery.data],
@@ -636,7 +636,7 @@ type ProjectMembersResponse = {
 };
 
 async function fetchProjectMembers(
-  projects: ProjectRecord[],
+  projects: ProjectNameRecord[],
   query: ProjectMembersQuery,
 ): Promise<ProjectMembersResponse> {
   const searchParams = new URLSearchParams();
@@ -773,7 +773,7 @@ async function fetchRoleOptions() {
 
 function mapApiMemberToUserCard(
   member: ApiProjectMember,
-  projects: ProjectRecord[],
+  projects: ProjectNameRecord[],
 ): UserCardUser {
   const nameParts = member.fullName.split(' ').filter(Boolean);
   const initials = nameParts
@@ -782,13 +782,11 @@ function mapApiMemberToUserCard(
     .join('')
     .toUpperCase();
   const mappedProjects = member.projects.map((project) => {
-    const matchedProject = projects.find((item) => item.id === project.id);
-
     return {
       id: project.id,
       initials: getProjectInitials(project.name),
       name: project.name,
-      colorHex: matchedProject?.colorHex ?? '#6172F3',
+      colorHex: '#6172F3',
     };
   });
 
