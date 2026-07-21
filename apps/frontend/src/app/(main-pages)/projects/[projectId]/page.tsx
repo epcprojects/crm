@@ -33,6 +33,7 @@ import {
   FiltersIcon,
   SearchIcon,
   PlusIcon,
+  TicketsIcon,
 } from '../../../../../public/icons';
 import Dropdown from '../../../../components/ui/ThemeDropDown';
 import ThemeButton from '../../../../components/ui/ThemeButton';
@@ -47,11 +48,11 @@ import {
   useDeleteProjectFileMutation,
   useProjectDetailQuery,
   useProjectFilesQuery,
+  useProjectNamesQuery,
   useProjectThreadDetailQuery,
   useProjectTicketsQuery,
   useProjectThreadQuery,
   useUploadProjectFilesMutation,
-  useProjectsQuery,
 } from '../projects.queries';
 import {
   PermissionGuard,
@@ -59,6 +60,9 @@ import {
 } from '../../../providers/PermissionProvider';
 import { useAppSelector } from '../../../Redux/store';
 import Calendar from '../../../../components/calendar/Calendar';
+import DashboardSummaryBanner from '../../../../components/ui/DashboardSummaryBanner';
+import EmptyState from '../../../../components/EmptyState';
+
 const projectTabs = ['Tickets', 'Thread', 'Files', 'Calendar'] as const;
 
 export default function ProjectDetailPage() {
@@ -96,7 +100,7 @@ export default function ProjectDetailPage() {
   const [selectedThreadMessageId, setSelectedThreadMessageId] = useState('');
   const [ticketsPagination, setTicketsPagination] = useState({
     pageIndex: 0,
-    pageSize: 12,
+    pageSize: 10,
   });
   const projectId = String(params?.projectId ?? '');
   const hasShownError = useRef(false);
@@ -112,7 +116,6 @@ export default function ProjectDetailPage() {
     canViewThread,
   );
 
-
   const projectFilesQuery = useProjectFilesQuery(projectId, canViewFiles);
   const projectTicketsQuery = useProjectTicketsQuery(
     projectId,
@@ -120,20 +123,14 @@ export default function ProjectDetailPage() {
       page: ticketsPagination.pageIndex + 1,
       limit: ticketsPagination.pageSize,
       search: searchValue.trim() || undefined,
-      statusKey:
-        selectedStatus === 'all'
-          ? undefined
-          : selectedStatus,
-      priorityKey:
-        selectedPriority === 'all'
-          ? undefined
-          : selectedPriority,
+      statusKey: selectedStatus === 'all' ? undefined : selectedStatus,
+      priorityKey: selectedPriority === 'all' ? undefined : selectedPriority,
     },
     canViewTickets,
   );
   const uploadProjectFilesMutation = useUploadProjectFilesMutation();
   const deleteProjectFileMutation = useDeleteProjectFileMutation();
-  const projectsQuery = useProjectsQuery(canCreateTicket);
+  const projectsQuery = useProjectNamesQuery(canCreateTicket);
   const ticketStatusesQuery = useQuery({
     queryKey: ['ticket-statuses'],
     queryFn: fetchTicketStatuses,
@@ -151,9 +148,7 @@ export default function ProjectDetailPage() {
         label: 'All Status',
         value: 'all',
       },
-      ...(ticketStatusesQuery.data ?? []).map(
-        mapTicketSettingToDropdownOption,
-      ),
+      ...(ticketStatusesQuery.data ?? []).map(mapTicketSettingToDropdownOption),
     ],
     [ticketStatusesQuery.data],
   );
@@ -275,15 +270,9 @@ export default function ProjectDetailPage() {
         ...ticket,
         statusColor:
           ticket.statusColor ??
-          getTicketStatusColor(
-            ticket.status,
-            ticketStatusesQuery.data,
-          ),
+          getTicketStatusColor(ticket.status, ticketStatusesQuery.data),
       })),
-    [
-      projectTicketsQuery.data?.items,
-      ticketStatusesQuery.data,
-    ],
+    [projectTicketsQuery.data?.items, ticketStatusesQuery.data],
   );
   const projectFiles = useMemo(() => {
     const normalizedSearch = fileSearchValue.trim().toLowerCase();
@@ -444,12 +433,12 @@ export default function ProjectDetailPage() {
         }),
         selectedThreadMessageId
           ? queryClient.invalidateQueries({
-            queryKey: [
-              ...projectThreadDetailQueryKey,
-              projectId,
-              selectedThreadMessageId,
-            ],
-          })
+              queryKey: [
+                ...projectThreadDetailQueryKey,
+                projectId,
+                selectedThreadMessageId,
+              ],
+            })
           : Promise.resolve(),
       ]);
       appToast.success('Attachment deleted successfully.');
@@ -508,17 +497,16 @@ export default function ProjectDetailPage() {
 
   if (!canViewProjectDetail) {
     return (
-      <div className="space-y-4 -mt-16 sm:mt-0">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
-        >
-          <BackArrowIcon />
-          Back
-        </button>
-        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
-          You do not have permission to view project details.
+      <div className="space-y-4 mt-8">
+        <div className="rounded-[20px] border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+          <EmptyState
+            imageUrl="/images/EmptyProjectIcon.svg"
+            imageAlt="Project not found"
+            title="You do not have permission to view project details."
+            // description="Recent tickets will appear here once they are created."
+            buttonLabel="Go Back"
+            onButtonClick={() => router.back()}
+          />
         </div>
       </div>
     );
@@ -526,17 +514,16 @@ export default function ProjectDetailPage() {
 
   if (!project) {
     return (
-      <div className="space-y-4 -mt-16 sm:mt-0">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
-        >
-          <BackArrowIcon />
-          Back
-        </button>
-        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
-          Project not found.
+      <div className="space-y-4 mt-8">
+        <div className="rounded-[20px] border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+          <EmptyState
+            imageUrl="/images/EmptyProjectIcon.svg"
+            imageAlt="Project not found"
+            title="Project not found"
+            // description="Recent tickets will appear here once they are created."
+            buttonLabel="Go Back"
+            onButtonClick={() => router.back()}
+          />
         </div>
       </div>
     );
@@ -544,50 +531,75 @@ export default function ProjectDetailPage() {
   const projectSummaryStats = [
     ...(canViewTickets
       ? [
-        {
-          title: 'Tickets',
-          count: projectTicketsQuery.data?.meta.total ?? 0,
-          color: '#F04438',
-        },
-      ]
+          {
+            title: 'Tickets',
+            count: projectTicketsQuery.data?.meta.total ?? 0,
+            color: '#17B26A',
+          },
+        ]
       : []),
     ...(canViewThread
       ? [
-        {
-          title: 'Thread Posts',
-          count: projectThreadQuery.data?.length ?? 0,
-          color: '#F79009',
-        },
-      ]
+          {
+            title: 'Thread Posts',
+            count: projectThreadQuery.data?.length ?? 0,
+            color: '#7A5AF8',
+          },
+        ]
       : []),
     ...(canViewFiles
       ? [
-        {
-          title: 'Files',
-          count:
-            uploadedFilesState.length + (projectFilesQuery.data?.length ?? 0),
-          color: '#17B26A',
-        },
-      ]
+          {
+            title: 'Files',
+            count:
+              uploadedFilesState.length + (projectFilesQuery.data?.length ?? 0),
+            color: '#F79009',
+          },
+        ]
       : []),
   ];
+
+  // const ticketSummaryStats = useMemo(
+  //   () => [
+  //     {
+  //       title: 'Open',
+  //       count: ticketsQuery.data?.summary?.open ?? 0,
+  //       color: '#F04438',
+  //     },
+  //     {
+  //       title: 'InProgress',
+  //       count: ticketsQuery.data?.summary?.inProgress ?? 0,
+  //       color: '#F79009',
+  //     },
+  //     {
+  //       title: 'Resolved',
+  //       count: ticketsQuery.data?.summary?.resolved ?? 0,
+  //       color: '#17B26A',
+  //     },
+  //     {
+  //       title: 'Critical',
+  //       count: ticketsQuery.data?.summary?.critical ?? 0,
+  //       color: '#7A5AF8',
+  //     },
+  //   ],
+  //   [ticketsQuery.data],
+  // );
   return (
     <>
       <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 py-4">
         <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden xl:rounded-3xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
-          <div className="shrink-0">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
-            >
-              <BackArrowIcon />
-              Back
-            </button>
-          </div>
+          <DashboardSummaryBanner
+            imageSrc="/images/bannerBackBtn.svg"
+            onBack={() => router.back()}
+            imageAlt="Tickets"
+            title={project.name}
+            badge={project.category}
+            stats={projectSummaryStats}
+            badgeClr={project.colorHex}
+          />
 
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden rounded-[20px] bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
-            <section className="w-full shrink-0">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden rounded-[20px] bg-white px-4 pt-2 md:pt-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:px-5">
+            {/* <section className="w-full shrink-0">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
                   <span
@@ -637,10 +649,10 @@ export default function ProjectDetailPage() {
                   </div>
                 </div>
               </div>
-            </section>
+            </section> */}
 
             <TabGroup className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
-              <TabList className="flex shrink-0 overflow-x-auto scrollbar-hide border-y border-gray-200">
+              <TabList className="flex shrink-0 overflow-x-auto scrollbar-hide border-b border-gray-200">
                 {visibleProjectTabs.map((tab) => (
                   <Tab
                     key={tab}
@@ -648,17 +660,22 @@ export default function ProjectDetailPage() {
                       clsx(
                         'shrink-0 border-b-2 px-2 xl:px-4 py-3 text-sm font-semibold outline-none transition',
                         selected
-                          ? 'border-primary-dark text-primary-dark'
+                          ? 'border-[#3165F6] text-[#3165F6]'
                           : 'border-transparent text-gray-500 hover:text-gray-700',
                       )
                     }
                   >
-                    {tab}
+                    <span className="inline-flex items-center gap-2">
+                      <span className="inline-flex shrink-0 items-center justify-center">
+                        {renderProjectTabIcon(tab)}
+                      </span>
+                      <span>{tab}</span>
+                    </span>
                   </Tab>
                 ))}
               </TabList>
 
-              <TabPanels className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+              <TabPanels className="flex min-h-0 min-w-0 flex-1 flex-col pb-4 md:pb-4 overflow-hidden">
                 <PermissionGuard permission="tickets.view_list">
                   <TabPanel className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-hidden">
                     <div className="flex shrink-0 flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
@@ -686,12 +703,13 @@ export default function ProjectDetailPage() {
                               {({ open }) => (
                                 <>
                                   <PopoverButton
-                                    className={`flex h-10 shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium outline-none ${open ||
+                                    className={`flex h-10 shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium outline-none ${
+                                      open ||
                                       selectedStatus !== 'all' ||
                                       selectedPriority !== 'all'
-                                      ? 'border-primary bg-primary/5 text-primary'
-                                      : 'border-gray-200 bg-white text-gray-700'
-                                      }`}
+                                        ? 'border-primary bg-primary/5 text-primary'
+                                        : 'border-gray-200 bg-white text-gray-700'
+                                    }`}
                                     aria-label="Open ticket filters"
                                   >
                                     <FiltersIcon />
@@ -723,7 +741,7 @@ export default function ProjectDetailPage() {
                                     </div>
 
                                     {selectedStatus !== 'all' ||
-                                      selectedPriority !== 'all' ? (
+                                    selectedPriority !== 'all' ? (
                                       <button
                                         type="button"
                                         onClick={() => {
@@ -785,11 +803,7 @@ export default function ProjectDetailPage() {
                             className="shrink-0 rounded-full"
                             variant="primaryGradient"
                             icon={
-                              <PlusIcon
-                                fill="#3889FE"
-                                width="20"
-                                height="20"
-                              />
+                              <PlusIcon fill="#3889FE" width="20" height="20" />
                             }
                             onClick={() => setCreateTicketOpen(true)}
                           >
@@ -810,25 +824,25 @@ export default function ProjectDetailPage() {
                         onRowClick={
                           canViewTicketDetail
                             ? (ticket) =>
-                              router.push(
-                                `/tickets/${ticket.id}?projectId=${projectId}`,
-                              )
+                                router.push(
+                                  `/tickets/${ticket.id}?projectId=${projectId}`,
+                                )
                             : undefined
                         }
                         hideProjectColumn
                       />
                     </div>
-
                   </TabPanel>
                 </PermissionGuard>
 
                 <PermissionGuard permission="thread.view">
                   <TabPanel className="h-full min-h-0 min-w-0 overflow-hidden">
                     <div
-                      className={`grid h-full min-h-0 min-w-0 overflow-hidden rounded-xl border border-gray-200 md:rounded-2xl ${selectedThreadMessageId && !isMobile
-                        ? 'xl:grid-cols-[minmax(0,1fr)_400px] xl:grid-rows-[minmax(0,1fr)] xl:divide-x xl:divide-gray-200'
-                        : 'grid-cols-1'
-                        }`}
+                      className={`grid h-full min-h-0 min-w-0 overflow-hidden rounded-xl border border-gray-200 md:rounded-2xl ${
+                        selectedThreadMessageId && !isMobile
+                          ? 'xl:grid-cols-[minmax(0,1fr)_400px] xl:grid-rows-[minmax(0,1fr)] xl:divide-x xl:divide-gray-200'
+                          : 'grid-cols-1'
+                      }`}
                     >
                       {(!isMobile || !selectedThreadMessageId) && (
                         <div className="h-full min-h-0 min-w-0 overflow-hidden">
@@ -950,9 +964,10 @@ export default function ProjectDetailPage() {
                       subtitle={
                         projectFilesQuery.isLoading
                           ? 'Loading files...'
-                          : `${uploadedFilesState.length +
-                          (projectFilesQuery.data?.length ?? 0)
-                          } files`
+                          : `${
+                              uploadedFilesState.length +
+                              (projectFilesQuery.data?.length ?? 0)
+                            } files`
                       }
                     />
                   </TabPanel>
@@ -1007,6 +1022,113 @@ export default function ProjectDetailPage() {
   );
 }
 
+function renderProjectTabIcon(tab: (typeof projectTabs)[number]) {
+  if (tab === 'Tickets') {
+    return (
+      <TicketsIcon width="20" height="20" fill="currentColor" opacity="0" />
+    );
+  }
+
+  if (tab === 'Thread') {
+    return <ThreadTabIcon />;
+  }
+
+  if (tab === 'Files') {
+    return <FilesTabIcon />;
+  }
+
+  return <CalendarTabIcon />;
+}
+
+function ThreadTabIcon() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M5.83366 9.99999C5.83366 9.53974 6.20676 9.16666 6.66699 9.16666H6.67447C7.13471 9.16666 7.5078 9.53974 7.5078 9.99999C7.5078 10.4602 7.13471 10.8333 6.67447 10.8333H6.66699C6.20676 10.8333 5.83366 10.4602 5.83366 9.99999Z"
+        fill="currentColor"
+      />
+      <path
+        d="M9.16325 9.99999C9.16325 9.53974 9.53633 9.16666 9.99658 9.16666H10.0041C10.4643 9.16666 10.8374 9.53974 10.8374 9.99999C10.8374 10.4602 10.4643 10.8333 10.0041 10.8333H9.99658C9.53633 10.8333 9.16325 10.4602 9.16325 9.99999Z"
+        fill="currentColor"
+      />
+      <path
+        d="M13.3262 9.16666C12.8659 9.16666 12.4928 9.53974 12.4928 9.99999C12.4928 10.4602 12.8659 10.8333 13.3262 10.8333H13.3337C13.7939 10.8333 14.167 10.4602 14.167 9.99999C14.167 9.53974 13.7939 9.16666 13.3337 9.16666H13.3262Z"
+        fill="currentColor"
+      />
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M1.04199 9.63891C1.04199 4.86531 5.07968 1.04166 10.0003 1.04166C14.921 1.04166 18.9587 4.86531 18.9587 9.63891C18.9587 14.4125 14.921 18.2362 10.0003 18.2362C9.42041 18.2369 8.84228 18.1832 8.27281 18.0763C8.07515 18.0392 7.94957 18.0157 7.85613 18.003C7.81566 17.9974 7.79057 17.9953 7.77688 17.9945L7.78887 17.99C7.78887 17.99 7.78379 17.9912 7.77513 17.9925L7.76819 17.9934C7.77034 17.9935 7.77297 17.9942 7.77688 17.9945C7.76273 17.9999 7.73527 18.0111 7.69012 18.0326C7.59468 18.0779 7.46756 18.1453 7.27294 18.2488C6.07984 18.8833 4.68786 19.1083 3.34529 18.8586C3.1285 18.8182 2.94899 18.6667 2.87293 18.4597C2.79688 18.2527 2.83553 18.021 2.97463 17.8499C3.36447 17.3704 3.63252 16.7927 3.75106 16.171C3.78313 16 3.71055 15.7677 3.48742 15.5412C1.97509 14.0054 1.04199 11.9287 1.04199 9.63891ZM10.0003 2.29166C5.71727 2.29166 2.29199 5.60728 2.29199 9.63891C2.29199 11.5798 3.08112 13.3471 4.37804 14.6641C4.77323 15.0653 5.11369 15.691 4.9793 16.4032L4.9791 16.4042C4.89253 16.8588 4.7452 17.2972 4.5424 17.707C5.28728 17.6894 6.02474 17.4968 6.68603 17.1452L6.69892 17.1383L6.70171 17.1368C6.87883 17.0426 7.03028 16.9621 7.15384 16.9034C7.274 16.8463 7.42399 16.7817 7.5864 16.7568C7.74453 16.7327 7.89817 16.747 8.02603 16.7646C8.15379 16.7821 8.31008 16.8114 8.48888 16.845L8.50353 16.8477C8.99685 16.9404 9.49749 16.9868 9.99949 16.9862C14.2826 16.9862 17.7087 13.6706 17.7087 9.63891C17.7087 5.60728 14.2834 2.29166 10.0003 2.29166Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function FilesTabIcon() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M8.12533 11.6667C8.12533 11.3215 7.8455 11.0417 7.50033 11.0417C7.15515 11.0417 6.87533 11.3215 6.87533 11.6667C6.87533 12.9323 7.90134 13.9583 9.16699 13.9583H10.8337C12.0993 13.9583 13.1253 12.9323 13.1253 11.6667C13.1253 11.3215 12.8455 11.0417 12.5003 11.0417C12.1551 11.0417 11.8753 11.3215 11.8753 11.6667C11.8753 12.242 11.409 12.7083 10.8337 12.7083H9.16699C8.5917 12.7083 8.12533 12.242 8.12533 11.6667Z"
+        fill="currentColor"
+      />
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M8.29033 1.04166H11.7103C12.459 1.04163 13.0834 1.04161 13.5791 1.10825C14.1022 1.17859 14.5746 1.33331 14.9541 1.71287C15.3337 2.09243 15.4884 2.56476 15.5587 3.08793C15.6141 3.49938 15.6234 3.99951 15.625 4.58586C15.6886 4.6107 15.7513 4.63866 15.8132 4.67018C16.3228 4.92984 16.7371 5.34416 16.9968 5.85377C17.1627 6.17938 17.23 6.52805 17.2615 6.9141C17.2909 7.27329 17.292 7.7122 17.292 8.24537L17.3013 8.25118C17.7518 8.53425 18.1327 8.9152 18.4158 9.36571C18.7124 9.83768 18.8394 10.3684 18.8999 10.9914C18.9587 11.5978 18.9587 12.3538 18.9587 13.3008V13.3659C18.9587 14.3128 18.9587 15.0689 18.8999 15.6753C18.8394 16.2983 18.7124 16.829 18.4158 17.3009C18.1327 17.7515 17.7518 18.1324 17.3013 18.4155C16.8293 18.712 16.2986 18.8391 15.6756 18.8995C15.0692 18.9583 14.3132 18.9583 13.3662 18.9583H6.63443C5.6875 18.9583 4.93146 18.9583 4.32502 18.8995C3.70203 18.8391 3.17135 18.712 2.69938 18.4155C2.24887 18.1324 1.86792 17.7515 1.58484 17.3009C1.28829 16.829 1.16121 16.2983 1.10079 15.6753C1.04198 15.0689 1.04198 14.3128 1.04199 13.3659V13.3008C1.04198 12.3538 1.04198 11.5978 1.10079 10.9914C1.16121 10.3684 1.28829 9.83768 1.58484 9.36571C1.86792 8.9152 2.24887 8.53425 2.69938 8.25118L2.70866 8.24537C2.70869 7.71221 2.70977 7.27329 2.73912 6.9141C2.77066 6.52805 2.83794 6.17938 3.00385 5.85377C3.26351 5.34416 3.67783 4.92984 4.18744 4.67018C4.24931 4.63866 4.31201 4.61069 4.37564 4.58586C4.37722 3.99951 4.3866 3.49937 4.44192 3.08793C4.51226 2.56476 4.66698 2.09243 5.04654 1.71287C5.4261 1.33331 5.89843 1.17859 6.42159 1.10825C6.91724 1.04161 7.54161 1.04163 8.29033 1.04166ZM14.3199 3.25449C14.3589 3.54437 14.3705 3.90537 14.3739 4.38476C14.0803 4.37498 13.744 4.37499 13.3598 4.37499H6.64081C6.25662 4.37499 5.92034 4.37498 5.62677 4.38476C5.6302 3.90537 5.6418 3.54437 5.68077 3.25449C5.73248 2.86993 5.82183 2.70535 5.93042 2.59676C6.03902 2.48816 6.2036 2.39881 6.58815 2.34711C6.99068 2.29299 7.53032 2.29166 8.33366 2.29166H11.667C12.4703 2.29166 13.01 2.29299 13.4125 2.34711C13.7971 2.39881 13.9616 2.48816 14.0702 2.59676C14.1788 2.70535 14.2682 2.86993 14.3199 3.25449ZM16.041 7.81257C16.039 7.48556 16.0332 7.22974 16.0157 7.01589C15.9905 6.70714 15.9442 6.54129 15.883 6.42125C15.7432 6.14685 15.5201 5.92376 15.2457 5.78394C15.1257 5.72278 14.9598 5.67652 14.6511 5.6513C14.335 5.62548 13.9274 5.62499 13.3337 5.62499H6.66699C6.07329 5.62499 5.6656 5.62548 5.34956 5.6513C5.04081 5.67652 4.87496 5.72278 4.75492 5.78394C4.48052 5.92376 4.25742 6.14685 4.11761 6.42125C4.05645 6.54129 4.01019 6.70714 3.98497 7.01589C3.96749 7.22974 3.96162 7.48556 3.95965 7.81257C4.07788 7.79416 4.19958 7.77929 4.32502 7.76713C4.93146 7.70831 5.68751 7.70832 6.63444 7.70832H13.3662C14.3131 7.70832 15.0692 7.70831 15.6756 7.76713C15.8011 7.77929 15.9228 7.79416 16.041 7.81257ZM3.36442 9.30958C3.60394 9.15908 3.91627 9.06263 4.44568 9.01129C4.98471 8.95901 5.6801 8.95832 6.66699 8.95832H13.3337C14.3206 8.95832 15.0159 8.95901 15.555 9.01129C16.0844 9.06263 16.3967 9.15908 16.6362 9.30958C16.9277 9.49275 17.1742 9.73924 17.3574 10.0308C17.5079 10.2703 17.6044 10.5826 17.6557 11.112C17.708 11.651 17.7087 12.3464 17.7087 13.3333C17.7087 14.3202 17.708 15.0156 17.6557 15.5546C17.6044 16.0841 17.5079 16.3964 17.3574 16.6359C17.1742 16.9274 16.9277 17.1739 16.6362 17.3571C16.3967 17.5076 16.0844 17.604 15.555 17.6554C15.0159 17.7076 14.3206 17.7083 13.3337 17.7083H6.66699C5.6801 17.7083 4.98471 17.7076 4.44568 17.6554C3.91627 17.604 3.60394 17.5076 3.36442 17.3571C3.07291 17.1739 2.82642 16.9274 2.64325 16.6359C2.49275 16.3964 2.3963 16.0841 2.34496 15.5546C2.29268 15.0156 2.29199 14.3202 2.29199 13.3333C2.29199 12.3464 2.29268 11.651 2.34496 11.112C2.3963 10.5826 2.49275 10.2703 2.64325 10.0308C2.82642 9.73924 3.07291 9.49275 3.36442 9.30958Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function CalendarTabIcon() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M9.16634 10.2083C8.82116 10.2083 8.54134 10.4881 8.54134 10.8333C8.54134 11.1785 8.82116 11.4583 9.16634 11.4583H13.333C13.6782 11.4583 13.958 11.1785 13.958 10.8333C13.958 10.4881 13.6782 10.2083 13.333 10.2083H9.16634Z"
+        fill="currentColor"
+      />
+      <path
+        d="M6.66634 10.2083C6.32116 10.2083 6.04134 10.4881 6.04134 10.8333C6.04134 11.1785 6.32116 11.4583 6.66634 11.4583H6.67383C7.019 11.4583 7.29883 11.1785 7.29883 10.8333C7.29883 10.4881 7.019 10.2083 6.67383 10.2083H6.66634Z"
+        fill="currentColor"
+      />
+      <path
+        d="M6.66634 13.5417C6.32116 13.5417 6.04134 13.8215 6.04134 14.1667C6.04134 14.5118 6.32116 14.7917 6.66634 14.7917H10.833C11.1782 14.7917 11.458 14.5118 11.458 14.1667C11.458 13.8215 11.1782 13.5417 10.833 13.5417H6.66634Z"
+        fill="currentColor"
+      />
+      <path
+        d="M13.3255 13.5417C12.9803 13.5417 12.7005 13.8215 12.7005 14.1667C12.7005 14.5118 12.9803 14.7917 13.3255 14.7917H13.333C13.6782 14.7917 13.958 14.5118 13.958 14.1667C13.958 13.8215 13.6782 13.5417 13.333 13.5417H13.3255Z"
+        fill="currentColor"
+      />
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M5.62467 1.66666C5.62467 1.32148 5.34485 1.04166 4.99967 1.04166C4.6545 1.04166 4.37467 1.32148 4.37467 1.66666V2.19565C3.70404 2.38572 3.13842 2.69465 2.66763 3.20362C2.01937 3.90444 1.73122 4.78993 1.59322 5.89958C1.45799 6.98691 1.458 8.38038 1.45801 10.1584V10.675C1.458 12.4529 1.45799 13.8464 1.59322 14.9337C1.73122 16.0434 2.01937 16.9289 2.66763 17.6297C3.32229 18.3374 4.16031 18.6584 5.20908 18.8108C6.22411 18.9584 7.52096 18.9583 9.15737 18.9583H10.842C12.4784 18.9583 13.7752 18.9584 14.7903 18.8108C15.839 18.6584 16.6771 18.3374 17.3317 17.6297C17.98 16.9289 18.2681 16.0434 18.4061 14.9337C18.5414 13.8464 18.5413 12.4529 18.5413 10.6749V10.1584C18.5413 8.38039 18.5414 6.98692 18.4061 5.89958C18.2681 4.78993 17.98 3.90444 17.3317 3.20362C16.8609 2.69465 16.2953 2.38572 15.6247 2.19565V1.66666C15.6247 1.32148 15.3449 1.04166 14.9997 1.04166C14.6545 1.04166 14.3747 1.32148 14.3747 1.66666V1.97157C13.428 1.87497 12.263 1.87498 10.842 1.87499H9.15738C7.73636 1.87498 6.57139 1.87497 5.62467 1.97157V1.66666ZM3.58525 4.05243C3.80137 3.81879 4.05908 3.63991 4.39851 3.50486C4.47306 3.76664 4.71398 3.95832 4.99967 3.95832C5.34485 3.95832 5.62467 3.6785 5.62467 3.33332V3.22881C6.50885 3.12629 7.65165 3.12499 9.20801 3.12499H10.7913C12.3477 3.12499 13.4905 3.12629 14.3747 3.22881V3.33332C14.3747 3.6785 14.6545 3.95832 14.9997 3.95832C15.2854 3.95832 15.5263 3.76664 15.6008 3.50486C15.9403 3.63992 16.198 3.81879 16.4141 4.05243C16.8076 4.47788 17.0409 5.06112 17.1642 6.04166H2.83518C2.95844 5.06112 3.19171 4.47788 3.58525 4.05243ZM2.74044 7.29166C2.70847 8.08906 2.70801 9.04233 2.70801 10.2027V10.6306C2.70801 12.4625 2.70915 13.7783 2.83366 14.7795C2.95652 15.7674 3.19008 16.3537 3.58525 16.7809C3.97402 17.2012 4.49741 17.4442 5.38887 17.5738C6.30364 17.7068 7.50957 17.7083 9.20801 17.7083H10.7913C12.4898 17.7083 13.6957 17.7068 14.6105 17.5738C15.5019 17.4442 16.0253 17.2012 16.4141 16.7809C16.8093 16.3537 17.0428 15.7674 17.1657 14.7795C17.2902 13.7783 17.2913 12.4625 17.2913 10.6306V10.2027C17.2913 9.04233 17.2909 8.08906 17.2589 7.29166H2.74044Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
 type ApiTicketSetting = {
   id: string;
   key: string;
@@ -1015,9 +1137,7 @@ type ApiTicketSetting = {
   sortOrder?: number;
 };
 
-function mapTicketSettingToDropdownOption(
-  setting: ApiTicketSetting,
-) {
+function mapTicketSettingToDropdownOption(setting: ApiTicketSetting) {
   return {
     label: setting.label,
     value: setting.key,
@@ -1081,7 +1201,6 @@ async function fetchTicketPriorities() {
   return payload;
 }
 
-
 function getTicketStatusColor(status: string, statuses?: ApiTicketSetting[]) {
   const normalizedStatus = normalizeStatusValue(status);
 
@@ -1142,7 +1261,7 @@ function ProjectDetailSkeleton({ onBack }: { onBack: () => void }) {
     >
       <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden rounded-3xl border border-white bg-white/40 p-3">
         {/* Back button */}
-        <div className="shrink-0">
+        {/* <div className="shrink-0">
           <button
             type="button"
             onClick={onBack}
@@ -1152,7 +1271,7 @@ function ProjectDetailSkeleton({ onBack }: { onBack: () => void }) {
             <BackArrowIcon />
             Back
           </button>
-        </div>
+        </div> */}
 
         {/* Project detail card */}
         <div className="flex min-h-0 min-w-0 flex-1 animate-pulse flex-col gap-4 overflow-hidden rounded-[20px] bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
@@ -1174,8 +1293,9 @@ function ProjectDetailSkeleton({ onBack }: { onBack: () => void }) {
                     <div key={index} className="flex items-center gap-2">
                       <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-gray-200" />
                       <div
-                        className={`h-3.5 rounded bg-gray-200 ${index === 1 ? 'w-20' : 'w-12'
-                          }`}
+                        className={`h-3.5 rounded bg-gray-200 ${
+                          index === 1 ? 'w-20' : 'w-12'
+                        }`}
                       />
                       <div className="h-4 w-6 rounded bg-gray-200" />
                     </div>
@@ -1190,12 +1310,14 @@ function ProjectDetailSkeleton({ onBack }: { onBack: () => void }) {
             {Array.from({ length: 4 }).map((_, index) => (
               <div
                 key={index}
-                className={`border-b-2 px-4 py-3 ${index === 0 ? 'border-gray-300' : 'border-transparent'
-                  }`}
+                className={`border-b-2 px-4 py-3 ${
+                  index === 0 ? 'border-gray-300' : 'border-transparent'
+                }`}
               >
                 <div
-                  className={`h-4 rounded bg-gray-200 ${index === 3 ? 'w-16' : 'w-12'
-                    }`}
+                  className={`h-4 rounded bg-gray-200 ${
+                    index === 3 ? 'w-16' : 'w-12'
+                  }`}
                 />
               </div>
             ))}
@@ -1233,10 +1355,11 @@ function ProjectDetailSkeleton({ onBack }: { onBack: () => void }) {
                     {Array.from({ length: 6 }).map((_, cellIndex) => (
                       <div
                         key={cellIndex}
-                        className={`h-4 rounded ${cellIndex === 3 || cellIndex === 4
-                          ? 'bg-gray-200'
-                          : 'bg-gray-100'
-                          }`}
+                        className={`h-4 rounded ${
+                          cellIndex === 3 || cellIndex === 4
+                            ? 'bg-gray-200'
+                            : 'bg-gray-100'
+                        }`}
                       />
                     ))}
                   </div>

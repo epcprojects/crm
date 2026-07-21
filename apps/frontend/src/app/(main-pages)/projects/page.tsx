@@ -23,6 +23,7 @@ import { createTicket } from '../../../lib/tickets';
 import {
   useCreateProjectMutation,
   useDeleteProjectMutation,
+  useProjectNamesQuery,
   useUpdateProjectMutation,
   useProjectsInfiniteQuery,
   projectsQueryKey,
@@ -64,13 +65,14 @@ export default function ProjectsPage() {
   const canEditProject = hasPermission('projects.edit');
   const canDeleteProject = hasPermission('projects.delete');
   const projectsQuery = useProjectsInfiniteQuery(canViewProjectList, 12,searchValue);
+  const projectNamesQuery = useProjectNamesQuery(canCreateTicket);
   const projects = useMemo(
     () => projectsQuery.data?.pages.flatMap((page) => page.items) ?? [],
     [projectsQuery.data],
   );
   const projectOptions = useMemo(
-    () => createTicketProjectOptions(projects),
-    [projects],
+    () => createTicketProjectOptions(projectNamesQuery.data ?? []),
+    [projectNamesQuery.data],
   );
 
   useEffect(() => {

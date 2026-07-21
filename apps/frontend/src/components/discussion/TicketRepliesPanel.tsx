@@ -274,9 +274,7 @@ export default function TicketRepliesPanel({
                     </span>
                   </div>
                   {headerReply.message ? (
-                    <p className="text-sm font-normal text-gray-900">
-                      {headerReply.message}
-                    </p>
+                    <ExpandableMessageText message={headerReply.message} />
                   ) : null}
                   {headerReply.attachments?.length ? (
                     <div className="mt-2 grid gap-2">
@@ -297,8 +295,7 @@ export default function TicketRepliesPanel({
 
                               event.preventDefault();
                               const index = conversationImages.findIndex(
-                                (image) =>
-                                  image.attachmentId === attachment.id,
+                                (image) => image.attachmentId === attachment.id,
                               );
                               openGallery(conversationImages, index);
                             }}
@@ -384,9 +381,7 @@ export default function TicketRepliesPanel({
                           className={`w-full rounded-xl ${isCurrentUserReply ? 'rounded-tr-none' : 'rounded-tl-none'} ${reply.message && 'space-y-2 border border-gray-200 p-3 shadow-xs'}  bg-white  `}
                         >
                           {reply.message ? (
-                            <p className="text-sm font-normal text-gray-900">
-                              {reply.message}
-                            </p>
+                            <ExpandableMessageText message={reply.message} />
                           ) : null}
                           {reply.attachments?.length ? (
                             <div
@@ -406,18 +401,18 @@ export default function TicketRepliesPanel({
                                     className="flex min-w-0 flex-1 items-start gap-3"
                                     onClick={(event) => {
                                       if (
-                                        !isImageAttachment(
-                                          attachment.extension,
-                                        )
+                                        !isImageAttachment(attachment.extension)
                                       ) {
                                         return;
                                       }
 
                                       event.preventDefault();
-                                      const index = conversationImages.findIndex(
-                                        (image) =>
-                                          image.attachmentId === attachment.id,
-                                      );
+                                      const index =
+                                        conversationImages.findIndex(
+                                          (image) =>
+                                            image.attachmentId ===
+                                            attachment.id,
+                                        );
                                       openGallery(conversationImages, index);
                                     }}
                                   >
@@ -541,11 +536,11 @@ export default function TicketRepliesPanel({
               />
 
               {attachments.length ? (
-                <div className="mt-3 grid max-h-52 min-h-0 grid-cols-1 gap-2 overflow-y-auto overscroll-contain pr-1 scrollbar-hide sm:grid-cols-2 lg:grid-cols-3">
+                <div className="mt-3 flex items-center max-h-32 flex-wrap min-h-0 grid-cols-1 gap-2 overflow-y-auto overscroll-contain pr-1 scrollbar-thin sm:grid-cols-2 lg:grid-cols-3">
                   {attachments.map((attachment) => (
                     <div
                       key={`${attachment.name}-${attachment.size}-${attachment.lastModified}`}
-                      className="flex min-w-0 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 py-0.5 pr-2 pl-0.5"
+                      className="flex min-w-0 items-center gap-3 max-w-48 rounded-lg border border-gray-200 bg-gray-50 py-0.5 pr-2 pl-0.5"
                     >
                       <LocalAttachmentPreview file={attachment} />
                       <div className="min-w-0 flex-1">
@@ -669,6 +664,75 @@ function getAttachmentUrl(storageKey?: string) {
     : '#';
 }
 
+function ExpandableMessageText({ message }: { message: string }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [shouldShowToggle, setShouldShowToggle] = useState(false);
+  const measureRef = useRef<HTMLParagraphElement | null>(null);
+  const overflowMeasureRef = useRef<HTMLParagraphElement | null>(null);
+
+  useEffect(() => {
+    const element = measureRef.current;
+    const overflowElement = overflowMeasureRef.current;
+
+    if (!element || !overflowElement) {
+      return;
+    }
+
+    const updateOverflowState = () => {
+      const computedStyle = window.getComputedStyle(element);
+      const lineHeight = Number.parseFloat(computedStyle.lineHeight);
+
+      if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
+        setShouldShowToggle(false);
+        return;
+      }
+
+      setShouldShowToggle(overflowElement.scrollHeight > lineHeight * 2 + 1);
+    };
+
+    updateOverflowState();
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateOverflowState();
+    });
+
+    resizeObserver.observe(element);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [message]);
+
+  return (
+    <div>
+      <p
+        ref={measureRef}
+        className={`text-sm font-normal whitespace-pre-wrap break-words text-gray-900 ${
+          isExpanded ? '' : 'line-clamp-2'
+        }`}
+      >
+        {message}
+      </p>
+      <p
+        ref={overflowMeasureRef}
+        aria-hidden="true"
+        className="pointer-events-none invisible absolute left-0 top-0 -z-10 line-clamp-none w-full whitespace-pre-wrap break-words text-sm font-normal text-gray-900"
+      >
+        {message}
+      </p>
+      {shouldShowToggle ? (
+        <button
+          type="button"
+          className="mt-1 text-sm font-medium text-[#8A38F5]"
+          onClick={() => setIsExpanded((current) => !current)}
+        >
+          {isExpanded ? 'read less' : 'read more'}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function getGalleryImagesFromAttachments(
   attachments: DiscussionAttachment[],
   authorName: string,
@@ -704,7 +768,9 @@ function getGalleryImagesFromDiscussion(
       return;
     }
 
-    images.push(...getGalleryImagesFromAttachments(reply.attachments, reply.author.name));
+    images.push(
+      ...getGalleryImagesFromAttachments(reply.attachments, reply.author.name),
+    );
   });
 
   return images;
@@ -775,11 +841,7 @@ function getAttachmentFileKey(file: File) {
   return `${file.name}-${file.size}-${file.lastModified}`;
 }
 
-function ChatStatusIcon({
-  status,
-}: {
-  status: 'sent' | 'read';
-}) {
+function ChatStatusIcon({ status }: { status: 'sent' | 'read' }) {
   const strokeColor = status === 'read' ? '#304FFD' : '#98A2B3';
 
   return (

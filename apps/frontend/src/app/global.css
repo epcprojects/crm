@@ -1060,17 +1060,18 @@ button[aria-disabled='true'] {
 
 
 .fc .fc-addEventButton-button {
-  background: linear-gradient(90deg, #1e1b72 0%, #5b2eff 100%) !important;
-  border: 0 !important;
-  color: #ffffff !important;
+  background: white !important;
+  border: 1px solid #3165F6 !important;
+  color: #3165F6 !important;
   min-width: 90px;
   padding: 8px 16px !important;
   border-radius: 8px !important;
+  font-size: 14px !important;
 
 }
 
 .fc .fc-addEventButton-button:hover {
-  background: linear-gradient(90deg, #191761 0%, #4d27e0 100%) !important;
+  background: #3165F6 !important;
   color: #ffffff !important;
 }
 

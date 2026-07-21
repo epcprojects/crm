@@ -13,6 +13,11 @@ export type ProjectRecord = {
   filesCount: number;
 };
 
+export type ProjectNameRecord = {
+  id: string;
+  name: string;
+};
+
 export type ApiProjectRecord = {
   id: string;
   name: string;

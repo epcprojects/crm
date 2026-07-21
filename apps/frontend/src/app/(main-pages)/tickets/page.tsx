@@ -20,7 +20,7 @@ import { FiltersIcon, PlusIcon, SearchIcon } from '../../../../public/icons';
 import { createTicket } from '../../../lib/tickets';
 import {
   projectsQueryKey,
-  useProjectsQuery,
+  useProjectNamesQuery,
 } from '../projects/projects.queries';
 import {
   PermissionGuard,
@@ -61,7 +61,7 @@ export default function Page() {
     sortBy: 'createdAt',
     sortOrder: 'desc',
   });
-  const projectsQuery = useProjectsQuery();
+  const projectsQuery = useProjectNamesQuery();
   const { hasPermission } = usePermissions();
   const canCreateTicket = hasPermission('tickets.create');
   const canFilterTickets = hasPermission('tickets.filter');
@@ -375,6 +375,9 @@ export default function Page() {
           ? error.message
           : 'Failed to reorder ticket statuses.',
       );
+    },
+    onSuccess: () => {
+      appToast.success('Ticket statuses reordered successfully.');
     },
     onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: ['ticket-statuses'] });
