@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Post,
   Put,
   UnauthorizedException,
@@ -44,7 +45,7 @@ export class UsersController {
   }
 
   @Put(':id')
-  updateUser(@Param('id') id: string, @Body() dto: UpdateUserDto) {
+  updateUser(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateUserDto) {
     return this.usersService.updateUser(id, dto);
   }
 
@@ -53,7 +54,7 @@ export class UsersController {
   @ApiOperation({
     summary: 'Soft delete user',
   })
-  softDeleteUser(@Param('id') id: string, @GetUser() user) {
+  softDeleteUser(@Param('id', ParseUUIDPipe) id: string, @GetUser() user) {
     if (id === user?.id) {
       throw new UnauthorizedException(
         'You are not authorized to delete this user',

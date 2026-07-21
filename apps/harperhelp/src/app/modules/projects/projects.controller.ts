@@ -10,6 +10,7 @@ import {
   UseInterceptors,
   UploadedFiles,
   Query,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
@@ -27,13 +28,13 @@ import { RolesGuard } from '../../../common/guards/roles.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { SystemRoles } from '@harperhelp/types';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { GetUser } from 'apps/harperhelp/src/common/decorators/get-user.decorator';
+import { GetUser } from '../../../common/decorators/get-user.decorator';
 import { ProjectsFilesService } from './services/project-files.service';
 import { User } from '../users/entities/user.entity';
 import { Authorize } from '../../../common/guards/authorize.guard';
 import { GetProjectsQueryDto } from './dto/get-projects-query.dto';
 import { GetMembersQueryDto } from './dto/get-members-query.dto';
-import { FileSizeGuard } from 'apps/harperhelp/src/common/guards/file-size.guard';
+import { FileSizeGuard } from '../../../common/guards/file-size.guard';
 
 @Controller('projects')
 @ApiBearerAuth('JWT-auth')
@@ -97,21 +98,21 @@ export class ProjectsController {
   //   SystemRoles.VIEWER,
   // )
   @ApiOperation({ summary: 'Find a project by ID' })
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.projectsService.findOne(id);
   }
 
   @Patch(':id')
   // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({ summary: 'Update a project' })
-  update(@Param('id') id: string, @Body() updateProjectDto: UpdateProjectDto) {
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() updateProjectDto: UpdateProjectDto) {
     return this.projectsService.update(id, updateProjectDto);
   }
 
   @Delete(':id')
   // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({ summary: 'Delete a project' })
-  remove(@Param('id') id: string) {
+  remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.projectsService.remove(id);
   }
 
@@ -124,7 +125,7 @@ export class ProjectsController {
   //   SystemRoles.VIEWER,
   // )
   @ApiOperation({ summary: 'Get list of project members.' })
-  findProjectMembers(@Param('id') id: string, @GetUser() user) {
+  findProjectMembers(@Param('id', ParseUUIDPipe) id: string, @GetUser() user) {
     return this.projectsService.findProjectMembers(id, user);
   }
 
@@ -162,7 +163,7 @@ export class ProjectsController {
     description: 'Files uploaded successfully',
   })
   async uploadFiles(
-    @Param('projectId') projectId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
     @UploadedFiles() files: Express.Multer.File[],
     @GetUser() user,
   ) {
@@ -185,7 +186,7 @@ export class ProjectsController {
     status: 200,
     description: 'List of project files',
   })
-  async getFiles(@Param('projectId') projectId: string, @GetUser() user) {
+  async getFiles(@Param('projectId', ParseUUIDPipe) projectId: string, @GetUser() user) {
     return this.projectsFilesService.getProjectFiles(projectId, user);
   }
 
@@ -207,8 +208,8 @@ export class ProjectsController {
     description: 'File deleted successfully',
   })
   async deleteFile(
-    @Param('projectId') projectId: string,
-    @Param('fileId') fileId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('fileId', ParseUUIDPipe) fileId: string,
   ) {
     return this.projectsFilesService.deleteFile(fileId, projectId);
   }
