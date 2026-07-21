@@ -81,182 +81,154 @@ export class ProjectsService {
 
     delete savedProject['members'];
 
-    // Dispatch a project created notification (non-blocking)
-    try {
-      const userRepo = this.dataSource.manager.getRepository(User);
-      const memberUsers = await userRepo.find({
-        where: { id: Array.from(memberIds) as any },
-        select: { fullName: true, email: true },
-      });
-
-      const members = memberUsers.map((u) => ({
-        name: u.fullName,
-        email: u.email,
-      }));
-
-      await this.notificationsService.dispatch({
-        type: EmailEventType.PROJECT_CREATED,
-        payload: {
-          projectId: savedProject.id,
-          projectName: savedProject.name,
-          projectCode,
-          createdBy: { name: currentUser.fullName, email: currentUser.email },
-          members,
-        },
-      });
-    } catch (err) {
-      // do not fail project creation if notification dispatch fails
-      // log later if needed
-    }
-
     return {
-      ...savedProject, 
+      ...savedProject,
     };
   }
 
-
   async findAll(query: GetProjectsQueryDto, user: { id: string }) {
-  const { page = 1, limit = 10, search } = query;
-  const searchTerm = search?.trim();
+    const { page = 1, limit = 10, search } = query;
+    const searchTerm = search?.trim();
 
-  const baseQuery = this.projectRepo
-    .createQueryBuilder('p')
-    .innerJoin('p.members', 'u', 'u.id = :userId', {
-      userId: user.id,
-    })
-    .leftJoin(Ticket, 't', 't.projectId = p.id');
+    const baseQuery = this.projectRepo
+      .createQueryBuilder('p')
+      .innerJoin('p.members', 'u', 'u.id = :userId', {
+        userId: user.id,
+      })
+      .leftJoin(Ticket, 't', 't.projectId = p.id');
 
-  if (searchTerm) {
-    baseQuery.andWhere(
-      `
+    if (searchTerm) {
+      baseQuery.andWhere(
+        `
       (
         p.name ILIKE :search
         OR p.category ILIKE :search
       )
       `,
-      {
-        search: `%${searchTerm}%`,
-      },
-    );
-  }
+        {
+          search: `%${searchTerm}%`,
+        },
+      );
+    }
 
-  /*
-   * Summary is calculated from all matching projects and tickets
-   * before pagination is applied.
-   */
-  const summaryResult = await baseQuery
-    .clone()
-    .select([
-      `COUNT(DISTINCT p.id) AS total`,
-      `
+    /*
+     * Summary is calculated from all matching projects and tickets
+     * before pagination is applied.
+     */
+    const summaryResult = await baseQuery
+      .clone()
+      .select([
+        `COUNT(DISTINCT p.id) AS total`,
+        `
       COUNT(
         DISTINCT CASE
           WHEN p.isActive = true THEN p.id
         END
       ) AS active
       `,
-      `
+        `
       COUNT(
         CASE
           WHEN UPPER(t.statusKey) = 'OPEN' THEN 1
         END
       ) AS open
       `,
-      `
+        `
       COUNT(
         CASE
           WHEN UPPER(t.priorityKey) = 'CRITICAL' THEN 1
         END
       ) AS critical
       `,
-    ])
-    .getRawOne<{
-      total: string;
-      active: string;
-      open: string;
-      critical: string;
-    }>();
+      ])
+      .getRawOne<{
+        total: string;
+        active: string;
+        open: string;
+        critical: string;
+      }>();
 
-  /*
-   * Fetch paginated project cards with their individual ticket stats.
-   */
-  const projects = await baseQuery
-    .clone()
-    .select([
-      'p.id AS id',
-      'p.name AS name',
-      'p.category AS category',
-      'p.projectCode AS "projectCode"',
-      'p.brandColor AS "brandColor"',
-      'p.logoLetter AS "logoLetter"',
-    ])
-    .addSelect('COUNT(t.id)', 'ticketCount')
-    .addSelect(
-      `
+    /*
+     * Fetch paginated project cards with their individual ticket stats.
+     */
+    const projects = await baseQuery
+      .clone()
+      .select([
+        'p.id AS id',
+        'p.name AS name',
+        'p.category AS category',
+        'p.projectCode AS "projectCode"',
+        'p.brandColor AS "brandColor"',
+        'p.logoLetter AS "logoLetter"',
+      ])
+      .addSelect('COUNT(t.id)', 'ticketCount')
+      .addSelect(
+        `
       COUNT(
         CASE
           WHEN UPPER(t.statusKey) = 'OPEN' THEN 1
         END
       )
       `,
-      'openTicketCount',
-    )
-    .addSelect(
-      `
+        'openTicketCount',
+      )
+      .addSelect(
+        `
       COUNT(
         CASE
           WHEN UPPER(t.priorityKey) = 'CRITICAL' THEN 1
         END
       )
       `,
-      'criticalTicketCount',
-    )
-    .groupBy('p.id')
-    .addGroupBy('p.name')
-    .addGroupBy('p.category')
-    .addGroupBy('p.projectCode')
-    .addGroupBy('p.brandColor')
-    .addGroupBy('p.logoLetter')
-    .orderBy('p.createdAt', 'DESC')
-    .offset((page - 1) * limit)
-    .limit(limit)
-    .getRawMany();
+        'criticalTicketCount',
+      )
+      .groupBy('p.id')
+      .addGroupBy('p.name')
+      .addGroupBy('p.category')
+      .addGroupBy('p.projectCode')
+      .addGroupBy('p.brandColor')
+      .addGroupBy('p.logoLetter')
+      .orderBy('p.createdAt', 'DESC')
+      .offset((page - 1) * limit)
+      .limit(limit)
+      .getRawMany();
 
-  const total = Number(summaryResult?.total ?? 0);
+    const total = Number(summaryResult?.total ?? 0);
 
-  return {
-    items: projects.map((project) => ({
-      id: project.id,
-      name: project.name,
-      category: project.category,
-      projectCode: project.projectCode,
-      brandColor: project.brandColor,
-      logoLetter: project.logoLetter,
+    return {
+      items: projects.map((project) => ({
+        id: project.id,
+        name: project.name,
+        category: project.category,
+        projectCode: project.projectCode,
+        brandColor: project.brandColor,
+        logoLetter: project.logoLetter,
 
-      stats: {
-        tickets: Number(project.ticketCount ?? 0),
-        openTickets: Number(project.openTicketCount ?? 0),
-        criticalTickets: Number(project.criticalTicketCount ?? 0),
+        stats: {
+          tickets: Number(project.ticketCount ?? 0),
+          openTickets: Number(project.openTicketCount ?? 0),
+          criticalTickets: Number(project.criticalTicketCount ?? 0),
+        },
+      })),
+
+      summary: {
+        totalProjects: total,
+        activeProjects: Number(summaryResult?.active ?? 0),
+        openTickets: Number(summaryResult?.open ?? 0),
+        criticalIssues: Number(summaryResult?.critical ?? 0),
       },
-    })),
 
-    summary: {
-      totalProjects: total,
-      activeProjects: Number(summaryResult?.active ?? 0),
-      openTickets: Number(summaryResult?.open ?? 0),
-      criticalIssues: Number(summaryResult?.critical ?? 0),
-    },
-
-    meta: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-      hasNext: page * limit < total,
-      hasPrevious: page > 1,
-    },
-  };
-}y
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNext: page * limit < total,
+        hasPrevious: page > 1,
+      },
+    };
+  }
+  y;
 
   findAllNames() {
     return this.projectRepo.find({
@@ -273,32 +245,28 @@ export class ProjectsService {
 
   // function for having summary of project section, return total project, active proejcts, open tickets and critical issues:
 
-async getGlobalProjectSummary(user) {
-  const result = await this.projectRepo
-    .createQueryBuilder('p')
-    .innerJoin('p.members', 'u', 'u.id = :userId', {
-      userId: user.id,
-    })
-    .leftJoin(
-      'tickets',
-      't',
-      't."projectId" = p.id',
-    )
-    .select([
-      `COUNT(DISTINCT p.id) AS total`,
-      `COUNT(DISTINCT CASE WHEN p.isActive = true THEN p.id END) AS active`,
-      `COUNT(CASE WHEN UPPER(t."statusKey") = 'OPEN' THEN 1 END) AS open`,
-      `COUNT(CASE WHEN UPPER(t."priorityKey") = 'CRITICAL' THEN 1 END) AS critical`,
-    ])
-    .getRawOne();
+  async getGlobalProjectSummary(user) {
+    const result = await this.projectRepo
+      .createQueryBuilder('p')
+      .innerJoin('p.members', 'u', 'u.id = :userId', {
+        userId: user.id,
+      })
+      .leftJoin('tickets', 't', 't."projectId" = p.id')
+      .select([
+        `COUNT(DISTINCT p.id) AS total`,
+        `COUNT(DISTINCT CASE WHEN p.isActive = true THEN p.id END) AS active`,
+        `COUNT(CASE WHEN UPPER(t."statusKey") = 'OPEN' THEN 1 END) AS open`,
+        `COUNT(CASE WHEN UPPER(t."priorityKey") = 'CRITICAL' THEN 1 END) AS critical`,
+      ])
+      .getRawOne();
 
-  return {
-    totalProjects: Number(result.total ?? 0),
-    activeProjects: Number(result.active ?? 0),
-    openTickets: Number(result.open ?? 0),
-    criticalIssues: Number(result.critical ?? 0),
-  };
-}
+    return {
+      totalProjects: Number(result.total ?? 0),
+      activeProjects: Number(result.active ?? 0),
+      openTickets: Number(result.open ?? 0),
+      criticalIssues: Number(result.critical ?? 0),
+    };
+  }
 
   async findProjectMembers(projectId: string, user) {
     return this.projectRepo
@@ -329,13 +297,7 @@ async getGlobalProjectSummary(user) {
   }
 
   async findMembersWithProjects(query: GetMembersQueryDto) {
-    const {
-      search, 
-      isInvitationAccepted,
-      projectId,
-      roleId,
-    } = query
-
+    const { search, isInvitationAccepted, projectId, roleId } = query;
 
     const userRepository = this.projectRepo.manager.getRepository(User);
 
@@ -343,33 +305,30 @@ async getGlobalProjectSummary(user) {
       .createQueryBuilder('u')
       .where('u.fullName != :superAdminName', {
         superAdminName: 'Super Admin',
-       });
+      });
 
     if (search?.trim()) {
-    baseQuery.andWhere(
-      `
+      baseQuery.andWhere(
+        `
       (
         u.fullName ILIKE :search
         OR u.email ILIKE :search
       )
       `,
-      {
-        search: `%${search.trim()}%`,
-      },
-    );
-  }
+        {
+          search: `%${search.trim()}%`,
+        },
+      );
+    }
 
     if (isInvitationAccepted !== undefined) {
-    baseQuery.andWhere(
-      'u.isInvitationAccepted = :isInvitationAccepted',
-      {
+      baseQuery.andWhere('u.isInvitationAccepted = :isInvitationAccepted', {
         isInvitationAccepted,
-      },
-    );
-  }
+      });
+    }
     if (projectId) {
-    baseQuery.andWhere(
-      `
+      baseQuery.andWhere(
+        `
       EXISTS (
         SELECT 1
         FROM user_projects_join upj
@@ -377,14 +336,14 @@ async getGlobalProjectSummary(user) {
           AND upj."projectsId" = :projectId
       )
       `,
-      {
-        projectId,
-      },
-    );
-  }
-  if (roleId) {
-    baseQuery.andWhere(
-      `
+        {
+          projectId,
+        },
+      );
+    }
+    if (roleId) {
+      baseQuery.andWhere(
+        `
       EXISTS (
         SELECT 1
         FROM user_roles filter_ur
@@ -392,86 +351,80 @@ async getGlobalProjectSummary(user) {
           AND filter_ur."roleId" = :roleId
       )
       `,
-      {
-        roleId,
-      },
-    );
-  }
+        {
+          roleId,
+        },
+      );
+    }
 
-   const summaryResult = await baseQuery
-    .clone()
-    .select([
-      `COUNT(DISTINCT u.id) AS total`,
-      `
+    const summaryResult = await baseQuery
+      .clone()
+      .select([
+        `COUNT(DISTINCT u.id) AS total`,
+        `
       COUNT(
         DISTINCT CASE
           WHEN u.isActive = true THEN u.id
         END
       ) AS active
       `,
-      `
+        `
       COUNT(
         DISTINCT CASE
           WHEN u.isInvitationAccepted = false THEN u.id
         END
       ) AS pending
       `,
-      `
+        `
       COUNT(
         DISTINCT CASE
           WHEN UPPER(u.userType) = 'EXTERNAL' THEN u.id
         END
       ) AS external
       `,
-    ])
-    .getRawOne<{
-      total: string;
-      active: string;
-      pending: string;
-      external: string;
-    }>();
-
+      ])
+      .getRawOne<{
+        total: string;
+        active: string;
+        pending: string;
+        external: string;
+      }>();
 
     const users = await baseQuery
-    .clone()
-    .leftJoinAndSelect('u.projects', 'p')
-    .leftJoinAndMapMany(
-      'u.userRoles',
-      UserRole,
-      'ur',
-      'ur.userId = u.id',
-    )
-    .leftJoinAndSelect('ur.role', 'r')
-    .select([
-      'u.id',
-      'u.fullName',
-      'u.email',
-      'u.isActive',
-      'u.isInvitationAccepted',
-      'u.userType',
+      .clone()
+      .leftJoinAndSelect('u.projects', 'p')
+      .leftJoinAndMapMany('u.userRoles', UserRole, 'ur', 'ur.userId = u.id')
+      .leftJoinAndSelect('ur.role', 'r')
+      .select([
+        'u.id',
+        'u.fullName',
+        'u.email',
+        'u.isActive',
+        'u.isInvitationAccepted',
+        'u.userType',
 
-      'p.id',
-      'p.name',
+        'p.id',
+        'p.name',
 
-      'ur.id',
+        'ur.id',
 
-      'r.id',
-      'r.name',
-    ])
-    .orderBy('u.fullName', 'ASC')
-    .getMany();
+        'r.id',
+        'r.name',
+      ])
+      .orderBy('u.fullName', 'ASC')
+      .getMany();
 
-  return {
-    items: users,
+    return {
+      items: users,
 
-    summary: {
-      totalUsers: Number(summaryResult?.total ?? 0),
-      activeUsers: Number(summaryResult?.active ?? 0),
-      pendingInvites: Number(summaryResult?.pending ?? 0),
-      externalUsers: Number(summaryResult?.external ?? 0),
-    },
-  };
-}
+      summary: {
+        totalUsers: Number(summaryResult?.total ?? 0),
+        activeUsers: Number(summaryResult?.active ?? 0),
+        pendingInvites: Number(summaryResult?.pending ?? 0),
+        externalUsers: Number(summaryResult?.external ?? 0),
+      },
+    };
+  }
 
   update(id: string, updateProjectDto: UpdateProjectDto) {
     this.projectRepo.update(id, updateProjectDto);
@@ -487,18 +440,5 @@ async getGlobalProjectSummary(user) {
     return {
       success: true,
     };
-  }
-
-  // Utility
-  private generateProjectCode(name: string): string {
-    const prefix = name
-      .replace(/[^a-zA-Z]/g, '')
-      .toUpperCase()
-      .slice(0, 3)
-      .padEnd(3, 'X');
-
-    const suffix = Math.random().toString(36).substring(2, 4).toUpperCase();
-
-    return `${prefix}${suffix}`;
   }
 }

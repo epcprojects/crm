@@ -7,6 +7,8 @@ import {
   buildStatusUpdatedEmail,
   buildTicketCreatedEmail,
   buildTicketReplyEmail,
+  buildThreadMessageCreatedEmail,
+  buildProjectAssignedEmail,
 } from '../../templates/common';
 import {
   EmailEventType,
@@ -62,6 +64,10 @@ function buildEmailForEvent(event: EmailNotificationEvent) {
   switch (event.type) {
     case EmailEventType.PROJECT_CREATED:
       return buildProjectCreatedEmail(event.payload, appUrl, appName);
+    case EmailEventType.PROJECT_ASSIGNED:
+      return buildProjectAssignedEmail(event.payload, appUrl, appName);
+    case EmailEventType.THREAD_MESSAGE_CREATED:
+      return buildThreadMessageCreatedEmail(event.payload, appUrl, appName);
     case EmailEventType.TICKET_CREATED:
       return buildTicketCreatedEmail(event.payload, appUrl, appName);
     case EmailEventType.TICKET_REPLY_POSTED:
@@ -81,7 +87,11 @@ function resolveRecipients(event: EmailNotificationEvent) {
   switch (event.type) {
     case EmailEventType.PROJECT_CREATED:
       return event.payload.members;
+    case EmailEventType.PROJECT_ASSIGNED:
+      return event.payload.members;
     case EmailEventType.TICKET_CREATED:
+      return event.payload.participants;
+    case EmailEventType.THREAD_MESSAGE_CREATED:  
       return event.payload.participants;
     case EmailEventType.TICKET_REPLY_POSTED:
       return event.payload.participants.filter(

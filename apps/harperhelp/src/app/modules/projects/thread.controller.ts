@@ -71,7 +71,7 @@ export class ThreadController {
     @UploadedFiles() files: Express.Multer.File[],
     @GetUser() user,
   ) {
-    return this.service.create(pid, dto, user.id, files);
+    return this.service.create(pid, dto, user, files);
   }
 
   @Get(':messageId')

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PaginationState } from '@tanstack/react-table';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useDashboardHeaderAction } from '../../../components/dashboard/dashboard-shell';
 import CreateTicketModal, {
   type CreateTicketFormValues,
@@ -40,13 +40,17 @@ type TicketSummary = {
 };
 export default function Page() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { setLoading } = useAppLoader();
   const { setHeaderActionOverride } = useDashboardHeaderAction();
   const [isExportingTickets, setIsExportingTickets] = useState(false);
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
-  const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
+  const [viewMode, setViewMode] = useState<'table' | 'kanban'>(() =>
+    searchParams.get('view') === 'kanban' ? 'kanban' : 'table',
+  );
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedPriority, setSelectedPriority] = useState('all');
   const [selectedProject, setSelectedProject] = useState('all');
@@ -509,6 +513,15 @@ const handleExportTickets = async () => {
     }));
   }, [searchValue, selectedPriority, selectedProject, selectedStatus]);
 
+  useEffect(() => {
+    const nextViewMode =
+      searchParams.get('view') === 'kanban' ? 'kanban' : 'table';
+
+    setViewMode((current) =>
+      current === nextViewMode ? current : nextViewMode,
+    );
+  }, [searchParams]);
+
   const handleSortChange = (nextSortState: TicketSortState) => {
     setSortState(nextSortState);
     setPagination((current) => ({
@@ -543,6 +556,24 @@ const handleExportTickets = async () => {
       ticket,
       statusKey: nextStatusKey,
     });
+  };
+
+  const handleViewModeChange = (nextViewMode: 'table' | 'kanban') => {
+    setViewMode(nextViewMode);
+
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+
+    if (nextViewMode === 'table') {
+      nextSearchParams.delete('view');
+    } else {
+      nextSearchParams.set('view', nextViewMode);
+    }
+
+    const nextQueryString = nextSearchParams.toString();
+    router.replace(
+      nextQueryString ? `${pathname}?${nextQueryString}` : pathname,
+      { scroll: false },
+    );
   };
 
   return (
@@ -642,7 +673,7 @@ const handleExportTickets = async () => {
                         <div className="hidden xl:flex  items-center rounded-lg border border-gray-200 bg-white">
                           <button
                             type="button"
-                            onClick={() => setViewMode('table')}
+                            onClick={() => handleViewModeChange('table')}
                             className={`flex h-9 w-9 items-center justify-center rounded-md transition ${viewMode === 'table'
                               ? 'bg-primary-dark text-white shadow-sm'
                               : 'text-gray-500 hover:bg-gray-50'
@@ -654,7 +685,7 @@ const handleExportTickets = async () => {
 
                           <button
                             type="button"
-                            onClick={() => setViewMode('kanban')}
+                            onClick={() => handleViewModeChange('kanban')}
                             className={`flex h-9 w-9 items-center justify-center rounded-md transition ${viewMode === 'kanban'
                               ? 'bg-primary-dark text-white shadow-sm'
                               : 'text-gray-500 hover:bg-gray-50'

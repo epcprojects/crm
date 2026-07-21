@@ -194,6 +194,21 @@ export class UsersService {
         });
       }
 
+      // Dispatch a project created notification (non-blocking)
+      // try {
+      //   await this.notificationService.dispatch({
+      //     type: EmailEventType.PROJECT_ASSIGNED,
+      //     payload: {
+      //       projectName: projectNames,
+      //       createdBy: { name: currentUser.fullName, email: currentUser.email },
+      //       members: [{ email: existing.email, name: existing.fullName }],
+      //     },
+      //   });
+      // } catch (err) {
+      //   // do not fail project creation if notification dispatch fails
+      //   // log later if needed
+      // }
+
       await this.notificationService.sendAdminInviteEmail({
         to: existing.email,
         fullName: existing.fullName,

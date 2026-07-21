@@ -25,7 +25,7 @@ import { User } from '../users/entities/user.entity';
 export class TicketsService {
   constructor(
     @InjectRepository(User)
-private readonly userRepo: Repository<User>,
+    private readonly userRepo: Repository<User>,
 
     @InjectRepository(Ticket)
     private readonly ticketRepo: Repository<Ticket>,
@@ -147,6 +147,10 @@ private readonly userRepo: Repository<User>,
 
       const participants = Array.from(participantsMap.values());
 
+      console.debug(
+        `Dispatching ticket.created notification for ticket ${saved.id} to ${participants.length} participants`,
+      );
+
       await this.notificationsService.dispatch({
         type: EmailEventType.TICKET_CREATED,
         payload: {
@@ -156,6 +160,7 @@ private readonly userRepo: Repository<User>,
           description: saved.description || '',
           priority: saved.priorityKey || '',
           status: saved.statusKey || '',
+          projectId: ticket.project?.id || '',
           projectName: ticket.project?.name || '',
           createdBy: {
             name: ticket.reporter?.fullName || '',
@@ -169,6 +174,9 @@ private readonly userRepo: Repository<User>,
       });
     } catch (err) {
       // ignore dispatch errors
+      console.debug(
+        `Failed to dispatch ticket.created notification for ticket ${saved.id}: ${err.message}`,
+      );
     }
 
     return saved;
@@ -307,66 +315,65 @@ private readonly userRepo: Repository<User>,
   }
 
   //
- async findAllProjects(query: GetTicketsQueryDto, user) {
-  const qb = this.ticketRepo
-    .createQueryBuilder('t')
-    .leftJoin('t.project', 'p')
-    .innerJoin('p.members', 'u', 'u.id = :userId', {
-      userId: user.id,
-    })
-    .leftJoin('t.status', 's')
-    .leftJoin('t.priority', 'pr')
-    .leftJoin('t.assignee', 'a');
+  async findAllProjects(query: GetTicketsQueryDto, user) {
+    const qb = this.ticketRepo
+      .createQueryBuilder('t')
+      .leftJoin('t.project', 'p')
+      .innerJoin('p.members', 'u', 'u.id = :userId', {
+        userId: user.id,
+      })
+      .leftJoin('t.status', 's')
+      .leftJoin('t.priority', 'pr')
+      .leftJoin('t.assignee', 'a');
 
-  if (query.statusKey) {
-    qb.andWhere('t.statusKey = :statusKey', {
-      statusKey: query.statusKey,
-    });
-  }
+    if (query.statusKey) {
+      qb.andWhere('t.statusKey = :statusKey', {
+        statusKey: query.statusKey,
+      });
+    }
 
-  if (query.priorityKey) {
-    qb.andWhere('t.priorityKey = :priorityKey', {
-      priorityKey: query.priorityKey,
-    });
-  }
+    if (query.priorityKey) {
+      qb.andWhere('t.priorityKey = :priorityKey', {
+        priorityKey: query.priorityKey,
+      });
+    }
 
-  if (query.assigneeId) {
-    qb.andWhere('t.assigneeId = :assigneeId', {
-      assigneeId: query.assigneeId,
-    });
-  }
+    if (query.assigneeId) {
+      qb.andWhere('t.assigneeId = :assigneeId', {
+        assigneeId: query.assigneeId,
+      });
+    }
 
-  if (query.projectId) {
-    qb.andWhere('t.projectId = :projectId', {
-      projectId: query.projectId,
-    });
-  }
+    if (query.projectId) {
+      qb.andWhere('t.projectId = :projectId', {
+        projectId: query.projectId,
+      });
+    }
 
-
-  if (query.search?.trim()) {
-    qb.andWhere(
-      `
+    if (query.search?.trim()) {
+      qb.andWhere(
+        `
       (
         t.title ILIKE :search
         OR t.description ILIKE :search
         OR t.ticketRefNo ILIKE :search
       )
       `,
-      {
-        search: `%${query.search.trim()}%`,
-      },
-    );
-  }
+        {
+          search: `%${query.search.trim()}%`,
+        },
+      );
+    }
 
-  /*
-   * Clone the filtered query before adding pagination and item selection.
-   * The summary will represent all matching tickets, not only the current page.
-   */
-  const summaryQuery = qb.clone();
+    /*
+     * Clone the filtered query before adding pagination and item selection.
+     * The summary will represent all matching tickets, not only the current page.
+     */
+    const summaryQuery = qb.clone();
 
-  const summaryResult = await summaryQuery
-    .select([
-      `
+    const summaryResult = await summaryQuery
+      .select([
+        `
       COALESCE(
         SUM(
           CASE
@@ -378,7 +385,7 @@ private readonly userRepo: Repository<User>,
         0
       ) AS open
       `,
-      `
+        `
       COALESCE(
         SUM(
           CASE
@@ -390,7 +397,7 @@ private readonly userRepo: Repository<User>,
         0
       ) AS inprogress
       `,
-      `
+        `
       COALESCE(
         SUM(
           CASE
@@ -402,7 +409,7 @@ private readonly userRepo: Repository<User>,
         0
       ) AS resolved
       `,
-      `
+        `
       COALESCE(
         SUM(
           CASE
@@ -414,58 +421,58 @@ private readonly userRepo: Repository<User>,
         0
       ) AS critical
       `,
-    ])
-    .getRawOne();
+      ])
+      .getRawOne();
 
-  qb.select([
-    't.id',
-    't.title',
-    't.createdAt',
-    't.ticketRefNo',
-    't.dueDate',
-    
-    'p.id',
-    'p.name',
+    qb.select([
+      't.id',
+      't.title',
+      't.createdAt',
+      't.ticketRefNo',
+      't.dueDate',
 
-    's.key',
-    's.label',
-    's.color',
+      'p.id',
+      'p.name',
 
-    'pr.key',
-    'pr.label',
-    'pr.color',
+      's.key',
+      's.label',
+      's.color',
 
-    'a.id',
-    'a.fullName',
-    'a.email',
-  ]);
+      'pr.key',
+      'pr.label',
+      'pr.color',
 
-  qb.orderBy('t.createdAt', 'DESC')
-    .skip((query.page - 1) * query.limit)
-    .take(query.limit);
+      'a.id',
+      'a.fullName',
+      'a.email',
+    ]);
 
-  const [items, total] = await qb.getManyAndCount();
+    qb.orderBy('t.createdAt', 'DESC')
+      .skip((query.page - 1) * query.limit)
+      .take(query.limit);
 
-  return {
-    items,
+    const [items, total] = await qb.getManyAndCount();
 
-    summary: {
-      open: Number(summaryResult?.open ?? 0),
-      inProgress: Number(summaryResult?.inprogress ?? 0),
-      resolved: Number(summaryResult?.resolved ?? 0),
-      critical: Number(summaryResult?.critical ?? 0),
-    },
+    return {
+      items,
 
-    meta: {
-      page: query.page,
-      limit: query.limit,
-      total,
-      totalPages: Math.ceil(total / query.limit),
-      hasNext: query.page * query.limit < total,
-      hasPrevious: query.page > 1,
-    },
-  };
-}
+      summary: {
+        open: Number(summaryResult?.open ?? 0),
+        inProgress: Number(summaryResult?.inprogress ?? 0),
+        resolved: Number(summaryResult?.resolved ?? 0),
+        critical: Number(summaryResult?.critical ?? 0),
+      },
+
+      meta: {
+        page: query.page,
+        limit: query.limit,
+        total,
+        totalPages: Math.ceil(total / query.limit),
+        hasNext: query.page * query.limit < total,
+        hasPrevious: query.page > 1,
+      },
+    };
+  }
   // ---------------- FIND ONE ----------------
   // async findOne(projectId: string, ticketId: string) {
   //   const ticket = await this.ticketRepo
@@ -505,51 +512,50 @@ private readonly userRepo: Repository<User>,
   //   };
   // }
 
-
   // ---------------- FIND ONE ----------------
-async findOne(projectId: string, ticketId: string) {
-  const ticket = await this.ticketRepo
-    .createQueryBuilder('t')
-    .leftJoinAndSelect('t.project', 'p')
-    .leftJoinAndSelect('t.assignee', 'a')
-    .leftJoinAndSelect('t.reporter', 'r')
-    .where('t.id = :ticketId', { ticketId })
-    .andWhere('t.projectId = :projectId', { projectId })
-    .select([
-      't',
+  async findOne(projectId: string, ticketId: string) {
+    const ticket = await this.ticketRepo
+      .createQueryBuilder('t')
+      .leftJoinAndSelect('t.project', 'p')
+      .leftJoinAndSelect('t.assignee', 'a')
+      .leftJoinAndSelect('t.reporter', 'r')
+      .where('t.id = :ticketId', { ticketId })
+      .andWhere('t.projectId = :projectId', { projectId })
+      .select([
+        't',
 
-      'p.id',
-      'p.name',
-      'p.brandColor',
+        'p.id',
+        'p.name',
+        'p.brandColor',
 
-      'a.id',
-      'a.fullName',
+        'a.id',
+        'a.fullName',
 
-      'r.id',
-      'r.fullName',
-    ])
-    .getOne();
+        'r.id',
+        'r.fullName',
+      ])
+      .getOne();
 
-  if (!ticket) {
-    throw new NotFoundException('Ticket not found');
+    if (!ticket) {
+      throw new NotFoundException('Ticket not found');
+    }
+
+    const [attachments, createdByUser] = await Promise.all([
+      this.filesService.findBySource(FileSource.TICKET, ticketId),
+      ticket.createdBy
+        ? this.userRepo.findOne({
+            where: { id: ticket.createdBy },
+            select: { id: true, fullName: true },
+          })
+        : Promise.resolve(null),
+    ]);
+
+    return {
+      ...ticket,
+      createdBy: createdByUser,
+      attachments,
+    };
   }
-
-  const [attachments, createdByUser] = await Promise.all([
-    this.filesService.findBySource(FileSource.TICKET, ticketId),
-ticket.createdBy
-  ? this.userRepo.findOne({
-      where: { id: ticket.createdBy },
-      select: { id: true, fullName: true },
-    })
-  : Promise.resolve(null),
-  ]);
-
-  return {
-    ...ticket,
-    createdBy: createdByUser,
-    attachments,
-  };
-}
 
   // ---------------- UPDATE ----------------
   async update(

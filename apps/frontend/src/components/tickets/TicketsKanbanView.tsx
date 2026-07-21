@@ -124,7 +124,7 @@ export default function TicketsKanbanView({
 
   return (
     <div className="h-full max-h-full min-h-0 w-full min-w-0 overflow-x-auto overflow-y-hidden overscroll-contain scrollbar-hide">
-      <div className="flex h-full min-h-0 min-w-max items-stretch gap-4 pb-2">
+      <div className="flex h-full min-h-0 min-w-max items-stretch gap-3 pb-2">
         {columns.map((column) => {
           const tone = getStatusTone(column.color);
           const isDraggableColumn = canDragColumns && !column.isCustom;
@@ -249,7 +249,7 @@ export default function TicketsKanbanView({
               </div>
 
               <div
-                className={`mt-5 flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto scrollbar-hide rounded-xl transition ${
+                className={`mt-3.5 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto scrollbar-hide rounded-xl transition ${
                   hoveredColumnKey === column.key
                     ? 'border border-dashed border-gray-200 bg-primary/5'
                     : ''

@@ -15,6 +15,8 @@ import {
   TicketPriorityUpdatedPayload,
   TicketAssigneeUpdatedPayload,
   TicketAttachmentAddedPayload,
+  ProjectAssignedPayload,
+  ThreadMessageCreatedPayload,
 } from './notifications.types';
 import {
   buildProjectCreatedEmail,
@@ -24,6 +26,8 @@ import {
   buildPriorityUpdatedEmail,
   buildAssigneeUpdatedEmail,
   buildAttachmentAddedEmail,
+  buildProjectAssignedEmail,
+  buildThreadMessageCreatedEmail,
 } from './templates/common';
 import { SqsNotificationQueueService } from './queue/sqs-notification-queue.service';
 
@@ -138,6 +142,10 @@ export class NotificationsService {
     switch (event.type) {
       case EmailEventType.PROJECT_CREATED:
         return this.onProjectCreated(event.payload);
+      case EmailEventType.PROJECT_ASSIGNED:
+        return this.onProjectAssigned(event.payload);
+      case EmailEventType.THREAD_MESSAGE_CREATED:
+        return this.onThreadMessageCreated(event.payload);
       case EmailEventType.TICKET_CREATED:
         return this.onTicketCreated(event.payload);
       case EmailEventType.TICKET_REPLY_POSTED:
@@ -163,6 +171,28 @@ export class NotificationsService {
     );
     // Notify all members
     await this.sendBulk(p.members, subject, html);
+  }
+
+  private async onProjectAssigned(p: ProjectAssignedPayload): Promise<void> {
+    const { subject, html } = buildProjectAssignedEmail(
+      p,
+      this.appUrl,
+      this.appName,
+    );
+    // Notify all members
+    await this.sendBulk(p.members, subject, html);
+  }
+
+  private async onThreadMessageCreated(
+    p: ThreadMessageCreatedPayload,
+  ): Promise<void> {
+    const { subject, html } = buildThreadMessageCreatedEmail(
+      p,
+      this.appUrl,
+      this.appName,
+    );
+    // Notify all participants
+    await this.sendBulk(p.participants, subject, html);
   }
 
   private async onTicketCreated(p: TicketCreatedPayload): Promise<void> {
