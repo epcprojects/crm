@@ -7,17 +7,18 @@ import {
   Param,
   Body,
   UseGuards,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 
 import { TicketStatusesService } from './services/ticket.statuses.service';
 import { CreateTicketStatusDto } from './dto/create-ticket-status.dto';
 import { UpdateTicketStatusDto } from './dto/update-ticket-status.dto';
 import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { JwtAuthGuard } from 'apps/harperhelp/src/common/guards/jwt-auth.guard';
-import { RolesGuard } from 'apps/harperhelp/src/common/guards/roles.guard';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../common/guards/roles.guard';
 import { SystemRoles } from '@harperhelp/types';
-import { Roles } from 'apps/harperhelp/src/common/decorators/roles.decorator';
-import { GetUser } from 'apps/harperhelp/src/common/decorators/get-user.decorator';
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { GetUser } from '../../../common/decorators/get-user.decorator';
 import { ReorderTicketStatusDto } from './dto/reorder-ticket-status.dto';
 
 @Controller('ticket-statuses')
@@ -54,21 +55,21 @@ export class TicketStatusesController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get added Ticket Status by id.' })
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.service.findOne(id);
   }
 
   @Patch(':id')
   // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({ summary: 'Update existing ticket status.' })
-  update(@Param('id') id: string, @Body() dto: UpdateTicketStatusDto) {
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateTicketStatusDto) {
     return this.service.update(id, dto);
   }
 
   @Delete(':id')
   // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({ summary: 'Delete ticket status.' })
-  remove(@Param('id') id: string) {
+  remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.service.remove(id);
   }
 }

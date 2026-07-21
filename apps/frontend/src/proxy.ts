@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   getLoginPathWithReturnUrl,
+  RETURN_URL_FALLBACK_PATH,
   sanitizeReturnUrl,
 } from './lib/auth/return-url';
 
@@ -83,7 +84,11 @@ export function proxy(request: NextRequest) {
     );
 
     if (pathname === '/login' && returnUrl) {
-      return NextResponse.redirect(new URL(returnUrl, request.url));
+      if (returnUrl === RETURN_URL_FALLBACK_PATH) {
+        return NextResponse.redirect(new URL(RETURN_URL_FALLBACK_PATH, request.url));
+      }
+
+      return NextResponse.next();
     }
 
     return NextResponse.redirect(new URL('/dashboard', request.url));

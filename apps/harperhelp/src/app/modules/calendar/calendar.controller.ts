@@ -39,7 +39,7 @@ export class CalendarController {
   @ApiOperation({ summary: 'Create a new event' })
   @ApiResponse({ status: 201, description: 'Event created successfully' })
   @ApiResponse({ status: 400, description: 'Validation error' })
-  create(@Param('pid') pid: string, @Body() dto: CreateEventDto) {
+  create(@Param('pid', ParseUUIDPipe) pid: string, @Body() dto: CreateEventDto) {
     return this.calendarService.create(pid, dto);
   }
 
@@ -89,13 +89,13 @@ Returns events whose date falls within the range for the requested view:
       ],
     },
   })
-  findByView(@Param('pid') pid: string, @Query() query: CalendarQueryDto) {
+  findByView(@Param('pid', ParseUUIDPipe) pid: string, @Query() query: CalendarQueryDto) {
     return this.calendarService.findByView(pid, query);
   }
 
   @Get('all')
   @ApiOperation({ summary: 'Get all events (no date filter)' })
-  findAll(@Param('pid') pid: string) {
+  findAll(@Param('pid', ParseUUIDPipe) pid: string) {
     return this.calendarService.findAll(pid);
   }
 
@@ -103,7 +103,7 @@ Returns events whose date falls within the range for the requested view:
   @ApiOperation({ summary: 'Get a single event by ID' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 404, description: 'Event not found' })
-  findOne(@Param('pid') pid: string, @Param('id', ParseUUIDPipe) id: string) {
+  findOne(@Param('pid', ParseUUIDPipe) pid: string, @Param('id', ParseUUIDPipe) id: string) {
     return this.calendarService.findOne(pid, id);
   }
 
@@ -112,7 +112,7 @@ Returns events whose date falls within the range for the requested view:
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 404, description: 'Event not found' })
   update(
-    @Param('pid') pid: string,
+    @Param('pid', ParseUUIDPipe) pid: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateEventDto,
   ) {

@@ -73,7 +73,9 @@ export default function ThemeButton({
           </span>
         )}
 
-        <span className="whitespace-nowrap font-medium">{children}</span>
+        <span className="whitespace-nowrap text-sm font-medium">
+          {children}
+        </span>
       </div>
     </button>
   );

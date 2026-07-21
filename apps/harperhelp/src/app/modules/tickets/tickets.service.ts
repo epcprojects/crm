@@ -240,6 +240,10 @@ export class TicketsService {
 
   // ---------------- FIND ALL ----------------
   async findAll(projectId: string, query: GetTicketsQueryDto) {
+    const project = await this.projectRepo.findOne({
+      where: { id: projectId },
+    });
+    if (!project) throw new NotFoundException('Project not found');
     const qb = this.ticketRepo
       .createQueryBuilder('t')
       .leftJoin('t.project', 'p')
@@ -514,6 +518,10 @@ export class TicketsService {
 
   // ---------------- FIND ONE ----------------
   async findOne(projectId: string, ticketId: string) {
+    // const project = await this.projectRepo.findOne({
+    //   where: { id: projectId },
+    // });
+    // if (!project) throw new NotFoundException('Project not found');
     const ticket = await this.ticketRepo
       .createQueryBuilder('t')
       .leftJoinAndSelect('t.project', 'p')
@@ -564,6 +572,10 @@ export class TicketsService {
     dto: UpdateTicketDto,
     userId: string,
   ) {
+    // const project = await this.projectRepo.findOne({
+    //   where: { id: projectId },
+    // });
+    // if (!project) throw new NotFoundException('Project not found');
     const ticket = await this.findEntity(projectId, ticketId);
 
     Object.assign(ticket, {
@@ -589,6 +601,10 @@ export class TicketsService {
   // TODO: needs to re-think on how we manage these? as statuses and priorities are dynamic
 
   async getTicketSummary(projectId: string) {
+    const project = await this.projectRepo.findOne({
+      where: { id: projectId },
+    });
+    if (!project) throw new NotFoundException('Project not found');
     const result = await this.ticketRepo
       .createQueryBuilder('t')
       .select([

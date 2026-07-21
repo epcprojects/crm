@@ -54,6 +54,10 @@ export class ProjectsFilesService {
   }
 
   async getProjectFiles(projectId: string, user) {
+    const project = await this.projectRepo.findOne({ where: { id: projectId } });
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
     const files = await this.filesService.findByProject(projectId, user);
 
     return files;

@@ -23,9 +23,24 @@ import {
   usePermissions,
 } from '../../../providers/PermissionProvider';
 import { useAppSelector } from '../../../Redux/store';
-import { FileTypePlaceholder } from '../../../../../public/icons';
+import {
+  CheckMarkCircleIcon,
+  EditIcon,
+  FileTypePlaceholder,
+} from '../../../../../public/icons';
 import { getFileUrl } from '../../../../components/projects/ProjectFilesPanel';
 import Tooltip from '../../../../components/tooltip';
+import Image from 'next/image';
+import EmptyState from '../../../../components/EmptyState';
+import ImageGalleryLightbox from '../../../../components/ui/ImageGalleryLightbox';
+
+type GalleryImage = {
+  attachmentId: string;
+  storageKey?: string;
+  fileName?: string;
+  src: string;
+  alt: string;
+};
 
 export default function TicketDetailPage() {
   const params = useParams<{ ticketId: string }>();
@@ -233,15 +248,26 @@ export default function TicketDetailPage() {
   const [selectedDueDate, setSelectedDueDate] = useState('');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [shouldShowDescriptionToggle, setShouldShowDescriptionToggle] =
+    useState(false);
+  const [descriptionPreviewText, setDescriptionPreviewText] = useState('');
+  const [descriptionRemainingText, setDescriptionRemainingText] = useState('');
   const [isSendingChatMessage, setIsSendingChatMessage] = useState(false);
   const [deletingChatMessageId, setDeletingChatMessageId] = useState('');
   const [chatMessagePendingDelete, setChatMessagePendingDelete] = useState<{
     id: string;
     message: string;
   } | null>(null);
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+  const [activeGalleryIndex, setActiveGalleryIndex] = useState<number | null>(
+    null,
+  );
   const unreadListenerSocketRef = useRef<ReturnType<
     typeof getChatSocket
   > | null>(null);
+  const descriptionMeasureRef = useRef<HTMLParagraphElement | null>(null);
+  const descriptionOverflowRef = useRef<HTMLParagraphElement | null>(null);
   const [titleDraft, setTitleDraft] = useState('');
   const [descriptionDraft, setDescriptionDraft] = useState('');
   const todayInputValue = getTodayInputValue();
@@ -301,6 +327,11 @@ export default function TicketDetailPage() {
     );
   }, [assigneeOptions, selectedAssignee, ticket]);
 
+  const ticketAttachmentGalleryImages = useMemo(
+    () => buildTicketAttachmentGalleryImages(ticket?.attachments ?? []),
+    [ticket?.attachments],
+  );
+
   useEffect(() => {
     if (!ticket) {
       return;
@@ -311,8 +342,80 @@ export default function TicketDetailPage() {
     setSelectedAssignee(ticket.assigneeDetail?.name ?? '');
     setSelectedDueDate(toDateInputValue(ticket.dueDateValue ?? ''));
     setTitleDraft(ticket.title);
-    setDescriptionDraft(ticket.description);
+    setDescriptionDraft(ticket.description ?? '');
+    setIsDescriptionExpanded(false);
   }, [ticket]);
+
+  useEffect(() => {
+    const description = ticket?.description?.trim() ?? '';
+    const measurementElement = descriptionMeasureRef.current;
+    const overflowElement = descriptionOverflowRef.current;
+
+    if (!description || !measurementElement || !overflowElement) {
+      setShouldShowDescriptionToggle(false);
+      setDescriptionPreviewText(description);
+      setDescriptionRemainingText('');
+      return;
+    }
+
+    const measureDescription = () => {
+      const computedStyle = window.getComputedStyle(measurementElement);
+      const lineHeight = Number.parseFloat(computedStyle.lineHeight);
+
+      if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
+        setShouldShowDescriptionToggle(false);
+        setDescriptionPreviewText(description);
+        setDescriptionRemainingText('');
+        return;
+      }
+
+      overflowElement.textContent = description;
+      const maxHeight = lineHeight * 2;
+      const fullHeight = overflowElement.scrollHeight;
+
+      if (fullHeight <= maxHeight + 1) {
+        setShouldShowDescriptionToggle(false);
+        setDescriptionPreviewText(description);
+        setDescriptionRemainingText('');
+        return;
+      }
+
+      const toggleLabel = ' read more';
+      let low = 0;
+      let high = description.length;
+      let bestFit = '';
+
+      while (low <= high) {
+        const middle = Math.floor((low + high) / 2);
+        const candidate = `${description.slice(0, middle).trimEnd()}${toggleLabel}`;
+        overflowElement.textContent = candidate;
+
+        if (overflowElement.scrollHeight <= maxHeight + 1) {
+          bestFit = `${description.slice(0, middle).trimEnd()}`;
+          low = middle + 1;
+        } else {
+          high = middle - 1;
+        }
+      }
+
+      setShouldShowDescriptionToggle(true);
+      const previewText = bestFit || description;
+      setDescriptionPreviewText(previewText);
+      setDescriptionRemainingText(description.slice(previewText.length));
+    };
+
+    measureDescription();
+
+    const resizeObserver = new ResizeObserver(() => {
+      measureDescription();
+    });
+
+    resizeObserver.observe(measurementElement);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [ticket?.description]);
 
   useEffect(() => {
     if (!projectId || !ticketId || !currentUserId) {
@@ -529,19 +632,52 @@ export default function TicketDetailPage() {
     setChatDrawerChannel(channel);
   };
 
+  const openGallery = (images: GalleryImage[], index: number) => {
+    if (!images.length || index < 0) {
+      return;
+    }
+
+    setGalleryImages(images);
+    setActiveGalleryIndex(index);
+  };
+
+  const closeGallery = () => {
+    setActiveGalleryIndex(null);
+    setGalleryImages([]);
+  };
+
+  const selectGalleryImage = (index: number) => {
+    setActiveGalleryIndex(index);
+  };
+
+  const showPreviousGalleryImage = () => {
+    setActiveGalleryIndex((current) =>
+      current === null || !galleryImages.length
+        ? current
+        : (current - 1 + galleryImages.length) % galleryImages.length,
+    );
+  };
+
+  const showNextGalleryImage = () => {
+    setActiveGalleryIndex((current) =>
+      current === null || !galleryImages.length
+        ? current
+        : (current + 1) % galleryImages.length,
+    );
+  };
+
   if (!canViewTicketDetail) {
     return (
-      <div className="space-y-4 -mt-16 sm:mt-0">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
-        >
-          <BackArrowIcon />
-          Back
-        </button>
-        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
-          You do not have permission to view ticket details.
+      <div className="space-y-4 mt-8">
+        <div className="rounded-[20px] border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+          <EmptyState
+            imageUrl="/images/RecentTicketEmpty.svg"
+            imageAlt="Tickets detail not found"
+            title="You do not have permission to view ticket details."
+            // description="Recent tickets will appear here once they are created."
+            buttonLabel="Go Back"
+            onButtonClick={() => router.back()}
+          />
         </div>
       </div>
     );
@@ -553,17 +689,16 @@ export default function TicketDetailPage() {
 
   if (!ticket) {
     return (
-      <div className="space-y-4 -mt-16 sm:mt-0">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
-        >
-          <BackArrowIcon />
-          Back
-        </button>
-        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
-          Ticket not found.
+      <div className="space-y-4 mt-8">
+        <div className="rounded-[20px] border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+          <EmptyState
+            imageUrl="/images/RecentTicketEmpty.svg"
+            imageAlt="Tickets detail not found"
+            title="Tickets detail not found"
+            // description="Recent tickets will appear here once they are created."
+            buttonLabel="Go Back"
+            onButtonClick={() => router.back()}
+          />
         </div>
       </div>
     );
@@ -771,7 +906,7 @@ export default function TicketDetailPage() {
 
     const nextDescription = descriptionDraft.trim();
 
-    if (nextDescription === ticket.description.trim()) {
+    if (nextDescription === (ticket.description ?? '').trim()) {
       setIsEditingDescription(false);
       return;
     }
@@ -786,6 +921,59 @@ export default function TicketDetailPage() {
         dueDate: selectedDueDate,
       }),
     );
+    setIsEditingDescription(false);
+  };
+
+  const handleStartEditingContent = () => {
+    if (!canEditTicketContent) {
+      return;
+    }
+
+    setTitleDraft(ticket.title);
+    setDescriptionDraft(ticket.description ?? '');
+    setIsEditingTitle(true);
+    setIsEditingDescription(true);
+  };
+
+  const handleCancelEditingContent = () => {
+    setTitleDraft(ticket.title);
+    setDescriptionDraft(ticket.description ?? '');
+    setIsEditingTitle(false);
+    setIsEditingDescription(false);
+  };
+
+  const handleSaveTicketContent = async () => {
+    if (!canEditTicketContent) {
+      return;
+    }
+
+    const nextTitle = titleDraft.trim();
+    const nextDescription = descriptionDraft.trim();
+    const currentDescription = (ticket.description ?? '').trim();
+
+    if (!nextTitle) {
+      appToast.error('Title is required.');
+      return;
+    }
+
+    if (nextTitle === ticket.title && nextDescription === currentDescription) {
+      setIsEditingTitle(false);
+      setIsEditingDescription(false);
+      return;
+    }
+
+    await updateTicketMutation.mutateAsync(
+      buildUpdateTicketPayload({
+        title: nextTitle,
+        description: nextDescription,
+        statusKey: selectedStatus,
+        priorityKey: selectedPriority,
+        assigneeId: selectedAssigneeId,
+        dueDate: selectedDueDate,
+      }),
+    );
+
+    setIsEditingTitle(false);
     setIsEditingDescription(false);
   };
 
@@ -815,50 +1003,94 @@ export default function TicketDetailPage() {
   return (
     <div className="relative z-100 h-full xl:h-dvh overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0">
       <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden  xl:rounded-3xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
-        <div className="shrink-0">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
-            >
-              <BackArrowIcon />
-              Back
+        <div className="relative flex w-full flex-col gap-2 xl:gap-3 overflow-hidden rounded-[10px] bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat px-4 py-4 xl:flex-row xl:items-center xl:gap-4 xl:rounded-[20px] xl:px-7.5 xl:py-6">
+          {/* Background overlay */}
+          <div
+            className="absolute inset-0 bg-black/30 z-10"
+            aria-hidden="true"
+          />
+          <div className="relative flex min-w-0 items-center gap-3  z-20  w-full">
+            <button className="mr-3" onClick={() => router.back()}>
+              <Image
+                alt={''}
+                src="/images/bannerBackBtn.svg"
+                width={48}
+                height={48}
+                className="h-10 w-10 shrink-0 backdrop-blur-3xl drop-shadow xl:h-12 xl:w-12"
+              />
             </button>
 
-            <div className="flex flex-wrap items-center gap-2">
-              {canViewInternalChatBtn && (
-                <Tooltip content="" heading="Internal Chat">
-                  <button
-                    type="button"
-                    onClick={() => handleOpenChatDrawer('internal')}
-                    className="inline-flex relative items-center justify-center gap-2 rounded-full bg-linear-to-l from-royal-blue/80  to-crystal-blue/80  bg-white h-10 min-w-10 text-sm font-medium text-[#10175A] transition hover:bg-[#F4F6FF]"
-                  >
-                    <InternalChatIcon />
-                    {hasUnreadInternalChat ? (
-                      <span className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse border border-white inline-block absolute top-0.5 right-0.5"></span>
-                    ) : null}
-                  </button>
-                </Tooltip>
-              )}
-              {canViewExternalChatBtn && (
-                <Tooltip content="" heading="External Chat">
-                  <button
-                    type="button"
-                    onClick={() => handleOpenChatDrawer('external')}
-                    className="inline-flex relative items-center justify-center gap-2 rounded-full    bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 h-10 min-w-10 text-sm font-medium text-[#10175A] transition hover:bg-[#F4F6FF]"
-                  >
-                    <div className="inline-flex items-center justify-center gap-2 rounded-full   bg-white h-9 min-w-9 text-sm font-medium text-[#10175A] transition hover:bg-[#F4F6FF]">
-                      <ExternalChatIcon />
-                    </div>
+            <div className="flex flex-wrap gap-4 w-full sm:grid sm:grid-cols-5">
+              <MetaItem
+                label="Ticket ID"
+                value={`${ticket.ticketRefNo ?? ticket.id}`}
+              />
 
-                    {hasUnreadExternalChat ? (
-                      <span className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse border border-white inline-block absolute top-0.5 right-0.5"></span>
-                    ) : null}
-                  </button>
-                </Tooltip>
-              )}
+              <MetaItem label="Created on" value={ticket.date} />
+              <MetaItem
+                label="Created By"
+                value={(ticket as any).createdByDetail?.name ?? 'Unknown'}
+              />
+
+              <MetaItem
+                label="Project"
+                hideTooltip={false}
+                value={ticket.project.name}
+              />
+
+              {selectedDueDate ? (
+                <div>
+                  <span className="block text-sm text-gray-300">Due Date</span>
+
+                  <div
+                    className={`flex h-fit items-start gap-2 rounded-lg pt-2 text-white`}
+                  >
+                    <div className="flex w-full items-center gap-3">
+                      <p className="pt-px text-sm font-medium">
+                        {selectedDueDate}
+                      </p>
+
+                      {isDueDateOverdue ? (
+                        <p className="rounded-full bg-[#F04438] px-2.5 py-0.5 text-sm font-medium text-white">
+                          Overdue
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
             </div>
+          </div>
+          <div className="flex  items-center gap-2 relative z-20">
+            {canViewInternalChatBtn && (
+              <Tooltip content="" heading="Internal Chat">
+                <button
+                  type="button"
+                  onClick={() => handleOpenChatDrawer('internal')}
+                  className="inline-flex relative items-center justify-center gap-2 rounded-full bg-black/50  h-10 min-w-10 text-sm font-medium text-[#10175A] transition hover:bg-black"
+                >
+                  <InternalChatIcon />
+                  {hasUnreadInternalChat ? (
+                    <span className="h-2.5 w-2.5 rounded-full bg-green-500 animate-pulse  inline-block absolute top-0.5 right-0.5"></span>
+                  ) : null}
+                </button>
+              </Tooltip>
+            )}
+            {canViewExternalChatBtn && (
+              <Tooltip content="" heading="External Chat">
+                <button
+                  type="button"
+                  onClick={() => handleOpenChatDrawer('external')}
+                  className="inline-flex relative items-center justify-center gap-2 rounded-full bg-black/50  h-10 min-w-10 text-sm font-medium text-[#10175A] transition hover:bg-black"
+                >
+                  <ExternalChatIcon />
+
+                  {hasUnreadExternalChat ? (
+                    <span className="h-2.5 w-2.5 rounded-full bg-green-500 animate-pulse inline-block absolute top-0.5 right-0.5"></span>
+                  ) : null}
+                </button>
+              </Tooltip>
+            )}
           </div>
         </div>
 
@@ -866,109 +1098,67 @@ export default function TicketDetailPage() {
           <div className="grid h-auto min-h-0 min-w-0 grid-cols-1 gap-4 overflow-visible xl:h-full xl:grid-cols-12 xl:grid-rows-[minmax(0,1fr)] xl:overflow-hidden">
             <div className="flex min-w-0 flex-col space-y-4 xl:col-span-9">
               <section className="rounded-xl border border-gray-200 bg-white p-3 sm:rounded-2xl md:p-5">
-                <div className="flex flex-wrap gap-4 border-b border-gray-200 pb-5 sm:grid sm:grid-cols-5">
-                  <MetaItem
-                    label="Ticket ID"
-                    value={`${ticket.ticketRefNo ?? ticket.id}`}
-                  />
+                <div className=" relative">
+                  <div className="mb-2 flex absolute top-0 end-0 items-start justify-end">
+                    {canEditTicketContent ? (
+                      <button
+                        type="button"
+                        disabled={updateTicketMutation.isPending}
+                        onClick={() => {
+                          if (isEditingTitle || isEditingDescription) {
+                            void handleSaveTicketContent();
+                            return;
+                          }
 
-                  <MetaItem label="Created on" value={ticket.date} />
-
-                  <div>
-                    <span className="block text-sm text-gray-500">Created By</span>
-
-                    <span className="mt-1 inline-flex items-center gap-2 rounded-full bg-purple-100 py-0.75 pr-2.5 pl-0.75 text-sm font-medium text-purple-700">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-medium">
-                        {ticket.createdByDetail?.initials ?? 'NA'}
-                      </span>
-
-                      {ticket.createdByDetail?.name ?? 'Unknown'}
-                    </span>
-                  </div>
-
-                  <div>
-                    <span className="block text-sm text-gray-500">Project</span>
-
-                    <span className="mt-1 inline-flex items-center gap-2 rounded-full bg-purple-100 py-0.75 pr-2.5 pl-0.75 text-sm font-medium text-purple-700">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-medium">
-                        {ticket.project.initials}
-                      </span>
-
-                      {ticket.project.name}
-                    </span>
-                  </div>
-                  {selectedDueDate ? (
-                    <div>
-                      <span className="block text-sm text-gray-500">
-                        Due Date
-                      </span>
-
-                      <div
-                        className={`flex h-fit items-start gap-2 rounded-lg pt-2 ${
-                          isDueDateOverdue ? 'text-[#B42318]' : 'text-gray-700'
-                        }`}
+                          handleStartEditingContent();
+                        }}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        aria-label={
+                          isEditingTitle || isEditingDescription
+                            ? 'Save ticket content'
+                            : 'Edit ticket content'
+                        }
                       >
-                        <div className="flex w-full items-center gap-3">
-                          <p className="pt-px text-sm font-medium">
-                            {selectedDueDate}
-                          </p>
-
-                          {isDueDateOverdue ? (
-                            <p className="rounded-full bg-[#F04438] px-2.5 py-0.5 text-sm font-medium text-white">
-                              Overdue
-                            </p>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="pt-2 sm:pt-5">
+                        {isEditingTitle || isEditingDescription ? (
+                          <CheckMarkCircleIcon
+                            width="18"
+                            height="18"
+                            fill="gray"
+                            opacity="0"
+                          />
+                        ) : (
+                          <EditIcon />
+                        )}
+                      </button>
+                    ) : null}
+                  </div>
                   {isEditingTitle ? (
-                    <div>
+                    <div className="mr-10">
                       <input
                         type="text"
                         value={titleDraft}
                         autoFocus
                         disabled={updateTicketMutation.isPending}
                         onChange={(event) => setTitleDraft(event.target.value)}
-                        onBlur={() => {
-                          void handleSaveTitle();
-                        }}
                         onKeyDown={(event) => {
                           if (event.key === 'Enter') {
                             event.preventDefault();
-                            void handleSaveTitle();
+                            void handleSaveTicketContent();
                           }
 
                           if (event.key === 'Escape') {
-                            setIsEditingTitle(false);
-                            setTitleDraft(ticket.title);
+                            handleCancelEditingContent();
                           }
                         }}
-                        className="w-full border-b border-b-gray-400 pb-2 text-base font-semibold text-gray-900 outline-none md:text-xl"
+                        className="w-full border-b border-b-gray-400 pb-2  text-base font-semibold text-gray-900 outline-none md:text-xl"
                       />
                     </div>
                   ) : (
-                    <button
-                      type="button"
-                      // disabled={!canEditTicketContent}
-                      onClick={() => {
-                        if (!canEditTicketContent) {
-                          return;
-                        }
-
-                        setIsEditingDescription(false);
-                        setDescriptionDraft(ticket.description);
-                        setIsEditingTitle(true);
-                      }}
-                      className={`block w-full text-left ${canEditTicketContent ? 'cursor-pointer!' : 'cursor-auto!'}`}
-                    >
+                    <div className="block w-full text-left">
                       <h2 className="text-base font-semibold leading-8 text-gray-900 md:text-xl">
                         {ticket.title}
                       </h2>
-                    </button>
+                    </div>
                   )}
 
                   {isEditingDescription ? (
@@ -981,45 +1171,72 @@ export default function TicketDetailPage() {
                         onChange={(event) =>
                           setDescriptionDraft(event.target.value)
                         }
-                        onBlur={() => {
-                          void handleSaveDescription();
-                        }}
                         onKeyDown={(event) => {
                           if (
                             (event.ctrlKey || event.metaKey) &&
                             event.key === 'Enter'
                           ) {
                             event.preventDefault();
-                            void handleSaveDescription();
+                            void handleSaveTicketContent();
                           }
 
                           if (event.key === 'Escape') {
-                            setIsEditingDescription(false);
-                            setDescriptionDraft(ticket.description);
+                            handleCancelEditingContent();
                           }
                         }}
-                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none"
+                        className="w-full rounded-lg border scrollbar-hide border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none"
                       />
                     </div>
                   ) : (
-                    <button
-                      type="button"
-                      disabled={!canEditTicketContent}
-                      onClick={() => {
-                        if (!canEditTicketContent) {
-                          return;
-                        }
-
-                        setIsEditingTitle(false);
-                        setTitleDraft(ticket.title);
-                        setIsEditingDescription(true);
-                      }}
-                      className={`mt-2 block w-full text-left ${canEditTicketContent ? 'cursor-pointer!' : 'cursor-auto!'}`}
-                    >
-                      <p className="text-sm text-gray-700">
-                        {ticket.description || 'Add description'}
+                    <div className="mt-2 block w-full text-left">
+                      <p
+                        ref={descriptionMeasureRef}
+                        className="text-sm text-gray-700"
+                      >
+                        {ticket.description ? (
+                          <>
+                            {descriptionPreviewText}
+                            {isDescriptionExpanded
+                              ? descriptionRemainingText
+                              : null}
+                            {!isDescriptionExpanded &&
+                            shouldShowDescriptionToggle ? (
+                              <span
+                                className="font-medium cursor-pointer text-[#8A38F5]"
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  setIsDescriptionExpanded(
+                                    (previous) => !previous,
+                                  );
+                                }}
+                              >
+                                ... read more
+                              </span>
+                            ) : null}
+                          </>
+                        ) : (
+                          'Add description'
+                        )}
                       </p>
-                    </button>
+                      {isDescriptionExpanded && shouldShowDescriptionToggle ? (
+                        <span
+                          className="mt-1 cursor-pointer inline-flex text-sm font-medium text-[#8A38F5]"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            setIsDescriptionExpanded(false);
+                          }}
+                        >
+                          read less
+                        </span>
+                      ) : null}
+                      <p
+                        ref={descriptionOverflowRef}
+                        aria-hidden="true"
+                        className="pointer-events-none invisible absolute left-0 top-0 -z-10 w-full text-sm text-gray-700"
+                      />
+                    </div>
                   )}
                 </div>
               </section>
@@ -1061,35 +1278,48 @@ export default function TicketDetailPage() {
                   </h3>
 
                   <div className="space-y-4 p-3 sm:p-4">
-                    <Dropdown
-                      label="Status"
-                      options={statusOptions}
-                      value={selectedStatus}
-                      disabled={
-                        updateTicketMutation.isPending || !canEditStatus
-                      }
-                      onChange={handleStatusChange}
-                    />
+                    <div className="grid items-center md:grid-cols-2 gap-4">
+                      <span className="text-sm text-black font-normal">
+                        Status
+                      </span>
+                      <Dropdown
+                        // label="Status"
+                        options={statusOptions}
+                        value={selectedStatus}
+                        disabled={
+                          updateTicketMutation.isPending || !canEditStatus
+                        }
+                        onChange={handleStatusChange}
+                      />
+                    </div>
+                    <div className="grid items-center md:grid-cols-2 gap-4">
+                      <span className="text-sm text-black font-normal">
+                        Priority
+                      </span>
+                      <Dropdown
+                        options={priorityOptions}
+                        value={selectedPriority}
+                        disabled={
+                          updateTicketMutation.isPending || !canEditPriority
+                        }
+                        onChange={handlePriorityChange}
+                      />
+                    </div>
 
-                    <Dropdown
-                      label="Priority"
-                      options={priorityOptions}
-                      value={selectedPriority}
-                      disabled={
-                        updateTicketMutation.isPending || !canEditPriority
-                      }
-                      onChange={handlePriorityChange}
-                    />
+                    <div className="grid items-center md:grid-cols-2 gap-4">
+                      <span className="text-sm text-black font-normal">
+                        Assignee
+                      </span>
 
-                    <Dropdown
-                      label="Assignee"
-                      options={assigneeOptions}
-                      value={selectedAssigneeId}
-                      disabled={
-                        updateTicketMutation.isPending || !canEditAssignee
-                      }
-                      onChange={handleAssigneeChange}
-                    />
+                      <Dropdown
+                        options={assigneeOptions}
+                        value={selectedAssigneeId}
+                        disabled={
+                          updateTicketMutation.isPending || !canEditAssignee
+                        }
+                        onChange={handleAssigneeChange}
+                      />
+                    </div>
                   </div>
                 </section>
               ) : null}
@@ -1099,20 +1329,31 @@ export default function TicketDetailPage() {
                   Attachments
                 </h3>
 
-                <div className="space-y-3 p-3 sm:p-4">
-                  {ticket.attachments.length ? (
-                    ticket.attachments.map((attachment) => (
+                  <div className="space-y-3 p-3 sm:p-4">
+                    {ticket.attachments.length ? (
+                      ticket.attachments.map((attachment) => (
                       <a
                         key={attachment.id}
                         href={getAttachmentUrl(attachment.storageKey)}
                         target="_blank"
                         rel="noreferrer"
                         className="flex items-center gap-3 rounded-xl border border-gray-200 p-2.5 transition hover:bg-gray-50"
+                        onClick={(event) => {
+                          if (
+                            !isImageAttachmentExtension(attachment.extension)
+                          ) {
+                            return;
+                          }
+
+                          event.preventDefault();
+                          const index = ticketAttachmentGalleryImages.findIndex(
+                            (image) => image.attachmentId === attachment.id,
+                          );
+
+                          openGallery(ticketAttachmentGalleryImages, index);
+                        }}
                       >
-                        {attachment.extension === 'png' ||
-                        attachment.extension === 'svg' ||
-                        attachment.extension === 'jpg' ||
-                        attachment.extension === 'jpeg' ? (
+                        {isImageAttachmentExtension(attachment.extension) ? (
                           <img
                             alt={attachment.name}
                             className="h-10 w-10 rounded-sm border border-gray-200"
@@ -1131,15 +1372,20 @@ export default function TicketDetailPage() {
                             {attachment.sizeLabel}
                           </p>
                         </div>
-                      </a>
-                    ))
-                  ) : (
-                    <p className="text-sm text-gray-500">
-                      No attachments added.
-                    </p>
-                  )}
-                </div>
-              </section>
+                        </a>
+                      ))
+                    ) : (
+                      <div className="py-2">
+                        <EmptyState
+                          imageUrl="/images/EmptyProjectIcon.svg"
+                          imageAlt="No attachments"
+                          title="No Attachments"
+                          description="No attachments have been added to this ticket yet."
+                        />
+                      </div>
+                    )}
+                  </div>
+                </section>
 
               {!isExternalUser ? (
                 <section className="rounded-xl border border-gray-200 bg-white sm:rounded-2xl">
@@ -1150,9 +1396,9 @@ export default function TicketDetailPage() {
                   </div>
 
                   <div className="p-3 sm:p-4">
-                    <p className="mb-2 text-xs font-medium tracking-wide text-gray-500">
+                    {/* <p className="mb-2 text-xs font-medium tracking-wide text-gray-500">
                       {selectedDueDate ? 'Select date' : 'No due date'}
-                    </p>
+                    </p> */}
 
                     <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2.5">
                       <input
@@ -1212,14 +1458,6 @@ export default function TicketDetailPage() {
             <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/75 backdrop-blur">
               <div className="flex min-w-65 flex-col items-center gap-4 rounded-2xl px-8 py-7 text-center">
                 <span className="h-10 w-10 animate-spin rounded-full border-4 border-[#BFDBFE] border-t-[#1D4ED8]" />
-                {/* <div className="space-y-1">
-                  <p className="text-base font-semibold text-[#1E3A8A]">
-                    Uploading attachments
-                  </p>
-                  <p className="text-sm text-[#3B82F6]">
-                    Please wait while we upload files and send your message.
-                  </p>
-                </div> */}
               </div>
             </div>
           ) : null}
@@ -1278,6 +1516,15 @@ export default function TicketDetailPage() {
         variant="danger"
         isSubmitting={Boolean(deletingChatMessageId)}
         onConfirm={handleConfirmDeleteChatMessage}
+      />
+      <ImageGalleryLightbox
+        images={galleryImages}
+        activeIndex={activeGalleryIndex}
+        title="Ticket attachments"
+        onClose={closeGallery}
+        onSelect={selectGalleryImage}
+        onPrevious={showPreviousGalleryImage}
+        onNext={showNextGalleryImage}
       />
     </div>
   );
@@ -1540,8 +1787,8 @@ function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
     ticket.assignee?.fullName ?? ticket.assignee?.name ?? 'Unassigned';
   const reporterName =
     ticket.reporter?.fullName ?? ticket.reporter?.name ?? 'Reporter';
-   
-    const createdByName = ticket.createdBy?.fullName ?? 'Unknown';
+
+  const createdByName = ticket.createdBy?.fullName ?? 'Unknown';
 
   return {
     id: ticket.id,
@@ -1584,7 +1831,7 @@ function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
           initials: getInitials(assigneeName),
         }
       : null,
-      createdByDetail: ticket.createdBy
+    createdByDetail: ticket.createdBy
       ? {
           name: createdByName,
           initials: getInitials(createdByName),
@@ -1774,6 +2021,25 @@ function extractFileNameFromUrl(url: string) {
   } catch {
     return url.split('/').filter(Boolean).at(-1) ?? '';
   }
+}
+
+function buildTicketAttachmentGalleryImages(
+  attachments: {
+    id: string;
+    name: string;
+    extension?: string;
+    storageKey?: string;
+  }[],
+) {
+  return attachments
+    .filter((attachment) => isImageAttachmentExtension(attachment.extension))
+    .map((attachment, index) => ({
+      attachmentId: attachment.id,
+      storageKey: attachment.storageKey,
+      fileName: attachment.name,
+      src: getFileUrl(attachment.storageKey),
+      alt: `${attachment.name} preview ${index + 1}`,
+    }));
 }
 
 function getAttachmentExtension(value?: string | null) {
@@ -2062,13 +2328,40 @@ function getAttachmentUrl(storageKey?: string) {
     : '#';
 }
 
-function MetaItem({ label, value }: { label: string; value: string }) {
+function isImageAttachmentExtension(extension?: string) {
+  const normalizedExtension = extension?.trim().toLowerCase();
+
   return (
-    <div>
-      <span className="block text-xs sm:text-sm text-gray-500">{label}</span>
-      <p className="sm:mt-1 text-sm sm:text-base font-semibold text-gray-900">
-        {value}
-      </p>
+    normalizedExtension === 'png' ||
+    normalizedExtension === 'svg' ||
+    normalizedExtension === 'jpg' ||
+    normalizedExtension === 'jpeg'
+  );
+}
+
+function MetaItem({
+  label,
+  value,
+  hideTooltip = true,
+}: {
+  label: string;
+  value: string;
+  hideTooltip?: boolean;
+}) {
+  return (
+    <div className="w-fit">
+      <span className="block text-xs sm:text-sm text-gray-300">{label}</span>
+      <Tooltip
+        heading={value}
+        className="w-fit"
+        side="bottom"
+        content={''}
+        hide={hideTooltip}
+      >
+        <p className="sm:mt-1 text-sm truncate sm:text-base font-semibold text-white">
+          {value}
+        </p>
+      </Tooltip>
     </div>
   );
 }
@@ -2296,74 +2589,28 @@ function InternalChatIcon() {
 function ExternalChatIcon() {
   return (
     <svg
-      width="20"
-      height="20"
-      viewBox="0 0 20 20"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
       <path
-        d="M16.6859 1.21844C16.4384 0.977857 16.0427 0.98348 15.8021 1.231C15.5616 1.47852 15.5672 1.87421 15.8147 2.11479C15.9494 2.24568 16.1636 2.41421 16.3676 2.5744L16.415 2.61167C16.6198 2.77242 16.8388 2.94435 17.046 3.1199L17.0519 3.12495L11.667 3.12495C11.3218 3.12495 11.042 3.40477 11.042 3.74995C11.042 4.09513 11.3218 4.37495 11.667 4.37495L17.0519 4.37495L17.046 4.38C16.8388 4.55556 16.6198 4.72746 16.4151 4.88821L16.3676 4.92551C16.1636 5.0857 15.9494 5.25422 15.8147 5.38511C15.5672 5.62569 15.5616 6.02138 15.8021 6.2689C16.0427 6.51642 16.4384 6.52205 16.6859 6.28146C16.762 6.20754 16.9135 6.08619 17.1397 5.90853L17.1896 5.86931C17.3914 5.71093 17.6281 5.5251 17.8541 5.33367C18.0962 5.1285 18.3477 4.89886 18.5432 4.6693C18.6412 4.55426 18.7378 4.42459 18.8125 4.2851C18.8845 4.15057 18.9587 3.96519 18.9587 3.74995C18.9587 3.53471 18.8845 3.34934 18.8125 3.2148C18.7378 3.07531 18.6412 2.94565 18.5432 2.83061C18.3477 2.60105 18.0962 2.3714 17.8541 2.16623C17.6282 1.97481 17.3915 1.78901 17.1897 1.63063L17.1397 1.59137C16.9135 1.41371 16.762 1.29236 16.6859 1.21844Z"
-        fill="url(#paint0_linear_1002_10386)"
+        d="M19.4661 1.42152C19.1773 1.14084 18.7157 1.1474 18.435 1.43617C18.1543 1.72495 18.1609 2.18658 18.4497 2.46726C18.6068 2.61996 18.8568 2.81658 19.0947 3.00347L19.1501 3.04695C19.389 3.23449 19.6444 3.43507 19.8862 3.63989L19.8931 3.64578L13.6107 3.64578C13.208 3.64578 12.8815 3.97224 12.8815 4.37495C12.8815 4.77766 13.208 5.10411 13.6107 5.10411L19.8931 5.10411L19.8862 5.11001C19.6444 5.31483 19.389 5.51538 19.1501 5.70292L19.0947 5.74643C18.8568 5.93332 18.6068 6.12993 18.4497 6.28263C18.1609 6.56331 18.1543 7.02495 18.435 7.31373C18.7157 7.6025 19.1773 7.60906 19.4661 7.32838C19.5548 7.24214 19.7316 7.10056 19.9955 6.89329L20.0538 6.84754C20.2892 6.66275 20.5654 6.44596 20.8289 6.22262C21.1114 5.98326 21.4048 5.71534 21.6329 5.44752C21.7472 5.3133 21.86 5.16203 21.9471 4.99929C22.0311 4.84233 22.1176 4.62606 22.1176 4.37495C22.1176 4.12384 22.0311 3.90756 21.9471 3.75061C21.86 3.58787 21.7472 3.43659 21.6329 3.30238C21.4048 3.03456 21.1114 2.76664 20.8289 2.52727C20.5654 2.30394 20.2892 2.08719 20.0538 1.90241L19.9955 1.85661C19.7316 1.64934 19.5548 1.50776 19.4661 1.42152Z"
+        fill="white"
       />
       <path
-        d="M9.79171 2.48126C9.80204 2.82628 9.53072 3.11435 9.18569 3.12468C8.86534 3.13427 8.54705 3.14952 8.23298 3.17042C5.06721 3.38102 2.53295 5.94303 2.32423 9.17529C2.28125 9.84084 2.28125 10.531 2.32423 11.1965C2.3975 12.3311 2.90331 13.417 3.54391 14.3797C3.55347 14.3941 3.56244 14.4089 3.57078 14.424C4.12749 15.4327 3.71934 16.5831 3.30335 17.372C3.23499 17.5016 3.17887 17.6082 3.13241 17.701C3.1954 17.7032 3.26631 17.705 3.3484 17.707C4.23889 17.7287 4.80347 17.4822 5.2531 17.1504L5.26781 17.1395C5.41253 17.0327 5.54365 16.936 5.65216 16.8657C5.74638 16.8047 5.91885 16.697 6.12851 16.6712C6.3481 16.6441 6.56108 16.7188 6.6673 16.7562C6.80328 16.8041 6.97603 16.8753 7.17568 16.9576L7.19184 16.9642C7.50798 17.0945 7.88642 17.1783 8.23297 17.2014C9.39218 17.2785 10.6061 17.2787 11.7677 17.2014C14.9334 16.9908 17.4677 14.4288 17.6764 11.1965C17.7194 10.531 17.7194 9.84084 17.6764 9.17529C17.6498 8.76357 17.5855 8.36299 17.4871 7.97693C17.4019 7.64245 17.6039 7.30218 17.9384 7.21691C18.2728 7.13164 18.6131 7.33367 18.6984 7.66815C18.8158 8.1286 18.8922 8.60557 18.9238 9.09473C18.9703 9.81393 18.9703 10.5579 18.9238 11.2771C18.6756 15.1209 15.6566 18.1954 11.8507 18.4486C10.6338 18.5296 9.36441 18.5294 8.15 18.4486C7.67917 18.4173 7.16668 18.3059 6.71549 18.1199C6.51722 18.0382 6.38258 17.9829 6.28405 17.9467C6.21631 17.9933 6.12633 18.0595 5.99535 18.1562C5.33499 18.6435 4.50121 18.9854 3.31796 18.9566L3.27985 18.9557C3.05162 18.9502 2.80829 18.9444 2.60984 18.906C2.37072 18.8597 2.0751 18.744 1.89014 18.4284C1.68893 18.085 1.76958 17.7379 1.84768 17.5191C1.92139 17.3126 2.04918 17.0704 2.17977 16.8229L2.19765 16.789C2.58626 16.052 2.69474 15.4493 2.48672 15.0473C1.79313 13.9995 1.16925 12.7083 1.07682 11.2771C1.03038 10.5579 1.03038 9.81393 1.07682 9.09473C1.32505 5.25085 4.34409 2.17637 8.15 1.92318C8.47962 1.90125 8.8131 1.88527 9.14829 1.87524C9.49331 1.86491 9.78138 2.13623 9.79171 2.48126Z"
-        fill="url(#paint1_linear_1002_10386)"
+        d="M11.4229 2.8948C11.4349 3.29733 11.1184 3.63341 10.7158 3.64546C10.3421 3.65665 9.97075 3.67445 9.60432 3.69883C5.91093 3.94453 2.9543 6.93354 2.71078 10.7045C2.66064 11.481 2.66064 12.2861 2.71078 13.0626C2.79627 14.3863 3.38638 15.6532 4.13375 16.7764C4.1449 16.7931 4.15536 16.8103 4.1651 16.828C4.81459 18.0048 4.33842 19.3469 3.8531 20.2673C3.77335 20.4186 3.70787 20.5429 3.65366 20.6512C3.72715 20.6538 3.80989 20.6558 3.90565 20.6581C4.94456 20.6834 5.60324 20.3959 6.1278 20.0088L6.14497 19.9961C6.31381 19.8715 6.46678 19.7586 6.59338 19.6766C6.7033 19.6054 6.90451 19.4798 7.14911 19.4497C7.40531 19.4182 7.65378 19.5053 7.77771 19.5489C7.93634 19.6047 8.13789 19.6878 8.37082 19.7838L8.38967 19.7916C8.75849 19.9436 9.20001 20.0414 9.60432 20.0683C10.9567 20.1582 12.373 20.1584 13.7281 20.0683C17.4215 19.8226 20.3782 16.8336 20.6217 13.0626C20.6718 12.2861 20.6718 11.481 20.6217 10.7045C20.5907 10.2242 20.5156 9.75683 20.4008 9.30642C20.3013 8.91619 20.537 8.51921 20.9273 8.41973C21.3175 8.32025 21.7145 8.55595 21.814 8.94618C21.9509 9.48337 22.0401 10.0398 22.077 10.6105C22.1312 11.4496 22.1312 12.3175 22.077 13.1566C21.7874 17.6411 18.2652 21.228 13.8249 21.5234C12.4052 21.6178 10.9243 21.6176 9.50752 21.5234C8.95822 21.4869 8.36031 21.3569 7.83393 21.1399C7.60261 21.0446 7.44553 20.98 7.33058 20.9379C7.25154 20.9922 7.14657 21.0694 6.99376 21.1822C6.22334 21.7508 5.2506 22.1497 3.87014 22.116L3.82568 22.115C3.55941 22.1086 3.27552 22.1018 3.044 22.057C2.76503 22.003 2.42013 21.868 2.20435 21.4998C1.9696 21.0992 2.06369 20.6942 2.15481 20.439C2.24081 20.1981 2.3899 19.9155 2.54225 19.6267L2.56311 19.5871C3.0165 18.7273 3.14305 18.0242 2.90036 17.5552C2.09117 16.3327 1.36331 14.8263 1.25548 13.1566C1.2013 12.3175 1.2013 11.4496 1.25548 10.6105C1.54507 6.126 5.06729 2.5391 9.50752 2.24371C9.89208 2.21813 10.2811 2.19949 10.6722 2.18778C11.0747 2.17573 11.4108 2.49227 11.4229 2.8948Z"
+        fill="white"
       />
       <path
-        d="M6.45866 12.5C6.45866 12.8451 6.73848 13.125 7.08366 13.125H12.917C13.2622 13.125 13.542 12.8451 13.542 12.5C13.542 12.1548 13.2622 11.875 12.917 11.875H7.08366C6.73848 11.875 6.45866 12.1548 6.45866 12.5Z"
-        fill="url(#paint2_linear_1002_10386)"
+        d="M7.53429 14.5833C7.53429 14.986 7.86075 15.3124 8.26346 15.3124H15.069C15.4717 15.3124 15.7982 14.986 15.7982 14.5833C15.7982 14.1806 15.4717 13.8541 15.069 13.8541H8.26346C7.86075 13.8541 7.53429 14.1806 7.53429 14.5833Z"
+        fill="white"
       />
       <path
-        d="M6.45866 8.33328C6.45866 8.67846 6.73848 8.95828 7.08366 8.95828H10.0003C10.3455 8.95828 10.6253 8.67846 10.6253 8.33328C10.6253 7.98811 10.3455 7.70828 10.0003 7.70828H7.08366C6.73848 7.70828 6.45866 7.98811 6.45866 8.33328Z"
-        fill="url(#paint3_linear_1002_10386)"
+        d="M7.53429 9.72217C7.53429 10.1249 7.86075 10.4513 8.26346 10.4513H11.6662C12.0689 10.4513 12.3954 10.1249 12.3954 9.72217C12.3954 9.31946 12.0689 8.993 11.6662 8.993H8.26346C7.86075 8.993 7.53429 9.31946 7.53429 9.72217Z"
+        fill="white"
       />
-      <defs>
-        <linearGradient
-          id="paint0_linear_1002_10386"
-          x1="3.92422"
-          y1="14.8444"
-          x2="16.4477"
-          y2="3.21261"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop stopColor="#304FFD" />
-          <stop offset="1" stopColor="#40C3FF" />
-        </linearGradient>
-        <linearGradient
-          id="paint1_linear_1002_10386"
-          x1="3.92422"
-          y1="14.8444"
-          x2="16.4477"
-          y2="3.21261"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop stopColor="#304FFD" />
-          <stop offset="1" stopColor="#40C3FF" />
-        </linearGradient>
-        <linearGradient
-          id="paint2_linear_1002_10386"
-          x1="3.92422"
-          y1="14.8444"
-          x2="16.4477"
-          y2="3.21261"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop stopColor="#304FFD" />
-          <stop offset="1" stopColor="#40C3FF" />
-        </linearGradient>
-        <linearGradient
-          id="paint3_linear_1002_10386"
-          x1="3.92422"
-          y1="14.8444"
-          x2="16.4477"
-          y2="3.21261"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop stopColor="#304FFD" />
-          <stop offset="1" stopColor="#40C3FF" />
-        </linearGradient>
-      </defs>
     </svg>
   );
 }

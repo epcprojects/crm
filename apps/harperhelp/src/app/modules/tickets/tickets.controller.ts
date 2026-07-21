@@ -10,6 +10,7 @@ import {
   UseInterceptors,
   UploadedFiles,
   UseGuards,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { TicketsService } from './tickets.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
@@ -23,13 +24,13 @@ import {
   ApiQuery,
   ApiResponse,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from 'apps/harperhelp/src/common/guards/jwt-auth.guard';
-import { RolesGuard } from 'apps/harperhelp/src/common/guards/roles.guard';
-import { GetUser } from 'apps/harperhelp/src/common/decorators/get-user.decorator';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../common/guards/roles.guard';
+import { GetUser } from '../../../common/decorators/get-user.decorator';
 import { GetTicketsQueryDto } from './dto/get-tickets-query.dto';
 import { CalendarView } from '@harperhelp/types';
 import { CalendarQueryDto } from '../calendar/dto/calendar-query.dto';
-import { FileSizeGuard } from 'apps/harperhelp/src/common/guards/file-size.guard';
+import { FileSizeGuard } from '../../../common/guards/file-size.guard';
 
 @Controller('projects/:pid/tickets')
 @ApiBearerAuth('JWT-auth')
@@ -43,7 +44,7 @@ export class TicketsController {
     summary:
       'Get Paginated list of tickets. Accepts search, status, priority as filters.',
   })
-  findAll(@Param('pid') pid: string, @Query() query: GetTicketsQueryDto) {
+  findAll(@Param('pid', ParseUUIDPipe) pid: string, @Query() query: GetTicketsQueryDto) {
     return this.ticketsService.findAll(pid, query);
   }
 
@@ -141,7 +142,7 @@ View ranges:
   })
   @UseInterceptors(FilesInterceptor('attachments'))
   create(
-    @Param('pid') pid: string,
+    @Param('pid', ParseUUIDPipe) pid: string,
     @Body() dto: CreateTicketDto,
     @UploadedFiles() files: Express.Multer.File[],
     @GetUser() user,
@@ -154,7 +155,7 @@ View ranges:
   @ApiOperation({
     summary: 'Find specific ticket',
   })
-  findOne(@Param('pid') pid: string, @Param('id') id: string) {
+  findOne(@Param('pid', ParseUUIDPipe) pid: string, @Param('id', ParseUUIDPipe) id: string) {
     return this.ticketsService.findOne(pid, id);
   }
 
@@ -164,8 +165,8 @@ View ranges:
     summary: 'Update project ticket.',
   })
   update(
-    @Param('pid') pid: string,
-    @Param('id') id: string,
+    @Param('pid', ParseUUIDPipe) pid: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateTicketDto,
     @GetUser() user,
   ) {
@@ -177,7 +178,7 @@ View ranges:
   @ApiOperation({
     summary: 'Soft delete the ticket.',
   })
-  remove(@Param('pid') pid: string, @Param('id') id: string, @GetUser() user) {
+  remove(@Param('pid', ParseUUIDPipe) pid: string, @Param('id', ParseUUIDPipe) id: string, @GetUser() user) {
     return this.ticketsService.remove(pid, id, user.id);
   }
 
@@ -187,7 +188,7 @@ View ranges:
   @ApiOperation({
     summary: 'Get All Tickets Summary of a project',
   })
-  getTicketSummaryForAProject(@Param('pid') pid: string) {
+  getTicketSummaryForAProject(@Param('pid', ParseUUIDPipe) pid: string) {
     return this.ticketsService.getTicketSummary(pid);
   }
 }

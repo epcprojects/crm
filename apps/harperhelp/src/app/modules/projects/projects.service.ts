@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
@@ -239,10 +239,15 @@ export class ProjectsService {
     });
   }
 
-  findOne(id: string) {
-    return this.projectRepo.findOne({ where: { id } });
+async findOne(id: string) {
+  const project = await this.projectRepo.findOne({ where: { id } });
+
+  if (!project) {
+    throw new NotFoundException('Project not found');
   }
 
+  return project;
+}
   // function for having summary of project section, return total project, active proejcts, open tickets and critical issues:
 
   async getGlobalProjectSummary(user) {
@@ -269,6 +274,7 @@ export class ProjectsService {
   }
 
   async findProjectMembers(projectId: string, user) {
+    await this.findOne(projectId);
     return this.projectRepo
       .createQueryBuilder('project')
       .innerJoin('project.members', 'member')
@@ -426,13 +432,17 @@ export class ProjectsService {
     };
   }
 
-  update(id: string, updateProjectDto: UpdateProjectDto) {
-    this.projectRepo.update(id, updateProjectDto);
-    return this.projectRepo.findOne({ where: { id } });
+  async update(id: string, updateProjectDto: UpdateProjectDto) {
+    await this.findOne(id);
+
+    await this.projectRepo.update(id, updateProjectDto);
+
+    return this.findOne(id);
   }
 
-  remove(id: string) {
-    this.projectRepo.update(id, {
+  async remove(id: string) {
+    await this.findOne(id);
+    await this.projectRepo.update(id, {
       isActive: false,
       deletedAt: new Date(),
     });
