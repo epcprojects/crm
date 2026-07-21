@@ -125,6 +125,12 @@ export async function GET(request: NextRequest) {
       ? data.items
       : [];
 
+      if (items.length === 0) {
+  return NextResponse.json(
+    { message: 'No tickets found to export with the current filters.' },
+    { status: 404 },
+  );
+}
     const csv = buildCsv(items);
 
     return new NextResponse(csv, {

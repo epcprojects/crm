@@ -68,7 +68,7 @@ export default function Page() {
   const canFilterTickets = hasPermission('tickets.filter');
   const canViewTicketDetail = hasPermission('tickets.view_detail');
   const canEditTicketStatus = hasPermission('tickets.edit_status');
-  const canViewTickets = hasPermission('tickets.view_list');
+  // const canViewTickets = hasPermission('tickets.view_list');
 
   const ticketStatusesQuery = useQuery({
     queryKey: ['ticket-statuses'],
@@ -200,21 +200,35 @@ const handleExportTickets = async () => {
     setIsExportingTickets(true);
 
     const exportParams = new URLSearchParams();
+    const filenameParts: string[] = [];
 
     if (searchValue.trim()) {
       exportParams.set('search', searchValue.trim());
+      filenameParts.push(`search_${slugify(searchValue.trim())}`);
     }
 
     if (selectedStatus !== 'all') {
       exportParams.set('statusKey', selectedStatus);
+      const statusLabel = statusFilterOptions.find(
+        (option) => option.value === selectedStatus,
+      )?.label;
+      filenameParts.push(slugify(statusLabel ?? selectedStatus));
     }
 
     if (selectedPriority !== 'all') {
       exportParams.set('priorityKey', selectedPriority);
+      const priorityLabel = priorityFilterOptions.find(
+        (option) => option.value === selectedPriority,
+      )?.label;
+      filenameParts.push(slugify(priorityLabel ?? selectedPriority));
     }
 
     if (selectedProject !== 'all') {
       exportParams.set('projectId', selectedProject);
+      const projectLabel = projectFilterOptions.find(
+        (option) => option.value === selectedProject,
+      )?.label;
+      filenameParts.push(slugify(projectLabel ?? selectedProject));
     }
 
     const response = await fetch(
@@ -224,14 +238,19 @@ const handleExportTickets = async () => {
 
     if (!response.ok) {
       const payload = await response.json().catch(() => null);
-      throw new Error(payload?.message || 'Failed to export tickets.');
+      throw new Error(
+        payload?.message ||
+          'No tickets found to export with the current filters.',
+      );
     }
 
     const blob = await response.blob();
     const downloadUrl = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = downloadUrl;
-    link.download = `tickets-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `tickets_${
+      filenameParts.length ? filenameParts.join('_') : 'all'
+    }.csv`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -246,7 +265,6 @@ const handleExportTickets = async () => {
     setIsExportingTickets(false);
   }
 };
-
   const moveTicketMutation = useMutation({
     mutationFn: async ({
       ticket,
@@ -1172,6 +1190,14 @@ function TableViewIcon() {
       />
     </svg>
   );
+}
+
+function slugify(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
 }
 
 function KanbanViewIcon() {

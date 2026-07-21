@@ -240,17 +240,27 @@ const handleExportTickets = async () => {
     setIsExportingTickets(true);
 
     const exportParams = new URLSearchParams();
+    const filenameParts: string[] = [];
 
     if (searchValue.trim()) {
       exportParams.set('search', searchValue.trim());
+      filenameParts.push(`search_${slugify(searchValue.trim())}`);
     }
 
     if (selectedStatus !== 'all') {
       exportParams.set('statusKey', selectedStatus);
+      const statusLabel = statusFilterOptions.find(
+        (option) => option.value === selectedStatus,
+      )?.label;
+      filenameParts.push(slugify(statusLabel ?? selectedStatus));
     }
 
     if (selectedPriority !== 'all') {
       exportParams.set('priorityKey', selectedPriority);
+      const priorityLabel = priorityFilterOptions.find(
+        (option) => option.value === selectedPriority,
+      )?.label;
+      filenameParts.push(slugify(priorityLabel ?? selectedPriority));
     }
 
     const response = await fetch(
@@ -260,14 +270,19 @@ const handleExportTickets = async () => {
 
     if (!response.ok) {
       const payload = await response.json().catch(() => null);
-      throw new Error(payload?.message || 'Failed to export tickets.');
+      throw new Error(
+        payload?.message ||
+          'No tickets found to export with the current filters.',
+      );
     }
 
     const blob = await response.blob();
     const downloadUrl = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = downloadUrl;
-    link.download = `recent-tickets-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `dashboard_tickets_${
+      filenameParts.length ? filenameParts.join('_') : 'all'
+    }.csv`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -1429,6 +1444,14 @@ function getInitials(value: string) {
     .map((word) => word[0])
     .join('')
     .toUpperCase();
+}
+
+function slugify(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
 }
 
 function formatTicketDate(value: string) {

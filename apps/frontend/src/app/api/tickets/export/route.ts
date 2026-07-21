@@ -170,6 +170,12 @@ export async function GET(request: NextRequest) {
       currentPage += 1;
     }
 
+    if (allItems.length === 0) {
+  return NextResponse.json(
+    { message: 'No tickets found to export with the current filters.' },
+    { status: 404 },
+  );
+}
     const csv = buildCsv(allItems);
 
     return new NextResponse(csv, {
