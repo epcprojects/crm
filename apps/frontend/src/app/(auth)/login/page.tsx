@@ -4,6 +4,7 @@ import LoginPageClient from './LoginPageClient';
 import {
   DEFAULT_POST_LOGIN_PATH,
   sanitizeReturnUrl,
+  RETURN_URL_FALLBACK_PATH,
 } from '../../../lib/auth/return-url';
 
 type PageProps = {
@@ -51,7 +52,17 @@ export default async function Page({ searchParams }: PageProps) {
 
   if (isAuthenticated) {
     const { returnurl } = await searchParams;
-    redirect(sanitizeReturnUrl(returnurl) || DEFAULT_POST_LOGIN_PATH);
+    const safeReturnUrl = sanitizeReturnUrl(returnurl);
+
+    if (!safeReturnUrl) {
+      redirect(DEFAULT_POST_LOGIN_PATH);
+    }
+
+    if (safeReturnUrl === RETURN_URL_FALLBACK_PATH) {
+      redirect(RETURN_URL_FALLBACK_PATH);
+    }
+
+    return <LoginPageClient />;
   }
 
   return <LoginPageClient />;

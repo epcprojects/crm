@@ -61,6 +61,7 @@ import {
 import { useAppSelector } from '../../../Redux/store';
 import Calendar from '../../../../components/calendar/Calendar';
 import DashboardSummaryBanner from '../../../../components/ui/DashboardSummaryBanner';
+import EmptyState from '../../../../components/EmptyState';
 
 const projectTabs = ['Tickets', 'Thread', 'Files', 'Calendar'] as const;
 
@@ -496,17 +497,16 @@ export default function ProjectDetailPage() {
 
   if (!canViewProjectDetail) {
     return (
-      <div className="space-y-4 -mt-16 sm:mt-0">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
-        >
-          <BackArrowIcon />
-          Back
-        </button>
-        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
-          You do not have permission to view project details.
+      <div className="space-y-4 mt-8">
+        <div className="rounded-[20px] border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+          <EmptyState
+            imageUrl="/images/EmptyProjectIcon.svg"
+            imageAlt="Project not found"
+            title="You do not have permission to view project details."
+            // description="Recent tickets will appear here once they are created."
+            buttonLabel="Go Back"
+            onButtonClick={() => router.back()}
+          />
         </div>
       </div>
     );
@@ -514,17 +514,16 @@ export default function ProjectDetailPage() {
 
   if (!project) {
     return (
-      <div className="space-y-4 -mt-16 sm:mt-0">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
-        >
-          <BackArrowIcon />
-          Back
-        </button>
-        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
-          Project not found.
+      <div className="space-y-4 mt-8">
+        <div className="rounded-[20px] border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+          <EmptyState
+            imageUrl="/images/EmptyProjectIcon.svg"
+            imageAlt="Project not found"
+            title="Project not found"
+            // description="Recent tickets will appear here once they are created."
+            buttonLabel="Go Back"
+            onButtonClick={() => router.back()}
+          />
         </div>
       </div>
     );
@@ -1262,7 +1261,7 @@ function ProjectDetailSkeleton({ onBack }: { onBack: () => void }) {
     >
       <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden rounded-3xl border border-white bg-white/40 p-3">
         {/* Back button */}
-        <div className="shrink-0">
+        {/* <div className="shrink-0">
           <button
             type="button"
             onClick={onBack}
@@ -1272,7 +1271,7 @@ function ProjectDetailSkeleton({ onBack }: { onBack: () => void }) {
             <BackArrowIcon />
             Back
           </button>
-        </div>
+        </div> */}
 
         {/* Project detail card */}
         <div className="flex min-h-0 min-w-0 flex-1 animate-pulse flex-col gap-4 overflow-hidden rounded-[20px] bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">

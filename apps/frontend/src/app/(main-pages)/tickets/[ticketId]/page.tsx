@@ -31,6 +31,7 @@ import {
 import { getFileUrl } from '../../../../components/projects/ProjectFilesPanel';
 import Tooltip from '../../../../components/tooltip';
 import Image from 'next/image';
+import EmptyState from '../../../../components/EmptyState';
 
 export default function TicketDetailPage() {
   const params = useParams<{ ticketId: string }>();
@@ -616,16 +617,15 @@ export default function TicketDetailPage() {
   if (!canViewTicketDetail) {
     return (
       <div className="space-y-4 mt-8">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
-        >
-          <BackArrowIcon />
-          Back
-        </button>
-        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
-          You do not have permission to view ticket details.
+        <div className="rounded-[20px] border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+          <EmptyState
+            imageUrl="/images/RecentTicketEmpty.svg"
+            imageAlt="Tickets detail not found"
+            title="You do not have permission to view ticket details."
+            // description="Recent tickets will appear here once they are created."
+            buttonLabel="Go Back"
+            onButtonClick={() => router.back()}
+          />
         </div>
       </div>
     );
@@ -638,16 +638,15 @@ export default function TicketDetailPage() {
   if (!ticket) {
     return (
       <div className="space-y-4 mt-8">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
-        >
-          <BackArrowIcon />
-          Back
-        </button>
-        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
-          Ticket not found.
+        <div className="rounded-[20px] border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+          <EmptyState
+            imageUrl="/images/RecentTicketEmpty.svg"
+            imageAlt="Tickets detail not found"
+            title="Tickets detail not found"
+            // description="Recent tickets will appear here once they are created."
+            buttonLabel="Go Back"
+            onButtonClick={() => router.back()}
+          />
         </div>
       </div>
     );
