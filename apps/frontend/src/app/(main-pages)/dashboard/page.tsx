@@ -224,69 +224,68 @@ export default function Page() {
     [criticalTicketsQuery.data?.items, upcomingTicketsQuery.data],
   );
 
+  const handleExportTickets = async () => {
+    try {
+      setIsExportingTickets(true);
 
-const handleExportTickets = async () => {
-  try {
-    setIsExportingTickets(true);
+      const exportParams = new URLSearchParams();
+      const filenameParts: string[] = [];
 
-    const exportParams = new URLSearchParams();
-    const filenameParts: string[] = [];
+      if (searchValue.trim()) {
+        exportParams.set('search', searchValue.trim());
+        filenameParts.push(`search_${slugify(searchValue.trim())}`);
+      }
 
-    if (searchValue.trim()) {
-      exportParams.set('search', searchValue.trim());
-      filenameParts.push(`search_${slugify(searchValue.trim())}`);
-    }
+      if (selectedStatus !== 'all') {
+        exportParams.set('statusKey', selectedStatus);
+        const statusLabel = statusFilterOptions.find(
+          (option) => option.value === selectedStatus,
+        )?.label;
+        filenameParts.push(slugify(statusLabel ?? selectedStatus));
+      }
 
-    if (selectedStatus !== 'all') {
-      exportParams.set('statusKey', selectedStatus);
-      const statusLabel = statusFilterOptions.find(
-        (option) => option.value === selectedStatus,
-      )?.label;
-      filenameParts.push(slugify(statusLabel ?? selectedStatus));
-    }
+      if (selectedPriority !== 'all') {
+        exportParams.set('priorityKey', selectedPriority);
+        const priorityLabel = priorityFilterOptions.find(
+          (option) => option.value === selectedPriority,
+        )?.label;
+        filenameParts.push(slugify(priorityLabel ?? selectedPriority));
+      }
 
-    if (selectedPriority !== 'all') {
-      exportParams.set('priorityKey', selectedPriority);
-      const priorityLabel = priorityFilterOptions.find(
-        (option) => option.value === selectedPriority,
-      )?.label;
-      filenameParts.push(slugify(priorityLabel ?? selectedPriority));
-    }
-
-    const response = await fetch(
-      `/api/dashboard/tickets/export?${exportParams.toString()}`,
-      { method: 'GET' },
-    );
-
-    if (!response.ok) {
-      const payload = await response.json().catch(() => null);
-      throw new Error(
-        payload?.message ||
-          'No tickets found to export with the current filters.',
+      const response = await fetch(
+        `/api/dashboard/tickets/export?${exportParams.toString()}`,
+        { method: 'GET' },
       );
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(
+          payload?.message ||
+            'No tickets found to export with the current filters.',
+        );
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `dashboard_tickets_${
+        filenameParts.length ? filenameParts.join('_') : 'all'
+      }.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+
+      appToast.success('Tickets exported successfully.');
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to export tickets.',
+      );
+    } finally {
+      setIsExportingTickets(false);
     }
-
-    const blob = await response.blob();
-    const downloadUrl = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.download = `dashboard_tickets_${
-      filenameParts.length ? filenameParts.join('_') : 'all'
-    }.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(downloadUrl);
-
-    appToast.success('Tickets exported successfully.');
-  } catch (error) {
-    appToast.error(
-      error instanceof Error ? error.message : 'Failed to export tickets.',
-    );
-  } finally {
-    setIsExportingTickets(false);
-  }
-};
+  };
 
   const handleViewAllTickets = () => {
     if (!canViewTicketsList) {
@@ -488,15 +487,15 @@ const handleExportTickets = async () => {
                     </p>
                   </div>
 
-<ThemeButton
-  className="shrink-0 rounded-full"
-  variant="primaryGradient"
-  icon={<DownloadIcon />}
-  onClick={handleExportTickets}
-  disabled={isExportingTickets}
->
-  {isExportingTickets ? 'Exporting...' : 'Export Tickets'}
-</ThemeButton>
+                  <ThemeButton
+                    className="shrink-0 rounded-full"
+                    variant="primaryGradient"
+                    icon={<DownloadIcon />}
+                    onClick={handleExportTickets}
+                    disabled={isExportingTickets}
+                  >
+                    {isExportingTickets ? 'Exporting...' : 'Export Tickets'}
+                  </ThemeButton>
 
                   {canCreateTicket ? (
                     <ThemeButton
@@ -639,7 +638,7 @@ const handleExportTickets = async () => {
                     )}
                   </Popover>
 
-                  <div className="flex flex-row gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <div className="border border-gray-200 bg-white py-2 px-2.5 flex items-center gap-2 justify-between flex-row rounded-lg">
                       <SearchIcon fill="#374151" />
                       <input
