@@ -171,13 +171,13 @@ export function buildTicketCreatedEmail(
       <p style="margin:0 0 4px;font-size:13px;color:${COLORS.muted};">${p.ticketNumber}</p>
       <p style="margin:0 0 18px;font-size:16px;color:#111827;font-weight:600;">${p.title}</p>
       <div class="meta-row"><span class="meta-label">Status</span>${badge(p.status, statusColor)}</div>
-      <div class="meta-row"><span class="meta-label">Priority</span>${badge(p.priority, priorityColor)}</div>
+      ${p.priority ? `<div class="meta-row"><span class="meta-label">Priority</span>${badge(p.priority, priorityColor)}</div>` : ''}
       <div class="meta-row"><span class="meta-label">Created By</span>${p.createdBy.name}</div>
       ${p.assignee ? `<div class="meta-row"><span class="meta-label">Assigned To</span>${p.assignee.name}</div>` : ''}
       <hr class="divider" />
-      <p style="font-size:13px;color:${COLORS.muted};margin:0 0 8px;">Description</p>
-      ${p.description ? `<div class="comment-box">${p.description}</div>` : ''}
-      <hr class="divider" />
+      
+      ${p.description ? `<p style="font-size:13px;color:${COLORS.muted};margin:0 0 8px;">Description</p><div class="comment-box">${p.description}</div><hr class="divider" />` : ''}
+      
       <a href="${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}" class="btn" style="text-decoration:none;color:#ffffff;padding:8px 16px;border-radius:4px;display:inline-block;">View Ticket</a>
     </div>
     ${footer(appName, appUrl)}`;

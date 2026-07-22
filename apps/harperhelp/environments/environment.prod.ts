@@ -5,8 +5,11 @@ export function environment() {
       environment: 'production',
     },
     file_size: {
-  max_attachment_size: parseInt(process.env.MAX_ATTACHMENT_SIZE || '10', 10),
-},
+      max_attachment_size: parseInt(
+        process.env.MAX_ATTACHMENT_SIZE || '10',
+        10,
+      ),
+    },
     postgres: {
       type: 'postgres',
       url: process.env.DATABASE_URL || '',

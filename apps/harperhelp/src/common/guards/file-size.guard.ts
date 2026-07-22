@@ -66,7 +66,9 @@ export class FileSizeGuard implements CanActivate {
   }
 
   private getMaxSizeBytes(): number {
-    const configuredMb = this.configService.get<string>('file_size.MAX_ATTACHMENT_SIZE');
+    const configuredMb = this.configService.get<string>(
+      'file_size.max_attachment_size',
+    );
     const maxMb = configuredMb
       ? parseFloat(configuredMb)
       : FileSizeGuard.DEFAULT_MAX_MB;

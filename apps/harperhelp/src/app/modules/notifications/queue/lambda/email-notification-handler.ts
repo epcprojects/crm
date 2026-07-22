@@ -91,7 +91,7 @@ function resolveRecipients(event: EmailNotificationEvent) {
       return event.payload.members;
     case EmailEventType.TICKET_CREATED:
       return event.payload.participants;
-    case EmailEventType.THREAD_MESSAGE_CREATED:  
+    case EmailEventType.THREAD_MESSAGE_CREATED:
       return event.payload.participants;
     case EmailEventType.TICKET_REPLY_POSTED:
       return event.payload.participants.filter(
@@ -127,11 +127,16 @@ function resolveRecipients(event: EmailNotificationEvent) {
 export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
   const batchItemFailures: Array<{ itemIdentifier: string }> = [];
 
+  console.log('event records:', event);
+
   for (const record of event.Records ?? []) {
     try {
       const parsed = JSON.parse(record.body) as EmailNotificationEvent;
+      console.log('parsed:', parsed);
       const { subject, html } = buildEmailForEvent(parsed);
+      console.log('HTML:', html, 'Subject:', subject);
       const recipients = resolveRecipients(parsed);
+      console.log('Recipients:', recipients);
       await sendMailToRecipients(recipients, subject, html);
     } catch (error) {
       batchItemFailures.push({ itemIdentifier: record.messageId });
