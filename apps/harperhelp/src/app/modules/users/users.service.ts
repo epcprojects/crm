@@ -373,7 +373,7 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new NotFoundException(`User with ${userId} not found`);
+      throw new NotFoundException(`User not found`);
     }
 
     await this.userRepo.softDelete(userId);

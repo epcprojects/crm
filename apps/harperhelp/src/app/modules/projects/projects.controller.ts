@@ -52,21 +52,21 @@ export class ProjectsController {
   //   roles: [SystemRoles.SUPER_ADMIN],
   // })
   @ApiOperation({ summary: 'Create a new project' })
-  create(@Body() createProjectDto: CreateProjectDto, @GetUser() user: User) {
+  create(@Body() createProjectDto: CreateProjectDto, @GetUser() user) {
     return this.projectsService.createProject(createProjectDto, user);
   }
 
 
   @Get()
   @ApiOperation({ summary: 'Find all projects with search and pagination, returns summary too, based on search' })
-  findAll(@Query() query: GetProjectsQueryDto, @GetUser() user: User,) {
+  findAll(@Query() query: GetProjectsQueryDto, @GetUser() user) {
     return this.projectsService.findAll(query, user);
   }
 
   @Get('names')
   // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({ summary: 'Find all projects with names only' })
-  findAllNames(@GetUser() user: User) {
+  findAllNames(@GetUser() user) {
     return this.projectsService.findAllNames(user);
   }
 
@@ -75,7 +75,7 @@ export class ProjectsController {
     summary:
       'Get project dashboard summary. Returns total projects, active projects, open tickets, and critical issues.',
   })
-  getGlobalProjectSummary(@GetUser() user:User) {
+  getGlobalProjectSummary(@GetUser() user) {
     return this.projectsService.getGlobalProjectSummary(user);
   }
 
@@ -125,7 +125,7 @@ export class ProjectsController {
   //   SystemRoles.VIEWER,
   // )
   @ApiOperation({ summary: 'Get list of project members.' })
-  findProjectMembers(@Param('id', ParseUUIDPipe) id: string, @GetUser() user:User) {
+  findProjectMembers(@Param('id', ParseUUIDPipe) id: string, @GetUser() user) {
     return this.projectsService.findProjectMembers(id, user);
   }
 
@@ -165,7 +165,7 @@ export class ProjectsController {
   async uploadFiles(
     @Param('projectId', ParseUUIDPipe) projectId: string,
     @UploadedFiles() files: Express.Multer.File[],
-    @GetUser() user: User,
+    @GetUser() user,
   ) {
     return this.projectsFilesService.uploadProjectFiles(
       projectId,
@@ -186,7 +186,7 @@ export class ProjectsController {
     status: 200,
     description: 'List of project files',
   })
-  async getFiles(@Param('projectId', ParseUUIDPipe) projectId: string, @GetUser() user:User) {
+  async getFiles(@Param('projectId', ParseUUIDPipe) projectId: string, @GetUser() user) {
     return this.projectsFilesService.getProjectFiles(projectId, user);
   }
 

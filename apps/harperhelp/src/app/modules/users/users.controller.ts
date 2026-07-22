@@ -20,7 +20,6 @@ import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { GetUser } from '../../../common/decorators/get-user.decorator';
 // import { SystemRoles } from '@harperhelp/types';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { User } from './entities/user.entity';
 
 @Controller('users')
 @ApiBearerAuth('JWT-auth')
@@ -32,7 +31,7 @@ export class UsersController {
     summary: 'Get current logged in user',
   })
   @Get('myself')
-  getMyUser(@GetUser() user: User) {
+  getMyUser(@GetUser() user) {
     return this.usersService.getMyself(user);
   }
 
@@ -41,7 +40,7 @@ export class UsersController {
   @ApiOperation({
     summary: 'Invite user to project',
   })
-  async inviteToProject(@Body() dto: InviteUserDto, @GetUser() currentUser: User) {
+  async inviteToProject(@Body() dto: InviteUserDto, @GetUser() currentUser) {
     return this.usersService.inviteToProject(dto, currentUser);
   }
 
@@ -55,7 +54,7 @@ export class UsersController {
   @ApiOperation({
     summary: 'Soft delete user',
   })
-  softDeleteUser(@Param('id', ParseUUIDPipe) id: string, @GetUser() user: User) {
+  softDeleteUser(@Param('id', ParseUUIDPipe) id: string, @GetUser() user) {
     if (id === user?.id) {
       throw new UnauthorizedException(
         'You are not authorized to delete this user',
