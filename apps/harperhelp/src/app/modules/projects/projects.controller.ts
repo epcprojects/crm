@@ -25,13 +25,13 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
-import { Roles } from '../../../common/decorators/roles.decorator';
-import { SystemRoles } from '@harperhelp/types';
+// import { Roles } from '../../../common/decorators/roles.decorator';
+// import { SystemRoles } from '@harperhelp/types';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { GetUser } from '../../../common/decorators/get-user.decorator';
 import { ProjectsFilesService } from './services/project-files.service';
 import { User } from '../users/entities/user.entity';
-import { Authorize } from '../../../common/guards/authorize.guard';
+// import { Authorize } from '../../../common/guards/authorize.guard';
 import { GetProjectsQueryDto } from './dto/get-projects-query.dto';
 import { GetMembersQueryDto } from './dto/get-members-query.dto';
 import { FileSizeGuard } from '../../../common/guards/file-size.guard';
@@ -59,15 +59,15 @@ export class ProjectsController {
 
   @Get()
   @ApiOperation({ summary: 'Find all projects with search and pagination, returns summary too, based on search' })
-  findAll(@Query() query: GetProjectsQueryDto, @GetUser() user,) {
+  findAll(@Query() query: GetProjectsQueryDto, @GetUser() user) {
     return this.projectsService.findAll(query, user);
   }
 
   @Get('names')
   // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({ summary: 'Find all projects with names only' })
-  findAllNames() {
-    return this.projectsService.findAllNames();
+  findAllNames(@GetUser() user) {
+    return this.projectsService.findAllNames(user);
   }
 
   @Get('project-summary')
