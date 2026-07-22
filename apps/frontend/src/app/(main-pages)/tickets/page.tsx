@@ -16,7 +16,12 @@ import RecentTicketsTable, {
 import TicketsKanbanView from '../../../components/tickets/TicketsKanbanView';
 import { appToast } from '../../../components/toast/AppToast';
 import Dropdown from '../../../components/ui/ThemeDropDown';
-import { DownloadIcon, FiltersIcon, PlusIcon, SearchIcon } from '../../../../public/icons';
+import {
+  DownloadIcon,
+  FiltersIcon,
+  PlusIcon,
+  SearchIcon,
+} from '../../../../public/icons';
 import { createTicket } from '../../../lib/tickets';
 import {
   projectsQueryKey,
@@ -195,76 +200,76 @@ export default function Page() {
     [ticketStatusesQuery.data],
   );
 
-const handleExportTickets = async () => {
-  try {
-    setIsExportingTickets(true);
+  const handleExportTickets = async () => {
+    try {
+      setIsExportingTickets(true);
 
-    const exportParams = new URLSearchParams();
-    const filenameParts: string[] = [];
+      const exportParams = new URLSearchParams();
+      const filenameParts: string[] = [];
 
-    if (searchValue.trim()) {
-      exportParams.set('search', searchValue.trim());
-      filenameParts.push(`search_${slugify(searchValue.trim())}`);
-    }
+      if (searchValue.trim()) {
+        exportParams.set('search', searchValue.trim());
+        filenameParts.push(`search_${slugify(searchValue.trim())}`);
+      }
 
-    if (selectedStatus !== 'all') {
-      exportParams.set('statusKey', selectedStatus);
-      const statusLabel = statusFilterOptions.find(
-        (option) => option.value === selectedStatus,
-      )?.label;
-      filenameParts.push(slugify(statusLabel ?? selectedStatus));
-    }
+      if (selectedStatus !== 'all') {
+        exportParams.set('statusKey', selectedStatus);
+        const statusLabel = statusFilterOptions.find(
+          (option) => option.value === selectedStatus,
+        )?.label;
+        filenameParts.push(slugify(statusLabel ?? selectedStatus));
+      }
 
-    if (selectedPriority !== 'all') {
-      exportParams.set('priorityKey', selectedPriority);
-      const priorityLabel = priorityFilterOptions.find(
-        (option) => option.value === selectedPriority,
-      )?.label;
-      filenameParts.push(slugify(priorityLabel ?? selectedPriority));
-    }
+      if (selectedPriority !== 'all') {
+        exportParams.set('priorityKey', selectedPriority);
+        const priorityLabel = priorityFilterOptions.find(
+          (option) => option.value === selectedPriority,
+        )?.label;
+        filenameParts.push(slugify(priorityLabel ?? selectedPriority));
+      }
 
-    if (selectedProject !== 'all') {
-      exportParams.set('projectId', selectedProject);
-      const projectLabel = projectFilterOptions.find(
-        (option) => option.value === selectedProject,
-      )?.label;
-      filenameParts.push(slugify(projectLabel ?? selectedProject));
-    }
+      if (selectedProject !== 'all') {
+        exportParams.set('projectId', selectedProject);
+        const projectLabel = projectFilterOptions.find(
+          (option) => option.value === selectedProject,
+        )?.label;
+        filenameParts.push(slugify(projectLabel ?? selectedProject));
+      }
 
-    const response = await fetch(
-      `/api/tickets/export?${exportParams.toString()}`,
-      { method: 'GET' },
-    );
-
-    if (!response.ok) {
-      const payload = await response.json().catch(() => null);
-      throw new Error(
-        payload?.message ||
-          'No tickets found to export with the current filters.',
+      const response = await fetch(
+        `/api/tickets/export?${exportParams.toString()}`,
+        { method: 'GET' },
       );
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(
+          payload?.message ||
+            'No tickets found to export with the current filters.',
+        );
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `tickets_${
+        filenameParts.length ? filenameParts.join('_') : 'all'
+      }.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+
+      appToast.success('Tickets exported successfully.');
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to export tickets.',
+      );
+    } finally {
+      setIsExportingTickets(false);
     }
-
-    const blob = await response.blob();
-    const downloadUrl = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.download = `tickets_${
-      filenameParts.length ? filenameParts.join('_') : 'all'
-    }.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(downloadUrl);
-
-    appToast.success('Tickets exported successfully.');
-  } catch (error) {
-    appToast.error(
-      error instanceof Error ? error.message : 'Failed to export tickets.',
-    );
-  } finally {
-    setIsExportingTickets(false);
-  }
-};
+  };
   const moveTicketMutation = useMutation({
     mutationFn: async ({
       ticket,
@@ -327,10 +332,10 @@ const handleExportTickets = async () => {
             items: current.items.map((currentTicket) =>
               currentTicket.id === ticket.id
                 ? {
-                  ...currentTicket,
-                  status: nextStatus?.label ?? currentTicket.status,
-                  statusColor: nextStatus?.color ?? currentTicket.statusColor,
-                }
+                    ...currentTicket,
+                    status: nextStatus?.label ?? currentTicket.status,
+                    statusColor: nextStatus?.color ?? currentTicket.statusColor,
+                  }
                 : currentTicket,
             ),
           };
@@ -377,7 +382,6 @@ const handleExportTickets = async () => {
       ]);
     },
   });
-
 
   const reorderStatusMutation = useMutation({
     mutationFn: async ({
@@ -641,10 +645,11 @@ const handleExportTickets = async () => {
                           {({ open }) => (
                             <>
                               <PopoverButton
-                                className={`flex h-10 shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium outline-none ${open
-                                  ? 'border-primary  text-white'
-                                  : 'border-gray-200 bg-white text-gray-700'
-                                  }`}
+                                className={`flex h-10 shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium outline-none ${
+                                  open
+                                    ? 'border-primary  text-white'
+                                    : 'border-gray-200 bg-white text-gray-700'
+                                }`}
                                 aria-label="Open filters"
                               >
                                 <FiltersIcon />
@@ -695,10 +700,11 @@ const handleExportTickets = async () => {
                           <button
                             type="button"
                             onClick={() => handleViewModeChange('table')}
-                            className={`flex h-9 w-9 items-center justify-center rounded-md transition ${viewMode === 'table'
-                              ? 'bg-primary-dark text-white shadow-sm'
-                              : 'text-gray-500 hover:bg-gray-50'
-                              }`}
+                            className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
+                              viewMode === 'table'
+                                ? 'bg-primary-dark text-white shadow-sm'
+                                : 'text-gray-500 hover:bg-gray-50'
+                            }`}
                             aria-label="Table view"
                           >
                             <TableViewIcon />
@@ -707,10 +713,11 @@ const handleExportTickets = async () => {
                           <button
                             type="button"
                             onClick={() => handleViewModeChange('kanban')}
-                            className={`flex h-9 w-9 items-center justify-center rounded-md transition ${viewMode === 'kanban'
-                              ? 'bg-primary-dark text-white shadow-sm'
-                              : 'text-gray-500 hover:bg-gray-50'
-                              }`}
+                            className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
+                              viewMode === 'kanban'
+                                ? 'bg-primary-dark text-white shadow-sm'
+                                : 'text-gray-500 hover:bg-gray-50'
+                            }`}
                             aria-label="Kanban view"
                           >
                             <KanbanViewIcon />
@@ -745,26 +752,31 @@ const handleExportTickets = async () => {
                             placeholder="All Priority"
                           />
                         </div>
+
+                        {canCreateTicket ? (
+                          <ThemeButton
+                            className="rounded-full"
+                            variant="primaryGradient"
+                            icon={
+                              <PlusIcon fill="#3889FE" width="20" height="20" />
+                            }
+                            onClick={() => setCreateTicketOpen(true)}
+                          >
+                            New Ticket
+                          </ThemeButton>
+                        ) : null}
+
                         <ThemeButton
                           className="rounded-full"
                           variant="primaryGradient"
-                          icon={
-                            <PlusIcon fill="#3889FE" width="20" height="20" />
-                          }
-                          onClick={() => setCreateTicketOpen(true)}
+                          icon={<DownloadIcon />}
+                          onClick={handleExportTickets}
+                          disabled={isExportingTickets}
                         >
-                          New Ticket
+                          {isExportingTickets
+                            ? 'Exporting...'
+                            : 'Export Tickets'}
                         </ThemeButton>
-
-                        <ThemeButton
-  className="rounded-full"
-  variant="primaryGradient"
-  icon={<DownloadIcon />}
-  onClick={handleExportTickets}
-  disabled={isExportingTickets}
->
-  {isExportingTickets ? 'Exporting...' : 'Export Tickets'}
-</ThemeButton>
                       </div>
                     </>
                   ) : null}
@@ -777,7 +789,9 @@ const handleExportTickets = async () => {
                     <TicketsKanbanView
                       tickets={sortedTickets}
                       statusOptions={kanbanStatusOptions}
-                      onTicketClick={canViewTicketDetail ? handleTicketClick : undefined}
+                      onTicketClick={
+                        canViewTicketDetail ? handleTicketClick : undefined
+                      }
                       onMoveTicket={(ticket, nextStatusKey) => {
                         void handleMoveTicket(ticket, nextStatusKey);
                       }}
@@ -1017,10 +1031,10 @@ function isApiDashboardTicketsResponse(
 ): value is ApiDashboardTicketsResponse {
   return Boolean(
     value &&
-    typeof value === 'object' &&
-    Array.isArray((value as ApiDashboardTicketsResponse).items) &&
-    (value as ApiDashboardTicketsResponse).meta &&
-    typeof (value as ApiDashboardTicketsResponse).meta === 'object',
+      typeof value === 'object' &&
+      Array.isArray((value as ApiDashboardTicketsResponse).items) &&
+      (value as ApiDashboardTicketsResponse).meta &&
+      typeof (value as ApiDashboardTicketsResponse).meta === 'object',
   );
 }
 // async function fetchTicketSummary(): Promise<TicketSummary> {
@@ -1048,16 +1062,16 @@ function isApiDashboardTicketsResponse(
 //   return payload;
 // }
 
-function isTicketSummary(value: unknown): value is TicketSummary {
-  return Boolean(
-    value &&
-    typeof value === 'object' &&
-    'open' in value &&
-    'inProgress' in value &&
-    'resolved' in value &&
-    'critical' in value,
-  );
-}
+// function isTicketSummary(value: unknown): value is TicketSummary {
+//   return Boolean(
+//     value &&
+//     typeof value === 'object' &&
+//     'open' in value &&
+//     'inProgress' in value &&
+//     'resolved' in value &&
+//     'critical' in value,
+//   );
+// }
 function mapApiDashboardTicketToRecentTicket(
   ticket: ApiDashboardTicket,
 ): RecentTicket {
