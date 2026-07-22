@@ -10,7 +10,7 @@ import { SystemRoles, UserType } from '@harperhelp/types';
 import { Ticket } from '../tickets/entities/ticket.entity';
 import { GetProjectsQueryDto } from './dto/get-projects-query.dto';
 import { NotificationsService } from '../notifications/notifications.service';
-import { EmailEventType } from '../notifications/notifications.types';
+// import { EmailEventType } from '../notifications/notifications.types';
 import { GetMembersQueryDto } from './dto/get-members-query.dto';
 
 @Injectable()
@@ -230,11 +230,15 @@ export class ProjectsService {
   }
   y;
 
-  findAllNames() {
+  findAllNames(user: {id: string}) {
     return this.projectRepo.find({
       select: {
         name: true,
         id: true,
+      },where: {
+        members: {
+          id: user.id,
+        },
       },
     });
   }
