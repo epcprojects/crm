@@ -487,16 +487,6 @@ export default function Page() {
                     </p>
                   </div>
 
-                  <ThemeButton
-                    className="shrink-0 rounded-full"
-                    variant="primaryGradient"
-                    icon={<DownloadIcon />}
-                    onClick={handleExportTickets}
-                    disabled={isExportingTickets}
-                  >
-                    {isExportingTickets ? 'Exporting...' : 'Export Tickets'}
-                  </ThemeButton>
-
                   {canCreateTicket ? (
                     <ThemeButton
                       className="shrink-0 rounded-full"
@@ -670,6 +660,15 @@ export default function Page() {
                         />
                       </div>
                     </div>
+                    <ThemeButton
+                      className="shrink-0 rounded-full"
+                      variant="primaryGradient"
+                      icon={<DownloadIcon />}
+                      onClick={handleExportTickets}
+                      disabled={isExportingTickets}
+                    >
+                      {isExportingTickets ? 'Exporting...' : 'Export Tickets'}
+                    </ThemeButton>
 
                     {canViewTicketsList ? (
                       <button
