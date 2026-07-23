@@ -1,6 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import {
+  useMemo,
+  useState,
+  type DragEvent,
+} from 'react';
 import type { RecentTicket } from '../tables/RecentTicketsTable';
 
 type TicketStatusOption = {
@@ -14,12 +18,21 @@ type TicketsKanbanViewProps = {
   tickets: RecentTicket[];
   statusOptions: TicketStatusOption[];
   onTicketClick?: (ticket: RecentTicket) => void;
-  onMoveTicket?: (ticket: RecentTicket, nextStatusKey: string) => void;
-  onReorderColumn?: (statusId: string, newIndex: number) => void;
+  onMoveTicket?: (
+    ticket: RecentTicket,
+    nextStatusKey: string,
+  ) => void;
+  onReorderColumn?: (
+    statusId: string,
+    newIndex: number,
+  ) => void;
   canDragTickets?: boolean;
   movingTicketId?: string | null;
   canDragColumns?: boolean;
 };
+
+type DropPosition = 'before' | 'after';
+
 const defaultStatusTone = {
   background: '#f3f4f6',
   border: '#e5e7eb',
@@ -37,11 +50,25 @@ export default function TicketsKanbanView({
   movingTicketId = null,
   canDragColumns = true,
 }: TicketsKanbanViewProps) {
-  const [draggingTicketId, setDraggingTicketId] = useState<string | null>(null);
-  const [hoveredColumnKey, setHoveredColumnKey] = useState<string | null>(null);
-  const [draggingColumnKey, setDraggingColumnKey] = useState<string | null>(
-    null,
-  );
+  const [draggingTicketId, setDraggingTicketId] = useState<
+    string | null
+  >(null);
+
+  const [hoveredColumnKey, setHoveredColumnKey] = useState<
+    string | null
+  >(null);
+
+  const [draggingColumnKey, setDraggingColumnKey] = useState<
+    string | null
+  >(null);
+
+  /*
+   * Null means column has been picked up, but the user has not
+   * selected a drop position yet.
+   */
+  const [previewColumnOrder, setPreviewColumnOrder] = useState<
+    string[] | null
+  >(null);
 
   const generatedColumns = useMemo(() => {
     const normalizedOptions = statusOptions.map((status) => ({
@@ -53,17 +80,26 @@ export default function TicketsKanbanView({
     }));
 
     const existingLabels = new Set(
-      normalizedOptions.map((status) => status.label.trim().toLowerCase()),
+      normalizedOptions.map((status) =>
+        status.label.trim().toLowerCase(),
+      ),
     );
 
     const extraStatuses = Array.from(
       new Set(
         tickets
           .map((ticket) => ticket.status?.trim())
-          .filter((status): status is string => Boolean(status)),
+          .filter(
+            (status): status is string => Boolean(status),
+          ),
       ),
     )
-      .filter((status) => !existingLabels.has(status.trim().toLowerCase()))
+      .filter(
+        (status) =>
+          !existingLabels.has(
+            status.trim().toLowerCase(),
+          ),
+      )
       .map((status) => ({
         key: `custom:${status}`,
         id: null,
@@ -72,46 +108,201 @@ export default function TicketsKanbanView({
         isCustom: true,
       }));
 
-    return [...normalizedOptions, ...extraStatuses].map((column) => ({
-      ...column,
-      tickets: tickets.filter((ticket) => ticket.status === column.label),
-    }));
+    return [...normalizedOptions, ...extraStatuses].map(
+      (column) => ({
+        ...column,
+        tickets: tickets.filter(
+          (ticket) => ticket.status === column.label,
+        ),
+      }),
+    );
   }, [statusOptions, tickets]);
 
-  // Real (backend-backed) statuses keep the order given by the API — the
-  // user's saved order, or the global fallback. Custom/unmatched-status
-  // columns are display-only and always render after them; they can't be
-  // reordered because they have no statusId to persist against.
+  /*
+   * Backend-backed columns can be reordered.
+   * Custom/unmatched columns remain at the end.
+   */
   const realColumns = useMemo(
-    () => generatedColumns.filter((column) => !column.isCustom),
+    () =>
+      generatedColumns.filter(
+        (column) => !column.isCustom,
+      ),
     [generatedColumns],
-  );
-  const customColumns = useMemo(
-    () => generatedColumns.filter((column) => column.isCustom),
-    [generatedColumns],
-  );
-  const columns = useMemo(
-    () => [...realColumns, ...customColumns],
-    [realColumns, customColumns],
   );
 
-  const moveColumn = (draggedColumnKey: string, targetColumnKey: string) => {
+  const customColumns = useMemo(
+    () =>
+      generatedColumns.filter(
+        (column) => column.isCustom,
+      ),
+    [generatedColumns],
+  );
+
+  /*
+   * During drag, apply the temporary preview order.
+   */
+  const orderedRealColumns = useMemo(() => {
+    if (!previewColumnOrder) {
+      return realColumns;
+    }
+
+    const columnsByKey = new Map(
+      realColumns.map((column) => [
+        column.key,
+        column,
+      ]),
+    );
+
+    return previewColumnOrder
+      .map((columnKey) => columnsByKey.get(columnKey))
+      .filter(
+        (
+          column,
+        ): column is (typeof realColumns)[number] =>
+          Boolean(column),
+      );
+  }, [previewColumnOrder, realColumns]);
+
+  const columns = useMemo(
+    () => [...orderedRealColumns, ...customColumns],
+    [orderedRealColumns, customColumns],
+  );
+
+  const resetColumnDrag = () => {
+    setDraggingColumnKey(null);
+    setPreviewColumnOrder(null);
+    setHoveredColumnKey(null);
+  };
+
+  const getDropPosition = (
+    event: DragEvent<HTMLElement>,
+  ): DropPosition => {
+    const bounds =
+      event.currentTarget.getBoundingClientRect();
+
+    const middlePoint =
+      bounds.left + bounds.width / 2;
+
+    return event.clientX < middlePoint
+      ? 'before'
+      : 'after';
+  };
+
+  const previewColumnMove = (
+    draggedColumnKey: string,
+    targetColumnKey: string,
+    position: DropPosition,
+  ) => {
     if (draggedColumnKey === targetColumnKey) {
+      return;
+    }
+
+    setPreviewColumnOrder((currentOrder) => {
+      const baseOrder =
+        currentOrder ??
+        realColumns.map((column) => column.key);
+
+      const orderWithoutDraggedColumn =
+        baseOrder.filter(
+          (columnKey) =>
+            columnKey !== draggedColumnKey,
+        );
+
+      const targetIndex =
+        orderWithoutDraggedColumn.indexOf(
+          targetColumnKey,
+        );
+
+      if (targetIndex === -1) {
+        return currentOrder;
+      }
+
+      const insertionIndex =
+        position === 'after'
+          ? targetIndex + 1
+          : targetIndex;
+
+      const nextOrder = [
+        ...orderWithoutDraggedColumn,
+      ];
+
+      nextOrder.splice(
+        insertionIndex,
+        0,
+        draggedColumnKey,
+      );
+
+      if (
+        currentOrder &&
+        currentOrder.length === nextOrder.length &&
+        currentOrder.every(
+          (columnKey, index) =>
+            columnKey === nextOrder[index],
+        )
+      ) {
+        return currentOrder;
+      }
+
+      return nextOrder;
+    });
+  };
+
+  const commitColumnMove = (
+    draggedColumnKey: string,
+  ) => {
+    if (!previewColumnOrder) {
       return;
     }
 
     const draggedColumn = realColumns.find(
       (column) => column.key === draggedColumnKey,
     );
-    const targetIndex = realColumns.findIndex(
-      (column) => column.key === targetColumnKey,
-    );
 
-    if (!draggedColumn?.id || targetIndex === -1) {
+    if (!draggedColumn?.id) {
       return;
     }
 
-    onReorderColumn?.(draggedColumn.id, targetIndex);
+    const originalIndex = realColumns.findIndex(
+      (column) => column.key === draggedColumnKey,
+    );
+
+    const finalIndex =
+      previewColumnOrder.indexOf(
+        draggedColumnKey,
+      );
+
+    if (
+      originalIndex === -1 ||
+      finalIndex === -1 ||
+      originalIndex === finalIndex
+    ) {
+      return;
+    }
+
+    onReorderColumn?.(
+      draggedColumn.id,
+      finalIndex,
+    );
+  };
+
+  const handleColumnDrop = (
+    event: DragEvent<HTMLElement>,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const draggedColumnKey =
+      event.dataTransfer.getData(
+        'application/x-column-key',
+      ) || draggingColumnKey;
+
+    if (!draggedColumnKey) {
+      resetColumnDrag();
+      return;
+    }
+
+    commitColumnMove(draggedColumnKey);
+    resetColumnDrag();
   };
 
   if (!columns.length) {
@@ -127,222 +318,472 @@ export default function TicketsKanbanView({
       <div className="flex h-full min-h-0 min-w-max items-stretch gap-3 pb-2">
         {columns.map((column) => {
           const tone = getStatusTone(column.color);
-          const isDraggableColumn = canDragColumns && !column.isCustom;
+
+          const isDraggableColumn =
+            canDragColumns && !column.isCustom;
+
+          /*
+           * A column only becomes a placeholder after the user
+           * hovers another valid column. At drag start,
+           * previewColumnOrder is null, so no placeholder is shown
+           * at the original location.
+           */
+          const isColumnPlaceholder =
+            draggingColumnKey === column.key &&
+            previewColumnOrder !== null;
+
+          const isPickedUpAtSource =
+            draggingColumnKey === column.key &&
+            previewColumnOrder === null;
 
           return (
             <section
               key={column.key}
               draggable={isDraggableColumn}
               onDragStart={(event) => {
-                if (
-                  !isDraggableColumn ||
-                  event.dataTransfer.types.includes('application/x-ticket-id')
-                ) {
+                if (!isDraggableColumn) {
                   return;
                 }
 
-                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.effectAllowed =
+                  'move';
+
                 event.dataTransfer.setData(
                   'application/x-column-key',
                   column.key,
                 );
+
                 setDraggingColumnKey(column.key);
-              }}
-              onDragEnd={() => {
-                setDraggingColumnKey(null);
+
+                /*
+                 * Do not set preview order here.
+                 * This prevents a placeholder from appearing
+                 * immediately at the source position.
+                 */
+                setPreviewColumnOrder(null);
                 setHoveredColumnKey(null);
               }}
-              className={`flex h-full min-h-0 w-[350px] p-2 shrink-0 flex-col rounded-2xl transition ${
-                hoveredColumnKey === column.key ? 'bg-gray-50/80' : ''
-              } ${
-                draggingColumnKey === column.key
-                  ? 'cursor-grabbing opacity-60 ring-2 ring-primary/20'
-                  : isDraggableColumn
-                    ? 'cursor-grab'
-                    : ''
-              }`}
-              onDragOver={(event) => {
-                const isTicketDrag = event.dataTransfer.types.includes(
-                  'application/x-ticket-id',
-                );
-                const isColumnDrag = event.dataTransfer.types.includes(
-                  'application/x-column-key',
-                );
+              onDragEnd={() => {
+                resetColumnDrag();
+              }}
+              onDragEnter={(event) => {
+                const isTicketDrag =
+                  event.dataTransfer.types.includes(
+                    'application/x-ticket-id',
+                  );
+
+                const isColumnDrag =
+                  event.dataTransfer.types.includes(
+                    'application/x-column-key',
+                  );
 
                 if (
-                  (isTicketDrag && canDragTickets) ||
-                  (isColumnDrag && isDraggableColumn)
+                  isTicketDrag &&
+                  canDragTickets
                 ) {
                   event.preventDefault();
-                  event.dataTransfer.dropEffect = 'move';
                   setHoveredColumnKey(column.key);
-                }
-              }}
-              onDragLeave={(event) => {
-                if (event.currentTarget.contains(event.relatedTarget as Node)) {
                   return;
                 }
 
-                if (hoveredColumnKey === column.key) {
+                if (
+                  !isColumnDrag ||
+                  !isDraggableColumn ||
+                  !draggingColumnKey ||
+                  draggingColumnKey === column.key
+                ) {
+                  return;
+                }
+
+                event.preventDefault();
+
+                previewColumnMove(
+                  draggingColumnKey,
+                  column.key,
+                  getDropPosition(event),
+                );
+              }}
+              onDragOver={(event) => {
+                const isTicketDrag =
+                  event.dataTransfer.types.includes(
+                    'application/x-ticket-id',
+                  );
+
+                const isColumnDrag =
+                  event.dataTransfer.types.includes(
+                    'application/x-column-key',
+                  );
+
+                if (
+                  isTicketDrag &&
+                  canDragTickets
+                ) {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect =
+                    'move';
+
+                  setHoveredColumnKey(column.key);
+                  return;
+                }
+
+                if (
+                  !isColumnDrag ||
+                  !isDraggableColumn ||
+                  !draggingColumnKey
+                ) {
+                  return;
+                }
+
+                event.preventDefault();
+                event.dataTransfer.dropEffect =
+                  'move';
+
+                /*
+                 * Once the dragged column has moved to the preview
+                 * position, the pointer can be over its placeholder.
+                 * Preserve the existing order in that case.
+                 */
+                if (
+                  draggingColumnKey === column.key
+                ) {
+                  return;
+                }
+
+                previewColumnMove(
+                  draggingColumnKey,
+                  column.key,
+                  getDropPosition(event),
+                );
+              }}
+              onDragLeave={(event) => {
+                if (
+                  event.currentTarget.contains(
+                    event.relatedTarget as Node,
+                  )
+                ) {
+                  return;
+                }
+
+                if (
+                  hoveredColumnKey === column.key
+                ) {
                   setHoveredColumnKey(null);
                 }
               }}
               onDrop={(event) => {
-                event.preventDefault();
+                const draggedColumnKey =
+                  event.dataTransfer.getData(
+                    'application/x-column-key',
+                  );
 
-                const draggedColumnKey = event.dataTransfer.getData(
-                  'application/x-column-key',
-                );
+                if (
+                  draggedColumnKey &&
+                  isDraggableColumn
+                ) {
+                  /*
+                   * If the drop happens directly on a regular target
+                   * before React has rendered the preview, create the
+                   * final preview order first.
+                   */
+                  if (
+                    draggedColumnKey !== column.key &&
+                    !previewColumnOrder
+                  ) {
+                    const position =
+                      getDropPosition(event);
 
-                if (draggedColumnKey && isDraggableColumn) {
-                  moveColumn(draggedColumnKey, column.key);
-                  setDraggingColumnKey(null);
-                  setHoveredColumnKey(null);
+                    const orderWithoutDraggedColumn =
+                      realColumns
+                        .map(
+                          (statusColumn) =>
+                            statusColumn.key,
+                        )
+                        .filter(
+                          (columnKey) =>
+                            columnKey !==
+                            draggedColumnKey,
+                        );
+
+                    const targetIndex =
+                      orderWithoutDraggedColumn.indexOf(
+                        column.key,
+                      );
+
+                    if (targetIndex !== -1) {
+                      const insertionIndex =
+                        position === 'after'
+                          ? targetIndex + 1
+                          : targetIndex;
+
+                      orderWithoutDraggedColumn.splice(
+                        insertionIndex,
+                        0,
+                        draggedColumnKey,
+                      );
+
+                      const draggedColumn =
+                        realColumns.find(
+                          (statusColumn) =>
+                            statusColumn.key ===
+                            draggedColumnKey,
+                        );
+
+                      const originalIndex =
+                        realColumns.findIndex(
+                          (statusColumn) =>
+                            statusColumn.key ===
+                            draggedColumnKey,
+                        );
+
+                      if (
+                        draggedColumn?.id &&
+                        originalIndex !==
+                          insertionIndex
+                      ) {
+                        onReorderColumn?.(
+                          draggedColumn.id,
+                          insertionIndex,
+                        );
+                      }
+                    }
+
+                    resetColumnDrag();
+                    return;
+                  }
+
+                  handleColumnDrop(event);
                   return;
                 }
 
-                const draggedTicketId =
-                  event.dataTransfer.getData('application/x-ticket-id') ||
-                  draggingTicketId;
+                event.preventDefault();
 
-                if (!canDragTickets || !draggedTicketId) {
+                const draggedTicketId =
+                  event.dataTransfer.getData(
+                    'application/x-ticket-id',
+                  ) || draggingTicketId;
+
+                if (
+                  !canDragTickets ||
+                  !draggedTicketId
+                ) {
                   return;
                 }
 
                 const draggedTicket = tickets.find(
-                  (ticket) => ticket.id === draggedTicketId,
+                  (ticket) =>
+                    ticket.id === draggedTicketId,
                 );
 
                 setHoveredColumnKey(null);
                 setDraggingTicketId(null);
 
-                if (!draggedTicket || draggedTicket.status === column.label) {
+                if (
+                  !draggedTicket ||
+                  draggedTicket.status === column.label
+                ) {
                   return;
                 }
 
-                onMoveTicket?.(draggedTicket, column.key);
+                onMoveTicket?.(
+                  draggedTicket,
+                  column.key,
+                );
               }}
+              className={`flex h-full min-h-0 w-[350px] shrink-0 flex-col rounded-2xl p-2 transition ${
+                hoveredColumnKey === column.key &&
+                !draggingColumnKey
+                  ? 'bg-gray-50/80'
+                  : ''
+              } ${
+                isColumnPlaceholder
+                  ? 'cursor-grabbing border-2 border-dashed border-gray-300 bg-gray-50!'
+                  : isPickedUpAtSource
+                    ? 'cursor-grabbing opacity-60 ring-2 ring-primary/20'
+                    : isDraggableColumn
+                      ? 'cursor-grab'
+                      : ''
+              }`}
               style={{
-                backgroundColor: tone.background,
+                backgroundColor:
+                  isColumnPlaceholder
+                    ? '#f9fafb'
+                    : tone.background,
               }}
             >
-              <div
-                className="sticky top-0 z-10 relative flex items-center gap-2 rounded-lg px-3 py-3"
-                style={{
-                  backgroundColor: tone.background,
-                }}
-              >
-                <span
-                  className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full"
-                  style={{ backgroundColor: tone.dot }}
-                />
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ backgroundColor: tone.dot }}
-                />
-                <span
-                  className="text-base font-semibold leading-none"
-                  style={{ color: tone.text }}
-                >
-                  {column.label}
-                </span>
-              </div>
-
-              <div
-                className={`mt-3.5 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto scrollbar-hide rounded-xl transition ${
-                  hoveredColumnKey === column.key
-                    ? 'border border-dashed border-gray-200 bg-primary/5'
-                    : ''
-                }`}
-              >
-                {column.tickets.length ? (
-                  column.tickets.map((ticket) => (
-                    <button
-                      key={ticket.id}
-                      data-ticket-card="true"
-                      type="button"
-                      draggable={canDragTickets && movingTicketId !== ticket.id}
-                      onDragStart={(event) => {
-                        if (!canDragTickets) {
-                          return;
-                        }
-
-                        event.stopPropagation();
-                        event.dataTransfer.effectAllowed = 'move';
-                        event.dataTransfer.setData(
-                          'application/x-ticket-id',
-                          ticket.id,
-                        );
-
-                        setDraggingTicketId(ticket.id);
+              {isColumnPlaceholder ? (
+                <div className="flex h-full min-h-40 w-full items-center justify-center rounded-xl bg-white/60">
+                  <span className="text-sm font-medium text-gray-400">
+                    Drop column here
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <div
+                    className="relative sticky top-0 z-10 flex items-center gap-2 rounded-lg px-3 py-3"
+                    style={{
+                      backgroundColor:
+                        tone.background,
+                    }}
+                  >
+                    <span
+                      className="absolute top-2 bottom-2 left-0 w-[3px] rounded-full"
+                      style={{
+                        backgroundColor: tone.dot,
                       }}
-                      onDragEnd={() => {
-                        setDraggingTicketId(null);
-                        setHoveredColumnKey(null);
+                    />
+
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{
+                        backgroundColor: tone.dot,
                       }}
-                      onClick={() => onTicketClick?.(ticket)}
-                      className={`rounded-xl border border-gray-200 bg-white p-3  text-left shadow-xs transition hover:border-gray-300 hover:shadow-sm ${
-                        draggingTicketId === ticket.id
-                          ? 'opacity-60 ring-2 ring-primary/20'
-                          : ''
-                      } ${
-                        movingTicketId === ticket.id
-                          ? 'cursor-wait opacity-70'
-                          : ''
-                      } ${canDragTickets ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                    />
+
+                    <span
+                      className="text-base leading-none font-semibold"
+                      style={{
+                        color: tone.text,
+                      }}
                     >
-                      <div className="space-y-2.5">
-                        <p className="line-clamp-2 text-base font-semibold  text-gray-900">
-                          {ticket.title}
-                        </p>
-
-                        <div className="space-y-1.5 text-sm text-gray-700">
-                          <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
-                            <span className="text-sm text-gray-900">
-                              Reference No:
-                            </span>
-                            <span className="truncate text-right text-sm text-gray-900">
-                              {ticket.ticketRefNo ?? ticket.id}
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
-                            <span className="text-sm text-gray-900">Date:</span>
-                            <span className="text-right text-sm text-gray-900">
-                              {ticket.date}
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
-                            <span className="text-sm text-gray-900">
-                              Project:
-                            </span>
-
-                            <div className="flex justify-end">
-                              <span className="flex w-fit justify-end items-center gap-2 whitespace-nowrap rounded-full bg-purple-100 py-0.75 pr-2.5 pl-0.75 text-xs font-medium text-purple-700">
-                                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-medium">
-                                  {ticket.project.initials}
-                                </span>
-                                {ticket.project.name}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
-                            <span className="text-sm text-gray-900">
-                              Priority:
-                            </span>
-                            <div className="flex justify-end">
-                              {renderPriorityBadge(ticket)}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </button>
-                  ))
-                ) : (
-                  <div className="flex min-h-40 items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 p-5 text-center text-sm text-gray-400">
-                    No tickets
+                      {column.label}
+                    </span>
                   </div>
-                )}
-              </div>
+
+                  <div
+                    className={`mt-3.5 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-xl transition scrollbar-hide ${
+                      hoveredColumnKey === column.key &&
+                      !draggingColumnKey
+                        ? 'border border-dashed border-gray-200 bg-primary/5'
+                        : ''
+                    }`}
+                  >
+                    {column.tickets.length ? (
+                      column.tickets.map((ticket) => (
+                        <button
+                          key={ticket.id}
+                          data-ticket-card="true"
+                          type="button"
+                          draggable={
+                            canDragTickets &&
+                            movingTicketId !== ticket.id
+                          }
+                          onDragStart={(event) => {
+                            if (!canDragTickets) {
+                              return;
+                            }
+
+                            event.stopPropagation();
+
+                            event.dataTransfer.effectAllowed =
+                              'move';
+
+                            event.dataTransfer.setData(
+                              'application/x-ticket-id',
+                              ticket.id,
+                            );
+
+                            setDraggingTicketId(
+                              ticket.id,
+                            );
+
+                            setDraggingColumnKey(null);
+                            setPreviewColumnOrder(null);
+                          }}
+                          onDragEnd={() => {
+                            setDraggingTicketId(null);
+                            setHoveredColumnKey(null);
+                          }}
+                          onClick={() =>
+                            onTicketClick?.(ticket)
+                          }
+                          className={`rounded-xl border border-gray-200 bg-white p-3 text-left shadow-xs transition hover:border-gray-300 hover:shadow-sm ${
+                            draggingTicketId ===
+                            ticket.id
+                              ? 'opacity-60 ring-2 ring-primary/20'
+                              : ''
+                          } ${
+                            movingTicketId ===
+                            ticket.id
+                              ? 'cursor-wait opacity-70'
+                              : ''
+                          } ${
+                            canDragTickets
+                              ? 'cursor-grab active:cursor-grabbing'
+                              : ''
+                          }`}
+                        >
+                          <div className="space-y-2.5">
+                            <p className="line-clamp-2 text-base font-semibold text-gray-900">
+                              {ticket.title}
+                            </p>
+
+                            <div className="space-y-1.5 text-sm text-gray-700">
+                              <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+                                <span className="text-sm text-gray-900">
+                                  Reference No:
+                                </span>
+
+                                <span className="truncate text-right text-sm text-gray-900">
+                                  {ticket.ticketRefNo ??
+                                    ticket.id}
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+                                <span className="text-sm text-gray-900">
+                                  Date:
+                                </span>
+
+                                <span className="text-right text-sm text-gray-900">
+                                  {ticket.date}
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+                                <span className="text-sm text-gray-900">
+                                  Project:
+                                </span>
+
+                                <div className="flex justify-end">
+                                  <span className="flex w-fit items-center justify-end gap-2 whitespace-nowrap rounded-full bg-purple-100 py-0.75 pr-2.5 pl-0.75 text-xs font-medium text-purple-700">
+                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-medium">
+                                      {
+                                        ticket.project
+                                          .initials
+                                      }
+                                    </span>
+
+                                    {
+                                      ticket.project
+                                        .name
+                                    }
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+                                <span className="text-sm text-gray-900">
+                                  Priority:
+                                </span>
+
+                                <div className="flex justify-end">
+                                  {renderPriorityBadge(
+                                    ticket,
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="flex min-h-40 items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 p-5 text-center text-sm text-gray-400">
+                        No tickets
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </section>
           );
         })}
@@ -357,9 +798,12 @@ function renderPriorityBadge(ticket: RecentTicket) {
       <span
         className="h-1.5 min-w-1.5 rounded-full"
         style={{
-          backgroundColor: ticket.priorityColor ?? getPriorityDotColor(ticket),
+          backgroundColor:
+            ticket.priorityColor ??
+            getPriorityDotColor(ticket),
         }}
       />
+
       {ticket.priority ?? 'No Priority'}
     </span>
   );
@@ -369,12 +813,16 @@ function getPriorityDotColor(ticket: RecentTicket) {
   switch (ticket.priority) {
     case 'High':
       return '#f04438';
+
     case 'Medium':
       return '#f79009';
+
     case 'Low':
       return '#22c55e';
+
     case 'Critical':
       return '#7c3aed';
+
     default:
       return '#9ca3af';
   }
