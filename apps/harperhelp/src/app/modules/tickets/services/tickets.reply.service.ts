@@ -13,6 +13,7 @@ import { CreateReplyDto } from '../dto/create-reply.dto';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { EmailEventType } from '../../notifications/notifications.types';
 import { Ticket } from '../entities/ticket.entity';
+import { TicketRepliesGateway } from '../gateway/ticket-reply.gateway';
 
 @Injectable()
 export class TicketRepliesService {
@@ -23,6 +24,7 @@ export class TicketRepliesService {
     private readonly filesService: FilesService,
     private readonly utilityService: UtilityService,
     private readonly notificationsService: NotificationsService,
+    private readonly ticketRepliesGateway: TicketRepliesGateway,
   ) {}
 
   async create(
@@ -41,7 +43,7 @@ export class TicketRepliesService {
     //   .getRepository('projects')
     //   .findOne({ where: { id: projectId } });
     // if (!project) throw new NotFoundException('Project not found');
-        const ticket = await this.replyRepo.manager
+    const ticket = await this.replyRepo.manager
       .getRepository(Ticket)
       .findOne({ where: { id: ticketId } });
     if (!ticket) throw new NotFoundException('Ticket not found');
@@ -123,7 +125,11 @@ export class TicketRepliesService {
       // ignore
     }
 
-    return this.findOne(reply.id);
+    const createdReply = await this.findOne(reply.id);
+
+    this.ticketRepliesGateway.broadcastReply(projectId, ticketId, createdReply);
+
+    return createdReply;
   }
 
   // TODO: optimize N+1 issue

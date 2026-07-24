@@ -20,6 +20,9 @@ import { Project } from '../projects/entities/project.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { TicketsKanbanView } from './entities/tickets-kanban-view.entity';
 import { User } from '../users/entities/user.entity';
+import { WsJwtGuard } from 'apps/harperhelp/src/common/guards/ws-jwt.guard';
+import { TicketRepliesGateway } from './gateway/ticket-reply.gateway';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
@@ -35,6 +38,7 @@ import { User } from '../users/entities/user.entity';
       User,
     ]),
     NotificationsModule,
+    JwtModule,
   ],
   controllers: [
     TicketsController,
@@ -50,6 +54,9 @@ import { User } from '../users/entities/user.entity';
     TicketRepliesService,
     TicketStatusesService,
     TicketPrioritiesService,
+    WsJwtGuard,
+    TicketRepliesGateway,
   ],
+  exports: [TicketRepliesGateway],
 })
 export class TicketsModule {}
