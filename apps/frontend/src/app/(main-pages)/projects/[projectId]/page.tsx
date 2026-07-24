@@ -12,7 +12,7 @@ import {
 } from '@headlessui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import clsx from 'clsx';
 import CreateTicketModal, {
   type CreateTicketFormValues,
@@ -68,6 +68,7 @@ const projectTabs = ['Tickets', 'Thread', 'Files', 'Calendar'] as const;
 export default function ProjectDetailPage() {
   const params = useParams<{ projectId: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { setLoading } = useAppLoader();
   const isMobile = useIsMobile();
   const currentUserId = useAppSelector((state) => state.auth.user?.id ?? '');
@@ -490,6 +491,17 @@ export default function ProjectDetailPage() {
     if (tab === 'Calendar') return canViewCalendar;
     return false;
   });
+  const selectedProjectTabIndex = useMemo(() => {
+    const requestedTab = searchParams.get('t');
+    const requestedTabName = requestedTab === '1' ? 'Thread' : null;
+
+    if (!requestedTabName) {
+      return 0;
+    }
+
+    const requestedTabIndex = visibleProjectTabs.indexOf(requestedTabName);
+    return requestedTabIndex >= 0 ? requestedTabIndex : 0;
+  }, [searchParams, visibleProjectTabs]);
 
   if (projectDetailQuery.isLoading) {
     return <ProjectDetailSkeleton onBack={() => router.back()} />;
@@ -651,7 +663,10 @@ export default function ProjectDetailPage() {
               </div>
             </section> */}
 
-            <TabGroup className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
+            <TabGroup
+              selectedIndex={selectedProjectTabIndex}
+              className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden"
+            >
               <TabList className="flex shrink-0 overflow-x-auto scrollbar-hide border-b border-gray-200">
                 {visibleProjectTabs.map((tab) => (
                   <Tab
