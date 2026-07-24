@@ -491,7 +491,7 @@ export default function ProjectDetailPage() {
     if (tab === 'Calendar') return canViewCalendar;
     return false;
   });
-  const selectedProjectTabIndex = useMemo(() => {
+  const defaultProjectTabIndex = useMemo(() => {
     const requestedTab = searchParams.get('t');
     const requestedTabName = requestedTab === '1' ? 'Thread' : null;
 
@@ -664,7 +664,7 @@ export default function ProjectDetailPage() {
             </section> */}
 
             <TabGroup
-              selectedIndex={selectedProjectTabIndex}
+              defaultIndex={defaultProjectTabIndex}
               className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden"
             >
               <TabList className="flex shrink-0 overflow-x-auto scrollbar-hide border-b border-gray-200">
