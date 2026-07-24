@@ -179,15 +179,16 @@ export class TicketStatusesService {
   async remove(id: string) {
     const status = await this.findOne(id);
 
-    const ticketsUsingPriority = await this.ticketRepo.count({
-      where: {
-        statusKey: status.key,
-      },
-    });
+    const ticketsUsingStatus = await this.ticketRepo
+    .createQueryBuilder('t')
+    .innerJoin('t.project', 'p')
+    .where('t.statusKey = :statusKey', { statusKey: status.key })
+    .andWhere('p.deletedAt IS NULL') // Exclude tickets from deleted projects
+    .getCount();
 
-    if (ticketsUsingPriority > 0) {
+    if (ticketsUsingStatus > 0) {
       throw new BadRequestException(
-        `Status '${status.key}' is already being used by ${ticketsUsingPriority} ticket(s) and cannot be deleted.`,
+        `Status '${status.key}' is already being used by ${ticketsUsingStatus} ticket(s) and cannot be deleted.`,
       );
     }
 
