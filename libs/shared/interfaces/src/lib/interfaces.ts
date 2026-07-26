@@ -55,3 +55,15 @@ export abstract class TimestampEntity extends HasPrimaryKey {
 export abstract class JoinEntity {
   @CreateDateColumn() assignedAt: Date;
 }
+
+export interface NotificationItem {
+  id: string;
+  type: string;
+  title: string;
+  message: string | null;
+  entityType: string;
+  entityId: string;
+  projectId: string | null;
+  isRead: boolean;
+  createdAt: string;
+}

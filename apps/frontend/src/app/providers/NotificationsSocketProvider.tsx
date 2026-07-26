@@ -11,22 +11,12 @@ import {
 } from 'react';
 import { io, Socket } from 'socket.io-client';
 
+import { NotificationItem } from '@harperhelp/interfaces';
+
 type SocketTokenResponse = {
   accessToken: string;
   socketUrl: string;
 };
-
-interface NotificationItem {
-  id: string;
-  type: string;
-  title: string;
-  message: string | null;
-  entityType: string;
-  entityId: string;
-  projectId: string | null;
-  createdAt: string;
-  isRead?: boolean;
-}
 
 interface NotificationsSocketContextValue {
   unreadCount: number;

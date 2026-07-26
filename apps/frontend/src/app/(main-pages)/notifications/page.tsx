@@ -2,23 +2,13 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useNotificationsSocket } from '../../providers/NotificationsSocketProvider';
-
-interface NotificationItem {
-  id: string;
-  type: string;
-  title: string;
-  message: string | null;
-  entityType: string;
-  entityId: string;
-  projectId: string | null;
-  isRead: boolean;
-  createdAt: string;
-}
+import { NotificationItem } from '@harperhelp/interfaces';
 
 const PAGE_SIZE = 20;
 
 export default function NotificationsPage() {
-  const { markAllAsRead: syncMarkAllAsRead } = useNotificationsSocket();
+  const { markAllAsRead: syncMarkAllAsRead, recentNotifications } =
+    useNotificationsSocket();
 
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [page, setPage] = useState(1);
@@ -43,6 +33,11 @@ export default function NotificationsPage() {
   useEffect(() => {
     load(page, unreadOnly);
   }, [page, unreadOnly, load]);
+
+  useEffect(() => {
+    if (recentNotifications?.length > 0)
+      setItems((prev) => [...prev, ...recentNotifications]);
+  }, [recentNotifications]);
 
   async function handleMarkAsRead(id: string) {
     setItems((prev) =>
