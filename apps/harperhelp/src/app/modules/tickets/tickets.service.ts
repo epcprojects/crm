@@ -593,11 +593,62 @@ export class TicketsService {
     // });
     // if (!project) throw new NotFoundException('Project not found');
     const ticket = await this.findEntity(projectId, ticketId);
+    const oldTicket = ticket;
+    const oldStatus = ticket.status;
+    const oldPriority = ticket.priority;
 
     Object.assign(ticket, {
       ...dto,
       updatedBy: userId,
     });
+
+    const recipients = [ticket.reporterId, ticket.assigneeId].filter(
+      (id): id is string => !!id && id !== userId,
+    );
+
+    // STATUS CHANGED
+    if (dto.statusKey && oldStatus && dto.statusKey !== oldStatus.key) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId: ticket.projectId,
+        actorId: userId,
+        type: NotificationType.TICKET_STATUS_CHANGED,
+        entityType: NotificationEntityType.TICKET,
+        entityId: ticket.id,
+        ticketId: ticket.id,
+        title: `"${ticket.title}" moved to ${dto.statusKey}`,
+        message: `${oldStatus.label} to ${dto.statusKey}`,
+        explicitRecipientIds: [...new Set(recipients)],
+      });
+    }
+
+    // PRIORITY CHANGED
+    if (dto.priorityKey && oldPriority && dto.priorityKey !== oldPriority.key) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId: ticket.projectId,
+        actorId: userId,
+        type: NotificationType.TICKET_PRIORITY_CHANGED,
+        entityType: NotificationEntityType.TICKET,
+        entityId: ticket.id,
+        ticketId: ticket.id,
+        title: `"${ticket.title}" priority set to ${dto.priorityKey}`,
+        explicitRecipientIds: [...new Set(recipients)],
+      });
+    }
+
+    if (dto.assigneeId !== oldTicket.assigneeId) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId: ticket.projectId,
+        actorId: userId,
+        type: NotificationType.TICKET_ASSIGNEE_CHANGED,
+        entityType: NotificationEntityType.TICKET,
+        entityId: ticket.id,
+        ticketId: ticket.id,
+        title: dto.assigneeId
+          ? `You were assigned "${ticket.title}"`
+          : `You were unassigned from "${ticket.title}"`,
+        explicitRecipientIds: [...new Set(recipients)],
+      });
+    }
 
     return this.ticketRepo.save(ticket);
   }
@@ -727,6 +778,10 @@ export class TicketsService {
   private async findEntity(projectId: string, ticketId: string) {
     const ticket = await this.ticketRepo.findOne({
       where: { id: ticketId, projectId },
+      relations: {
+        status: true,
+        priority: true,
+      },
     });
 
     if (!ticket) throw new NotFoundException('Ticket not found');

@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
+import { useRef } from 'react';
 import { useNotificationsSocket } from '../../app/providers/NotificationsSocketProvider';
 
 function timeAgo(iso: string): string {
@@ -14,35 +13,32 @@ function timeAgo(iso: string): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-export function NotificationBell({  fill = '#374151',
-}:{  fill?: string;
-}) {
-  const { unreadCount, recentNotifications, markAsRead } =
-    useNotificationsSocket();
-  const [open, setOpen] = useState(false);
+export function NotificationBell({ fill = '#374151' }: { fill?: string }) {
+  const { unreadCount } = useNotificationsSocket();
+  // const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    function onClickOutside(e: MouseEvent) {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', onClickOutside);
-    return () => document.removeEventListener('mousedown', onClickOutside);
-  }, []);
+  // useEffect(() => {
+  //   function onClickOutside(e: MouseEvent) {
+  //     if (
+  //       containerRef.current &&
+  //       !containerRef.current.contains(e.target as Node)
+  //     ) {
+  //       setOpen(false);
+  //     }
+  //   }
+  //   document.addEventListener('mousedown', onClickOutside);
+  //   return () => document.removeEventListener('mousedown', onClickOutside);
+  // }, []);
 
   return (
     <div className="relative" ref={containerRef}>
       <button
-        onClick={() => setOpen((v) => !v)}
+        // onClick={() => setOpen((v) => !v)}
         className="relative p-2 rounded-full hover:bg-gray-100 transition-colors"
         aria-label="Notifications"
       >
-        <BellIcon className="w-5 h-5 text-gray-700"  fill={fill}/>
+        <BellIcon className="w-5 h-5 text-gray-700" fill={fill} />
         {unreadCount > 0 && (
           <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[11px] font-medium leading-none">
             {unreadCount > 99 ? '99+' : unreadCount}
@@ -50,8 +46,8 @@ export function NotificationBell({  fill = '#374151',
         )}
       </button>
 
-      {open && (
-        <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden">
+      {/* {open && (
+        <div className="absolute left-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-[999999] overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
             <span className="font-semibold text-sm text-gray-900">
               Notifications
@@ -103,7 +99,7 @@ export function NotificationBell({  fill = '#374151',
             View all
           </Link>
         </div>
-      )}
+      )} */}
     </div>
   );
 }

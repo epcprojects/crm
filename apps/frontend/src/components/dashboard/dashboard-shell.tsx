@@ -41,7 +41,7 @@ import ThemeButton from '../ui/ThemeButton';
 import { useIsMobile } from '../hooks/useIsMobile';
 import MobileBottomNavigation from './MobileBottomNavigation';
 import MobileTopHeader from './MobileTopHeader';
-import { BellIcon, NotificationBell } from '../ui/NotificationBell';
+import { NotificationBell } from '../ui/NotificationBell';
 
 type NavItem = {
   href: string;
@@ -132,7 +132,7 @@ const navigationItems: NavItem[] = [
     roles: ['admin'],
     anyPermissions: ['settings.view_statuses', 'settings.view_priorities'],
   },
-    {
+  {
     href: '/notifications',
     label: 'Notifications',
     icon: (isActive) => <NotificationBell fill="currentColor" />,
@@ -473,7 +473,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             />
           </button>
           <div className="flex flex-col h-full  min-h-0 flex-1  justify-between">
-            <div className="flex-1 overflow-y-auto scrollbar-hide">
+            <div className="flex-1 scrollbar-hide">
               {isSidebarLoading ? (
                 <SidebarNavSkeleton />
               ) : (
