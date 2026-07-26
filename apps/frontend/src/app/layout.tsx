@@ -6,6 +6,7 @@ import AppLoaderProvider from './providers/AppLoaderProvider';
 import AuthBootstrap from './providers/AuthBootstrap';
 import PermissionProvider from './providers/PermissionProvider';
 import { AppToastProvider } from '../components/toast/AppToast';
+import { NotificationsSocketProvider } from './providers/NotificationsSocketProvider';
 
 export const metadata = {
   title: 'Harper Help Desk',
@@ -32,7 +33,11 @@ export default function RootLayout({
         href="/images/favicon/favicon-96x96.png"
         sizes="96x96"
       />
-      <link rel="icon" type="image/svg+xml" href="/images/favicon/favicon.svg" />
+      <link
+        rel="icon"
+        type="image/svg+xml"
+        href="/images/favicon/favicon.svg"
+      />
       <link rel="shortcut icon" href="/images/favicon/favicon.ico" />
       <link
         rel="apple-touch-icon"
@@ -47,7 +52,9 @@ export default function RootLayout({
             <AppLoaderProvider>
               <PermissionProvider>
                 <AuthBootstrap />
-                {children}
+                <NotificationsSocketProvider>
+                  {children}
+                </NotificationsSocketProvider>
                 <AppToastProvider />
               </PermissionProvider>
             </AppLoaderProvider>

@@ -13,7 +13,7 @@ import {
   type ChatChannel,
   type ChatMessage,
 } from '../../../../components/hooks/useTicketChat';
-import { getChatSocket } from '../../../../lib/socket';
+import { getSocket } from '../../../../lib/socket';
 import Dropdown from '../../../../components/ui/ThemeDropDown';
 import { appToast } from '../../../../components/toast/AppToast';
 import { getTicketById, type TicketPerson } from '../tickets.data';
@@ -263,9 +263,9 @@ export default function TicketDetailPage() {
   const [activeGalleryIndex, setActiveGalleryIndex] = useState<number | null>(
     null,
   );
-  const unreadListenerSocketRef = useRef<ReturnType<
-    typeof getChatSocket
-  > | null>(null);
+  const unreadListenerSocketRef = useRef<ReturnType<typeof getSocket> | null>(
+    null,
+  );
   const descriptionMeasureRef = useRef<HTMLParagraphElement | null>(null);
   const descriptionOverflowRef = useRef<HTMLParagraphElement | null>(null);
   const [titleDraft, setTitleDraft] = useState('');
@@ -474,7 +474,7 @@ export default function TicketDetailPage() {
         return;
       }
 
-      const socket = getChatSocket(socketToken);
+      const socket = getSocket('chat', socketToken);
       unreadListenerSocketRef.current = socket;
 
       const joinUnreadRooms = () => {
@@ -1329,9 +1329,9 @@ export default function TicketDetailPage() {
                   Attachments
                 </h3>
 
-                  <div className="space-y-3 p-3 sm:p-4">
-                    {ticket.attachments.length ? (
-                      ticket.attachments.map((attachment) => (
+                <div className="space-y-3 p-3 sm:p-4">
+                  {ticket.attachments.length ? (
+                    ticket.attachments.map((attachment) => (
                       <a
                         key={attachment.id}
                         href={getAttachmentUrl(attachment.storageKey)}
@@ -1372,20 +1372,20 @@ export default function TicketDetailPage() {
                             {attachment.sizeLabel}
                           </p>
                         </div>
-                        </a>
-                      ))
-                    ) : (
-                      <div className="py-2">
-                        <EmptyState
-                          imageUrl="/images/EmptyProjectIcon.svg"
-                          imageAlt="No attachments"
-                          title="No Attachments"
-                          description="No attachments have been added to this ticket yet."
-                        />
-                      </div>
-                    )}
-                  </div>
-                </section>
+                      </a>
+                    ))
+                  ) : (
+                    <div className="py-2">
+                      <EmptyState
+                        imageUrl="/images/EmptyProjectIcon.svg"
+                        imageAlt="No attachments"
+                        title="No Attachments"
+                        description="No attachments have been added to this ticket yet."
+                      />
+                    </div>
+                  )}
+                </div>
+              </section>
 
               {!isExternalUser ? (
                 <section className="rounded-xl border border-gray-200 bg-white sm:rounded-2xl">

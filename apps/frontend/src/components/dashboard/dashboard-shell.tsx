@@ -41,6 +41,7 @@ import ThemeButton from '../ui/ThemeButton';
 import { useIsMobile } from '../hooks/useIsMobile';
 import MobileBottomNavigation from './MobileBottomNavigation';
 import MobileTopHeader from './MobileTopHeader';
+import { BellIcon, NotificationBell } from '../ui/NotificationBell';
 
 type NavItem = {
   href: string;
@@ -130,6 +131,13 @@ const navigationItems: NavItem[] = [
     icon: (isActive) => <SettingsIcon fill="currentColor" />,
     roles: ['admin'],
     anyPermissions: ['settings.view_statuses', 'settings.view_priorities'],
+  },
+    {
+    href: '/notifications',
+    label: 'Notifications',
+    icon: (isActive) => <NotificationBell fill="currentColor" />,
+    roles: ['admin'],
+    anyPermissions: [],
   },
 ];
 

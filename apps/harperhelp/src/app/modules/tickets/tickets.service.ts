@@ -20,6 +20,10 @@ import { getDateRange } from '@harperhelp/utils';
 import { NotificationsService } from '../notifications/notifications.service';
 import { EmailEventType } from '../notifications/notifications.types';
 import { User } from '../users/entities/user.entity';
+import {
+  NotificationEntityType,
+  NotificationType,
+} from '../notifications/entities/notification.entity';
 
 @Injectable()
 export class TicketsService {
@@ -171,6 +175,18 @@ export class TicketsService {
             : undefined,
           participants,
         },
+      });
+
+      // Send global notification
+      await this.notificationsService.notifyProjectMembers({
+        projectId: ticket.projectId,
+        actorId: ticket?.reporter?.id || ticket?.assignee?.id || '',
+        type: NotificationType.TICKET_CREATED,
+        entityType: NotificationEntityType.TICKET,
+        entityId: ticket.id,
+        ticketId: ticket.id,
+        title: `New ticket: ${ticket.title}`,
+        message: ticket.ticketRefNo ?? undefined,
       });
     } catch (err) {
       // ignore dispatch errors
