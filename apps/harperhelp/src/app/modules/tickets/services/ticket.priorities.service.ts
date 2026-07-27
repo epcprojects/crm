@@ -71,11 +71,17 @@ export class TicketPrioritiesService {
   async remove(id: string) {
     const priority = await this.findOne(id);
 
-    const ticketsUsingPriority = await this.ticketRepo.count({
-      where: {
-        priorityKey: priority.key,
-      },
-    });
+    // const ticketsUsingPriority = await this.ticketRepo.count({
+    //   where: {
+    //     priorityKey: priority.key,
+    //   },
+    // });
+    const ticketsUsingPriority = await this.ticketRepo
+      .createQueryBuilder('t')
+      .innerJoin('t.project', 'p')
+      .where('t.priorityKey = :priorityKey', { priorityKey: priority.key })
+      .andWhere('p.deletedAt IS NULL') // Exclude tickets from deleted projects
+      .getCount();
 
     if (ticketsUsingPriority > 0) {
       throw new BadRequestException(

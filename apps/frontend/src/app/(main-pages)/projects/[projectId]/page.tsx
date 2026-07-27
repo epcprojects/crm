@@ -531,6 +531,17 @@ export default function ProjectDetailPage() {
     if (tab === 'Calendar') return canViewCalendar;
     return false;
   });
+  const defaultProjectTabIndex = useMemo(() => {
+    const requestedTab = searchParams.get('t');
+    const requestedTabName = requestedTab === '1' ? 'Thread' : null;
+
+    if (!requestedTabName) {
+      return 0;
+    }
+
+    const requestedTabIndex = visibleProjectTabs.indexOf(requestedTabName);
+    return requestedTabIndex >= 0 ? requestedTabIndex : 0;
+  }, [searchParams, visibleProjectTabs]);
 
   if (projectDetailQuery.isLoading) {
     return <ProjectDetailSkeleton onBack={() => router.back()} />;
@@ -692,7 +703,10 @@ export default function ProjectDetailPage() {
               </div>
             </section> */}
 
-            <TabGroup className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
+            <TabGroup
+              defaultIndex={defaultProjectTabIndex}
+              className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden"
+            >
               <TabList className="flex shrink-0 overflow-x-auto scrollbar-hide border-b border-gray-200">
                 {visibleProjectTabs.map((tab) => (
                   <Tab

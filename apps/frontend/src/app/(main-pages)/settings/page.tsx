@@ -200,6 +200,9 @@ export default function Page() {
       });
       await queryClient.invalidateQueries({ queryKey: ['ticket-statuses'] });
     },
+  //     onError: (error) => {
+  //   appToast.error(error instanceof Error ? error.message : 'Failed to delete ticket status.');
+  // },
   });
   const updateTicketStatusMutation = useMutation({
     mutationFn: async ({
@@ -339,7 +342,11 @@ export default function Page() {
       await ticketStatusesQuery.refetch();
       setStatusToDelete(null);
       appToast.success('Status deleted successfully.');
-    } finally {
+    } 
+    catch (error:any){
+      appToast.error(error instanceof Error ? error.message : 'Failed to delete ticket status.');
+    }finally {
+      setStatusToDelete(null);
       setLoading(false);
     }
   };
@@ -399,7 +406,12 @@ export default function Page() {
       await ticketPrioritiesQuery.refetch();
       setPriorityToDelete(null);
       appToast.success('Priority deleted successfully.');
-    } finally {
+    }
+    catch (error:any){ 
+      appToast.error(error instanceof Error ? error.message : 'Failed to delete ticket priority.');
+    }
+    finally {
+      setPriorityToDelete(null);
       setLoading(false);
     }
   };
