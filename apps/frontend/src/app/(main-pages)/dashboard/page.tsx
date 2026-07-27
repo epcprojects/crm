@@ -55,7 +55,7 @@ import EmptyState from '../../../components/EmptyState';
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 import Dropdown from '../../../components/ui/ThemeDropDown';
 import { eventEmitter } from '../../../../src/lib/event-emitter';
-import { NotificationItem } from '@harperhelp/interfaces';
+import { NotificationItem } from '../../../../../../libs/shared/interfaces/src/lib/notification.interfaces';
 import { NotificationEntityType } from '@harperhelp/types';
 
 type TicketSummary = {

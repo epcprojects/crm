@@ -33,7 +33,7 @@ import Tooltip from '../../../../components/tooltip';
 import Image from 'next/image';
 import EmptyState from '../../../../components/EmptyState';
 import ImageGalleryLightbox from '../../../../components/ui/ImageGalleryLightbox';
-import { NotificationItem } from '@harperhelp/interfaces';
+import { NotificationItem } from '../../../../../../../libs/shared/interfaces/src/lib/notification.interfaces';
 import { NotificationEntityType } from '@harperhelp/types';
 import { eventEmitter } from '../../../../lib/event-emitter';
 

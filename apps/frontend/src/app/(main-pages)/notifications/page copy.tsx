@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useNotificationsSocket } from '../../providers/NotificationsSocketProvider';
-import { NotificationItem } from '@harperhelp/interfaces';
+import { NotificationItem } from '../../../../../../libs/shared/interfaces/src/lib/notification.interfaces';
 
 const PAGE_SIZE = 20;
 

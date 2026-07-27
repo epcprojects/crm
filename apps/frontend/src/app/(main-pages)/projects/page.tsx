@@ -35,7 +35,7 @@ import ThemeButton from '../../../components/ui/ThemeButton';
 import EmptyState from '../../../components/EmptyState';
 import { eventEmitter } from '../../../lib/event-emitter';
 import { NotificationEntityType } from '@harperhelp/types';
-import { NotificationItem } from '@harperhelp/interfaces';
+import { NotificationItem } from '../../../../../../libs/shared/interfaces/src/lib/notification.interfaces';
 
 export default function ProjectsPage() {
   const router = useRouter();

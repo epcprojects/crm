@@ -12,7 +12,7 @@ import {
 import EmptyState from '../../../components/EmptyState';
 import { useIsMobile } from '../../../components/hooks/useIsMobile';
 import { useNotificationsSocket } from '../../providers/NotificationsSocketProvider';
-import { NotificationItem } from '@harperhelp/interfaces';
+import { NotificationItem } from '../../../../../../libs/shared/interfaces/src/lib/notification.interfaces';
 import ThemeButton from '../../../components/ui/ThemeButton';
 import { NotificationCategory } from '../../../components/dashboard/notification-data';
 import {

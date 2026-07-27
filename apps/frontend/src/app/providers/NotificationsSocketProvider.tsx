@@ -11,7 +11,7 @@ import {
 } from 'react';
 import { io, Socket } from 'socket.io-client';
 
-import { NotificationItem } from '@harperhelp/interfaces';
+import { NotificationItem } from '../../../../../libs/shared/interfaces/src/lib/notification.interfaces';
 
 import { useAppSelector } from '../Redux/store';
 import { eventEmitter } from '../../lib/event-emitter';

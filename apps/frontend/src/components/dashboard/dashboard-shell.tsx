@@ -28,7 +28,7 @@ import {
   useAppDispatch,
   useAppSelector,
 } from '../../app/Redux/store';
-import { NotificationItem } from '@harperhelp/interfaces';
+import { NotificationItem } from '../../../../../libs/shared/interfaces/src/lib/notification.interfaces';
 import { useProjectsQuery } from '../../app/(main-pages)/projects/projects.queries';
 import { useAppLoader } from '../../app/providers/AppLoaderProvider';
 import { usePermissions } from '../../app/providers/PermissionProvider';

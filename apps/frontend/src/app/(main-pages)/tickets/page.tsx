@@ -37,7 +37,7 @@ import ThemeButton from '../../../components/ui/ThemeButton';
 import { RecentTicketsTableSkeleton } from '../dashboard/page';
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 import { eventEmitter } from '../../../lib/event-emitter';
-import { NotificationItem } from '@harperhelp/interfaces';
+import { NotificationItem } from '../../../../../../libs/shared/interfaces/src/lib/notification.interfaces';
 import { NotificationEntityType } from '@harperhelp/types';
 
 type TicketSummary = {

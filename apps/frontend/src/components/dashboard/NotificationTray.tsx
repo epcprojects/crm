@@ -3,7 +3,7 @@
 import { Tab, TabGroup, TabList } from '@headlessui/react';
 import { CrossIcon, SearchIcon } from '../../../public/icons';
 import EmptyState from '../EmptyState';
-import { NotificationItem } from '@harperhelp/interfaces';
+import { NotificationItem } from '../../../../../libs/shared/interfaces/src/lib/notification.interfaces';
 import { useRouter } from 'next/navigation';
 
 type NotificationTrayProps = {
