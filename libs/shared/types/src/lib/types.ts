@@ -59,6 +59,9 @@ export enum NotificationType {
   THREAD_DELETED = 'thread_deleted',
   THREAD_CREATED = 'thread_created',
   THREAD_REPLY = 'thread_reply',
+  EVENT_CREATED = 'event_created',
+  EVENT_UPDATED = 'event_updated',
+  EVENT_DELETED = 'event_deleted',
 }
 
 export enum NotificationEntityType {
@@ -66,6 +69,7 @@ export enum NotificationEntityType {
   TICKET = 'ticket',
   TICKET_REPLY = 'ticket_reply',
   THREAD_MESSAGE = 'thread_message',
+  EVENT = 'event',
 }
 
 export * from './tickets.types';

@@ -253,7 +253,7 @@ export class ProjectsService {
       .createQueryBuilder('p')
       .where('p.id = :id', { id })
       .innerJoin('p.members', 'u', 'u.id = :userId', {
-        userId: user.id,
+        userId: user?.id,
       });
 
     if (members) {
