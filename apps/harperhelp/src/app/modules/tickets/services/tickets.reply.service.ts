@@ -148,7 +148,10 @@ export class TicketRepliesService {
 
     return Promise.all(
       replies.map(async (reply) => {
-        delete reply.author['passwordHash'];
+        if (reply.author) {
+            delete reply.author.passwordHash;
+          }
+        // delete reply.author['passwordHash'];
 
         return {
           ...reply,

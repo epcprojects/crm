@@ -189,9 +189,11 @@ export class ChatMessagesService {
     if (msg.senderId !== requesterId)
       throw new ForbiddenException("Cannot delete another user's message");
 
+    await this.repo(channel).softDelete(messageId);
+
     await this.repo(channel).update(messageId, {
       isDeleted: true,
-      deletedAt: new Date(),
+      // deletedAt: new Date(),
       message: '[Message deleted]',
     });
   }
