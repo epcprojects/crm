@@ -76,9 +76,12 @@ export default function Page() {
   const viewMode = getTicketsViewMode(
     searchParams.get(TICKETS_VIEW_QUERY_PARAM),
   );
-  const selectedStatus = getTicketsStatusFilterValue(
-    searchParams.get(TICKETS_STATUS_QUERY_PARAM),
-  );
+  const selectedStatus =
+    viewMode === 'kanban'
+      ? 'all'
+      : getTicketsStatusFilterValue(
+          searchParams.get(TICKETS_STATUS_QUERY_PARAM),
+        );
   const selectedPriority = getTicketsFilterValue(
     searchParams.get(TICKETS_PRIORITY_QUERY_PARAM),
   );
@@ -573,9 +576,12 @@ export default function Page() {
       nextSearchParams.set(TICKETS_VIEW_QUERY_PARAM, nextViewMode);
     }
 
-    if (nextStatus === 'Open') {
+    if (nextViewMode === 'kanban') {
       nextSearchParams.delete(TICKETS_STATUS_QUERY_PARAM);
-    } else {
+    } else if (
+      status !== undefined ||
+      searchParams.get(TICKETS_STATUS_QUERY_PARAM)?.trim()
+    ) {
       nextSearchParams.set(TICKETS_STATUS_QUERY_PARAM, nextStatus);
     }
 
@@ -1161,6 +1167,7 @@ function mapApiDashboardTicketToRecentTicket(
       initials: getInitials(assigneeName),
     },
     date: formatTicketDate(ticket.createdAt),
+    sortDate: ticket.createdAt,
   };
 }
 
@@ -1171,6 +1178,13 @@ function sortTicketsLocally(
   const direction = sortState.sortOrder === 'asc' ? 1 : -1;
 
   return [...tickets].sort((firstTicket, secondTicket) => {
+    if (sortState.sortBy === 'createdAt') {
+      const firstDateValue = getTicketSortDateValue(firstTicket);
+      const secondDateValue = getTicketSortDateValue(secondTicket);
+
+      return (firstDateValue - secondDateValue) * direction;
+    }
+
     const firstValue = getTicketSortValue(firstTicket, sortState.sortBy);
     const secondValue = getTicketSortValue(secondTicket, sortState.sortBy);
 
@@ -1181,6 +1195,17 @@ function sortTicketsLocally(
       }) * direction
     );
   });
+}
+
+function getTicketSortDateValue(ticket: RecentTicket) {
+  const rawValue = ticket.sortDate ?? ticket.date;
+  const parsedValue = new Date(rawValue).getTime();
+
+  if (Number.isNaN(parsedValue)) {
+    return 0;
+  }
+
+  return parsedValue;
 }
 
 function getTicketSortValue(

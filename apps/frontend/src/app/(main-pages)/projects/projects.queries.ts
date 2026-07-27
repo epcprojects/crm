@@ -971,6 +971,7 @@ function mapApiProjectTicketToRecentTicket(ticket: ApiProjectTicket): RecentTick
       initials: getInitials(assigneeName),
     },
     date: formatTicketDate(ticket.dueDate ?? ticket.createdAt),
+    sortDate: ticket.dueDate ?? ticket.createdAt,
   };
 }
 

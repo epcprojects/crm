@@ -83,8 +83,8 @@ type ApiTicketSetting = {
   sortOrder: number;
 };
 
-const RECENT_TICKETS_STATUS_QUERY_PARAM = 'recentTicketsStatus';
-const RECENT_TICKETS_PRIORITY_QUERY_PARAM = 'recentTicketsPriority';
+const RECENT_TICKETS_STATUS_QUERY_PARAM = 'status';
+const RECENT_TICKETS_PRIORITY_QUERY_PARAM = 'priority';
 const DASHBOARD_TABS_QUERY_PARAM = 'dashboardTab';
 
 export default function Page() {
@@ -1469,6 +1469,7 @@ function mapApiDashboardTicketToRecentTicket(
       initials: getInitials(assigneeName),
     },
     date: formatTicketDate(ticket.createdAt),
+    sortDate: ticket.createdAt,
   };
 }
 
@@ -1547,9 +1548,9 @@ function formatTicketDate(value: string) {
     return '-';
   }
 
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date);
 }

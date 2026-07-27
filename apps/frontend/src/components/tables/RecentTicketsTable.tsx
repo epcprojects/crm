@@ -36,6 +36,7 @@ export type RecentTicket = {
     initials: string;
   };
   date: string;
+  sortDate?: string;
 };
 
 export type TicketSortBy =
@@ -263,8 +264,12 @@ export default function RecentTicketsTable({
       <EmptyState
         imageUrl="/images/RecentTicketEmpty.svg"
         imageAlt="No recent tickets"
-        title="No Recent Tickets"
-        description="Recent tickets will appear here once they are created."
+        title={manualPagination ? 'No Tickets Found' : 'No Recent Tickets'}
+        description={
+          manualPagination
+            ? 'Tickets will appear here once they are created.'
+            : 'Recent tickets will appear here once they are created.'
+        }
         buttonLabel="New Ticket"
         onButtonClick={onEmptyButtonClick}
       />
