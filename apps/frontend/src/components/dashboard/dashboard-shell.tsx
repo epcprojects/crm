@@ -46,7 +46,8 @@ import { useIsMobile } from '../hooks/useIsMobile';
 import MobileBottomNavigation from './MobileBottomNavigation';
 import MobileTopHeader from './MobileTopHeader';
 import { useNotificationsSocket } from '../../app/providers/NotificationsSocketProvider';
-import { PAGE_SIZE } from '../../app/(main-pages)/notifications/page';
+
+const PAGE_SIZE = 20;
 
 type NavItem = {
   href: string;
@@ -494,27 +495,30 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   const isMobile = useIsMobile();
 
-  const load = useCallback(async (p: number, unreadOnlyFlag: boolean) => {
-    if (!isAuthenticated) {
-      setItems([]);
-      setTotal(0);
-      setNotificationLoading(false);
-      return;
-    }
+  const load = useCallback(
+    async (p: number, unreadOnlyFlag: boolean) => {
+      if (!isAuthenticated) {
+        setItems([]);
+        setTotal(0);
+        setNotificationLoading(false);
+        return;
+      }
 
-    setNotificationLoading(true);
-    const res = await fetch(
-      `/api/notifications?page=${p}&limit=${PAGE_SIZE}&unreadOnly=${unreadOnlyFlag}`,
-      {
-        cache: 'no-store',
-        credentials: 'include',
-      },
-    );
-    const data = await res.json();
-    setItems(data.items);
-    setTotal(data.total);
-    setNotificationLoading(false);
-  }, [isAuthenticated]);
+      setNotificationLoading(true);
+      const res = await fetch(
+        `/api/notifications?page=${p}&limit=${PAGE_SIZE}&unreadOnly=${unreadOnlyFlag}`,
+        {
+          cache: 'no-store',
+          credentials: 'include',
+        },
+      );
+      const data = await res.json();
+      setItems(data.items);
+      setTotal(data.total);
+      setNotificationLoading(false);
+    },
+    [isAuthenticated],
+  );
 
   useEffect(() => {
     if (!isAuthenticated) {

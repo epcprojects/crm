@@ -27,7 +27,7 @@ import { useRouter } from 'next/navigation';
 
 type NotificationFilter = 'all' | 'unread';
 
-export const PAGE_SIZE = 20;
+const PAGE_SIZE = 20;
 
 export default function Page() {
   const [activeFilter, setActiveFilter] = useState<NotificationFilter>('all');
