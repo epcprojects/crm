@@ -442,6 +442,7 @@ export class TicketsService {
 
       'p.id',
       'p.name',
+      'p.brandColor',
 
       's.key',
       's.label',
@@ -673,6 +674,7 @@ export class TicketsService {
 
         'p.id',
         'p.name',
+        'p.brandColor',
 
         's.key',
         's.label',

@@ -415,6 +415,7 @@ async findOne(id: string) {
 
         'p.id',
         'p.name',
+        'p.brandColor',
 
         'ur.id',
 
