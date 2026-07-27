@@ -12,25 +12,7 @@ import {
 import { User } from '../../users/entities/user.entity';
 import { Project } from '../../projects/entities/project.entity';
 import { Ticket } from '../../tickets/entities/ticket.entity';
-
-
-export enum NotificationType {
-  PROJECT_ASSIGNED = 'project_assigned',
-  TICKET_CREATED = 'ticket_created',
-  TICKET_REPLY = 'ticket_reply',
-  TICKET_STATUS_CHANGED = 'ticket_status_changed',
-  TICKET_PRIORITY_CHANGED = 'ticket_priority_changed',
-  TICKET_ASSIGNEE_CHANGED = 'ticket_assignee_changed',
-  THREAD_CREATED = 'thread_created',
-  THREAD_REPLY = 'thread_reply',
-}
-
-export enum NotificationEntityType {
-  PROJECT = 'project',
-  TICKET = 'ticket',
-  TICKET_REPLY = 'ticket_reply',
-  THREAD_MESSAGE = 'thread_message',
-}
+import { NotificationEntityType, NotificationType } from '@harperhelp/types';
 
 @Entity('notifications')
 @Index(['recipientId', 'createdAt'])
@@ -74,12 +56,12 @@ export class Notification {
   @JoinColumn({ name: 'actorId' })
   actor: User | null;
 
-  @Column()
-  projectId: string;
+  @Column({ nullable: true })
+  projectId: string | null;
 
-  @ManyToOne(() => Project, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Project, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'projectId' })
-  project: Project;
+  project: Project | null;
 
   @Column({ type: 'varchar', length: 60 })
   type: NotificationType;
@@ -87,7 +69,7 @@ export class Notification {
   @Column({ type: 'varchar', length: 60 })
   entityType: NotificationEntityType;
 
-  @Column()
+  @Column({ nullable: true })
   entityId: string;
 
   // Denormalized so the notifications page can deep-link straight to a ticket

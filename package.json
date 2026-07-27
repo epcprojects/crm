@@ -36,6 +36,7 @@
         "class-validator": "^0.15.1",
         "clsx": "^2.1.1",
         "date-fns": "^4.4.0",
+        "eventemitter3": "^5.0.4",
         "formik": "^2.4.9",
         "next": "~16.1.6",
         "passport": "^0.7.0",

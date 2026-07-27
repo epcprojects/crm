@@ -20,10 +20,7 @@ import { getDateRange } from '@harperhelp/utils';
 import { NotificationsService } from '../notifications/notifications.service';
 import { EmailEventType } from '../notifications/notifications.types';
 import { User } from '../users/entities/user.entity';
-import {
-  NotificationEntityType,
-  NotificationType,
-} from '../notifications/entities/notification.entity';
+import { NotificationEntityType, NotificationType } from '@harperhelp/types';
 
 @Injectable()
 export class TicketsService {

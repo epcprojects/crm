@@ -13,28 +13,6 @@ import {
 } from '../../../../common/guards/ws-jwt.guard';
 import { Notification } from '../entities/notification.entity';
 
-/**
- * Design notes (why this stays cheap under load):
- *
- * 1. Dedicated namespace `/notifications` -- keeps this traffic isolated from
- *    the ticket-chat namespace you already run, so a burst of notifications
- *    never head-of-line-blocks chat messages or vice versa.
- *
- * 2. Every socket joins exactly ONE room: `user:{userId}`. There is no
- *    "project room" broadcast for notifications -- recipients are decided
- *    once, server-side, at write time (see NotificationsService.notifyProjectMembers).
- *    That means an emit here is always `io.to(room).emit(...)` to a handful
- *    of sockets, never a broadcast that every client has to filter.
- *
- * 3. Payloads pushed over the socket are intentionally thin (id, type, title,
- *    unreadCount). The dropdown/page fetch full details over REST with
- *    pagination. This keeps the socket frame small regardless of how chatty
- *    the notification volume gets.
- *
- * 4. For horizontal scaling (>1 Node instance), attach the Redis adapter
- *    (see main.ts comment below) so `io.to(room).emit` reaches sockets
- *    connected to *other* instances too.
- */
 @WebSocketGateway({
   namespace: '/notifications',
   cors: { origin: process.env.FRONTEND_URL, credentials: true },

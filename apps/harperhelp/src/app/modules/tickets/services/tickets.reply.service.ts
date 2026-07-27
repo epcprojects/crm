@@ -14,10 +14,7 @@ import { NotificationsService } from '../../notifications/notifications.service'
 import { EmailEventType } from '../../notifications/notifications.types';
 import { Ticket } from '../entities/ticket.entity';
 import { TicketRepliesGateway } from '../gateway/ticket-reply.gateway';
-import {
-  NotificationEntityType,
-  NotificationType,
-} from '../../notifications/entities/notification.entity';
+import { NotificationEntityType, NotificationType } from '@harperhelp/types';
 
 @Injectable()
 export class TicketRepliesService {

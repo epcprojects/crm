@@ -322,6 +322,8 @@ export class NotificationsService {
     }
   }
 
+  
+
   private async resolveRecipients(
     dto: NotifyProjectMembersDto,
   ): Promise<string[]> {

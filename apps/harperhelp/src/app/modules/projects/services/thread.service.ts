@@ -14,7 +14,7 @@ import { EmailEventType } from '../../notifications/notifications.types';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { Project } from '../entities/project.entity';
 import { ThreadGateway } from '../gateway/thread.gateway';
-import { NotificationEntityType, NotificationType } from '../../notifications/entities/notification.entity';
+import { NotificationEntityType, NotificationType } from '@harperhelp/types';
 
 @Injectable()
 export class ThreadService {

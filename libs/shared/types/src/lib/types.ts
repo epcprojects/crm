@@ -43,5 +43,22 @@ export enum CalendarView {
   YEAR = 'year',
 }
 
+export enum NotificationType {
+  PROJECT_ASSIGNED = 'project_assigned',
+  TICKET_CREATED = 'ticket_created',
+  TICKET_REPLY = 'ticket_reply',
+  TICKET_STATUS_CHANGED = 'ticket_status_changed',
+  TICKET_PRIORITY_CHANGED = 'ticket_priority_changed',
+  TICKET_ASSIGNEE_CHANGED = 'ticket_assignee_changed',
+  THREAD_CREATED = 'thread_created',
+  THREAD_REPLY = 'thread_reply',
+}
+
+export enum NotificationEntityType {
+  PROJECT = 'project',
+  TICKET = 'ticket',
+  TICKET_REPLY = 'ticket_reply',
+  THREAD_MESSAGE = 'thread_message',
+}
 
 export * from './tickets.types';

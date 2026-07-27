@@ -13,6 +13,8 @@ import { io, Socket } from 'socket.io-client';
 
 import { NotificationItem } from '@harperhelp/interfaces';
 
+import { eventEmitter } from '../../lib/event-emitter';
+
 type SocketTokenResponse = {
   accessToken: string;
   socketUrl: string;
@@ -29,14 +31,7 @@ interface NotificationsSocketContextValue {
 const NotificationsSocketContext =
   createContext<NotificationsSocketContextValue | null>(null);
 
-/**
- * Mounted once near the app root (e.g. in the authenticated layout), not per
- * component. One socket for the whole app, one persistent connection per tab.
- *
- * Reconnection is handled by Socket.IO's built-in backoff -- we don't need
- * to hand-roll that. On reconnect it re-joins its room server-side
- * automatically (the gateway's handleConnection runs again).
- */
+
 export function NotificationsSocketProvider({
   children,
 }: {
@@ -104,6 +99,7 @@ export function NotificationsSocketProvider({
           (payload: NotificationItem & { unreadCount: number }) => {
             setUnreadCount(payload.unreadCount);
             setRecentNotifications((prev) => [payload, ...prev].slice(0, 5));
+            eventEmitter.emit('notification:new', payload); // Emit to all over
           },
         );
 

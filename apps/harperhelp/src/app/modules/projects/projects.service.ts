@@ -10,7 +10,6 @@ import { SystemRoles, UserType } from '@harperhelp/types';
 import { Ticket } from '../tickets/entities/ticket.entity';
 import { GetProjectsQueryDto } from './dto/get-projects-query.dto';
 import { NotificationsService } from '../notifications/notifications.service';
-// import { EmailEventType } from '../notifications/notifications.types';
 import { GetMembersQueryDto } from './dto/get-members-query.dto';
 
 @Injectable()
@@ -230,12 +229,13 @@ export class ProjectsService {
   }
   y;
 
-  findAllNames(user: {id: string}) {
+  findAllNames(user: { id: string }) {
     return this.projectRepo.find({
       select: {
         name: true,
         id: true,
-      },where: {
+      },
+      where: {
         members: {
           id: user.id,
         },
@@ -243,15 +243,15 @@ export class ProjectsService {
     });
   }
 
-async findOne(id: string) {
-  const project = await this.projectRepo.findOne({ where: { id } });
+  async findOne(id: string) {
+    const project = await this.projectRepo.findOne({ where: { id } });
 
-  if (!project) {
-    throw new NotFoundException('Project not found');
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    return project;
   }
-
-  return project;
-}
   // function for having summary of project section, return total project, active proejcts, open tickets and critical issues:
 
   async getGlobalProjectSummary(user) {
