@@ -36,6 +36,9 @@ import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanne
 import ThemeButton from '../../../components/ui/ThemeButton';
 import { RecentTicketsTableSkeleton } from '../dashboard/page';
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
+import { eventEmitter } from 'apps/frontend/src/lib/event-emitter';
+import { NotificationItem } from '@harperhelp/interfaces';
+import { NotificationEntityType } from '@harperhelp/types';
 
 type TicketSummary = {
   open: number | null;
@@ -546,6 +549,67 @@ export default function Page() {
       current === nextViewMode ? current : nextViewMode,
     );
   }, [searchParams]);
+
+  const invalidateTicketRelated = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'recent-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'upcoming'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'critical-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard-project-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'ticket-summary'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: projectsQueryKey,
+        refetchType: 'all',
+      }),
+    ]);
+  };
+
+  const invalideProjectsRelated = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ['project-names'],
+        refetchType: 'all',
+      }),
+      //projects
+      queryClient.invalidateQueries({
+        queryKey: ['projects'],
+        refetchType: 'all',
+      }),
+    ]);
+  };
+
+  // Event listener
+  useEffect(() => {
+    eventEmitter.on('notification:new', (payload: NotificationItem) => {
+      if (payload.entityType === NotificationEntityType.TICKET) {
+        invalidateTicketRelated();
+      }
+
+      if (payload.entityType === NotificationEntityType.PROJECT) {
+        invalideProjectsRelated();
+        invalidateTicketRelated();
+      }
+    });
+
+    return () => {
+      eventEmitter.off('notification:new');
+    };
+  }, []);
 
   const handleSortChange = (nextSortState: TicketSortState) => {
     setSortState(nextSortState);

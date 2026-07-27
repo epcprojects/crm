@@ -33,6 +33,9 @@ import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanne
 import { PlusIcon, SearchIcon } from '../../../../public/icons';
 import ThemeButton from '../../../components/ui/ThemeButton';
 import EmptyState from '../../../components/EmptyState';
+import { eventEmitter } from '../../../lib/event-emitter';
+import { NotificationEntityType } from '@harperhelp/types';
+import { NotificationItem } from '@harperhelp/interfaces';
 
 export default function ProjectsPage() {
   const router = useRouter();
@@ -64,7 +67,11 @@ export default function ProjectsPage() {
   const canCreateTicket = hasPermission('tickets.create');
   const canEditProject = hasPermission('projects.edit');
   const canDeleteProject = hasPermission('projects.delete');
-  const projectsQuery = useProjectsInfiniteQuery(canViewProjectList, 12,searchValue);
+  const projectsQuery = useProjectsInfiniteQuery(
+    canViewProjectList,
+    12,
+    searchValue,
+  );
   const projectNamesQuery = useProjectNamesQuery(canCreateTicket);
   const projects = useMemo(
     () => projectsQuery.data?.pages.flatMap((page) => page.items) ?? [],
@@ -229,39 +236,79 @@ export default function ProjectsPage() {
     }
   };
 
-
   const filteredProjects = projects;
-  const projectSummary =
-  projectsQuery.data?.pages[0]?.summary;
+  const projectSummary = projectsQuery.data?.pages[0]?.summary;
 
   const totalProjects =
     projectsQuery.data?.pages[0]?.meta.total ?? projects.length;
 
   const projectSummaryStats = useMemo(
-  () => [
-    {
-      title: 'Total Projects',
-      count: projectSummary?.totalProjects ?? 0,
-      color: '#F04438',
-    },
-    {
-      title: 'Active Projects',
-      count: projectSummary?.activeProjects ?? 0,
-      color: '#F79009',
-    },
-    {
-      title: 'Open Tickets',
-      count: projectSummary?.openTickets ?? 0,
-      color: '#17B26A',
-    },
-    {
-      title: 'Critical Issues',
-      count: projectSummary?.criticalIssues ?? 0,
-      color: '#7A5AF8',
-    },
-  ],
-  [projectSummary],
-);
+    () => [
+      {
+        title: 'Total Projects',
+        count: projectSummary?.totalProjects ?? 0,
+        color: '#F04438',
+      },
+      {
+        title: 'Active Projects',
+        count: projectSummary?.activeProjects ?? 0,
+        color: '#F79009',
+      },
+      {
+        title: 'Open Tickets',
+        count: projectSummary?.openTickets ?? 0,
+        color: '#17B26A',
+      },
+      {
+        title: 'Critical Issues',
+        count: projectSummary?.criticalIssues ?? 0,
+        color: '#7A5AF8',
+      },
+    ],
+    [projectSummary],
+  );
+
+  const invalidateProjectRelated = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard-project-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'recent-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'upcoming'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'critical-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'ticket-summary'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: projectsQueryKey,
+        refetchType: 'all',
+      }),
+    ]);
+  };
+
+  // Event listener
+  useEffect(() => {
+    eventEmitter.on('notification:new', (payload: NotificationItem) => {
+      if (payload.entityType === NotificationEntityType.PROJECT) {
+        invalidateProjectRelated();
+      }
+    });
+
+    return () => {
+      eventEmitter.off('notification:new');
+    };
+  }, []);
 
   return (
     <>
@@ -403,7 +450,6 @@ export default function ProjectsPage() {
                 </div>
               </div>
             </PermissionGuard>
-            
           </div>
         </div>
       </div>
@@ -463,7 +509,6 @@ export default function ProjectsPage() {
         disableProjectSelection={Boolean(selectedProjectId)}
       />
     </>
-   
   );
 }
 

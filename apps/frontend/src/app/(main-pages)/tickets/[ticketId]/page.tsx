@@ -33,6 +33,9 @@ import Tooltip from '../../../../components/tooltip';
 import Image from 'next/image';
 import EmptyState from '../../../../components/EmptyState';
 import ImageGalleryLightbox from '../../../../components/ui/ImageGalleryLightbox';
+import { NotificationItem } from '@harperhelp/interfaces';
+import { NotificationEntityType } from '@harperhelp/types';
+import { eventEmitter } from '../../../../lib/event-emitter';
 
 type GalleryImage = {
   attachmentId: string;
@@ -332,6 +335,38 @@ export default function TicketDetailPage() {
     [ticket?.attachments],
   );
 
+  const invalidateTicketRelated = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ['ticket-detail', projectId, ticketId],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard-project-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['project-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'recent-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'upcoming'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'critical-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'ticket-summary'],
+        refetchType: 'all',
+      }),
+    ]);
+  };
+
   useEffect(() => {
     if (!ticket) {
       return;
@@ -619,6 +654,22 @@ export default function TicketDetailPage() {
     isChatDrawerOpen,
     markRead,
   ]);
+
+  // Event listener
+  useEffect(() => {
+    eventEmitter.on('notification:new', (payload: NotificationItem) => {
+      if (
+        payload.entityType === NotificationEntityType.PROJECT ||
+        payload.entityType === NotificationEntityType.TICKET
+      ) {
+        invalidateTicketRelated();
+      }
+    });
+
+    return () => {
+      eventEmitter.off('notification:new');
+    };
+  }, []);
 
   const handleOpenChatDrawer = (channel: ChatChannel) => {
     if (channel === 'internal') {

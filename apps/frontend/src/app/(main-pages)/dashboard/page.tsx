@@ -55,24 +55,7 @@ import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 import Dropdown from '../../../components/ui/ThemeDropDown';
 import { eventEmitter } from '../../../../src/lib/event-emitter';
 import { NotificationItem } from '@harperhelp/interfaces';
-
-enum NotificationType {
-  PROJECT_ASSIGNED = 'project_assigned',
-  TICKET_CREATED = 'ticket_created',
-  TICKET_REPLY = 'ticket_reply',
-  TICKET_STATUS_CHANGED = 'ticket_status_changed',
-  TICKET_PRIORITY_CHANGED = 'ticket_priority_changed',
-  TICKET_ASSIGNEE_CHANGED = 'ticket_assignee_changed',
-  THREAD_CREATED = 'thread_created',
-  THREAD_REPLY = 'thread_reply',
-}
-
-enum NotificationEntityType {
-  PROJECT = 'project',
-  TICKET = 'ticket',
-  TICKET_REPLY = 'ticket_reply',
-  THREAD_MESSAGE = 'thread_message',
-}
+import { NotificationEntityType } from '@harperhelp/types';
 
 type TicketSummary = {
   open: number | null;
@@ -443,7 +426,6 @@ export default function Page() {
   // Event listener
   useEffect(() => {
     eventEmitter.on('notification:new', (payload: NotificationItem) => {
-      console.log('Event received:', payload);
       if (payload.entityType === NotificationEntityType.TICKET) {
         invalidateTicketRelated();
       }
@@ -453,6 +435,10 @@ export default function Page() {
         invalidateTicketRelated();
       }
     });
+
+    return () => {
+      eventEmitter.off('notification:new');
+    };
   }, []);
 
   const isMobile = useIsMobile();

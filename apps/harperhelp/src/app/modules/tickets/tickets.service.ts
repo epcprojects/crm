@@ -590,7 +590,7 @@ export class TicketsService {
     // });
     // if (!project) throw new NotFoundException('Project not found');
     const ticket = await this.findEntity(projectId, ticketId);
-    const oldTicket = ticket;
+    const oldTicket = { ...ticket };
     const oldStatus = ticket.status;
     const oldPriority = ticket.priority;
 
@@ -632,7 +632,12 @@ export class TicketsService {
       });
     }
 
-    if (dto.assigneeId !== oldTicket.assigneeId) {
+    // PERSON ASSIGNED
+    if (
+      dto.assigneeId &&
+      oldTicket.assigneeId &&
+      dto.assigneeId !== oldTicket.assigneeId
+    ) {
       await this.notificationsService.notifyProjectMembers({
         projectId: ticket.projectId,
         actorId: userId,
@@ -647,6 +652,35 @@ export class TicketsService {
       });
     }
 
+    if (
+      oldTicket.title !== dto.title &&
+      oldTicket.description === dto.description
+    ) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId: ticket.projectId,
+        actorId: userId,
+        type: NotificationType.TICKET_TITLE_CHANGED,
+        entityType: NotificationEntityType.TICKET,
+        entityId: ticket.id,
+        ticketId: ticket.id,
+        title: `Ticket: "${ticket.ticketRefNo}" has been updated.`,
+        explicitRecipientIds: [...new Set(recipients)],
+      });
+    }
+
+    if (oldTicket.description !== dto.description) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId: ticket.projectId,
+        actorId: userId,
+        type: NotificationType.TICKET_DESCRIPTION_CHANGED,
+        entityType: NotificationEntityType.TICKET,
+        entityId: ticket.id,
+        ticketId: ticket.id,
+        title: `Ticket: "${ticket.ticketRefNo}" has been updated.`,
+        explicitRecipientIds: [...new Set(recipients)],
+      });
+    }
+
     return this.ticketRepo.save(ticket);
   }
 
@@ -657,6 +691,16 @@ export class TicketsService {
     ticket.updatedBy = userId;
 
     await this.ticketRepo.softRemove(ticket);
+
+    await this.notificationsService.notifyProjectMembers({
+      projectId: ticket.projectId,
+      actorId: userId,
+      type: NotificationType.TICKET_DELETED,
+      entityType: NotificationEntityType.TICKET,
+      entityId: ticket.id,
+      ticketId: ticket.id,
+      title: `Ticket: "${ticket.ticketRefNo}" no longer exists.`,
+    });
 
     return { success: true };
   }

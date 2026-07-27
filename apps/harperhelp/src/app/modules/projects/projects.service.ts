@@ -6,7 +6,12 @@ import { Project } from './entities/project.entity';
 import { DataSource, Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { UserRole } from '../users/entities/user.roles.entity';
-import { SystemRoles, UserType } from '@harperhelp/types';
+import {
+  NotificationEntityType,
+  NotificationType,
+  SystemRoles,
+  UserType,
+} from '@harperhelp/types';
 import { Ticket } from '../tickets/entities/ticket.entity';
 import { GetProjectsQueryDto } from './dto/get-projects-query.dto';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -243,8 +248,11 @@ export class ProjectsService {
     });
   }
 
-  async findOne(id: string) {
-    const project = await this.projectRepo.findOne({ where: { id } });
+  async findOne(id: string, members = false) {
+    const project = await this.projectRepo.findOne({
+      where: { id },
+      ...(members ? { relations: { members: true } } : {}),
+    });
 
     if (!project) {
       throw new NotFoundException('Project not found');
@@ -436,19 +444,51 @@ export class ProjectsService {
     };
   }
 
-  async update(id: string, updateProjectDto: UpdateProjectDto) {
-    await this.findOne(id);
+  async update(id: string, updateProjectDto: UpdateProjectDto, user) {
+    const proj = await this.findOne(id, true);
 
     await this.projectRepo.update(id, updateProjectDto);
+
+    const recipients = proj.members
+      .map((m) => m.id)
+      .filter((id): id is string => !!id && id !== user.id);
+
+    // Send in App notification.
+    await this.notificationsService.notifyProjectMembers({
+      projectId: id,
+      actorId: user.id,
+      type: NotificationType.PROJECT_UPDATED,
+      entityType: NotificationEntityType.PROJECT,
+      entityId: id,
+      title: `Project have been updated`,
+      message: undefined,
+      explicitRecipientIds: [...new Set(recipients)],
+    });
 
     return this.findOne(id);
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(id: string, user) {
+    const proj = await this.findOne(id, true);
     await this.projectRepo.update(id, {
       isActive: false,
       deletedAt: new Date(),
+    });
+
+    const recipients = proj.members
+      .map((m) => m.id)
+      .filter((id): id is string => !!id && id !== user.id);
+
+    // Send in App notification.
+    await this.notificationsService.notifyProjectMembers({
+      projectId: id,
+      actorId: user.id,
+      type: NotificationType.PROJECT_DELETED,
+      entityType: NotificationEntityType.PROJECT,
+      entityId: id,
+      title: `Project "${proj.name}" no longer exists.`,
+      message: undefined,
+      explicitRecipientIds: [...new Set(recipients)],
     });
 
     return {

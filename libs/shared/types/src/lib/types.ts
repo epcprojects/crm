@@ -45,11 +45,18 @@ export enum CalendarView {
 
 export enum NotificationType {
   PROJECT_ASSIGNED = 'project_assigned',
+  PROJECT_UPDATED = 'project_updated',
+  PROJECT_DELETED = 'project_deleted',
   TICKET_CREATED = 'ticket_created',
   TICKET_REPLY = 'ticket_reply',
   TICKET_STATUS_CHANGED = 'ticket_status_changed',
   TICKET_PRIORITY_CHANGED = 'ticket_priority_changed',
   TICKET_ASSIGNEE_CHANGED = 'ticket_assignee_changed',
+  TICKET_TITLE_CHANGED = 'ticket_title_changed',
+  TICKET_DESCRIPTION_CHANGED = 'ticket_description_changed',
+  TICKET_DUE_DATE_CHANGED = 'ticket_due_date_changed',
+  TICKET_DELETED = 'ticket_deleted',
+  THREAD_DELETED = 'thread_deleted',
   THREAD_CREATED = 'thread_created',
   THREAD_REPLY = 'thread_reply',
 }
