@@ -12,7 +12,7 @@ import {
 } from '@headlessui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import clsx from 'clsx';
 import CreateTicketModal, {
   type CreateTicketFormValues,
@@ -64,10 +64,14 @@ import DashboardSummaryBanner from '../../../../components/ui/DashboardSummaryBa
 import EmptyState from '../../../../components/EmptyState';
 
 const projectTabs = ['Tickets', 'Thread', 'Files', 'Calendar'] as const;
+const PROJECT_TICKETS_STATUS_QUERY_PARAM = 'ticketStatus';
+const PROJECT_TICKETS_PRIORITY_QUERY_PARAM = 'ticketPriority';
 
 export default function ProjectDetailPage() {
   const params = useParams<{ projectId: string }>();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { setLoading } = useAppLoader();
   const isMobile = useIsMobile();
   const currentUserId = useAppSelector((state) => state.auth.user?.id ?? '');
@@ -88,8 +92,6 @@ export default function ProjectDetailPage() {
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [uploadFileOpen, setUploadFileOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('all');
-  const [selectedPriority, setSelectedPriority] = useState('all');
   const [fileSearchValue, setFileSearchValue] = useState('');
   const [uploadedFilesState, setUploadedFilesState] = useState<
     ProjectFileRecord[]
@@ -103,6 +105,12 @@ export default function ProjectDetailPage() {
     pageSize: 10,
   });
   const projectId = String(params?.projectId ?? '');
+  const selectedStatus = getProjectTicketFilterValue(
+    searchParams.get(PROJECT_TICKETS_STATUS_QUERY_PARAM),
+  );
+  const selectedPriority = getProjectTicketFilterValue(
+    searchParams.get(PROJECT_TICKETS_PRIORITY_QUERY_PARAM),
+  );
   const hasShownError = useRef(false);
   const queryClient = useQueryClient();
   const projectDetailQuery = useProjectDetailQuery(
@@ -244,10 +252,43 @@ export default function ProjectDetailPage() {
     }));
     setUploadedFilesState([]);
     setSelectedThreadMessageId('');
-    setSelectedStatus('all');
-    setSelectedPriority('all');
     setSearchValue('');
   }, [projectId]);
+
+  const updateProjectTicketFilters = ({
+    status,
+    priority,
+  }: {
+    status?: string;
+    priority?: string;
+  }) => {
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+    const nextStatus = status ?? selectedStatus;
+    const nextPriority = priority ?? selectedPriority;
+
+    if (nextStatus === 'all') {
+      nextSearchParams.delete(PROJECT_TICKETS_STATUS_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(PROJECT_TICKETS_STATUS_QUERY_PARAM, nextStatus);
+    }
+
+    if (nextPriority === 'all') {
+      nextSearchParams.delete(PROJECT_TICKETS_PRIORITY_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(PROJECT_TICKETS_PRIORITY_QUERY_PARAM, nextPriority);
+    }
+
+    const nextQueryString = nextSearchParams.toString();
+    const currentQueryString = searchParams.toString();
+
+    if (nextQueryString === currentQueryString) {
+      return;
+    }
+
+    router.push(nextQueryString ? `${pathname}?${nextQueryString}` : pathname, {
+      scroll: false,
+    });
+  };
 
   useEffect(() => {
     if (projectDetailQuery.isError && !hasShownError.current) {
@@ -490,6 +531,17 @@ export default function ProjectDetailPage() {
     if (tab === 'Calendar') return canViewCalendar;
     return false;
   });
+  const defaultProjectTabIndex = useMemo(() => {
+    const requestedTab = searchParams.get('t');
+    const requestedTabName = requestedTab === '1' ? 'Thread' : null;
+
+    if (!requestedTabName) {
+      return 0;
+    }
+
+    const requestedTabIndex = visibleProjectTabs.indexOf(requestedTabName);
+    return requestedTabIndex >= 0 ? requestedTabIndex : 0;
+  }, [searchParams, visibleProjectTabs]);
 
   if (projectDetailQuery.isLoading) {
     return <ProjectDetailSkeleton onBack={() => router.back()} />;
@@ -651,7 +703,10 @@ export default function ProjectDetailPage() {
               </div>
             </section> */}
 
-            <TabGroup className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
+            <TabGroup
+              defaultIndex={defaultProjectTabIndex}
+              className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden"
+            >
               <TabList className="flex shrink-0 overflow-x-auto scrollbar-hide border-b border-gray-200">
                 {visibleProjectTabs.map((tab) => (
                   <Tab
@@ -724,7 +779,11 @@ export default function ProjectDetailPage() {
                                       <Dropdown
                                         options={statusFilterOptions}
                                         value={selectedStatus}
-                                        onChange={setSelectedStatus}
+                                        onChange={(value) =>
+                                          updateProjectTicketFilters({
+                                            status: value,
+                                          })
+                                        }
                                         placeholder="All Status"
                                         maxMenuHeight={150}
                                       />
@@ -734,7 +793,11 @@ export default function ProjectDetailPage() {
                                       <Dropdown
                                         options={priorityFilterOptions}
                                         value={selectedPriority}
-                                        onChange={setSelectedPriority}
+                                        onChange={(value) =>
+                                          updateProjectTicketFilters({
+                                            priority: value,
+                                          })
+                                        }
                                         placeholder="All Priority"
                                         maxMenuHeight={150}
                                       />
@@ -745,8 +808,10 @@ export default function ProjectDetailPage() {
                                       <button
                                         type="button"
                                         onClick={() => {
-                                          setSelectedStatus('all');
-                                          setSelectedPriority('all');
+                                          updateProjectTicketFilters({
+                                            status: 'all',
+                                            priority: 'all',
+                                          });
                                         }}
                                         className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50"
                                       >
@@ -765,7 +830,11 @@ export default function ProjectDetailPage() {
                               <Dropdown
                                 options={statusFilterOptions}
                                 value={selectedStatus}
-                                onChange={setSelectedStatus}
+                                onChange={(value) =>
+                                  updateProjectTicketFilters({
+                                    status: value,
+                                  })
+                                }
                                 placeholder="All Status"
                               />
                             </div>
@@ -774,7 +843,11 @@ export default function ProjectDetailPage() {
                               <Dropdown
                                 options={priorityFilterOptions}
                                 value={selectedPriority}
-                                onChange={setSelectedPriority}
+                                onChange={(value) =>
+                                  updateProjectTicketFilters({
+                                    priority: value,
+                                  })
+                                }
                                 placeholder="All Priority"
                               />
                             </div>
@@ -1210,6 +1283,14 @@ function getTicketStatusColor(status: string, statuses?: ApiTicketSetting[]) {
       normalizeStatusValue(item.key) === normalizedStatus
     );
   })?.color;
+}
+
+function getProjectTicketFilterValue(value: string | null) {
+  if (!value || !value.trim()) {
+    return 'all';
+  }
+
+  return value;
 }
 
 function normalizeStatusValue(value: string) {

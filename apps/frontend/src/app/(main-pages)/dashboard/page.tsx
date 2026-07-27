@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import StatusCard from '../../../components/dashboard/StatusCard';
 import {
   AlertIcon,
@@ -16,6 +16,7 @@ import {
 } from '../../../../public/icons';
 import TicketsTabs, {
   type TicketTab,
+  type TicketTabKey,
 } from '../../../components/dashboard/TicketsTabs';
 import { useDashboardHeaderAction } from '../../../components/dashboard/dashboard-shell';
 import CreateTicketModal, {
@@ -85,8 +86,14 @@ type ApiTicketSetting = {
   sortOrder: number;
 };
 
+const RECENT_TICKETS_STATUS_QUERY_PARAM = 'status';
+const RECENT_TICKETS_PRIORITY_QUERY_PARAM = 'priority';
+const DASHBOARD_TABS_QUERY_PARAM = 'dashboardTab';
+
 export default function Page() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { setHeaderActionOverride } = useDashboardHeaderAction();
   const { setLoading } = useAppLoader();
@@ -104,8 +111,6 @@ export default function Page() {
   const canDeleteProject = hasPermission('projects.delete');
   const [searchValue, setSearchValue] = useState('');
   const [isExportingTickets, setIsExportingTickets] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState('all');
-  const [selectedPriority, setSelectedPriority] = useState('all');
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [projectToEdit, setProjectToEdit] = useState<ProjectRecord | null>(
     null,
@@ -118,6 +123,15 @@ export default function Page() {
     canViewProjectCards || canCreateTicket,
   );
   const projectNamesQuery = useProjectNamesQuery(canCreateTicket);
+  const selectedStatus = getDashboardStatusFilterValue(
+    searchParams.get(RECENT_TICKETS_STATUS_QUERY_PARAM),
+  );
+  const selectedPriority = getDashboardPriorityFilterValue(
+    searchParams.get(RECENT_TICKETS_PRIORITY_QUERY_PARAM),
+  );
+  const selectedDashboardTab = getDashboardTabValue(
+    searchParams.get(DASHBOARD_TABS_QUERY_PARAM),
+  );
 
   const ticketStatusesQuery = useQuery({
     queryKey: ['ticket-statuses'],
@@ -226,6 +240,62 @@ export default function Page() {
       ),
     [criticalTicketsQuery.data?.items, upcomingTicketsQuery.data],
   );
+
+  const updateRecentTicketsFilters = ({
+    status,
+    priority,
+  }: {
+    status?: string;
+    priority?: string;
+  }) => {
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+    const nextStatus = status ?? selectedStatus;
+    const nextPriority = priority ?? selectedPriority;
+
+    if (nextStatus === 'Open') {
+      nextSearchParams.delete(RECENT_TICKETS_STATUS_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(RECENT_TICKETS_STATUS_QUERY_PARAM, nextStatus);
+    }
+
+    if (nextPriority === 'all') {
+      nextSearchParams.delete(RECENT_TICKETS_PRIORITY_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(RECENT_TICKETS_PRIORITY_QUERY_PARAM, nextPriority);
+    }
+
+    const nextQueryString = nextSearchParams.toString();
+    const currentQueryString = searchParams.toString();
+
+    if (nextQueryString === currentQueryString) {
+      return;
+    }
+
+    router.push(nextQueryString ? `${pathname}?${nextQueryString}` : pathname, {
+      scroll: false,
+    });
+  };
+
+  const updateDashboardTab = (tabKey: TicketTabKey) => {
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+
+    if (tabKey === 'upcoming') {
+      nextSearchParams.delete(DASHBOARD_TABS_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(DASHBOARD_TABS_QUERY_PARAM, tabKey);
+    }
+
+    const nextQueryString = nextSearchParams.toString();
+    const currentQueryString = searchParams.toString();
+
+    if (nextQueryString === currentQueryString) {
+      return;
+    }
+
+    router.push(nextQueryString ? `${pathname}?${nextQueryString}` : pathname, {
+      scroll: false,
+    });
+  };
 
   const handleExportTickets = async () => {
     try {
@@ -492,6 +562,8 @@ export default function Page() {
             ) : (
               <TicketsTabs
                 tabs={dashboardTicketTabs}
+                activeTabKey={selectedDashboardTab}
+                onActiveTabChange={updateDashboardTab}
                 onTicketClick={
                   canViewTicketDetail
                     ? (ticket) =>
@@ -633,7 +705,9 @@ export default function Page() {
                             <Dropdown
                               options={statusFilterOptions}
                               value={selectedStatus}
-                              onChange={setSelectedStatus}
+                              onChange={(value) =>
+                                updateRecentTicketsFilters({ status: value })
+                              }
                               placeholder="All Status"
                               maxMenuHeight={150}
                             />
@@ -643,7 +717,9 @@ export default function Page() {
                             <Dropdown
                               options={priorityFilterOptions}
                               value={selectedPriority}
-                              onChange={setSelectedPriority}
+                              onChange={(value) =>
+                                updateRecentTicketsFilters({ priority: value })
+                              }
                               placeholder="All Priority"
                               maxMenuHeight={150}
                             />
@@ -654,8 +730,10 @@ export default function Page() {
                             <button
                               type="button"
                               onClick={() => {
-                                setSelectedStatus('all');
-                                setSelectedPriority('all');
+                                updateRecentTicketsFilters({
+                                  status: 'all',
+                                  priority: 'all',
+                                });
                               }}
                               className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50"
                             >
@@ -685,7 +763,9 @@ export default function Page() {
                         <Dropdown
                           options={statusFilterOptions}
                           value={selectedStatus}
-                          onChange={setSelectedStatus}
+                          onChange={(value) =>
+                            updateRecentTicketsFilters({ status: value })
+                          }
                           placeholder="All Status"
                         />
                       </div>
@@ -694,7 +774,9 @@ export default function Page() {
                         <Dropdown
                           options={priorityFilterOptions}
                           value={selectedPriority}
-                          onChange={setSelectedPriority}
+                          onChange={(value) =>
+                            updateRecentTicketsFilters({ priority: value })
+                          }
                           placeholder="All Priority"
                         />
                       </div>
@@ -1426,6 +1508,7 @@ function mapApiDashboardTicketToRecentTicket(
       initials: getInitials(assigneeName),
     },
     date: formatTicketDate(ticket.createdAt),
+    sortDate: ticket.createdAt,
   };
 }
 
@@ -1465,6 +1548,30 @@ function getInitials(value: string) {
     .toUpperCase();
 }
 
+function getDashboardStatusFilterValue(value: string | null) {
+  if (!value || !value.trim()) {
+    return 'Open';
+  }
+
+  return value;
+}
+
+function getDashboardPriorityFilterValue(value: string | null) {
+  if (!value || !value.trim()) {
+    return 'all';
+  }
+
+  return value;
+}
+
+function getDashboardTabValue(value: string | null): TicketTabKey {
+  if (value === 'critical') {
+    return 'critical';
+  }
+
+  return 'upcoming';
+}
+
 function slugify(value: string) {
   return value
     .trim()
@@ -1480,9 +1587,9 @@ function formatTicketDate(value: string) {
     return '-';
   }
 
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date);
 }

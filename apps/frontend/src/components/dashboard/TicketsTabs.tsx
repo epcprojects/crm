@@ -39,7 +39,9 @@ export default function TicketsTabs({
   onTicketClick,
 }: TicketsTabsProps) {
   const [uncontrolledActiveTabKey, setUncontrolledActiveTabKey] =
-    useState<TicketTabKey>(tabs[0]?.key ?? 'upcoming');
+    useState<TicketTabKey>(
+      tabs[0]?.key ?? 'upcoming',
+    );
   const activeTabKey = controlledActiveTabKey ?? uncontrolledActiveTabKey;
   const activeTab = useMemo(
     () => tabs.find((tab) => tab.key === activeTabKey) ?? tabs[0],
