@@ -248,11 +248,19 @@ export class ProjectsService {
     });
   }
 
-  async findOne(id: string, members = false) {
-    const project = await this.projectRepo.findOne({
-      where: { id },
-      ...(members ? { relations: { members: true } } : {}),
-    });
+  async findOne(id: string, members = false, user?: any) {
+    const query = this.projectRepo
+      .createQueryBuilder('p')
+      .where('p.id = :id', { id })
+      .innerJoin('p.members', 'u', 'u.id = :userId', {
+        userId: user.id,
+      });
+
+    if (members) {
+      query.leftJoinAndSelect('p.members', 'members');
+    }
+
+    const project = await query.getOne();
 
     if (!project) {
       throw new NotFoundException('Project not found');

@@ -44,7 +44,10 @@ export class TicketsController {
     summary:
       'Get Paginated list of tickets. Accepts search, status, priority as filters.',
   })
-  findAll(@Param('pid', ParseUUIDPipe) pid: string, @Query() query: GetTicketsQueryDto) {
+  findAll(
+    @Param('pid', ParseUUIDPipe) pid: string,
+    @Query() query: GetTicketsQueryDto,
+  ) {
     return this.ticketsService.findAll(pid, query);
   }
 
@@ -155,8 +158,12 @@ View ranges:
   @ApiOperation({
     summary: 'Find specific ticket',
   })
-  findOne(@Param('pid', ParseUUIDPipe) pid: string, @Param('id', ParseUUIDPipe) id: string) {
-    return this.ticketsService.findOne(pid, id);
+  findOne(
+    @Param('pid', ParseUUIDPipe) pid: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @GetUser() user,
+  ) {
+    return this.ticketsService.findOne(pid, id, user);
   }
 
   // ---------------- UPDATE ----------------
@@ -178,7 +185,11 @@ View ranges:
   @ApiOperation({
     summary: 'Soft delete the ticket.',
   })
-  remove(@Param('pid', ParseUUIDPipe) pid: string, @Param('id', ParseUUIDPipe) id: string, @GetUser() user) {
+  remove(
+    @Param('pid', ParseUUIDPipe) pid: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @GetUser() user,
+  ) {
     return this.ticketsService.remove(pid, id, user.id);
   }
 

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -530,11 +531,17 @@ export class TicketsService {
   // }
 
   // ---------------- FIND ONE ----------------
-  async findOne(projectId: string, ticketId: string) {
-    // const project = await this.projectRepo.findOne({
-    //   where: { id: projectId },
-    // });
-    // if (!project) throw new NotFoundException('Project not found');
+  async findOne(projectId: string, ticketId: string, user) {
+    const isMember = await this.projectRepo
+      .createQueryBuilder('p')
+      .innerJoin('p.members', 'm', 'm.id = :userId', { userId: user.id })
+      .where('p.id = :projectId', { projectId })
+      .getExists();
+
+    if (!isMember) {
+      throw new ForbiddenException('You do not have access to this ticket');
+    }
+
     const ticket = await this.ticketRepo
       .createQueryBuilder('t')
       .leftJoinAndSelect('t.project', 'p')

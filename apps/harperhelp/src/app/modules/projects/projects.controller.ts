@@ -100,8 +100,8 @@ export class ProjectsController {
   //   SystemRoles.VIEWER,
   // )
   @ApiOperation({ summary: 'Find a project by ID' })
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.projectsService.findOne(id);
+  findOne(@Param('id', ParseUUIDPipe) id: string, @GetUser() user) {
+    return this.projectsService.findOne(id, false, user);
   }
 
   @Patch(':id')
