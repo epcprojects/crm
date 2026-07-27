@@ -759,7 +759,7 @@ export default function Page() {
                             onClick={() => handleViewModeChange('table')}
                             className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
                               viewMode === 'table'
-                                ? 'bg-primary-dark text-white shadow-sm'
+                                ? 'bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 text-white shadow-sm'
                                 : 'text-gray-500 hover:bg-gray-50'
                             }`}
                             aria-label="Table view"
@@ -772,7 +772,7 @@ export default function Page() {
                             onClick={() => handleViewModeChange('kanban')}
                             className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
                               viewMode === 'kanban'
-                                ? 'bg-primary-dark text-white shadow-sm'
+                                ? 'bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 text-white shadow-sm'
                                 : 'text-gray-500 hover:bg-gray-50'
                             }`}
                             aria-label="Kanban view"

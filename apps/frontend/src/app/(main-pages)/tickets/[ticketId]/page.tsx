@@ -25,14 +25,19 @@ import {
 import { useAppSelector } from '../../../Redux/store';
 import {
   CheckMarkCircleIcon,
+  DownloadIcon,
   EditIcon,
+  EyeOpenedIcon,
   FileTypePlaceholder,
+  ThreedotIcon,
+  TrashIcon,
 } from '../../../../../public/icons';
 import { getFileUrl } from '../../../../components/projects/ProjectFilesPanel';
 import Tooltip from '../../../../components/tooltip';
 import Image from 'next/image';
 import EmptyState from '../../../../components/EmptyState';
 import ImageGalleryLightbox from '../../../../components/ui/ImageGalleryLightbox';
+import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 
 type GalleryImage = {
   attachmentId: string;
@@ -999,7 +1004,46 @@ export default function TicketDetailPage() {
       setChatMessagePendingDelete(null);
     }
   };
+  const handleViewAttachment = (
+    attachment: (typeof ticket.attachments)[number],
+  ) => {
+    if (isImageAttachmentExtension(attachment.extension)) {
+      const index = ticketAttachmentGalleryImages.findIndex(
+        (image) => image.attachmentId === attachment.id,
+      );
 
+      openGallery(ticketAttachmentGalleryImages, index);
+      return;
+    }
+
+    const attachmentUrl = getAttachmentUrl(attachment.storageKey);
+
+    if (attachmentUrl) {
+      window.open(attachmentUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const handleDownloadAttachment = (
+    attachment: (typeof ticket.attachments)[number],
+  ) => {
+    if (!attachment.storageKey) {
+      return;
+    }
+
+    const searchParams = new URLSearchParams({
+      storageKey: attachment.storageKey,
+      fileName: attachment.name,
+    });
+
+    const link = document.createElement('a');
+
+    link.href = `/api/projects/files/download?${searchParams.toString()}`;
+    link.download = attachment.name;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
   return (
     <div className="relative z-100 h-full xl:h-dvh overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0">
       <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden  xl:rounded-3xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
@@ -1277,19 +1321,21 @@ export default function TicketDetailPage() {
                     Status & Priority
                   </h3>
 
-                  <div className="space-y-4 p-3 sm:p-4">
+                  <div className="space-y-2 p-3 sm:p-4">
                     <div className="grid items-center md:grid-cols-2 gap-4">
                       <span className="text-sm text-black font-normal">
                         Status
                       </span>
                       <Dropdown
                         // label="Status"
+
                         options={statusOptions}
                         value={selectedStatus}
                         disabled={
                           updateTicketMutation.isPending || !canEditStatus
                         }
                         onChange={handleStatusChange}
+                        applyHeight={false}
                       />
                     </div>
                     <div className="grid items-center md:grid-cols-2 gap-4">
@@ -1303,6 +1349,7 @@ export default function TicketDetailPage() {
                           updateTicketMutation.isPending || !canEditPriority
                         }
                         onChange={handlePriorityChange}
+                        applyHeight={false}
                       />
                     </div>
 
@@ -1329,15 +1376,15 @@ export default function TicketDetailPage() {
                   Attachments
                 </h3>
 
-                  <div className="space-y-3 p-3 sm:p-4">
-                    {ticket.attachments.length ? (
-                      ticket.attachments.map((attachment) => (
+                <div className="">
+                  {ticket.attachments.length ? (
+                    ticket.attachments.map((attachment) => (
                       <a
                         key={attachment.id}
                         href={getAttachmentUrl(attachment.storageKey)}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-3 rounded-xl border border-gray-200 p-2.5 transition hover:bg-gray-50"
+                        className="flex items-center gap-3  border-b border-b-gray-200 py-3 px-4 transition hover:bg-gray-50"
                         onClick={(event) => {
                           if (
                             !isImageAttachmentExtension(attachment.extension)
@@ -1363,7 +1410,7 @@ export default function TicketDetailPage() {
                           <FileBadgeIcon extension={attachment.extension} />
                         )}
 
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-semibold text-gray-800">
                             {attachment.name}
                           </p>
@@ -1372,20 +1419,83 @@ export default function TicketDetailPage() {
                             {attachment.sizeLabel}
                           </p>
                         </div>
-                        </a>
-                      ))
-                    ) : (
-                      <div className="py-2">
-                        <EmptyState
-                          imageUrl="/images/EmptyProjectIcon.svg"
-                          imageAlt="No attachments"
-                          title="No Attachments"
-                          description="No attachments have been added to this ticket yet."
-                        />
-                      </div>
-                    )}
-                  </div>
-                </section>
+                        <Menu
+                          as="div"
+                          className="relative ml-auto shrink-0"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <MenuButton
+                            type="button"
+                            className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 outline-none transition hover:bg-gray-100 data-open:bg-gray-100"
+                            aria-label={`Actions for ${attachment.name}`}
+                          >
+                            <ThreedotIcon />
+                          </MenuButton>
+
+                          <MenuItems
+                            anchor="bottom end"
+                            transition
+                            className="z-100 mt-2 w-40 origin-top-right rounded-xl border border-gray-200 bg-white p-1 shadow-[0_14px_44px_rgb(0_0_0/0.14)] outline-none transition duration-150 data-closed:-translate-y-2 data-closed:scale-95 data-closed:opacity-0"
+                          >
+                            <MenuItem>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleViewAttachment(attachment);
+                                }}
+                                className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-gray-700 outline-none transition data-focus:bg-gray-50"
+                              >
+                                <EyeOpenedIcon />
+                                View
+                              </button>
+                            </MenuItem>
+
+                            <MenuItem>
+                              <button
+                                type="button"
+                                disabled={!attachment.storageKey}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleDownloadAttachment(attachment);
+                                }}
+                                className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-gray-700 outline-none transition data-focus:bg-gray-50 data-disabled:cursor-not-allowed data-disabled:opacity-50"
+                              >
+                                <DownloadIcon />
+                                Download
+                              </button>
+                            </MenuItem>
+
+                            <MenuItem>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  // handleDeleteAttachment(attachment);
+                                }}
+                                
+                                className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-red-500 outline-none transition data-focus:bg-red-50"
+                              >
+                                <TrashIcon />
+                                Delete
+                              </button>
+                            </MenuItem>
+                          </MenuItems>
+                        </Menu>
+                      </a>
+                    ))
+                  ) : (
+                    <div className="py-2">
+                      <EmptyState
+                        imageUrl="/images/EmptyProjectIcon.svg"
+                        imageAlt="No attachments"
+                        title="No Attachments"
+                        description="No attachments have been added to this ticket yet."
+                      />
+                    </div>
+                  )}
+                </div>
+              </section>
 
               {!isExternalUser ? (
                 <section className="rounded-xl border border-gray-200 bg-white sm:rounded-2xl">
@@ -2516,7 +2626,7 @@ function PersonCard({ person }: { person: TicketPerson }) {
       </span>
       <div>
         <p className="text-xs sm:text-sm text-gray-900">{person.role}</p>
-        <p className="text-sm md:text-lg font-semibold text-gray-900">
+        <p className="text-sm md:text-base font-semibold text-gray-900">
           {person.name}
         </p>
       </div>

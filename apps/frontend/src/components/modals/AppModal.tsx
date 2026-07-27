@@ -190,7 +190,7 @@ const AppModal: React.FC<AppModalProps> = ({
               {onConfirm && !hideConfirmButton && (
                 <div className="w-full">
                   <ThemeButton
-                    variant="primary"
+                    variant="primaryGradient"
                     size={isMobile ? 'md' : 'lg'}
                     onClick={onConfirm}
                     disabled={confimBtnDisable}

@@ -6,6 +6,38 @@ import EmptyState from '../EmptyState';
 
 export type TicketTabKey = 'upcoming' | 'critical';
 
+const ticketIconTextColors = [
+  'text-red-600',
+  'text-orange-600',
+  'text-amber-600',
+  'text-yellow-600',
+  'text-lime-600',
+  'text-green-600',
+  'text-emerald-600',
+  'text-teal-600',
+  'text-cyan-600',
+  'text-sky-600',
+  'text-blue-600',
+  'text-indigo-600',
+  'text-violet-600',
+  'text-purple-600',
+  'text-fuchsia-600',
+  'text-pink-600',
+  'text-rose-600',
+] as const;
+
+function getTicketIconTextColor(ticketId: string) {
+  let hash = 0;
+
+  for (let index = 0; index < ticketId.length; index += 1) {
+    hash = (hash * 31 + ticketId.charCodeAt(index)) | 0;
+  }
+
+  return ticketIconTextColors[
+    Math.abs(hash) % ticketIconTextColors.length
+  ];
+}
+
 export type TicketListItem = {
   id: string;
   projectId?: string;
@@ -112,7 +144,7 @@ export default function TicketsTabs({
           })}
         </div>
       </div>
-      <div className="flex min-h-0 flex-1 flex-col  overflow-y-auto scrollbar-hide  px-4.5">
+      <div className="flex min-h-0 flex-1 flex-col  overflow-y-auto scrollbar-hide  ">
         {activeTab?.tickets.length ? (
           activeTab.tickets.map((ticket, index) => {
             const isLast = index === activeTab.tickets.length - 1;
@@ -136,23 +168,24 @@ export default function TicketsTabs({
                       : undefined
                   }
                   className={clsx(
-                    'flex flex-row items-start gap-3  outline-none transition py-4 ',
+                    'flex flex-row items-start gap-3  outline-none transition py-4 px-4.5',
                     !isLast && 'border-b border-gray-200',
                     onTicketClick &&
                       'cursor-pointer hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-primary/30',
                   )}
                 >
                   <div
-                    className={clsx(
-                      'w-9 h-9 shrink-0 rounded-full bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.12)] flex items-center justify-center text-xs font-semibold',
-                      ticket.iconClassName,
-                    )}
-                  >
-                    {ticket.icon}
-                  </div>
+  className={clsx(
+    'flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white border border-gray-200 text-sm font-semibold shadow-[0_0_35px_0_rgb(0_0_0/0.12)]',
+    // ticket.iconClassName,
+    getTicketIconTextColor(ticket.id),
+  )}
+>
+  {ticket.icon}
+</div>
 
                   <div className="min-w-0 flex flex-col gap-1">
-                    <p className="truncate text-gray-900 text-sm">
+                    <p className="truncate text-gray-900  font-medium text-sm">
                       {ticket.title}
                     </p>
 
