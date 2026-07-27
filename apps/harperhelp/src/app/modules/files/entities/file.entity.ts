@@ -28,6 +28,7 @@ export class FileRecord extends AuditableEntity {
   @Column({
     type: 'varchar',
     length: 500,
+    default: '',
   })
   originalName: string;
 
@@ -37,6 +38,7 @@ export class FileRecord extends AuditableEntity {
   @Column({
     type: 'varchar',
     length: 2000,
+    default: '',
   })
   storageKey: string;
 
@@ -64,6 +66,7 @@ export class FileRecord extends AuditableEntity {
   @Column({
     type: 'varchar',
     length: 1000,
+    default: '',
   })
   mimeType: string;
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useDashboardHeaderAction } from '../../../components/dashboard/dashboard-shell';
 import AddUserModal, {
   type AddUserFormValues,
@@ -26,16 +27,20 @@ import EmptyState from '../../../components/EmptyState';
 import Dropdown from '../../../components/ui/ThemeDropDown';
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 
+const USERS_INVITATION_STATUS_QUERY_PARAM = 'invitationStatus';
+const USERS_PROJECT_QUERY_PARAM = 'project';
+const USERS_ROLE_QUERY_PARAM = 'role';
+
 export default function Page() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { setHeaderActionOverride, setHeaderCountOverride } =
     useDashboardHeaderAction();
   const queryClient = useQueryClient();
   const { setLoading } = useAppLoader();
   const [addUserOpen, setAddUserOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
-  const [selectedInvitationStatus, setSelectedInvitationStatus] = useState<'all' | 'accepted' | 'pending'>('all');
-  const [selectedProjectId, setSelectedProjectId] = useState('all');
-  const [selectedRoleId, setSelectedRoleId] = useState('all');
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
@@ -45,6 +50,15 @@ export default function Page() {
   const canCreateUser = hasPermission('users.create');
   const canEditUser = hasPermission('users.edit');
   const canDeleteUser = hasPermission('users.delete');
+  const selectedInvitationStatus = getUsersInvitationStatusValue(
+    searchParams.get(USERS_INVITATION_STATUS_QUERY_PARAM),
+  );
+  const selectedProjectId = getUsersFilterValue(
+    searchParams.get(USERS_PROJECT_QUERY_PARAM),
+  );
+  const selectedRoleId = getUsersFilterValue(
+    searchParams.get(USERS_ROLE_QUERY_PARAM),
+  );
   const projectsQuery = useProjectNamesQuery();
   const projects = useMemo(
     () => projectsQuery.data ?? [],
@@ -194,6 +208,54 @@ export default function Page() {
       setHeaderCountOverride(null);
     };
   }, [canViewUsers, membersQuery.data?.summary.totalUsers, setHeaderCountOverride]);
+
+  const updateUsersPageFilters = ({
+    invitationStatus,
+    projectId,
+    roleId,
+  }: {
+    invitationStatus?: 'all' | 'accepted' | 'pending';
+    projectId?: string;
+    roleId?: string;
+  }) => {
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+    const nextInvitationStatus =
+      invitationStatus ?? selectedInvitationStatus;
+    const nextProjectId = projectId ?? selectedProjectId;
+    const nextRoleId = roleId ?? selectedRoleId;
+
+    if (nextInvitationStatus === 'all') {
+      nextSearchParams.delete(USERS_INVITATION_STATUS_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(
+        USERS_INVITATION_STATUS_QUERY_PARAM,
+        nextInvitationStatus,
+      );
+    }
+
+    if (nextProjectId === 'all') {
+      nextSearchParams.delete(USERS_PROJECT_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(USERS_PROJECT_QUERY_PARAM, nextProjectId);
+    }
+
+    if (nextRoleId === 'all') {
+      nextSearchParams.delete(USERS_ROLE_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(USERS_ROLE_QUERY_PARAM, nextRoleId);
+    }
+
+    const nextQueryString = nextSearchParams.toString();
+    const currentQueryString = searchParams.toString();
+
+    if (nextQueryString === currentQueryString) {
+      return;
+    }
+
+    router.push(nextQueryString ? `${pathname}?${nextQueryString}` : pathname, {
+      scroll: false,
+    });
+  };
 
   const handleCreateUser = async (values: AddUserFormValues) => {
     if (!canCreateUser) {
@@ -415,9 +477,12 @@ export default function Page() {
                               options={invitationFilterOptions}
                               value={selectedInvitationStatus}
                               onChange={(value) =>
-                                setSelectedInvitationStatus(
-                                  value as 'all' | 'accepted' | 'pending',
-                                )
+                                updateUsersPageFilters({
+                                  invitationStatus: value as
+                                    | 'all'
+                                    | 'accepted'
+                                    | 'pending',
+                                })
                               }
                               placeholder="All Invitations"
                               maxMenuHeight={150}
@@ -428,7 +493,9 @@ export default function Page() {
                             <Dropdown
                               options={roleFilterOptions}
                               value={selectedRoleId}
-                              onChange={setSelectedRoleId}
+                              onChange={(value) =>
+                                updateUsersPageFilters({ roleId: value })
+                              }
                               placeholder="All Roles"
                               maxMenuHeight={150}
                             />
@@ -438,7 +505,9 @@ export default function Page() {
                             <Dropdown
                               options={projectFilterOptions}
                               value={selectedProjectId}
-                              onChange={setSelectedProjectId}
+                              onChange={(value) =>
+                                updateUsersPageFilters({ projectId: value })
+                              }
                               placeholder="All Projects"
                               maxMenuHeight={150}
                             />
@@ -453,9 +522,12 @@ export default function Page() {
                         options={invitationFilterOptions}
                         value={selectedInvitationStatus}
                         onChange={(value) =>
-                          setSelectedInvitationStatus(
-                            value as 'all' | 'accepted' | 'pending',
-                          )
+                          updateUsersPageFilters({
+                            invitationStatus: value as
+                              | 'all'
+                              | 'accepted'
+                              | 'pending',
+                          })
                         }
                         placeholder="All Invitations"
                       />
@@ -465,7 +537,9 @@ export default function Page() {
                       <Dropdown
                         options={roleFilterOptions}
                         value={selectedRoleId}
-                        onChange={setSelectedRoleId}
+                        onChange={(value) =>
+                          updateUsersPageFilters({ roleId: value })
+                        }
                         placeholder="All Roles"
                       />
                     </div>
@@ -474,7 +548,9 @@ export default function Page() {
                       <Dropdown
                         options={projectFilterOptions}
                         value={selectedProjectId}
-                        onChange={setSelectedProjectId}
+                        onChange={(value) =>
+                          updateUsersPageFilters({ projectId: value })
+                        }
                         placeholder="All Projects"
                       />
                     </div>
@@ -825,6 +901,24 @@ function mapApiMemberRoles(
       },
     ];
   });
+}
+
+function getUsersInvitationStatusValue(
+  value: string | null,
+): 'all' | 'accepted' | 'pending' {
+  if (value === 'accepted' || value === 'pending') {
+    return value;
+  }
+
+  return 'all';
+}
+
+function getUsersFilterValue(value: string | null) {
+  if (!value || !value.trim()) {
+    return 'all';
+  }
+
+  return value;
 }
 
 function getRoleKey(role?: {

@@ -43,6 +43,12 @@ type TicketSummary = {
   resolved: number | null;
   critical: number | null;
 };
+
+const TICKETS_VIEW_QUERY_PARAM = 'view';
+const TICKETS_STATUS_QUERY_PARAM = 'status';
+const TICKETS_PRIORITY_QUERY_PARAM = 'priority';
+const TICKETS_PROJECT_QUERY_PARAM = 'project';
+
 export default function Page() {
   const router = useRouter();
   const pathname = usePathname();
@@ -53,12 +59,6 @@ export default function Page() {
   const [isExportingTickets, setIsExportingTickets] = useState(false);
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
-  const [viewMode, setViewMode] = useState<'table' | 'kanban'>(() =>
-    searchParams.get('view') === 'kanban' ? 'kanban' : 'table',
-  );
-  const [selectedStatus, setSelectedStatus] = useState('all');
-  const [selectedPriority, setSelectedPriority] = useState('all');
-  const [selectedProject, setSelectedProject] = useState('all');
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 10,
@@ -73,6 +73,18 @@ export default function Page() {
   const canFilterTickets = hasPermission('tickets.filter');
   const canViewTicketDetail = hasPermission('tickets.view_detail');
   const canEditTicketStatus = hasPermission('tickets.edit_status');
+  const viewMode = getTicketsViewMode(
+    searchParams.get(TICKETS_VIEW_QUERY_PARAM),
+  );
+  const selectedStatus = getTicketsStatusFilterValue(
+    searchParams.get(TICKETS_STATUS_QUERY_PARAM),
+  );
+  const selectedPriority = getTicketsFilterValue(
+    searchParams.get(TICKETS_PRIORITY_QUERY_PARAM),
+  );
+  const selectedProject = getTicketsFilterValue(
+    searchParams.get(TICKETS_PROJECT_QUERY_PARAM),
+  );
   // const canViewTickets = hasPermission('tickets.view_list');
 
   const ticketStatusesQuery = useQuery({
@@ -538,14 +550,58 @@ export default function Page() {
     }));
   }, [searchValue, selectedPriority, selectedProject, selectedStatus]);
 
-  useEffect(() => {
-    const nextViewMode =
-      searchParams.get('view') === 'kanban' ? 'kanban' : 'table';
+  const updateTicketsPageFilters = ({
+    view,
+    status,
+    priority,
+    project,
+  }: {
+    view?: 'table' | 'kanban';
+    status?: string;
+    priority?: string;
+    project?: string;
+  }) => {
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+    const nextViewMode = view ?? viewMode;
+    const nextStatus = status ?? selectedStatus;
+    const nextPriority = priority ?? selectedPriority;
+    const nextProject = project ?? selectedProject;
 
-    setViewMode((current) =>
-      current === nextViewMode ? current : nextViewMode,
-    );
-  }, [searchParams]);
+    if (nextViewMode === 'table') {
+      nextSearchParams.delete(TICKETS_VIEW_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(TICKETS_VIEW_QUERY_PARAM, nextViewMode);
+    }
+
+    if (nextStatus === 'Open') {
+      nextSearchParams.delete(TICKETS_STATUS_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(TICKETS_STATUS_QUERY_PARAM, nextStatus);
+    }
+
+    if (nextPriority === 'all') {
+      nextSearchParams.delete(TICKETS_PRIORITY_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(TICKETS_PRIORITY_QUERY_PARAM, nextPriority);
+    }
+
+    if (nextProject === 'all') {
+      nextSearchParams.delete(TICKETS_PROJECT_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(TICKETS_PROJECT_QUERY_PARAM, nextProject);
+    }
+
+    const nextQueryString = nextSearchParams.toString();
+    const currentQueryString = searchParams.toString();
+
+    if (nextQueryString === currentQueryString) {
+      return;
+    }
+
+    router.push(nextQueryString ? `${pathname}?${nextQueryString}` : pathname, {
+      scroll: false,
+    });
+  };
 
   const handleSortChange = (nextSortState: TicketSortState) => {
     setSortState(nextSortState);
@@ -584,21 +640,10 @@ export default function Page() {
   };
 
   const handleViewModeChange = (nextViewMode: 'table' | 'kanban') => {
-    setViewMode(nextViewMode);
-
-    const nextSearchParams = new URLSearchParams(searchParams.toString());
-
-    if (nextViewMode === 'table') {
-      nextSearchParams.delete('view');
-    } else {
-      nextSearchParams.set('view', nextViewMode);
-    }
-
-    const nextQueryString = nextSearchParams.toString();
-    router.replace(
-      nextQueryString ? `${pathname}?${nextQueryString}` : pathname,
-      { scroll: false },
-    );
+    updateTicketsPageFilters({
+      view: nextViewMode,
+      status: nextViewMode === 'kanban' ? 'all' : undefined,
+    });
   };
 
   return (
@@ -664,7 +709,11 @@ export default function Page() {
                                   <Dropdown
                                     options={projectFilterOptions}
                                     value={selectedProject}
-                                    onChange={setSelectedProject}
+                                    onChange={(value) =>
+                                      updateTicketsPageFilters({
+                                        project: value,
+                                      })
+                                    }
                                     placeholder="All Projects"
                                     maxMenuHeight={150}
                                   />
@@ -674,7 +723,11 @@ export default function Page() {
                                   <Dropdown
                                     options={statusFilterOptions}
                                     value={selectedStatus}
-                                    onChange={setSelectedStatus}
+                                    onChange={(value) =>
+                                      updateTicketsPageFilters({
+                                        status: value,
+                                      })
+                                    }
                                     placeholder="All Status"
                                     maxMenuHeight={150}
                                   />
@@ -684,7 +737,11 @@ export default function Page() {
                                   <Dropdown
                                     options={priorityFilterOptions}
                                     value={selectedPriority}
-                                    onChange={setSelectedPriority}
+                                    onChange={(value) =>
+                                      updateTicketsPageFilters({
+                                        priority: value,
+                                      })
+                                    }
                                     placeholder="All Priority"
                                     maxMenuHeight={150}
                                   />
@@ -728,7 +785,9 @@ export default function Page() {
                           <Dropdown
                             options={projectFilterOptions}
                             value={selectedProject}
-                            onChange={setSelectedProject}
+                            onChange={(value) =>
+                              updateTicketsPageFilters({ project: value })
+                            }
                             placeholder="All Projects"
                           />
                         </div>
@@ -738,7 +797,9 @@ export default function Page() {
                             <Dropdown
                               options={statusFilterOptions}
                               value={selectedStatus}
-                              onChange={setSelectedStatus}
+                              onChange={(value) =>
+                                updateTicketsPageFilters({ status: value })
+                              }
                               placeholder="All Status"
                             />
                           </div>
@@ -748,7 +809,9 @@ export default function Page() {
                           <Dropdown
                             options={priorityFilterOptions}
                             value={selectedPriority}
-                            onChange={setSelectedPriority}
+                            onChange={(value) =>
+                              updateTicketsPageFilters({ priority: value })
+                            }
                             placeholder="All Priority"
                           />
                         </div>
@@ -1156,6 +1219,30 @@ function getInitials(value: string) {
     .map((word) => word[0])
     .join('')
     .toUpperCase();
+}
+
+function getTicketsViewMode(value: string | null): 'table' | 'kanban' {
+  if (value === 'kanban') {
+    return 'kanban';
+  }
+
+  return 'table';
+}
+
+function getTicketsStatusFilterValue(value: string | null) {
+  if (!value || !value.trim()) {
+    return 'Open';
+  }
+
+  return value;
+}
+
+function getTicketsFilterValue(value: string | null) {
+  if (!value || !value.trim()) {
+    return 'all';
+  }
+
+  return value;
 }
 
 function formatTicketDate(value: string) {

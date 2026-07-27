@@ -13,6 +13,7 @@ import { CreateThreadMessageDto } from '../dto/create-thread-message.dto';
 import { EmailEventType } from '../../notifications/notifications.types';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { Project } from '../entities/project.entity';
+import { ThreadGateway } from '../gateway/thread.gateway';
 
 @Injectable()
 export class ThreadService {
@@ -23,6 +24,8 @@ export class ThreadService {
     private readonly filesService: FilesService,
     private readonly utilityService: UtilityService,
     private readonly notificationService: NotificationsService,
+
+    private readonly threadGateway: ThreadGateway,
   ) {}
 
   async create(
@@ -58,6 +61,26 @@ export class ThreadService {
     }
 
     const msg = await this.findOne(message.id, true);
+
+    if (dto.parentId) {
+      this.threadGateway.broadcastReply(projectId, {
+        id: msg.id,
+        message: msg.message,
+        parentId: msg.parentId,
+        authorId: msg.authorId,
+        createdAt: msg.createdAt,
+        attachments: msg.attachments,
+      });
+    } else {
+      this.threadGateway.broadcastMessage(projectId, {
+        id: msg.id,
+        message: msg.message,
+        parentId: msg.parentId,
+        authorId: msg.authorId,
+        createdAt: msg.createdAt,
+        attachments: msg.attachments,
+      });
+    }
 
     const participants = msg.project.members.map((m) => ({
       name: m.fullName,
