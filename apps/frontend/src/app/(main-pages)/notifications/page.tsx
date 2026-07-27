@@ -23,6 +23,7 @@ import {
   ThreadIcon,
   TicketsIcon,
 } from '../../../../public/icons';
+import { useRouter } from 'next/navigation';
 
 type NotificationFilter = 'all' | 'unread';
 
@@ -163,6 +164,7 @@ export default function Page() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const isMobile = useIsMobile();
+  const router = useRouter();
 
   return (
     <div className="xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 z-100 h-full xl:h-dvh relative">
@@ -325,9 +327,32 @@ export default function Page() {
                 <NotificationPageRow
                   key={notification.id}
                   item={notification}
-                  onClick={() =>
-                    notification.isRead && handleMarkAsRead(notification.id)
-                  }
+                  onClick={() => {
+                    !notification.isRead && handleMarkAsRead(notification.id);
+                    if (
+                      notification.entityType === 'ticket_reply' ||
+                      notification.entityType === 'ticket'
+                    ) {
+                      router.push(
+                        `/tickets/${notification.ticketId}?projectId=${notification.projectId}`,
+                      );
+                    } else if (
+                      notification.entityType === 'project' &&
+                      !notification.projectId
+                    ) {
+                      router.push(`/projects`);
+                    } else if (
+                      notification.entityType === 'project' &&
+                      notification.projectId
+                    ) {
+                      router.push(`/projects/${notification.projectId}`);
+                    } else if (
+                      notification.entityType === 'thread_message' &&
+                      notification.projectId
+                    ) {
+                      router.push(`/projects/${notification.projectId}?t=1`);
+                    }
+                  }}
                 />
               ))
             ) : (
@@ -403,7 +428,7 @@ function NotificationPageRow({
   return (
     <article
       onClick={onClick}
-      className={`flex items-start gap-4 border-b border-gray-200 last:border-b-0 px-3 sm:px-4 py-3 md:py-4 transition hover:bg-gray-50 ${!item.isRead && 'bg-blue-50'}`}
+      className={`flex items-start gap-4 cursor-pointer border-b border-gray-200 last:border-b-0 px-3 sm:px-4 py-3 md:py-4 transition hover:bg-gray-50 ${!item.isRead && 'bg-blue-50'}`}
     >
       <div className="min-w-0 flex-1">
         <p className="text-sm  text-gray-600">

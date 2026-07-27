@@ -200,9 +200,13 @@ function NotificationRow({
           item.entityType === 'ticket_reply' ||
           item.entityType === 'ticket'
         ) {
-          router.push(`/tickets/${item.entityId}?projectId=${item.projectId}`);
+          router.push(`/tickets/${item.ticketId}?projectId=${item.projectId}`);
+        } else if (item.entityType === 'project' && !item.projectId) {
+          router.push(`/projects`);
         } else if (item.entityType === 'project' && item.projectId) {
           router.push(`/projects/${item.projectId}`);
+        } else if (item.entityType === 'thread_message' && item.projectId) {
+          router.push(`/projects/${item.projectId}?t=1`);
         }
       }}
       className="flex gap-4 border-b border-gray-100 px-3 sm:px-6 py-4.5 pb-2 transition hover:bg-gray-100 cursor-pointer"

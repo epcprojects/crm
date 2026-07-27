@@ -66,4 +66,5 @@ export interface NotificationItem {
   projectId: string | null;
   isRead: boolean;
   createdAt: string;
+  ticketId: string;
 }
