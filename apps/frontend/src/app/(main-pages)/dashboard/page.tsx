@@ -480,7 +480,7 @@ export default function Page() {
   return (
     <div className="xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 z-100 h-full xl:h-dvh relative">
       {/* <div className="bg-white/40 border border-white rounded-3xl p-3 flex flex-row h-full gap-3"> */}
-      <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden xl:rounded-3xl  bg-gray-200 xl:flex-row xl:border xl:border-white xl:bg-white/40 xl:p-3">
+      <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden xl:rounded-4xl  bg-gray-200 xl:flex-row xl:border xl:border-white xl:bg-white/40 xl:p-3">
         <PermissionGuard permission="dashboard.view_upcoming">
           <div
             className={`order-2 min-h-0 flex-1 overflow-hidden xl:order-0 xl:h-full xl:flex-none ${

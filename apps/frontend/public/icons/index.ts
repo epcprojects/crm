@@ -37,8 +37,14 @@ import RolesIcon from './RolesIcon';
 import MoreIcon from './MoreIcon';
 import ArrowRightIcon from './ArrowRightIcon';
 import CrossIcon from './CrossIcon';
+import ChatIcon from './ChatIcon';
+import FileIcon from './FileIcon';
+import ThreadIcon from './ThreadIcon';
 export {
   ArrowRightIcon,
+  ChatIcon,
+  FileIcon,
+  ThreadIcon,
   CrossIcon,
   MoreIcon,
   RolesIcon,

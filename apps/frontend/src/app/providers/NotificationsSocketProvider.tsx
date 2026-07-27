@@ -13,6 +13,7 @@ import { io, Socket } from 'socket.io-client';
 
 import { NotificationItem } from '@harperhelp/interfaces';
 
+import { useAppSelector } from '../Redux/store';
 import { eventEmitter } from '../../lib/event-emitter';
 
 type SocketTokenResponse = {
@@ -31,12 +32,13 @@ interface NotificationsSocketContextValue {
 const NotificationsSocketContext =
   createContext<NotificationsSocketContextValue | null>(null);
 
-
 export function NotificationsSocketProvider({
   children,
 }: {
   children: ReactNode;
 }) {
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+  const authStatus = useAppSelector((state) => state.auth.status);
   const socketRef = useRef<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -71,6 +73,19 @@ export function NotificationsSocketProvider({
   }
 
   useEffect(() => {
+    if (authStatus === 'loading') {
+      return;
+    }
+
+    if (!isAuthenticated) {
+      socketRef.current?.disconnect();
+      socketRef.current = null;
+      setIsConnected(false);
+      setUnreadCount(0);
+      setRecentNotifications([]);
+      return;
+    }
+
     let cancelled = false;
 
     async function connect() {
@@ -122,11 +137,20 @@ export function NotificationsSocketProvider({
         // Initial unread count
         fetch('/api/notifications/unread-count', {
           cache: 'no-store',
+          credentials: 'include',
         })
           .then((r) => r.json())
           .then((d) => setUnreadCount(d.unreadCount))
-          .catch(() => {});
+          .catch(() => undefined);
       } catch (err) {
+        if (
+          err instanceof Error &&
+          err.message.toLowerCase().includes('unauthorized')
+        ) {
+          setIsConnected(false);
+          return;
+        }
+
         console.error('Failed to connect notification socket', err);
       }
     }
@@ -138,7 +162,7 @@ export function NotificationsSocketProvider({
       socketRef.current?.disconnect();
       socketRef.current = null;
     };
-  }, []);
+  }, [authStatus, isAuthenticated]);
 
   const markAsRead = useCallback(async (id: string) => {
     setRecentNotifications((prev) =>
@@ -151,7 +175,9 @@ export function NotificationsSocketProvider({
       await fetch(`/api/notifications/${id}/read`, {
         method: 'PATCH',
       });
-    } catch {}
+    } catch {
+      // Ignore failures when marking a single notification as read.
+    }
   }, []);
 
   const markAllAsRead = useCallback(async () => {
@@ -162,7 +188,9 @@ export function NotificationsSocketProvider({
       await fetch('/api/notifications/read-all', {
         method: 'PATCH',
       });
-    } catch {}
+    } catch {
+      // Ignore failures when marking all notifications as read.
+    }
   }, []);
 
   return (

@@ -27,13 +27,20 @@ export type TicketTab = {
 
 type TicketsTabsProps = {
   tabs: TicketTab[];
+  activeTabKey?: TicketTabKey;
+  onActiveTabChange?: (tabKey: TicketTabKey) => void;
   onTicketClick?: (ticket: TicketListItem) => void;
 };
 
-export default function TicketsTabs({ tabs, onTicketClick }: TicketsTabsProps) {
-  const [activeTabKey, setActiveTabKey] = useState<TicketTabKey>(
-    tabs[0]?.key ?? 'upcoming',
-  );
+export default function TicketsTabs({
+  tabs,
+  activeTabKey: controlledActiveTabKey,
+  onActiveTabChange,
+  onTicketClick,
+}: TicketsTabsProps) {
+  const [uncontrolledActiveTabKey, setUncontrolledActiveTabKey] =
+    useState<TicketTabKey>(tabs[0]?.key ?? 'upcoming');
+  const activeTabKey = controlledActiveTabKey ?? uncontrolledActiveTabKey;
   const activeTab = useMemo(
     () => tabs.find((tab) => tab.key === activeTabKey) ?? tabs[0],
     [activeTabKey, tabs],
@@ -83,7 +90,13 @@ export default function TicketsTabs({ tabs, onTicketClick }: TicketsTabsProps) {
                   buttonRefs.current[index] = el;
                 }}
                 type="button"
-                onClick={() => setActiveTabKey(tab.key)}
+                onClick={() => {
+                  if (!controlledActiveTabKey) {
+                    setUncontrolledActiveTabKey(tab.key);
+                  }
+
+                  onActiveTabChange?.(tab.key);
+                }}
                 className={clsx(
                   'relative z-10 rounded-full px-3 py-1.25 text-sm font-medium transition-colors duration-300',
                   isActive
@@ -158,7 +171,7 @@ export default function TicketsTabs({ tabs, onTicketClick }: TicketsTabsProps) {
 
                         <span
                           className={clsx(
-                            'inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium',
+                            'inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium whitespace-nowrap',
                             ticket.tagClassName,
                           )}
                         >
