@@ -52,6 +52,11 @@ export abstract class TimestampEntity extends HasPrimaryKey {
   @UpdateDateColumn() updatedAt: Date;
 }
 
+export abstract class TimestampEntityWithSoftDelete extends TimestampEntity {
+  @DeleteDateColumn({ nullable: true })
+  deletedAt: Date | null;
+}
+
 export abstract class JoinEntity {
   @CreateDateColumn() assignedAt: Date;
 }

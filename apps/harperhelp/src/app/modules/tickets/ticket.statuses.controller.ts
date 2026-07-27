@@ -70,6 +70,6 @@ export class TicketStatusesController {
   // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({ summary: 'Delete ticket status.' })
   remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.service.remove(id);
+    return this.service.softRemove(id);
   }
 }

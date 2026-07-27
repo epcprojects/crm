@@ -136,9 +136,19 @@ async findAll(query: GetRoleQueryDTO): Promise<Role[]> {
     return this.findOne(id);
   }
 
-  async remove(id: string): Promise<void> {
-    const role = await this.findOne(id);
+  // async remove(id: string): Promise<void> {
+  //   const role = await this.findOne(id);
 
-    await this.roleRepository.remove(role);
-  }
+  //   await this.roleRepository.remove(role);
+  // }
+
+  async softRemove(id: string) {
+    await this.findOne(id);
+
+    await this.roleRepository.softDelete(id);
+
+    return { success: true };
+
+
+}
 }

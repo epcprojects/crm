@@ -10,11 +10,12 @@ import {
 } from 'typeorm';
 import { UserRole } from '../../users/entities/user.roles.entity';
 import { RoleClaim } from './role.claim.entity';
+import { TimestampEntityWithSoftDelete } from '@harperhelp/interfaces';
 
 @Entity('roles')
-export class Role {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+export class Role extends TimestampEntityWithSoftDelete{
+  // @PrimaryGeneratedColumn('uuid')
+  // id: string;
 
   @Column({ unique: true, length: 50 })
   name: string;
@@ -31,11 +32,11 @@ export class Role {
   @OneToMany(() => RoleClaim, (rc) => rc.role)
   roleClaims: RoleClaim[];
 
-  @CreateDateColumn()
-  createdAt: Date;
+  // @CreateDateColumn()
+  // createdAt: Date;
 
-  @UpdateDateColumn()
-  updatedAt: Date;
+  // @UpdateDateColumn()
+  // updatedAt: Date;
 
   @BeforeInsert()
   @BeforeUpdate()

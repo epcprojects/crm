@@ -444,13 +444,26 @@ async findOne(id: string) {
     return this.findOne(id);
   }
 
-  async remove(id: string) {
+  // async remove(id: string) {
+  //   await this.findOne(id);
+  //   await this.projectRepo.update(id, {
+  //     isActive: false,
+  //     deletedAt: new Date(),
+  //   });
+
+  //   return {
+  //     success: true,
+  //   };
+  // }
+
+  async softRemove(id: string) {
     await this.findOne(id);
+
+    await this.projectRepo.softDelete(id);
+
     await this.projectRepo.update(id, {
       isActive: false,
-      deletedAt: new Date(),
     });
-
     return {
       success: true,
     };
