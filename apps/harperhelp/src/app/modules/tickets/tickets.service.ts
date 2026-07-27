@@ -328,7 +328,8 @@ export class TicketsService {
       })
       .leftJoin('t.status', 's')
       .leftJoin('t.priority', 'pr')
-      .leftJoin('t.assignee', 'a');
+      .leftJoin('t.assignee', 'a')
+      .leftJoin('t.submitter', 'cb')
 
     if (query.statusKey) {
       qb.andWhere('t.statusKey = :statusKey', {
@@ -434,6 +435,10 @@ export class TicketsService {
       't.createdAt',
       't.ticketRefNo',
       't.dueDate',
+       
+      'cb.id',
+      'cb.email',
+      'cb.fullName',
 
       'p.id',
       'p.name',
