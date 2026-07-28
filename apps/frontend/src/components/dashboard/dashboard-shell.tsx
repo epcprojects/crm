@@ -28,7 +28,7 @@ import {
   useAppDispatch,
   useAppSelector,
 } from '../../app/Redux/store';
-import { NotificationItem } from '../../../../../libs/shared/interfaces/src/lib/notification.interfaces';
+import { NotificationItem } from '@harperhelp/interfaces';
 import { useProjectsQuery } from '../../app/(main-pages)/projects/projects.queries';
 import { useAppLoader } from '../../app/providers/AppLoaderProvider';
 import { usePermissions } from '../../app/providers/PermissionProvider';
@@ -536,8 +536,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (recentNotifications?.length > 0)
-      setItems((prev) => [...prev, ...recentNotifications]);
+    if (recentNotifications?.length > 0) {
+      setItems((prev) => mergeNotificationsById(recentNotifications, prev));
+    }
   }, [isAuthenticated, recentNotifications]);
 
   async function handleMarkAsRead(id: string) {
@@ -709,31 +710,37 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         <div className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden  bg-gray-200 transition-all duration-300 ease-out">
           {isNotificationTrayOpen ? (
             <Portal>
-              <div className="pointer-events-none fixed w-full inset-y-0 top-0 xl:left-22.5 z-200  2xl:left-27.5">
-                <NotificationTray
-                  activeFilter={notificationFilter}
-                  items={items}
-                  onChangeFilter={(value) => {
-                    setNotificationFilter(value === 'all' ? 'all' : 'unread');
-                    setUnreadOnly(value === 'all' ? false : true);
-                  }}
-                  onChangeSearch={setNotificationSearchValue}
-                  onClose={() =>
-                    setIsNotificationTrayOpen(!isNotificationTrayOpen)
-                  }
-                  onMarkAllAsRead={() => {
-                    handleMarkAllAsRead();
-                    setNotificationFilter('all');
-                  }}
-                  onViewAll={() => {
-                    setIsNotificationTrayOpen(!isNotificationTrayOpen);
-                    void router.push('/notifications');
-                  }}
-                  onViewSingle={handleMarkAsRead}
-                  searchValue={notificationSearchValue}
-                  totalCount={items.length}
-                  unreadCount={unreadNotificationsCount}
-                />
+              <div
+                className="fixed inset-0 z-200 xl:left-22.5 2xl:left-27.5"
+                onClick={() => setIsNotificationTrayOpen(false)}
+              >
+                <div
+                  className="pointer-events-auto h-full w-full sm:w-95"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <NotificationTray
+                    activeFilter={notificationFilter}
+                    items={items}
+                    onChangeFilter={(value) => {
+                      setNotificationFilter(value === 'all' ? 'all' : 'unread');
+                      setUnreadOnly(value === 'all' ? false : true);
+                    }}
+                    onChangeSearch={setNotificationSearchValue}
+                    onClose={() => setIsNotificationTrayOpen(false)}
+                    onMarkAllAsRead={() => {
+                      handleMarkAllAsRead();
+                      setNotificationFilter('all');
+                    }}
+                    onViewAll={() => {
+                      setIsNotificationTrayOpen(false);
+                      void router.push('/notifications');
+                    }}
+                    onViewSingle={handleMarkAsRead}
+                    searchValue={notificationSearchValue}
+                    totalCount={items.length}
+                    unreadCount={unreadNotificationsCount}
+                  />
+                </div>
               </div>
             </Portal>
           ) : null}
@@ -971,6 +978,23 @@ function PasswordMenuIcon({ width = '24', height = '24' }) {
       />
     </svg>
   );
+}
+
+function mergeNotificationsById(
+  incoming: NotificationItem[],
+  existing: NotificationItem[],
+) {
+  const merged = [...incoming, ...existing];
+  const seen = new Set<string>();
+
+  return merged.filter((notification) => {
+    if (seen.has(notification.id)) {
+      return false;
+    }
+
+    seen.add(notification.id);
+    return true;
+  });
 }
 
 // function RolesIcon({

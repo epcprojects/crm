@@ -43,7 +43,7 @@ export default function DashboardSummaryBanner({
   }}
   className={`${
     badge ? 'items-start' : 'xl:items-center'
-  } relative flex w-full flex-col gap-2 overflow-hidden rounded-[10px] bg-cover bg-center bg-no-repeat px-4 py-4 xl:flex-row xl:gap-4 xl:rounded-[20px] xl:px-7.5 xl:py-6`}
+  } relative flex w-full flex-col gap-2 overflow-hidden rounded-xl bg-cover bg-center bg-no-repeat px-4 py-4 xl:flex-row xl:gap-4  xl:px-7.5 xl:py-6`}
     >
       {/* Background overlay */}
       <div className="absolute inset-0 bg-black/30" aria-hidden="true" />

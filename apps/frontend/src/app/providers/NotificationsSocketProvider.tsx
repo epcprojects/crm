@@ -11,10 +11,11 @@ import {
 } from 'react';
 import { io, Socket } from 'socket.io-client';
 
-import { NotificationItem } from '../../../../../libs/shared/interfaces/src/lib/notification.interfaces';
+import { NotificationItem } from '@harperhelp/interfaces';
 
 import { useAppSelector } from '../Redux/store';
 import { eventEmitter } from '../../lib/event-emitter';
+import { appToast } from '../../components/toast/AppToast';
 
 type SocketTokenResponse = {
   accessToken: string;
@@ -114,6 +115,10 @@ export function NotificationsSocketProvider({
           (payload: NotificationItem & { unreadCount: number }) => {
             setUnreadCount(payload.unreadCount);
             setRecentNotifications((prev) => [payload, ...prev].slice(0, 5));
+            appToast.info(getNotificationToastMessage(payload), {
+              position: 'bottom-right',
+              toastId: `notification:${payload.id}`,
+            });
             eventEmitter.emit('notification:new', payload); // Emit to all over
           },
         );
@@ -216,4 +221,23 @@ export function useNotificationsSocket() {
     );
   }
   return ctx;
+}
+
+function getNotificationToastMessage(notification: NotificationItem) {
+  const title = notification.title?.trim();
+  const message = notification.message?.trim();
+
+  if (title && message) {
+    return `${title}: ${message}`;
+  }
+
+  if (title) {
+    return title;
+  }
+
+  if (message) {
+    return message;
+  }
+
+  return 'You have a new notification.';
 }

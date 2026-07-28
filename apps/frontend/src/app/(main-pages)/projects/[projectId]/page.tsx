@@ -12,7 +12,12 @@ import {
 } from '@headlessui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
+import {
+  useParams,
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from 'next/navigation';
 import clsx from 'clsx';
 import CreateTicketModal, {
   type CreateTicketFormValues,
@@ -34,10 +39,13 @@ import {
   SearchIcon,
   PlusIcon,
   TicketsIcon,
+  CloseIcon,
+  ThreadIcon,
 } from '../../../../../public/icons';
 import Dropdown from '../../../../components/ui/ThemeDropDown';
 import ThemeButton from '../../../../components/ui/ThemeButton';
 import { useIsMobile } from '../../../../components/hooks/useIsMobile';
+import { useThread } from '../../../../components/hooks/useThread';
 import { useAppLoader } from '../../../providers/AppLoaderProvider';
 import { createTicket } from '../../../../lib/tickets';
 import {
@@ -66,6 +74,11 @@ import EmptyState from '../../../../components/EmptyState';
 const projectTabs = ['Tickets', 'Thread', 'Files', 'Calendar'] as const;
 const PROJECT_TICKETS_STATUS_QUERY_PARAM = 'ticketStatus';
 const PROJECT_TICKETS_PRIORITY_QUERY_PARAM = 'ticketPriority';
+
+type SocketTokenResponse = {
+  accessToken: string;
+  socketUrl: string;
+};
 
 export default function ProjectDetailPage() {
   const params = useParams<{ projectId: string }>();
@@ -100,6 +113,8 @@ export default function ProjectDetailPage() {
     null,
   );
   const [selectedThreadMessageId, setSelectedThreadMessageId] = useState('');
+  const [threadSocketToken, setThreadSocketToken] =
+    useState<SocketTokenResponse | null>(null);
   const [ticketsPagination, setTicketsPagination] = useState({
     pageIndex: 0,
     pageSize: 10,
@@ -117,6 +132,8 @@ export default function ProjectDetailPage() {
     projectId,
     canViewProjectDetail,
   );
+  const shouldRedirectToNotFound =
+    projectDetailQuery.isError && isNotFoundError(projectDetailQuery.error);
   const projectThreadQuery = useProjectThreadQuery(projectId, canViewThread);
   const projectThreadDetailQuery = useProjectThreadDetailQuery(
     projectId,
@@ -255,6 +272,31 @@ export default function ProjectDetailPage() {
     setSearchValue('');
   }, [projectId]);
 
+  useEffect(() => {
+    if (!canViewThread || !projectId) {
+      setThreadSocketToken(null);
+      return;
+    }
+
+    let isDisposed = false;
+
+    void fetchSocketToken()
+      .then((token) => {
+        if (!isDisposed) {
+          setThreadSocketToken(token);
+        }
+      })
+      .catch(() => {
+        if (!isDisposed) {
+          setThreadSocketToken(null);
+        }
+      });
+
+    return () => {
+      isDisposed = true;
+    };
+  }, [canViewThread, projectId]);
+
   const updateProjectTicketFilters = ({
     status,
     priority,
@@ -292,6 +334,12 @@ export default function ProjectDetailPage() {
 
   useEffect(() => {
     if (projectDetailQuery.isError && !hasShownError.current) {
+      if (shouldRedirectToNotFound) {
+        hasShownError.current = true;
+        router.replace('/not-found');
+        return;
+      }
+
       hasShownError.current = true;
       appToast.error(
         projectDetailQuery.error instanceof Error
@@ -303,7 +351,12 @@ export default function ProjectDetailPage() {
     if (!projectDetailQuery.isError) {
       hasShownError.current = false;
     }
-  }, [projectDetailQuery.error, projectDetailQuery.isError]);
+  }, [
+    projectDetailQuery.error,
+    projectDetailQuery.isError,
+    router,
+    shouldRedirectToNotFound,
+  ]);
 
   const projectTickets = useMemo(
     () =>
@@ -361,6 +414,63 @@ export default function ProjectDetailPage() {
 
     return projectThreadDetailQuery.data?.replies ?? [];
   }, [projectThreadDetailQuery.data, selectedThreadMessageId]);
+
+  useThread({
+    projectId,
+    token: threadSocketToken,
+    enabled: canViewThread,
+    onCreated: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...projectThreadQueryKey, projectId],
+      });
+    },
+    onReplyCreated: (reply) => {
+      void queryClient.invalidateQueries({
+        queryKey: [...projectThreadQueryKey, projectId],
+      });
+
+      const parentId =
+        reply && typeof reply === 'object' && 'parentId' in reply
+          ? String((reply as { parentId?: string }).parentId ?? '')
+          : '';
+
+      if (parentId) {
+        void queryClient.invalidateQueries({
+          queryKey: [...projectThreadDetailQueryKey, projectId, parentId],
+        });
+      }
+    },
+    onUpdated: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...projectThreadQueryKey, projectId],
+      });
+
+      if (selectedThreadMessageId) {
+        void queryClient.invalidateQueries({
+          queryKey: [
+            ...projectThreadDetailQueryKey,
+            projectId,
+            selectedThreadMessageId,
+          ],
+        });
+      }
+    },
+    onDeleted: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...projectThreadQueryKey, projectId],
+      });
+
+      if (selectedThreadMessageId) {
+        void queryClient.invalidateQueries({
+          queryKey: [
+            ...projectThreadDetailQueryKey,
+            projectId,
+            selectedThreadMessageId,
+          ],
+        });
+      }
+    },
+  });
 
   const handleCreateTicket = async (values: CreateTicketFormValues) => {
     if (!canCreateTicket) {
@@ -547,6 +657,10 @@ export default function ProjectDetailPage() {
     return <ProjectDetailSkeleton onBack={() => router.back()} />;
   }
 
+  if (shouldRedirectToNotFound) {
+    return null;
+  }
+
   if (!canViewProjectDetail) {
     return (
       <div className="space-y-4 mt-8">
@@ -567,7 +681,7 @@ export default function ProjectDetailPage() {
   if (!project) {
     return (
       <div className="space-y-4 mt-8">
-        <div className="rounded-[20px] border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+        <div className="rounded-3xl border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
           <EmptyState
             imageUrl="/images/EmptyProjectIcon.svg"
             imageAlt="Project not found"
@@ -639,7 +753,7 @@ export default function ProjectDetailPage() {
   return (
     <>
       <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 py-4">
-        <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden xl:rounded-4xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
+        <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <DashboardSummaryBanner
             imageSrc="/images/bannerBackBtn.svg"
             onBack={() => router.back()}
@@ -650,7 +764,7 @@ export default function ProjectDetailPage() {
             badgeClr={project.colorHex}
           />
 
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden rounded-[20px] bg-white px-4 pt-2 md:pt-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:px-5">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden rounded-xl bg-white px-4 pt-2 md:pt-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:px-5">
             {/* <section className="w-full shrink-0">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
@@ -739,7 +853,9 @@ export default function ProjectDetailPage() {
                           <div className="flex items-center gap-3">
                             <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 md:max-w-xs">
                               <div className="flex items-center gap-2">
-                                <SearchIcon fill="#374151" />
+                                <span className="shrink-0">
+                                  <SearchIcon fill="#374151" />
+                                </span>
 
                                 <input
                                   type="text"
@@ -750,6 +866,21 @@ export default function ProjectDetailPage() {
                                   placeholder="Search"
                                   className="min-w-0 flex-1 bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400"
                                 />
+
+                                <button
+                                  type="button"
+                                  onClick={() => setSearchValue('')}
+                                  disabled={!searchValue}
+                                  tabIndex={searchValue ? 0 : -1}
+                                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
+                                    searchValue
+                                      ? 'visible hover:bg-gray-100'
+                                      : 'pointer-events-none invisible'
+                                  }`}
+                                  aria-label="Clear search"
+                                >
+                                  <CloseIcon width="15" height="15" />
+                                </button>
                               </div>
                             </div>
 
@@ -1103,7 +1234,7 @@ function renderProjectTabIcon(tab: (typeof projectTabs)[number]) {
   }
 
   if (tab === 'Thread') {
-    return <ThreadTabIcon />;
+    return <ThreadIcon />;
   }
 
   if (tab === 'Files') {
@@ -1274,6 +1405,49 @@ async function fetchTicketPriorities() {
   return payload;
 }
 
+async function fetchSocketToken(): Promise<SocketTokenResponse> {
+  const response = await fetch('/api/auth/socket-token', {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+    credentials: 'include',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | SocketTokenResponse
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !payload || !('accessToken' in payload)) {
+    throw new Error(
+      payload && 'message' in payload
+        ? payload.message || 'Failed to authorize socket connection.'
+        : 'Failed to authorize socket connection.',
+    );
+  }
+
+  return payload;
+}
+
+function isNotFoundError(error: unknown) {
+  if (typeof error !== 'object' || error === null) {
+    return false;
+  }
+
+  const status =
+    'status' in error ? (error as { status?: number }).status : undefined;
+  const message =
+    'message' in error ? (error as { message?: string }).message : undefined;
+
+  return (
+    status === 404 ||
+    message?.trim().toLowerCase() === 'project not found' ||
+    message?.trim().toLowerCase() === 'failed to fetch project.'
+  );
+}
+
 function getTicketStatusColor(status: string, statuses?: ApiTicketSetting[]) {
   const normalizedStatus = normalizeStatusValue(status);
 
@@ -1355,7 +1529,7 @@ function ProjectDetailSkeleton({ onBack }: { onBack: () => void }) {
         </div> */}
 
         {/* Project detail card */}
-        <div className="flex min-h-0 min-w-0 flex-1 animate-pulse flex-col gap-4 overflow-hidden rounded-[20px] bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
+        <div className="flex min-h-0 min-w-0 flex-1 animate-pulse flex-col gap-4 overflow-hidden rounded-3xl bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
           {/* Project summary */}
           <section className="w-full shrink-0">
             <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">

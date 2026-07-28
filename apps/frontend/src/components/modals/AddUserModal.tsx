@@ -136,11 +136,9 @@ export default function AddUserModal({
         )}
 
         <div className="space-y-2">
-        
-            <label className="block text-sm font-normal text-gray-800 md:text-base">
-              User Type
-            </label>
-        
+          <label className="block text-sm font-normal text-gray-800 md:text-base">
+            User Type
+          </label>
 
           <div
             className={`grid grid-cols-1 gap-3 ${
@@ -242,7 +240,16 @@ export default function AddUserModal({
                       : undefined
                   }
                 >
-                  <span>{initials || 'PR'}</span>
+                  {/* <span>{initials || 'PR'}</span> */}
+                  <span
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${
+                      isSelected
+                        ? 'bg-violet-200 text-violet-700'
+                        : 'bg-gray-100 text-gray-700'
+                    }`}
+                  >
+                    {initials || 'PR'}
+                  </span>
                   <span>{project.name}</span>
                   <span className="text-base leading-none">
                     {isSelected ? '×' : '+'}

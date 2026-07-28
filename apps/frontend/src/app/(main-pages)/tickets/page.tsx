@@ -17,6 +17,7 @@ import TicketsKanbanView from '../../../components/tickets/TicketsKanbanView';
 import { appToast } from '../../../components/toast/AppToast';
 import Dropdown from '../../../components/ui/ThemeDropDown';
 import {
+  CloseIcon,
   DownloadIcon,
   FiltersIcon,
   PlusIcon,
@@ -37,7 +38,7 @@ import ThemeButton from '../../../components/ui/ThemeButton';
 import { RecentTicketsTableSkeleton } from '../dashboard/page';
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 import { eventEmitter } from '../../../lib/event-emitter';
-import { NotificationItem } from '../../../../../../libs/shared/interfaces/src/lib/notification.interfaces';
+import { NotificationItem } from '@harperhelp/interfaces';
 import { NotificationEntityType } from '@harperhelp/types';
 
 type TicketSummary = {
@@ -719,7 +720,7 @@ export default function Page() {
   return (
     <>
       <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 py-4">
-        <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden xl:rounded-4xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
+        <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <div className="shrink-0">
             <DashboardSummaryBanner
               imageSrc="/images/TicketsIcon.svg"
@@ -728,7 +729,7 @@ export default function Page() {
               stats={ticketSummaryStats}
             />
           </div>
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[10px] xl:rounded-[20px] bg-white p-3 md:p-4">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-white p-3 md:p-4">
             <PermissionGuard
               permission="tickets.view_list"
               fallback={
@@ -744,7 +745,10 @@ export default function Page() {
                       <div className="flex flex-row gap-3">
                         <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 md:max-w-50">
                           <div className="flex items-center gap-2">
-                            <SearchIcon fill="#374151" />
+                            <span className="shrink-0">
+                              <SearchIcon fill="#374151" />
+                            </span>
+
                             <input
                               type="text"
                               value={searchValue}
@@ -754,6 +758,21 @@ export default function Page() {
                               placeholder="Search"
                               className="min-w-0 flex-1 bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400"
                             />
+
+                            <button
+                              type="button"
+                              onClick={() => setSearchValue('')}
+                              disabled={!searchValue}
+                              tabIndex={searchValue ? 0 : -1}
+                              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
+                                searchValue
+                                  ? 'visible hover:bg-gray-100'
+                                  : 'pointer-events-none invisible'
+                              }`}
+                              aria-label="Clear search"
+                            >
+                              <CloseIcon width="15" height="15" />
+                            </button>
                           </div>
                         </div>
                         <Popover as="div" className="relative xl:hidden">
@@ -871,6 +890,8 @@ export default function Page() {
                                 updateTicketsPageFilters({ status: value })
                               }
                               placeholder="All Status"
+                              minHeight="min-h-70"
+                              menuScrollable={false}
                             />
                           </div>
                         )}
@@ -891,7 +912,7 @@ export default function Page() {
                             className="rounded-full"
                             variant="primaryGradient"
                             icon={
-                              <PlusIcon fill="#3889FE" width="20" height="20" />
+                              <PlusIcon fill="#000000" width="20" height="20" />
                             }
                             onClick={() => setCreateTicketOpen(true)}
                           >
