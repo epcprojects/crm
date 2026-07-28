@@ -22,12 +22,18 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { EmailEventType } from '../notifications/notifications.types';
 import { User } from '../users/entities/user.entity';
 import { NotificationEntityType, NotificationType } from '@harperhelp/types';
+import { TicketStatus } from './entities/ticket.statuses.entity';
+import { TicketPriority } from './entities/ticket.priority.entity';
 
 @Injectable()
 export class TicketsService {
   constructor(
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(TicketStatus)
+    private readonly statusRepo: Repository<TicketStatus>,
+    @InjectRepository(TicketPriority)
+    private readonly priorityRepo: Repository<TicketPriority>,
 
     @InjectRepository(Ticket)
     private readonly ticketRepo: Repository<Ticket>,
@@ -600,12 +606,30 @@ export class TicketsService {
     const oldTicket = { ...ticket };
     const oldStatus = ticket.status;
     const oldPriority = ticket.priority;
+    const { statusKey, priorityKey, ...rest } = dto;
 
     Object.assign(ticket, {
-      ...dto,
+      ...rest,
       updatedBy: userId,
     });
 
+    if (statusKey && statusKey !== oldStatus?.key) {
+      const newStatus = await this.statusRepo.findOne({
+        where: { key: statusKey }, // adjust to however TicketStatus is scoped
+      });
+      if (!newStatus) throw new NotFoundException('Status not found');
+      ticket.status = newStatus; // let TypeORM derive statusKey from this
+      ticket.statusKey = statusKey;
+    }
+
+    if (priorityKey && priorityKey !== oldPriority?.key) {
+      const newPriority = await this.priorityRepo.findOne({
+        where: { key: priorityKey },
+      });
+      if (!newPriority) throw new NotFoundException('Priority not found');
+      ticket.priority = newPriority;
+      ticket.priorityKey = priorityKey;
+    }
     const recipients = [ticket.reporterId, ticket.assigneeId].filter(
       (id): id is string => !!id && id !== userId,
     );
