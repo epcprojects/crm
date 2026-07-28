@@ -9,7 +9,9 @@ import {
 } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { SearchNotificationsDto } from './dto/search-notification.dto';
+import { GetUser } from 'apps/harperhelp/src/common/decorators/get-user.decorator';
 
 @Controller('notifications')
 @ApiBearerAuth('JWT-auth')
@@ -30,6 +32,16 @@ export class NotificationsController {
       limit: limit ? parseInt(limit, 10) : 20,
       unreadOnly: unreadOnly === 'true',
     });
+  }
+
+  @Get('search')
+  @ApiOperation({ summary: 'Search notifications' })
+  @ApiResponse({
+    status: 200,
+    description: 'Notifications retrieved successfully.',
+  })
+  search(@Query() dto: SearchNotificationsDto, @GetUser() user) {
+    return this.notificationsService.search(dto, user);
   }
 
   /** Top 5 -- the bell dropdown. */

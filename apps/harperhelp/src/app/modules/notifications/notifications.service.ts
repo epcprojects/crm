@@ -35,6 +35,7 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { NotificationsGateway } from './gateway/notifications.gateway';
 import { NotifyProjectMembersDto } from './dto/create-notification.dto';
 import { Notification } from './entities/notification.entity';
+import { SearchNotificationsDto } from './dto/search-notification.dto';
 
 @Injectable()
 export class NotificationsService {
@@ -322,7 +323,31 @@ export class NotificationsService {
     }
   }
 
-  
+  async search(dto: SearchNotificationsDto, user) {
+    const qb = this.notificationsRepo
+      .createQueryBuilder('notification')
+      .where('notification.recipientId = :recipientId', {
+        recipientId: user?.id,
+      });
+
+    if (dto.query) {
+      qb.andWhere(
+        `(
+        notification.title ILIKE :query OR
+        notification.message ILIKE :query
+      )`,
+        {
+          query: `%${dto.query}%`,
+        },
+      );
+    }
+
+    return qb
+      .orderBy('notification.createdAt', 'DESC')
+      .take(dto.limit ?? 20)
+      .skip(dto.offset ?? 0)
+      .getMany();
+  }
 
   private async resolveRecipients(
     dto: NotifyProjectMembersDto,

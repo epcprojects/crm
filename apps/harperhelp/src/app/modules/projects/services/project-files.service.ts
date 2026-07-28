@@ -68,7 +68,7 @@ export class ProjectsFilesService {
   async deleteFile(fileId: string, projectId: string) {
     const file = await this.filesService.findOne(fileId);
 
-    if (!file || file.sourceId !== projectId) {
+    if (!file) {
       throw new NotFoundException('File not found');
     }
 
