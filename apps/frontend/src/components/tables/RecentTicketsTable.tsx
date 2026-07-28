@@ -85,8 +85,8 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     accessorKey: 'title',
     header: 'Title',
     cell: ({ row }) => (
-      <span className="block max-w-52 whitespace-break-spaces text-sm text-gray-800">
-        {row.original.title}
+      <span className=" max-w-52   line-clamp-3 text-ellipsis text-sm text-gray-800">
+        {row.original.title} 
       </span>
     ),
   },
@@ -137,7 +137,7 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     header: 'Assignee',
     cell: ({ row }) => (
       <span className="inline-flex items-center gap-2 text-gray-900 font-normal text-sm">
-        <span className="flex h-7.5 min-w-7.5 items-center justify-center rounded-full bg-linear-to-br from-orange-200 to-slate-800 text-xs font-medium text-white">
+        <span className="flex h-7.5 min-w-7.5 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-900">
           {row.original.assignee.initials}
         </span>
         {row.original.assignee.name}

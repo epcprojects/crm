@@ -585,11 +585,11 @@ export default function Page() {
             {isStatsLoading ? (
               <DashboardStatsSkeleton />
             ) : (
-              <div className="flex w-full flex-col justify-between gap-2 xl:gap-6 rounded-[10px] xl:rounded-[20px] bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat p-4 sm:p-5 xl:gap-8.5 xl:p-7.5">
+              <div className="flex w-full flex-col justify-between gap-2 xl:gap-6 rounded-[10px] xl:rounded-[20px] bg-[url('/images/DashboardComponentBgImage.jpg')]  bg-cover bg-center bg-no-repeat p-4 sm:p-5 xl:gap-8.5 xl:p-7.5">
                 <div className="flex flex-col items-start gap-2 xl:flex-row xl:gap-6">
                   <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                    <p className="text-2xl text-white sm:text-[32px]">
-                      <span className="font-bold">Good day</span>,{' '}
+                    <p className="text-2xl text-white font-semibold sm:text-[32px]">
+                      <span className="">Good Day</span>,{' '}
                       {currentUserName} 👋
                     </p>
 
@@ -669,7 +669,7 @@ export default function Page() {
               >
                 <div className="flex flex-row  flex-wrap gap-3 justify-between items-center">
                   <div className="flex flex-row gap-2.5 items-center">
-                    <p className="text-lg font-medium text-black">
+                    <p className="text-lg font-bold text-black">
                       Recent Tickets
                     </p>
 
@@ -792,13 +792,15 @@ export default function Page() {
                     </ThemeButton>
 
                     {canViewTicketsList ? (
+                       
                       <button
                         type="button"
                         onClick={handleViewAllTickets}
-                        className="border text-sm text-primary border-primary font-semibold bg-white rounded-lg py-2 px-4 flex items-center justify-center"
+                        className="border text-sm hover:border-transparent text-primary hover:text-white border-primary  hover:bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 font-semibold bg-white rounded-lg py-2 px-4 flex items-center hover:border-l-0 justify-center"
                       >
                         View All
                       </button>
+                      
                     ) : null}
 
                     {/* <button
@@ -840,7 +842,7 @@ export default function Page() {
               <div className="bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)] flex-1 overflow-y-auto scrollbar-hide rounded-[20px]  flex flex-col gap-3.5 ">
                 <div className="flex flex-row justify-between items-center sticky z-10 top-0 px-4 pt-4 bg-white">
                   <div className="flex flex-row gap-2.5 items-center">
-                    <p className="text-black font-medium text-lg">Projects</p>
+                    <p className="text-black font-bold text-lg">Projects</p>
 
                     <div className="w-7.5 h-7.5 text-sm text-bright-gray bg-gray-100 rounded-full flex items-center justify-center">
                       {projectsQuery.data?.length ?? 0}
@@ -850,7 +852,7 @@ export default function Page() {
                   {canViewProjectsList ? (
                     <Link
                       href="/projects"
-                      className="border text-sm text-primary border-primary font-semibold bg-white rounded-lg py-2 px-4 flex items-center justify-center"
+                     className="border text-sm hover:border-transparent text-primary hover:text-white border-primary  hover:bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 font-semibold bg-white rounded-lg py-2.5 px-4 flex items-center hover:border-l-0 justify-center"
                     >
                       View All
                     </Link>
@@ -1015,7 +1017,7 @@ function ProjectCardSkeleton() {
 
 function DashboardStatsSkeleton() {
   return (
-    <div className="flex w-full animate-pulse flex-col justify-between gap-6 rounded-[10px] bg-gray-800 p-4 sm:p-5 xl:gap-8.5 xl:rounded-[20px] xl:p-7.5">
+    <div className="flex w-full animate-pulse flex-col justify-between gap-6 rounded-[10px] bg-[linear-gradient(to_right,#335C94_0%,#665932_25%,#7B398E_50%,#003F89_75%,#070922_100%)] p-4 sm:p-5 xl:gap-8.5 xl:rounded-[20px] xl:p-7.5">
       {/* Header */}
       <div className="flex flex-col items-stretch gap-4 xl:flex-row xl:items-start xl:gap-6">
         <div className="flex min-w-0 flex-1 flex-col gap-2">

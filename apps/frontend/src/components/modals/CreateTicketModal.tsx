@@ -261,22 +261,22 @@ export default function CreateTicketModal({
             disabled={disableProjectSelection}
           />
 
-          <ThemeInput
-            label="Title"
-            required
-            name="title"
-            value={formik.values.title}
-            onChange={(event) => {
-              if (event.target.value.length > MAX_TITLE_LENGTH) {
-                return;
-              }
-
-              formik.handleChange(event);
-            }}
-            onBlur={formik.handleBlur}
-            errorText={formik.touched.title ? formik.errors.title : ''}
-            placeholder="Enter ticket title"
-          />
+        <ThemeInput
+  label="Title"
+  required
+  name="title"
+  value={formik.values.title}
+  maxLength={MAX_TITLE_LENGTH}
+  onChange={(event) => {
+    void formik.setFieldValue(
+      'title',
+      event.target.value.slice(0, MAX_TITLE_LENGTH),
+    );
+  }}
+  onBlur={formik.handleBlur}
+  errorText={formik.touched.title ? formik.errors.title : ''}
+  placeholder="Enter ticket title"
+/>
           <div className="-mt-2 flex items-center justify-end">
             <p className="shrink-0 text-xs text-gray-500">
               {formik.values.title.length}/{MAX_TITLE_LENGTH}

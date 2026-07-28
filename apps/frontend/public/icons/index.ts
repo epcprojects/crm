@@ -37,10 +37,16 @@ import RolesIcon from './RolesIcon';
 import MoreIcon from './MoreIcon';
 import ArrowRightIcon from './ArrowRightIcon';
 import CrossIcon from './CrossIcon';
+import EditLockedIcon from './EditLockedIcon';
+import EmptyRepliesIcon from './EmptyRepliesIcon';
+import ThreedotIcon from './ThreedotIcon';
 import ChatIcon from './ChatIcon';
 import FileIcon from './FileIcon';
 import ThreadIcon from './ThreadIcon';
 export {
+  ThreedotIcon,
+  EmptyRepliesIcon,
+  EditLockedIcon,
   ArrowRightIcon,
   ChatIcon,
   FileIcon,

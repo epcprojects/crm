@@ -36,6 +36,7 @@ interface DropdownBaseProps {
   showDeleteForOption?: (option: DropdownOption) => boolean;
   onDeleteOption?: (option: DropdownOption) => void;
   disabled?: boolean;
+  applyHeight?: boolean;
 }
 
 type DropdownSingleProps = {
@@ -74,6 +75,7 @@ const Dropdown = ({
   showDeleteForOption,
   onDeleteOption,
   disabled = false,
+  applyHeight = true,
 }: DropdownProps) => {
   const selectedValues = isMulti ? (Array.isArray(value) ? value : []) : [];
 
@@ -125,8 +127,8 @@ const Dropdown = ({
         <span
           className={`block text-start ${
             variant === 'input'
-              ? 'text-sm font-normal text-gray-800 md:text-sm'
-              : 'mb-1 text-sm font-normal text-gray-700'
+              ? 'text-sm font-normal text-gray-800 md:text-base'
+              : 'mb-1 text-base font-normal text-gray-800'
           }`}
         >
           {label} {required && <span className="text-red-500"> *</span>}
@@ -140,8 +142,8 @@ const Dropdown = ({
           className={`w-full justify-between flex gap-2 items-center outline-none focus:ring-0 text-ggray-900 placeholder:text-gray-400 placeholder:font-normal 
               ${
                 variant === 'input'
-                  ? 'bg-transparent border-0 border-b h-10 px-0 py-1.5 rounded-none text-sm font-medium md:text-base'
-                  : 'bg-white h-10.5 p-3 md:px-3.5 md:py-2.5 border rounded-lg'
+                  ? 'bg-transparent border-0 border-b h-10 px-0 py-1.5 rounded-none text-sm font-medium '
+                  : `bg-white  p-3 md:px-3.5 md:py-2 border rounded-lg ${applyHeight?"h-10.5":""}`
               }
               ${
                 error
@@ -150,7 +152,7 @@ const Dropdown = ({
               } ${disabled ? 'cursor-not-allowed opacity-60 bg-gray-200!' : ''}
             `}
         >
-          <span className="truncate">
+          <span className="truncate text-sm">
             {isMulti
               ? selectedLabels.length > 0
                 ? selectedLabels.join(', ')
@@ -232,7 +234,7 @@ const Dropdown = ({
                           </span>
                         ) : null}
 
-                        <span className="truncate">{option.label}</span>
+                        <span className="truncate text-sm">{option.label}</span>
                       </button>
 
                       <div className="flex items-center gap-1">
@@ -277,7 +279,7 @@ const Dropdown = ({
                               {option.icon}
                             </span>
                           ) : null}
-                          <span className="truncate">{option.label}</span>
+                          <span className="truncate text-sm">{option.label}</span>
                         </button>
 
                         <div className="flex items-center gap-1">
