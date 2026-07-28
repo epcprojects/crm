@@ -91,6 +91,7 @@ export default function Page() {
 
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [searchValue, setSearchValue] = useState('');
+  const hasSearchQuery = searchValue.trim().length > 0;
   const categoryCounts = useMemo(() => {
     return categoryOptions.reduce<Record<NotificationCategory, number>>(
       (counts, category) => {
@@ -119,8 +120,36 @@ export default function Page() {
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async (p: number, unreadOnlyFlag: boolean) => {
+  const load = useCallback(async (
+    p: number,
+    unreadOnlyFlag: boolean,
+    searchTerm: string,
+  ) => {
     setLoading(true);
+
+    const normalizedSearch = searchTerm.trim();
+
+    if (normalizedSearch) {
+      const searchParams = new URLSearchParams({
+        query: normalizedSearch,
+        limit: String(PAGE_SIZE),
+        offset: String((p - 1) * PAGE_SIZE),
+      });
+
+      const res = await fetch(`/api/notifications/search?${searchParams}`, {
+        cache: 'no-store',
+      });
+      const data = (await res.json().catch(() => [])) as NotificationItem[];
+      const nextItems = unreadOnlyFlag
+        ? data.filter((item) => !item.isRead)
+        : data;
+
+      setItems(nextItems);
+      setTotal((p - 1) * PAGE_SIZE + nextItems.length);
+      setLoading(false);
+      return;
+    }
+
     const res = await fetch(
       `/api/notifications?page=${p}&limit=${PAGE_SIZE}&unreadOnly=${unreadOnlyFlag}`,
       {
@@ -134,14 +163,18 @@ export default function Page() {
   }, []);
 
   useEffect(() => {
-    load(page, unreadOnly);
-  }, [page, unreadOnly, load]);
+    setPage(1);
+  }, [searchValue, unreadOnly]);
 
   useEffect(() => {
-    if (recentNotifications?.length > 0) {
+    load(page, unreadOnly, searchValue);
+  }, [page, unreadOnly, load, searchValue]);
+
+  useEffect(() => {
+    if (recentNotifications?.length > 0 && !hasSearchQuery) {
       setItems((prev) => mergeNotificationsById(recentNotifications, prev));
     }
-  }, [recentNotifications]);
+  }, [hasSearchQuery, recentNotifications]);
 
   async function handleMarkAsRead(id: string) {
     setItems((prev) =>
@@ -163,6 +196,9 @@ export default function Page() {
   );
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const canGoToNextPage = hasSearchQuery
+    ? items.length === PAGE_SIZE
+    : page < totalPages;
 
   const isMobile = useIsMobile();
   const router = useRouter();
@@ -379,7 +415,7 @@ export default function Page() {
                 </span>
 
                 <ThemeButton
-                  disabled={page >= totalPages}
+                  disabled={!canGoToNextPage}
                   onClick={() => setPage((p) => p + 1)}
                 >
                   Next

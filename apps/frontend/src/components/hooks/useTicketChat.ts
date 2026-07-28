@@ -216,6 +216,30 @@ export function useTicketChat({
           );
         };
 
+        const handleMessageDeleted = (payload: {
+          channel: ChatChannel;
+          messageId?: string;
+          id?: string;
+          message?: {
+            id?: string;
+          } | null;
+        }) => {
+          if (payload.channel !== channel) {
+            return;
+          }
+
+          const deletedMessageId =
+            payload.messageId ?? payload.id ?? payload.message?.id;
+
+          if (!deletedMessageId) {
+            return;
+          }
+
+          setMessages((current) =>
+            current.filter((message) => message.id !== deletedMessageId),
+          );
+        };
+
         const handleTyping = (payload: {
           channel: ChatChannel;
           userId: string;
@@ -249,6 +273,7 @@ export function useTicketChat({
         socket.on('disconnect', handleDisconnect);
         socket.on('new_message', handleNewMessage);
         socket.on('messages_read', handleMessagesRead);
+        socket.on('message_deleted', handleMessageDeleted);
         socket.on('typing', handleTyping);
 
         if (socket.connected) {
@@ -263,6 +288,7 @@ export function useTicketChat({
           socket.off('disconnect', handleDisconnect);
           socket.off('new_message', handleNewMessage);
           socket.off('messages_read', handleMessagesRead);
+          socket.off('message_deleted', handleMessageDeleted);
           socket.off('typing', handleTyping);
         };
       } catch {
