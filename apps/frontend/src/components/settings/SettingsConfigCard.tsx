@@ -76,7 +76,7 @@ export default function SettingsConfigCard({
   };
 
   return (
-    <section className="flex h-auto min-h-0 flex-col rounded-2xl border border-gray-200 bg-white p-2.5 xl:h-full xl:p-5">
+    <section className="flex h-auto min-h-0 flex-col rounded-xl border border-gray-200 bg-white p-2.5 xl:h-full xl:p-5">
       <div className="flex flex-col items-start gap-1 xl:gap-4 xl:flex-row xl:justify-between">
         <div>
           <h2 className="text-base font-medium text-gray-900 xl:text-lg">

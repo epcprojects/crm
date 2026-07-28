@@ -313,7 +313,7 @@ export default function ProjectsPage() {
   return (
     <>
       <div className="relative z-100 h-full xl:h-dvh xl:py-5 px-4 xl:px-0 pt-2 pb-0 xl:pr-5">
-        <div className="flex h-full flex-col gap-3 xl:rounded-4xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
+        <div className="flex h-full flex-col gap-3 xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <DashboardSummaryBanner
             imageSrc="/images/ProjectsIcon.svg"
             imageAlt="Projects"
@@ -321,7 +321,7 @@ export default function ProjectsPage() {
             stats={projectSummaryStats}
           />
 
-          <div className="flex min-h-0 flex-1 flex-col gap-4 rounded-[10px] xl:rounded-[20px] bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 rounded-xl bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
             <PermissionGuard
               permission="projects.view_list"
               fallback={

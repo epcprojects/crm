@@ -169,7 +169,7 @@ export default function Page() {
 
   return (
     <div className="xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 z-100 h-full xl:h-dvh relative">
-      <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden xl:rounded-4xl  bg-gray-200 xl:flex-row xl:border xl:border-white xl:bg-white/40 xl:p-3">
+      <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden xl:rounded-2xl  bg-gray-200 xl:flex-row xl:border xl:border-white xl:bg-white/40 xl:p-3">
         {!isMobile && (
           <aside className="hidden  w-full shrink-0 flex-col overflow-hidden rounded-[20px] border border-white bg-white py-4 px-4.5 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] xl:w-[288px]">
             <TabGroup
@@ -243,7 +243,7 @@ export default function Page() {
           </aside>
         )}
 
-        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-white bg-white p-3 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-white bg-white p-3 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
           <div className="flex flex-col gap-3 border-b border-gray-200 pb-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex items-center gap-2 justify-between">
               <div className="flex items-center gap-2">

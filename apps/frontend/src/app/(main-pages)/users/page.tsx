@@ -153,6 +153,11 @@ export default function Page() {
     [membersQuery.data],
   );
 
+   const isUsersLoading =
+  projectsQuery.isPending ||
+  (projectsQuery.isSuccess &&
+    membersQuery.isPending);
+
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
       const response = await fetch(`/api/users/${userId}`, {
@@ -416,7 +421,7 @@ export default function Page() {
   return (
     <>
       <div className="relative z-100 h-full overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 xl:h-dvh">
-        <div className="flex h-full min-h-0 flex-col gap-3 xl:rounded-4xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
+        <div className="flex h-full min-h-0 flex-col gap-3 xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <DashboardSummaryBanner
             imageSrc="/images/UsersIcon.svg"
             imageAlt="Users"
@@ -424,7 +429,7 @@ export default function Page() {
             stats={userStats}
           />
 
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden rounded-[10px] xl:rounded-[20px] bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden rounded-xl bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
             <PermissionGuard
               permission="users.view_list"
               fallback={
@@ -583,7 +588,7 @@ export default function Page() {
                 </div>
 
                 <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hide">
-                  {membersQuery.isLoading ? (
+                  {isUsersLoading  ? (
                     <UserCardsSkeleton />
                   ) : userList.length ? (
                     <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
