@@ -251,10 +251,10 @@ export class ProjectsService {
   async findOne(id: string, members = false, user?: any) {
     const query = this.projectRepo
       .createQueryBuilder('p')
-      .where('p.id = :id', { id })
       .innerJoin('p.members', 'u', 'u.id = :userId', {
         userId: user?.id,
-      });
+      })
+      .where('p.id = :id', { id });
 
     if (members) {
       query.leftJoinAndSelect('p.members', 'members');
@@ -294,7 +294,6 @@ export class ProjectsService {
   }
 
   async findProjectMembers(projectId: string, user) {
-    await this.findOne(projectId);
     return this.projectRepo
       .createQueryBuilder('project')
       .innerJoin('project.members', 'member')

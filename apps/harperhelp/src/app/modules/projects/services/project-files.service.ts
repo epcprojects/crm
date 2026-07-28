@@ -54,7 +54,9 @@ export class ProjectsFilesService {
   }
 
   async getProjectFiles(projectId: string, user) {
-    const project = await this.projectRepo.findOne({ where: { id: projectId } });
+    const project = await this.projectRepo.findOne({
+      where: { id: projectId },
+    });
     if (!project) {
       throw new NotFoundException('Project not found');
     }
@@ -66,11 +68,7 @@ export class ProjectsFilesService {
   async deleteFile(fileId: string, projectId: string) {
     const file = await this.filesService.findOne(fileId);
 
-    if (
-      !file ||
-      file.source !== FileSource.PROJECT ||
-      file.sourceId !== projectId
-    ) {
+    if (!file || file.sourceId !== projectId) {
       throw new NotFoundException('File not found');
     }
 
