@@ -36,6 +36,9 @@ import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanne
 import ThemeButton from '../../../components/ui/ThemeButton';
 import { RecentTicketsTableSkeleton } from '../dashboard/page';
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
+import { eventEmitter } from '../../../lib/event-emitter';
+import { NotificationItem } from '../../../../../../libs/shared/interfaces/src/lib/notification.interfaces';
+import { NotificationEntityType } from '@harperhelp/types';
 
 type TicketSummary = {
   open: number | null;
@@ -76,9 +79,12 @@ export default function Page() {
   const viewMode = getTicketsViewMode(
     searchParams.get(TICKETS_VIEW_QUERY_PARAM),
   );
-  const selectedStatus = getTicketsStatusFilterValue(
-    searchParams.get(TICKETS_STATUS_QUERY_PARAM),
-  );
+  const selectedStatus =
+    viewMode === 'kanban'
+      ? 'all'
+      : getTicketsStatusFilterValue(
+          searchParams.get(TICKETS_STATUS_QUERY_PARAM),
+        );
   const selectedPriority = getTicketsFilterValue(
     searchParams.get(TICKETS_PRIORITY_QUERY_PARAM),
   );
@@ -573,9 +579,12 @@ export default function Page() {
       nextSearchParams.set(TICKETS_VIEW_QUERY_PARAM, nextViewMode);
     }
 
-    if (nextStatus === 'Open') {
+    if (nextViewMode === 'kanban') {
       nextSearchParams.delete(TICKETS_STATUS_QUERY_PARAM);
-    } else {
+    } else if (
+      status !== undefined ||
+      searchParams.get(TICKETS_STATUS_QUERY_PARAM)?.trim()
+    ) {
       nextSearchParams.set(TICKETS_STATUS_QUERY_PARAM, nextStatus);
     }
 
@@ -602,6 +611,67 @@ export default function Page() {
       scroll: false,
     });
   };
+
+  const invalidateTicketRelated = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'recent-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'upcoming'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'critical-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard-project-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'ticket-summary'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: projectsQueryKey,
+        refetchType: 'all',
+      }),
+    ]);
+  };
+
+  const invalideProjectsRelated = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ['project-names'],
+        refetchType: 'all',
+      }),
+      //projects
+      queryClient.invalidateQueries({
+        queryKey: ['projects'],
+        refetchType: 'all',
+      }),
+    ]);
+  };
+
+  // Event listener
+  useEffect(() => {
+    eventEmitter.on('notification:new', (payload: NotificationItem) => {
+      if (payload.entityType === NotificationEntityType.TICKET) {
+        invalidateTicketRelated();
+      }
+
+      if (payload.entityType === NotificationEntityType.PROJECT) {
+        invalideProjectsRelated();
+        invalidateTicketRelated();
+      }
+    });
+
+    return () => {
+      eventEmitter.off('notification:new');
+    };
+  }, []);
 
   const handleSortChange = (nextSortState: TicketSortState) => {
     setSortState(nextSortState);
@@ -649,7 +719,7 @@ export default function Page() {
   return (
     <>
       <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 py-4">
-        <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden xl:rounded-3xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
+        <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden xl:rounded-4xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <div className="shrink-0">
             <DashboardSummaryBanner
               imageSrc="/images/TicketsIcon.svg"
@@ -1161,6 +1231,7 @@ function mapApiDashboardTicketToRecentTicket(
       initials: getInitials(assigneeName),
     },
     date: formatTicketDate(ticket.createdAt),
+    sortDate: ticket.createdAt,
   };
 }
 
@@ -1171,6 +1242,13 @@ function sortTicketsLocally(
   const direction = sortState.sortOrder === 'asc' ? 1 : -1;
 
   return [...tickets].sort((firstTicket, secondTicket) => {
+    if (sortState.sortBy === 'createdAt') {
+      const firstDateValue = getTicketSortDateValue(firstTicket);
+      const secondDateValue = getTicketSortDateValue(secondTicket);
+
+      return (firstDateValue - secondDateValue) * direction;
+    }
+
     const firstValue = getTicketSortValue(firstTicket, sortState.sortBy);
     const secondValue = getTicketSortValue(secondTicket, sortState.sortBy);
 
@@ -1181,6 +1259,17 @@ function sortTicketsLocally(
       }) * direction
     );
   });
+}
+
+function getTicketSortDateValue(ticket: RecentTicket) {
+  const rawValue = ticket.sortDate ?? ticket.date;
+  const parsedValue = new Date(rawValue).getTime();
+
+  if (Number.isNaN(parsedValue)) {
+    return 0;
+  }
+
+  return parsedValue;
 }
 
 function getTicketSortValue(

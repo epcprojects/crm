@@ -13,7 +13,7 @@ import {
   type ChatChannel,
   type ChatMessage,
 } from '../../../../components/hooks/useTicketChat';
-import { getChatSocket } from '../../../../lib/socket';
+import { getSocket } from '../../../../lib/socket';
 import Dropdown from '../../../../components/ui/ThemeDropDown';
 import { appToast } from '../../../../components/toast/AppToast';
 import { getTicketById, type TicketPerson } from '../tickets.data';
@@ -42,6 +42,9 @@ import Image from 'next/image';
 import EmptyState from '../../../../components/EmptyState';
 import ImageGalleryLightbox from '../../../../components/ui/ImageGalleryLightbox';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
+import { NotificationItem } from '../../../../../../../libs/shared/interfaces/src/lib/notification.interfaces';
+import { NotificationEntityType } from '@harperhelp/types';
+import { eventEmitter } from '../../../../lib/event-emitter';
 
 type GalleryImage = {
   attachmentId: string;
@@ -282,9 +285,9 @@ export default function TicketDetailPage() {
   const [activeGalleryIndex, setActiveGalleryIndex] = useState<number | null>(
     null,
   );
-  const unreadListenerSocketRef = useRef<ReturnType<
-    typeof getChatSocket
-  > | null>(null);
+  const unreadListenerSocketRef = useRef<ReturnType<typeof getSocket> | null>(
+    null,
+  );
   const descriptionMeasureRef = useRef<HTMLParagraphElement | null>(null);
   const descriptionOverflowRef = useRef<HTMLParagraphElement | null>(null);
   const [titleDraft, setTitleDraft] = useState('');
@@ -350,6 +353,38 @@ export default function TicketDetailPage() {
     () => buildTicketAttachmentGalleryImages(ticket?.attachments ?? []),
     [ticket?.attachments],
   );
+
+  const invalidateTicketRelated = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ['ticket-detail', projectId, ticketId],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard-project-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['project-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'recent-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'upcoming'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'critical-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'ticket-summary'],
+        refetchType: 'all',
+      }),
+    ]);
+  };
 
   useEffect(() => {
     if (!ticket) {
@@ -579,7 +614,7 @@ export default function TicketDetailPage() {
         return;
       }
 
-      const socket = getChatSocket(socketToken);
+      const socket = getSocket('chat', socketToken);
       unreadListenerSocketRef.current = socket;
 
       const joinUnreadRooms = () => {
@@ -724,6 +759,22 @@ export default function TicketDetailPage() {
     isChatDrawerOpen,
     markRead,
   ]);
+
+  // Event listener
+  useEffect(() => {
+    eventEmitter.on('notification:new', (payload: NotificationItem) => {
+      if (
+        payload.entityType === NotificationEntityType.PROJECT ||
+        payload.entityType === NotificationEntityType.TICKET
+      ) {
+        invalidateTicketRelated();
+      }
+    });
+
+    return () => {
+      eventEmitter.off('notification:new');
+    };
+  }, []);
 
   const handleOpenChatDrawer = (channel: ChatChannel) => {
     if (channel === 'internal') {
@@ -1190,7 +1241,7 @@ export default function TicketDetailPage() {
 
   return (
     <div className="relative z-100 h-full xl:h-dvh overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0">
-      <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden  xl:rounded-3xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
+      <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden  xl:rounded-4xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
         <div className="relative flex w-full flex-col gap-2 xl:gap-3 overflow-hidden rounded-[10px] bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat px-4 py-4 xl:flex-row xl:items-center xl:gap-4 xl:rounded-[20px] xl:px-7.5 xl:py-6">
           {/* Background overlay */}
           <div
@@ -1522,6 +1573,8 @@ export default function TicketDetailPage() {
 
                 <div className="">
                   {/* {ticket.attachments.length ? (
+                <div className="space-y-3 p-3 sm:p-4">
+                  {ticket.attachments.length ? (
                     ticket.attachments.map((attachment) => (
                       <a
                         key={attachment.id}
@@ -1756,6 +1809,7 @@ export default function TicketDetailPage() {
                           </MenuItems>
                         </Menu>
                       </div>
+                      </a>
                     ))
                   ) : (
                     <div className="py-2">

@@ -54,6 +54,9 @@ import { useAppSelector } from '../../Redux/store';
 import EmptyState from '../../../components/EmptyState';
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 import Dropdown from '../../../components/ui/ThemeDropDown';
+import { eventEmitter } from '../../../../src/lib/event-emitter';
+import { NotificationItem } from '../../../../../../libs/shared/interfaces/src/lib/notification.interfaces';
+import { NotificationEntityType } from '@harperhelp/types';
 
 type TicketSummary = {
   open: number | null;
@@ -83,8 +86,8 @@ type ApiTicketSetting = {
   sortOrder: number;
 };
 
-const RECENT_TICKETS_STATUS_QUERY_PARAM = 'recentTicketsStatus';
-const RECENT_TICKETS_PRIORITY_QUERY_PARAM = 'recentTicketsPriority';
+const RECENT_TICKETS_STATUS_QUERY_PARAM = 'status';
+const RECENT_TICKETS_PRIORITY_QUERY_PARAM = 'priority';
 const DASHBOARD_TABS_QUERY_PARAM = 'dashboardTab';
 
 export default function Page() {
@@ -365,6 +368,49 @@ export default function Page() {
     router.push('/tickets');
   };
 
+  const invalidateTicketRelated = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'recent-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'upcoming'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'critical-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard-project-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'ticket-summary'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: projectsQueryKey,
+        refetchType: 'all',
+      }),
+    ]);
+  };
+
+  const invalideProjectsRelated = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ['project-names'],
+        refetchType: 'all',
+      }),
+      //projects
+      queryClient.invalidateQueries({
+        queryKey: ['projects'],
+        refetchType: 'all',
+      }),
+    ]);
+  };
+
   const handleCreateTicket = async (values: CreateTicketFormValues) => {
     if (!canCreateTicket) {
       return;
@@ -381,32 +427,7 @@ export default function Page() {
         dueDate: values.dueDate,
         attachments: values.attachments,
       });
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ['dashboard', 'recent-tickets'],
-          refetchType: 'all',
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ['dashboard', 'upcoming'],
-          refetchType: 'all',
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ['dashboard', 'critical-tickets'],
-          refetchType: 'all',
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ['dashboard-project-tickets'],
-          refetchType: 'all',
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ['dashboard', 'ticket-summary'],
-          refetchType: 'all',
-        }),
-        queryClient.invalidateQueries({
-          queryKey: projectsQueryKey,
-          refetchType: 'all',
-        }),
-      ]);
+      await invalidateTicketRelated();
       appToast.success('Ticket created successfully.');
     } catch (error) {
       appToast.error(
@@ -472,6 +493,24 @@ export default function Page() {
     };
   }, [canCreateTicket, setHeaderActionOverride]);
 
+  // Event listener
+  useEffect(() => {
+    eventEmitter.on('notification:new', (payload: NotificationItem) => {
+      if (payload.entityType === NotificationEntityType.TICKET) {
+        invalidateTicketRelated();
+      }
+
+      if (payload.entityType === NotificationEntityType.PROJECT) {
+        invalideProjectsRelated();
+        invalidateTicketRelated();
+      }
+    });
+
+    return () => {
+      eventEmitter.off('notification:new');
+    };
+  }, []);
+
   const isMobile = useIsMobile();
   const ticketSummary = ticketSummaryQuery.data;
   const isStatsLoading = canViewStats && ticketSummaryQuery.isLoading;
@@ -511,7 +550,7 @@ export default function Page() {
   return (
     <div className="xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 z-100 h-full xl:h-dvh relative">
       {/* <div className="bg-white/40 border border-white rounded-3xl p-3 flex flex-row h-full gap-3"> */}
-      <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden xl:rounded-3xl  bg-gray-200 xl:flex-row xl:border xl:border-white xl:bg-white/40 xl:p-3">
+      <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden xl:rounded-4xl  bg-gray-200 xl:flex-row xl:border xl:border-white xl:bg-white/40 xl:p-3">
         <PermissionGuard permission="dashboard.view_upcoming">
           <div
             className={`order-2 min-h-0 flex-1 overflow-hidden xl:order-0 xl:h-full xl:flex-none ${
@@ -1471,6 +1510,7 @@ function mapApiDashboardTicketToRecentTicket(
       initials: getInitials(assigneeName),
     },
     date: formatTicketDate(ticket.createdAt),
+    sortDate: ticket.createdAt,
   };
 }
 
@@ -1549,9 +1589,9 @@ function formatTicketDate(value: string) {
     return '-';
   }
 
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date);
 }

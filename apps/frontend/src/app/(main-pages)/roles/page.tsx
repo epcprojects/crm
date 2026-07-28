@@ -204,7 +204,7 @@ export default function RolesPage() {
   return (
     <>
       <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 px-4 xl:px-0 pt-2 pb-0 xl:pr-5">
-        <div className="flex h-full min-h-0 flex-col gap-3 xl:rounded-3xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
+        <div className="flex h-full min-h-0 flex-col gap-3 xl:rounded-4xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <DashboardSummaryBanner
             imageSrc="/images/RolesIconImage.svg"
             imageAlt="Roles"
@@ -319,8 +319,9 @@ export default function RolesPage() {
 
       {editingRoleId ? (
         <AddRoleModal
-          key={`edit-role-${editingRoleId}-${editInitialValues?.permissions.join('|') ?? 'loading'
-            }`}
+          key={`edit-role-${editingRoleId}-${
+            editInitialValues?.permissions.join('|') ?? 'loading'
+          }`}
           isOpen={isEditRoleModalOpen && canEditRole}
           onClose={() => setEditingRoleId(null)}
           onConfirm={handleEditRole}
@@ -387,7 +388,7 @@ async function fetchRoles(search?: string) {
   const searchParams = new URLSearchParams();
 
   if (search?.trim()) {
-    searchParams.set('search', search.trim())
+    searchParams.set('search', search.trim());
   }
   const queryString = searchParams.toString();
   const response = await fetch(
@@ -398,15 +399,16 @@ async function fetchRoles(search?: string) {
         Accept: 'application/json',
       },
       cache: 'no-store',
-    });
+    },
+  );
 
   const payload = (await response.json().catch(() => null)) as
     | ApiRoleRecord[]
     | {
-      roles?: ApiRoleRecord[];
-      data?: ApiRoleRecord[];
-      items?: ApiRoleRecord[];
-    }
+        roles?: ApiRoleRecord[];
+        data?: ApiRoleRecord[];
+        items?: ApiRoleRecord[];
+      }
     | { message?: string }
     | null;
   const roles = extractApiRoles(payload);
@@ -449,11 +451,11 @@ async function fetchPermissionCatalog() {
     label: getString(item.label) ?? getString(item.module) ?? 'Unknown',
     permissions: Array.isArray(item.permissions)
       ? item.permissions
-        .filter(
-          (permission): permission is string =>
-            typeof permission === 'string',
-        )
-        .map(normalizePermission)
+          .filter(
+            (permission): permission is string =>
+              typeof permission === 'string',
+          )
+          .map(normalizePermission)
       : [],
   }));
 }
@@ -583,10 +585,10 @@ function extractPermissions(
   const sourceRecord = source as Record<string, unknown>;
   const permissionsFromPayload = Array.isArray(sourceRecord.permissions)
     ? sourceRecord.permissions
-      .filter(
-        (permission): permission is string => typeof permission === 'string',
-      )
-      .map(normalizePermission)
+        .filter(
+          (permission): permission is string => typeof permission === 'string',
+        )
+        .map(normalizePermission)
     : [];
 
   if (permissionsFromPayload.length) {
@@ -660,5 +662,3 @@ function getClaimValue(value: unknown) {
 
   return getString(value) ?? '';
 }
-
-

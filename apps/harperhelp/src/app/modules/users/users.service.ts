@@ -15,6 +15,7 @@ import { generateRandomToken } from '@harperhelp/utils';
 import { NotificationsService } from '../notifications/notifications.service';
 import { Project } from '../projects/entities/project.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { NotificationEntityType, NotificationType } from '@harperhelp/types';
 
 @Injectable()
 export class UsersService {
@@ -319,7 +320,7 @@ export class UsersService {
     });
   }
 
-  async updateUser(userId: string, dto: UpdateUserDto) {
+  async updateUser(userId: string, dto: UpdateUserDto, loggedInUser) {
     const user = await this.userRepo.findOne({
       where: { id: userId },
       relations: {
@@ -360,6 +361,22 @@ export class UsersService {
         userId,
         roleId: role.id,
       });
+    }
+
+    // Send global notification
+    // Project assigned/unassigned
+    // Don't send to self
+    if (userId !== loggedInUser.id) {
+      if (dto.projectIds) {
+        await this.notificationService.notifyProjectMembers({
+          actorId: loggedInUser.id,
+          type: NotificationType.PROJECT_ASSIGNED,
+          entityType: NotificationEntityType.PROJECT,
+          title: `Your access to one or more projects has been updated.`,
+          message: undefined,
+          explicitRecipientIds: [userId],
+        });
+      }
     }
 
     await this.userRepo.save(user);

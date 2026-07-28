@@ -3,10 +3,10 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { useMutation } from '@tanstack/react-query';
 import Image from 'next/image';
-import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -28,6 +28,7 @@ import {
   useAppDispatch,
   useAppSelector,
 } from '../../app/Redux/store';
+import { NotificationItem } from '../../../../../libs/shared/interfaces/src/lib/notification.interfaces';
 import { useProjectsQuery } from '../../app/(main-pages)/projects/projects.queries';
 import { useAppLoader } from '../../app/providers/AppLoaderProvider';
 import { usePermissions } from '../../app/providers/PermissionProvider';
@@ -36,11 +37,17 @@ import { Images } from '../../app/ui/images';
 import ChangePasswordModal, {
   type ChangePasswordFormValues,
 } from '../modals/ChangePasswordModal';
+import NotificationTray, { NotificationBellIcon } from './NotificationTray';
+import { mockNotifications } from './notification-data';
+import Portal from '../modals/portal';
 import { appToast } from '../toast/AppToast';
 import ThemeButton from '../ui/ThemeButton';
 import { useIsMobile } from '../hooks/useIsMobile';
 import MobileBottomNavigation from './MobileBottomNavigation';
 import MobileTopHeader from './MobileTopHeader';
+import { useNotificationsSocket } from '../../app/providers/NotificationsSocketProvider';
+
+const PAGE_SIZE = 20;
 
 type NavItem = {
   href: string;
@@ -237,6 +244,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const { setLoading } = useAppLoader();
   const { hasPermission, hasAnyPermission, isLoadingCatalog } =
     usePermissions();
+  const { markAllAsRead: syncMarkAllAsRead, recentNotifications } =
+    useNotificationsSocket();
   const canViewProjectsList = hasPermission('projects.view_list');
   const canViewProjectDetail = hasPermission('projects.view_detail');
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -248,9 +257,25 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const [headerCountOverride, setHeaderCountOverrideState] = useState<
     number | null
   >(null);
+  const [isNotificationTrayOpen, setIsNotificationTrayOpen] = useState(false);
+  const [notificationSearchValue, setNotificationSearchValue] = useState('');
+  const [notificationFilter, setNotificationFilter] = useState<
+    'all' | 'unread'
+  >('all');
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [items, setItems] = useState<NotificationItem[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  const [loading, setNotificationLoading] = useState(true);
   const projectsQuery = useProjectsQuery(
     canViewProjectsList || canViewProjectDetail,
   );
+
+  // const unreadNotificationsCount = useMemo(
+  //   () => notifications.filter((notification) => !notification.isRead).length,
+  //   [notifications],
+  // );
 
   const visibleNavigationItems = useMemo(() => {
     return navigationItems
@@ -265,6 +290,38 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         label: item.roleLabels?.[currentUserRole] ?? item.label,
       }));
   }, [hasAnyPermission]);
+
+  const desktopSidebarItems = useMemo(
+    () => [
+      ...visibleNavigationItems,
+      {
+        href: '__notifications__',
+        label: 'Notification',
+        icon: (isActive: boolean) => (
+          <NotificationBellIcon isActive={isActive} />
+        ),
+      },
+    ],
+    [visibleNavigationItems],
+  );
+
+  const filteredNotifications = useMemo(() => {
+    const normalizedSearch = notificationSearchValue.trim().toLowerCase();
+
+    return notifications.filter((notification) => {
+      if (notificationFilter === 'unread' && notification.isRead) {
+        return false;
+      }
+
+      if (!normalizedSearch) {
+        return true;
+      }
+
+      const searchValue =
+        `${notification.title} ${notification.message}`.toLowerCase();
+      return searchValue.includes(normalizedSearch);
+    });
+  }, [notificationFilter, notificationSearchValue, notifications]);
 
   useEffect(() => {
     const currentMainRoute = navigationItems.find(
@@ -288,6 +345,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       router.replace(visibleNavigationItems[0].href);
     }
   }, [isAuthenticated, isLoggingOut, pathname, router, visibleNavigationItems]);
+
+  useEffect(() => {
+    setIsNotificationTrayOpen(false);
+  }, [pathname]);
 
   const currentAccount = useMemo(() => {
     const name = user?.fullName || fallbackAccount.name;
@@ -418,6 +479,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     shouldShowNoAccessPage ||
     pathname?.startsWith('/tickets') ||
     pathname?.startsWith('/dashboard') ||
+    pathname?.startsWith('/notifications') ||
     pathname?.startsWith('/settings') ||
     pathname?.startsWith('/users') ||
     pathname?.startsWith('/roles') ||
@@ -432,6 +494,70 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const headerActionLabel = currentHeader.action?.label ?? '';
 
   const isMobile = useIsMobile();
+
+  const load = useCallback(
+    async (p: number, unreadOnlyFlag: boolean) => {
+      if (!isAuthenticated) {
+        setItems([]);
+        setTotal(0);
+        setNotificationLoading(false);
+        return;
+      }
+
+      setNotificationLoading(true);
+      const res = await fetch(
+        `/api/notifications?page=${p}&limit=${PAGE_SIZE}&unreadOnly=${unreadOnlyFlag}`,
+        {
+          cache: 'no-store',
+          credentials: 'include',
+        },
+      );
+      const data = await res.json();
+      setItems(data.items);
+      setTotal(data.total);
+      setNotificationLoading(false);
+    },
+    [isAuthenticated],
+  );
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setItems([]);
+      setTotal(0);
+      setNotificationLoading(false);
+      return;
+    }
+
+    load(page, unreadOnly);
+  }, [isAuthenticated, page, unreadOnly, load]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    if (recentNotifications?.length > 0)
+      setItems((prev) => [...prev, ...recentNotifications]);
+  }, [isAuthenticated, recentNotifications]);
+
+  async function handleMarkAsRead(id: string) {
+    setItems((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
+    );
+    await fetch(`/api/notifications/${id}/read`, {
+      method: 'PATCH',
+    });
+  }
+
+  async function handleMarkAllAsRead() {
+    setItems((prev) => prev?.map((n) => ({ ...n, isRead: true })));
+    syncMarkAllAsRead();
+  }
+
+  const unreadNotificationsCount = useMemo(
+    () => items.filter((notification) => !notification.isRead).length,
+    [items],
+  );
 
   if (isLoggingOut || !isAuthenticated) {
     return null;
@@ -470,29 +596,53 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                 <SidebarNavSkeleton />
               ) : (
                 <nav
-                  className={`flex flex-col w-fit items-center gap-2.5 2xl:gap-5 scrollbar-hide`}
+                  className={`flex flex-col w-fit items-center gap-2.5 2xl:gap-4 scrollbar-hide`}
                 >
-                  {visibleNavigationItems.map((item) => {
-                    const isActive = pathname === item.href;
+                  {desktopSidebarItems.map((item) => {
+                    const isNotificationItem =
+                      item.href === '__notifications__';
+                    const isActive = isNotificationItem
+                      ? isNotificationTrayOpen ||
+                        pathname?.startsWith('/notifications')
+                      : pathname === item.href;
 
                     return (
-                      <Link
+                      <button
                         key={item.href}
-                        href={item.href}
-                        onClick={() => setMobileOpen(false)}
-                        className="flex w-fit flex-col items-center gap-1.5 2xl:gap-2.5 scrollbar-hide"
+                        onClick={() => {
+                          setMobileOpen(false);
+
+                          if (isNotificationItem) {
+                            setIsNotificationTrayOpen(
+                              (currentValue) => !currentValue,
+                            );
+                            return;
+                          }
+
+                          void router.push(item.href);
+                        }}
+                        className="flex w-fit flex-col items-center gap-1 2xl:gap-2 scrollbar-hide"
+                        type="button"
                       >
                         <div
-                          className={`2xl:w-14 2xl:h-14 w-10 h-10 rounded-full flex items-center justify-center transition
+                          className={`2xl:w-13 2xl:h-13 w-10 relative h-10 rounded-full flex items-center justify-center transition
                              [&>svg]:h-5 [&>svg]:w-5
-    2xl:[&>svg]:h-6.5 2xl:[&>svg]:w-6.5
+    2xl:[&>svg]:h-6 2xl:[&>svg]:w-6
                             ${
                               isActive
                                 ? 'bg-linear-to-l from-primary-light to-primary-dark text-white'
                                 : 'bg-white text-gray-700 hover:bg-gray-100 hover:text-primary'
                             }`}
                         >
-                          {item.icon(isActive)}
+                          {item.icon(isActive)}{' '}
+                          {item.label === 'Notification' &&
+                            unreadNotificationsCount > 0 && (
+                              <span className="px-1.5 py-0.5 text-xs text-white -top-1 -inset-e-0.5 bg-red-500 rounded-full absolute">
+                                {unreadNotificationsCount > 99
+                                  ? '99+'
+                                  : unreadNotificationsCount}
+                              </span>
+                            )}
                         </div>
 
                         <p
@@ -500,7 +650,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                         >
                           {item.label}
                         </p>
-                      </Link>
+                      </button>
                     );
                   })}
                 </nav>
@@ -556,7 +706,37 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           </div>
         </aside>
 
-        <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-gray-200 transition-all duration-300 ease-out">
+        <div className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden  bg-gray-200 transition-all duration-300 ease-out">
+          {isNotificationTrayOpen ? (
+            <Portal>
+              <div className="pointer-events-none fixed w-full inset-y-0 top-0 xl:left-22.5 z-200  2xl:left-27.5">
+                <NotificationTray
+                  activeFilter={notificationFilter}
+                  items={items}
+                  onChangeFilter={(value) => {
+                    setNotificationFilter(value === 'all' ? 'all' : 'unread');
+                    setUnreadOnly(value === 'all' ? false : true);
+                  }}
+                  onChangeSearch={setNotificationSearchValue}
+                  onClose={() =>
+                    setIsNotificationTrayOpen(!isNotificationTrayOpen)
+                  }
+                  onMarkAllAsRead={() => {
+                    handleMarkAllAsRead();
+                    setNotificationFilter('all');
+                  }}
+                  onViewAll={() => {
+                    setIsNotificationTrayOpen(!isNotificationTrayOpen);
+                    void router.push('/notifications');
+                  }}
+                  onViewSingle={handleMarkAsRead}
+                  searchValue={notificationSearchValue}
+                  totalCount={items.length}
+                  unreadCount={unreadNotificationsCount}
+                />
+              </div>
+            </Portal>
+          ) : null}
           <MobileTopHeader
             profileMenu={
               <Menu as="div" className="relative z-100">
@@ -603,6 +783,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                 </MenuItems>
               </Menu>
             }
+            onNotificaitonClick={() =>
+              setIsNotificationTrayOpen(!isNotificationTrayOpen)
+            }
+            unreadNotificationsCount={unreadNotificationsCount}
           />
           {!shouldHideHeader ? (
             <header className="sticky top-0 z-20 border-b border-gray-200 bg-white w-full backdrop-blur">

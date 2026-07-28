@@ -206,7 +206,7 @@ export default function TicketsTabs({
 
                         <span
                           className={clsx(
-                            'inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium',
+                            'inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium whitespace-nowrap',
                             ticket.tagClassName,
                           )}
                         >

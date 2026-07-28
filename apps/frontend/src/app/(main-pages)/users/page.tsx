@@ -65,7 +65,6 @@ export default function Page() {
     [projectsQuery.data],
   );
 
-
   const membersQuery = useQuery({
     queryKey: [
       'project-members',
@@ -84,15 +83,9 @@ export default function Page() {
             ? undefined
             : selectedInvitationStatus === 'accepted',
 
-        projectId:
-          selectedProjectId === 'all'
-            ? undefined
-            : selectedProjectId,
+        projectId: selectedProjectId === 'all' ? undefined : selectedProjectId,
 
-        roleId:
-          selectedRoleId === 'all'
-            ? undefined
-            : selectedRoleId,
+        roleId: selectedRoleId === 'all' ? undefined : selectedRoleId,
       }),
 
     enabled: projectsQuery.isSuccess && canViewUsers,
@@ -200,9 +193,7 @@ export default function Page() {
 
   useEffect(() => {
     setHeaderCountOverride(
-      canViewUsers
-        ? membersQuery.data?.summary.totalUsers ?? 0
-        : null,
+      canViewUsers ? (membersQuery.data?.summary.totalUsers ?? 0) : null,
     );
     return () => {
       setHeaderCountOverride(null);
@@ -422,7 +413,7 @@ export default function Page() {
   return (
     <>
       <div className="relative z-100 h-full overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 xl:h-dvh">
-        <div className="flex h-full min-h-0 flex-col gap-3 xl:rounded-3xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
+        <div className="flex h-full min-h-0 flex-col gap-3 xl:rounded-4xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <DashboardSummaryBanner
             imageSrc="/images/UsersIcon.svg"
             imageAlt="Users"
@@ -458,10 +449,11 @@ export default function Page() {
                     {({ open }) => (
                       <>
                         <PopoverButton
-                          className={`flex h-10 shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium outline-none ${open
-                            ? 'border-primary  text-white'
-                            : 'border-gray-200 bg-white text-gray-700'
-                            }`}
+                          className={`flex h-10 shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium outline-none ${
+                            open
+                              ? 'border-primary  text-white'
+                              : 'border-gray-200 bg-white text-gray-700'
+                          }`}
                           aria-label="Open filters"
                         >
                           <FiltersIcon />
@@ -582,13 +574,13 @@ export default function Page() {
                           onEdit={
                             user.isInvitationAccepted && canEditUser
                               ? (selectedUser) =>
-                                setEditingUserId(selectedUser.id)
+                                  setEditingUserId(selectedUser.id)
                               : undefined
                           }
                           onDelete={
                             canDeleteUser
                               ? (selectedUser) =>
-                                setDeletingUserId(selectedUser.id)
+                                  setDeletingUserId(selectedUser.id)
                               : undefined
                           }
                           onResendInvite={
@@ -607,13 +599,17 @@ export default function Page() {
                           : '/images/UsersEmptyIcon.svg'
                       }
                       imageAlt={hasSearch ? 'No search results' : 'No users'}
-                      title={hasSearchOrFilters ? 'No Results Found' : 'No Users Yet'}
+                      title={
+                        hasSearchOrFilters ? 'No Results Found' : 'No Users Yet'
+                      }
                       description={
                         hasSearch
                           ? "We couldn't find matching results for your search. Try a different keyword or clear the filters."
                           : 'Add your first team member to get started.'
                       }
-                      buttonLabel={hasSearchOrFilters ? 'Clear Search' : 'Add User'}
+                      buttonLabel={
+                        hasSearchOrFilters ? 'Clear Search' : 'Add User'
+                      }
                       buttonIcon={
                         hasSearch ? (
                           <SearchIcon fill="#3889FE" />
@@ -751,9 +747,9 @@ async function fetchProjectMembers(
 
   const payload = (await response.json().catch(() => null)) as
     | {
-      items?: ApiProjectMember[];
-      summary?: Partial<MemberSummary>;
-    }
+        items?: ApiProjectMember[];
+        summary?: Partial<MemberSummary>;
+      }
     | { message?: string }
     | null;
 

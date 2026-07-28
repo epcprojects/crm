@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -20,6 +21,7 @@ import { getDateRange } from '@harperhelp/utils';
 import { NotificationsService } from '../notifications/notifications.service';
 import { EmailEventType } from '../notifications/notifications.types';
 import { User } from '../users/entities/user.entity';
+import { NotificationEntityType, NotificationType } from '@harperhelp/types';
 
 @Injectable()
 export class TicketsService {
@@ -171,6 +173,18 @@ export class TicketsService {
             : undefined,
           participants,
         },
+      });
+
+      // Send global notification
+      await this.notificationsService.notifyProjectMembers({
+        projectId: ticket.projectId,
+        actorId: ticket?.reporter?.id || ticket?.assignee?.id || '',
+        type: NotificationType.TICKET_CREATED,
+        entityType: NotificationEntityType.TICKET,
+        entityId: ticket.id,
+        ticketId: ticket.id,
+        title: `New ticket: ${ticket.title}`,
+        message: ticket.ticketRefNo ?? undefined,
       });
     } catch (err) {
       // ignore dispatch errors
@@ -517,11 +531,17 @@ export class TicketsService {
   // }
 
   // ---------------- FIND ONE ----------------
-  async findOne(projectId: string, ticketId: string) {
-    // const project = await this.projectRepo.findOne({
-    //   where: { id: projectId },
-    // });
-    // if (!project) throw new NotFoundException('Project not found');
+  async findOne(projectId: string, ticketId: string, user) {
+    const isMember = await this.projectRepo
+      .createQueryBuilder('p')
+      .innerJoin('p.members', 'm', 'm.id = :userId', { userId: user.id })
+      .where('p.id = :projectId', { projectId })
+      .getExists();
+
+    if (!isMember) {
+      throw new ForbiddenException('You do not have access to this ticket');
+    }
+
     const ticket = await this.ticketRepo
       .createQueryBuilder('t')
       .leftJoinAndSelect('t.project', 'p')
@@ -577,11 +597,96 @@ export class TicketsService {
     // });
     // if (!project) throw new NotFoundException('Project not found');
     const ticket = await this.findEntity(projectId, ticketId);
+    const oldTicket = { ...ticket };
+    const oldStatus = ticket.status;
+    const oldPriority = ticket.priority;
 
     Object.assign(ticket, {
       ...dto,
       updatedBy: userId,
     });
+
+    const recipients = [ticket.reporterId, ticket.assigneeId].filter(
+      (id): id is string => !!id && id !== userId,
+    );
+
+    // STATUS CHANGED
+    if (dto.statusKey && oldStatus && dto.statusKey !== oldStatus.key) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId: ticket.projectId,
+        actorId: userId,
+        type: NotificationType.TICKET_STATUS_CHANGED,
+        entityType: NotificationEntityType.TICKET,
+        entityId: ticket.id,
+        ticketId: ticket.id,
+        title: `"${ticket.title}" moved to ${dto.statusKey}`,
+        message: `${oldStatus.label} to ${dto.statusKey}`,
+        explicitRecipientIds: [...new Set(recipients)],
+      });
+    }
+
+    // PRIORITY CHANGED
+    if (dto.priorityKey && oldPriority && dto.priorityKey !== oldPriority.key) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId: ticket.projectId,
+        actorId: userId,
+        type: NotificationType.TICKET_PRIORITY_CHANGED,
+        entityType: NotificationEntityType.TICKET,
+        entityId: ticket.id,
+        ticketId: ticket.id,
+        title: `"${ticket.title}" priority set to ${dto.priorityKey}`,
+        explicitRecipientIds: [...new Set(recipients)],
+      });
+    }
+
+    // PERSON ASSIGNED
+    if (
+      dto.assigneeId &&
+      oldTicket.assigneeId &&
+      dto.assigneeId !== oldTicket.assigneeId
+    ) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId: ticket.projectId,
+        actorId: userId,
+        type: NotificationType.TICKET_ASSIGNEE_CHANGED,
+        entityType: NotificationEntityType.TICKET,
+        entityId: ticket.id,
+        ticketId: ticket.id,
+        title: dto.assigneeId
+          ? `You were assigned "${ticket.title}"`
+          : `You were unassigned from "${ticket.title}"`,
+        explicitRecipientIds: [...new Set(recipients)],
+      });
+    }
+
+    if (
+      oldTicket.title !== dto.title &&
+      oldTicket.description === dto.description
+    ) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId: ticket.projectId,
+        actorId: userId,
+        type: NotificationType.TICKET_TITLE_CHANGED,
+        entityType: NotificationEntityType.TICKET,
+        entityId: ticket.id,
+        ticketId: ticket.id,
+        title: `Ticket: "${ticket.ticketRefNo}" has been updated.`,
+        explicitRecipientIds: [...new Set(recipients)],
+      });
+    }
+
+    if (oldTicket.description !== dto.description) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId: ticket.projectId,
+        actorId: userId,
+        type: NotificationType.TICKET_DESCRIPTION_CHANGED,
+        entityType: NotificationEntityType.TICKET,
+        entityId: ticket.id,
+        ticketId: ticket.id,
+        title: `Ticket: "${ticket.ticketRefNo}" has been updated.`,
+        explicitRecipientIds: [...new Set(recipients)],
+      });
+    }
 
     return this.ticketRepo.save(ticket);
   }
@@ -593,6 +698,16 @@ export class TicketsService {
     ticket.updatedBy = userId;
 
     await this.ticketRepo.softRemove(ticket);
+
+    await this.notificationsService.notifyProjectMembers({
+      projectId: ticket.projectId,
+      actorId: userId,
+      type: NotificationType.TICKET_DELETED,
+      entityType: NotificationEntityType.TICKET,
+      entityId: ticket.id,
+      ticketId: ticket.id,
+      title: `Ticket: "${ticket.ticketRefNo}" no longer exists.`,
+    });
 
     return { success: true };
   }
@@ -711,6 +826,10 @@ export class TicketsService {
   private async findEntity(projectId: string, ticketId: string) {
     const ticket = await this.ticketRepo.findOne({
       where: { id: ticketId, projectId },
+      relations: {
+        status: true,
+        priority: true,
+      },
     });
 
     if (!ticket) throw new NotFoundException('Ticket not found');

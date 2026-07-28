@@ -41,9 +41,12 @@ export default function PermissionProvider({
   children: ReactNode;
 }) {
   const user = useAppSelector((state) => state.auth.user);
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+  const authStatus = useAppSelector((state) => state.auth.status);
   const catalogQuery = useQuery({
     queryKey: ['permission-catalog'],
     queryFn: fetchPermissionCatalog,
+    enabled: isAuthenticated && authStatus !== 'loading',
   });
 
   const knownPermissions = useMemo(
@@ -104,7 +107,8 @@ export default function PermissionProvider({
     () => ({
       catalog: catalogQuery.data ?? [],
       permissions: userPermissions,
-      isLoadingCatalog: catalogQuery.isLoading,
+      isLoadingCatalog:
+        authStatus === 'loading' || (isAuthenticated && catalogQuery.isLoading),
       hasPermission,
       hasAnyPermission,
       hasAllPermissions,
@@ -112,9 +116,11 @@ export default function PermissionProvider({
     [
       catalogQuery.data,
       catalogQuery.isLoading,
+      authStatus,
       hasAllPermissions,
       hasAnyPermission,
       hasPermission,
+      isAuthenticated,
       userPermissions,
     ],
   );
@@ -163,6 +169,7 @@ async function fetchPermissionCatalog() {
       Accept: 'application/json',
     },
     cache: 'no-store',
+    credentials: 'include',
   });
 
   const payload = (await response.json().catch(() => null)) as

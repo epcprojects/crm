@@ -299,7 +299,6 @@ export default function Page() {
           label: values.label,
           color: values.colorHex,
           sortOrder: statusItems.length,
-
         },
       });
 
@@ -438,12 +437,16 @@ export default function Page() {
       count: 4,
       color: '#F04438',
     },
-  ]
+  ];
 
   return (
     <div className="relative z-100 xl:h-dvh h-full overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0">
-      <div className="flex h-full min-h-0 flex-col space-y-3 xl:rounded-3xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
-        <DashboardSummaryBanner imageSrc={'/images/settingsPageIcon.svg'} title={'Settings'} stats={projectSummaryStats} />
+      <div className="flex h-full min-h-0 flex-col space-y-3 xl:rounded-4xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
+        <DashboardSummaryBanner
+          imageSrc={'/images/settingsPageIcon.svg'}
+          title={'Settings'}
+          stats={projectSummaryStats}
+        />
         <div className="flex xl:flex-row flex-col  items-center gap-3 rounded-[10px] xl:rounded-full border border-warning-200 bg-[#FFFAEB] p-1 text-[#69410A]">
           <span className=" bg-white hidden xl:flex items-center justify-center  drop-shadow rounded-full   h-10 min-w-10 ">
             <TipIcon />
@@ -474,23 +477,22 @@ export default function Page() {
                 emptyTitle="No Statuses Yet"
                 emptyDescription="Create your first ticket status to get started."
                 items={statusItems}
-
                 badgeVariant="status"
                 isLoading={ticketStatusesQuery.isLoading}
                 onAdd={
                   canCreateStatus
                     ? () => {
-                      setStatusModalMode('create');
-                      setEditingStatusId('new-status');
-                    }
+                        setStatusModalMode('create');
+                        setEditingStatusId('new-status');
+                      }
                     : undefined
                 }
                 onEdit={
                   canEditStatus
                     ? (item) => {
-                      setStatusModalMode('edit');
-                      setEditingStatusId(item.id);
-                    }
+                        setStatusModalMode('edit');
+                        setEditingStatusId(item.id);
+                      }
                     : undefined
                 }
                 onDelete={
@@ -507,7 +509,6 @@ export default function Page() {
                 subtitle={`${priorityItems.length} levels · used across all projects`}
                 buttonLabel="Add Priority"
                 items={priorityItems}
-
                 badgeVariant="priority"
                 emptyImageUrl="/images/EmptyPriorityIcon.svg"
                 emptyImageAlt="No priority levels"
@@ -517,17 +518,17 @@ export default function Page() {
                 onAdd={
                   canCreatePriority
                     ? () => {
-                      setPriorityModalMode('create');
-                      setEditingPriorityId('new-priority');
-                    }
+                        setPriorityModalMode('create');
+                        setEditingPriorityId('new-priority');
+                      }
                     : undefined
                 }
                 onEdit={
                   canEditPriority
                     ? (item) => {
-                      setPriorityModalMode('edit');
-                      setEditingPriorityId(item.id);
-                    }
+                        setPriorityModalMode('edit');
+                        setEditingPriorityId(item.id);
+                      }
                     : undefined
                 }
                 onDelete={
@@ -560,10 +561,10 @@ export default function Page() {
               ? mapTicketStatusDetailToFormValues(ticketStatusDetailQuery.data)
               : editingStatus
                 ? {
-                  label: editingStatus.label,
-                  value: editingStatus.value,
-                  colorHex: editingStatus.colorHex ?? '#17B26A',
-                }
+                    label: editingStatus.label,
+                    value: editingStatus.value,
+                    colorHex: editingStatus.colorHex ?? '#17B26A',
+                  }
                 : undefined
             : undefined
         }
@@ -585,14 +586,14 @@ export default function Page() {
           priorityModalMode === 'edit'
             ? ticketPriorityDetailQuery.data
               ? mapTicketPriorityDetailToFormValues(
-                ticketPriorityDetailQuery.data,
-              )
+                  ticketPriorityDetailQuery.data,
+                )
               : editingPriority
                 ? {
-                  label: editingPriority.label,
-                  value: editingPriority.value,
-                  colorHex: editingPriority.colorHex ?? '#875BF7',
-                }
+                    label: editingPriority.label,
+                    value: editingPriority.value,
+                    colorHex: editingPriority.colorHex ?? '#875BF7',
+                  }
                 : undefined
             : undefined
         }
@@ -797,12 +798,12 @@ function mapTicketPriorityDetailToFormValues(
 function isApiTicketStatus(value: unknown): value is ApiTicketStatus {
   return Boolean(
     value &&
-    typeof value === 'object' &&
-    'id' in value &&
-    'key' in value &&
-    'label' in value &&
-    'color' in value &&
-    'sortOrder' in value,
+      typeof value === 'object' &&
+      'id' in value &&
+      'key' in value &&
+      'label' in value &&
+      'color' in value &&
+      'sortOrder' in value,
   );
 }
 
