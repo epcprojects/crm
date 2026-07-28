@@ -5,7 +5,7 @@ import clsx from 'clsx';
 
 type ThemeButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   children: ReactNode;
-  variant?: 'primaryGradient' | 'primary' | 'secondary';
+  variant?: 'primaryGradient' | 'primary' | 'secondary' | 'black';
   size?: 'xs' | 'sm' | 'md' | 'lg';
   icon?: ReactNode;
   fullRounded?: boolean;
@@ -42,6 +42,7 @@ export default function ThemeButton({
             variant === 'secondary',
           'bg-primary-dark text-white border border-primary-dark hover:border-primary hover:bg-primary':
             variant === 'primary',
+            
         },
         className,
       )}

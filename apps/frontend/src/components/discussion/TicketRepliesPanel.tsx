@@ -11,11 +11,17 @@ import {
   ALLOWED_ATTACHMENT_ACCEPT,
   validateAttachments,
 } from '../../lib/attachments';
-import { EmptyRepliesIcon, FileTypePlaceholder, TrashIcon } from '../../../public/icons';
+import {
+  EmptyRepliesIcon,
+  FileTypePlaceholder,
+  ThreedotIcon,
+  TrashIcon,
+} from '../../../public/icons';
 import { getFileUrl } from '../projects/ProjectFilesPanel';
 import ConfirmActionModal from '../modals/ConfirmActionModal';
 import ImageGalleryLightbox from '../ui/ImageGalleryLightbox';
 import type { DiscussionAttachment, DiscussionReply } from './types';
+import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 
 type DiscussionPanelProps = {
   title?: string;
@@ -236,7 +242,7 @@ export default function TicketRepliesPanel({
   return (
     <>
       <section
-        className={`flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white ${className}`}
+        className={`flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl  border border-gray-200 bg-white ${className}`}
       >
         {!hideHeader && (
           <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-3 py-2 sm:py-3 md:px-5">
@@ -376,7 +382,7 @@ export default function TicketRepliesPanel({
                           <ChatStatusIcon status={reply.status} />
                         ) : null}
                       </div>
-                      {reply.message || reply.attachments?.length ? (
+                      {/* {reply.message || reply.attachments?.length ? (
                         <div
                           className={`w-full rounded-xl ${isCurrentUserReply ? 'rounded-tr-none' : 'rounded-tl-none'} ${reply.message && 'space-y-2 border border-gray-200 p-3 shadow-xs'}  bg-white  `}
                         >
@@ -457,6 +463,195 @@ export default function TicketRepliesPanel({
                             </div>
                           ) : null}
                         </div>
+                      ) : null} */}
+                      {reply.message || reply.attachments?.length ? (
+                        <div
+                          className={`group/reply relative w-full rounded-xl bg-white ${
+                            isCurrentUserReply
+                              ? 'rounded-tr-none'
+                              : 'rounded-tl-none'
+                          } ${
+                            reply.message
+                              ? 'space-y-2 border border-gray-200 p-3 shadow-xs'
+                              : ''
+                          }`}
+                        >
+                          <div
+                            className={
+                              onDeleteReply && isCurrentUserReply ? 'pr-7' : ''
+                            }
+                          >
+                            {reply.message ? (
+                              <ExpandableMessageText message={reply.message} />
+                            ) : null}
+
+                            {reply.attachments?.length ? (
+                              <div
+                                className={`grid gap-2 ${
+                                  reply.attachments.length > 1
+                                    ? 'md:grid-cols-2'
+                                    : ''
+                                } ${
+                                  !reply.message && reply.attachments.length > 1
+                                    ? 'rounded-xl border border-gray-200 p-2'
+                                    : ''
+                                } ${
+                                  isCurrentUserReply
+                                    ? 'rounded-tr-none'
+                                    : 'rounded-tl-none'
+                                }`}
+                              >
+                                {reply.attachments.map((attachment) => (
+                                  <div
+                                    key={attachment.id}
+                                    className="flex min-w-0 w-full items-start gap-3 rounded-xl border border-gray-200 bg-white p-2.5 transition hover:bg-gray-50"
+                                  >
+                                    <a
+                                      href={getAttachmentUrl(
+                                        attachment.storageKey,
+                                      )}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="flex min-w-0 flex-1 items-start gap-3"
+                                      onClick={(event) => {
+                                        if (
+                                          !isImageAttachment(
+                                            attachment.extension,
+                                          )
+                                        ) {
+                                          return;
+                                        }
+
+                                        event.preventDefault();
+
+                                        const index =
+                                          conversationImages.findIndex(
+                                            (image) =>
+                                              image.attachmentId ===
+                                              attachment.id,
+                                          );
+
+                                        openGallery(conversationImages, index);
+                                      }}
+                                    >
+                                      {isImageAttachment(
+                                        attachment.extension,
+                                      ) ? (
+                                        <img
+                                          alt={attachment.name}
+                                          className="h-10 w-10 rounded-sm border border-gray-200 object-cover"
+                                          src={getFileUrl(
+                                            attachment.storageKey,
+                                          )}
+                                        />
+                                      ) : (
+                                        <AttachmentFileIcon
+                                          extension={attachment.extension}
+                                        />
+                                      )}
+
+                                      <div className="min-w-0 flex-1">
+                                        <p className="truncate text-sm font-medium text-gray-700">
+                                          {attachment.name}
+                                        </p>
+
+                                        {attachment.sizeLabel ? (
+                                          <p className="text-sm text-gray-500">
+                                            {attachment.sizeLabel}
+                                          </p>
+                                        ) : null}
+                                      </div>
+                                    </a>
+
+                                    {onDeleteAttachment ? (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setAttachmentToDelete(attachment)
+                                        }
+                                        disabled={
+                                          deletingAttachmentId === attachment.id
+                                        }
+                                        className="shrink-0 text-gray-400 transition hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                                        aria-label={`Delete ${attachment.name}`}
+                                      >
+                                        <AttachmentTrashIcon />
+                                      </button>
+                                    ) : null}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
+
+                          {onDeleteReply && isCurrentUserReply ? (
+                            <Menu
+                              as="div"
+                              className="absolute right-1.5 top-1.5 z-10"
+                            >
+                              <MenuButton
+                                type="button"
+                                disabled={deletingReplyId === reply.id}
+                                aria-label="Message actions"
+                                className="
+            flex h-6 w-6 items-center justify-center
+            rounded-md text-gray-500 outline-none
+            transition hover:bg-gray-100
+            hover:text-gray-700
+            disabled:cursor-not-allowed
+            disabled:opacity-50
+            opacity-100
+            sm:opacity-0
+            sm:group-hover/reply:opacity-100
+            sm:data-open:opacity-100
+            sm:focus:opacity-100
+          "
+                              >
+                                <ThreedotIcon />
+                              </MenuButton>
+
+                              <MenuItems
+                                anchor="bottom end"
+                                transition
+                                className="
+            z-100 mt-1 w-32 origin-top-right
+            rounded-lg border border-gray-200
+            bg-white p-1
+            shadow-[0_10px_30px_rgb(0_0_0/0.12)]
+            outline-none transition duration-150
+            data-closed:-translate-y-1
+            data-closed:scale-95
+            data-closed:opacity-0
+          "
+                              >
+                                <MenuItem>
+                                  <button
+                                    type="button"
+                                    disabled={deletingReplyId === reply.id}
+                                    onClick={() => {
+                                      onDeleteReply(reply);
+                                    }}
+                                    className="
+                flex w-full items-center gap-2
+                rounded-md px-2.5 py-2
+                text-left text-xs font-medium
+                text-red-500 outline-none transition
+                data-focus:bg-red-50
+                disabled:cursor-not-allowed
+                disabled:opacity-50
+              "
+                                  >
+                                    <TrashIcon width="16" height="16" />
+
+                                    {deletingReplyId === reply.id
+                                      ? 'Deleting...'
+                                      : 'Delete'}
+                                  </button>
+                                </MenuItem>
+                              </MenuItems>
+                            </Menu>
+                          ) : null}
+                        </div>
                       ) : null}
 
                       {showReplyMeta ||
@@ -475,7 +670,7 @@ export default function TicketRepliesPanel({
                                 : 'Reply'}
                             </button>
                           ) : null}
-                          {onDeleteReply && isCurrentUserReply ? (
+                          {/* {onDeleteReply && isCurrentUserReply ? (
                             <button
                               type="button"
                               onClick={() => onDeleteReply(reply)}
@@ -485,7 +680,7 @@ export default function TicketRepliesPanel({
                               <AttachmentTrashIcon />
                               Delete
                             </button>
-                          ) : null}
+                          ) : null} */}
                         </div>
                       ) : null}
                     </div>
@@ -576,43 +771,48 @@ export default function TicketRepliesPanel({
                 <p className="mt-2 text-xs text-red-600">{attachmentError}</p>
               ) : null}
 
-              <div className={`flex items-end ${attachments.length===0 ?"justify-end":"justify-between"} gap-3`}>
-                 {attachments.length ? (
-                <div className="mt-3 flex items-center max-h-32 flex-wrap min-h-0 grid-cols-1 gap-2 overflow-y-auto overscroll-contain pr-1 scrollbar-thin sm:grid-cols-2 lg:grid-cols-3">
-                  {attachments.map((attachment) => (
-                    <div
-                      key={`${attachment.name}-${attachment.size}-${attachment.lastModified}`}
-                      className="flex min-w-0 items-center gap-3 max-w-48 rounded-lg border border-gray-200 bg-gray-50 py-0.5 pr-2 pl-0.5"
-                    >
-                      <LocalAttachmentPreview file={attachment} />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-gray-700">
-                          {attachment.name}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {formatAttachmentSize(attachment.size)}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const nextAttachments = attachments.filter(
-                            (file) => file !== attachment,
-                          );
-                          setAttachments(nextAttachments);
-                          if (!nextAttachments.length && fileInputRef.current) {
-                            fileInputRef.current.value = '';
-                          }
-                        }}
-                        disabled={isSubmittingReply}
-                        className="text-xs font-medium text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+              <div
+                className={`flex items-end ${attachments.length === 0 ? 'justify-end' : 'justify-between'} gap-3`}
+              >
+                {attachments.length ? (
+                  <div className="mt-3 flex items-center max-h-32 flex-wrap min-h-0 grid-cols-1 gap-2 overflow-y-auto overscroll-contain pr-1 scrollbar-thin sm:grid-cols-2 lg:grid-cols-3">
+                    {attachments.map((attachment) => (
+                      <div
+                        key={`${attachment.name}-${attachment.size}-${attachment.lastModified}`}
+                        className="flex min-w-0 items-center gap-3 max-w-48 rounded-lg border border-gray-200 bg-gray-50 py-0.5 pr-2 pl-0.5"
                       >
-                        <TrashIcon width="16" height="16" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
+                        <LocalAttachmentPreview file={attachment} />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-gray-700">
+                            {attachment.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {formatAttachmentSize(attachment.size)}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nextAttachments = attachments.filter(
+                              (file) => file !== attachment,
+                            );
+                            setAttachments(nextAttachments);
+                            if (
+                              !nextAttachments.length &&
+                              fileInputRef.current
+                            ) {
+                              fileInputRef.current.value = '';
+                            }
+                          }}
+                          disabled={isSubmittingReply}
+                          className="text-xs font-medium text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <TrashIcon width="16" height="16" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
                 {/* <div className="text-xs text-gray-500">
                   {canAttachFile ? ALLOWED_ATTACHMENT_HELPER_TEXT : null}
                 </div> */}

@@ -664,7 +664,7 @@ export default function ProjectDetailPage() {
   if (!project) {
     return (
       <div className="space-y-4 mt-8">
-        <div className="rounded-[20px] border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+        <div className="rounded-3xl border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
           <EmptyState
             imageUrl="/images/EmptyProjectIcon.svg"
             imageAlt="Project not found"
@@ -736,7 +736,7 @@ export default function ProjectDetailPage() {
   return (
     <>
       <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 py-4">
-        <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden xl:rounded-4xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
+        <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <DashboardSummaryBanner
             imageSrc="/images/bannerBackBtn.svg"
             onBack={() => router.back()}
@@ -747,7 +747,7 @@ export default function ProjectDetailPage() {
             badgeClr={project.colorHex}
           />
 
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden rounded-[20px] bg-white px-4 pt-2 md:pt-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:px-5">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden rounded-xl bg-white px-4 pt-2 md:pt-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:px-5">
             {/* <section className="w-full shrink-0">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
@@ -1495,7 +1495,7 @@ function ProjectDetailSkeleton({ onBack }: { onBack: () => void }) {
         </div> */}
 
         {/* Project detail card */}
-        <div className="flex min-h-0 min-w-0 flex-1 animate-pulse flex-col gap-4 overflow-hidden rounded-[20px] bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
+        <div className="flex min-h-0 min-w-0 flex-1 animate-pulse flex-col gap-4 overflow-hidden rounded-3xl bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
           {/* Project summary */}
           <section className="w-full shrink-0">
             <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">

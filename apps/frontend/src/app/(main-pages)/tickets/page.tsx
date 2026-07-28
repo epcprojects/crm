@@ -720,7 +720,7 @@ export default function Page() {
   return (
     <>
       <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 py-4">
-        <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden xl:rounded-4xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
+        <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <div className="shrink-0">
             <DashboardSummaryBanner
               imageSrc="/images/TicketsIcon.svg"
@@ -729,7 +729,7 @@ export default function Page() {
               stats={ticketSummaryStats}
             />
           </div>
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[10px] xl:rounded-[20px] bg-white p-3 md:p-4">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-white p-3 md:p-4">
             <PermissionGuard
               permission="tickets.view_list"
               fallback={
@@ -912,7 +912,7 @@ export default function Page() {
                             className="rounded-full"
                             variant="primaryGradient"
                             icon={
-                              <PlusIcon fill="#3889FE" width="20" height="20" />
+                              <PlusIcon fill="#000000" width="20" height="20" />
                             }
                             onClick={() => setCreateTicketOpen(true)}
                           >

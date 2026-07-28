@@ -2,7 +2,12 @@
 import clsx from 'clsx';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import {
+  useParams,
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from 'next/navigation';
 import DOMPurify from 'isomorphic-dompurify';
 import TicketRepliesPanel from '../../../../components/discussion/TicketRepliesPanel';
 import AppModal, {
@@ -56,7 +61,7 @@ type GalleryImage = {
   alt: string;
 };
 
-type ConversationView = 'replies' | 'internal-chat';
+// type ConversationView = 'replies' | 'internal-chat';
 type TicketAttachmentToDelete = {
   attachmentId: string;
   projectFileId: string;
@@ -67,9 +72,11 @@ export default function TicketDetailPage() {
   const params = useParams<{ ticketId: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const queryClient = useQueryClient();
   const ticketId = String(params?.ticketId ?? '');
   const projectId = searchParams.get('projectId') ?? '';
+
   const currentUserId = useAppSelector((state) => state.auth.user?.id ?? '');
   const userType = useAppSelector((state) => state.auth.user?.userType);
   const isExternalUser = userType === 'EXTERNAL';
@@ -252,12 +259,29 @@ export default function TicketDetailPage() {
   const ticket = ticketDetailQuery.data ?? fallbackTicket;
   const [chatDrawerChannel, setChatDrawerChannel] =
     useState<ChatChannel | null>(null);
-  const [conversationView, setConversationView] =
-    useState<ConversationView>('replies');
+  // const [conversationView, setConversationView] =
+  //   useState<ConversationView>('replies');
   const [hasUnreadInternalChat, setHasUnreadInternalChat] = useState(false);
   const [hasUnreadExternalChat, setHasUnreadExternalChat] = useState(false);
   const isChatDrawerOpen = Boolean(chatDrawerChannel);
-  const isInternalChatActive = conversationView === 'internal-chat';
+  // const isInternalChatActive = conversationView === 'internal-chat';
+  const isInternalChatActive =
+    searchParams.get('internal') === 'true' && canViewInternalChatBtn;
+  const updateInternalChatParam = (isActive: boolean) => {
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+
+    if (isActive) {
+      nextSearchParams.set('internal', 'true');
+    } else {
+      nextSearchParams.delete('internal');
+    }
+
+    const nextQuery = nextSearchParams.toString();
+
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
+      scroll: false,
+    });
+  };
   const {
     messages: internalChatMessages,
     loading: internalChatLoading,
@@ -911,19 +935,34 @@ export default function TicketDetailPage() {
     };
   }, []);
 
-  const handleOpenChatDrawer = (channel: ChatChannel) => {
-    if (channel === 'internal') {
-      setHasUnreadInternalChat(false);
-      setConversationView('internal-chat');
-      return;
-    }
+  // const handleOpenChatDrawer = (channel: ChatChannel) => {
+  //   if (channel === 'internal') {
+  //     setHasUnreadInternalChat(false);
+  //     setConversationView('internal-chat');
+  //     return;
+  //   }
 
-    if (channel === 'external') {
-      setHasUnreadExternalChat(false);
-    }
+  //   if (channel === 'external') {
+  //     setHasUnreadExternalChat(false);
+  //   }
 
-    setChatDrawerChannel(channel);
-  };
+  //   setChatDrawerChannel(channel);
+  // };
+  const handleOpenChatDrawer = (
+  channel: ChatChannel,
+) => {
+  if (channel === 'internal') {
+    setHasUnreadInternalChat(false);
+    updateInternalChatParam(true);
+    return;
+  }
+
+  if (channel === 'external') {
+    setHasUnreadExternalChat(false);
+  }
+
+  setChatDrawerChannel(channel);
+};
 
   const openGallery = (images: GalleryImage[], index: number) => {
     if (!images.length || index < 0) {
@@ -964,7 +1003,7 @@ export default function TicketDetailPage() {
   if (!canViewTicketDetail) {
     return (
       <div className="space-y-4 mt-8">
-        <div className="rounded-[20px] border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+        <div className="rounded-3xl border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
           <EmptyState
             imageUrl="/images/RecentTicketEmpty.svg"
             imageAlt="Tickets detail not found"
@@ -985,7 +1024,7 @@ export default function TicketDetailPage() {
   if (!ticket) {
     return (
       <div className="space-y-4 mt-8">
-        <div className="rounded-[20px] border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+        <div className="rounded-3xl border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
           <EmptyState
             imageUrl="/images/RecentTicketEmpty.svg"
             imageAlt="Tickets detail not found"
@@ -1394,8 +1433,8 @@ export default function TicketDetailPage() {
 
   return (
     <div className="relative z-100 h-full xl:h-dvh overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0">
-      <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden  xl:rounded-4xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
-        <div className="relative flex w-full flex-col gap-2 xl:gap-3 overflow-hidden rounded-[10px] bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat px-4 py-4 xl:flex-row xl:items-center xl:gap-4 xl:rounded-[20px] xl:px-7.5 xl:py-6">
+      <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden  xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
+        <div className="relative flex w-full flex-col gap-2 xl:gap-3 overflow-hidden rounded-xl bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat px-4 py-4 xl:flex-row xl:items-center xl:gap-4  xl:px-7.5 xl:py-6">
           {/* Background overlay */}
           <div
             className="absolute inset-0 bg-black/30 z-10"
@@ -1489,7 +1528,7 @@ export default function TicketDetailPage() {
         <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain  scrollbar-hide xl:overflow-hidden ">
           <div className="grid h-auto min-h-0 min-w-0 grid-cols-1 gap-4 overflow-visible xl:h-full xl:grid-cols-12 xl:grid-rows-[minmax(0,1fr)] xl:overflow-hidden">
             <div className="flex min-w-0 flex-col space-y-4 xl:col-span-9">
-              <section className="rounded-xl border border-gray-200 bg-white p-3 sm:rounded-2xl md:p-5">
+              <section className="rounded-xl border border-gray-200 bg-white p-3  md:p-5">
                 <div className=" relative">
                   <div className="mb-2 flex absolute top-0 end-0 items-start justify-end">
                     {canEditTicketContent ? (
@@ -1587,7 +1626,6 @@ export default function TicketDetailPage() {
                         maxLength={MAX_DESCRIPTION_LENGTH}
                         disabled={updateTicketMutation.isPending}
                         showCharacterCount
-                        
                       />
                     </div>
                   ) : (
@@ -1642,10 +1680,13 @@ export default function TicketDetailPage() {
                     headerAction={
                       canViewInternalChatBtn ? (
                         <label className="inline-flex items-center gap-2 sborder border-gray-200">
+                          {hasUnreadInternalChat && !isInternalChatActive ? (
+                            <span className=" h-2.5 w-2.5 rounded-full border border-white bg-green-500 animate-pulse" />
+                          ) : null}
                           <span className="text-xs font-medium text-gray-600">
                             Internal Chat
                           </span>
-                          <button
+                          {/* <button
                             type="button"
                             role="switch"
                             aria-checked={isInternalChatActive}
@@ -1675,9 +1716,34 @@ export default function TicketDetailPage() {
                                   : 'translate-x-1'
                               }`}
                             />
-                            {hasUnreadInternalChat && !isInternalChatActive ? (
-                              <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border border-white bg-green-500" />
-                            ) : null}
+                          </button> */}
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={isInternalChatActive}
+                            aria-label="Toggle internal chat"
+                            onClick={() => {
+                              const nextIsInternalChat = !isInternalChatActive;
+
+                              updateInternalChatParam(nextIsInternalChat);
+
+                              if (nextIsInternalChat) {
+                                setHasUnreadInternalChat(false);
+                              }
+                            }}
+                            className={`relative inline-flex h-6 w-10 items-center rounded-full transition ${
+                              isInternalChatActive
+                                ? 'bg-[#3B82F6]'
+                                : 'bg-gray-300'
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                                isInternalChatActive
+                                  ? 'translate-x-5'
+                                  : 'translate-x-1'
+                              }`}
+                            />
                           </button>
                         </label>
                       ) : null
@@ -1750,9 +1816,9 @@ export default function TicketDetailPage() {
                 ) : null}
               </div>
             </div>
-            <aside className="min-h-0 min-w-0 space-y-4 overflow-y-auto scrollbar-hide rounded-2xl bg-white p-3 xl:col-span-3 xl:h-full">
+            <aside className="min-h-0 min-w-0 space-y-4 overflow-y-auto scrollbar-hide  xl:col-span-3 xl:h-full">
               {!isExternalUser ? (
-                <section className="rounded-xl border border-gray-200 bg-white sm:rounded-2xl">
+                <section className="rounded-xl border border-gray-200 bg-white">
                   <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 md:text-base">
                     Status & Priority
                   </h3>
@@ -1807,7 +1873,7 @@ export default function TicketDetailPage() {
                 </section>
               ) : null}
 
-              <section className="rounded-xl border border-gray-200 bg-white sm:rounded-2xl">
+              <section className="rounded-xl border border-gray-200 bg-white ">
                 <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 sm:px-4 md:text-base">
                   Attachments
                 </h3>
@@ -1889,7 +1955,7 @@ export default function TicketDetailPage() {
                                 }}
                                 className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-gray-700 outline-none transition data-focus:bg-gray-50"
                               >
-                                <EyeOpenedIcon />
+                                <EyeOpenedIcon fill="#374151" />
                                 View
                               </button>
                             </MenuItem>
@@ -1946,7 +2012,7 @@ export default function TicketDetailPage() {
               </section>
 
               {!isExternalUser ? (
-                <section className="rounded-xl border border-gray-200 bg-white sm:rounded-2xl">
+                <section className="rounded-xl border border-gray-200 bg-white ">
                   <div className="flex items-center justify-between border-b border-gray-200 px-3 py-3 sm:px-4">
                     <h3 className="text-sm font-semibold text-gray-900 md:text-base">
                       Due Date
@@ -1977,12 +2043,12 @@ export default function TicketDetailPage() {
               ) : null}
 
               {!isExternalUser ? (
-                <section className="rounded-2xl border border-gray-200 bg-white">
+                <section className="rounded-xl border border-gray-200 overflow-hidden bg-white">
                   <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 sm:px-4 md:text-base">
                     People
                   </h3>
 
-                  <div className="space-y-4 p-3 sm:p-4">
+                  <div>
                     <PersonCard person={ticket.reporter} />
 
                     {ticket.assigneeDetail ? (
@@ -3103,7 +3169,7 @@ function SkeletonSidebarSection({ fields }: { fields: number }) {
 
 function PersonCard({ person }: { person: TicketPerson }) {
   return (
-    <div className="flex items-center gap-3 border-b border-purple-200 pb-4 last:border-b-0 last:pb-0">
+    <div className="flex items-center gap-3 border-b border-gray-200 py-3 px-4 ">
       <span className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-purple-100 text-sm md:text-base font-semibold text-purple-700">
         {person.initials}
       </span>

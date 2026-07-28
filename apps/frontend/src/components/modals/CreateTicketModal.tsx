@@ -291,6 +291,7 @@ export default function CreateTicketModal({
           <ThemeInput
             label="Title"
             required
+            autoFocus
             name="title"
             value={formik.values.title}
             maxLength={MAX_TITLE_LENGTH}
