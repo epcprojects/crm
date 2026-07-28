@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { useEffect, useRef } from 'react';
@@ -12,7 +13,8 @@ type SocketToken = {
 type Props = {
   projectId: string;
   ticketId: string;
-  token: SocketToken;
+  token: SocketToken | null;
+  enabled?: boolean;
 
   onCreated?: (reply: any) => void;
   onUpdated?: (reply: any) => void;
@@ -24,6 +26,7 @@ export function useTicketReplies({
   projectId,
   ticketId,
   token,
+  enabled = true,
   onCreated,
   onUpdated,
   onDeleted,
@@ -32,6 +35,10 @@ export function useTicketReplies({
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
+    if (!enabled || !projectId || !ticketId || !token) {
+      return;
+    }
+
     const socket = getSocket('ticket-replies', token);
 
     socketRef.current = socket;
@@ -45,10 +52,34 @@ export function useTicketReplies({
 
     socket.on('connect', join);
 
-    socket.on('reply_created', onCreated ?? (() => {}));
-    socket.on('reply_updated', onUpdated ?? (() => {}));
-    socket.on('reply_deleted', onDeleted ?? (() => {}));
-    socket.on('typing', onTyping ?? (() => {}));
+    socket.on(
+      'reply_created',
+      onCreated ??
+        (() => {
+          '';
+        }),
+    );
+    socket.on(
+      'reply_updated',
+      onUpdated ??
+        (() => {
+          '';
+        }),
+    );
+    socket.on(
+      'reply_deleted',
+      onDeleted ??
+        (() => {
+          '';
+        }),
+    );
+    socket.on(
+      'typing',
+      onTyping ??
+        (() => {
+          '';
+        }),
+    );
 
     if (socket.connected) {
       join();
@@ -66,7 +97,16 @@ export function useTicketReplies({
       socket.off('reply_deleted', onDeleted);
       socket.off('typing', onTyping);
     };
-  }, [projectId, ticketId]);
+  }, [
+    enabled,
+    onCreated,
+    onDeleted,
+    onTyping,
+    onUpdated,
+    projectId,
+    ticketId,
+    token,
+  ]);
 
   return {
     setTyping(isTyping: boolean) {
