@@ -1,8 +1,9 @@
 'use client';
-
+import clsx from 'clsx';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import DOMPurify from 'isomorphic-dompurify';
 import TicketRepliesPanel from '../../../../components/discussion/TicketRepliesPanel';
 import AppModal, {
   ModalPosition,
@@ -45,7 +46,9 @@ import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { NotificationItem } from '@harperhelp/interfaces';
 import { NotificationEntityType } from '@harperhelp/types';
 import { eventEmitter } from '../../../../lib/event-emitter';
-
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import RichTextEditor from 'apps/frontend/src/components/RichTextEditor';
+const MAX_DESCRIPTION_LENGTH = 4000;
 type GalleryImage = {
   attachmentId: string;
   storageKey?: string;
@@ -273,8 +276,10 @@ export default function TicketDetailPage() {
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [shouldShowDescriptionToggle, setShouldShowDescriptionToggle] =
     useState(false);
-  const [descriptionPreviewText, setDescriptionPreviewText] = useState('');
-  const [descriptionRemainingText, setDescriptionRemainingText] = useState('');
+  // const [descriptionPreviewText, setDescriptionPreviewText] = useState('');
+  // const [descriptionRemainingText, setDescriptionRemainingText] = useState('');
+  const descriptionContentRef = useRef<HTMLDivElement | null>(null);
+
   const [isSendingChatMessage, setIsSendingChatMessage] = useState(false);
   const [deletingChatMessageId, setDeletingChatMessageId] = useState('');
   const [chatMessagePendingDelete, setChatMessagePendingDelete] = useState<{
@@ -385,6 +390,52 @@ export default function TicketDetailPage() {
       }),
     ]);
   };
+  const sanitizedDescription = useMemo(() => {
+    const description = ticket?.description?.trim() ?? '';
+
+    if (!description) {
+      return '';
+    }
+
+    return DOMPurify.sanitize(description, {
+      ALLOWED_TAGS: [
+        'p',
+        'br',
+        'h1',
+        'h2',
+        'h3',
+        'strong',
+        'b',
+        'em',
+        'i',
+        'u',
+        's',
+        'strike',
+        'code',
+        'pre',
+        'blockquote',
+        'ul',
+        'ol',
+        'li',
+        'hr',
+        'a',
+      ],
+
+      ALLOWED_ATTR: ['href', 'target', 'rel'],
+    });
+  }, [ticket?.description]);
+  const hasDescriptionContent = useMemo(() => {
+    if (!sanitizedDescription) {
+      return false;
+    }
+
+    const parsedDocument = new DOMParser().parseFromString(
+      sanitizedDescription,
+      'text/html',
+    );
+
+    return Boolean(parsedDocument.body.textContent?.trim());
+  }, [sanitizedDescription]);
 
   useEffect(() => {
     if (!ticket) {
@@ -472,88 +523,45 @@ export default function TicketDetailPage() {
   // }, [ticket?.description]);
 
   useEffect(() => {
-    if (isEditingDescription) {
-      return;
-    }
+    setIsDescriptionExpanded(false);
+  }, [sanitizedDescription]);
 
-    const description = ticket?.description?.trim() ?? '';
-    const measurementElement = descriptionMeasureRef.current;
-    const overflowElement = descriptionOverflowRef.current;
+  useEffect(() => {
+    const descriptionElement = descriptionContentRef.current;
 
-    if (!description || !measurementElement || !overflowElement) {
+    if (!descriptionElement || !hasDescriptionContent || isEditingDescription) {
       setShouldShowDescriptionToggle(false);
-      setDescriptionPreviewText(description);
-      setDescriptionRemainingText('');
       return;
     }
 
-    const measureDescription = () => {
-      const computedStyle = window.getComputedStyle(measurementElement);
-      const lineHeight = Number.parseFloat(computedStyle.lineHeight);
-
-      if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
-        setShouldShowDescriptionToggle(false);
-        setDescriptionPreviewText(description);
-        setDescriptionRemainingText('');
+    const measureOverflow = () => {
+      if (isDescriptionExpanded) {
         return;
       }
 
-      overflowElement.textContent = description;
-
-      const maxHeight = lineHeight * 2;
-      const fullHeight = overflowElement.scrollHeight;
-
-      if (fullHeight <= maxHeight + 1) {
-        setShouldShowDescriptionToggle(false);
-        setDescriptionPreviewText(description);
-        setDescriptionRemainingText('');
-        return;
-      }
-
-      const toggleLabel = ' read more';
-      let low = 0;
-      let high = description.length;
-      let bestFit = '';
-
-      while (low <= high) {
-        const middle = Math.floor((low + high) / 2);
-
-        const candidate = `${description
-          .slice(0, middle)
-          .trimEnd()}${toggleLabel}`;
-
-        overflowElement.textContent = candidate;
-
-        if (overflowElement.scrollHeight <= maxHeight + 1) {
-          bestFit = description.slice(0, middle).trimEnd();
-          low = middle + 1;
-        } else {
-          high = middle - 1;
-        }
-      }
-
-      const previewText = bestFit || description;
-
-      setShouldShowDescriptionToggle(true);
-      setDescriptionPreviewText(previewText);
-      setDescriptionRemainingText(description.slice(previewText.length));
+      setShouldShowDescriptionToggle(
+        descriptionElement.scrollHeight > descriptionElement.clientHeight + 1,
+      );
     };
 
-    const animationFrameId = window.requestAnimationFrame(() => {
-      measureDescription();
-    });
+    const animationFrameId = window.requestAnimationFrame(measureOverflow);
 
     const resizeObserver = new ResizeObserver(() => {
-      measureDescription();
+      measureOverflow();
     });
 
-    resizeObserver.observe(measurementElement);
+    resizeObserver.observe(descriptionElement);
 
     return () => {
       window.cancelAnimationFrame(animationFrameId);
       resizeObserver.disconnect();
     };
-  }, [ticket?.description, isEditingDescription]);
+  }, [
+    sanitizedDescription,
+    hasDescriptionContent,
+    isDescriptionExpanded,
+    isEditingDescription,
+  ]);
 
   useEffect(() => {
     if (!projectId || !ticketId || !currentUserId) {
@@ -1399,80 +1407,79 @@ export default function TicketDetailPage() {
                   )}
 
                   {isEditingDescription ? (
-                    <div className="mt-4">
-                      <textarea
-                        value={descriptionDraft}
-                        autoFocus
-                        rows={5}
-                        disabled={updateTicketMutation.isPending}
-                        onChange={(event) =>
-                          setDescriptionDraft(event.target.value)
-                        }
-                        onKeyDown={(event) => {
-                          if (
-                            (event.ctrlKey || event.metaKey) &&
-                            event.key === 'Enter'
-                          ) {
-                            event.preventDefault();
-                            void handleSaveTicketContent();
-                          }
+                    // <div className="mt-4">
+                    //   <textarea
+                    //     value={descriptionDraft}
+                    //     autoFocus
+                    //     rows={5}
+                    //     disabled={updateTicketMutation.isPending}
+                    //     onChange={(event) =>
+                    //       setDescriptionDraft(event.target.value)
+                    //     }
+                    //     onKeyDown={(event) => {
+                    //       if (
+                    //         (event.ctrlKey || event.metaKey) &&
+                    //         event.key === 'Enter'
+                    //       ) {
+                    //         event.preventDefault();
+                    //         void handleSaveTicketContent();
+                    //       }
 
-                          if (event.key === 'Escape') {
-                            handleCancelEditingContent();
-                          }
-                        }}
-                        className="w-full rounded-lg border scrollbar-hide border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none"
+                    //       if (event.key === 'Escape') {
+                    //         handleCancelEditingContent();
+                    //       }
+                    //     }}
+                    //     className="w-full rounded-lg border scrollbar-hide border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none"
+                    //   />
+                    // </div>
+                    <div className="mt-4">
+                      <RichTextEditor
+                        value={descriptionDraft}
+                        onChange={setDescriptionDraft}
+                        placeholder="Describe the issue in detail..."
+                        maxLength={MAX_DESCRIPTION_LENGTH}
+                        disabled={updateTicketMutation.isPending}
+                        showCharacterCount
+                        
                       />
                     </div>
                   ) : (
-                    <div className="mt-2 block w-full text-left">
-                      <p
-                        ref={descriptionMeasureRef}
-                        className="text-sm text-gray-700"
-                      >
-                        {ticket.description ? (
-                          <>
-                            {descriptionPreviewText}
-                            {isDescriptionExpanded
-                              ? descriptionRemainingText
-                              : null}
-                            {!isDescriptionExpanded &&
-                            shouldShowDescriptionToggle ? (
-                              <span
-                                className="font-medium cursor-pointer text-[#8A38F5]"
-                                onClick={(event) => {
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                  setIsDescriptionExpanded(
-                                    (previous) => !previous,
-                                  );
-                                }}
-                              >
-                                ... read more
-                              </span>
-                            ) : null}
-                          </>
-                        ) : (
-                          'Add description'
-                        )}
-                      </p>
-                      {isDescriptionExpanded && shouldShowDescriptionToggle ? (
-                        <span
-                          className="mt-1 cursor-pointer inline-flex text-sm font-medium text-[#8A38F5]"
-                          onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            setIsDescriptionExpanded(false);
-                          }}
-                        >
-                          read less
-                        </span>
-                      ) : null}
-                      <p
-                        ref={descriptionOverflowRef}
-                        aria-hidden="true"
-                        className="pointer-events-none invisible absolute left-0 top-0 -z-10 w-full text-sm text-gray-700"
-                      />
+                    <div className="mt-2 w-full text-left">
+                      {hasDescriptionContent ? (
+                        <>
+                          <div
+                            ref={descriptionContentRef}
+                            className={clsx(
+                              'rich-text-content text-sm text-gray-700',
+                              !isDescriptionExpanded && 'line-clamp-2',
+                            )}
+                            dangerouslySetInnerHTML={{
+                              __html: sanitizedDescription,
+                            }}
+                          />
+
+                          {shouldShowDescriptionToggle ? (
+                            <button
+                              type="button"
+                              className="mt-1 inline-flex cursor-pointer text-sm font-medium text-[#8A38F5]"
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+
+                                setIsDescriptionExpanded(
+                                  (previous) => !previous,
+                                );
+                              }}
+                            >
+                              {isDescriptionExpanded
+                                ? 'read less'
+                                : '... read more'}
+                            </button>
+                          ) : null}
+                        </>
+                      ) : (
+                        <p className="text-sm text-gray-700">Add description</p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1688,7 +1695,6 @@ export default function TicketDetailPage() {
                           </MenuItems>
                         </Menu>
                       </div>
-                      
                     ))
                   ) : (
                     <div className="py-2">
@@ -1711,11 +1717,11 @@ export default function TicketDetailPage() {
                     </h3>
                   </div>
 
-                  <div className="p-3 sm:p-4">
+                  <div className="p-3 sm:p-4 grid md:grid-cols-2 items-center gap-4">
                     {/* <p className="mb-2 text-xs font-medium tracking-wide text-gray-500">
                       {selectedDueDate ? 'Select date' : 'No due date'}
                     </p> */}
-
+                    <p className="text-sm font-normal text-black">Overdue</p>
                     <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2.5">
                       <input
                         type="date"

@@ -1,9 +1,9 @@
 'use client';
 
 import { Tab, TabGroup, TabList } from '@headlessui/react';
-import { CrossIcon, SearchIcon } from '../../../public/icons';
+import { CloseIcon, CrossIcon, SearchIcon } from '../../../public/icons';
 import EmptyState from '../EmptyState';
-import { NotificationItem } from '../../../../../libs/shared/interfaces/src/lib/notification.interfaces';
+import { NotificationItem } from '@harperhelp/interfaces';
 import { useRouter } from 'next/navigation';
 
 type NotificationTrayProps = {
@@ -69,14 +69,32 @@ export default function NotificationTray({
 
         <div className="flex items-center gap-2  px-2.5 sm:px-4">
           <div className="flex h-9 flex-1 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3">
-            <SearchIcon fill="#98A2B3" />
+            <span className="shrink-0">
+              <SearchIcon fill="#98A2B3" />
+            </span>
+
             <input
               type="text"
               value={searchValue}
               onChange={(event) => onChangeSearch(event.target.value)}
               placeholder="Search..."
-              className="w-full bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400"
+              className="min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400"
             />
+
+            <button
+              type="button"
+              onClick={() => onChangeSearch('')}
+              disabled={!searchValue}
+              tabIndex={searchValue ? 0 : -1}
+              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
+                searchValue
+                  ? 'visible hover:bg-gray-100'
+                  : 'pointer-events-none invisible'
+              }`}
+              aria-label="Clear notification search"
+            >
+              <CloseIcon width="15" height="15" />
+            </button>
           </div>
         </div>
 
