@@ -262,7 +262,6 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const [notificationFilter, setNotificationFilter] = useState<
     'all' | 'unread'
   >('all');
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -304,24 +303,6 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     ],
     [visibleNavigationItems],
   );
-
-  const filteredNotifications = useMemo(() => {
-    const normalizedSearch = notificationSearchValue.trim().toLowerCase();
-
-    return notifications.filter((notification) => {
-      if (notificationFilter === 'unread' && notification.isRead) {
-        return false;
-      }
-
-      if (!normalizedSearch) {
-        return true;
-      }
-
-      const searchValue =
-        `${notification.title} ${notification.message}`.toLowerCase();
-      return searchValue.includes(normalizedSearch);
-    });
-  }, [notificationFilter, notificationSearchValue, notifications]);
 
   useEffect(() => {
     const currentMainRoute = navigationItems.find(
@@ -494,9 +475,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const headerActionLabel = currentHeader.action?.label ?? '';
 
   const isMobile = useIsMobile();
+  const hasNotificationSearch = notificationSearchValue.trim().length > 0;
 
   const load = useCallback(
-    async (p: number, unreadOnlyFlag: boolean) => {
+    async (p: number, unreadOnlyFlag: boolean, searchTerm: string) => {
       if (!isAuthenticated) {
         setItems([]);
         setTotal(0);
@@ -505,6 +487,31 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       }
 
       setNotificationLoading(true);
+
+      const normalizedSearch = searchTerm.trim();
+
+      if (normalizedSearch) {
+        const searchParams = new URLSearchParams({
+          query: normalizedSearch,
+          limit: String(PAGE_SIZE),
+          offset: String((p - 1) * PAGE_SIZE),
+        });
+
+        const res = await fetch(`/api/notifications/search?${searchParams}`, {
+          cache: 'no-store',
+          credentials: 'include',
+        });
+        const data = (await res.json().catch(() => [])) as NotificationItem[];
+        const nextItems = unreadOnlyFlag
+          ? data.filter((item) => !item.isRead)
+          : data;
+
+        setItems(nextItems);
+        setTotal((p - 1) * PAGE_SIZE + nextItems.length);
+        setNotificationLoading(false);
+        return;
+      }
+
       const res = await fetch(
         `/api/notifications?page=${p}&limit=${PAGE_SIZE}&unreadOnly=${unreadOnlyFlag}`,
         {
@@ -521,6 +528,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
+    setPage(1);
+  }, [notificationSearchValue, unreadOnly]);
+
+  useEffect(() => {
     if (!isAuthenticated) {
       setItems([]);
       setTotal(0);
@@ -528,18 +539,18 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       return;
     }
 
-    load(page, unreadOnly);
-  }, [isAuthenticated, page, unreadOnly, load]);
+    load(page, unreadOnly, notificationSearchValue);
+  }, [isAuthenticated, page, unreadOnly, load, notificationSearchValue]);
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || hasNotificationSearch) {
       return;
     }
 
     if (recentNotifications?.length > 0) {
       setItems((prev) => mergeNotificationsById(recentNotifications, prev));
     }
-  }, [isAuthenticated, recentNotifications]);
+  }, [hasNotificationSearch, isAuthenticated, recentNotifications]);
 
   async function handleMarkAsRead(id: string) {
     setItems((prev) =>

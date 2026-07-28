@@ -1,11 +1,16 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import StatusCard from '../../../components/dashboard/StatusCard';
 import {
   AlertIcon,
+  ChatIcon,
   CheckMarkCircleIcon,
   ClockIcon,
   CloseIcon,
@@ -14,6 +19,8 @@ import {
   FolderIcon,
   PlusIcon,
   SearchIcon,
+  ThreadIcon,
+  TicketIcon2,
 } from '../../../../public/icons';
 import TicketsTabs, {
   type TicketTab,
@@ -66,6 +73,42 @@ type TicketSummary = {
   critical: number | null;
 };
 
+type DashboardProjectPanelTabKey = 'projects' | 'activity';
+
+type DashboardActivityItem = {
+  id: string;
+  actor: string;
+  action: string;
+  target: string;
+  timeLabel: string;
+  accentClassName: string;
+  entityType?: string;
+};
+
+type ApiDashboardActivityResponse = {
+  items?: ApiDashboardActivityItem[];
+  total?: number;
+  page?: number;
+  limit?: number;
+};
+
+type ApiDashboardActivityItem = {
+  id: string;
+  createdAt: string;
+  type?: string | null;
+  entityType?: string | null;
+  actor?: {
+    fullName?: string | null;
+  } | null;
+  project?: {
+    name?: string | null;
+  } | null;
+  ticket?: {
+    title?: string | null;
+    ticketRefNo?: string | null;
+  } | null;
+};
+
 const ticketTabs: TicketTab[] = [
   {
     key: 'upcoming',
@@ -90,6 +133,7 @@ type ApiTicketSetting = {
 const RECENT_TICKETS_STATUS_QUERY_PARAM = 'status';
 const RECENT_TICKETS_PRIORITY_QUERY_PARAM = 'priority';
 const DASHBOARD_TABS_QUERY_PARAM = 'dashboardTab';
+const DASHBOARD_ACTIVITY_PAGE_SIZE = 20;
 
 export default function Page() {
   const router = useRouter();
@@ -111,6 +155,9 @@ export default function Page() {
   const canEditProject = hasPermission('projects.edit');
   const canDeleteProject = hasPermission('projects.delete');
   const [searchValue, setSearchValue] = useState('');
+  const [projectPanelTab, setProjectPanelTab] =
+    useState<DashboardProjectPanelTabKey>('projects');
+  const activityScrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [isExportingTickets, setIsExportingTickets] = useState(false);
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [projectToEdit, setProjectToEdit] = useState<ProjectRecord | null>(
@@ -173,6 +220,22 @@ export default function Page() {
     queryKey: ['dashboard', 'ticket-summary'],
     queryFn: fetchTicketSummary,
     enabled: canViewStats,
+  });
+  const activityQuery = useInfiniteQuery({
+    queryKey: ['dashboard', 'activity'],
+    queryFn: ({ pageParam }) =>
+      fetchDashboardActivity(
+        Number(pageParam ?? 1),
+        DASHBOARD_ACTIVITY_PAGE_SIZE,
+      ),
+    enabled: canViewProjectCards,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      const total = lastPage.total ?? 0;
+      const page = lastPage.page ?? 1;
+      const limit = lastPage.limit ?? DASHBOARD_ACTIVITY_PAGE_SIZE;
+      return page * limit < total ? page + 1 : undefined;
+    },
   });
 
   const recentTicketsQuery = useQuery({
@@ -547,6 +610,10 @@ export default function Page() {
     }
   };
   const displayedProjects = projectsQuery.data ?? [];
+  const dashboardActivityItems = useMemo(
+    () => activityQuery.data?.pages.flatMap((page) => page.items) ?? [],
+    [activityQuery.data],
+  );
   // const displayedProjects = (projectsQuery.data ?? []).slice(0, 0);
   return (
     <div className="xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 z-100 h-full xl:h-dvh relative">
@@ -855,86 +922,158 @@ export default function Page() {
               </div>
             </PermissionGuard>
             <PermissionGuard permission="dashboard.view_project_cards">
-              <div className="bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)] flex-1 overflow-y-auto scrollbar-hide rounded-xl  flex flex-col gap-3.5 pb-4">
-                <div className="flex flex-row justify-between items-center sticky z-10 top-0 px-4 pt-4 bg-white">
-                  <div className="flex flex-row gap-2.5 items-center">
-                    <p className="text-black font-bold text-lg">Projects</p>
-
-                    <div className="w-7.5 h-7.5 text-sm text-bright-gray bg-gray-100 rounded-full flex items-center justify-center">
-                      {projectsQuery.data?.length ?? 0}
-                    </div>
-                  </div>
-
-                  {canViewProjectsList ? (
-                    <Link
-                      href="/projects"
-                      className="border text-sm hover:border-transparent text-primary hover:text-white border-primary  hover:bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 font-semibold bg-white rounded-lg py-2.5 px-4 flex items-center hover:border-l-0 justify-center"
+              <div className="bg-white relative shadow-[0_0_35px_0_rgb(0_0_0/0.04)] h-full flex-1 overflow-y-auto scrollbar-hide rounded-xl  flex flex-col gap-3.5 pb-4">
+                <div className="flex flex-row justify-between items-center sticky w-full  z-10 top-0 px-4 pt-4 bg-white">
+                  <div className="flex items-center rounded-full border border-gray-200 w-full bg-gray-50 p-1 shadow-[inset_0_1px_3px_rgba(15,23,42,0.06)]">
+                    <button
+                      type="button"
+                      onClick={() => setProjectPanelTab('projects')}
+                      className={`rounded-full px-4 py-1.5 w-full text-sm font-medium transition ${
+                        projectPanelTab === 'projects'
+                          ? 'bg-white text-gray-950 shadow-[0_0_20px_rgba(15,23,42,0.08)]'
+                          : 'text-gray-500 hover:text-gray-800'
+                      }`}
                     >
-                      View All
-                    </Link>
-                  ) : null}
+                      Projects
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProjectPanelTab('activity')}
+                      className={`rounded-full px-4 py-1.5 w-full text-sm font-medium transition ${
+                        projectPanelTab === 'activity'
+                          ? 'bg-white text-gray-950 shadow-[0_0_20px_rgba(15,23,42,0.08)]'
+                          : 'text-gray-500 hover:text-gray-800'
+                      }`}
+                    >
+                      Activity
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 px-3">
-                  {projectsQuery.isLoading ? (
-                    Array.from({ length: 3 }).map((_, index) => (
-                      <ProjectCardSkeleton key={index} />
-                    ))
-                  ) : displayedProjects.length === 0 ? (
-                    <EmptyState
-                      imageUrl="/images/EmptyProjectIcon.svg"
-                      imageAlt="No projects"
-                      title="No Projects"
-                      description="Projects will appear here once they are created."
-                      buttonLabel="New Project"
-                      onButtonClick={
-                        canCreateProject
-                          ? () => {
-                              setProjectToEdit(null);
-                              setCreateProjectOpen(true);
-                            }
-                          : undefined
-                      }
-                    />
-                  ) : (
-                    displayedProjects.map((project) => (
-                      <ProjectCard
-                        key={project.id}
-                        id={project.id}
-                        initials={project.initials}
-                        name={project.name}
-                        category={project.category}
-                        totalCount={project.totalCount}
-                        openCount={project.openCount}
-                        criticalCount={project.criticalCount}
-                        colorHex={project.colorHex}
-                        onClick={
-                          canViewProjectDetail
-                            ? () => router.push(`/projects/${project.id}`)
+                  {projectPanelTab === 'projects' ? (
+                    projectsQuery.isLoading ? (
+                      Array.from({ length: 3 }).map((_, index) => (
+                        <ProjectCardSkeleton key={index} />
+                      ))
+                    ) : displayedProjects.length === 0 ? (
+                      <EmptyState
+                        imageUrl="/images/EmptyProjectIcon.svg"
+                        imageAlt="No projects"
+                        title="No Projects"
+                        description="Projects will appear here once they are created."
+                        buttonLabel="New Project"
+                        onButtonClick={
+                          canCreateProject
+                            ? () => {
+                                setProjectToEdit(null);
+                                setCreateProjectOpen(true);
+                              }
                             : undefined
-                        }
-                        onEdit={
-                          canEditProject
-                            ? () => setProjectToEdit(project)
-                            : undefined
-                        }
-                        onDelete={
-                          canDeleteProject
-                            ? () =>
-                                setProjectToDelete({
-                                  id: project.id,
-                                  name: project.name,
-                                })
-                            : undefined
-                        }
-                        isDeleting={
-                          deleteProjectMutation.isPending &&
-                          deleteProjectMutation.variables === project.id
                         }
                       />
-                    ))
+                    ) : (
+                      displayedProjects.map((project) => (
+                        <ProjectCard
+                          key={project.id}
+                          id={project.id}
+                          initials={project.initials}
+                          name={project.name}
+                          category={project.category}
+                          totalCount={project.totalCount}
+                          openCount={project.openCount}
+                          criticalCount={project.criticalCount}
+                          colorHex={project.colorHex}
+                          onClick={
+                            canViewProjectDetail
+                              ? () => router.push(`/projects/${project.id}`)
+                              : undefined
+                          }
+                          onEdit={
+                            canEditProject
+                              ? () => setProjectToEdit(project)
+                              : undefined
+                          }
+                          onDelete={
+                            canDeleteProject
+                              ? () =>
+                                  setProjectToDelete({
+                                    id: project.id,
+                                    name: project.name,
+                                  })
+                              : undefined
+                          }
+                          isDeleting={
+                            deleteProjectMutation.isPending &&
+                            deleteProjectMutation.variables === project.id
+                          }
+                        />
+                      ))
+                    )
+                  ) : (
+                    <div
+                      ref={activityScrollContainerRef}
+                      onScroll={(event) => {
+                        const target = event.currentTarget;
+                        const distanceToBottom =
+                          target.scrollHeight -
+                          target.scrollTop -
+                          target.clientHeight;
+
+                        if (
+                          distanceToBottom > 80 ||
+                          !activityQuery.hasNextPage ||
+                          activityQuery.isFetchingNextPage
+                        ) {
+                          return;
+                        }
+
+                        void activityQuery.fetchNextPage();
+                      }}
+                      className="overflow-y-auto pr-1 scrollbar-thin"
+                    >
+                      {activityQuery.isLoading ? (
+                        Array.from({ length: 5 }).map((_, index) => (
+                          <DashboardActivityRowSkeleton key={index} />
+                        ))
+                      ) : dashboardActivityItems.length === 0 ? (
+                        <EmptyState
+                          imageUrl="/images/NotificationEmptyState.svg"
+                          imageAlt="No activity"
+                          title="No Activity"
+                          description="Activity will appear here as work happens across projects and tickets."
+                        />
+                      ) : (
+                        <>
+                          {dashboardActivityItems.map((activityItem) => (
+                            <DashboardActivityRow
+                              key={activityItem.id}
+                              item={activityItem}
+                            />
+                          ))}
+                          {activityQuery.isFetchingNextPage
+                            ? Array.from({ length: 2 }).map((_, index) => (
+                                <DashboardActivityRowSkeleton
+                                  key={`activity-loading-${index}`}
+                                />
+                              ))
+                            : null}
+                        </>
+                      )}
+                    </div>
                   )}
                 </div>
+
+                {/* {projectPanelTab === 'projects' && canViewProjectsList ? (
+                  <div className="py-2 pt-1 sticky -bottom-4">
+                    <Link
+                      href="/projects"
+                      className="flex items-center justify-center rounded-xl  bg-white px-4  text-base font-semibold text-primary transition hover:border-transparent hover:bg-linear-to-l  hover:underline underline-offset-2"
+                    >
+                      View All
+                    </Link>
+                  </div>
+                ) : null} */}
               </div>
             </PermissionGuard>
           </div>
@@ -1211,6 +1350,83 @@ function DashboardTabsSkeleton() {
   );
 }
 
+function DashboardActivityRow({ item }: { item: DashboardActivityItem }) {
+  return (
+    <article className="flex items-start gap-3 border-b border-gray-200 px-1 py-3 last:border-b-0">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full drop-shadow bg-gray-50 shadow-[0_0_20px_rgba(15,23,42,0.08)]">
+        <ActivityEntityIcon item={item} />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <p className="text-sm leading-6 text-gray-600">
+          <span className="font-semibold text-gray-950">{item.actor}</span>{' '}
+          {item.action}{' '}
+          <span className="font-semibold text-gray-950">{item.target}</span>
+        </p>
+        <p className="mt-1 text-xs text-gray-400">{item.timeLabel}</p>
+      </div>
+    </article>
+  );
+}
+
+function ActivityEntityIcon({ item }: { item: DashboardActivityItem }) {
+  const iconClassName = item.accentClassName;
+
+  if (item.entityType === 'ticket_reply') {
+    return (
+      <span className={iconClassName}>
+        <ChatIcon fill="#079455" />
+      </span>
+    );
+  }
+
+  if (item.entityType === 'thread_message') {
+    return (
+      <span className={iconClassName}>
+        <ThreadIcon fill="#DC6803" width={18} height={18} />
+      </span>
+    );
+  }
+
+  if (item.entityType === 'project') {
+    return <FolderIcon width="18" height="18" fill="#3B82F6" />;
+  }
+
+  if (item.entityType === 'ticket') {
+    return (
+      <span className={iconClassName}>
+        <TicketIcon2 />
+      </span>
+    );
+  }
+
+  if (item.entityType === 'event') {
+    return (
+      <span className={iconClassName}>
+        <ClockIcon width="18" height="18" />
+      </span>
+    );
+  }
+
+  return (
+    <span className={`text-sm font-semibold ${iconClassName}`}>
+      {getInitials(item.actor)}
+    </span>
+  );
+}
+
+function DashboardActivityRowSkeleton() {
+  return (
+    <div className="flex items-start gap-3 border-b border-gray-200 px-1 py-3 last:border-b-0">
+      <div className="h-10 w-10 shrink-0 rounded-full bg-gray-100 shadow-[0_0_20px_rgba(15,23,42,0.06)]" />
+      <div className="min-w-0 flex-1 space-y-2">
+        <div className="h-4 w-4/5 rounded bg-gray-100" />
+        <div className="h-3 w-16 rounded bg-gray-50" />
+      </div>
+    </div>
+  );
+}
+
 function sortTicketSettings(settings: ApiTicketSetting[]) {
   return [...settings].sort(
     (first, second) => first.sortOrder - second.sortOrder,
@@ -1389,6 +1605,49 @@ async function fetchUpcomingTickets(): Promise<ApiDashboardTicket[]> {
   return payload;
 }
 
+async function fetchDashboardActivity(
+  page = 1,
+  limit = DASHBOARD_ACTIVITY_PAGE_SIZE,
+): Promise<{
+  items: DashboardActivityItem[];
+  total: number;
+  page: number;
+  limit: number;
+}> {
+  const searchParams = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+
+  const response = await fetch(`/api/activity?${searchParams.toString()}`, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiDashboardActivityResponse
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !isDashboardActivityResponse(payload)) {
+    throw new Error(
+      !isDashboardActivityResponse(payload)
+        ? payload?.message || 'Failed to fetch activity.'
+        : 'Failed to fetch activity.',
+    );
+  }
+
+  return {
+    items: (payload.items ?? []).map(mapApiActivityToDashboardItem),
+    total: payload.total ?? 0,
+    page: payload.page ?? page,
+    limit: payload.limit ?? limit,
+  };
+}
+
 async function fetchDashboardTickets({
   page,
   limit,
@@ -1500,6 +1759,28 @@ function mapRecentTicketToTicketListItem(
   };
 }
 
+function mapApiActivityToDashboardItem(
+  item: ApiDashboardActivityItem,
+): DashboardActivityItem {
+  const actor = item.actor?.fullName?.trim() || 'Someone';
+  const ticketTitle = item.ticket?.title?.trim();
+  const projectName = item.project?.name?.trim();
+
+  return {
+    id: item.id,
+    actor,
+    action: getActivityActionLabel(item.type, item.entityType),
+    target:
+      ticketTitle ||
+      projectName ||
+      item.ticket?.ticketRefNo?.trim() ||
+      'an item',
+    timeLabel: formatRelativeTime(item.createdAt),
+    accentClassName: getActivityAccentClassName(item.type ?? item.entityType),
+    entityType: item.entityType ?? undefined,
+  };
+}
+
 function mapApiDashboardTicketToRecentTicket(
   ticket: ApiDashboardTicket,
 ): RecentTicket {
@@ -1588,6 +1869,92 @@ function getDashboardTabValue(value: string | null): TicketTabKey {
   }
 
   return 'upcoming';
+}
+
+function isDashboardActivityResponse(
+  payload: ApiDashboardActivityResponse | { message?: string } | null,
+): payload is ApiDashboardActivityResponse {
+  return Boolean(
+    payload &&
+      typeof payload === 'object' &&
+      'items' in payload &&
+      Array.isArray(payload.items),
+  );
+}
+
+function getActivityActionLabel(
+  type?: string | null,
+  entityType?: string | null,
+) {
+  switch (type) {
+    case 'ticket_reply':
+      return 'commented on';
+    case 'ticket_created':
+      return 'created a new ticket';
+    case 'ticket_status_changed':
+      return 'changed the status of';
+    case 'thread_reply':
+      return 'replied to a thread in';
+    case 'thread_message':
+      return 'started a new thread in';
+    case 'project_created':
+      return 'created project';
+    default:
+      if (entityType === 'ticket_reply') {
+        return 'commented on';
+      }
+
+      return 'updated';
+  }
+}
+
+function getActivityAccentClassName(type?: string | null) {
+  switch (type) {
+    case 'ticket_reply':
+      return 'text-emerald-500';
+    case 'ticket_created':
+      return 'text-rose-500';
+    case 'ticket_status_changed':
+      return 'text-blue-500';
+    case 'thread_reply':
+      return 'text-orange-500';
+    case 'thread_message':
+      return 'text-violet-500';
+    case 'project_created':
+      return 'text-fuchsia-500';
+    default:
+      return 'text-sky-500';
+  }
+}
+
+function formatRelativeTime(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  const diffMs = Date.now() - date.getTime();
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+
+  if (diffMs < hour) {
+    const minutes = Math.max(1, Math.floor(diffMs / minute));
+    return `${minutes}m ago`;
+  }
+
+  if (diffMs < day) {
+    const hours = Math.max(1, Math.floor(diffMs / hour));
+    return `${hours}h ago`;
+  }
+
+  if (diffMs < day * 2) {
+    return 'Yesterday';
+  }
+
+  const days = Math.max(1, Math.floor(diffMs / day));
+  return `${days}d ago`;
 }
 
 function slugify(value: string) {

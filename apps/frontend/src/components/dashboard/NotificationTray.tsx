@@ -238,7 +238,7 @@ function NotificationRow({
       <div className="min-w-0 flex-1">
         <p className="text-sm leading-5 text-gray-600">
           <span className="font-semibold text-gray-900">{item.title} </span>{' '}
-          {item.message}
+          {/* {item.message} */}
         </p>
         <p className="mt-1 text-xs  text-gray-500">
           {' '}

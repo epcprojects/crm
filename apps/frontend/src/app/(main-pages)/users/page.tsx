@@ -13,6 +13,7 @@ import UserCard, {
   UserCardsSkeleton,
   type UserCardUser,
 } from '../../../components/users/UserCard';
+import type { NotificationItem } from '@harperhelp/interfaces';
 import type { ProjectNameRecord } from '../projects/projects.data';
 import { useProjectNamesQuery } from '../projects/projects.queries';
 import {
@@ -20,6 +21,7 @@ import {
   usePermissions,
 } from '../../providers/PermissionProvider';
 import { useAppLoader } from '../../providers/AppLoaderProvider';
+import { eventEmitter } from '../../../lib/event-emitter';
 import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
 import { CloseIcon, FiltersIcon, PlusIcon, SearchIcon } from '../../../../public/icons';
 import ThemeButton from '../../../components/ui/ThemeButton';
@@ -30,6 +32,8 @@ import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 const USERS_INVITATION_STATUS_QUERY_PARAM = 'invitationStatus';
 const USERS_PROJECT_QUERY_PARAM = 'project';
 const USERS_ROLE_QUERY_PARAM = 'role';
+const MEMBER_NOTIFICATION_ENTITY_TYPE = 'member';
+const MEMBER_JOINED_NOTIFICATION_TYPE = 'member_joined';
 
 export default function Page() {
   const router = useRouter();
@@ -208,6 +212,25 @@ export default function Page() {
     membersQuery.data?.summary.totalUsers,
     setHeaderCountOverride,
   ]);
+
+  useEffect(() => {
+    const handleNotificationNew = (payload: NotificationItem) => {
+      if (
+        payload.entityType !== MEMBER_NOTIFICATION_ENTITY_TYPE ||
+        payload.type !== MEMBER_JOINED_NOTIFICATION_TYPE
+      ) {
+        return;
+      }
+
+      void queryClient.invalidateQueries({ queryKey: ['project-members'] });
+    };
+
+    eventEmitter.on('notification:new', handleNotificationNew);
+
+    return () => {
+      eventEmitter.off('notification:new', handleNotificationNew);
+    };
+  }, [queryClient]);
 
   const updateUsersPageFilters = ({
     invitationStatus,
