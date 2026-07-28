@@ -227,7 +227,7 @@ function NotificationRow({
           router.push(`/projects/${item.projectId}?t=1`);
         }
       }}
-      className="flex gap-4 border-b border-gray-100 px-3 sm:px-6 py-4.5 pb-2 transition hover:bg-gray-100 cursor-pointer"
+      className={`flex gap-4 border-b ${!item.isRead && 'bg-blue-50'} border-gray-200 px-3 sm:px-6 py-4.5 pb-2 transition hover:bg-gray-100 cursor-pointer`}
     >
       {/* <div
         className={`flex h-9 w-9 drop-shadow shrink-0 items-center justify-center rounded-full bg-white text-xs font-semibold ${item.actorTone}`}

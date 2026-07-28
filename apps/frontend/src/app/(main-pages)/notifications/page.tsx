@@ -138,8 +138,9 @@ export default function Page() {
   }, [page, unreadOnly, load]);
 
   useEffect(() => {
-    if (recentNotifications?.length > 0)
-      setItems((prev) => [...prev, ...recentNotifications]);
+    if (recentNotifications?.length > 0) {
+      setItems((prev) => mergeNotificationsById(recentNotifications, prev));
+    }
   }, [recentNotifications]);
 
   async function handleMarkAsRead(id: string) {
@@ -491,4 +492,21 @@ function MailReadIcon() {
       />
     </svg>
   );
+}
+
+function mergeNotificationsById(
+  incoming: NotificationItem[],
+  existing: NotificationItem[],
+) {
+  const merged = [...incoming, ...existing];
+  const seen = new Set<string>();
+
+  return merged.filter((notification) => {
+    if (seen.has(notification.id)) {
+      return false;
+    }
+
+    seen.add(notification.id);
+    return true;
+  });
 }

@@ -132,6 +132,8 @@ export default function ProjectDetailPage() {
     projectId,
     canViewProjectDetail,
   );
+  const shouldRedirectToNotFound =
+    projectDetailQuery.isError && isNotFoundError(projectDetailQuery.error);
   const projectThreadQuery = useProjectThreadQuery(projectId, canViewThread);
   const projectThreadDetailQuery = useProjectThreadDetailQuery(
     projectId,
@@ -332,6 +334,12 @@ export default function ProjectDetailPage() {
 
   useEffect(() => {
     if (projectDetailQuery.isError && !hasShownError.current) {
+      if (shouldRedirectToNotFound) {
+        hasShownError.current = true;
+        router.replace('/not-found');
+        return;
+      }
+
       hasShownError.current = true;
       appToast.error(
         projectDetailQuery.error instanceof Error
@@ -343,7 +351,12 @@ export default function ProjectDetailPage() {
     if (!projectDetailQuery.isError) {
       hasShownError.current = false;
     }
-  }, [projectDetailQuery.error, projectDetailQuery.isError]);
+  }, [
+    projectDetailQuery.error,
+    projectDetailQuery.isError,
+    router,
+    shouldRedirectToNotFound,
+  ]);
 
   const projectTickets = useMemo(
     () =>
@@ -642,6 +655,10 @@ export default function ProjectDetailPage() {
 
   if (projectDetailQuery.isLoading) {
     return <ProjectDetailSkeleton onBack={() => router.back()} />;
+  }
+
+  if (shouldRedirectToNotFound) {
+    return null;
   }
 
   if (!canViewProjectDetail) {
@@ -1412,6 +1429,23 @@ async function fetchSocketToken(): Promise<SocketTokenResponse> {
   }
 
   return payload;
+}
+
+function isNotFoundError(error: unknown) {
+  if (typeof error !== 'object' || error === null) {
+    return false;
+  }
+
+  const status =
+    'status' in error ? (error as { status?: number }).status : undefined;
+  const message =
+    'message' in error ? (error as { message?: string }).message : undefined;
+
+  return (
+    status === 404 ||
+    message?.trim().toLowerCase() === 'project not found' ||
+    message?.trim().toLowerCase() === 'failed to fetch project.'
+  );
 }
 
 function getTicketStatusColor(status: string, statuses?: ApiTicketSetting[]) {
