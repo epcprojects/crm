@@ -1507,7 +1507,7 @@ export default function TicketDetailPage() {
                 </PermissionGuard>
               </div>
             </div>
-            <aside className="min-h-0 min-w-0 space-y-4 overflow-y-auto scrollbar-hide rounded-2xl bg-white p-5 xl:col-span-3 xl:h-full">
+            <aside className="min-h-0 min-w-0 space-y-4 overflow-y-auto scrollbar-hide rounded-2xl bg-white p-3 xl:col-span-3 xl:h-full">
               {!isExternalUser ? (
                 <section className="rounded-xl border border-gray-200 bg-white sm:rounded-2xl">
                   <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 md:text-base">

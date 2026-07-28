@@ -37,6 +37,8 @@ interface DropdownBaseProps {
   onDeleteOption?: (option: DropdownOption) => void;
   disabled?: boolean;
   applyHeight?: boolean;
+  minHeight?: string;
+  menuScrollable?: boolean;
 }
 
 type DropdownSingleProps = {
@@ -65,7 +67,7 @@ const Dropdown = ({
   showSearch = false,
   searchPlaceholder = 'Search...',
   emptyText = 'No results found',
-  maxMenuHeight = 260,
+  maxMenuHeight = 240,
 
   error = false,
   errorMessage = '',
@@ -76,6 +78,8 @@ const Dropdown = ({
   onDeleteOption,
   disabled = false,
   applyHeight = true,
+  minHeight,
+   menuScrollable = true,
 }: DropdownProps) => {
   const selectedValues = isMulti ? (Array.isArray(value) ? value : []) : [];
 
@@ -143,7 +147,7 @@ const Dropdown = ({
               ${
                 variant === 'input'
                   ? 'bg-transparent border-0 border-b h-10 px-0 py-1.5 rounded-none text-sm font-medium '
-                  : `bg-white  p-3 md:px-3.5 md:py-2 border rounded-lg ${applyHeight?"h-10.5":""}`
+                  : `bg-white  p-3 md:px-3.5 md:py-2 border rounded-lg ${applyHeight ? 'h-10.5' : ''}`
               }
               ${
                 error
@@ -164,15 +168,23 @@ const Dropdown = ({
           </span>
         </MenuButton>
 
-        <MenuItems
-          modal={false}
-          transition
-          className="absolute left-0 top-full mt-2 z-110  w-full max-h-64 overflow-hidden bg-white border border-gray-200 rounded-lg shadow-[0px_14px_34px_rgba(0,0,0,0.1)] p-1 text-sm transition duration-100 ease-out focus:outline-none data-closed:scale-95 data-closed:opacity-0"
-          onBlur={resetQuery}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') resetQuery();
-          }}
-        >
+       <MenuItems
+  modal={false}
+  transition
+  className={`absolute left-0 top-full z-110 mt-2 w-full rounded-lg border border-gray-200 bg-white p-1 text-sm shadow-[0px_14px_34px_rgba(0,0,0,0.1)] transition duration-100 ease-out focus:outline-none data-closed:scale-95 data-closed:opacity-0 ${
+    minHeight ?? ''
+  } ${
+    menuScrollable
+      ? 'max-h-64 overflow-hidden'
+      : 'max-h-none overflow-visible'
+  }`}
+  onBlur={resetQuery}
+  onKeyDown={(event) => {
+    if (event.key === 'Escape') {
+      resetQuery();
+    }
+  }}
+>
           {showSearch && (
             <div className="sticky top-0 z-10 p-1 bg-white">
               <input
@@ -188,11 +200,29 @@ const Dropdown = ({
           )}
 
           <div
-            className="space-y-1 overflow-y-auto overscroll-contain [-ms-overflow-style:none] scrollbar-none [&::-webkit-scrollbar]:hidden"
-            style={{ maxHeight: maxMenuHeight }}
-            onWheel={(e) => e.stopPropagation()}
-            onTouchMove={(e) => e.stopPropagation()}
-          >
+  className={`space-y-1 ${
+    menuScrollable
+      ? 'overflow-y-auto overscroll-contain [-ms-overflow-style:none] scrollbar-none [&::-webkit-scrollbar]:hidden'
+      : 'overflow-visible'
+  }`}
+  style={
+    menuScrollable
+      ? {
+          maxHeight: maxMenuHeight,
+        }
+      : undefined
+  }
+  onWheel={
+    menuScrollable
+      ? (event) => event.stopPropagation()
+      : undefined
+  }
+  onTouchMove={
+    menuScrollable
+      ? (event) => event.stopPropagation()
+      : undefined
+  }
+>
             {filteredOptions.length === 0 ? (
               <div className="px-2.5 py-2 text-xs md:text-sm text-gray-500">
                 {emptyText}
@@ -279,7 +309,9 @@ const Dropdown = ({
                               {option.icon}
                             </span>
                           ) : null}
-                          <span className="truncate text-sm">{option.label}</span>
+                          <span className="truncate text-sm">
+                            {option.label}
+                          </span>
                         </button>
 
                         <div className="flex items-center gap-1">

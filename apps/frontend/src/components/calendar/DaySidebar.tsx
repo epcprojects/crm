@@ -115,8 +115,8 @@ export default function DaySidebar({
             {events.length === 0 ? (
               <div className="flex items-center py-4 justify-center flex-col bg-gray-100 rounded-lg gap-2">
                 <svg
-                  width="40"
-                  height="40"
+                  width="35"
+                  height="35"
                   viewBox="0 0 48 48"
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"
@@ -229,8 +229,8 @@ export default function DaySidebar({
               {tickets.length === 0 ? (
                 <div className="flex py-4 items-center justify-center bg-gray-100 rounded-lg flex-col gap-2">
                   <svg
-                    width="30"
-                    height="30"
+                    width="35"
+                    height="35"
                     viewBox="0 0 48 48"
                     fill="none"
                     xmlns="http://www.w3.org/2000/svg"
