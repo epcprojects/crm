@@ -658,7 +658,7 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `"${ticket.title}" priority set to ${dto.priorityKey}`,
+        title: `"${ticket.title}" priority changed to ${dto.priorityKey}`,
         explicitRecipientIds: [...new Set(recipients)],
       });
     }
@@ -676,9 +676,9 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: dto.assigneeId
-          ? `You were assigned "${ticket.title}"`
-          : `You were unassigned from "${ticket.title}"`,
+title: dto.assigneeId
+  ? `Assigned to "${ticket.title}"`
+  : `Removed from "${ticket.title}"`,
         explicitRecipientIds: [...new Set(recipients)],
       });
     }
@@ -694,7 +694,7 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `Ticket: "${ticket.ticketRefNo}" has been updated.`,
+        title: `Ticket "${ticket.ticketRefNo}" title updated`,
         explicitRecipientIds: [...new Set(recipients)],
       });
     }
@@ -707,7 +707,7 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `Ticket: "${ticket.ticketRefNo}" has been updated.`,
+        title: `Ticket "${ticket.ticketRefNo}" description updated`,
         explicitRecipientIds: [...new Set(recipients)],
       });
     }
@@ -730,7 +730,7 @@ export class TicketsService {
       entityType: NotificationEntityType.TICKET,
       entityId: ticket.id,
       ticketId: ticket.id,
-      title: `Ticket: "${ticket.ticketRefNo}" no longer exists.`,
+      title: `Ticket "${ticket.ticketRefNo}" deleted`,
     });
 
     return { success: true };

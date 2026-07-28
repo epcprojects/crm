@@ -97,7 +97,7 @@ export class AuthService {
       type: NotificationType.MEMBER_JOINED,
       entityType: NotificationEntityType.MEMBER,
       entityId: user.id,
-      title: `User accepted invitation to project`,
+      title: `Invitation accepted`,
       message: undefined,
       skipCreate: true,
       explicitRecipientIds: [user.projects[0].createdBy], // need to set owner of project here

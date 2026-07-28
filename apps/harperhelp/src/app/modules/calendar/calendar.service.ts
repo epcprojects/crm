@@ -34,7 +34,7 @@ export class CalendarService {
       type: NotificationType.EVENT_CREATED,
       entityType: NotificationEntityType.EVENT,
       entityId: event.id,
-      title: `New Event "${dto.title}" has been Added in Project "${project.name}"`,
+      title: `New event in ${project.name}: ${dto.title}`,
       message: undefined,
     });
 
