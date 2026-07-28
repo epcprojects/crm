@@ -7,11 +7,13 @@ import { NotificationsGateway } from './gateway/notifications.gateway';
 import { WsJwtGuard } from '../../../common/guards/ws-jwt.guard';
 import { JwtModule } from '@nestjs/jwt';
 import { NotificationsController } from './notifications.controller';
+import { ActivityModule } from '../activity/activity-log.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Notification]),
     SqsNotificationQueueModule,
+    ActivityModule,
     JwtModule
   ],
   controllers: [NotificationsController],

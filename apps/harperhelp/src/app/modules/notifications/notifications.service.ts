@@ -35,6 +35,7 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { NotificationsGateway } from './gateway/notifications.gateway';
 import { NotifyProjectMembersDto } from './dto/create-notification.dto';
 import { Notification } from './entities/notification.entity';
+import { ActivityLogService } from '../activity/activity-log.service';
 
 @Injectable()
 export class NotificationsService {
@@ -48,9 +49,13 @@ export class NotificationsService {
   constructor(
     private readonly configService: ConfigService,
     private readonly queueService: SqsNotificationQueueService,
+    private readonly activityLogService: ActivityLogService,
 
     @InjectRepository(Notification)
     private readonly notificationsRepo: Repository<Notification>,
+    // @InjectRepository(ActivityLog)
+    // private readonly activityLogService: Repository<ActivityLog>,
+
     @InjectDataSource()
     private readonly dataSource: DataSource,
     private readonly gateway: NotificationsGateway,
@@ -320,6 +325,19 @@ export class NotificationsService {
         unreadCount,
       );
     }
+
+    // TODO: Need to save the activity in the activity log table as well, so that it can be queried later for reporting purposes.
+
+    await this.activityLogService.createActivity({
+  actorId: dto.actorId,
+  projectId: dto.projectId ?? null,
+  ticketId: dto.ticketId ?? null,
+  type: dto.type,
+  entityType: dto.entityType,
+  entityId: dto.entityId ?? null,
+  metadata: dto.metadata ?? {},
+});
+
   }
 
   
