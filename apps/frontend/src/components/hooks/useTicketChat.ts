@@ -216,27 +216,39 @@ export function useTicketChat({
           );
         };
 
+        // const handleMessageDeleted = (payload: {
+        //   channel: ChatChannel;
+        //   message: ChatMessage;
+        // }) => {
+        //   if (payload.channel !== channel) {
+        //     return;
+        //   }
+
+        //   setMessages((current) => {
+        //     const exists = current.some(
+        //       (message) => message.id === payload.message.id,
+        //     );
+
+        //     if (exists) {
+        //       return current.map((message) =>
+        //         message.id === payload.message.id ? payload.message : message,
+        //       );
+        //     }
+
+        //     return [...current, payload.message];
+        //   });
+        // };
+
         const handleMessageDeleted = (payload: {
           channel: ChatChannel;
-          messageId?: string;
-          id?: string;
-          message?: {
-            id?: string;
-          } | null;
+          message: string;
         }) => {
           if (payload.channel !== channel) {
             return;
           }
 
-          const deletedMessageId =
-            payload.messageId ?? payload.id ?? payload.message?.id;
-
-          if (!deletedMessageId) {
-            return;
-          }
-
           setMessages((current) =>
-            current.filter((message) => message.id !== deletedMessageId),
+            current.filter((message) => message.id !== payload.message),
           );
         };
 
@@ -274,6 +286,7 @@ export function useTicketChat({
         socket.on('new_message', handleNewMessage);
         socket.on('messages_read', handleMessagesRead);
         socket.on('message_deleted', handleMessageDeleted);
+
         socket.on('typing', handleTyping);
 
         if (socket.connected) {

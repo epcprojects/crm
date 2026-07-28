@@ -120,47 +120,46 @@ export default function Page() {
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async (
-    p: number,
-    unreadOnlyFlag: boolean,
-    searchTerm: string,
-  ) => {
-    setLoading(true);
+  const load = useCallback(
+    async (p: number, unreadOnlyFlag: boolean, searchTerm: string) => {
+      setLoading(true);
 
-    const normalizedSearch = searchTerm.trim();
+      const normalizedSearch = searchTerm.trim();
 
-    if (normalizedSearch) {
-      const searchParams = new URLSearchParams({
-        query: normalizedSearch,
-        limit: String(PAGE_SIZE),
-        offset: String((p - 1) * PAGE_SIZE),
-      });
+      if (normalizedSearch) {
+        const searchParams = new URLSearchParams({
+          query: normalizedSearch,
+          limit: String(PAGE_SIZE),
+          offset: String((p - 1) * PAGE_SIZE),
+        });
 
-      const res = await fetch(`/api/notifications/search?${searchParams}`, {
-        cache: 'no-store',
-      });
-      const data = (await res.json().catch(() => [])) as NotificationItem[];
-      const nextItems = unreadOnlyFlag
-        ? data.filter((item) => !item.isRead)
-        : data;
+        const res = await fetch(`/api/notifications/search?${searchParams}`, {
+          cache: 'no-store',
+        });
+        const data = (await res.json().catch(() => [])) as NotificationItem[];
+        const nextItems = unreadOnlyFlag
+          ? data.filter((item) => !item.isRead)
+          : data;
 
-      setItems(nextItems);
-      setTotal((p - 1) * PAGE_SIZE + nextItems.length);
+        setItems(nextItems);
+        setTotal((p - 1) * PAGE_SIZE + nextItems.length);
+        setLoading(false);
+        return;
+      }
+
+      const res = await fetch(
+        `/api/notifications?page=${p}&limit=${PAGE_SIZE}&unreadOnly=${unreadOnlyFlag}`,
+        {
+          cache: 'no-store',
+        },
+      );
+      const data = await res.json();
+      setItems(data.items);
+      setTotal(data.total);
       setLoading(false);
-      return;
-    }
-
-    const res = await fetch(
-      `/api/notifications?page=${p}&limit=${PAGE_SIZE}&unreadOnly=${unreadOnlyFlag}`,
-      {
-        cache: 'no-store',
-      },
-    );
-    const data = await res.json();
-    setItems(data.items);
-    setTotal(data.total);
-    setLoading(false);
-  }, []);
+    },
+    [],
+  );
 
   useEffect(() => {
     setPage(1);
@@ -470,7 +469,7 @@ function NotificationPageRow({
       <div className="min-w-0 flex-1">
         <p className="text-sm  text-gray-600">
           <span className="font-semibold text-gray-900">{item.title}</span>{' '}
-          {item.message}
+          {/* {item.message} */}
         </p>
         <p className="mt-1 text-xs text-gray-500">
           {new Date(item.createdAt).toLocaleString()}
