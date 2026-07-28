@@ -17,7 +17,11 @@ import { getChatSocket } from '../../../../lib/socket';
 import Dropdown from '../../../../components/ui/ThemeDropDown';
 import { appToast } from '../../../../components/toast/AppToast';
 import { getTicketById, type TicketPerson } from '../tickets.data';
-import { projectsQueryKey } from '../../projects/projects.queries';
+import {
+  projectsQueryKey,
+  useDeleteProjectFileMutation,
+  useProjectFilesQuery,
+} from '../../projects/projects.queries';
 import {
   PermissionGuard,
   usePermissions,
@@ -45,6 +49,11 @@ type GalleryImage = {
   fileName?: string;
   src: string;
   alt: string;
+};
+type TicketAttachmentToDelete = {
+  attachmentId: string;
+  projectFileId: string;
+  name: string;
 };
 
 export default function TicketDetailPage() {
@@ -165,6 +174,11 @@ export default function TicketDetailPage() {
       );
     },
   });
+  const projectFilesQuery = useProjectFilesQuery(projectId, Boolean(projectId));
+
+  const deleteProjectFileMutation = useDeleteProjectFileMutation();
+  const [attachmentToDelete, setAttachmentToDelete] =
+    useState<TicketAttachmentToDelete | null>(null);
   const createReplyMutation = useMutation({
     mutationFn: async ({
       message,
@@ -351,76 +365,162 @@ export default function TicketDetailPage() {
     setIsDescriptionExpanded(false);
   }, [ticket]);
 
-  useEffect(() => {
-    const description = ticket?.description?.trim() ?? '';
-    const measurementElement = descriptionMeasureRef.current;
-    const overflowElement = descriptionOverflowRef.current;
+  // useEffect(() => {
+  //   const description = ticket?.description?.trim() ?? '';
+  //   const measurementElement = descriptionMeasureRef.current;
+  //   const overflowElement = descriptionOverflowRef.current;
 
-    if (!description || !measurementElement || !overflowElement) {
+  //   if (!description || !measurementElement || !overflowElement) {
+  //     setShouldShowDescriptionToggle(false);
+  //     setDescriptionPreviewText(description);
+  //     setDescriptionRemainingText('');
+  //     return;
+  //   }
+
+  //   const measureDescription = () => {
+  //     const computedStyle = window.getComputedStyle(measurementElement);
+  //     const lineHeight = Number.parseFloat(computedStyle.lineHeight);
+
+  //     if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
+  //       setShouldShowDescriptionToggle(false);
+  //       setDescriptionPreviewText(description);
+  //       setDescriptionRemainingText('');
+  //       return;
+  //     }
+
+  //     overflowElement.textContent = description;
+  //     const maxHeight = lineHeight * 2;
+  //     const fullHeight = overflowElement.scrollHeight;
+
+  //     if (fullHeight <= maxHeight + 1) {
+  //       setShouldShowDescriptionToggle(false);
+  //       setDescriptionPreviewText(description);
+  //       setDescriptionRemainingText('');
+  //       return;
+  //     }
+
+  //     const toggleLabel = ' read more';
+  //     let low = 0;
+  //     let high = description.length;
+  //     let bestFit = '';
+
+  //     while (low <= high) {
+  //       const middle = Math.floor((low + high) / 2);
+  //       const candidate = `${description.slice(0, middle).trimEnd()}${toggleLabel}`;
+  //       overflowElement.textContent = candidate;
+
+  //       if (overflowElement.scrollHeight <= maxHeight + 1) {
+  //         bestFit = `${description.slice(0, middle).trimEnd()}`;
+  //         low = middle + 1;
+  //       } else {
+  //         high = middle - 1;
+  //       }
+  //     }
+
+  //     setShouldShowDescriptionToggle(true);
+  //     const previewText = bestFit || description;
+  //     setDescriptionPreviewText(previewText);
+  //     setDescriptionRemainingText(description.slice(previewText.length));
+  //   };
+
+  //   measureDescription();
+
+  //   const resizeObserver = new ResizeObserver(() => {
+  //     measureDescription();
+  //   });
+
+  //   resizeObserver.observe(measurementElement);
+
+  //   return () => {
+  //     resizeObserver.disconnect();
+  //   };
+  // }, [ticket?.description]);
+
+  useEffect(() => {
+  if (isEditingDescription) {
+    return;
+  }
+
+  const description = ticket?.description?.trim() ?? '';
+  const measurementElement = descriptionMeasureRef.current;
+  const overflowElement = descriptionOverflowRef.current;
+
+  if (!description || !measurementElement || !overflowElement) {
+    setShouldShowDescriptionToggle(false);
+    setDescriptionPreviewText(description);
+    setDescriptionRemainingText('');
+    return;
+  }
+
+  const measureDescription = () => {
+    const computedStyle = window.getComputedStyle(measurementElement);
+    const lineHeight = Number.parseFloat(computedStyle.lineHeight);
+
+    if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
       setShouldShowDescriptionToggle(false);
       setDescriptionPreviewText(description);
       setDescriptionRemainingText('');
       return;
     }
 
-    const measureDescription = () => {
-      const computedStyle = window.getComputedStyle(measurementElement);
-      const lineHeight = Number.parseFloat(computedStyle.lineHeight);
+    overflowElement.textContent = description;
 
-      if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
-        setShouldShowDescriptionToggle(false);
-        setDescriptionPreviewText(description);
-        setDescriptionRemainingText('');
-        return;
+    const maxHeight = lineHeight * 2;
+    const fullHeight = overflowElement.scrollHeight;
+
+    if (fullHeight <= maxHeight + 1) {
+      setShouldShowDescriptionToggle(false);
+      setDescriptionPreviewText(description);
+      setDescriptionRemainingText('');
+      return;
+    }
+
+    const toggleLabel = ' read more';
+    let low = 0;
+    let high = description.length;
+    let bestFit = '';
+
+    while (low <= high) {
+      const middle = Math.floor((low + high) / 2);
+
+      const candidate = `${description
+        .slice(0, middle)
+        .trimEnd()}${toggleLabel}`;
+
+      overflowElement.textContent = candidate;
+
+      if (overflowElement.scrollHeight <= maxHeight + 1) {
+        bestFit = description.slice(0, middle).trimEnd();
+        low = middle + 1;
+      } else {
+        high = middle - 1;
       }
+    }
 
-      overflowElement.textContent = description;
-      const maxHeight = lineHeight * 2;
-      const fullHeight = overflowElement.scrollHeight;
+    const previewText = bestFit || description;
 
-      if (fullHeight <= maxHeight + 1) {
-        setShouldShowDescriptionToggle(false);
-        setDescriptionPreviewText(description);
-        setDescriptionRemainingText('');
-        return;
-      }
+    setShouldShowDescriptionToggle(true);
+    setDescriptionPreviewText(previewText);
+    setDescriptionRemainingText(
+      description.slice(previewText.length),
+    );
+  };
 
-      const toggleLabel = ' read more';
-      let low = 0;
-      let high = description.length;
-      let bestFit = '';
-
-      while (low <= high) {
-        const middle = Math.floor((low + high) / 2);
-        const candidate = `${description.slice(0, middle).trimEnd()}${toggleLabel}`;
-        overflowElement.textContent = candidate;
-
-        if (overflowElement.scrollHeight <= maxHeight + 1) {
-          bestFit = `${description.slice(0, middle).trimEnd()}`;
-          low = middle + 1;
-        } else {
-          high = middle - 1;
-        }
-      }
-
-      setShouldShowDescriptionToggle(true);
-      const previewText = bestFit || description;
-      setDescriptionPreviewText(previewText);
-      setDescriptionRemainingText(description.slice(previewText.length));
-    };
-
+  const animationFrameId = window.requestAnimationFrame(() => {
     measureDescription();
+  });
 
-    const resizeObserver = new ResizeObserver(() => {
-      measureDescription();
-    });
+  const resizeObserver = new ResizeObserver(() => {
+    measureDescription();
+  });
 
-    resizeObserver.observe(measurementElement);
+  resizeObserver.observe(measurementElement);
 
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, [ticket?.description]);
+  return () => {
+    window.cancelAnimationFrame(animationFrameId);
+    resizeObserver.disconnect();
+  };
+}, [ticket?.description, isEditingDescription]);
 
   useEffect(() => {
     if (!projectId || !ticketId || !currentUserId) {
@@ -1044,6 +1144,50 @@ export default function TicketDetailPage() {
     link.click();
     document.body.removeChild(link);
   };
+  const handleRequestDeleteAttachment = (
+    attachment: (typeof ticket.attachments)[number],
+  ) => {
+    const matchingProjectFile = projectFilesQuery.data?.find(
+      (file) =>
+        file.storageKey === attachment.storageKey &&
+        (!file.sourceId || file.sourceId === ticketId),
+    );
+
+    if (!matchingProjectFile) {
+      appToast.error('Unable to find the corresponding project file.');
+      return;
+    }
+
+    setAttachmentToDelete({
+      attachmentId: attachment.id,
+      projectFileId: matchingProjectFile.id,
+      name: attachment.name,
+    });
+  };
+  const handleConfirmDeleteAttachment = async () => {
+    if (!attachmentToDelete) {
+      return;
+    }
+
+    try {
+      await deleteProjectFileMutation.mutateAsync({
+        projectId,
+        fileId: attachmentToDelete.projectFileId,
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: ['ticket-detail', projectId, ticketId],
+      });
+
+      appToast.success('Attachment deleted successfully.');
+      setAttachmentToDelete(null);
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to delete attachment.',
+      );
+    }
+  };
+
   return (
     <div className="relative z-100 h-full xl:h-dvh overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0">
       <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden  xl:rounded-3xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
@@ -1377,7 +1521,7 @@ export default function TicketDetailPage() {
                 </h3>
 
                 <div className="">
-                  {ticket.attachments.length ? (
+                  {/* {ticket.attachments.length ? (
                     ticket.attachments.map((attachment) => (
                       <a
                         key={attachment.id}
@@ -1483,6 +1627,135 @@ export default function TicketDetailPage() {
                           </MenuItems>
                         </Menu>
                       </a>
+                    ))
+                  ) : (
+                    <div className="py-2">
+                      <EmptyState
+                        imageUrl="/images/EmptyProjectIcon.svg"
+                        imageAlt="No attachments"
+                        title="No Attachments"
+                        description="No attachments have been added to this ticket yet."
+                      />
+                    </div>
+                  )} */}
+                  {ticket.attachments.length ? (
+                    ticket.attachments.map((attachment) => (
+                      <div
+                        key={attachment.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => handleViewAttachment(attachment)}
+                        onKeyDown={(event) => {
+                          if (event.target !== event.currentTarget) {
+                            return;
+                          }
+
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            handleViewAttachment(attachment);
+                          }
+                        }}
+                        className="flex cursor-pointer items-center gap-3 border-b border-gray-200 px-4 py-3 transition last:border-b-0 hover:bg-gray-50"
+                      >
+                        {isImageAttachmentExtension(attachment.extension) ? (
+                          <img
+                            alt={attachment.name}
+                            className="h-10 w-10 shrink-0 rounded-sm border border-gray-200 object-cover"
+                            src={getFileUrl(attachment.storageKey)}
+                          />
+                        ) : (
+                          <div className="shrink-0">
+                            <FileBadgeIcon extension={attachment.extension} />
+                          </div>
+                        )}
+
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-gray-800">
+                            {attachment.name}
+                          </p>
+
+                          <p className="text-sm text-gray-500">
+                            {attachment.sizeLabel}
+                          </p>
+                        </div>
+
+                        <Menu
+                          as="div"
+                          className="relative ml-auto shrink-0"
+                          onClick={(event) => event.stopPropagation()}
+                          onMouseDown={(event) => event.stopPropagation()}
+                        >
+                          <MenuButton
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                            }}
+                            onMouseDown={(event) => {
+                              event.stopPropagation();
+                            }}
+                            className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 outline-none transition hover:bg-gray-100 data-open:bg-gray-100"
+                            aria-label={`Actions for ${attachment.name}`}
+                          >
+                            <ThreedotIcon />
+                          </MenuButton>
+
+                          <MenuItems
+                            anchor="bottom end"
+                            transition
+                            onClick={(event) => event.stopPropagation()}
+                            className="z-100 mt-2 w-40 origin-top-right rounded-xl border border-gray-200 bg-white p-1 shadow-[0_14px_44px_rgb(0_0_0/0.14)] outline-none transition duration-150 data-closed:-translate-y-2 data-closed:scale-95 data-closed:opacity-0"
+                          >
+                            <MenuItem>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleViewAttachment(attachment);
+                                }}
+                                className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-gray-700 outline-none transition data-focus:bg-gray-50"
+                              >
+                                <EyeOpenedIcon />
+                                View
+                              </button>
+                            </MenuItem>
+
+                            <MenuItem>
+                              <button
+                                type="button"
+                                disabled={!attachment.storageKey}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleDownloadAttachment(attachment);
+                                }}
+                                className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-gray-700 outline-none transition data-focus:bg-gray-50 data-disabled:cursor-not-allowed data-disabled:opacity-50"
+                              >
+                                <DownloadIcon />
+                                Download
+                              </button>
+                            </MenuItem>
+
+                            <MenuItem>
+                              <button
+                                type="button"
+                                disabled={
+                                  projectFilesQuery.isLoading ||
+                                  deleteProjectFileMutation.isPending
+                                }
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+
+                                  handleRequestDeleteAttachment(attachment);
+                                }}
+                                className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-red-500 outline-none transition data-focus:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <TrashIcon />
+                                Delete
+                              </button>
+                            </MenuItem>
+                          </MenuItems>
+                        </Menu>
+                      </div>
                     ))
                   ) : (
                     <div className="py-2">
@@ -1627,6 +1900,32 @@ export default function TicketDetailPage() {
         isSubmitting={Boolean(deletingChatMessageId)}
         onConfirm={handleConfirmDeleteChatMessage}
       />
+      <ConfirmActionModal
+  isOpen={Boolean(attachmentToDelete)}
+  onClose={() => {
+    if (deleteProjectFileMutation.isPending) {
+      return;
+    }
+
+    setAttachmentToDelete(null);
+  }}
+  title="Delete Attachment?"
+  message={
+    <>
+      Are you sure you want to delete{' '}
+      <span className="font-semibold">
+        “{attachmentToDelete?.name ?? 'this attachment'}”
+      </span>
+      ? This action cannot be undone.
+    </>
+  }
+  confirmLabel="Yes, Delete"
+  cancelLabel="Cancel"
+  variant="danger"
+  isSubmitting={deleteProjectFileMutation.isPending}
+  onConfirm={handleConfirmDeleteAttachment}
+/>
+
       <ImageGalleryLightbox
         images={galleryImages}
         activeIndex={activeGalleryIndex}
