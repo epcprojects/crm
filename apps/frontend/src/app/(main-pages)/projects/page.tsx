@@ -30,12 +30,12 @@ import {
 } from './projects.queries';
 import type { ProjectRecord } from './projects.data';
 import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
-import { PlusIcon, SearchIcon } from '../../../../public/icons';
+import { CloseIcon, PlusIcon, SearchIcon } from '../../../../public/icons';
 import ThemeButton from '../../../components/ui/ThemeButton';
 import EmptyState from '../../../components/EmptyState';
 import { eventEmitter } from '../../../lib/event-emitter';
 import { NotificationEntityType } from '@harperhelp/types';
-import { NotificationItem } from '../../../../../../libs/shared/interfaces/src/lib/notification.interfaces';
+import { NotificationItem } from '@harperhelp/interfaces';
 
 export default function ProjectsPage() {
   const router = useRouter();
@@ -313,7 +313,7 @@ export default function ProjectsPage() {
   return (
     <>
       <div className="relative z-100 h-full xl:h-dvh xl:py-5 px-4 xl:px-0 pt-2 pb-0 xl:pr-5">
-        <div className="flex h-full flex-col gap-3 xl:rounded-4xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
+        <div className="flex h-full flex-col gap-3 xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <DashboardSummaryBanner
             imageSrc="/images/ProjectsIcon.svg"
             imageAlt="Projects"
@@ -321,7 +321,7 @@ export default function ProjectsPage() {
             stats={projectSummaryStats}
           />
 
-          <div className="flex min-h-0 flex-1 flex-col gap-4 rounded-[10px] xl:rounded-[20px] bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 rounded-xl bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
             <PermissionGuard
               permission="projects.view_list"
               fallback={
@@ -334,7 +334,9 @@ export default function ProjectsPage() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 sm:max-w-50">
                     <div className="flex items-center gap-2">
-                      <SearchIcon fill="#374151" />
+                      <span className="shrink-0">
+                        <SearchIcon fill="#374151" />
+                      </span>
 
                       <input
                         type="text"
@@ -343,6 +345,21 @@ export default function ProjectsPage() {
                         placeholder="Search"
                         className="min-w-0 flex-1 bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400"
                       />
+
+                      <button
+                        type="button"
+                        onClick={() => setSearchValue('')}
+                        disabled={!searchValue}
+                        tabIndex={searchValue ? 0 : -1}
+                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
+                          searchValue
+                            ? 'visible hover:bg-gray-100'
+                            : 'pointer-events-none invisible'
+                        }`}
+                        aria-label="Clear search"
+                      >
+                        <CloseIcon width="15" height="15" />
+                      </button>
                     </div>
                   </div>
 

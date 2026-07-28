@@ -452,7 +452,7 @@ export class ProjectsService {
   }
 
   async update(id: string, updateProjectDto: UpdateProjectDto, user) {
-    const proj = await this.findOne(id, true);
+    const proj = await this.findOne(id, true, user);
 
     await this.projectRepo.update(id, updateProjectDto);
 
@@ -472,11 +472,11 @@ export class ProjectsService {
       explicitRecipientIds: [...new Set(recipients)],
     });
 
-    return this.findOne(id);
+    return this.findOne(id, false, user);
   }
 
   async remove(id: string, user) {
-    const proj = await this.findOne(id, true);
+    const proj = await this.findOne(id, true, user);
     await this.projectRepo.update(id, {
       isActive: false,
       deletedAt: new Date(),

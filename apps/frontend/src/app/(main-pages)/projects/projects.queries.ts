@@ -432,11 +432,15 @@ async function fetchProjectById(projectId: string) {
     | null;
 
   if (!response.ok || !isApiProjectRecord(payload)) {
-    throw new Error(
+    const error = new Error(
       isProjectErrorPayload(payload)
         ? payload.message || 'Failed to fetch project.'
         : 'Failed to fetch project.',
-    );
+    ) as Error & { status?: number };
+
+    error.status = response.status;
+
+    throw error;
   }
 
   return mapApiProjectToProjectRecord(payload);

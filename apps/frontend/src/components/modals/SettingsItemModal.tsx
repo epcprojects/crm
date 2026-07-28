@@ -55,12 +55,11 @@ export default function SettingsItemModal({
   const colorInputRef = useRef<HTMLInputElement | null>(null);
 
   const formik = useFormik<SettingsItemFormValues>({
-    initialValues:
-      initialValues ?? {
-        label: '',
-        value: '',
-        colorHex: '#17B26A',
-      },
+    initialValues: initialValues ?? {
+      label: '',
+      value: '',
+      colorHex: '#17B26A',
+    },
     enableReinitialize: true,
     validationSchema: settingsItemSchema,
     onSubmit: async (values, { resetForm }) => {
@@ -81,8 +80,7 @@ export default function SettingsItemModal({
   }, [isOpen]);
 
   const itemLabel = kind === 'status' ? 'Status' : 'Priority';
-  const confirmLabel =
-    mode === 'edit' ? `Save Changes` : `Create ${itemLabel}`;
+  const confirmLabel = mode === 'edit' ? `Save Changes` : `Create ${itemLabel}`;
   const title = mode === 'edit' ? `Edit ${itemLabel}` : `Add ${itemLabel}`;
   const previewLabel =
     formik.values.label || (kind === 'status' ? 'Resolved' : 'Priority Label');
@@ -131,7 +129,7 @@ export default function SettingsItemModal({
             Color
           </label>
 
-          <div className="flex flex-wrap items-center gap-2">
+          {/* <div className="flex flex-wrap items-center gap-2">
             {configColors.map((color) => {
               const isSelected =
                 formik.values.colorHex.toLowerCase() === color.toLowerCase();
@@ -141,7 +139,7 @@ export default function SettingsItemModal({
                   key={color}
                   type="button"
                   onClick={() => formik.setFieldValue('colorHex', color)}
-                  className={`flex h-7 w-7 items-center justify-center rounded-full border-2 transition ${
+                  className={`flex h-7 w-7 items-center  justify-center rounded-full border-2 transition ${
                     isSelected ? 'border-white ring-2' : 'border-transparent'
                   }`}
                   style={
@@ -152,6 +150,39 @@ export default function SettingsItemModal({
                   <span
                     className="h-6.5 w-6.5 rounded-full"
                     style={{ backgroundColor: color }}
+                  />
+                </button>
+              );
+            })}
+          </div> */}
+          <div className="flex flex-wrap items-center gap-2">
+            {configColors.map((color) => {
+              const isSelected =
+                formik.values.colorHex.toLowerCase() === color.toLowerCase();
+
+              return (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => formik.setFieldValue('colorHex', color)}
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 p-0.5 transition ${
+                    isSelected ? 'border-white' : 'border-transparent'
+                  }`}
+                  style={
+                    isSelected
+                      ? {
+                          boxShadow: `0 0 0 2px ${color}`,
+                        }
+                      : undefined
+                  }
+                  aria-label={`Select color ${color}`}
+                  aria-pressed={isSelected}
+                >
+                  <span
+                    className="block h-full w-full rounded-full"
+                    style={{
+                      backgroundColor: color,
+                    }}
                   />
                 </button>
               );
@@ -267,9 +298,7 @@ function slugifyLabel(label: string) {
     .map((part) => {
       const normalizedPart = part.toLowerCase();
 
-      return (
-        normalizedPart.charAt(0).toUpperCase() + normalizedPart.slice(1)
-      );
+      return normalizedPart.charAt(0).toUpperCase() + normalizedPart.slice(1);
     })
     .join('');
 }

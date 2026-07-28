@@ -43,7 +43,25 @@ import ThreedotIcon from './ThreedotIcon';
 import ChatIcon from './ChatIcon';
 import FileIcon from './FileIcon';
 import ThreadIcon from './ThreadIcon';
+import BoldIcon from './BoldIcon';
+import ItalicIcon from './ItalicIcon';
+import StrokeIcon from './StrokeIcon';
+import UnderlineIcon from './UnderlineIcon';
+import CommaStartIcon from './CommaStartIcon';
+import CommaEndIcon from './CommaEndIcon';
+import OrderedListIcon from './OrderedListIcon';
+import UnorderedListIcon from './UnorderedListIcon';
+import LinkIcon from './LinkIcon';
 export {
+  BoldIcon,
+  ItalicIcon,
+  StrokeIcon,
+  UnderlineIcon,
+  CommaStartIcon,
+  CommaEndIcon,
+  OrderedListIcon,
+  UnorderedListIcon,
+  LinkIcon,
   ThreedotIcon,
   EmptyRepliesIcon,
   EditLockedIcon,
