@@ -1,7 +1,17 @@
+
 'use client';
 
-import React, { Fragment, useMemo, useState } from 'react';
-import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
+import React, {
+  Fragment,
+  useMemo,
+  useState,
+} from 'react';
+import {
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuItems,
+} from '@headlessui/react';
 import {
   ArrowDownIcon,
   CheckedBoxIcon,
@@ -33,10 +43,19 @@ interface DropdownBaseProps {
 
   width?: string;
   variant?: 'default' | 'input';
-  showDeleteForOption?: (option: DropdownOption) => boolean;
-  onDeleteOption?: (option: DropdownOption) => void;
+
+  showDeleteForOption?: (
+    option: DropdownOption,
+  ) => boolean;
+
+  onDeleteOption?: (
+    option: DropdownOption,
+  ) => void;
+
   disabled?: boolean;
   applyHeight?: boolean;
+  minHeight?: string;
+  menuScrollable?: boolean;
 }
 
 type DropdownSingleProps = {
@@ -65,7 +84,7 @@ const Dropdown = ({
   showSearch = false,
   searchPlaceholder = 'Search...',
   emptyText = 'No results found',
-  maxMenuHeight = 260,
+  maxMenuHeight = 240,
 
   error = false,
   errorMessage = '',
@@ -76,40 +95,79 @@ const Dropdown = ({
   onDeleteOption,
   disabled = false,
   applyHeight = true,
+  minHeight,
+  menuScrollable = true,
 }: DropdownProps) => {
-  const selectedValues = isMulti ? (Array.isArray(value) ? value : []) : [];
+  const selectedValues = isMulti
+    ? Array.isArray(value)
+      ? value
+      : []
+    : [];
 
   const selectedOption = !isMulti
-    ? options.find((opt) => opt.value === value)
+    ? options.find(
+        (option) => option.value === value,
+      )
     : undefined;
 
   const selectedLabels = isMulti
     ? options
-        .filter((opt) => selectedValues.includes(opt.value))
-        .map((opt) => opt.label)
+        .filter((option) =>
+          selectedValues.includes(option.value),
+        )
+        .map((option) => option.label)
     : [];
 
   const [query, setQuery] = useState('');
 
   const filteredOptions = useMemo(() => {
-    if (!showSearch) return options;
-    const q = query.trim().toLowerCase();
-    if (!q) return options;
-    return options.filter((opt) => opt.label.toLowerCase().includes(q));
+    if (!showSearch) {
+      return options;
+    }
+
+    const normalizedQuery = query
+      .trim()
+      .toLowerCase();
+
+    if (!normalizedQuery) {
+      return options;
+    }
+
+    return options.filter((option) =>
+      option.label
+        .toLowerCase()
+        .includes(normalizedQuery),
+    );
   }, [options, query, showSearch]);
 
-  const handleSelect = (val: string) => {
-    if (disabled) return;
+  const handleSelect = (selectedValue: string) => {
+    if (disabled) {
+      return;
+    }
+
     if (isMulti) {
-      const exists = selectedValues.includes(val);
-      (onChange as (value: string[]) => void)(
-        exists
-          ? selectedValues.filter((item) => item !== val)
-          : [...selectedValues, val],
+      const isAlreadySelected =
+        selectedValues.includes(selectedValue);
+
+      (
+        onChange as (
+          nextValue: string[],
+        ) => void
+      )(
+        isAlreadySelected
+          ? selectedValues.filter(
+              (item) => item !== selectedValue,
+            )
+          : [...selectedValues, selectedValue],
       );
     } else {
-      (onChange as (value: string) => void)(val);
+      (
+        onChange as (
+          nextValue: string,
+        ) => void
+      )(selectedValue);
     }
+
     setQuery('');
   };
 
@@ -119,11 +177,13 @@ const Dropdown = ({
     event.preventDefault();
   };
 
-  const resetQuery = () => setQuery('');
+  const resetQuery = () => {
+    setQuery('');
+  };
 
   return (
-    <div className={`${width}`}>
-      {label && (
+    <div className={width}>
+      {label ? (
         <span
           className={`block text-start ${
             variant === 'input'
@@ -131,110 +191,199 @@ const Dropdown = ({
               : 'mb-1 text-base font-normal text-gray-800'
           }`}
         >
-          {label} {required && <span className="text-red-500"> *</span>}
-        </span>
-      )}
+          {label}
 
-      <Menu as="div" className="relative flex w-full">
+          {required ? (
+            <span className="text-red-500">
+              {' '}
+              *
+            </span>
+          ) : null}
+        </span>
+      ) : null}
+
+      <Menu
+        as="div"
+        className="relative flex w-full"
+      >
         <MenuButton
           disabled={disabled}
-          id={selectedOption?.label || placeholder}
-          className={`w-full justify-between flex gap-2 items-center outline-none focus:ring-0 text-ggray-900 placeholder:text-gray-400 placeholder:font-normal 
-              ${
-                variant === 'input'
-                  ? 'bg-transparent border-0 border-b h-10 px-0 py-1.5 rounded-none text-sm font-medium '
-                  : `bg-white  p-3 md:px-3.5 md:py-2 border rounded-lg ${applyHeight?"h-10.5":""}`
-              }
-              ${
-                error
-                  ? 'border-red-500 focus:ring-red-200'
-                  : 'border-gray-200 focus:ring-gray-200'
-              } ${disabled ? 'cursor-not-allowed opacity-60 bg-gray-200!' : ''}
-            `}
+          id={
+            selectedOption?.label ||
+            placeholder
+          }
+          className={`flex w-full items-center justify-between gap-2 text-gray-900 outline-none placeholder:font-normal placeholder:text-gray-400 focus:ring-0
+            ${
+              variant === 'input'
+                ? 'h-10 rounded-none border-0 border-b bg-transparent px-0 py-1.5 text-sm font-medium'
+                : `rounded-lg border bg-white p-3 md:px-3.5 md:py-2 ${
+                    applyHeight
+                      ? 'h-10.5'
+                      : ''
+                  }`
+            }
+            ${
+              error
+                ? 'border-red-500 focus:ring-red-200'
+                : 'border-gray-200 focus:ring-gray-200'
+            }
+            ${
+              disabled
+                ? 'cursor-not-allowed bg-gray-200! opacity-60'
+                : ''
+            }
+          `}
         >
           <span className="truncate text-sm">
             {isMulti
               ? selectedLabels.length > 0
                 ? selectedLabels.join(', ')
                 : placeholder
-              : selectedOption?.label || placeholder}
+              : selectedOption?.label ||
+                placeholder}
           </span>
-          <span className={disabled ? 'opacity-60' : ''}>
+
+          <span
+            className={
+              disabled ? 'opacity-60' : ''
+            }
+          >
             <ArrowDownIcon />
           </span>
         </MenuButton>
 
         <MenuItems
+          portal
           modal={false}
+          anchor="bottom start"
           transition
-          className="absolute left-0 top-full mt-2 z-110  w-full max-h-64 overflow-hidden bg-white border border-gray-200 rounded-lg shadow-[0px_14px_34px_rgba(0,0,0,0.1)] p-1 text-sm transition duration-100 ease-out focus:outline-none data-closed:scale-95 data-closed:opacity-0"
+          className={`z-[9999] w-[var(--button-width)] rounded-lg border border-gray-200 bg-white p-1 text-sm shadow-[0px_14px_34px_rgba(0,0,0,0.1)] outline-none transition duration-100 ease-out [--anchor-gap:8px] [--anchor-padding:8px] data-closed:scale-95 data-closed:opacity-0 ${
+            minHeight ?? ''
+          } ${
+            menuScrollable
+              ? 'max-h-64 overflow-hidden'
+              : 'max-h-none overflow-visible'
+          }`}
           onBlur={resetQuery}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') resetQuery();
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              resetQuery();
+            }
           }}
         >
-          {showSearch && (
-            <div className="sticky top-0 z-10 p-1 bg-white">
+          {showSearch ? (
+            <div className="sticky top-0 z-10 bg-white p-1">
               <input
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(event) =>
+                  setQuery(event.target.value)
+                }
                 placeholder={searchPlaceholder}
                 autoComplete="off"
-                className="w-full h-10 px-3 text-sm border rounded-md outline-none border-gray-200 placeholder:text-gray-400 text-gray-800 focus:ring-0 focus:border-gray-300"
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => e.stopPropagation()}
+                className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm text-gray-800 outline-none placeholder:text-gray-400 focus:border-gray-300 focus:ring-0"
+                onClick={(event) => {
+                  event.stopPropagation();
+                }}
+                onKeyDown={(event) => {
+                  event.stopPropagation();
+                }}
               />
             </div>
-          )}
+          ) : null}
 
           <div
-            className="space-y-1 overflow-y-auto overscroll-contain [-ms-overflow-style:none] scrollbar-none [&::-webkit-scrollbar]:hidden"
-            style={{ maxHeight: maxMenuHeight }}
-            onWheel={(e) => e.stopPropagation()}
-            onTouchMove={(e) => e.stopPropagation()}
+            className={`space-y-1 ${
+              menuScrollable
+                ? 'overflow-y-auto overscroll-contain [-ms-overflow-style:none] scrollbar-none [&::-webkit-scrollbar]:hidden'
+                : 'overflow-visible'
+            }`}
+            style={
+              menuScrollable
+                ? {
+                    maxHeight: maxMenuHeight,
+                  }
+                : undefined
+            }
+            onWheel={
+              menuScrollable
+                ? (event) => {
+                    event.stopPropagation();
+                  }
+                : undefined
+            }
+            onTouchMove={
+              menuScrollable
+                ? (event) => {
+                    event.stopPropagation();
+                  }
+                : undefined
+            }
           >
             {filteredOptions.length === 0 ? (
-              <div className="px-2.5 py-2 text-xs md:text-sm text-gray-500">
+              <div className="px-2.5 py-2 text-xs text-gray-500 md:text-sm">
                 {emptyText}
               </div>
             ) : (
               filteredOptions.map((option) => {
                 const isSelected = isMulti
-                  ? selectedValues.includes(option.value)
+                  ? selectedValues.includes(
+                      option.value,
+                    )
                   : option.value === value;
-                const isDeleteVisible = Boolean(
-                  showDeleteForOption?.(option) && onDeleteOption,
-                );
+
+                const isDeleteVisible =
+                  Boolean(
+                    showDeleteForOption?.(
+                      option,
+                    ) && onDeleteOption,
+                  );
 
                 if (isMulti) {
                   return (
                     <div
                       key={option.value}
                       className={[
-                        'flex w-full items-center justify-between gap-2 rounded-md py-1 px-1 text-xs md:text-sm text-gray-800 hover:bg-gray-100',
-                        isSelected ? 'bg-gray-100' : '',
+                        'flex w-full items-center justify-between gap-2 rounded-md px-1 py-1 text-xs text-gray-800 hover:bg-gray-100 md:text-sm',
+                        isSelected
+                          ? 'bg-gray-100'
+                          : '',
                       ].join(' ')}
                     >
                       <button
                         type="button"
-                        onMouseDown={keepMenuInteractionActive}
-                        onClick={() => handleSelect(option.value)}
-                        className="flex min-w-0 flex-1 items-center gap-2 rounded-md py-1 px-1.5 text-left font-medium cursor-pointer"
+                        onMouseDown={
+                          keepMenuInteractionActive
+                        }
+                        onClick={() =>
+                          handleSelect(
+                            option.value,
+                          )
+                        }
+                        className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-left font-medium"
                       >
-                        <span className="shrink-0" aria-hidden="true">
+                        <span
+                          className="shrink-0"
+                          aria-hidden="true"
+                        >
                           {isSelected ? (
                             <CheckedBoxIcon />
                           ) : (
                             <UncheckedBoxIcon />
                           )}
                         </span>
+
                         {option.icon ? (
-                          <span className="shrink-0" aria-hidden="true">
+                          <span
+                            className="shrink-0"
+                            aria-hidden="true"
+                          >
                             {option.icon}
                           </span>
                         ) : null}
 
-                        <span className="truncate text-sm">{option.label}</span>
+                        <span className="truncate text-sm">
+                          {option.label}
+                        </span>
                       </button>
 
                       <div className="flex items-center gap-1">
@@ -242,11 +391,18 @@ const Dropdown = ({
                           <button
                             type="button"
                             aria-label={`Delete ${option.label}`}
-                            onMouseDown={keepMenuInteractionActive}
-                            onClick={(event) => {
+                            onMouseDown={
+                              keepMenuInteractionActive
+                            }
+                            onClick={(
+                              event,
+                            ) => {
                               event.preventDefault();
                               event.stopPropagation();
-                              onDeleteOption?.(option);
+
+                              onDeleteOption?.(
+                                option,
+                              );
                             }}
                             className="shrink-0 rounded-md p-1 transition hover:bg-red-50"
                           >
@@ -259,27 +415,46 @@ const Dropdown = ({
                 }
 
                 return (
-                  <MenuItem key={option.value} as={Fragment}>
+                  <MenuItem
+                    key={option.value}
+                    as={Fragment}
+                  >
                     {({ focus }) => (
                       <div
                         className={[
-                          'flex w-full items-center justify-between gap-2 rounded-md py-1 px-1 text-xs md:text-sm text-gray-800',
-                          focus ? 'bg-gray-100' : '',
-                          isSelected ? 'bg-gray-100' : '',
+                          'flex w-full items-center justify-between gap-2 rounded-md px-1 py-1 text-xs text-gray-800 md:text-sm',
+                          focus
+                            ? 'bg-gray-100'
+                            : '',
+                          isSelected
+                            ? 'bg-gray-100'
+                            : '',
                         ].join(' ')}
                       >
                         <button
                           type="button"
-                          onMouseDown={keepMenuInteractionActive}
-                          onClick={() => handleSelect(option.value)}
-                          className="flex min-w-0 flex-1 items-center gap-2 rounded-md py-1 px-1.5 text-left font-medium cursor-pointer"
+                          onMouseDown={
+                            keepMenuInteractionActive
+                          }
+                          onClick={() =>
+                            handleSelect(
+                              option.value,
+                            )
+                          }
+                          className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-left font-medium"
                         >
                           {option.icon ? (
-                            <span className="shrink-0" aria-hidden="true">
+                            <span
+                              className="shrink-0"
+                              aria-hidden="true"
+                            >
                               {option.icon}
                             </span>
                           ) : null}
-                          <span className="truncate text-sm">{option.label}</span>
+
+                          <span className="truncate text-sm">
+                            {option.label}
+                          </span>
                         </button>
 
                         <div className="flex items-center gap-1">
@@ -287,11 +462,18 @@ const Dropdown = ({
                             <button
                               type="button"
                               aria-label={`Delete ${option.label}`}
-                              onMouseDown={keepMenuInteractionActive}
-                              onClick={(event) => {
+                              onMouseDown={
+                                keepMenuInteractionActive
+                              }
+                              onClick={(
+                                event,
+                              ) => {
                                 event.preventDefault();
                                 event.stopPropagation();
-                                onDeleteOption?.(option);
+
+                                onDeleteOption?.(
+                                  option,
+                                );
                               }}
                               className="shrink-0 rounded-md p-1 transition hover:bg-red-50"
                             >
@@ -308,9 +490,12 @@ const Dropdown = ({
           </div>
         </MenuItems>
       </Menu>
-      {error && errorMessage && (
-        <p className="mt-1 text-sm text-red-500">{errorMessage}</p>
-      )}
+
+      {error && errorMessage ? (
+        <p className="mt-1 text-sm text-red-500">
+          {errorMessage}
+        </p>
+      ) : null}
     </div>
   );
 };

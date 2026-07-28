@@ -8,6 +8,7 @@ import {
   AlertIcon,
   CheckMarkCircleIcon,
   ClockIcon,
+  CloseIcon,
   DownloadIcon,
   FiltersIcon,
   FolderIcon,
@@ -55,7 +56,7 @@ import EmptyState from '../../../components/EmptyState';
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 import Dropdown from '../../../components/ui/ThemeDropDown';
 import { eventEmitter } from '../../../../src/lib/event-emitter';
-import { NotificationItem } from '../../../../../../libs/shared/interfaces/src/lib/notification.interfaces';
+import { NotificationItem } from '@harperhelp/interfaces';
 import { NotificationEntityType } from '@harperhelp/types';
 
 type TicketSummary = {
@@ -550,7 +551,7 @@ export default function Page() {
   return (
     <div className="xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 z-100 h-full xl:h-dvh relative">
       {/* <div className="bg-white/40 border border-white rounded-3xl p-3 flex flex-row h-full gap-3"> */}
-      <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden xl:rounded-4xl  bg-gray-200 xl:flex-row xl:border xl:border-white xl:bg-white/40 xl:p-3">
+      <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden xl:rounded-2xl  bg-gray-200 xl:flex-row xl:border xl:border-white xl:bg-white/40 xl:p-3">
         <PermissionGuard permission="dashboard.view_upcoming">
           <div
             className={`order-2 min-h-0 flex-1 overflow-hidden xl:order-0 xl:h-full xl:flex-none ${
@@ -585,12 +586,11 @@ export default function Page() {
             {isStatsLoading ? (
               <DashboardStatsSkeleton />
             ) : (
-              <div className="flex w-full flex-col justify-between gap-2 xl:gap-6 rounded-[10px] xl:rounded-[20px] bg-[url('/images/DashboardComponentBgImage.jpg')]  bg-cover bg-center bg-no-repeat p-4 sm:p-5 xl:gap-8.5 xl:p-7.5">
+              <div className="flex w-full flex-col justify-between gap-2 xl:gap-6 rounded-[10px] xl:rounded-xl bg-[url('/images/DashboardComponentBgImage.jpg')]  bg-cover bg-center bg-no-repeat p-4 sm:p-5 xl:gap-8.5 xl:p-7.5">
                 <div className="flex flex-col items-start gap-2 xl:flex-row xl:gap-6">
                   <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                     <p className="text-2xl text-white font-semibold sm:text-[32px]">
-                      <span className="">Good Day</span>,{' '}
-                      {currentUserName} 👋
+                      <span className="">Good Day</span>, {currentUserName} 👋
                     </p>
 
                     <p className="text-sm text-gray-100 sm:text-lg">
@@ -665,7 +665,7 @@ export default function Page() {
           <div className="hidden min-h-0 flex-1 gap-3 xl:grid xl:grid-cols-[minmax(0,1fr)_340px]">
             <PermissionGuard permission="dashboard.view_recent_tickets">
               <div
-                className={`bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)]  flex flex-1 flex-col min-h-0 gap-3.5 rounded-[20px] p-3 h-full `}
+                className={`bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)]  flex flex-1 flex-col min-h-0 gap-3.5 rounded-xl p-3 h-full `}
               >
                 <div className="flex flex-row  flex-wrap gap-3 justify-between items-center">
                   <div className="flex flex-row gap-2.5 items-center">
@@ -746,15 +746,33 @@ export default function Page() {
                   </Popover>
 
                   <div className="flex flex-wrap gap-2">
-                    <div className="border border-gray-200 bg-white py-2 px-2.5 flex items-center gap-2 justify-between flex-row rounded-lg">
-                      <SearchIcon fill="#374151" />
+                    <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-2.5 py-2 ">
+                      <span className="shrink-0">
+                        <SearchIcon fill="#374151" />
+                      </span>
+
                       <input
                         type="text"
                         value={searchValue}
                         onChange={(event) => setSearchValue(event.target.value)}
                         placeholder="Search"
-                        className="min-w-0 bg-transparent placeholder:text-gray-400 text-base text-gray-700 outline-none"
+                        className="min-w-0 flex-1 bg-transparent text-base text-gray-700 outline-none placeholder:text-gray-400"
                       />
+
+                      <button
+                        type="button"
+                        onClick={() => setSearchValue('')}
+                        disabled={!searchValue}
+                        tabIndex={searchValue ? 0 : -1}
+                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
+                          searchValue
+                            ? 'visible hover:bg-gray-100'
+                            : 'invisible pointer-events-none'
+                        }`}
+                        aria-label="Clear search"
+                      >
+                        <CloseIcon width="15" height="15" />
+                      </button>
                     </div>
 
                     {/* Desktop filters: xl and above */}
@@ -792,15 +810,13 @@ export default function Page() {
                     </ThemeButton>
 
                     {canViewTicketsList ? (
-                       
                       <button
                         type="button"
                         onClick={handleViewAllTickets}
-                        className="border text-sm hover:border-transparent text-primary hover:text-white border-primary  hover:bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 font-semibold bg-white rounded-lg py-2 px-4 flex items-center hover:border-l-0 justify-center"
+                        className="ring text-sm hover:ring-transparent text-primary hover:text-white ring-primary  hover:bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 font-semibold bg-white rounded-lg py-2 px-4 flex items-center justify-center"
                       >
                         View All
                       </button>
-                      
                     ) : null}
 
                     {/* <button
@@ -839,7 +855,7 @@ export default function Page() {
               </div>
             </PermissionGuard>
             <PermissionGuard permission="dashboard.view_project_cards">
-              <div className="bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)] flex-1 overflow-y-auto scrollbar-hide rounded-[20px]  flex flex-col gap-3.5 ">
+              <div className="bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)] flex-1 overflow-y-auto scrollbar-hide rounded-xl  flex flex-col gap-3.5 pb-4">
                 <div className="flex flex-row justify-between items-center sticky z-10 top-0 px-4 pt-4 bg-white">
                   <div className="flex flex-row gap-2.5 items-center">
                     <p className="text-black font-bold text-lg">Projects</p>
@@ -852,7 +868,7 @@ export default function Page() {
                   {canViewProjectsList ? (
                     <Link
                       href="/projects"
-                     className="border text-sm hover:border-transparent text-primary hover:text-white border-primary  hover:bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 font-semibold bg-white rounded-lg py-2.5 px-4 flex items-center hover:border-l-0 justify-center"
+                      className="border text-sm hover:border-transparent text-primary hover:text-white border-primary  hover:bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 font-semibold bg-white rounded-lg py-2.5 px-4 flex items-center hover:border-l-0 justify-center"
                     >
                       View All
                     </Link>

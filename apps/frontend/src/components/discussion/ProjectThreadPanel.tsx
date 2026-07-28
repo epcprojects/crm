@@ -5,7 +5,11 @@ import {
   ALLOWED_ATTACHMENT_ACCEPT,
   validateAttachments,
 } from '../../lib/attachments';
-import { EmptyRepliesIcon, FileTypePlaceholder, TrashIcon } from '../../../public/icons';
+import {
+  EmptyRepliesIcon,
+  FileTypePlaceholder,
+  TrashIcon,
+} from '../../../public/icons';
 import { getFileUrl } from '../projects/ProjectFilesPanel';
 import ConfirmActionModal from '../modals/ConfirmActionModal';
 import ImageGalleryLightbox from '../ui/ImageGalleryLightbox';
@@ -243,8 +247,7 @@ export default function ProjectThreadPanel({
 
                               event.preventDefault();
                               const index = conversationImages.findIndex(
-                                (image) =>
-                                  image.attachmentId === attachment.id,
+                                (image) => image.attachmentId === attachment.id,
                               );
                               openGallery(conversationImages, index);
                             }}
@@ -356,18 +359,18 @@ export default function ProjectThreadPanel({
                                     className="flex min-w-0 flex-1 items-start gap-3"
                                     onClick={(event) => {
                                       if (
-                                        !isImageAttachment(
-                                          attachment.extension,
-                                        )
+                                        !isImageAttachment(attachment.extension)
                                       ) {
                                         return;
                                       }
 
                                       event.preventDefault();
-                                      const index = conversationImages.findIndex(
-                                        (image) =>
-                                          image.attachmentId === attachment.id,
-                                      );
+                                      const index =
+                                        conversationImages.findIndex(
+                                          (image) =>
+                                            image.attachmentId ===
+                                            attachment.id,
+                                        );
                                       openGallery(conversationImages, index);
                                     }}
                                   >
@@ -467,23 +470,64 @@ export default function ProjectThreadPanel({
         </div>
 
         {canCompose ? (
-          <div className="px-2 py-4 md:px-5">
-            <div className="rounded-xl border border-gray-200 bg-white p-3">
+          <div className=" py-0 px-0">
+            <div className=" border-t border-gray-200 bg-white p-2">
               <textarea
-                rows={3}
+                rows={2}
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
                 placeholder={composerPlaceholder}
                 disabled={isSubmittingReply}
                 className="w-full resize-none bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
               />
-              <div className="mt-1 flex items-center justify-end gap-2">
-                {canAttachFile ? (
+
+              <div className={` flex items-center ${attachments.length===0?"justify-end":"justify-between"} gap-2`}>
+                {attachments.length ? (
+                  <div className="mt-3 grid max-h-52 min-h-0 grid-cols-1 gap-2 overflow-y-auto overscroll-contain pr-1 scrollbar-hide sm:grid-cols-2 lg:grid-cols-3">
+                    {attachments.map((attachment) => (
+                      <div
+                        key={`${attachment.name}-${attachment.size}-${attachment.lastModified}`}
+                        className="flex min-w-0 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 py-0.5 pr-2 pl-0.5"
+                      >
+                        <LocalAttachmentPreview file={attachment} />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-gray-700">
+                            {attachment.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {formatAttachmentSize(attachment.size)}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nextAttachments = attachments.filter(
+                              (file) => file !== attachment,
+                            );
+                            setAttachments(nextAttachments);
+                            if (
+                              !nextAttachments.length &&
+                              fileInputRef.current
+                            ) {
+                              fileInputRef.current.value = '';
+                            }
+                          }}
+                          disabled={isSubmittingReply}
+                          className="text-xs font-medium text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <TrashIcon width="16" height="16" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+               <div className='flex items-center gap-2'>
+                 {canAttachFile ? (
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isSubmittingReply}
-                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <PaperclipIcon />
                   </button>
@@ -497,10 +541,11 @@ export default function ProjectThreadPanel({
                       : !message.trim() && !attachments.length) ||
                     isSubmittingReply
                   }
-                  className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#10175A] text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-[#10175A] text-white disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <TelegramIcon />
                 </button>
+                 </div>
               </div>
             </div>
 
@@ -515,7 +560,7 @@ export default function ProjectThreadPanel({
               }
             />
 
-            {attachments.length ? (
+            {/* {attachments.length ? (
               <div className="mt-3 grid max-h-52 min-h-0 grid-cols-1 gap-2 overflow-y-auto overscroll-contain pr-1 scrollbar-hide sm:grid-cols-2 lg:grid-cols-3">
                 {attachments.map((attachment) => (
                   <div
@@ -550,7 +595,7 @@ export default function ProjectThreadPanel({
                   </div>
                 ))}
               </div>
-            ) : null}
+            ) : null} */}
 
             {attachmentError ? (
               <p className="mt-2 text-xs text-red-600">{attachmentError}</p>
@@ -669,7 +714,9 @@ function getGalleryImagesFromDiscussion(
       return;
     }
 
-    images.push(...getGalleryImagesFromAttachments(reply.attachments, reply.author.name));
+    images.push(
+      ...getGalleryImagesFromAttachments(reply.attachments, reply.author.name),
+    );
   });
 
   return images;

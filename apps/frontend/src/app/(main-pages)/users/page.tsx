@@ -21,7 +21,7 @@ import {
 } from '../../providers/PermissionProvider';
 import { useAppLoader } from '../../providers/AppLoaderProvider';
 import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
-import { FiltersIcon, PlusIcon, SearchIcon } from '../../../../public/icons';
+import { CloseIcon, FiltersIcon, PlusIcon, SearchIcon } from '../../../../public/icons';
 import ThemeButton from '../../../components/ui/ThemeButton';
 import EmptyState from '../../../components/EmptyState';
 import Dropdown from '../../../components/ui/ThemeDropDown';
@@ -153,6 +153,11 @@ export default function Page() {
     [membersQuery.data],
   );
 
+   const isUsersLoading =
+  projectsQuery.isPending ||
+  (projectsQuery.isSuccess &&
+    membersQuery.isPending);
+
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
       const response = await fetch(`/api/users/${userId}`, {
@@ -198,7 +203,11 @@ export default function Page() {
     return () => {
       setHeaderCountOverride(null);
     };
-  }, [canViewUsers, membersQuery.data?.summary.totalUsers, setHeaderCountOverride]);
+  }, [
+    canViewUsers,
+    membersQuery.data?.summary.totalUsers,
+    setHeaderCountOverride,
+  ]);
 
   const updateUsersPageFilters = ({
     invitationStatus,
@@ -210,8 +219,7 @@ export default function Page() {
     roleId?: string;
   }) => {
     const nextSearchParams = new URLSearchParams(searchParams.toString());
-    const nextInvitationStatus =
-      invitationStatus ?? selectedInvitationStatus;
+    const nextInvitationStatus = invitationStatus ?? selectedInvitationStatus;
     const nextProjectId = projectId ?? selectedProjectId;
     const nextRoleId = roleId ?? selectedRoleId;
 
@@ -413,7 +421,7 @@ export default function Page() {
   return (
     <>
       <div className="relative z-100 h-full overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 xl:h-dvh">
-        <div className="flex h-full min-h-0 flex-col gap-3 xl:rounded-4xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
+        <div className="flex h-full min-h-0 flex-col gap-3 xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <DashboardSummaryBanner
             imageSrc="/images/UsersIcon.svg"
             imageAlt="Users"
@@ -421,7 +429,7 @@ export default function Page() {
             stats={userStats}
           />
 
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden rounded-[10px] xl:rounded-[20px] bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden rounded-xl bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
             <PermissionGuard
               permission="users.view_list"
               fallback={
@@ -434,7 +442,9 @@ export default function Page() {
                 <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 sm:max-w-50">
                     <div className="flex items-center gap-2">
-                      <SearchIcon fill="#374151" />
+                      <span className="shrink-0">
+                        <SearchIcon fill="#374151" />
+                      </span>
 
                       <input
                         type="text"
@@ -443,6 +453,21 @@ export default function Page() {
                         placeholder="Search"
                         className="min-w-0 flex-1 bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400"
                       />
+
+                      <button
+                        type="button"
+                        onClick={() => setSearchValue('')}
+                        disabled={!searchValue}
+                        tabIndex={searchValue ? 0 : -1}
+                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
+                          searchValue
+                            ? 'visible hover:bg-gray-100'
+                            : 'pointer-events-none invisible'
+                        }`}
+                        aria-label="Clear search"
+                      >
+                        <CloseIcon width="15" height="15" />
+                      </button>
                     </div>
                   </div>
                   <Popover as="div" className="relative xl:hidden">
@@ -563,7 +588,7 @@ export default function Page() {
                 </div>
 
                 <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hide">
-                  {membersQuery.isLoading ? (
+                  {isUsersLoading  ? (
                     <UserCardsSkeleton />
                   ) : userList.length ? (
                     <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
