@@ -105,7 +105,7 @@ export class ThreadService {
       type: NotificationType.THREAD_REPLY,
       entityType: NotificationEntityType.THREAD_MESSAGE,
       entityId: msg.id,
-      title: `New reply in discussion`,
+      title: `New reply in project: "${project.name}"`,
       message: message.message.slice(0, 140),
     });
 

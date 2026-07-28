@@ -137,7 +137,7 @@ export class TicketRepliesService {
       entityType: NotificationEntityType.TICKET_REPLY,
       entityId: reply.id,
       ticketId: ticket.id,
-      title: `New reply: "${ticket.title}"`,
+      title: `New reply in ticket: "${ticket.ticketRefNo}"`,
       message: dto.message.slice(0, 140),
       requiredClaimValue: dto.isInternal ? 'view_internal_replies' : undefined,
     });

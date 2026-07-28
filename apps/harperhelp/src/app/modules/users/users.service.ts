@@ -375,8 +375,8 @@ export class UsersService {
           actorId: loggedInUser.id,
           type: NotificationType.PROJECT_ASSIGNED,
           entityType: NotificationEntityType.PROJECT,
-          title: `Project access updated`,
-          message: undefined,
+          title: `Your project access has changed`,
+          message: `You now have access to (${user.projects.length}) project${user.projects.length === 1 ? '' : 's'}`,
           explicitRecipientIds: [userId],
         });
       }

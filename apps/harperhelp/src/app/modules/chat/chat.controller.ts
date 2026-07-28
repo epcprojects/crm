@@ -126,8 +126,10 @@ export class ChatMessagesController {
       user.id,
     );
 
+    console.debug('deleting message for ticket: ', tid, ' in project: ', pid);
+
     // broadcast deleted message
-    this.gateway.broadcastMessageDeleted(pid, tid, channel, 'Message deleted');
+    this.gateway.broadcastMessageDeleted(pid, tid, channel, messageId);
 
     return { success: true };
   }

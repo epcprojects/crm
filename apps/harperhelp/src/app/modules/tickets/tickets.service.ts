@@ -189,7 +189,7 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `New ticket: ${ticket.title}`,
+        title: `New ticket: "${ticket.title}" created in project "${ticket.project.name}"`,
         message: ticket.ticketRefNo ?? undefined,
       });
     } catch (err) {
@@ -643,7 +643,7 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `"${ticket.title}" moved to ${dto.statusKey}`,
+        title: `"${ticket.title}" status changed to ${ticket.status.label}`,
         message: `${oldStatus.label} to ${dto.statusKey}`,
         explicitRecipientIds: [...new Set(recipients)],
       });
@@ -658,7 +658,8 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `"${ticket.title}" priority changed to ${dto.priorityKey}`,
+        title: `"${ticket.title}" priority changed to ${ticket.priority.label}`,
+        message: `${oldPriority.label} to ${dto.priorityKey}`,
         explicitRecipientIds: [...new Set(recipients)],
       });
     }
@@ -669,6 +670,11 @@ export class TicketsService {
       oldTicket.assigneeId &&
       dto.assigneeId !== oldTicket.assigneeId
     ) {
+      const user = await this.userRepo.findOne({
+        where: { id: dto.assigneeId },
+        select: { id: true, fullName: true },
+      });
+
       await this.notificationsService.notifyProjectMembers({
         projectId: ticket.projectId,
         actorId: userId,
@@ -676,9 +682,9 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-title: dto.assigneeId
-  ? `Assigned to "${ticket.title}"`
-  : `Removed from "${ticket.title}"`,
+        title: dto.assigneeId
+          ? `"${user.fullName || 'Someone'}" was assigned to ticket: "${ticket.ticketRefNo}"`
+          : `Ticket: "${ticket.ticketRefNo}" is now unassigned`,
         explicitRecipientIds: [...new Set(recipients)],
       });
     }
@@ -694,7 +700,8 @@ title: dto.assigneeId
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `Ticket "${ticket.ticketRefNo}" title updated`,
+        title: `Ticket: "${ticket.ticketRefNo}" renamed to "${dto.title}"`,
+        message: `Previously: "${oldTicket.title}"`,
         explicitRecipientIds: [...new Set(recipients)],
       });
     }
@@ -707,7 +714,7 @@ title: dto.assigneeId
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `Ticket "${ticket.ticketRefNo}" description updated`,
+        title: `Ticket: "${ticket.ticketRefNo}" description was updated`,
         explicitRecipientIds: [...new Set(recipients)],
       });
     }
@@ -730,7 +737,7 @@ title: dto.assigneeId
       entityType: NotificationEntityType.TICKET,
       entityId: ticket.id,
       ticketId: ticket.id,
-      title: `Ticket "${ticket.ticketRefNo}" deleted`,
+      title: `Ticket # "${ticket.ticketRefNo}" deleted`,
     });
 
     return { success: true };
