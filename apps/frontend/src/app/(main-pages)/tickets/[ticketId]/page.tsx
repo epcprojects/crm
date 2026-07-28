@@ -42,7 +42,7 @@ import Image from 'next/image';
 import EmptyState from '../../../../components/EmptyState';
 import ImageGalleryLightbox from '../../../../components/ui/ImageGalleryLightbox';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
-import { NotificationItem } from '../../../../../../../libs/shared/interfaces/src/lib/notification.interfaces';
+import { NotificationItem } from '@harperhelp/interfaces';
 import { NotificationEntityType } from '@harperhelp/types';
 import { eventEmitter } from '../../../../lib/event-emitter';
 
@@ -472,90 +472,88 @@ export default function TicketDetailPage() {
   // }, [ticket?.description]);
 
   useEffect(() => {
-  if (isEditingDescription) {
-    return;
-  }
+    if (isEditingDescription) {
+      return;
+    }
 
-  const description = ticket?.description?.trim() ?? '';
-  const measurementElement = descriptionMeasureRef.current;
-  const overflowElement = descriptionOverflowRef.current;
+    const description = ticket?.description?.trim() ?? '';
+    const measurementElement = descriptionMeasureRef.current;
+    const overflowElement = descriptionOverflowRef.current;
 
-  if (!description || !measurementElement || !overflowElement) {
-    setShouldShowDescriptionToggle(false);
-    setDescriptionPreviewText(description);
-    setDescriptionRemainingText('');
-    return;
-  }
-
-  const measureDescription = () => {
-    const computedStyle = window.getComputedStyle(measurementElement);
-    const lineHeight = Number.parseFloat(computedStyle.lineHeight);
-
-    if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
+    if (!description || !measurementElement || !overflowElement) {
       setShouldShowDescriptionToggle(false);
       setDescriptionPreviewText(description);
       setDescriptionRemainingText('');
       return;
     }
 
-    overflowElement.textContent = description;
+    const measureDescription = () => {
+      const computedStyle = window.getComputedStyle(measurementElement);
+      const lineHeight = Number.parseFloat(computedStyle.lineHeight);
 
-    const maxHeight = lineHeight * 2;
-    const fullHeight = overflowElement.scrollHeight;
-
-    if (fullHeight <= maxHeight + 1) {
-      setShouldShowDescriptionToggle(false);
-      setDescriptionPreviewText(description);
-      setDescriptionRemainingText('');
-      return;
-    }
-
-    const toggleLabel = ' read more';
-    let low = 0;
-    let high = description.length;
-    let bestFit = '';
-
-    while (low <= high) {
-      const middle = Math.floor((low + high) / 2);
-
-      const candidate = `${description
-        .slice(0, middle)
-        .trimEnd()}${toggleLabel}`;
-
-      overflowElement.textContent = candidate;
-
-      if (overflowElement.scrollHeight <= maxHeight + 1) {
-        bestFit = description.slice(0, middle).trimEnd();
-        low = middle + 1;
-      } else {
-        high = middle - 1;
+      if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
+        setShouldShowDescriptionToggle(false);
+        setDescriptionPreviewText(description);
+        setDescriptionRemainingText('');
+        return;
       }
-    }
 
-    const previewText = bestFit || description;
+      overflowElement.textContent = description;
 
-    setShouldShowDescriptionToggle(true);
-    setDescriptionPreviewText(previewText);
-    setDescriptionRemainingText(
-      description.slice(previewText.length),
-    );
-  };
+      const maxHeight = lineHeight * 2;
+      const fullHeight = overflowElement.scrollHeight;
 
-  const animationFrameId = window.requestAnimationFrame(() => {
-    measureDescription();
-  });
+      if (fullHeight <= maxHeight + 1) {
+        setShouldShowDescriptionToggle(false);
+        setDescriptionPreviewText(description);
+        setDescriptionRemainingText('');
+        return;
+      }
 
-  const resizeObserver = new ResizeObserver(() => {
-    measureDescription();
-  });
+      const toggleLabel = ' read more';
+      let low = 0;
+      let high = description.length;
+      let bestFit = '';
 
-  resizeObserver.observe(measurementElement);
+      while (low <= high) {
+        const middle = Math.floor((low + high) / 2);
 
-  return () => {
-    window.cancelAnimationFrame(animationFrameId);
-    resizeObserver.disconnect();
-  };
-}, [ticket?.description, isEditingDescription]);
+        const candidate = `${description
+          .slice(0, middle)
+          .trimEnd()}${toggleLabel}`;
+
+        overflowElement.textContent = candidate;
+
+        if (overflowElement.scrollHeight <= maxHeight + 1) {
+          bestFit = description.slice(0, middle).trimEnd();
+          low = middle + 1;
+        } else {
+          high = middle - 1;
+        }
+      }
+
+      const previewText = bestFit || description;
+
+      setShouldShowDescriptionToggle(true);
+      setDescriptionPreviewText(previewText);
+      setDescriptionRemainingText(description.slice(previewText.length));
+    };
+
+    const animationFrameId = window.requestAnimationFrame(() => {
+      measureDescription();
+    });
+
+    const resizeObserver = new ResizeObserver(() => {
+      measureDescription();
+    });
+
+    resizeObserver.observe(measurementElement);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+      resizeObserver.disconnect();
+    };
+  }, [ticket?.description, isEditingDescription]);
 
   useEffect(() => {
     if (!projectId || !ticketId || !currentUserId) {
@@ -1572,125 +1570,6 @@ export default function TicketDetailPage() {
                 </h3>
 
                 <div className="">
-                  {/* {ticket.attachments.length ? (
-                <div className="space-y-3 p-3 sm:p-4">
-                  {ticket.attachments.length ? (
-                    ticket.attachments.map((attachment) => (
-                      <a
-                        key={attachment.id}
-                        href={getAttachmentUrl(attachment.storageKey)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-3  border-b border-b-gray-200 py-3 px-4 transition hover:bg-gray-50"
-                        onClick={(event) => {
-                          if (
-                            !isImageAttachmentExtension(attachment.extension)
-                          ) {
-                            return;
-                          }
-
-                          event.preventDefault();
-                          const index = ticketAttachmentGalleryImages.findIndex(
-                            (image) => image.attachmentId === attachment.id,
-                          );
-
-                          openGallery(ticketAttachmentGalleryImages, index);
-                        }}
-                      >
-                        {isImageAttachmentExtension(attachment.extension) ? (
-                          <img
-                            alt={attachment.name}
-                            className="h-10 w-10 rounded-sm border border-gray-200"
-                            src={getFileUrl(attachment.storageKey)}
-                          />
-                        ) : (
-                          <FileBadgeIcon extension={attachment.extension} />
-                        )}
-
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-gray-800">
-                            {attachment.name}
-                          </p>
-
-                          <p className="text-sm text-gray-500">
-                            {attachment.sizeLabel}
-                          </p>
-                        </div>
-                        <Menu
-                          as="div"
-                          className="relative ml-auto shrink-0"
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <MenuButton
-                            type="button"
-                            className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 outline-none transition hover:bg-gray-100 data-open:bg-gray-100"
-                            aria-label={`Actions for ${attachment.name}`}
-                          >
-                            <ThreedotIcon />
-                          </MenuButton>
-
-                          <MenuItems
-                            anchor="bottom end"
-                            transition
-                            className="z-100 mt-2 w-40 origin-top-right rounded-xl border border-gray-200 bg-white p-1 shadow-[0_14px_44px_rgb(0_0_0/0.14)] outline-none transition duration-150 data-closed:-translate-y-2 data-closed:scale-95 data-closed:opacity-0"
-                          >
-                            <MenuItem>
-                              <button
-                                type="button"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  handleViewAttachment(attachment);
-                                }}
-                                className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-gray-700 outline-none transition data-focus:bg-gray-50"
-                              >
-                                <EyeOpenedIcon />
-                                View
-                              </button>
-                            </MenuItem>
-
-                            <MenuItem>
-                              <button
-                                type="button"
-                                disabled={!attachment.storageKey}
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  handleDownloadAttachment(attachment);
-                                }}
-                                className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-gray-700 outline-none transition data-focus:bg-gray-50 data-disabled:cursor-not-allowed data-disabled:opacity-50"
-                              >
-                                <DownloadIcon />
-                                Download
-                              </button>
-                            </MenuItem>
-
-                            <MenuItem>
-                              <button
-                                type="button"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  // handleDeleteAttachment(attachment);
-                                }}
-                                
-                                className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-red-500 outline-none transition data-focus:bg-red-50"
-                              >
-                                <TrashIcon />
-                                Delete
-                              </button>
-                            </MenuItem>
-                          </MenuItems>
-                        </Menu>
-                      </a>
-                    ))
-                  ) : (
-                    <div className="py-2">
-                      <EmptyState
-                        imageUrl="/images/EmptyProjectIcon.svg"
-                        imageAlt="No attachments"
-                        title="No Attachments"
-                        description="No attachments have been added to this ticket yet."
-                      />
-                    </div>
-                  )} */}
                   {ticket.attachments.length ? (
                     ticket.attachments.map((attachment) => (
                       <div
@@ -1809,7 +1688,6 @@ export default function TicketDetailPage() {
                           </MenuItems>
                         </Menu>
                       </div>
-                      </a>
                     ))
                   ) : (
                     <div className="py-2">
@@ -1955,30 +1833,30 @@ export default function TicketDetailPage() {
         onConfirm={handleConfirmDeleteChatMessage}
       />
       <ConfirmActionModal
-  isOpen={Boolean(attachmentToDelete)}
-  onClose={() => {
-    if (deleteProjectFileMutation.isPending) {
-      return;
-    }
+        isOpen={Boolean(attachmentToDelete)}
+        onClose={() => {
+          if (deleteProjectFileMutation.isPending) {
+            return;
+          }
 
-    setAttachmentToDelete(null);
-  }}
-  title="Delete Attachment?"
-  message={
-    <>
-      Are you sure you want to delete{' '}
-      <span className="font-semibold">
-        “{attachmentToDelete?.name ?? 'this attachment'}”
-      </span>
-      ? This action cannot be undone.
-    </>
-  }
-  confirmLabel="Yes, Delete"
-  cancelLabel="Cancel"
-  variant="danger"
-  isSubmitting={deleteProjectFileMutation.isPending}
-  onConfirm={handleConfirmDeleteAttachment}
-/>
+          setAttachmentToDelete(null);
+        }}
+        title="Delete Attachment?"
+        message={
+          <>
+            Are you sure you want to delete{' '}
+            <span className="font-semibold">
+              “{attachmentToDelete?.name ?? 'this attachment'}”
+            </span>
+            ? This action cannot be undone.
+          </>
+        }
+        confirmLabel="Yes, Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isSubmitting={deleteProjectFileMutation.isPending}
+        onConfirm={handleConfirmDeleteAttachment}
+      />
 
       <ImageGalleryLightbox
         images={galleryImages}
