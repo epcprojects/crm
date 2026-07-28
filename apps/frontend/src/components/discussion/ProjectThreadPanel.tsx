@@ -527,7 +527,7 @@ export default function ProjectThreadPanel({
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isSubmittingReply}
-                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <PaperclipIcon />
                   </button>
@@ -541,7 +541,7 @@ export default function ProjectThreadPanel({
                       : !message.trim() && !attachments.length) ||
                     isSubmittingReply
                   }
-                  className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#10175A] text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-[#10175A] text-white disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <TelegramIcon />
                 </button>
