@@ -13,6 +13,7 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 
 import { generateRandomToken } from '@harperhelp/utils';
+import { NotificationEntityType, NotificationType } from '@harperhelp/types';
 
 @Injectable()
 export class AuthService {
@@ -89,6 +90,18 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(password, 10);
 
     await this.usersService.activateInvitedUser(user.id, passwordHash);
+
+    // Send in App notification.
+    await this.notificationsService.notifyProjectMembers({
+      actorId: user.id,
+      type: NotificationType.MEMBER_JOINED,
+      entityType: NotificationEntityType.MEMBER,
+      entityId: user.id,
+      title: `User accepted invitation to project`,
+      message: undefined,
+      skipCreate: true,
+      explicitRecipientIds: [user.projects[0].createdBy], // need to set owner of project here
+    });
 
     return {
       message: 'Account activated successfully',

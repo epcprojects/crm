@@ -262,6 +262,9 @@ export class UsersService {
   async findByInviteToken(token: string) {
     const user = await this.userRepo.findOne({
       where: { inviteToken: token },
+      relations: {
+        projects: true,
+      },
     });
 
     if (!user) return null;

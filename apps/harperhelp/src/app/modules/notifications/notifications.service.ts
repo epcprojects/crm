@@ -300,6 +300,29 @@ export class NotificationsService {
     const recipientIds = await this.resolveRecipients(dto);
     if (recipientIds.length === 0) return;
 
+    if (dto.skipCreate) {
+      recipientIds.forEach((recipientId) => {
+        this.gateway.emitNewNotification(
+          recipientId,
+          {
+            recipientId,
+            actorId: dto.actorId,
+            projectId: dto.projectId,
+            ticketId: dto.ticketId ?? null,
+            type: dto.type,
+            entityType: dto.entityType,
+            entityId: dto.entityId,
+            title: dto.title,
+            message: dto.message ?? null,
+            metadata: dto.metadata ?? {},
+          } as unknown as Notification,
+          0,
+        );
+      });
+
+      return;
+    }
+
     const rows = recipientIds.map((recipientId) =>
       this.notificationsRepo.create({
         recipientId,
@@ -330,15 +353,14 @@ export class NotificationsService {
     // TODO: Need to save the activity in the activity log table as well, so that it can be queried later for reporting purposes.
 
     await this.activityLogService.createActivity({
-  actorId: dto.actorId,
-  projectId: dto.projectId ?? null,
-  ticketId: dto.ticketId ?? null,
-  type: dto.type,
-  entityType: dto.entityType,
-  entityId: dto.entityId ?? null,
-  metadata: dto.metadata ?? {},
-});
-
+      actorId: dto.actorId,
+      projectId: dto.projectId ?? null,
+      ticketId: dto.ticketId ?? null,
+      type: dto.type,
+      entityType: dto.entityType,
+      entityId: dto.entityId ?? null,
+      metadata: dto.metadata ?? {},
+    });
   }
 
   async search(dto: SearchNotificationsDto, user) {

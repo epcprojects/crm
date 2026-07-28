@@ -16,4 +16,6 @@ export class NotifyProjectMembersDto {
   requiredClaimValue?: string;
 
   explicitRecipientIds?: string[];
+
+  skipCreate?: boolean;
 }

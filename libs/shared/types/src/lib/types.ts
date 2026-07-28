@@ -62,6 +62,9 @@ export enum NotificationType {
   EVENT_CREATED = 'event_created',
   EVENT_UPDATED = 'event_updated',
   EVENT_DELETED = 'event_deleted',
+  MEMBER_JOINED = 'member_joined',
+  MEMBER_LEFT = 'member_left',
+  MEMBER_UPDATED = 'member_updated',
 }
 
 export enum NotificationEntityType {
@@ -70,6 +73,7 @@ export enum NotificationEntityType {
   TICKET_REPLY = 'ticket_reply',
   THREAD_MESSAGE = 'thread_message',
   EVENT = 'event',
+  MEMBER = 'member',
 }
 
 export * from './tickets.types';

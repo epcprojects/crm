@@ -48,6 +48,7 @@ export class ProjectsService {
       brandColor: dto.brandColor ?? '#5B4FCF',
       logoLetter: dto.logoLetter ?? 'HH',
       projectCode,
+      createdBy: currentUser.id,
     });
 
     const savedProject = await this.projectRepo.save(project);
@@ -454,7 +455,10 @@ export class ProjectsService {
   async update(id: string, updateProjectDto: UpdateProjectDto, user) {
     const proj = await this.findOne(id, true, user);
 
-    await this.projectRepo.update(id, updateProjectDto);
+    await this.projectRepo.update(id, {
+      ...updateProjectDto,
+      updatedBy: user.id,
+    });
 
     const recipients = proj.members
       .map((m) => m.id)
