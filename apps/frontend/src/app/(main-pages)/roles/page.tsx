@@ -14,7 +14,7 @@ import RolesTable, {
   type RoleClaimRecord,
   type RoleRecord,
 } from '../../../components/tables/RolesTable';
-import { PlusIcon, SearchIcon } from '../../../../public/icons';
+import { CloseIcon, PlusIcon, SearchIcon } from '../../../../public/icons';
 import { appToast } from '../../../components/toast/AppToast';
 import { useAppSelector } from '../../Redux/store';
 import {
@@ -225,7 +225,9 @@ export default function RolesPage() {
                 <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 sm:max-w-50">
                     <div className="flex items-center gap-2">
-                      <SearchIcon fill="#374151" />
+                      <span className="shrink-0">
+                        <SearchIcon fill="#374151" />
+                      </span>
 
                       <input
                         type="text"
@@ -234,6 +236,21 @@ export default function RolesPage() {
                         placeholder="Search"
                         className="min-w-0 flex-1 bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400"
                       />
+
+                      <button
+                        type="button"
+                        onClick={() => setSearchValue('')}
+                        disabled={!searchValue}
+                        tabIndex={searchValue ? 0 : -1}
+                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
+                          searchValue
+                            ? 'visible hover:bg-gray-100'
+                            : 'pointer-events-none invisible'
+                        }`}
+                        aria-label="Clear search"
+                      >
+                        <CloseIcon width="15" height="15" />
+                      </button>
                     </div>
                   </div>
 
