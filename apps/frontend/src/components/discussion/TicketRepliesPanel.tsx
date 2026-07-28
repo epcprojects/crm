@@ -512,16 +512,16 @@ export default function TicketRepliesPanel({
         </div>
 
         {canCompose ? (
-          <div className="shrink-0 border-t border-gray-200 px-2 py-4 md:px-5">
-            <div className="rounded-xl border border-gray-200 bg-white p-2 sm:p-3">
+          <div className="shrink-0 border-t border-gray-200 px-2 py-4 md:py-0 md:px-0">
+            <div className="  bg-white p-2 ">
               <textarea
-                rows={3}
+                rows={2}
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
                 placeholder={composerPlaceholder}
                 onPaste={handleAttachmentPaste}
                 disabled={isSubmittingReply}
-                className="min-h-14 md:min-h-18 w-full resize-none bg-transparent px-2 py-1 text-sm text-gray-700 outline-none placeholder:text-gray-400"
+                className="min-h-14 md:min-h-16 w-full resize-none bg-transparent px-2 py-1 text-sm text-gray-700 outline-none placeholder:text-gray-400"
               />
 
               <input
@@ -535,7 +535,49 @@ export default function TicketRepliesPanel({
                 }
               />
 
-              {attachments.length ? (
+              {/* {attachments.length ? (
+                <div className="mt-3 flex items-center max-h-32 flex-wrap min-h-0 grid-cols-1 gap-2 overflow-y-auto overscroll-contain pr-1 scrollbar-thin sm:grid-cols-2 lg:grid-cols-3">
+                  {attachments.map((attachment) => (
+                    <div
+                      key={`${attachment.name}-${attachment.size}-${attachment.lastModified}`}
+                      className="flex min-w-0 items-center gap-3 max-w-48 rounded-lg border border-gray-200 bg-gray-50 py-0.5 pr-2 pl-0.5"
+                    >
+                      <LocalAttachmentPreview file={attachment} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-gray-700">
+                          {attachment.name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {formatAttachmentSize(attachment.size)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextAttachments = attachments.filter(
+                            (file) => file !== attachment,
+                          );
+                          setAttachments(nextAttachments);
+                          if (!nextAttachments.length && fileInputRef.current) {
+                            fileInputRef.current.value = '';
+                          }
+                        }}
+                        disabled={isSubmittingReply}
+                        className="text-xs font-medium text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <TrashIcon width="16" height="16" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null} */}
+
+              {attachmentError ? (
+                <p className="mt-2 text-xs text-red-600">{attachmentError}</p>
+              ) : null}
+
+              <div className={`flex items-end ${attachments.length===0 ?"justify-end":"justify-between"} gap-3`}>
+                 {attachments.length ? (
                 <div className="mt-3 flex items-center max-h-32 flex-wrap min-h-0 grid-cols-1 gap-2 overflow-y-auto overscroll-contain pr-1 scrollbar-thin sm:grid-cols-2 lg:grid-cols-3">
                   {attachments.map((attachment) => (
                     <div
@@ -571,12 +613,6 @@ export default function TicketRepliesPanel({
                   ))}
                 </div>
               ) : null}
-
-              {attachmentError ? (
-                <p className="mt-2 text-xs text-red-600">{attachmentError}</p>
-              ) : null}
-
-              <div className="mt-3 flex items-end justify-end gap-3">
                 {/* <div className="text-xs text-gray-500">
                   {canAttachFile ? ALLOWED_ATTACHMENT_HELPER_TEXT : null}
                 </div> */}
@@ -586,7 +622,7 @@ export default function TicketRepliesPanel({
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isSubmittingReply}
-                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       <PaperclipIcon />
                     </button>
@@ -600,7 +636,7 @@ export default function TicketRepliesPanel({
                         : !message.trim() && !attachments.length) ||
                       isSubmittingReply
                     }
-                    className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#10175A] text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    className="flex h-10 w-10 items-center justify-center rounded-full bg-[#10175A] text-white disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <TelegramIcon />
                   </button>

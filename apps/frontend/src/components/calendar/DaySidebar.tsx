@@ -113,7 +113,7 @@ export default function DaySidebar({
             </h3>
 
             {events.length === 0 ? (
-              <div className="flex items-center py-4 justify-center flex-col gap-2">
+              <div className="flex items-center py-4 justify-center flex-col bg-gray-100 rounded-lg gap-2">
                 <svg
                   width="40"
                   height="40"
@@ -137,7 +137,6 @@ export default function DaySidebar({
                     fill="#6B7280"
                   />
                 </svg>
-
                 <p className=" text-sm">No Events found</p>
               </div>
             ) : (
@@ -228,10 +227,10 @@ export default function DaySidebar({
               </h3>
 
               {tickets.length === 0 ? (
-                <div className="flex py-4 items-center justify-center flex-col gap-2">
+                <div className="flex py-4 items-center justify-center bg-gray-100 rounded-lg flex-col gap-2">
                   <svg
-                    width="40"
-                    height="40"
+                    width="30"
+                    height="30"
                     viewBox="0 0 48 48"
                     fill="none"
                     xmlns="http://www.w3.org/2000/svg"
