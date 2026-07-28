@@ -170,7 +170,7 @@ export default function Page() {
     <div className="xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 z-100 h-full xl:h-dvh relative">
       <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden xl:rounded-4xl  bg-gray-200 xl:flex-row xl:border xl:border-white xl:bg-white/40 xl:p-3">
         {!isMobile && (
-          <aside className="hidden sm:flex w-full shrink-0 flex-col overflow-hidden rounded-[20px] border border-white bg-white py-4 px-4.5 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] xl:w-[288px]">
+          <aside className="hidden  w-full shrink-0 flex-col overflow-hidden rounded-[20px] border border-white bg-white py-4 px-4.5 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] xl:w-[288px]">
             <TabGroup
               selectedIndex={activeTabIndex}
               onChange={(index) => {

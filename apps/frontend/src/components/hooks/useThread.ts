@@ -11,7 +11,8 @@ type SocketToken = {
 
 type UseThreadSocketProps = {
   projectId: string;
-  token: SocketToken;
+  token: SocketToken | null;
+  enabled?: boolean;
   onCreated?: (message: any) => void;
   onReplyCreated?: (reply: any) => void;
   onUpdated?: (message: any) => void;
@@ -22,6 +23,7 @@ type UseThreadSocketProps = {
 export function useThread({
   projectId,
   token,
+  enabled = true,
   onCreated,
   onReplyCreated,
   onUpdated,
@@ -31,6 +33,10 @@ export function useThread({
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
+    if (!enabled || !projectId || !token) {
+      return;
+    }
+
     const socket = getSocket('thread', token);
 
     socketRef.current = socket;
@@ -61,7 +67,16 @@ export function useThread({
       socket.off('thread_deleted', onDeleted);
       socket.off('typing', onTyping);
     };
-  }, [projectId]);
+  }, [
+    enabled,
+    onCreated,
+    onDeleted,
+    onReplyCreated,
+    onTyping,
+    onUpdated,
+    projectId,
+    token,
+  ]);
 
   return {
     setTyping(parentId: string | undefined, isTyping: boolean) {

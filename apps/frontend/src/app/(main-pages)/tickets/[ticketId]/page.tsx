@@ -14,6 +14,7 @@ import {
   type ChatChannel,
   type ChatMessage,
 } from '../../../../components/hooks/useTicketChat';
+import { useTicketReplies } from '../../../../components/hooks/useTicketReplies';
 import { getSocket } from '../../../../lib/socket';
 import Dropdown from '../../../../components/ui/ThemeDropDown';
 import { appToast } from '../../../../components/toast/AppToast';
@@ -23,10 +24,7 @@ import {
   useDeleteProjectFileMutation,
   useProjectFilesQuery,
 } from '../../projects/projects.queries';
-import {
-  PermissionGuard,
-  usePermissions,
-} from '../../../providers/PermissionProvider';
+import { usePermissions } from '../../../providers/PermissionProvider';
 import { useAppSelector } from '../../../Redux/store';
 import {
   CheckMarkCircleIcon,
@@ -42,6 +40,7 @@ import Tooltip from '../../../../components/tooltip';
 import Image from 'next/image';
 import EmptyState from '../../../../components/EmptyState';
 import ImageGalleryLightbox from '../../../../components/ui/ImageGalleryLightbox';
+import type { DiscussionReply } from '../../../../components/discussion/types';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { NotificationItem } from '@harperhelp/interfaces';
 import { NotificationEntityType } from '@harperhelp/types';
@@ -56,6 +55,8 @@ type GalleryImage = {
   src: string;
   alt: string;
 };
+
+type ConversationView = 'replies' | 'internal-chat';
 type TicketAttachmentToDelete = {
   attachmentId: string;
   projectFileId: string;
@@ -104,6 +105,9 @@ export default function TicketDetailPage() {
     queryFn: () => fetchTicketReplies(ticketId),
     enabled: Boolean(ticketId && canViewReplies),
   });
+  const [replySocketToken, setReplySocketToken] =
+    useState<SocketTokenResponse | null>(null);
+  const [liveReplies, setLiveReplies] = useState<DiscussionReply[]>([]);
 
   const statusListQuery = useQuery({
     queryKey: ['ticket-statuses'],
@@ -248,20 +252,37 @@ export default function TicketDetailPage() {
   const ticket = ticketDetailQuery.data ?? fallbackTicket;
   const [chatDrawerChannel, setChatDrawerChannel] =
     useState<ChatChannel | null>(null);
+  const [conversationView, setConversationView] =
+    useState<ConversationView>('replies');
   const [hasUnreadInternalChat, setHasUnreadInternalChat] = useState(false);
   const [hasUnreadExternalChat, setHasUnreadExternalChat] = useState(false);
   const isChatDrawerOpen = Boolean(chatDrawerChannel);
+  const isInternalChatActive = conversationView === 'internal-chat';
   const {
-    messages: chatMessages,
-    loading: chatLoading,
-    sendMessage,
-    markRead,
-    deleteMessage,
+    messages: internalChatMessages,
+    loading: internalChatLoading,
+    sendMessage: sendInternalChatMessage,
+    markRead: markInternalChatRead,
+    deleteMessage: deleteInternalChatMessage,
   } = useTicketChat({
-    projectId: isChatDrawerOpen ? projectId : '',
-    ticketId: isChatDrawerOpen ? ticketId : '',
-    channel: chatDrawerChannel ?? 'external',
-    enabled: isChatDrawerOpen,
+    projectId: isInternalChatActive ? projectId : '',
+    ticketId: isInternalChatActive ? ticketId : '',
+    channel: 'internal',
+    enabled: isInternalChatActive && canViewInternalChatBtn,
+  });
+  const {
+    messages: externalChatMessages,
+    loading: externalChatLoading,
+    sendMessage: sendExternalChatMessage,
+    markRead: markExternalChatRead,
+    deleteMessage: deleteExternalChatMessage,
+  } = useTicketChat({
+    projectId:
+      isChatDrawerOpen && chatDrawerChannel === 'external' ? projectId : '',
+    ticketId:
+      isChatDrawerOpen && chatDrawerChannel === 'external' ? ticketId : '',
+    channel: 'external',
+    enabled: isChatDrawerOpen && chatDrawerChannel === 'external',
   });
   const isTicketLoading =
     Boolean(projectId && ticketId && canViewTicketDetail) &&
@@ -285,6 +306,7 @@ export default function TicketDetailPage() {
   const [chatMessagePendingDelete, setChatMessagePendingDelete] = useState<{
     id: string;
     message: string;
+    channel: ChatChannel;
   } | null>(null);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [activeGalleryIndex, setActiveGalleryIndex] = useState<number | null>(
@@ -302,6 +324,82 @@ export default function TicketDetailPage() {
   const isDueDateOverdue = Boolean(
     selectedDueDate && selectedDueDate < todayInputValue,
   );
+
+  useEffect(() => {
+    if (!canViewReplies || !projectId || !ticketId) {
+      setReplySocketToken(null);
+      return;
+    }
+
+    let isDisposed = false;
+
+    void fetchSocketToken()
+      .then((token) => {
+        if (!isDisposed) {
+          setReplySocketToken(token);
+        }
+      })
+      .catch(() => {
+        if (!isDisposed) {
+          setReplySocketToken(null);
+        }
+      });
+
+    return () => {
+      isDisposed = true;
+    };
+  }, [canViewReplies, projectId, ticketId]);
+
+  useEffect(() => {
+    if (!canViewReplies) {
+      setLiveReplies([]);
+      return;
+    }
+
+    setLiveReplies(ticketRepliesQuery.data ?? ticket?.replies ?? []);
+  }, [canViewReplies, ticket?.replies, ticketRepliesQuery.data]);
+
+  useTicketReplies({
+    projectId,
+    ticketId,
+    token: replySocketToken,
+    enabled: canViewReplies,
+    onCreated: (reply) => {
+      const nextReply = mapApiTicketReplyToDiscussionReply(
+        reply as ApiTicketReply,
+      );
+
+      setLiveReplies((current) => {
+        const existingIndex = current.findIndex(
+          (currentReply) => currentReply.id === nextReply.id,
+        );
+
+        if (existingIndex >= 0) {
+          const nextReplies = [...current];
+          nextReplies[existingIndex] = nextReply;
+          return nextReplies;
+        }
+
+        return [...current, nextReply];
+      });
+    },
+    onUpdated: (reply) => {
+      const nextReply = mapApiTicketReplyToDiscussionReply(
+        reply as ApiTicketReply,
+      );
+
+      setLiveReplies((current) =>
+        current.map((currentReply) =>
+          currentReply.id === nextReply.id ? nextReply : currentReply,
+        ),
+      );
+    },
+    onDeleted: ({ id }) => {
+      setLiveReplies((current) =>
+        current.filter((currentReply) => currentReply.id !== id),
+      );
+    },
+  });
 
   const statusOptions = useMemo(
     () =>
@@ -695,12 +793,17 @@ export default function TicketDetailPage() {
     canViewExternalChatBtn,
     canViewInternalChatBtn,
     currentUserId,
+    isInternalChatActive,
     projectId,
     ticketId,
   ]);
 
   useEffect(() => {
-    if (isChatDrawerOpen || !unreadListenerSocketRef.current) {
+    if (
+      isChatDrawerOpen ||
+      isInternalChatActive ||
+      !unreadListenerSocketRef.current
+    ) {
       return;
     }
 
@@ -723,21 +826,21 @@ export default function TicketDetailPage() {
     canViewExternalChatBtn,
     canViewInternalChatBtn,
     isChatDrawerOpen,
+    isInternalChatActive,
     projectId,
     ticketId,
   ]);
 
   useEffect(() => {
     if (
-      !isChatDrawerOpen ||
-      !chatDrawerChannel ||
+      !isInternalChatActive ||
       !currentUserId ||
-      !chatMessages.length
+      !internalChatMessages.length
     ) {
       return;
     }
 
-    const unreadMessageIds = chatMessages
+    const unreadMessageIds = internalChatMessages
       .filter(
         (message) => !message.isRead && message.senderId !== currentUserId,
       )
@@ -747,23 +850,49 @@ export default function TicketDetailPage() {
       return;
     }
 
-    if (chatDrawerChannel === 'internal') {
-      setHasUnreadInternalChat(false);
+    setHasUnreadInternalChat(false);
+
+    void markInternalChatRead(unreadMessageIds).catch(() => {
+      // Keep the UI responsive if read-receipt sync fails.
+    });
+  }, [
+    currentUserId,
+    internalChatMessages,
+    isInternalChatActive,
+    markInternalChatRead,
+  ]);
+
+  useEffect(() => {
+    if (
+      !isChatDrawerOpen ||
+      chatDrawerChannel !== 'external' ||
+      !currentUserId ||
+      !externalChatMessages.length
+    ) {
+      return;
     }
 
-    if (chatDrawerChannel === 'external') {
-      setHasUnreadExternalChat(false);
+    const unreadMessageIds = externalChatMessages
+      .filter(
+        (message) => !message.isRead && message.senderId !== currentUserId,
+      )
+      .map((message) => message.id);
+
+    if (!unreadMessageIds.length) {
+      return;
     }
 
-    void markRead(unreadMessageIds).catch(() => {
+    setHasUnreadExternalChat(false);
+
+    void markExternalChatRead(unreadMessageIds).catch(() => {
       // Keep the UI responsive if read-receipt sync fails.
     });
   }, [
     chatDrawerChannel,
-    chatMessages,
     currentUserId,
+    externalChatMessages,
     isChatDrawerOpen,
-    markRead,
+    markExternalChatRead,
   ]);
 
   // Event listener
@@ -785,6 +914,8 @@ export default function TicketDetailPage() {
   const handleOpenChatDrawer = (channel: ChatChannel) => {
     if (channel === 'internal') {
       setHasUnreadInternalChat(false);
+      setConversationView('internal-chat');
+      return;
     }
 
     if (channel === 'external') {
@@ -827,6 +958,8 @@ export default function TicketDetailPage() {
         : (current + 1) % galleryImages.length,
     );
   };
+
+  console.log('liveReplies' + liveReplies);
 
   if (!canViewTicketDetail) {
     return (
@@ -969,14 +1102,21 @@ export default function TicketDetailPage() {
   const handleSubmitChatMessage = async ({
     message,
     attachments,
+    channel,
+    sendMessage,
   }: {
     message: string;
     attachments: File[];
+    channel: ChatChannel;
+    sendMessage: (payload: {
+      message: string;
+      messageType?: 'text' | 'attachment';
+      attachmentUrl?: string;
+      attachmentUrls?: string[];
+      attachmentName?: string;
+      attachmentSize?: number;
+    }) => Promise<ChatMessage>;
   }) => {
-    if (!chatDrawerChannel) {
-      return;
-    }
-
     try {
       setIsSendingChatMessage(true);
 
@@ -1140,7 +1280,10 @@ export default function TicketDetailPage() {
   };
 
   const handleDeleteChatMessage = (reply: { id: string; message: string }) => {
-    setChatMessagePendingDelete(reply);
+    setChatMessagePendingDelete({
+      ...reply,
+      channel: isInternalChatActive ? 'internal' : 'external',
+    });
   };
 
   const handleConfirmDeleteChatMessage = async () => {
@@ -1150,7 +1293,11 @@ export default function TicketDetailPage() {
 
     try {
       setDeletingChatMessageId(chatMessagePendingDelete.id);
-      await deleteMessage(chatMessagePendingDelete.id);
+      if (chatMessagePendingDelete.channel === 'internal') {
+        await deleteInternalChatMessage(chatMessagePendingDelete.id);
+      } else {
+        await deleteExternalChatMessage(chatMessagePendingDelete.id);
+      }
       appToast.success('Message deleted successfully.');
     } catch (error) {
       appToast.error(
@@ -1307,7 +1454,7 @@ export default function TicketDetailPage() {
             </div>
           </div>
           <div className="flex  items-center gap-2 relative z-20">
-            {canViewInternalChatBtn && (
+            {/* {canViewInternalChatBtn && (
               <Tooltip content="" heading="Internal Chat">
                 <button
                   type="button"
@@ -1320,8 +1467,8 @@ export default function TicketDetailPage() {
                   ) : null}
                 </button>
               </Tooltip>
-            )}
-            {canViewExternalChatBtn && (
+            )} */}
+            {/* {canViewExternalChatBtn && (
               <Tooltip content="" heading="External Chat">
                 <button
                   type="button"
@@ -1335,7 +1482,7 @@ export default function TicketDetailPage() {
                   ) : null}
                 </button>
               </Tooltip>
-            )}
+            )} */}
           </div>
         </div>
 
@@ -1485,33 +1632,122 @@ export default function TicketDetailPage() {
                 </div>
               </section>
               <div className="min-h-0 xl:flex-1 xl:overflow-hidden">
-                <PermissionGuard permission="ticket_replies.view">
+                {canViewReplies || canViewInternalChatBtn ? (
                   <TicketRepliesPanel
+                    title={
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? 'Internal Chat'
+                        : 'Replies'
+                    }
+                    headerAction={
+                      canViewInternalChatBtn ? (
+                        <label className="inline-flex items-center gap-2 sborder border-gray-200">
+                          <span className="text-xs font-medium text-gray-600">
+                            Internal Chat
+                          </span>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={isInternalChatActive}
+                            aria-label="Toggle internal chat"
+                            onClick={() => {
+                              const nextIsInternalChat = !isInternalChatActive;
+                              setConversationView(
+                                nextIsInternalChat
+                                  ? 'internal-chat'
+                                  : 'replies',
+                              );
+
+                              if (nextIsInternalChat) {
+                                setHasUnreadInternalChat(false);
+                              }
+                            }}
+                            className={`relative inline-flex h-6 w-10 items-center rounded-full transition ${
+                              isInternalChatActive
+                                ? 'bg-[#3B82F6]'
+                                : 'bg-gray-300'
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                                isInternalChatActive
+                                  ? 'translate-x-5'
+                                  : 'translate-x-1'
+                              }`}
+                            />
+                            {hasUnreadInternalChat && !isInternalChatActive ? (
+                              <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border border-white bg-green-500" />
+                            ) : null}
+                          </button>
+                        </label>
+                      ) : null
+                    }
                     replies={
-                      canViewReplies
-                        ? (ticketRepliesQuery.data ?? ticket.replies)
-                        : []
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? internalChatMessages.map(
+                            mapChatMessageToDiscussionReply,
+                          )
+                        : canViewReplies
+                          ? liveReplies
+                          : []
                     }
                     emptyTitle={
-                      ticketRepliesQuery.isLoading
-                        ? 'Loading replies...'
-                        : 'No replies yet.'
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? internalChatLoading
+                          ? 'Loading internal chat...'
+                          : 'No messages yet.'
+                        : ticketRepliesQuery.isLoading
+                          ? 'Loading replies...'
+                          : 'No replies yet.'
                     }
                     emptyDescription={
-                      ticketRepliesQuery.isLoading
-                        ? 'Fetching ticket replies.'
-                        : 'No responses have been added to this ticket yet.'
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? internalChatLoading
+                          ? 'Fetching internal chat history.'
+                          : 'Start the internal conversation on this ticket.'
+                        : ticketRepliesQuery.isLoading
+                          ? 'Fetching ticket replies.'
+                          : 'No responses have been added to this ticket yet.'
                     }
-                    canCompose={canPostReplies}
+                    canCompose={
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? canPostReplies
+                        : canPostReplies
+                    }
                     canAttachFile={canAttachReplyFiles}
-                    isSubmittingReply={createReplyMutation.isPending}
+                    isSubmittingReply={
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? isSendingChatMessage
+                        : createReplyMutation.isPending
+                    }
                     onSubmitReply={
-                      canPostReplies ? handleSubmitReply : undefined
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? canPostReplies
+                          ? (payload) =>
+                              handleSubmitChatMessage({
+                                ...payload,
+                                channel: 'internal',
+                                sendMessage: sendInternalChatMessage,
+                              })
+                          : undefined
+                        : canPostReplies
+                          ? handleSubmitReply
+                          : undefined
                     }
                     requireMessage={false}
                     currentUserId={currentUserId}
+                    onDeleteReply={
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? handleDeleteChatMessage
+                        : undefined
+                    }
+                    deletingReplyId={
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? deletingChatMessageId
+                        : undefined
+                    }
                   />
-                </PermissionGuard>
+                ) : null}
               </div>
             </div>
             <aside className="min-h-0 min-w-0 space-y-4 overflow-y-auto scrollbar-hide rounded-2xl bg-white p-3 xl:col-span-3 xl:h-full">
@@ -1761,9 +1997,9 @@ export default function TicketDetailPage() {
       </div>
 
       <AppModal
-        isOpen={isChatDrawerOpen}
+        isOpen={isChatDrawerOpen && chatDrawerChannel === 'external'}
         onClose={() => setChatDrawerChannel(null)}
-        title={chatDrawerChannel === 'internal' ? 'Chat' : 'Chat'}
+        title="External Chat"
         // subtitle={getChatSubtitle({
         //   connected: chatConnected,
         //   loading: chatLoading,
@@ -1792,14 +2028,16 @@ export default function TicketDetailPage() {
             <TicketRepliesPanel
               hideHeader={true}
               className="rounded-none!"
-              title={
-                chatDrawerChannel === 'internal' ? 'Team Chat' : 'Client Chat'
-              }
+              title="Client Chat"
               subtitle=""
-              replies={chatMessages.map(mapChatMessageToDiscussionReply)}
-              emptyTitle={chatLoading ? 'Loading chat...' : 'No messages yet.'}
+              replies={externalChatMessages.map(
+                mapChatMessageToDiscussionReply,
+              )}
+              emptyTitle={
+                externalChatLoading ? 'Loading chat...' : 'No messages yet.'
+              }
               emptyDescription={
-                chatLoading
+                externalChatLoading
                   ? 'Fetching message history.'
                   : 'Start the conversation on this ticket.'
               }
@@ -1807,7 +2045,14 @@ export default function TicketDetailPage() {
               canAttachFile={canAttachReplyFiles}
               isSubmittingReply={isSendingChatMessage}
               onSubmitReply={
-                canPostReplies ? handleSubmitChatMessage : undefined
+                canPostReplies
+                  ? (payload) =>
+                      handleSubmitChatMessage({
+                        ...payload,
+                        channel: 'external',
+                        sendMessage: sendExternalChatMessage,
+                      })
+                  : undefined
               }
               requireMessage={false}
               currentUserId={currentUserId}

@@ -45,6 +45,7 @@ import {
 import Dropdown from '../../../../components/ui/ThemeDropDown';
 import ThemeButton from '../../../../components/ui/ThemeButton';
 import { useIsMobile } from '../../../../components/hooks/useIsMobile';
+import { useThread } from '../../../../components/hooks/useThread';
 import { useAppLoader } from '../../../providers/AppLoaderProvider';
 import { createTicket } from '../../../../lib/tickets';
 import {
@@ -73,6 +74,11 @@ import EmptyState from '../../../../components/EmptyState';
 const projectTabs = ['Tickets', 'Thread', 'Files', 'Calendar'] as const;
 const PROJECT_TICKETS_STATUS_QUERY_PARAM = 'ticketStatus';
 const PROJECT_TICKETS_PRIORITY_QUERY_PARAM = 'ticketPriority';
+
+type SocketTokenResponse = {
+  accessToken: string;
+  socketUrl: string;
+};
 
 export default function ProjectDetailPage() {
   const params = useParams<{ projectId: string }>();
@@ -107,6 +113,8 @@ export default function ProjectDetailPage() {
     null,
   );
   const [selectedThreadMessageId, setSelectedThreadMessageId] = useState('');
+  const [threadSocketToken, setThreadSocketToken] =
+    useState<SocketTokenResponse | null>(null);
   const [ticketsPagination, setTicketsPagination] = useState({
     pageIndex: 0,
     pageSize: 10,
@@ -262,6 +270,31 @@ export default function ProjectDetailPage() {
     setSearchValue('');
   }, [projectId]);
 
+  useEffect(() => {
+    if (!canViewThread || !projectId) {
+      setThreadSocketToken(null);
+      return;
+    }
+
+    let isDisposed = false;
+
+    void fetchSocketToken()
+      .then((token) => {
+        if (!isDisposed) {
+          setThreadSocketToken(token);
+        }
+      })
+      .catch(() => {
+        if (!isDisposed) {
+          setThreadSocketToken(null);
+        }
+      });
+
+    return () => {
+      isDisposed = true;
+    };
+  }, [canViewThread, projectId]);
+
   const updateProjectTicketFilters = ({
     status,
     priority,
@@ -368,6 +401,63 @@ export default function ProjectDetailPage() {
 
     return projectThreadDetailQuery.data?.replies ?? [];
   }, [projectThreadDetailQuery.data, selectedThreadMessageId]);
+
+  useThread({
+    projectId,
+    token: threadSocketToken,
+    enabled: canViewThread,
+    onCreated: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...projectThreadQueryKey, projectId],
+      });
+    },
+    onReplyCreated: (reply) => {
+      void queryClient.invalidateQueries({
+        queryKey: [...projectThreadQueryKey, projectId],
+      });
+
+      const parentId =
+        reply && typeof reply === 'object' && 'parentId' in reply
+          ? String((reply as { parentId?: string }).parentId ?? '')
+          : '';
+
+      if (parentId) {
+        void queryClient.invalidateQueries({
+          queryKey: [...projectThreadDetailQueryKey, projectId, parentId],
+        });
+      }
+    },
+    onUpdated: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...projectThreadQueryKey, projectId],
+      });
+
+      if (selectedThreadMessageId) {
+        void queryClient.invalidateQueries({
+          queryKey: [
+            ...projectThreadDetailQueryKey,
+            projectId,
+            selectedThreadMessageId,
+          ],
+        });
+      }
+    },
+    onDeleted: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...projectThreadQueryKey, projectId],
+      });
+
+      if (selectedThreadMessageId) {
+        void queryClient.invalidateQueries({
+          queryKey: [
+            ...projectThreadDetailQueryKey,
+            projectId,
+            selectedThreadMessageId,
+          ],
+        });
+      }
+    },
+  });
 
   const handleCreateTicket = async (values: CreateTicketFormValues) => {
     if (!canCreateTicket) {
@@ -1292,6 +1382,32 @@ async function fetchTicketPriorities() {
       !Array.isArray(payload)
         ? payload?.message || 'Failed to fetch ticket priorities.'
         : 'Failed to fetch ticket priorities.',
+    );
+  }
+
+  return payload;
+}
+
+async function fetchSocketToken(): Promise<SocketTokenResponse> {
+  const response = await fetch('/api/auth/socket-token', {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+    credentials: 'include',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | SocketTokenResponse
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !payload || !('accessToken' in payload)) {
+    throw new Error(
+      payload && 'message' in payload
+        ? payload.message || 'Failed to authorize socket connection.'
+        : 'Failed to authorize socket connection.',
     );
   }
 
