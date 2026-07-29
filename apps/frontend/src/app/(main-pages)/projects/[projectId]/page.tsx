@@ -332,6 +332,19 @@ export default function ProjectDetailPage() {
     });
   };
 
+  const hasActiveProjectTicketFilters =
+    Boolean(searchValue.trim()) ||
+    selectedStatus !== 'all' ||
+    selectedPriority !== 'all';
+
+  const clearProjectTicketFilters = () => {
+    setSearchValue('');
+    updateProjectTicketFilters({
+      status: 'all',
+      priority: 'all',
+    });
+  };
+
   useEffect(() => {
     if (projectDetailQuery.isError && !hasShownError.current) {
       if (shouldRedirectToNotFound) {
@@ -764,7 +777,7 @@ export default function ProjectDetailPage() {
             badgeClr={project.colorHex}
           />
 
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden rounded-xl bg-white px-4 pt-2 md:pt-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:px-5">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden rounded-xl bg-white px-0 pt-2 md:pt-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:px-5">
             {/* <section className="w-full shrink-0">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
@@ -890,9 +903,7 @@ export default function ProjectDetailPage() {
                                 <>
                                   <PopoverButton
                                     className={`flex h-10 shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium outline-none ${
-                                      open ||
-                                      selectedStatus !== 'all' ||
-                                      selectedPriority !== 'all'
+                                      open || hasActiveProjectTicketFilters
                                         ? 'border-primary bg-primary/5 text-primary'
                                         : 'border-gray-200 bg-white text-gray-700'
                                     }`}
@@ -934,21 +945,14 @@ export default function ProjectDetailPage() {
                                       />
                                     </div>
 
-                                    {selectedStatus !== 'all' ||
-                                    selectedPriority !== 'all' ? (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          updateProjectTicketFilters({
-                                            status: 'all',
-                                            priority: 'all',
-                                          });
-                                        }}
-                                        className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50"
-                                      >
-                                        Clear Filters
-                                      </button>
-                                    ) : null}
+                                    <button
+                                      type="button"
+                                      onClick={clearProjectTicketFilters}
+                                      disabled={!hasActiveProjectTicketFilters}
+                                      className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                      Clear Filters
+                                    </button>
                                   </PopoverPanel>
                                 </>
                               )}
@@ -982,6 +986,15 @@ export default function ProjectDetailPage() {
                                 placeholder="All Priority"
                               />
                             </div>
+
+                            <button
+                              type="button"
+                              onClick={clearProjectTicketFilters}
+                              disabled={!hasActiveProjectTicketFilters}
+                              className="hidden h-10 shrink-0 items-center justify-center rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 xl:inline-flex"
+                            >
+                              Clear Filters
+                            </button>
 
                             {canCreateTicket ? (
                               <ThemeButton

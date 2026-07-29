@@ -200,9 +200,9 @@ export default function Page() {
       });
       await queryClient.invalidateQueries({ queryKey: ['ticket-statuses'] });
     },
-  //     onError: (error) => {
-  //   appToast.error(error instanceof Error ? error.message : 'Failed to delete ticket status.');
-  // },
+    //     onError: (error) => {
+    //   appToast.error(error instanceof Error ? error.message : 'Failed to delete ticket status.');
+    // },
   });
   const updateTicketStatusMutation = useMutation({
     mutationFn: async ({
@@ -341,10 +341,13 @@ export default function Page() {
       await ticketStatusesQuery.refetch();
       setStatusToDelete(null);
       appToast.success('Status deleted successfully.');
-    } 
-    catch (error:any){
-      appToast.error(error instanceof Error ? error.message : 'Failed to delete ticket status.');
-    }finally {
+    } catch (error: any) {
+      appToast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to delete ticket status.',
+      );
+    } finally {
       setStatusToDelete(null);
       setLoading(false);
     }
@@ -405,11 +408,13 @@ export default function Page() {
       await ticketPrioritiesQuery.refetch();
       setPriorityToDelete(null);
       appToast.success('Priority deleted successfully.');
-    }
-    catch (error:any){ 
-      appToast.error(error instanceof Error ? error.message : 'Failed to delete ticket priority.');
-    }
-    finally {
+    } catch (error: any) {
+      appToast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to delete ticket priority.',
+      );
+    } finally {
       setPriorityToDelete(null);
       setLoading(false);
     }
@@ -447,7 +452,7 @@ export default function Page() {
           title={'Settings'}
           stats={projectSummaryStats}
         />
-        <div className="flex xl:flex-row flex-col  items-center gap-3 rounded-[10px] xl:rounded-full border border-warning-200 bg-[#FFFAEB] p-1 text-[#69410A]">
+        <div className="hidden xl:flex-row flex-col  items-center gap-3 rounded-[10px] xl:rounded-full border border-warning-200 bg-[#FFFAEB] p-1 text-[#69410A]">
           <span className=" bg-white hidden xl:flex items-center justify-center  drop-shadow rounded-full   h-10 min-w-10 ">
             <TipIcon />
           </span>

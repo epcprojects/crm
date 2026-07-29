@@ -86,7 +86,7 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     header: 'Title',
     cell: ({ row }) => (
       <span className=" max-w-52   line-clamp-3 text-ellipsis text-sm text-gray-800">
-        {row.original.title} 
+        {row.original.title}
       </span>
     ),
   },
@@ -147,7 +147,7 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
   {
     id: 'createdAt',
     accessorKey: 'date',
-    header: 'Date',
+    header: 'Created On',
     cell: ({ row }) => (
       <span className="text-gray-900 text-sm  whitespace-nowrap">
         {row.original.date}

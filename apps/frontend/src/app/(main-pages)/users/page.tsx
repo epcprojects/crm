@@ -23,7 +23,12 @@ import {
 import { useAppLoader } from '../../providers/AppLoaderProvider';
 import { eventEmitter } from '../../../lib/event-emitter';
 import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
-import { CloseIcon, FiltersIcon, PlusIcon, SearchIcon } from '../../../../public/icons';
+import {
+  CloseIcon,
+  FiltersIcon,
+  PlusIcon,
+  SearchIcon,
+} from '../../../../public/icons';
 import ThemeButton from '../../../components/ui/ThemeButton';
 import EmptyState from '../../../components/EmptyState';
 import Dropdown from '../../../components/ui/ThemeDropDown';
@@ -157,10 +162,9 @@ export default function Page() {
     [membersQuery.data],
   );
 
-   const isUsersLoading =
-  projectsQuery.isPending ||
-  (projectsQuery.isSuccess &&
-    membersQuery.isPending);
+  const isUsersLoading =
+    projectsQuery.isPending ||
+    (projectsQuery.isSuccess && membersQuery.isPending);
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
@@ -441,6 +445,14 @@ export default function Page() {
     selectedProjectId !== 'all';
 
   const hasSearchOrFilters = hasSearch || hasFilters;
+  const clearUsersFilters = () => {
+    setSearchValue('');
+    updateUsersPageFilters({
+      invitationStatus: 'all',
+      roleId: 'all',
+      projectId: 'all',
+    });
+  };
   return (
     <>
       <div className="relative z-100 h-full overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 xl:h-dvh">
@@ -463,99 +475,115 @@ export default function Page() {
             >
               <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
                 <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 sm:max-w-50">
-                    <div className="flex items-center gap-2">
-                      <span className="shrink-0">
-                        <SearchIcon fill="#374151" />
-                      </span>
+                  <div className="flex gap-2">
+                    <div className="w-full">
+                      <div className=" w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 sm:max-w-50">
+                        <div className="flex items-center gap-2">
+                          <span className="shrink-0">
+                            <SearchIcon fill="#374151" />
+                          </span>
 
-                      <input
-                        type="text"
-                        value={searchValue}
-                        onChange={(event) => setSearchValue(event.target.value)}
-                        placeholder="Search"
-                        className="min-w-0 flex-1 bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400"
-                      />
+                          <input
+                            type="text"
+                            value={searchValue}
+                            onChange={(event) =>
+                              setSearchValue(event.target.value)
+                            }
+                            placeholder="Search"
+                            className="sm:min-w-0 sm:flex-1 w-full bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400"
+                          />
 
-                      <button
-                        type="button"
-                        onClick={() => setSearchValue('')}
-                        disabled={!searchValue}
-                        tabIndex={searchValue ? 0 : -1}
-                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
-                          searchValue
-                            ? 'visible hover:bg-gray-100'
-                            : 'pointer-events-none invisible'
-                        }`}
-                        aria-label="Clear search"
-                      >
-                        <CloseIcon width="15" height="15" />
-                      </button>
+                          <button
+                            type="button"
+                            onClick={() => setSearchValue('')}
+                            disabled={!searchValue}
+                            tabIndex={searchValue ? 0 : -1}
+                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
+                              searchValue
+                                ? 'visible hover:bg-gray-100'
+                                : 'pointer-events-none invisible'
+                            }`}
+                            aria-label="Clear search"
+                          >
+                            <CloseIcon width="15" height="15" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
+
+                    <Popover as="div" className="relative xl:hidden">
+                      {({ open }) => (
+                        <>
+                          <PopoverButton
+                            className={`flex h-10 shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium outline-none ${
+                              open
+                                ? 'border-primary  text-white'
+                                : 'border-gray-200 bg-white text-gray-700'
+                            }`}
+                            aria-label="Open filters"
+                          >
+                            <FiltersIcon />
+                          </PopoverButton>
+
+                          <PopoverPanel
+                            anchor="bottom end"
+                            transition
+                            className="z-100 mt-2 flex w-56 origin-top-right flex-col gap-3 overflow-visible!  rounded-xl border border-gray-200 bg-white p-3 shadow-[0_14px_44px_rgb(0_0_0/0.14)] outline-none transition duration-150 data-closed:-translate-y-2 data-closed:scale-95 data-closed:opacity-0"
+                          >
+                            <div className="relative w-full overflow-visible">
+                              <Dropdown
+                                options={invitationFilterOptions}
+                                value={selectedInvitationStatus}
+                                onChange={(value) =>
+                                  updateUsersPageFilters({
+                                    invitationStatus: value as
+                                      | 'all'
+                                      | 'accepted'
+                                      | 'pending',
+                                  })
+                                }
+                                placeholder="All Invitations"
+                                maxMenuHeight={150}
+                              />
+                            </div>
+
+                            <div className="relative w-full overflow-visible">
+                              <Dropdown
+                                options={roleFilterOptions}
+                                value={selectedRoleId}
+                                onChange={(value) =>
+                                  updateUsersPageFilters({ roleId: value })
+                                }
+                                placeholder="All Roles"
+                                maxMenuHeight={150}
+                              />
+                            </div>
+
+                            <div className="relative w-full overflow-visible">
+                              <Dropdown
+                                options={projectFilterOptions}
+                                value={selectedProjectId}
+                                onChange={(value) =>
+                                  updateUsersPageFilters({ projectId: value })
+                                }
+                                placeholder="All Projects"
+                                maxMenuHeight={150}
+                              />
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={clearUsersFilters}
+                              disabled={!hasSearchOrFilters}
+                              className="inline-flex h-10 items-center justify-center rounded-lg border border-gray-200 px-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              Clear Filters
+                            </button>
+                          </PopoverPanel>
+                        </>
+                      )}
+                    </Popover>
                   </div>
-                  <Popover as="div" className="relative xl:hidden">
-                    {({ open }) => (
-                      <>
-                        <PopoverButton
-                          className={`flex h-10 shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium outline-none ${
-                            open
-                              ? 'border-primary  text-white'
-                              : 'border-gray-200 bg-white text-gray-700'
-                          }`}
-                          aria-label="Open filters"
-                        >
-                          <FiltersIcon />
-                        </PopoverButton>
-
-                        <PopoverPanel
-                          anchor="bottom end"
-                          transition
-                          className="z-100 mt-2 flex w-56 origin-top-right flex-col gap-3 overflow-visible!  rounded-xl border border-gray-200 bg-white p-3 shadow-[0_14px_44px_rgb(0_0_0/0.14)] outline-none transition duration-150 data-closed:-translate-y-2 data-closed:scale-95 data-closed:opacity-0"
-                        >
-                          <div className="relative w-full overflow-visible">
-                            <Dropdown
-                              options={invitationFilterOptions}
-                              value={selectedInvitationStatus}
-                              onChange={(value) =>
-                                updateUsersPageFilters({
-                                  invitationStatus: value as
-                                    | 'all'
-                                    | 'accepted'
-                                    | 'pending',
-                                })
-                              }
-                              placeholder="All Invitations"
-                              maxMenuHeight={150}
-                            />
-                          </div>
-
-                          <div className="relative w-full overflow-visible">
-                            <Dropdown
-                              options={roleFilterOptions}
-                              value={selectedRoleId}
-                              onChange={(value) =>
-                                updateUsersPageFilters({ roleId: value })
-                              }
-                              placeholder="All Roles"
-                              maxMenuHeight={150}
-                            />
-                          </div>
-
-                          <div className="relative w-full overflow-visible">
-                            <Dropdown
-                              options={projectFilterOptions}
-                              value={selectedProjectId}
-                              onChange={(value) =>
-                                updateUsersPageFilters({ projectId: value })
-                              }
-                              placeholder="All Projects"
-                              maxMenuHeight={150}
-                            />
-                          </div>
-                        </PopoverPanel>
-                      </>
-                    )}
-                  </Popover>
                   <div className="flex items-center gap-3">
                     <div className="w-full hidden xl:block xl:w-44">
                       <Dropdown
@@ -595,6 +623,15 @@ export default function Page() {
                       />
                     </div>
 
+                    <button
+                      type="button"
+                      onClick={clearUsersFilters}
+                      disabled={!hasSearchOrFilters}
+                      className="hidden h-10 shrink-0 items-center justify-center rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 xl:inline-flex"
+                    >
+                      Clear Filters
+                    </button>
+
                     {canCreateUser ? (
                       <ThemeButton
                         className="shrink-0 rounded-full"
@@ -611,7 +648,7 @@ export default function Page() {
                 </div>
 
                 <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hide">
-                  {isUsersLoading  ? (
+                  {isUsersLoading ? (
                     <UserCardsSkeleton />
                   ) : userList.length ? (
                     <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">

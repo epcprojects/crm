@@ -52,6 +52,7 @@ const TICKETS_VIEW_QUERY_PARAM = 'view';
 const TICKETS_STATUS_QUERY_PARAM = 'status';
 const TICKETS_PRIORITY_QUERY_PARAM = 'priority';
 const TICKETS_PROJECT_QUERY_PARAM = 'project';
+const DEFAULT_TICKETS_STATUS_FILTER = 'Open';
 
 export default function Page() {
   const router = useRouter();
@@ -557,6 +558,12 @@ export default function Page() {
     }));
   }, [searchValue, selectedPriority, selectedProject, selectedStatus]);
 
+  const hasActiveTicketFilters =
+    Boolean(searchValue.trim()) ||
+    selectedStatus !== DEFAULT_TICKETS_STATUS_FILTER ||
+    selectedPriority !== 'all' ||
+    selectedProject !== 'all';
+
   const updateTicketsPageFilters = ({
     view,
     status,
@@ -610,6 +617,15 @@ export default function Page() {
 
     router.push(nextQueryString ? `${pathname}?${nextQueryString}` : pathname, {
       scroll: false,
+    });
+  };
+
+  const clearTicketFilters = () => {
+    setSearchValue('');
+    updateTicketsPageFilters({
+      status: DEFAULT_TICKETS_STATUS_FILTER,
+      priority: 'all',
+      project: 'all',
     });
   };
 
@@ -835,6 +851,15 @@ export default function Page() {
                                     maxMenuHeight={150}
                                   />
                                 </div>
+
+                                <button
+                                  type="button"
+                                  onClick={clearTicketFilters}
+                                  disabled={!hasActiveTicketFilters}
+                                  className="inline-flex h-10 items-center justify-center rounded-lg border border-gray-200 px-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  Clear Filters
+                                </button>
                               </PopoverPanel>
                             </>
                           )}
@@ -906,6 +931,15 @@ export default function Page() {
                             placeholder="All Priority"
                           />
                         </div>
+
+                        <button
+                          type="button"
+                          onClick={clearTicketFilters}
+                          disabled={!hasActiveTicketFilters}
+                          className="hidden h-10 shrink-0 items-center justify-center rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 xl:inline-flex"
+                        >
+                          Clear Filters
+                        </button>
 
                         <div className="flex flex-row gap-3 ">
                           {canCreateTicket ? (
@@ -1347,7 +1381,7 @@ function getTicketsViewMode(value: string | null): 'table' | 'kanban' {
 
 function getTicketsStatusFilterValue(value: string | null) {
   if (!value || !value.trim()) {
-    return 'Open';
+    return DEFAULT_TICKETS_STATUS_FILTER;
   }
 
   return value;

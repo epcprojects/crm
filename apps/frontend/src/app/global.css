@@ -1029,7 +1029,7 @@ button[aria-disabled='true'] {
     grid-template-columns: 1fr;
     height: auto;
   }
-  .calendar-main { height: 70vh; padding: 10px; }
+  .calendar-main { height: 70vh; padding: 0px; }
   .day-sidebar { max-height: 50vh; border-left: none; border-top: 1px solid var(--border); }
   .topbar-legend { display: none; }
   .pri-tip { display: none; }

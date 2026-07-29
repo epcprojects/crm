@@ -77,11 +77,18 @@ export default function ProjectThreadPanel({
     null,
   );
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const conversationImages = getGalleryImagesFromDiscussion(
     headerReply,
     replies,
   );
+
+  const focusComposer = () => {
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+    });
+  };
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -95,6 +102,8 @@ export default function ProjectThreadPanel({
 
   const handleSubmit = async () => {
     const trimmedMessage = message.trim();
+    const currentMessage = message;
+    const currentAttachments = attachments;
 
     if (
       (requireMessage
@@ -106,16 +115,35 @@ export default function ProjectThreadPanel({
       return;
     }
 
-    await onSubmitReply({
-      message: trimmedMessage,
-      attachments,
-    });
     setMessage('');
     setAttachments([]);
     setAttachmentError('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    focusComposer();
+
+    try {
+      await onSubmitReply({
+        message: trimmedMessage,
+        attachments: currentAttachments,
+      });
+    } catch (error) {
+      setMessage(currentMessage);
+      setAttachments(currentAttachments);
+      throw error;
+    }
+  };
+
+  const handleComposerKeyDown = async (
+    event: React.KeyboardEvent<HTMLTextAreaElement>,
+  ) => {
+    if (event.key !== 'Enter' || event.shiftKey) {
+      return;
+    }
+
+    event.preventDefault();
+    await handleSubmit();
   };
 
   const handleAttachmentChange = (files: FileList | File[] | null) => {
@@ -123,6 +151,7 @@ export default function ProjectThreadPanel({
 
     if (!selectedFiles.length) {
       setAttachmentError('');
+      focusComposer();
       return;
     }
 
@@ -134,6 +163,7 @@ export default function ProjectThreadPanel({
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+      focusComposer();
       return;
     }
 
@@ -142,6 +172,7 @@ export default function ProjectThreadPanel({
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    focusComposer();
   };
 
   const handleConfirmDeleteAttachment = async () => {
@@ -224,9 +255,7 @@ export default function ProjectThreadPanel({
                     </span>
                   </div>
                   {headerReply.message ? (
-                    <p className="text-sm font-normal text-gray-900">
-                      {headerReply.message}
-                    </p>
+                    <ExpandableMessageText message={headerReply.message} />
                   ) : null}
                   {headerReply.attachments?.length ? (
                     <div className="mt-2 grid gap-2">
@@ -337,18 +366,16 @@ export default function ProjectThreadPanel({
                           className={`w-full rounded-xl ${isCurrentUserReply ? 'rounded-tr-none' : 'rounded-tl-none'} ${reply.message && 'space-y-2'}  bg-white  `}
                         >
                           {reply.message ? (
-                            <p className="text-sm font-normal text-gray-900">
-                              {reply.message}
-                            </p>
+                            <ExpandableMessageText message={reply.message} />
                           ) : null}
                           {reply.attachments?.length ? (
                             <div
-                              className={`grid flex-wrap gap-2 ${reply.attachments.length > 1 && 'md:grid-cols-3'} ${!reply.message && reply.attachments && reply.attachments.length > 1 && 'p-2'} ${isCurrentUserReply ? 'rounded-tr-none' : 'rounded-tl-none'}`}
+                              className={`grid flex-wrap gap-2 ${reply.attachments.length > 1 && 'md:grid-cols-3 2xl:grid-cols-6'} ${!reply.message && reply.attachments && reply.attachments.length > 1 && 'p-2'} ${isCurrentUserReply ? 'rounded-tr-none' : 'rounded-tl-none'}`}
                             >
                               {reply.attachments.map((attachment) => (
                                 <div
                                   key={attachment.id}
-                                  className={`flex  min-w-0  w-fit items-start gap-3 ${reply.attachments && reply.attachments.length > 1 && 'md:min-w-40'}  rounded-xl  ${!isImageAttachment(attachment.extension) || (reply.attachments && reply.attachments.length > 1 && 'p-0.5 w-full md:min-w-72 border border-gray-200')} transition bg-gray-50`}
+                                  className={`flex  min-w-0  w-fit items-start gap-3 ${reply.attachments && reply.attachments.length > 1 && 'md:min-w-40'}  rounded-xl  ${!isImageAttachment(attachment.extension) || (reply.attachments && reply.attachments.length > 1 && 'p-0.5 w-full md:min-w-72 border border-gray-200 bg-gray-50')} transition`}
                                 >
                                   <a
                                     href={getAttachmentUrl(
@@ -473,15 +500,19 @@ export default function ProjectThreadPanel({
           <div className=" py-0 px-0">
             <div className=" border-t border-gray-200 bg-white p-2">
               <textarea
+                ref={textareaRef}
                 rows={2}
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
+                onKeyDown={(event) => void handleComposerKeyDown(event)}
                 placeholder={composerPlaceholder}
                 disabled={isSubmittingReply}
                 className="w-full resize-none bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
               />
 
-              <div className={` flex items-center ${attachments.length===0?"justify-end":"justify-between"} gap-2`}>
+              <div
+                className={` flex items-center ${attachments.length === 0 ? 'justify-end' : 'justify-between'} gap-2`}
+              >
                 {attachments.length ? (
                   <div className="mt-3 grid max-h-52 min-h-0 grid-cols-1 gap-2 overflow-y-auto overscroll-contain pr-1 scrollbar-hide sm:grid-cols-2 lg:grid-cols-3">
                     {attachments.map((attachment) => (
@@ -511,6 +542,7 @@ export default function ProjectThreadPanel({
                             ) {
                               fileInputRef.current.value = '';
                             }
+                            focusComposer();
                           }}
                           disabled={isSubmittingReply}
                           className="text-xs font-medium text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
@@ -521,31 +553,32 @@ export default function ProjectThreadPanel({
                     ))}
                   </div>
                 ) : null}
-               <div className='flex items-center gap-2'>
-                 {canAttachFile ? (
+                <div className="flex items-center gap-2">
+                  {canAttachFile ? (
+                    <button
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isSubmittingReply}
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <PaperclipIcon />
+                    </button>
+                  ) : null}
                   <button
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isSubmittingReply}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    onClick={handleSubmit}
+                    disabled={
+                      (requireMessage
+                        ? !message.trim()
+                        : !message.trim() && !attachments.length) ||
+                      isSubmittingReply
+                    }
+                    className="flex h-10 w-10 items-center justify-center rounded-full bg-[#10175A] text-white disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    <PaperclipIcon />
+                    <TelegramIcon />
                   </button>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={
-                    (requireMessage
-                      ? !message.trim()
-                      : !message.trim() && !attachments.length) ||
-                    isSubmittingReply
-                  }
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-[#10175A] text-white disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <TelegramIcon />
-                </button>
-                 </div>
+                </div>
               </div>
             </div>
 
@@ -677,6 +710,75 @@ function getAttachmentUrl(storageKey?: string) {
   return normalizedBaseUrl
     ? `${normalizedBaseUrl}/${normalizedStorageKey}`
     : '#';
+}
+
+function ExpandableMessageText({ message }: { message: string }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [shouldShowToggle, setShouldShowToggle] = useState(false);
+  const measureRef = useRef<HTMLParagraphElement | null>(null);
+  const overflowMeasureRef = useRef<HTMLParagraphElement | null>(null);
+
+  useEffect(() => {
+    const element = measureRef.current;
+    const overflowElement = overflowMeasureRef.current;
+
+    if (!element || !overflowElement) {
+      return;
+    }
+
+    const updateOverflowState = () => {
+      const computedStyle = window.getComputedStyle(element);
+      const lineHeight = Number.parseFloat(computedStyle.lineHeight);
+
+      if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
+        setShouldShowToggle(false);
+        return;
+      }
+
+      setShouldShowToggle(overflowElement.scrollHeight > lineHeight * 2 + 1);
+    };
+
+    updateOverflowState();
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateOverflowState();
+    });
+
+    resizeObserver.observe(element);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [message]);
+
+  return (
+    <div>
+      <p
+        ref={measureRef}
+        className={`text-sm font-normal whitespace-pre-wrap break-words text-gray-900 ${
+          isExpanded ? '' : 'line-clamp-2'
+        }`}
+      >
+        {message}
+      </p>
+      <p
+        ref={overflowMeasureRef}
+        aria-hidden="true"
+        className="pointer-events-none invisible absolute left-0 top-0 -z-10 line-clamp-none w-full whitespace-pre-wrap break-words text-sm font-normal text-gray-900"
+      >
+        {message}
+      </p>
+      {shouldShowToggle ? (
+        <button
+          type="button"
+          className="mt-1 text-sm font-medium text-[#8A38F5]"
+          onClick={() => setIsExpanded((current) => !current)}
+        >
+          {isExpanded ? 'read less' : 'read more'}
+        </button>
+      ) : null}
+    </div>
+  );
 }
 
 function getGalleryImagesFromAttachments(
