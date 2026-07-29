@@ -1139,13 +1139,6 @@ export default function TicketDetailPage() {
 
       const trimmedMessage = message.trim();
 
-      if (trimmedMessage) {
-        await sendMessage({
-          message: trimmedMessage,
-          messageType: 'text',
-        });
-      }
-
       if (attachments.length) {
         const uploadedFiles = await uploadChatAttachments(
           projectId,
@@ -1166,6 +1159,11 @@ export default function TicketDetailPage() {
             attachmentUrls,
           });
         }
+      } else if (trimmedMessage) {
+        await sendMessage({
+          message: trimmedMessage,
+          messageType: 'text',
+        });
       }
 
       // appToast.success('Chat updated successfully.');
