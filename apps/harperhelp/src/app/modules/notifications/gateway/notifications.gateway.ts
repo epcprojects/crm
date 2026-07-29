@@ -90,6 +90,7 @@ export class NotificationsGateway
       message: notification.message,
       entityType: notification.entityType,
       entityId: notification.entityId,
+      ticketId: notification.ticketId ?? null,
       projectId: notification.projectId,
       createdAt: notification.createdAt,
       unreadCount,

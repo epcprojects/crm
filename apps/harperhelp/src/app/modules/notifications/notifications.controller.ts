@@ -11,7 +11,7 @@ import { NotificationsService } from './notifications.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { SearchNotificationsDto } from './dto/search-notification.dto';
-import { GetUser } from 'apps/harperhelp/src/common/decorators/get-user.decorator';
+import { GetUser } from '../../../common/decorators/get-user.decorator';
 
 @Controller('notifications')
 @ApiBearerAuth('JWT-auth')
