@@ -114,6 +114,7 @@ export function NotificationsSocketProvider({
           'notification:new',
           (payload: NotificationItem & { unreadCount: number }) => {
             if (payload.skip) {
+              eventEmitter.emit('notification:new', payload);
               return;
             }
             setUnreadCount(payload.unreadCount);
