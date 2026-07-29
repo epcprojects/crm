@@ -113,6 +113,10 @@ export function NotificationsSocketProvider({
         socket.on(
           'notification:new',
           (payload: NotificationItem & { unreadCount: number }) => {
+            if (payload.skip) {
+              eventEmitter.emit('notification:new', payload);
+              return;
+            }
             setUnreadCount(payload.unreadCount);
             setRecentNotifications((prev) => [payload, ...prev].slice(0, 5));
             appToast.info(getNotificationToastMessage(payload), {

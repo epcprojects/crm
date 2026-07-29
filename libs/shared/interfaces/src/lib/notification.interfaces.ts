@@ -9,4 +9,5 @@ export interface NotificationItem {
   isRead: boolean;
   createdAt: string;
   ticketId: string;
+  skip?: boolean;
 }
