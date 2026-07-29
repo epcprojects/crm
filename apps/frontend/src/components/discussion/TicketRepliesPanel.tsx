@@ -93,11 +93,18 @@ export default function TicketRepliesPanel({
     null,
   );
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const conversationImages = getGalleryImagesFromDiscussion(
     headerReply,
     replies,
   );
+
+  const focusComposer = () => {
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+    });
+  };
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -111,6 +118,8 @@ export default function TicketRepliesPanel({
 
   const handleSubmit = async () => {
     const trimmedMessage = message.trim();
+    const currentMessage = message;
+    const currentAttachments = attachments;
 
     if (
       (requireMessage
@@ -122,16 +131,35 @@ export default function TicketRepliesPanel({
       return;
     }
 
-    await onSubmitReply({
-      message: trimmedMessage,
-      attachments,
-    });
     setMessage('');
     setAttachments([]);
     setAttachmentError('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    focusComposer();
+
+    try {
+      await onSubmitReply({
+        message: trimmedMessage,
+        attachments: currentAttachments,
+      });
+    } catch (error) {
+      setMessage(currentMessage);
+      setAttachments(currentAttachments);
+      throw error;
+    }
+  };
+
+  const handleComposerKeyDown = async (
+    event: React.KeyboardEvent<HTMLTextAreaElement>,
+  ) => {
+    if (event.key !== 'Enter' || event.shiftKey) {
+      return;
+    }
+
+    event.preventDefault();
+    await handleSubmit();
   };
 
   const handleAttachmentChange = (files: FileList | File[] | null) => {
@@ -139,6 +167,7 @@ export default function TicketRepliesPanel({
 
     if (!selectedFiles.length) {
       setAttachmentError('');
+      focusComposer();
       return;
     }
 
@@ -150,6 +179,7 @@ export default function TicketRepliesPanel({
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+      focusComposer();
       return;
     }
 
@@ -158,6 +188,7 @@ export default function TicketRepliesPanel({
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    focusComposer();
   };
   const handleAttachmentPaste = (
     event: ClipboardEvent<HTMLTextAreaElement>,
@@ -710,9 +741,11 @@ export default function TicketRepliesPanel({
           <div className="shrink-0 border-t border-gray-200 px-2 py-4 md:py-0 md:px-0">
             <div className="  bg-white p-2 ">
               <textarea
+                ref={textareaRef}
                 rows={2}
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
+                onKeyDown={(event) => void handleComposerKeyDown(event)}
                 placeholder={composerPlaceholder}
                 onPaste={handleAttachmentPaste}
                 disabled={isSubmittingReply}
@@ -803,6 +836,7 @@ export default function TicketRepliesPanel({
                             ) {
                               fileInputRef.current.value = '';
                             }
+                            focusComposer();
                           }}
                           disabled={isSubmittingReply}
                           className="text-xs font-medium text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
@@ -820,6 +854,7 @@ export default function TicketRepliesPanel({
                   {canAttachFile ? (
                     <button
                       type="button"
+                      onMouseDown={(event) => event.preventDefault()}
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isSubmittingReply}
                       className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"

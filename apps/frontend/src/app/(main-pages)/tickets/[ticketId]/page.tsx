@@ -948,21 +948,19 @@ export default function TicketDetailPage() {
 
   //   setChatDrawerChannel(channel);
   // };
-  const handleOpenChatDrawer = (
-  channel: ChatChannel,
-) => {
-  if (channel === 'internal') {
-    setHasUnreadInternalChat(false);
-    updateInternalChatParam(true);
-    return;
-  }
+  const handleOpenChatDrawer = (channel: ChatChannel) => {
+    if (channel === 'internal') {
+      setHasUnreadInternalChat(false);
+      updateInternalChatParam(true);
+      return;
+    }
 
-  if (channel === 'external') {
-    setHasUnreadExternalChat(false);
-  }
+    if (channel === 'external') {
+      setHasUnreadExternalChat(false);
+    }
 
-  setChatDrawerChannel(channel);
-};
+    setChatDrawerChannel(channel);
+  };
 
   const openGallery = (images: GalleryImage[], index: number) => {
     if (!images.length || index < 0) {

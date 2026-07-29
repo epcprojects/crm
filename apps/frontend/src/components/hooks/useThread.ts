@@ -47,8 +47,18 @@ export function useThread({
 
     socket.on('connect', join);
 
-    socket.on('thread_created', onCreated ?? (() => {}));
-    socket.on('thread_reply_created', onReplyCreated ?? (() => {}));
+    socket.on('thread_created', (payload) => {
+      console.log(payload);
+      if (onCreated) {
+        onCreated(payload);
+      }
+    });
+    socket.on('thread_created', (payload) => {
+      console.log(payload);
+      if (onReplyCreated) {
+        onReplyCreated(payload);
+      }
+    });
     socket.on('thread_updated', onUpdated ?? (() => {}));
     socket.on('thread_deleted', onDeleted ?? (() => {}));
     socket.on('typing', onTyping ?? (() => {}));
