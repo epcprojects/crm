@@ -50,6 +50,7 @@ import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { NotificationItem } from '@harperhelp/interfaces';
 import { NotificationEntityType } from '@harperhelp/types';
 import { eventEmitter } from '../../../../lib/event-emitter';
+import { validateAttachments } from '../../../../lib/attachments';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import RichTextEditor from 'apps/frontend/src/components/RichTextEditor';
 const MAX_DESCRIPTION_LENGTH = 4000;
@@ -2579,6 +2580,12 @@ async function uploadChatAttachments(
   projectId: string,
   attachments: File[],
 ): Promise<UploadedProjectFile[]> {
+  const validationError = validateAttachments(attachments);
+
+  if (validationError) {
+    throw new Error(validationError);
+  }
+
   const formData = new FormData();
 
   attachments.forEach((file) => {
