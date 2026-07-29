@@ -907,30 +907,36 @@ export default function Page() {
                           />
                         </div>
 
-                        {canCreateTicket ? (
-                          <ThemeButton
-                            className="rounded-full"
-                            variant="primaryGradient"
-                            icon={
-                              <PlusIcon fill="#000000" width="20" height="20" />
-                            }
-                            onClick={() => setCreateTicketOpen(true)}
-                          >
-                            New Ticket
-                          </ThemeButton>
-                        ) : null}
+                        <div className="flex flex-row gap-3 ">
+                          {canCreateTicket ? (
+                            <ThemeButton
+                              className="rounded-full w-full"
+                              variant="primaryGradient"
+                              icon={
+                                <PlusIcon
+                                  fill="#000000"
+                                  width="20"
+                                  height="20"
+                                />
+                              }
+                              onClick={() => setCreateTicketOpen(true)}
+                            >
+                              New Ticket
+                            </ThemeButton>
+                          ) : null}
 
-                        <ThemeButton
-                          className="rounded-full"
-                          variant="primaryGradient"
-                          icon={<DownloadIcon />}
-                          onClick={handleExportTickets}
-                          disabled={isExportingTickets}
-                        >
-                          {isExportingTickets
-                            ? 'Exporting...'
-                            : 'Export Tickets'}
-                        </ThemeButton>
+                          <ThemeButton
+                            className="rounded-full w-full"
+                            variant="primaryGradient"
+                            icon={<DownloadIcon />}
+                            onClick={handleExportTickets}
+                            disabled={isExportingTickets}
+                          >
+                            {isExportingTickets
+                              ? 'Exporting...'
+                              : 'Export Tickets'}
+                          </ThemeButton>
+                        </div>
                       </div>
                     </>
                   ) : null}

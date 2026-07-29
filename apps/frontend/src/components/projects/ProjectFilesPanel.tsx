@@ -272,7 +272,7 @@ export default function ProjectFilesPanel({
                         }}
                         disabled={!getFileUrl(file.storageKey)}
                       >
-                        <EyeOpenedIcon />
+                        <EyeOpenedIcon fill='#374151' />
                       </ThemeButton>
 
                       {onDeleteFile ? (

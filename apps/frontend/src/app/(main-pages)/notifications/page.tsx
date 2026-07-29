@@ -17,6 +17,7 @@ import ThemeButton from '../../../components/ui/ThemeButton';
 import { NotificationCategory } from '../../../components/dashboard/notification-data';
 import {
   ChatIcon,
+  CloseIcon,
   FileIcon,
   ProjectsIcon,
   SearchIcon,
@@ -334,14 +335,32 @@ export default function Page() {
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <div className="flex h-9 min-w-0 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 sm:w-40 xl:w-44">
-                <SearchIcon fill="#98A2B3" />
+                <span className="shrink-0">
+                  <SearchIcon fill="#98A2B3" />
+                </span>
+
                 <input
                   type="text"
                   value={searchValue}
                   onChange={(event) => setSearchValue(event.target.value)}
                   placeholder="Search"
-                  className="w-full bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400"
+                  className="min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400"
                 />
+
+                <button
+                  type="button"
+                  onClick={() => setSearchValue('')}
+                  disabled={!searchValue}
+                  tabIndex={searchValue ? 0 : -1}
+                  aria-label="Clear search"
+                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition ${
+                    searchValue
+                      ? 'visible hover:bg-gray-100'
+                      : 'invisible pointer-events-none'
+                  }`}
+                >
+                  <CloseIcon width="14" height="14" />
+                </button>
               </div>
               <button
                 type="button"
