@@ -323,7 +323,24 @@ export class ProjectsService {
   }
 
   async findMembersWithProjects(query: GetMembersQueryDto) {
-    const { search, isInvitationAccepted, projectId, roleId } = query;
+    const { search, isInvitationAccepted, projectId, roleId, sortBy } = query;
+
+const sortConfig = {
+  fullName: {
+    column: 'u.fullName',
+    order: 'ASC' as const,
+  },
+  createdAt: {
+    column: 'u.createdAt',
+    order: 'DESC' as const,
+  },
+  updatedAt: {
+    column: 'u.updatedAt',
+    order: 'DESC' as const,
+  },
+};
+
+const { column, order } = sortConfig[sortBy] ?? sortConfig.updatedAt;
 
     const userRepository = this.projectRepo.manager.getRepository(User);
 
@@ -437,7 +454,7 @@ export class ProjectsService {
         'r.id',
         'r.name',
       ])
-      .orderBy('u.fullName', 'ASC')
+      .orderBy(column, order)
       .getMany();
 
     return {
