@@ -26,6 +26,7 @@ export type RecentTicket = {
     id?: string;
     initials: string;
     name: string;
+    brandColor: string;
   };
   status: TicketStatus;
   statusColor?: string;
@@ -96,7 +97,7 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     header: 'Project',
     cell: ({ row }) => (
       <span className="inline-flex max-w-60 items-center gap-2 whitespace-nowrap rounded-full border border-gray-200 bg-white py-0.5 pr-2.5 pl-0.5 text-xs  text-gray-800">
-        <span className="flex h-6 w-6 items-center shrink-0 justify-center rounded-full bg-gray-100 text-xs text-gray-900">
+        <span className="flex h-6 w-6 items-center shrink-0 justify-center rounded-full text-xs text-gray-900" style={{ color: row.original.project.brandColor, backgroundColor: `${row.original.project.brandColor}20` }}>
           {row.original.project.initials}
         </span>
         <span className="truncate"> {row.original.project.name}</span>

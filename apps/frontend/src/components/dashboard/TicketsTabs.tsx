@@ -33,9 +33,7 @@ function getTicketIconTextColor(ticketId: string) {
     hash = (hash * 31 + ticketId.charCodeAt(index)) | 0;
   }
 
-  return ticketIconTextColors[
-    Math.abs(hash) % ticketIconTextColors.length
-  ];
+  return ticketIconTextColors[Math.abs(hash) % ticketIconTextColors.length];
 }
 
 export type TicketListItem = {
@@ -71,9 +69,7 @@ export default function TicketsTabs({
   onTicketClick,
 }: TicketsTabsProps) {
   const [uncontrolledActiveTabKey, setUncontrolledActiveTabKey] =
-    useState<TicketTabKey>(
-      tabs[0]?.key ?? 'upcoming',
-    );
+    useState<TicketTabKey>(tabs[0]?.key ?? 'upcoming');
   const activeTabKey = controlledActiveTabKey ?? uncontrolledActiveTabKey;
   const activeTab = useMemo(
     () => tabs.find((tab) => tab.key === activeTabKey) ?? tabs[0],
@@ -175,14 +171,14 @@ export default function TicketsTabs({
                   )}
                 >
                   <div
-  className={clsx(
-    'flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white border border-gray-200 text-sm font-semibold shadow-[0_0_35px_0_rgb(0_0_0/0.12)]',
-    // ticket.iconClassName,
-    getTicketIconTextColor(ticket.id),
-  )}
->
-  {ticket.icon}
-</div>
+                    className={clsx(
+                      'flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white border border-gray-200 text-sm font-semibold shadow-[0_0_35px_0_rgb(0_0_0/0.12)]',
+                      // ticket.iconClassName,
+                      getTicketIconTextColor(ticket.id),
+                    )}
+                  >
+                    {ticket.icon}
+                  </div>
 
                   <div className="min-w-0 flex flex-col gap-1">
                     <p className="truncate text-gray-900  font-medium text-sm">
@@ -196,10 +192,16 @@ export default function TicketsTabs({
 
                       <div className="flex flex-row overflow-hidden w-full gap-1.5">
                         <span
-                          className={clsx(
-                            ' rounded-full border px-2 truncate py-0.5 text-[10px] font-medium',
-                            ticket.ownerColor,
-                          )}
+                          className="rounded-full border px-2 truncate py-0.5 text-[10px] font-medium"
+                          style={
+                            ticket.ownerColor
+                              ? {
+                                  borderColor: `${ticket.ownerColor}25`,
+                                  backgroundColor: `${ticket.ownerColor}20`, // if 8-digit hex is supported
+                                  color: ticket.ownerColor,
+                                }
+                              : undefined
+                          }
                         >
                           {ticket.owner}
                         </span>

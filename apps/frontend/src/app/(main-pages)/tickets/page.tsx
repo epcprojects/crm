@@ -1021,6 +1021,7 @@ type ApiDashboardTicket = {
   project: {
     id: string;
     name: string;
+    brandColor?: string;
   };
   status: {
     key: string;
@@ -1242,6 +1243,7 @@ function mapApiDashboardTicketToRecentTicket(
       id: ticket.project.id,
       name: ticket.project.name,
       initials: getInitials(ticket.project.name),
+      brandColor: ticket.project?.brandColor ?? '#31d81b',
     },
     status: statusLabel,
     statusColor: ticket.status?.color,

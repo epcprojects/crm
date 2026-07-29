@@ -1557,6 +1557,7 @@ type ApiDashboardTicket = {
   project: {
     id: string;
     name: string;
+    brandColor: string;
   } | null;
   status: {
     key: string;
@@ -1732,7 +1733,9 @@ function mapApiDashboardTicketToTicketListItem(
     title: ticket.title,
     date: formatTicketDate(ticket.createdAt),
     owner: projectName,
-    ownerColor: 'border-purple-200 bg-purple-50 text-purple-700',
+    // ownerColor: 'border-red-200 bg-red-50 text-red-700',
+    ownerColor: ticket.project?.brandColor ? ticket.project.brandColor : '#df169c',
+    // ownerColor: ticket.project?.brandColor ? `border-[${ticket.project.brandColor}] bg-[${ticket.project.brandColor}30] text-[${ticket.project.brandColor}]` : 'border-purple-200 bg-purple-50 text-purple-700',
     tag: priorityLabel,
     tagClassName: getPriorityTagClassName(priorityLabel),
     icon: getInitials(projectName),
@@ -1797,6 +1800,7 @@ function mapApiDashboardTicketToRecentTicket(
       id: ticket.project?.id,
       name: ticket.project?.name ?? 'No Project',
       initials: getInitials(ticket.project?.name ?? 'No Project'),
+      brandColor: ticket.project?.brandColor ?? '#31d81b',
     },
     status: statusLabel,
     statusColor: ticket.status?.color,
