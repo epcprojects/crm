@@ -133,6 +133,7 @@ export class NotificationsService {
     const html = forgotPasswordTemplate({
       fullName,
       resetLink,
+      appUrl: this.appUrl,
     });
 
     const msg: sgMail.MailDataRequired = {
