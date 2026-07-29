@@ -388,40 +388,20 @@ export default function TicketDetailPage() {
     ticketId,
     token: replySocketToken,
     enabled: canViewReplies,
-    onCreated: (reply) => {
-      const nextReply = mapApiTicketReplyToDiscussionReply(
-        reply as ApiTicketReply,
-      );
-
-      setLiveReplies((current) => {
-        const existingIndex = current.findIndex(
-          (currentReply) => currentReply.id === nextReply.id,
-        );
-
-        if (existingIndex >= 0) {
-          const nextReplies = [...current];
-          nextReplies[existingIndex] = nextReply;
-          return nextReplies;
-        }
-
-        return [...current, nextReply];
+    onCreated: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ['ticket-replies', ticketId],
       });
     },
-    onUpdated: (reply) => {
-      const nextReply = mapApiTicketReplyToDiscussionReply(
-        reply as ApiTicketReply,
-      );
-
-      setLiveReplies((current) =>
-        current.map((currentReply) =>
-          currentReply.id === nextReply.id ? nextReply : currentReply,
-        ),
-      );
+    onUpdated: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ['ticket-replies', ticketId],
+      });
     },
-    onDeleted: ({ id }) => {
-      setLiveReplies((current) =>
-        current.filter((currentReply) => currentReply.id !== id),
-      );
+    onDeleted: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ['ticket-replies', ticketId],
+      });
     },
   });
 
