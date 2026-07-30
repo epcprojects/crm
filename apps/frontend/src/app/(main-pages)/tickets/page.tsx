@@ -1078,6 +1078,11 @@ type ApiDashboardTicket = {
     fullName?: string;
     name?: string;
   } | null;
+  reporter: {
+    id: string;
+    email: string;
+    fullName: string;
+  };
 };
 
 type ApiDashboardTicketsResponse = {
@@ -1292,6 +1297,11 @@ function mapApiDashboardTicketToRecentTicket(
     assignee: {
       name: assigneeName,
       initials: getInitials(assigneeName),
+    },
+    reporter: {
+      id: ticket.reporter.id,
+      email: ticket.reporter.email,
+      fullName: ticket.reporter.fullName,
     },
     date: formatTicketDate(ticket.createdAt),
     sortDate: ticket.createdAt,
