@@ -18,6 +18,7 @@ export class ActivityLogService {
       projectId: dto.projectId,
       ticketId: dto.ticketId,
       type: dto.type,
+      title: dto.title,
       entityType: dto.entityType,
       entityId: dto.entityId,
       metadata: dto.metadata ?? {},
