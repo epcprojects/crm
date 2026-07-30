@@ -615,6 +615,11 @@ type ApiProjectTicket = {
     fullName?: string;
     name?: string;
   } | null;
+  reporter: {
+    id: string;
+    email: string;
+    fullName: string;
+  };
 };
 
 type ApiProjectFile = {
@@ -976,6 +981,11 @@ function mapApiProjectTicketToRecentTicket(
     },
     date: formatTicketDate(ticket.dueDate ?? ticket.createdAt),
     sortDate: ticket.dueDate ?? ticket.createdAt,
+    reporter: {
+      id: ticket.reporter.id,
+      email: ticket.reporter.email,
+      fullName: ticket.reporter.fullName,
+    },
   };
 }
 
