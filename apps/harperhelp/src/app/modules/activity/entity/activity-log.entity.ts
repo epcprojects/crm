@@ -13,10 +13,7 @@ import {
 import { User } from '../../users/entities/user.entity';
 import { Project } from '../../projects/entities/project.entity';
 import { Ticket } from '../../tickets/entities/ticket.entity';
-import {
-  NotificationEntityType,
-  NotificationType,
-} from '@harperhelp/types';
+import { NotificationEntityType, NotificationType } from '@harperhelp/types';
 import { TimestampedEntityWithSoftDelete } from '@harperhelp/interfaces';
 
 @Entity('activity_logs')
@@ -24,7 +21,6 @@ import { TimestampedEntityWithSoftDelete } from '@harperhelp/interfaces';
 @Index(['projectId', 'createdAt'])
 @Index(['actorId', 'createdAt'])
 export class ActivityLog extends TimestampedEntityWithSoftDelete {
-
   /**
    * User who performed the action.
    */
@@ -52,9 +48,9 @@ export class ActivityLog extends TimestampedEntityWithSoftDelete {
   @Column({ type: 'varchar', length: 60 })
   type: NotificationType;
 
-  @Column({ type: 'varchar', length: 255 })
+  @Column({ type: 'varchar', length: 255, nullable: true })
   title: string;
-  
+
   @Column({ type: 'varchar', length: 60 })
   entityType: NotificationEntityType;
 
