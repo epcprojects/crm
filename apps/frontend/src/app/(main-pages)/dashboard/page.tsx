@@ -1377,7 +1377,6 @@ function DashboardActivityRow({ item }: { item: DashboardActivityItem }) {
 
           <span className="font-semibold text-gray-950">{item.title}</span>
           {/* <span className="font-semibold text-gray-950">{item.title}</span> */}
-          
         </p>
         <p className="mt-1 text-xs text-gray-400">{item.timeLabel}</p>
       </div>
@@ -1590,6 +1589,11 @@ type ApiDashboardTicket = {
     fullName?: string;
     name?: string;
   } | null;
+  reporter: {
+    id: string;
+    email: string;
+    fullName: string;
+  };
 };
 
 type ApiDashboardTicketsResponse = {
@@ -1750,7 +1754,9 @@ function mapApiDashboardTicketToTicketListItem(
     date: formatTicketDate(ticket.createdAt),
     owner: projectName,
     // ownerColor: 'border-red-200 bg-red-50 text-red-700',
-    ownerColor: ticket.project?.brandColor ? ticket.project.brandColor : '#df169c',
+    ownerColor: ticket.project?.brandColor
+      ? ticket.project.brandColor
+      : '#df169c',
     // ownerColor: ticket.project?.brandColor ? `border-[${ticket.project.brandColor}] bg-[${ticket.project.brandColor}30] text-[${ticket.project.brandColor}]` : 'border-purple-200 bg-purple-50 text-purple-700',
     tag: priorityLabel,
     tagClassName: getPriorityTagClassName(priorityLabel),
@@ -1789,7 +1795,7 @@ function mapApiActivityToDashboardItem(
     id: item.id,
     actor,
     action: getActivityActionLabel(item.type, item.entityType),
-    title:item.title,
+    title: item.title,
     target:
       ticketTitle ||
       projectName ||
@@ -1829,6 +1835,11 @@ function mapApiDashboardTicketToRecentTicket(
     },
     date: formatTicketDate(ticket.createdAt),
     sortDate: ticket.createdAt,
+    reporter: {
+      id: ticket.reporter.id,
+      email: ticket.reporter.email,
+      fullName: ticket.reporter.fullName,
+    },
   };
 }
 
@@ -1854,7 +1865,7 @@ function getPriorityTagClassName(priority: string) {
   return 'border-gray-200 bg-gray-50 text-gray-600';
 }
 
-function getInitials(value: string) {
+export function getInitials(value: string) {
   const words = value.trim().split(/\s+/).filter(Boolean);
 
   if (!words.length) {

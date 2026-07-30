@@ -14,6 +14,7 @@ import ThemeButton from '../ui/ThemeButton';
 import { ArrowUpRightIcon } from '../../../public/icons';
 import { useAppSelector } from '../../app/Redux/store';
 import EmptyState from '../EmptyState';
+import { getInitials } from '../../app/(main-pages)/dashboard/page';
 
 export type TicketStatus = string;
 export type TicketPriority = string;
@@ -38,6 +39,11 @@ export type RecentTicket = {
   };
   date: string;
   sortDate?: string;
+  reporter: {
+    id: string;
+    email: string;
+    fullName: string;
+  };
 };
 
 export type TicketSortBy =
@@ -97,7 +103,13 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     header: 'Project',
     cell: ({ row }) => (
       <span className="inline-flex max-w-60 items-center gap-2 whitespace-nowrap rounded-full border border-gray-200 bg-white py-0.5 pr-2.5 pl-0.5 text-xs  text-gray-800">
-        <span className="flex h-6 w-6 items-center shrink-0 justify-center rounded-full text-xs text-gray-900" style={{ color: row.original.project.brandColor, backgroundColor: `${row.original.project.brandColor}20` }}>
+        <span
+          className="flex h-6 w-6 items-center shrink-0 justify-center rounded-full text-xs text-gray-900"
+          style={{
+            color: row.original.project.brandColor,
+            backgroundColor: `${row.original.project.brandColor}20`,
+          }}
+        >
           {row.original.project.initials}
         </span>
         <span className="truncate"> {row.original.project.name}</span>
@@ -133,15 +145,15 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     ),
   },
   {
-    id: 'assignee',
-    accessorKey: 'assignee.name',
-    header: 'Assignee',
+    id: 'Creater',
+    accessorKey: 'reporter.fullname',
+    header: 'Created by',
     cell: ({ row }) => (
       <span className="inline-flex items-center gap-2 text-gray-900 font-normal text-sm">
         <span className="flex h-7.5 min-w-7.5 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-900">
-          {row.original.assignee.initials}
+          {getInitials(row.original.reporter.fullName)}
         </span>
-        {row.original.assignee.name}
+        {row.original.reporter.fullName}
       </span>
     ),
   },
