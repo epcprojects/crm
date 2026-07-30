@@ -108,55 +108,7 @@ export const ticketPriorityDropdownOptions = [
   },
 ];
 
-export const ticketsData: TicketDetailRecord[] = [
-  {
-    id: 't1',
-    title: 'Login page broken',
-    project: { initials: 'AC', name: 'Acme Corp', brandColor: '#000fff' },
-    status: 'Open',
-    priority: 'High',
-    assignee: { name: 'Jane', initials: 'JA' },
-    date: '2026-02-28',
-    description:
-      'Users are unable to sign in after entering valid credentials. The login button spins indefinitely and the request appears to fail before session creation completes.',
-    dueDate: '2026-05-22',
-    attachments: [
-      { id: 'a1', name: 'Login bug reproduction.mp4', sizeLabel: '8.1 MB' },
-    ],
-    reporter: { role: 'Reporter', name: 'Admin User', initials: 'AU' },
-    assigneeDetail: { role: 'Assignee', name: 'Jane Smith', initials: 'JS' },
-    replies: [],
-  },
-  {
-    id: 't2',
-    title: 'Invoice PDF export fails',
-    project: { initials: 'AC', name: 'Acme Corp', brandColor: '#000fff' },
-    status: 'Open',
-    priority: 'Medium',
-    assignee: { name: 'Jane', initials: 'JA' },
-    date: '2026-03-01',
-    description:
-      'The invoice PDF export feature is failing when users attempt to download generated invoices. Some exports return blank files or trigger server errors during processing. Investigation is needed to identify formatting or backend generation issues.',
-    dueDate: '2026-05-20',
-    attachments: [
-      {
-        id: 'a2',
-        name: 'Tech design requirements.pdf',
-        sizeLabel: '6.3 MB',
-      },
-    ],
-    reporter: { role: 'Reporter', name: 'Admin User', initials: 'AU' },
-    assigneeDetail: { role: 'Assignee', name: 'Jane Smith', initials: 'JS' },
-    replies: [
-      {
-        id: 'r1',
-        author: { name: 'Admin User', initials: 'AU' },
-        createdAt: 'Feb 10, 2026 - 4:39 PM',
-        message: 'Investigating now — looks like an env variable issue.',
-      },
-    ],
-  },
-];
+export const ticketsData: TicketDetailRecord[] = [];
 
 export function getTicketById(ticketId: string) {
   return ticketsData.find((ticket) => ticket.id === ticketId);
