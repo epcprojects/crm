@@ -8,6 +8,7 @@ import { CalendarQueryDto } from './dto/calendar-query.dto';
 import { getDateRange } from '@harperhelp/utils';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationEntityType, NotificationType } from '@harperhelp/types';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class CalendarService {
@@ -16,6 +17,7 @@ export class CalendarService {
     private readonly eventRepo: Repository<Event>,
 
     private readonly notificationsService: NotificationsService,
+    private readonly usersService: UsersService,
   ) {}
 
   // CREATE
@@ -27,6 +29,8 @@ export class CalendarService {
     if (!project) throw new NotFoundException('Project not found');
     const event = this.eventRepo.create({ ...dto, projectId: pid });
 
+     const username = await this.usersService.getFullName(user.id); // Fetch full name after activation
+
     // Send in App notification.
     await this.notificationsService.notifyProjectMembers({
       projectId: pid,
@@ -34,7 +38,7 @@ export class CalendarService {
       type: NotificationType.EVENT_CREATED,
       entityType: NotificationEntityType.EVENT,
       entityId: event.id,
-      title: `New event in ${project.name}: ${dto.title}`,
+      title: `New event in ${project.name}: ${dto.title} by ${username}`,
       message: undefined,
     });
 

@@ -24,6 +24,8 @@ import { User } from '../users/entities/user.entity';
 import { NotificationEntityType, NotificationType } from '@harperhelp/types';
 import { TicketStatus } from './entities/ticket.statuses.entity';
 import { TicketPriority } from './entities/ticket.priority.entity';
+import { UsersService } from '../users/users.service';
+
 
 @Injectable()
 export class TicketsService {
@@ -47,6 +49,7 @@ export class TicketsService {
     private readonly filesService: FilesService,
     private readonly utilityService: UtilityService,
     private readonly notificationsService: NotificationsService,
+    private readonly usersService: UsersService,
   ) {}
 
   // ---------------- CREATE ----------------
@@ -180,6 +183,7 @@ export class TicketsService {
           participants,
         },
       });
+      const fullname = await this.usersService.getFullName(ticket?.reporterId || ticket?.assigneeId || '');
 
       // Send global notification
       await this.notificationsService.notifyProjectMembers({
@@ -189,7 +193,7 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `New ticket: "${ticket.title}" created in project "${ticket.project.name}"`,
+        title: `New ticket: "${ticket.title}" created in project "${ticket.project.name}" by ${fullname}`,
         message: ticket.ticketRefNo ?? undefined,
       });
     } catch (err) {
@@ -634,7 +638,7 @@ export class TicketsService {
     const recipients = [ticket.reporterId, ticket.assigneeId].filter(
       (id): id is string => !!id && id !== userId,
     );
-
+const fullname = await this.usersService.getFullName(ticket?.reporterId || ticket?.assigneeId || '');
     // STATUS CHANGED
     if (dto.statusKey && oldStatus && dto.statusKey !== oldStatus.key) {
       await this.notificationsService.notifyProjectMembers({
@@ -644,12 +648,12 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `"${ticket.title}" status changed to ${ticket.status.label}`,
+        title: `"Ticket: "${ticket.ticketRefNo}" status changed to ${ticket.status.label} by ${fullname}`,
         message: `${oldStatus.label} to ${dto.statusKey}`,
         explicitRecipientIds: [...new Set(recipients)],
       });
     }
-
+    
     // PRIORITY CHANGED
     if (dto.priorityKey && oldPriority && dto.priorityKey !== oldPriority.key) {
       await this.notificationsService.notifyProjectMembers({
@@ -659,22 +663,19 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `"${ticket.title}" priority changed to ${ticket.priority.label}`,
+        title: `Ticket: "${ticket.ticketRefNo}" priority changed to ${ticket.priority.label} by ${fullname}`,
         message: `${oldPriority.label} to ${dto.priorityKey}`,
         explicitRecipientIds: [...new Set(recipients)],
       });
     }
 
     // PERSON ASSIGNED
-    if (
-      dto.assigneeId &&
-      oldTicket.assigneeId &&
-      dto.assigneeId !== oldTicket.assigneeId
-    ) {
-      const user = await this.userRepo.findOne({
-        where: { id: dto.assigneeId },
-        select: { id: true, fullName: true },
-      });
+if (dto.assigneeId !== undefined && dto.assigneeId !== oldTicket.assigneeId) {
+  const user = await this.userRepo.findOne({
+    where: { id: dto.assigneeId },
+    select: { id: true, fullName: true },
+  });
+      const fullname = await this.usersService.getFullName(userId);
 
       await this.notificationsService.notifyProjectMembers({
         projectId: ticket.projectId,
@@ -684,7 +685,8 @@ export class TicketsService {
         entityId: ticket.id,
         ticketId: ticket.id,
         title: dto.assigneeId
-          ? `"${user.fullName || 'Someone'}" was assigned to ticket: "${ticket.ticketRefNo}"`
+          // ? `"${user.fullName || 'Someone'}" was assigned to ticket: "${ticket.ticketRefNo}"`
+          ? `"${ticket.ticketRefNo} is assigned to ${user.fullName} by ${fullname}"`
           : `Ticket: "${ticket.ticketRefNo}" is now unassigned`,
         explicitRecipientIds: [...new Set(recipients)],
       });
@@ -701,7 +703,7 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `Ticket: "${ticket.ticketRefNo}" renamed to "${dto.title}"`,
+        title: `Ticket: "${ticket.ticketRefNo}" renamed to "${dto.title}" by ${fullname}`,
         message: `Previously: "${oldTicket.title}"`,
         explicitRecipientIds: [...new Set(recipients)],
       });
@@ -715,7 +717,7 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `Ticket: "${ticket.ticketRefNo}" description was updated`,
+        title: `Ticket: "${ticket.ticketRefNo}" description was updated by ${fullname}`,
         explicitRecipientIds: [...new Set(recipients)],
       });
     }
@@ -730,7 +732,7 @@ export class TicketsService {
     ticket.updatedBy = userId;
 
     await this.ticketRepo.softRemove(ticket);
-
+    const fullname = await this.usersService.getFullName(userId);
     await this.notificationsService.notifyProjectMembers({
       projectId: ticket.projectId,
       actorId: userId,
@@ -738,7 +740,7 @@ export class TicketsService {
       entityType: NotificationEntityType.TICKET,
       entityId: ticket.id,
       ticketId: ticket.id,
-      title: `Ticket # "${ticket.ticketRefNo}" deleted`,
+      title: `Ticket # "${ticket.ticketRefNo}" deleted by ${fullname}`,
     });
 
     return { success: true };

@@ -91,13 +91,16 @@ export class AuthService {
 
     await this.usersService.activateInvitedUser(user.id, passwordHash);
 
+   const username = await this.usersService.getFullName(user.id); // Fetch full name after activation
+
     // Send in App notification.
     await this.notificationsService.notifyProjectMembers({
       actorId: user.id,
       type: NotificationType.MEMBER_JOINED,
       entityType: NotificationEntityType.MEMBER,
       entityId: user.id,
-      title: `Invitation accepted`,
+      // title: `${username} accepted invitation`,
+      title: ` ${username} accepted invitation`,
       message: undefined,
       skipCreate: true,
       explicitRecipientIds: [user.projects[0].createdBy], // need to set owner of project here

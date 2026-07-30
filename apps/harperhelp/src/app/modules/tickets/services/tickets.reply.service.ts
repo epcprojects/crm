@@ -15,6 +15,7 @@ import { EmailEventType } from '../../notifications/notifications.types';
 import { Ticket } from '../entities/ticket.entity';
 import { TicketRepliesGateway } from '../gateway/ticket-reply.gateway';
 import { NotificationEntityType, NotificationType } from '@harperhelp/types';
+import { UsersService } from '../../users/users.service';
 
 @Injectable()
 export class TicketRepliesService {
@@ -25,6 +26,7 @@ export class TicketRepliesService {
     private readonly filesService: FilesService,
     private readonly utilityService: UtilityService,
     private readonly notificationsService: NotificationsService,
+    private readonly usersService: UsersService,
     private readonly ticketRepliesGateway: TicketRepliesGateway,
   ) {}
 
@@ -129,7 +131,7 @@ export class TicketRepliesService {
     const createdReply = await this.findOne(reply.id);
 
     this.ticketRepliesGateway.broadcastReply(projectId, ticketId, createdReply);
-
+    const fullname = await this.usersService.getFullName(userId);
     await this.notificationsService.notifyProjectMembers({
       projectId: ticket.projectId,
       actorId: userId,
@@ -137,7 +139,7 @@ export class TicketRepliesService {
       entityType: NotificationEntityType.TICKET_REPLY,
       entityId: reply.id,
       ticketId: ticket.id,
-      title: `New reply in ticket: "${ticket.ticketRefNo}"`,
+      title: `New reply in ticket: "${ticket.ticketRefNo}" by ${fullname}`,
       message: dto.message.slice(0, 140),
       requiredClaimValue: dto.isInternal ? 'view_internal_replies' : undefined,
     });

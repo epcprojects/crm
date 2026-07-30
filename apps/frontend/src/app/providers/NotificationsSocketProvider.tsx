@@ -229,19 +229,19 @@ export function useNotificationsSocket() {
 
 function getNotificationToastMessage(notification: NotificationItem) {
   const title = notification.title?.trim();
-  const message = notification.message?.trim();
+  // const message = notification.message?.trim();
 
-  if (title && message) {
-    return `${title}: ${message}`;
-  }
+  // if (title && message) {
+  //   return `${title}: ${message}`;
+  // }
 
   if (title) {
     return title;
   }
 
-  if (message) {
-    return message;
-  }
+  // if (message) {
+  //   return message;
+  // }
 
   return 'You have a new notification.';
 }

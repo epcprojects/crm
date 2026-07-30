@@ -500,7 +500,7 @@ export class ProjectsService {
       type: NotificationType.PROJECT_UPDATED,
       entityType: NotificationEntityType.PROJECT,
       entityId: id,
-      title: `Project "${proj.name}" was updated`,
+      title: `Project "${proj.name}" was updated by ${user.fullName}`,
       message: undefined,
       explicitRecipientIds: [...new Set(recipients)],
     });
@@ -526,7 +526,7 @@ export class ProjectsService {
       type: NotificationType.PROJECT_DELETED,
       entityType: NotificationEntityType.PROJECT,
       entityId: id,
-      title: `Project "${proj.name}" has been deleted`,
+      title: `Project "${proj.name}" deleted by ${user.fullName}`,
       message: undefined,
       explicitRecipientIds: [...new Set(recipients)],
     });
