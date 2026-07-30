@@ -82,6 +82,7 @@ export class NotificationsGateway
     recipientId: string,
     notification: Notification,
     unreadCount: number,
+    skip = false,
   ) {
     this.server.to(this.roomFor(recipientId)).emit('notification:new', {
       id: notification.id,
@@ -93,6 +94,7 @@ export class NotificationsGateway
       ticketId: notification.ticketId ?? null,
       projectId: notification.projectId,
       createdAt: notification.createdAt,
+      skip,
       unreadCount,
     });
   }

@@ -318,6 +318,7 @@ export class NotificationsService {
             metadata: dto.metadata ?? {},
           } as unknown as Notification,
           0,
+          true,
         );
       });
 

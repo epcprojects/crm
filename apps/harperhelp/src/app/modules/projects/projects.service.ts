@@ -62,7 +62,9 @@ export class ProjectsService {
       .createQueryBuilder('ur')
       .innerJoin('ur.role', 'r')
       .where('ur.userId = :userId', { userId: currentUser.id })
-      .andWhere('r.name = :role', { role: SystemRoles.SUPER_ADMIN })
+      .andWhere('r.id = :roleId', {
+        roleId: '00000000-0000-0000-0000-000000000001',
+      })
       .getExists();
 
     if (!isSuperAdmin) {
@@ -70,7 +72,9 @@ export class ProjectsService {
       const superAdmins = await this.userRoleRepo
         .createQueryBuilder('ur')
         .innerJoin('ur.role', 'r')
-        .where('r.name = :role', { role: SystemRoles.SUPER_ADMIN })
+        .where('r.id = :roleId', {
+          roleId: '00000000-0000-0000-0000-000000000001',
+        })
         .select('ur.userId', 'userId')
         .getRawMany();
 
@@ -308,12 +312,12 @@ export class ProjectsService {
           .from(UserRole, 'ur')
           .innerJoin('ur.role', 'r')
           .where('ur.userId = member.id')
-          .andWhere('r.name = :superAdmin')
+          .andWhere('r.id = :superAdminId')
           .getQuery();
 
         return `NOT EXISTS ${subQuery}`;
       })
-      .setParameter('superAdmin', SystemRoles.SUPER_ADMIN)
+      .setParameter('superAdminId', '00000000-0000-0000-0000-000000000001')
       .select([
         'member.id AS id',
         'member.fullName AS "fullName"',
@@ -325,30 +329,38 @@ export class ProjectsService {
   async findMembersWithProjects(query: GetMembersQueryDto) {
     const { search, isInvitationAccepted, projectId, roleId, sortBy } = query;
 
-const sortConfig = {
-  fullName: {
-    column: 'u.fullName',
-    order: 'ASC' as const,
-  },
-  createdAt: {
-    column: 'u.createdAt',
-    order: 'DESC' as const,
-  },
-  updatedAt: {
-    column: 'u.updatedAt',
-    order: 'DESC' as const,
-  },
-};
+    const sortConfig = {
+      fullName: {
+        column: 'u.fullName',
+        order: 'ASC' as const,
+      },
+      createdAt: {
+        column: 'u.createdAt',
+        order: 'DESC' as const,
+      },
+      updatedAt: {
+        column: 'u.updatedAt',
+        order: 'DESC' as const,
+      },
+    };
 
-const { column, order } = sortConfig[sortBy] ?? sortConfig.updatedAt;
+    const { column, order } = sortConfig[sortBy] ?? sortConfig.updatedAt;
 
     const userRepository = this.projectRepo.manager.getRepository(User);
 
-    const baseQuery = userRepository
-      .createQueryBuilder('u')
-      .where('u.fullName != :superAdminName', {
-        superAdminName: 'Super Admin',
-      });
+    const baseQuery = userRepository.createQueryBuilder('u').where(
+      `
+  NOT EXISTS (
+    SELECT 1
+    FROM user_roles ur
+    WHERE ur."userId" = u.id
+      AND ur."roleId" = :excludedRoleId
+  )
+`,
+      {
+        excludedRoleId: '00000000-0000-0000-0000-000000000001',
+      },
+    );
 
     if (search?.trim()) {
       baseQuery.andWhere(
