@@ -50,6 +50,7 @@ import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { NotificationItem } from '@harperhelp/interfaces';
 import { NotificationEntityType } from '@harperhelp/types';
 import { eventEmitter } from '../../../../lib/event-emitter';
+import { validateAttachments } from '../../../../lib/attachments';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import RichTextEditor from 'apps/frontend/src/components/RichTextEditor';
 const MAX_DESCRIPTION_LENGTH = 4000;
@@ -388,40 +389,20 @@ export default function TicketDetailPage() {
     ticketId,
     token: replySocketToken,
     enabled: canViewReplies,
-    onCreated: (reply) => {
-      const nextReply = mapApiTicketReplyToDiscussionReply(
-        reply as ApiTicketReply,
-      );
-
-      setLiveReplies((current) => {
-        const existingIndex = current.findIndex(
-          (currentReply) => currentReply.id === nextReply.id,
-        );
-
-        if (existingIndex >= 0) {
-          const nextReplies = [...current];
-          nextReplies[existingIndex] = nextReply;
-          return nextReplies;
-        }
-
-        return [...current, nextReply];
+    onCreated: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ['ticket-replies', ticketId],
       });
     },
-    onUpdated: (reply) => {
-      const nextReply = mapApiTicketReplyToDiscussionReply(
-        reply as ApiTicketReply,
-      );
-
-      setLiveReplies((current) =>
-        current.map((currentReply) =>
-          currentReply.id === nextReply.id ? nextReply : currentReply,
-        ),
-      );
+    onUpdated: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ['ticket-replies', ticketId],
+      });
     },
-    onDeleted: ({ id }) => {
-      setLiveReplies((current) =>
-        current.filter((currentReply) => currentReply.id !== id),
-      );
+    onDeleted: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ['ticket-replies', ticketId],
+      });
     },
   });
 
@@ -948,21 +929,19 @@ export default function TicketDetailPage() {
 
   //   setChatDrawerChannel(channel);
   // };
-  const handleOpenChatDrawer = (
-  channel: ChatChannel,
-) => {
-  if (channel === 'internal') {
-    setHasUnreadInternalChat(false);
-    updateInternalChatParam(true);
-    return;
-  }
+  const handleOpenChatDrawer = (channel: ChatChannel) => {
+    if (channel === 'internal') {
+      setHasUnreadInternalChat(false);
+      updateInternalChatParam(true);
+      return;
+    }
 
-  if (channel === 'external') {
-    setHasUnreadExternalChat(false);
-  }
+    if (channel === 'external') {
+      setHasUnreadExternalChat(false);
+    }
 
-  setChatDrawerChannel(channel);
-};
+    setChatDrawerChannel(channel);
+  };
 
   const openGallery = (images: GalleryImage[], index: number) => {
     if (!images.length || index < 0) {
@@ -1161,13 +1140,6 @@ export default function TicketDetailPage() {
 
       const trimmedMessage = message.trim();
 
-      if (trimmedMessage) {
-        await sendMessage({
-          message: trimmedMessage,
-          messageType: 'text',
-        });
-      }
-
       if (attachments.length) {
         const uploadedFiles = await uploadChatAttachments(
           projectId,
@@ -1188,6 +1160,11 @@ export default function TicketDetailPage() {
             attachmentUrls,
           });
         }
+      } else if (trimmedMessage) {
+        await sendMessage({
+          message: trimmedMessage,
+          messageType: 'text',
+        });
       }
 
       // appToast.success('Chat updated successfully.');
@@ -2603,6 +2580,12 @@ async function uploadChatAttachments(
   projectId: string,
   attachments: File[],
 ): Promise<UploadedProjectFile[]> {
+  const validationError = validateAttachments(attachments);
+
+  if (validationError) {
+    throw new Error(validationError);
+  }
+
   const formData = new FormData();
 
   attachments.forEach((file) => {

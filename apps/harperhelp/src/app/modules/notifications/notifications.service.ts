@@ -359,6 +359,7 @@ export class NotificationsService {
       projectId: dto.projectId ?? null,
       ticketId: dto.ticketId ?? null,
       type: dto.type,
+      title: dto.title,
       entityType: dto.entityType,
       entityId: dto.entityId ?? null,
       metadata: dto.metadata ?? {},

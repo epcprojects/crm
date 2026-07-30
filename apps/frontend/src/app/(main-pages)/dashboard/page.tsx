@@ -79,6 +79,7 @@ type DashboardActivityItem = {
   id: string;
   actor: string;
   action: string;
+  title: string;
   target: string;
   timeLabel: string;
   accentClassName: string;
@@ -95,6 +96,7 @@ type ApiDashboardActivityResponse = {
 type ApiDashboardActivityItem = {
   id: string;
   createdAt: string;
+  title: string;
   type?: string | null;
   entityType?: string | null;
   actor?: {
@@ -475,6 +477,13 @@ export default function Page() {
     ]);
   };
 
+  const invalidateActivityRelated = async () => {
+    await queryClient.invalidateQueries({
+      queryKey: ['dashboard', 'activity'],
+      refetchType: 'all',
+    });
+  };
+
   const handleCreateTicket = async (values: CreateTicketFormValues) => {
     if (!canCreateTicket) {
       return;
@@ -559,19 +568,23 @@ export default function Page() {
 
   // Event listener
   useEffect(() => {
-    eventEmitter.on('notification:new', (payload: NotificationItem) => {
+    const handleNotificationNew = (payload: NotificationItem) => {
+      void invalidateActivityRelated();
+
       if (payload.entityType === NotificationEntityType.TICKET) {
-        invalidateTicketRelated();
+        void invalidateTicketRelated();
       }
 
       if (payload.entityType === NotificationEntityType.PROJECT) {
-        invalideProjectsRelated();
-        invalidateTicketRelated();
+        void invalideProjectsRelated();
+        void invalidateTicketRelated();
       }
-    });
+    };
+
+    eventEmitter.on('notification:new', handleNotificationNew);
 
     return () => {
-      eventEmitter.off('notification:new');
+      eventEmitter.off('notification:new', handleNotificationNew);
     };
   }, []);
 
@@ -1359,9 +1372,12 @@ function DashboardActivityRow({ item }: { item: DashboardActivityItem }) {
 
       <div className="min-w-0 flex-1">
         <p className="text-sm leading-6 text-gray-600">
-          <span className="font-semibold text-gray-950">{item.actor}</span>{' '}
-          {item.action}{' '}
-          <span className="font-semibold text-gray-950">{item.target}</span>
+          {/* <span className="font-semibold text-gray-950">{item.actor}</span>{' '} */}
+          {/* {item.action}{' '} */}
+
+          <span className="font-semibold text-gray-950">{item.title}</span>
+          {/* <span className="font-semibold text-gray-950">{item.title}</span> */}
+          
         </p>
         <p className="mt-1 text-xs text-gray-400">{item.timeLabel}</p>
       </div>
@@ -1773,6 +1789,7 @@ function mapApiActivityToDashboardItem(
     id: item.id,
     actor,
     action: getActivityActionLabel(item.type, item.entityType),
+    title:item.title,
     target:
       ticketTitle ||
       projectName ||

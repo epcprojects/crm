@@ -12,6 +12,7 @@ export class CreateActivityLogDto {
 
   type: NotificationType;
 
+  title: string;
   entityType: NotificationEntityType;
 
   entityId: string | null;

@@ -597,6 +597,7 @@ type ApiProjectTicket = {
   project?: {
     id?: string;
     name?: string;
+    brandColor?: string;
   } | null;
   status?: {
     key?: string;
@@ -963,6 +964,7 @@ function mapApiProjectTicketToRecentTicket(
       id: ticket.project?.id ?? ticket.projectId,
       initials: getInitials(projectName),
       name: projectName,
+      brandColor: ticket.project?.brandColor ?? '#ffffff',
     },
     status: statusLabel,
     statusColor: getNonEmptyString(ticket.status?.color),
