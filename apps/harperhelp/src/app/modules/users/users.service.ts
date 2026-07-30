@@ -309,6 +309,11 @@ export class UsersService {
     });
   }
 
+  async getFullName(userId: string): Promise<string> {
+  const user = await this.userRepo.findOne({ where: { id: userId } });
+  return user?.fullName || '';
+}
+
   async setPasswordResetToken(userId: string, token: string, expiresAt: Date) {
     await this.userRepo.update(userId, {
       resetPasswordToken: token,
@@ -375,7 +380,7 @@ export class UsersService {
           actorId: loggedInUser.id,
           type: NotificationType.PROJECT_ASSIGNED,
           entityType: NotificationEntityType.PROJECT,
-          title: `Your project access has changed`,
+          title: `Your project access has changed by ${loggedInUser.fullName}`,
           message: `You now have access to (${user.projects.length}) project${user.projects.length === 1 ? '' : 's'}`,
           explicitRecipientIds: [userId],
         });
