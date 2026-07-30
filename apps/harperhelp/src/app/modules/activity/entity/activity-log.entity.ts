@@ -52,6 +52,9 @@ export class ActivityLog extends TimestampedEntityWithSoftDelete {
   @Column({ type: 'varchar', length: 60 })
   type: NotificationType;
 
+  @Column({ type: 'varchar', length: 255 })
+  title: string;
+  
   @Column({ type: 'varchar', length: 60 })
   entityType: NotificationEntityType;
 
