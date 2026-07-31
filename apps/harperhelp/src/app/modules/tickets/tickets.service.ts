@@ -829,7 +829,8 @@ export class TicketsService {
       })
       .leftJoin('t.status', 's')
       .leftJoin('t.priority', 'pr')
-      .where('t.assigneeId IS NULL')
+      .where('t.assigneeId IS NULL and t.statusKey != :statusKey', { statusKey: 'Closed' })
+
       .select([
         't.id',
         't.title',
