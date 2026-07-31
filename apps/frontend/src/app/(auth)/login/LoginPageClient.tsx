@@ -199,7 +199,9 @@ export default function LoginPageClient() {
             </h3>
           </div>
 
-          <Image alt="" src={Images.index.loginMockup} />
+          <div className="md:px-10">
+            <Image alt="" src={Images.index.loginMockup} />
+          </div>
         </div>
       </div>
 
