@@ -656,7 +656,7 @@ export class TicketsService {
       (id): id is string => !!id && id !== userId,
     );
     const fullname = await this.usersService.getFullName(
-      ticket?.reporterId || ticket?.assigneeId || '',
+  userId ,
     );
     // STATUS CHANGED
     if (dto.statusKey && oldStatus && dto.statusKey !== oldStatus.key) {
