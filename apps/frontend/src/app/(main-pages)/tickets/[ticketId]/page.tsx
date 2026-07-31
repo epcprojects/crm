@@ -88,9 +88,7 @@ export default function TicketDetailPage() {
   const canAttachReplyFiles = hasPermission('ticket_replies.attach_file');
   const canEditStatus = hasPermission('tickets.edit_status');
   const canEditPriority = hasPermission('tickets.edit_priority');
-  const canEditAssignee = hasPermission('tickets.edit_assignee');
   const canEditDueDate = hasPermission('tickets.edit_due_date');
-  const canViewExternalChatBtn = hasPermission('tickets.external_chat');
   const canViewInternalChatBtn = hasPermission('tickets.internal_chat');
   const canEditTicketContent = !isExternalUser;
 
@@ -263,9 +261,7 @@ export default function TicketDetailPage() {
   // const [conversationView, setConversationView] =
   //   useState<ConversationView>('replies');
   const [hasUnreadInternalChat, setHasUnreadInternalChat] = useState(false);
-  const [hasUnreadExternalChat, setHasUnreadExternalChat] = useState(false);
   const isChatDrawerOpen = Boolean(chatDrawerChannel);
-  // const isInternalChatActive = conversationView === 'internal-chat';
   const isInternalChatActive =
     searchParams.get('internal') === 'true' && canViewInternalChatBtn;
   const updateInternalChatParam = (isActive: boolean) => {
@@ -340,8 +336,7 @@ export default function TicketDetailPage() {
   const unreadListenerSocketRef = useRef<ReturnType<typeof getSocket> | null>(
     null,
   );
-  const descriptionMeasureRef = useRef<HTMLParagraphElement | null>(null);
-  const descriptionOverflowRef = useRef<HTMLParagraphElement | null>(null);
+
   const [titleDraft, setTitleDraft] = useState('');
   const [descriptionDraft, setDescriptionDraft] = useState('');
   const todayInputValue = getTodayInputValue();
@@ -669,19 +664,15 @@ export default function TicketDetailPage() {
   useEffect(() => {
     if (!projectId || !ticketId || !currentUserId) {
       setHasUnreadInternalChat(false);
-      setHasUnreadExternalChat(false);
       return;
     }
 
     let isDisposed = false;
 
     const syncUnreadState = async () => {
-      const [internalUnread, externalUnread] = await Promise.all([
+      const [internalUnread] = await Promise.all([
         canViewInternalChatBtn
           ? fetchUnreadIndicator(projectId, ticketId, 'internal')
-          : Promise.resolve(false),
-        canViewExternalChatBtn
-          ? fetchUnreadIndicator(projectId, ticketId, 'external')
           : Promise.resolve(false),
       ]);
 
@@ -690,7 +681,6 @@ export default function TicketDetailPage() {
       }
 
       setHasUnreadInternalChat(internalUnread);
-      setHasUnreadExternalChat(externalUnread);
     };
 
     void syncUnreadState().catch(() => {
@@ -700,13 +690,7 @@ export default function TicketDetailPage() {
     return () => {
       isDisposed = true;
     };
-  }, [
-    canViewExternalChatBtn,
-    canViewInternalChatBtn,
-    currentUserId,
-    projectId,
-    ticketId,
-  ]);
+  }, [canViewInternalChatBtn, currentUserId, projectId, ticketId]);
 
   useEffect(() => {
     if (!projectId || !ticketId || !currentUserId) {
@@ -730,10 +714,6 @@ export default function TicketDetailPage() {
         if (canViewInternalChatBtn) {
           socket.emit('join', { projectId, ticketId, channel: 'internal' });
         }
-
-        if (canViewExternalChatBtn) {
-          socket.emit('join', { projectId, ticketId, channel: 'external' });
-        }
       };
 
       const handleNewMessage = (payload: {
@@ -746,10 +726,6 @@ export default function TicketDetailPage() {
 
         if (payload.channel === 'internal') {
           setHasUnreadInternalChat(true);
-        }
-
-        if (payload.channel === 'external') {
-          setHasUnreadExternalChat(true);
         }
 
         appToast.info(
@@ -773,10 +749,6 @@ export default function TicketDetailPage() {
           socket.emit('leave', { projectId, ticketId, channel: 'internal' });
         }
 
-        if (canViewExternalChatBtn) {
-          socket.emit('leave', { projectId, ticketId, channel: 'external' });
-        }
-
         socket.off('connect', joinUnreadRooms);
         socket.off('new_message', handleNewMessage);
         unreadListenerSocketRef.current = null;
@@ -795,7 +767,6 @@ export default function TicketDetailPage() {
       }
     };
   }, [
-    canViewExternalChatBtn,
     canViewInternalChatBtn,
     currentUserId,
     isInternalChatActive,
@@ -819,16 +790,7 @@ export default function TicketDetailPage() {
         channel: 'internal',
       });
     }
-
-    if (canViewExternalChatBtn) {
-      unreadListenerSocketRef.current.emit('join', {
-        projectId,
-        ticketId,
-        channel: 'external',
-      });
-    }
   }, [
-    canViewExternalChatBtn,
     canViewInternalChatBtn,
     isChatDrawerOpen,
     isInternalChatActive,
@@ -887,8 +849,6 @@ export default function TicketDetailPage() {
       return;
     }
 
-    setHasUnreadExternalChat(false);
-
     void markExternalChatRead(unreadMessageIds).catch(() => {
       // Keep the UI responsive if read-receipt sync fails.
     });
@@ -929,19 +889,6 @@ export default function TicketDetailPage() {
 
   //   setChatDrawerChannel(channel);
   // };
-  const handleOpenChatDrawer = (channel: ChatChannel) => {
-    if (channel === 'internal') {
-      setHasUnreadInternalChat(false);
-      updateInternalChatParam(true);
-      return;
-    }
-
-    if (channel === 'external') {
-      setHasUnreadExternalChat(false);
-    }
-
-    setChatDrawerChannel(channel);
-  };
 
   const openGallery = (images: GalleryImage[], index: number) => {
     if (!images.length || index < 0) {
@@ -1055,28 +1002,6 @@ export default function TicketDetailPage() {
     );
   };
 
-  const handleAssigneeChange = async (value: string) => {
-    if (!canEditAssignee) {
-      return;
-    }
-
-    const selectedOption = assigneeOptions.find(
-      (option) => option.value === value,
-    );
-    setSelectedAssignee(selectedOption?.label ?? '');
-
-    await updateTicketMutation.mutateAsync(
-      buildUpdateTicketPayload({
-        title: ticket.title,
-        description: ticket.description,
-        statusKey: selectedStatus,
-        priorityKey: selectedPriority,
-        assigneeId: value,
-        dueDate: selectedDueDate,
-      }),
-    );
-  };
-
   const handleDueDateChange = async (value: string) => {
     if (!canEditDueDate) {
       return;
@@ -1185,61 +1110,6 @@ export default function TicketDetailPage() {
     } finally {
       setIsSendingChatMessage(false);
     }
-  };
-
-  const handleSaveTitle = async () => {
-    if (!canEditTicketContent) {
-      return;
-    }
-
-    const nextTitle = titleDraft.trim();
-
-    if (!nextTitle) {
-      appToast.error('Title is required.');
-      return;
-    }
-
-    if (nextTitle === ticket.title) {
-      setIsEditingTitle(false);
-      return;
-    }
-
-    await updateTicketMutation.mutateAsync(
-      buildUpdateTicketPayload({
-        title: nextTitle,
-        description: ticket.description,
-        statusKey: selectedStatus,
-        priorityKey: selectedPriority,
-        assigneeId: selectedAssigneeId,
-        dueDate: selectedDueDate,
-      }),
-    );
-    setIsEditingTitle(false);
-  };
-
-  const handleSaveDescription = async () => {
-    if (!canEditTicketContent) {
-      return;
-    }
-
-    const nextDescription = descriptionDraft.trim();
-
-    if (nextDescription === (ticket.description ?? '').trim()) {
-      setIsEditingDescription(false);
-      return;
-    }
-
-    await updateTicketMutation.mutateAsync(
-      buildUpdateTicketPayload({
-        title: ticket.title,
-        description: nextDescription,
-        statusKey: selectedStatus,
-        priorityKey: selectedPriority,
-        assigneeId: selectedAssigneeId,
-        dueDate: selectedDueDate,
-      }),
-    );
-    setIsEditingDescription(false);
   };
 
   const handleStartEditingContent = () => {
@@ -1411,7 +1281,7 @@ export default function TicketDetailPage() {
   return (
     <div className="relative z-100 h-full xl:h-dvh overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0">
       <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden  xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
-        <div className="relative flex w-full flex-col gap-2 xl:gap-3 overflow-hidden rounded-xl bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat px-4 py-4 xl:flex-row xl:items-center xl:gap-4  xl:px-7.5 xl:py-6">
+        <div className="relative flex w-full flex-col gap-2 overflow-hidden rounded-xl bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat px-4 py-4 xl:flex-row xl:items-center xl:gap-4  xl:px-7.5 xl:py-6">
           {/* Background overlay */}
           <div
             className="absolute inset-0 bg-black/30 z-10"
@@ -1507,7 +1377,7 @@ export default function TicketDetailPage() {
             <div className="flex min-w-0 flex-col space-y-4 xl:col-span-9">
               <section className="rounded-xl border border-gray-200 bg-white p-3  md:p-5">
                 <div className=" relative">
-                  <div className="mb-2 flex absolute top-0 end-0 items-start justify-end">
+                  <div className="mb-2 flex absolute top-0 inset-e-0 items-start justify-end">
                     {canEditTicketContent ? (
                       <button
                         type="button"
@@ -1832,7 +1702,7 @@ export default function TicketDetailPage() {
                       />
                     </div>
 
-                    <div className="grid items-center md:grid-cols-2 gap-4">
+                    {/* <div className="grid items-center md:grid-cols-2 gap-4">
                       <span className="text-sm text-black font-normal">
                         Assignee
                       </span>
@@ -1845,7 +1715,7 @@ export default function TicketDetailPage() {
                         }
                         onChange={handleAssigneeChange}
                       />
-                    </div>
+                    </div> */}
                   </div>
                 </section>
               ) : null}
@@ -2874,8 +2744,6 @@ function getIncomingChatToastMessage(
   channel: ChatChannel,
   message: ChatMessage,
 ) {
-  const channelLabel =
-    channel === 'internal' ? 'Internal chat' : 'External chat';
   const senderName =
     message.sender?.fullName?.trim() ||
     message.sender?.name?.trim() ||
@@ -3166,23 +3034,6 @@ function PersonCard({ person }: { person: TicketPerson }) {
   );
 }
 
-function BackArrowIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 18 18"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M2.4375 8.99975C2.4375 9.27992 2.56174 9.53984 2.67939 9.73502C2.80635 9.94563 2.97708 10.1631 3.16439 10.3751C3.54013 10.8004 4.0304 11.2571 4.50618 11.6703C4.98475 12.0858 5.46167 12.4685 5.81794 12.7466C5.99637 12.8859 6.14523 12.9994 6.24978 13.0784C6.30207 13.1179 6.34332 13.1488 6.37169 13.1699L6.40436 13.1942L6.41303 13.2007L6.41604 13.2029C6.66617 13.3871 7.01862 13.334 7.20286 13.0838C7.3871 12.8337 7.33371 12.4816 7.08361 12.2973L7.07407 12.2903L7.04403 12.268C7.01746 12.2482 6.97815 12.2187 6.9279 12.1808C6.82738 12.1048 6.68327 11.9949 6.51014 11.8598C6.16329 11.589 5.70272 11.2194 5.2438 10.8208C4.78208 10.4199 4.33486 10.0008 4.00748 9.63023C3.98678 9.60679 3.96674 9.58375 3.94737 9.56114L15 9.56113C15.3107 9.56113 15.5625 9.30929 15.5625 8.99863C15.5625 8.68797 15.3107 8.43613 15 8.43613L3.94927 8.43614C3.96805 8.41423 3.98746 8.39194 4.00748 8.36927C4.33486 7.99871 4.78208 7.57959 5.2438 7.17865C5.70272 6.78013 6.16329 6.41046 6.51014 6.13974C6.68327 6.00461 6.82737 5.89466 6.9279 5.81872C6.97815 5.78076 7.01746 5.75133 7.04403 5.73153L7.07406 5.7092L7.08361 5.70214C7.33371 5.51789 7.3871 5.16578 7.20286 4.91567C7.01862 4.66554 6.66617 4.61237 6.41604 4.79662L6.41303 4.79884L6.40436 4.80525L6.37169 4.82954C6.34332 4.85069 6.30207 4.88157 6.24978 4.92107C6.14523 5.00005 5.99637 5.11363 5.81793 5.2529C5.46167 5.53098 4.98474 5.91364 4.50618 6.32922C4.0304 6.74237 3.54013 7.19911 3.16439 7.62441C2.97708 7.83642 2.80635 8.05386 2.67939 8.26448C2.56245 8.45847 2.43899 8.71646 2.43751 8.9947"
-        fill="black"
-      />
-    </svg>
-  );
-}
-
 function FileBadgeIcon({ extension }: { extension?: string }) {
   const label = normalizeAttachmentExtension(extension);
   const badgeClassName = getAttachmentBadgeClassName(label);
@@ -3196,64 +3047,6 @@ function FileBadgeIcon({ extension }: { extension?: string }) {
       </span>
       <FileTypePlaceholder />
     </span>
-  );
-}
-
-function InternalChatIcon() {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 20 20"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M13.3155 6.2832C13.4372 6.39987 13.593 6.45736 13.7489 6.45736L13.748 6.45573C13.9122 6.45573 14.0764 6.3915 14.1989 6.264C14.4381 6.01566 14.4306 5.61986 14.1814 5.38069C14.0497 5.25464 13.856 5.10237 13.6112 4.91L13.593 4.89567C13.5817 4.88675 13.5698 4.87734 13.5572 4.86746C13.408 4.74986 13.1748 4.56616 12.948 4.37321H18.3322C18.6772 4.37321 18.9572 4.09321 18.9572 3.74821C18.9572 3.40321 18.6772 3.12321 18.3322 3.12321H12.948C13.1756 2.92954 13.4097 2.74512 13.5589 2.62757C13.5708 2.61817 13.5822 2.60919 13.593 2.60067C13.8464 2.40233 14.0464 2.24489 14.1814 2.11572C14.4306 1.87655 14.4381 1.48067 14.1989 1.23234C13.9597 0.984005 13.5647 0.975675 13.3155 1.21484C13.2266 1.30049 13.0343 1.45125 12.8287 1.61243L12.8214 1.61816C11.778 2.4365 11.0397 3.06817 11.0397 3.74984C11.0405 4.42984 11.7789 5.06155 12.8214 5.87988C13.0297 6.04321 13.2255 6.19737 13.3155 6.2832Z"
-        fill="white"
-      />
-      <path
-        d="M3.45218 18.959H3.44911C3.40513 18.959 3.36114 18.959 3.31717 18.9574L3.25467 18.9557C2.6805 18.9382 2.1838 18.9224 1.88797 18.429C1.59464 17.9257 1.84051 17.4615 2.18134 16.819L2.19713 16.7899C2.5963 16.0316 2.69465 15.4449 2.48798 15.0466C1.62882 13.7566 1.1538 12.4866 1.07547 11.2724C1.03214 10.5482 1.03214 9.81657 1.07547 9.0949C1.32047 5.25157 4.36217 2.16988 8.1505 1.92571C8.47717 1.90071 8.81627 1.88318 9.14961 1.87485C9.49544 1.86318 9.78131 2.13906 9.79047 2.48406C9.79964 2.82906 9.52634 3.11568 9.18134 3.12485C8.86884 3.13318 8.55215 3.14902 8.23798 3.17319C5.06715 3.37819 2.52713 5.95735 2.32213 9.17319C2.28213 9.83319 2.28213 10.5341 2.32213 11.1957C2.3863 12.1924 2.79716 13.2632 3.543 14.3774C3.553 14.3924 3.56217 14.4074 3.5705 14.4224C4.008 15.2132 3.91713 16.2065 3.3013 17.374L3.28462 17.4049C3.23212 17.5032 3.17717 17.6074 3.12967 17.7007C3.15636 17.7015 3.18367 17.7026 3.21097 17.7036C3.23822 17.7047 3.26546 17.7057 3.2921 17.7066L3.35135 17.7082C4.12135 17.7265 4.70546 17.554 5.24962 17.149C5.25379 17.1457 5.25717 17.1432 5.26134 17.1407L5.31798 17.1007L5.31982 17.0994C5.68192 16.8419 5.86426 16.7123 6.11217 16.674C6.38218 16.6316 6.6165 16.7285 7.0795 16.9198L7.08377 16.9216L7.18712 16.964C7.50129 17.094 7.88046 17.1798 8.22879 17.2015C9.38296 17.2748 10.6063 17.2748 11.768 17.2015C14.9305 16.9898 17.4713 14.4065 17.6747 11.194C17.7147 10.5349 17.7147 9.83654 17.6747 9.17571C17.643 8.74821 17.5805 8.35733 17.4846 7.97983C17.3996 7.64566 17.6013 7.3049 17.9355 7.2199C18.2697 7.1349 18.6105 7.3365 18.6955 7.67067C18.8105 8.1215 18.8847 8.58483 18.9213 9.08733V9.09571C18.9647 9.81738 18.9647 10.549 18.9213 11.2707C18.6772 15.1098 15.6363 18.1948 11.848 18.4482C10.633 18.5248 9.3546 18.5248 8.14961 18.4482C7.66294 18.4182 7.15044 18.3016 6.70877 18.1191L6.53241 18.0465C6.44162 18.0091 6.35405 17.973 6.28632 17.9474C6.22613 17.9882 6.14869 18.043 6.06999 18.0988L6.04129 18.1191L5.99051 18.1557C5.26384 18.6965 4.43128 18.9599 3.45128 18.9599L3.45218 18.959Z"
-        fill="white"
-      />
-      <path
-        d="M7.08219 13.124C6.73719 13.124 6.45719 12.844 6.45719 12.499C6.45719 12.154 6.73719 11.874 7.08219 11.874H12.9155C13.2605 11.874 13.5405 12.154 13.5405 12.499C13.5405 12.844 13.2605 13.124 12.9155 13.124H7.08219Z"
-        fill="white"
-      />
-      <path
-        d="M9.99886 8.95732H7.08219C6.73719 8.95732 6.45719 8.67732 6.45719 8.33232C6.45719 7.98732 6.73719 7.70732 7.08219 7.70732H9.99886C10.3439 7.70732 10.6239 7.98732 10.6239 8.33232C10.6239 8.67732 10.3439 8.95732 9.99886 8.95732Z"
-        fill="white"
-      />
-    </svg>
-  );
-}
-
-function ExternalChatIcon() {
-  return (
-    <svg
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M19.4661 1.42152C19.1773 1.14084 18.7157 1.1474 18.435 1.43617C18.1543 1.72495 18.1609 2.18658 18.4497 2.46726C18.6068 2.61996 18.8568 2.81658 19.0947 3.00347L19.1501 3.04695C19.389 3.23449 19.6444 3.43507 19.8862 3.63989L19.8931 3.64578L13.6107 3.64578C13.208 3.64578 12.8815 3.97224 12.8815 4.37495C12.8815 4.77766 13.208 5.10411 13.6107 5.10411L19.8931 5.10411L19.8862 5.11001C19.6444 5.31483 19.389 5.51538 19.1501 5.70292L19.0947 5.74643C18.8568 5.93332 18.6068 6.12993 18.4497 6.28263C18.1609 6.56331 18.1543 7.02495 18.435 7.31373C18.7157 7.6025 19.1773 7.60906 19.4661 7.32838C19.5548 7.24214 19.7316 7.10056 19.9955 6.89329L20.0538 6.84754C20.2892 6.66275 20.5654 6.44596 20.8289 6.22262C21.1114 5.98326 21.4048 5.71534 21.6329 5.44752C21.7472 5.3133 21.86 5.16203 21.9471 4.99929C22.0311 4.84233 22.1176 4.62606 22.1176 4.37495C22.1176 4.12384 22.0311 3.90756 21.9471 3.75061C21.86 3.58787 21.7472 3.43659 21.6329 3.30238C21.4048 3.03456 21.1114 2.76664 20.8289 2.52727C20.5654 2.30394 20.2892 2.08719 20.0538 1.90241L19.9955 1.85661C19.7316 1.64934 19.5548 1.50776 19.4661 1.42152Z"
-        fill="white"
-      />
-      <path
-        d="M11.4229 2.8948C11.4349 3.29733 11.1184 3.63341 10.7158 3.64546C10.3421 3.65665 9.97075 3.67445 9.60432 3.69883C5.91093 3.94453 2.9543 6.93354 2.71078 10.7045C2.66064 11.481 2.66064 12.2861 2.71078 13.0626C2.79627 14.3863 3.38638 15.6532 4.13375 16.7764C4.1449 16.7931 4.15536 16.8103 4.1651 16.828C4.81459 18.0048 4.33842 19.3469 3.8531 20.2673C3.77335 20.4186 3.70787 20.5429 3.65366 20.6512C3.72715 20.6538 3.80989 20.6558 3.90565 20.6581C4.94456 20.6834 5.60324 20.3959 6.1278 20.0088L6.14497 19.9961C6.31381 19.8715 6.46678 19.7586 6.59338 19.6766C6.7033 19.6054 6.90451 19.4798 7.14911 19.4497C7.40531 19.4182 7.65378 19.5053 7.77771 19.5489C7.93634 19.6047 8.13789 19.6878 8.37082 19.7838L8.38967 19.7916C8.75849 19.9436 9.20001 20.0414 9.60432 20.0683C10.9567 20.1582 12.373 20.1584 13.7281 20.0683C17.4215 19.8226 20.3782 16.8336 20.6217 13.0626C20.6718 12.2861 20.6718 11.481 20.6217 10.7045C20.5907 10.2242 20.5156 9.75683 20.4008 9.30642C20.3013 8.91619 20.537 8.51921 20.9273 8.41973C21.3175 8.32025 21.7145 8.55595 21.814 8.94618C21.9509 9.48337 22.0401 10.0398 22.077 10.6105C22.1312 11.4496 22.1312 12.3175 22.077 13.1566C21.7874 17.6411 18.2652 21.228 13.8249 21.5234C12.4052 21.6178 10.9243 21.6176 9.50752 21.5234C8.95822 21.4869 8.36031 21.3569 7.83393 21.1399C7.60261 21.0446 7.44553 20.98 7.33058 20.9379C7.25154 20.9922 7.14657 21.0694 6.99376 21.1822C6.22334 21.7508 5.2506 22.1497 3.87014 22.116L3.82568 22.115C3.55941 22.1086 3.27552 22.1018 3.044 22.057C2.76503 22.003 2.42013 21.868 2.20435 21.4998C1.9696 21.0992 2.06369 20.6942 2.15481 20.439C2.24081 20.1981 2.3899 19.9155 2.54225 19.6267L2.56311 19.5871C3.0165 18.7273 3.14305 18.0242 2.90036 17.5552C2.09117 16.3327 1.36331 14.8263 1.25548 13.1566C1.2013 12.3175 1.2013 11.4496 1.25548 10.6105C1.54507 6.126 5.06729 2.5391 9.50752 2.24371C9.89208 2.21813 10.2811 2.19949 10.6722 2.18778C11.0747 2.17573 11.4108 2.49227 11.4229 2.8948Z"
-        fill="white"
-      />
-      <path
-        d="M7.53429 14.5833C7.53429 14.986 7.86075 15.3124 8.26346 15.3124H15.069C15.4717 15.3124 15.7982 14.986 15.7982 14.5833C15.7982 14.1806 15.4717 13.8541 15.069 13.8541H8.26346C7.86075 13.8541 7.53429 14.1806 7.53429 14.5833Z"
-        fill="white"
-      />
-      <path
-        d="M7.53429 9.72217C7.53429 10.1249 7.86075 10.4513 8.26346 10.4513H11.6662C12.0689 10.4513 12.3954 10.1249 12.3954 9.72217C12.3954 9.31946 12.0689 8.993 11.6662 8.993H8.26346C7.86075 8.993 7.53429 9.31946 7.53429 9.72217Z"
-        fill="white"
-      />
-    </svg>
   );
 }
 
