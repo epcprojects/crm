@@ -1,7 +1,19 @@
-import { CanActivate, ExecutionContext, Injectable, Logger } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Socket } from 'socket.io';
+
+export interface AuthenticatedSocket extends Socket {
+  data: {
+    userId: string;
+    roles?: string[];
+  };
+}
 
 @Injectable()
 export class WsJwtGuard implements CanActivate {
@@ -46,5 +58,25 @@ export class WsJwtGuard implements CanActivate {
       client.handshake.headers?.authorization?.replace('Bearer ', '') ||
       null
     );
+  }
+
+  async authenticate(
+    client: Socket,
+  ): Promise<{ userId: string; roles: string[] } | null> {
+    try {
+      const token =
+        (client.handshake.auth?.token as string) ||
+        (client.handshake.headers.authorization?.replace('Bearer ', '') ?? '');
+
+      if (!token) return null;
+
+      const payload = await this.jwtService.verifyAsync(token, {
+        secret: this.configService.get<string>('JWT_SECRET'),
+      });
+      return { userId: payload.sub, roles: payload.roles ?? [] };
+    } catch (err) {
+      this.logger.warn(`WS auth failed: ${err.message}`);
+      return null;
+    }
   }
 }

@@ -28,7 +28,22 @@ export default function DashboardSummaryBanner({
 }: DashboardSummaryBannerProps) {
   return (
     <div
-      className={`${badge ? 'items-start' : ' xl:items-center'} relative flex w-full flex-col gap-2 xl:gap-3 overflow-hidden rounded-[10px] bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat px-4 py-4 xl:flex-row xl:gap-4 xl:rounded-[20px] xl:px-7.5 xl:py-6`}
+      style={{
+        backgroundImage: `
+      url('/images/DashboardComponentBgImage.jpg'),
+      linear-gradient(
+        to right,
+        #335C94 0%,
+        #665932 25%,
+        #7B398E 50%,
+        #003F89 75%,
+        #070922 100%
+      )
+    `,
+      }}
+      className={`${
+        badge ? 'items-start' : 'xl:items-center'
+      } relative flex w-full flex-col gap-2 overflow-hidden rounded-xl bg-cover bg-center bg-no-repeat px-4 py-4 xl:flex-row xl:gap-4  xl:px-7.5 xl:py-6`}
     >
       {/* Background overlay */}
       <div className="absolute inset-0 bg-black/30" aria-hidden="true" />
@@ -71,7 +86,7 @@ export default function DashboardSummaryBanner({
       </div>
 
       <div
-        className={`${badge ? 'flex-wrap' : 'xl:flex-row xl:items-center'} relative flex min-w-0 flex-1  flex-col md:flex-row gap-3   xl:justify-between xl:gap-4`}
+        className={`${badge ? 'flex-wrap' : 'xl:flex-row xl:items-center'} relative flex min-w-0 flex-1 w-full  flex-col md:flex-row gap-3   xl:justify-between xl:gap-4`}
       >
         {/* Desktop title */}
         <div className="flex items-center gap-4">

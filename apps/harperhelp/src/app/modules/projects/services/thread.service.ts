@@ -14,6 +14,7 @@ import { EmailEventType } from '../../notifications/notifications.types';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { Project } from '../entities/project.entity';
 import { ThreadGateway } from '../gateway/thread.gateway';
+import { NotificationEntityType, NotificationType } from '@harperhelp/types';
 
 @Injectable()
 export class ThreadService {
@@ -82,10 +83,12 @@ export class ThreadService {
       });
     }
 
-    const participants = msg.project.members.map((m) => ({
-      name: m.fullName,
-      email: m.email,
-    }));
+    const participants = (msg?.project?.members || [])
+      .filter((m) => m.id !== user.id)
+      .map((m) => ({
+        name: m.fullName,
+        email: m.email,
+      }));
 
     // Call notification service to send email notifications to participants of the thread
     await this.notificationService.dispatch({
@@ -96,6 +99,16 @@ export class ThreadService {
         createdBy: { name: user.fullName, email: user.email },
         participants,
       },
+    });
+
+    await this.notificationService.notifyProjectMembers({
+      projectId,
+      actorId: user.id,
+      type: NotificationType.THREAD_REPLY,
+      entityType: NotificationEntityType.THREAD_MESSAGE,
+      entityId: msg.id,
+      title: `New thread in project: "${project.name} by ${user.fullName}"`,
+      message: message.message.slice(0, 140),
     });
 
     return msg;

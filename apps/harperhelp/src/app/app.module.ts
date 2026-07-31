@@ -14,6 +14,7 @@ import { UtilityModule } from './modules/utility/utility.module';
 import { FilesModule } from './modules/files/files.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
 import { ChatModule } from './modules/chat/chat.module';
+import { ActivityModule } from './modules/activity/activity-log.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { ChatModule } from './modules/chat/chat.module';
     FilesModule,
     CalendarModule,
     ChatModule,
+    ActivityModule,
   ],
   controllers: [AppController],
   providers: [AppService],

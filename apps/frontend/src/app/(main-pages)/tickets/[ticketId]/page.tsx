@@ -1,8 +1,14 @@
 'use client';
-
+import clsx from 'clsx';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import {
+  useParams,
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from 'next/navigation';
+import DOMPurify from 'isomorphic-dompurify';
 import TicketRepliesPanel from '../../../../components/discussion/TicketRepliesPanel';
 import AppModal, {
   ModalPosition,
@@ -13,27 +19,41 @@ import {
   type ChatChannel,
   type ChatMessage,
 } from '../../../../components/hooks/useTicketChat';
-import { getChatSocket } from '../../../../lib/socket';
+import { useTicketReplies } from '../../../../components/hooks/useTicketReplies';
+import { getSocket } from '../../../../lib/socket';
 import Dropdown from '../../../../components/ui/ThemeDropDown';
 import { appToast } from '../../../../components/toast/AppToast';
 import { getTicketById, type TicketPerson } from '../tickets.data';
-import { projectsQueryKey } from '../../projects/projects.queries';
 import {
-  PermissionGuard,
-  usePermissions,
-} from '../../../providers/PermissionProvider';
+  projectsQueryKey,
+  useDeleteProjectFileMutation,
+  useProjectFilesQuery,
+} from '../../projects/projects.queries';
+import { usePermissions } from '../../../providers/PermissionProvider';
 import { useAppSelector } from '../../../Redux/store';
 import {
   CheckMarkCircleIcon,
+  DownloadIcon,
   EditIcon,
+  EyeOpenedIcon,
   FileTypePlaceholder,
+  ThreedotIcon,
+  TrashIcon,
 } from '../../../../../public/icons';
 import { getFileUrl } from '../../../../components/projects/ProjectFilesPanel';
 import Tooltip from '../../../../components/tooltip';
 import Image from 'next/image';
 import EmptyState from '../../../../components/EmptyState';
 import ImageGalleryLightbox from '../../../../components/ui/ImageGalleryLightbox';
-
+import type { DiscussionReply } from '../../../../components/discussion/types';
+import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
+import { NotificationItem } from '@harperhelp/interfaces';
+import { NotificationEntityType } from '@harperhelp/types';
+import { eventEmitter } from '../../../../lib/event-emitter';
+import { validateAttachments } from '../../../../lib/attachments';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import RichTextEditor from 'apps/frontend/src/components/RichTextEditor';
+const MAX_DESCRIPTION_LENGTH = 4000;
 type GalleryImage = {
   attachmentId: string;
   storageKey?: string;
@@ -42,13 +62,22 @@ type GalleryImage = {
   alt: string;
 };
 
+// type ConversationView = 'replies' | 'internal-chat';
+type TicketAttachmentToDelete = {
+  attachmentId: string;
+  projectFileId: string;
+  name: string;
+};
+
 export default function TicketDetailPage() {
   const params = useParams<{ ticketId: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const queryClient = useQueryClient();
   const ticketId = String(params?.ticketId ?? '');
   const projectId = searchParams.get('projectId') ?? '';
+
   const currentUserId = useAppSelector((state) => state.auth.user?.id ?? '');
   const userType = useAppSelector((state) => state.auth.user?.userType);
   const isExternalUser = userType === 'EXTERNAL';
@@ -84,6 +113,9 @@ export default function TicketDetailPage() {
     queryFn: () => fetchTicketReplies(ticketId),
     enabled: Boolean(ticketId && canViewReplies),
   });
+  const [replySocketToken, setReplySocketToken] =
+    useState<SocketTokenResponse | null>(null);
+  const [liveReplies, setLiveReplies] = useState<DiscussionReply[]>([]);
 
   const statusListQuery = useQuery({
     queryKey: ['ticket-statuses'],
@@ -160,6 +192,11 @@ export default function TicketDetailPage() {
       );
     },
   });
+  const projectFilesQuery = useProjectFilesQuery(projectId, Boolean(projectId));
+
+  const deleteProjectFileMutation = useDeleteProjectFileMutation();
+  const [attachmentToDelete, setAttachmentToDelete] =
+    useState<TicketAttachmentToDelete | null>(null);
   const createReplyMutation = useMutation({
     mutationFn: async ({
       message,
@@ -223,20 +260,54 @@ export default function TicketDetailPage() {
   const ticket = ticketDetailQuery.data ?? fallbackTicket;
   const [chatDrawerChannel, setChatDrawerChannel] =
     useState<ChatChannel | null>(null);
+  // const [conversationView, setConversationView] =
+  //   useState<ConversationView>('replies');
   const [hasUnreadInternalChat, setHasUnreadInternalChat] = useState(false);
   const [hasUnreadExternalChat, setHasUnreadExternalChat] = useState(false);
   const isChatDrawerOpen = Boolean(chatDrawerChannel);
+  // const isInternalChatActive = conversationView === 'internal-chat';
+  const isInternalChatActive =
+    searchParams.get('internal') === 'true' && canViewInternalChatBtn;
+  const updateInternalChatParam = (isActive: boolean) => {
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+
+    if (isActive) {
+      nextSearchParams.set('internal', 'true');
+    } else {
+      nextSearchParams.delete('internal');
+    }
+
+    const nextQuery = nextSearchParams.toString();
+
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
+      scroll: false,
+    });
+  };
   const {
-    messages: chatMessages,
-    loading: chatLoading,
-    sendMessage,
-    markRead,
-    deleteMessage,
+    messages: internalChatMessages,
+    loading: internalChatLoading,
+    sendMessage: sendInternalChatMessage,
+    markRead: markInternalChatRead,
+    deleteMessage: deleteInternalChatMessage,
   } = useTicketChat({
-    projectId: isChatDrawerOpen ? projectId : '',
-    ticketId: isChatDrawerOpen ? ticketId : '',
-    channel: chatDrawerChannel ?? 'external',
-    enabled: isChatDrawerOpen,
+    projectId: isInternalChatActive ? projectId : '',
+    ticketId: isInternalChatActive ? ticketId : '',
+    channel: 'internal',
+    enabled: isInternalChatActive && canViewInternalChatBtn,
+  });
+  const {
+    messages: externalChatMessages,
+    loading: externalChatLoading,
+    sendMessage: sendExternalChatMessage,
+    markRead: markExternalChatRead,
+    deleteMessage: deleteExternalChatMessage,
+  } = useTicketChat({
+    projectId:
+      isChatDrawerOpen && chatDrawerChannel === 'external' ? projectId : '',
+    ticketId:
+      isChatDrawerOpen && chatDrawerChannel === 'external' ? ticketId : '',
+    channel: 'external',
+    enabled: isChatDrawerOpen && chatDrawerChannel === 'external',
   });
   const isTicketLoading =
     Boolean(projectId && ticketId && canViewTicketDetail) &&
@@ -251,21 +322,24 @@ export default function TicketDetailPage() {
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [shouldShowDescriptionToggle, setShouldShowDescriptionToggle] =
     useState(false);
-  const [descriptionPreviewText, setDescriptionPreviewText] = useState('');
-  const [descriptionRemainingText, setDescriptionRemainingText] = useState('');
+  // const [descriptionPreviewText, setDescriptionPreviewText] = useState('');
+  // const [descriptionRemainingText, setDescriptionRemainingText] = useState('');
+  const descriptionContentRef = useRef<HTMLDivElement | null>(null);
+
   const [isSendingChatMessage, setIsSendingChatMessage] = useState(false);
   const [deletingChatMessageId, setDeletingChatMessageId] = useState('');
   const [chatMessagePendingDelete, setChatMessagePendingDelete] = useState<{
     id: string;
     message: string;
+    channel: ChatChannel;
   } | null>(null);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [activeGalleryIndex, setActiveGalleryIndex] = useState<number | null>(
     null,
   );
-  const unreadListenerSocketRef = useRef<ReturnType<
-    typeof getChatSocket
-  > | null>(null);
+  const unreadListenerSocketRef = useRef<ReturnType<typeof getSocket> | null>(
+    null,
+  );
   const descriptionMeasureRef = useRef<HTMLParagraphElement | null>(null);
   const descriptionOverflowRef = useRef<HTMLParagraphElement | null>(null);
   const [titleDraft, setTitleDraft] = useState('');
@@ -275,6 +349,62 @@ export default function TicketDetailPage() {
   const isDueDateOverdue = Boolean(
     selectedDueDate && selectedDueDate < todayInputValue,
   );
+
+  useEffect(() => {
+    if (!canViewReplies || !projectId || !ticketId) {
+      setReplySocketToken(null);
+      return;
+    }
+
+    let isDisposed = false;
+
+    void fetchSocketToken()
+      .then((token) => {
+        if (!isDisposed) {
+          setReplySocketToken(token);
+        }
+      })
+      .catch(() => {
+        if (!isDisposed) {
+          setReplySocketToken(null);
+        }
+      });
+
+    return () => {
+      isDisposed = true;
+    };
+  }, [canViewReplies, projectId, ticketId]);
+
+  useEffect(() => {
+    if (!canViewReplies) {
+      setLiveReplies([]);
+      return;
+    }
+
+    setLiveReplies(ticketRepliesQuery.data ?? ticket?.replies ?? []);
+  }, [canViewReplies, ticket?.replies, ticketRepliesQuery.data]);
+
+  useTicketReplies({
+    projectId,
+    ticketId,
+    token: replySocketToken,
+    enabled: canViewReplies,
+    onCreated: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ['ticket-replies', ticketId],
+      });
+    },
+    onUpdated: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ['ticket-replies', ticketId],
+      });
+    },
+    onDeleted: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ['ticket-replies', ticketId],
+      });
+    },
+  });
 
   const statusOptions = useMemo(
     () =>
@@ -332,6 +462,84 @@ export default function TicketDetailPage() {
     [ticket?.attachments],
   );
 
+  const invalidateTicketRelated = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ['ticket-detail', projectId, ticketId],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard-project-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['project-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'recent-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'upcoming'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'critical-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'ticket-summary'],
+        refetchType: 'all',
+      }),
+    ]);
+  };
+  const sanitizedDescription = useMemo(() => {
+    const description = ticket?.description?.trim() ?? '';
+
+    if (!description) {
+      return '';
+    }
+
+    return DOMPurify.sanitize(description, {
+      ALLOWED_TAGS: [
+        'p',
+        'br',
+        'h1',
+        'h2',
+        'h3',
+        'strong',
+        'b',
+        'em',
+        'i',
+        'u',
+        's',
+        'strike',
+        'code',
+        'pre',
+        'blockquote',
+        'ul',
+        'ol',
+        'li',
+        'hr',
+        'a',
+      ],
+
+      ALLOWED_ATTR: ['href', 'target', 'rel'],
+    });
+  }, [ticket?.description]);
+  const hasDescriptionContent = useMemo(() => {
+    if (!sanitizedDescription) {
+      return false;
+    }
+
+    const parsedDocument = new DOMParser().parseFromString(
+      sanitizedDescription,
+      'text/html',
+    );
+
+    return Boolean(parsedDocument.body.textContent?.trim());
+  }, [sanitizedDescription]);
+
   useEffect(() => {
     if (!ticket) {
       return;
@@ -346,76 +554,117 @@ export default function TicketDetailPage() {
     setIsDescriptionExpanded(false);
   }, [ticket]);
 
-  useEffect(() => {
-    const description = ticket?.description?.trim() ?? '';
-    const measurementElement = descriptionMeasureRef.current;
-    const overflowElement = descriptionOverflowRef.current;
+  // useEffect(() => {
+  //   const description = ticket?.description?.trim() ?? '';
+  //   const measurementElement = descriptionMeasureRef.current;
+  //   const overflowElement = descriptionOverflowRef.current;
 
-    if (!description || !measurementElement || !overflowElement) {
+  //   if (!description || !measurementElement || !overflowElement) {
+  //     setShouldShowDescriptionToggle(false);
+  //     setDescriptionPreviewText(description);
+  //     setDescriptionRemainingText('');
+  //     return;
+  //   }
+
+  //   const measureDescription = () => {
+  //     const computedStyle = window.getComputedStyle(measurementElement);
+  //     const lineHeight = Number.parseFloat(computedStyle.lineHeight);
+
+  //     if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
+  //       setShouldShowDescriptionToggle(false);
+  //       setDescriptionPreviewText(description);
+  //       setDescriptionRemainingText('');
+  //       return;
+  //     }
+
+  //     overflowElement.textContent = description;
+  //     const maxHeight = lineHeight * 2;
+  //     const fullHeight = overflowElement.scrollHeight;
+
+  //     if (fullHeight <= maxHeight + 1) {
+  //       setShouldShowDescriptionToggle(false);
+  //       setDescriptionPreviewText(description);
+  //       setDescriptionRemainingText('');
+  //       return;
+  //     }
+
+  //     const toggleLabel = ' read more';
+  //     let low = 0;
+  //     let high = description.length;
+  //     let bestFit = '';
+
+  //     while (low <= high) {
+  //       const middle = Math.floor((low + high) / 2);
+  //       const candidate = `${description.slice(0, middle).trimEnd()}${toggleLabel}`;
+  //       overflowElement.textContent = candidate;
+
+  //       if (overflowElement.scrollHeight <= maxHeight + 1) {
+  //         bestFit = `${description.slice(0, middle).trimEnd()}`;
+  //         low = middle + 1;
+  //       } else {
+  //         high = middle - 1;
+  //       }
+  //     }
+
+  //     setShouldShowDescriptionToggle(true);
+  //     const previewText = bestFit || description;
+  //     setDescriptionPreviewText(previewText);
+  //     setDescriptionRemainingText(description.slice(previewText.length));
+  //   };
+
+  //   measureDescription();
+
+  //   const resizeObserver = new ResizeObserver(() => {
+  //     measureDescription();
+  //   });
+
+  //   resizeObserver.observe(measurementElement);
+
+  //   return () => {
+  //     resizeObserver.disconnect();
+  //   };
+  // }, [ticket?.description]);
+
+  useEffect(() => {
+    setIsDescriptionExpanded(false);
+  }, [sanitizedDescription]);
+
+  useEffect(() => {
+    const descriptionElement = descriptionContentRef.current;
+
+    if (!descriptionElement || !hasDescriptionContent || isEditingDescription) {
       setShouldShowDescriptionToggle(false);
-      setDescriptionPreviewText(description);
-      setDescriptionRemainingText('');
       return;
     }
 
-    const measureDescription = () => {
-      const computedStyle = window.getComputedStyle(measurementElement);
-      const lineHeight = Number.parseFloat(computedStyle.lineHeight);
-
-      if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
-        setShouldShowDescriptionToggle(false);
-        setDescriptionPreviewText(description);
-        setDescriptionRemainingText('');
+    const measureOverflow = () => {
+      if (isDescriptionExpanded) {
         return;
       }
 
-      overflowElement.textContent = description;
-      const maxHeight = lineHeight * 2;
-      const fullHeight = overflowElement.scrollHeight;
-
-      if (fullHeight <= maxHeight + 1) {
-        setShouldShowDescriptionToggle(false);
-        setDescriptionPreviewText(description);
-        setDescriptionRemainingText('');
-        return;
-      }
-
-      const toggleLabel = ' read more';
-      let low = 0;
-      let high = description.length;
-      let bestFit = '';
-
-      while (low <= high) {
-        const middle = Math.floor((low + high) / 2);
-        const candidate = `${description.slice(0, middle).trimEnd()}${toggleLabel}`;
-        overflowElement.textContent = candidate;
-
-        if (overflowElement.scrollHeight <= maxHeight + 1) {
-          bestFit = `${description.slice(0, middle).trimEnd()}`;
-          low = middle + 1;
-        } else {
-          high = middle - 1;
-        }
-      }
-
-      setShouldShowDescriptionToggle(true);
-      const previewText = bestFit || description;
-      setDescriptionPreviewText(previewText);
-      setDescriptionRemainingText(description.slice(previewText.length));
+      setShouldShowDescriptionToggle(
+        descriptionElement.scrollHeight > descriptionElement.clientHeight + 1,
+      );
     };
 
-    measureDescription();
+    const animationFrameId = window.requestAnimationFrame(measureOverflow);
 
     const resizeObserver = new ResizeObserver(() => {
-      measureDescription();
+      measureOverflow();
     });
 
-    resizeObserver.observe(measurementElement);
+    resizeObserver.observe(descriptionElement);
 
     return () => {
+      window.cancelAnimationFrame(animationFrameId);
       resizeObserver.disconnect();
     };
-  }, [ticket?.description]);
+  }, [
+    sanitizedDescription,
+    hasDescriptionContent,
+    isDescriptionExpanded,
+    isEditingDescription,
+  ]);
 
   useEffect(() => {
     if (!projectId || !ticketId || !currentUserId) {
@@ -474,7 +723,7 @@ export default function TicketDetailPage() {
         return;
       }
 
-      const socket = getChatSocket(socketToken);
+      const socket = getSocket('chat', socketToken);
       unreadListenerSocketRef.current = socket;
 
       const joinUnreadRooms = () => {
@@ -549,12 +798,17 @@ export default function TicketDetailPage() {
     canViewExternalChatBtn,
     canViewInternalChatBtn,
     currentUserId,
+    isInternalChatActive,
     projectId,
     ticketId,
   ]);
 
   useEffect(() => {
-    if (isChatDrawerOpen || !unreadListenerSocketRef.current) {
+    if (
+      isChatDrawerOpen ||
+      isInternalChatActive ||
+      !unreadListenerSocketRef.current
+    ) {
       return;
     }
 
@@ -577,21 +831,21 @@ export default function TicketDetailPage() {
     canViewExternalChatBtn,
     canViewInternalChatBtn,
     isChatDrawerOpen,
+    isInternalChatActive,
     projectId,
     ticketId,
   ]);
 
   useEffect(() => {
     if (
-      !isChatDrawerOpen ||
-      !chatDrawerChannel ||
+      !isInternalChatActive ||
       !currentUserId ||
-      !chatMessages.length
+      !internalChatMessages.length
     ) {
       return;
     }
 
-    const unreadMessageIds = chatMessages
+    const unreadMessageIds = internalChatMessages
       .filter(
         (message) => !message.isRead && message.senderId !== currentUserId,
       )
@@ -601,28 +855,85 @@ export default function TicketDetailPage() {
       return;
     }
 
-    if (chatDrawerChannel === 'internal') {
-      setHasUnreadInternalChat(false);
+    setHasUnreadInternalChat(false);
+
+    void markInternalChatRead(unreadMessageIds).catch(() => {
+      // Keep the UI responsive if read-receipt sync fails.
+    });
+  }, [
+    currentUserId,
+    internalChatMessages,
+    isInternalChatActive,
+    markInternalChatRead,
+  ]);
+
+  useEffect(() => {
+    if (
+      !isChatDrawerOpen ||
+      chatDrawerChannel !== 'external' ||
+      !currentUserId ||
+      !externalChatMessages.length
+    ) {
+      return;
     }
 
-    if (chatDrawerChannel === 'external') {
-      setHasUnreadExternalChat(false);
+    const unreadMessageIds = externalChatMessages
+      .filter(
+        (message) => !message.isRead && message.senderId !== currentUserId,
+      )
+      .map((message) => message.id);
+
+    if (!unreadMessageIds.length) {
+      return;
     }
 
-    void markRead(unreadMessageIds).catch(() => {
+    setHasUnreadExternalChat(false);
+
+    void markExternalChatRead(unreadMessageIds).catch(() => {
       // Keep the UI responsive if read-receipt sync fails.
     });
   }, [
     chatDrawerChannel,
-    chatMessages,
     currentUserId,
+    externalChatMessages,
     isChatDrawerOpen,
-    markRead,
+    markExternalChatRead,
   ]);
 
+  // Event listener
+  useEffect(() => {
+    eventEmitter.on('notification:new', (payload: NotificationItem) => {
+      if (
+        payload.entityType === NotificationEntityType.PROJECT ||
+        payload.entityType === NotificationEntityType.TICKET
+      ) {
+        invalidateTicketRelated();
+      }
+    });
+
+    return () => {
+      eventEmitter.off('notification:new');
+    };
+  }, []);
+
+  // const handleOpenChatDrawer = (channel: ChatChannel) => {
+  //   if (channel === 'internal') {
+  //     setHasUnreadInternalChat(false);
+  //     setConversationView('internal-chat');
+  //     return;
+  //   }
+
+  //   if (channel === 'external') {
+  //     setHasUnreadExternalChat(false);
+  //   }
+
+  //   setChatDrawerChannel(channel);
+  // };
   const handleOpenChatDrawer = (channel: ChatChannel) => {
     if (channel === 'internal') {
       setHasUnreadInternalChat(false);
+      updateInternalChatParam(true);
+      return;
     }
 
     if (channel === 'external') {
@@ -666,10 +977,12 @@ export default function TicketDetailPage() {
     );
   };
 
+  console.log('liveReplies' + liveReplies);
+
   if (!canViewTicketDetail) {
     return (
       <div className="space-y-4 mt-8">
-        <div className="rounded-[20px] border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+        <div className="rounded-3xl border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
           <EmptyState
             imageUrl="/images/RecentTicketEmpty.svg"
             imageAlt="Tickets detail not found"
@@ -690,7 +1003,7 @@ export default function TicketDetailPage() {
   if (!ticket) {
     return (
       <div className="space-y-4 mt-8">
-        <div className="rounded-[20px] border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+        <div className="rounded-3xl border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
           <EmptyState
             imageUrl="/images/RecentTicketEmpty.svg"
             imageAlt="Tickets detail not found"
@@ -807,25 +1120,25 @@ export default function TicketDetailPage() {
   const handleSubmitChatMessage = async ({
     message,
     attachments,
+    channel,
+    sendMessage,
   }: {
     message: string;
     attachments: File[];
+    channel: ChatChannel;
+    sendMessage: (payload: {
+      message: string;
+      messageType?: 'text' | 'attachment';
+      attachmentUrl?: string;
+      attachmentUrls?: string[];
+      attachmentName?: string;
+      attachmentSize?: number;
+    }) => Promise<ChatMessage>;
   }) => {
-    if (!chatDrawerChannel) {
-      return;
-    }
-
     try {
       setIsSendingChatMessage(true);
 
       const trimmedMessage = message.trim();
-
-      if (trimmedMessage) {
-        await sendMessage({
-          message: trimmedMessage,
-          messageType: 'text',
-        });
-      }
 
       if (attachments.length) {
         const uploadedFiles = await uploadChatAttachments(
@@ -847,6 +1160,11 @@ export default function TicketDetailPage() {
             attachmentUrls,
           });
         }
+      } else if (trimmedMessage) {
+        await sendMessage({
+          message: trimmedMessage,
+          messageType: 'text',
+        });
       }
 
       // appToast.success('Chat updated successfully.');
@@ -978,7 +1296,10 @@ export default function TicketDetailPage() {
   };
 
   const handleDeleteChatMessage = (reply: { id: string; message: string }) => {
-    setChatMessagePendingDelete(reply);
+    setChatMessagePendingDelete({
+      ...reply,
+      channel: isInternalChatActive ? 'internal' : 'external',
+    });
   };
 
   const handleConfirmDeleteChatMessage = async () => {
@@ -988,7 +1309,11 @@ export default function TicketDetailPage() {
 
     try {
       setDeletingChatMessageId(chatMessagePendingDelete.id);
-      await deleteMessage(chatMessagePendingDelete.id);
+      if (chatMessagePendingDelete.channel === 'internal') {
+        await deleteInternalChatMessage(chatMessagePendingDelete.id);
+      } else {
+        await deleteExternalChatMessage(chatMessagePendingDelete.id);
+      }
       appToast.success('Message deleted successfully.');
     } catch (error) {
       appToast.error(
@@ -999,11 +1324,94 @@ export default function TicketDetailPage() {
       setChatMessagePendingDelete(null);
     }
   };
+  const handleViewAttachment = (
+    attachment: (typeof ticket.attachments)[number],
+  ) => {
+    if (isImageAttachmentExtension(attachment.extension)) {
+      const index = ticketAttachmentGalleryImages.findIndex(
+        (image) => image.attachmentId === attachment.id,
+      );
+
+      openGallery(ticketAttachmentGalleryImages, index);
+      return;
+    }
+
+    const attachmentUrl = getAttachmentUrl(attachment.storageKey);
+
+    if (attachmentUrl) {
+      window.open(attachmentUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const handleDownloadAttachment = (
+    attachment: (typeof ticket.attachments)[number],
+  ) => {
+    if (!attachment.storageKey) {
+      return;
+    }
+
+    const searchParams = new URLSearchParams({
+      storageKey: attachment.storageKey,
+      fileName: attachment.name,
+    });
+
+    const link = document.createElement('a');
+
+    link.href = `/api/projects/files/download?${searchParams.toString()}`;
+    link.download = attachment.name;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+  const handleRequestDeleteAttachment = (
+    attachment: (typeof ticket.attachments)[number],
+  ) => {
+    const matchingProjectFile = projectFilesQuery.data?.find(
+      (file) =>
+        file.storageKey === attachment.storageKey &&
+        (!file.sourceId || file.sourceId === ticketId),
+    );
+
+    if (!matchingProjectFile) {
+      appToast.error('Unable to find the corresponding project file.');
+      return;
+    }
+
+    setAttachmentToDelete({
+      attachmentId: attachment.id,
+      projectFileId: matchingProjectFile.id,
+      name: attachment.name,
+    });
+  };
+  const handleConfirmDeleteAttachment = async () => {
+    if (!attachmentToDelete) {
+      return;
+    }
+
+    try {
+      await deleteProjectFileMutation.mutateAsync({
+        projectId,
+        fileId: attachmentToDelete.projectFileId,
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: ['ticket-detail', projectId, ticketId],
+      });
+
+      appToast.success('Attachment deleted successfully.');
+      setAttachmentToDelete(null);
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to delete attachment.',
+      );
+    }
+  };
 
   return (
     <div className="relative z-100 h-full xl:h-dvh overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0">
-      <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden  xl:rounded-3xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
-        <div className="relative flex w-full flex-col gap-2 xl:gap-3 overflow-hidden rounded-[10px] bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat px-4 py-4 xl:flex-row xl:items-center xl:gap-4 xl:rounded-[20px] xl:px-7.5 xl:py-6">
+      <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden  xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
+        <div className="relative flex w-full flex-col gap-2 xl:gap-3 overflow-hidden rounded-xl bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat px-4 py-4 xl:flex-row xl:items-center xl:gap-4  xl:px-7.5 xl:py-6">
           {/* Background overlay */}
           <div
             className="absolute inset-0 bg-black/30 z-10"
@@ -1062,7 +1470,7 @@ export default function TicketDetailPage() {
             </div>
           </div>
           <div className="flex  items-center gap-2 relative z-20">
-            {canViewInternalChatBtn && (
+            {/* {canViewInternalChatBtn && (
               <Tooltip content="" heading="Internal Chat">
                 <button
                   type="button"
@@ -1075,8 +1483,8 @@ export default function TicketDetailPage() {
                   ) : null}
                 </button>
               </Tooltip>
-            )}
-            {canViewExternalChatBtn && (
+            )} */}
+            {/* {canViewExternalChatBtn && (
               <Tooltip content="" heading="External Chat">
                 <button
                   type="button"
@@ -1090,14 +1498,14 @@ export default function TicketDetailPage() {
                   ) : null}
                 </button>
               </Tooltip>
-            )}
+            )} */}
           </div>
         </div>
 
         <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain  scrollbar-hide xl:overflow-hidden ">
           <div className="grid h-auto min-h-0 min-w-0 grid-cols-1 gap-4 overflow-visible xl:h-full xl:grid-cols-12 xl:grid-rows-[minmax(0,1fr)] xl:overflow-hidden">
             <div className="flex min-w-0 flex-col space-y-4 xl:col-span-9">
-              <section className="rounded-xl border border-gray-200 bg-white p-3 sm:rounded-2xl md:p-5">
+              <section className="rounded-xl border border-gray-200 bg-white p-3  md:p-5">
                 <div className=" relative">
                   <div className="mb-2 flex absolute top-0 end-0 items-start justify-end">
                     {canEditTicketContent ? (
@@ -1162,134 +1570,251 @@ export default function TicketDetailPage() {
                   )}
 
                   {isEditingDescription ? (
-                    <div className="mt-4">
-                      <textarea
-                        value={descriptionDraft}
-                        autoFocus
-                        rows={5}
-                        disabled={updateTicketMutation.isPending}
-                        onChange={(event) =>
-                          setDescriptionDraft(event.target.value)
-                        }
-                        onKeyDown={(event) => {
-                          if (
-                            (event.ctrlKey || event.metaKey) &&
-                            event.key === 'Enter'
-                          ) {
-                            event.preventDefault();
-                            void handleSaveTicketContent();
-                          }
+                    // <div className="mt-4">
+                    //   <textarea
+                    //     value={descriptionDraft}
+                    //     autoFocus
+                    //     rows={5}
+                    //     disabled={updateTicketMutation.isPending}
+                    //     onChange={(event) =>
+                    //       setDescriptionDraft(event.target.value)
+                    //     }
+                    //     onKeyDown={(event) => {
+                    //       if (
+                    //         (event.ctrlKey || event.metaKey) &&
+                    //         event.key === 'Enter'
+                    //       ) {
+                    //         event.preventDefault();
+                    //         void handleSaveTicketContent();
+                    //       }
 
-                          if (event.key === 'Escape') {
-                            handleCancelEditingContent();
-                          }
-                        }}
-                        className="w-full rounded-lg border scrollbar-hide border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none"
+                    //       if (event.key === 'Escape') {
+                    //         handleCancelEditingContent();
+                    //       }
+                    //     }}
+                    //     className="w-full rounded-lg border scrollbar-hide border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none"
+                    //   />
+                    // </div>
+                    <div className="mt-4">
+                      <RichTextEditor
+                        value={descriptionDraft}
+                        onChange={setDescriptionDraft}
+                        placeholder="Describe the issue in detail..."
+                        maxLength={MAX_DESCRIPTION_LENGTH}
+                        disabled={updateTicketMutation.isPending}
+                        showCharacterCount
                       />
                     </div>
                   ) : (
-                    <div className="mt-2 block w-full text-left">
-                      <p
-                        ref={descriptionMeasureRef}
-                        className="text-sm text-gray-700"
-                      >
-                        {ticket.description ? (
-                          <>
-                            {descriptionPreviewText}
-                            {isDescriptionExpanded
-                              ? descriptionRemainingText
-                              : null}
-                            {!isDescriptionExpanded &&
-                            shouldShowDescriptionToggle ? (
-                              <span
-                                className="font-medium cursor-pointer text-[#8A38F5]"
-                                onClick={(event) => {
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                  setIsDescriptionExpanded(
-                                    (previous) => !previous,
-                                  );
-                                }}
-                              >
-                                ... read more
-                              </span>
-                            ) : null}
-                          </>
-                        ) : (
-                          'Add description'
-                        )}
-                      </p>
-                      {isDescriptionExpanded && shouldShowDescriptionToggle ? (
-                        <span
-                          className="mt-1 cursor-pointer inline-flex text-sm font-medium text-[#8A38F5]"
-                          onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            setIsDescriptionExpanded(false);
-                          }}
-                        >
-                          read less
-                        </span>
-                      ) : null}
-                      <p
-                        ref={descriptionOverflowRef}
-                        aria-hidden="true"
-                        className="pointer-events-none invisible absolute left-0 top-0 -z-10 w-full text-sm text-gray-700"
-                      />
+                    <div className="mt-2 w-full text-left">
+                      {hasDescriptionContent ? (
+                        <>
+                          <div
+                            ref={descriptionContentRef}
+                            className={clsx(
+                              'rich-text-content text-sm text-gray-700',
+                              !isDescriptionExpanded && 'line-clamp-2',
+                            )}
+                            dangerouslySetInnerHTML={{
+                              __html: sanitizedDescription,
+                            }}
+                          />
+
+                          {shouldShowDescriptionToggle ? (
+                            <button
+                              type="button"
+                              className="mt-1 inline-flex cursor-pointer text-sm font-medium text-[#8A38F5]"
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+
+                                setIsDescriptionExpanded(
+                                  (previous) => !previous,
+                                );
+                              }}
+                            >
+                              {isDescriptionExpanded
+                                ? 'read less'
+                                : '... read more'}
+                            </button>
+                          ) : null}
+                        </>
+                      ) : (
+                        <p className="text-sm text-gray-700">Add description</p>
+                      )}
                     </div>
                   )}
                 </div>
               </section>
               <div className="min-h-0 xl:flex-1 xl:overflow-hidden">
-                <PermissionGuard permission="ticket_replies.view">
+                {canViewReplies || canViewInternalChatBtn ? (
                   <TicketRepliesPanel
+                    title={
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? 'Internal Chat'
+                        : 'Replies'
+                    }
+                    headerAction={
+                      canViewInternalChatBtn ? (
+                        <label className="inline-flex items-center gap-2 sborder border-gray-200">
+                          {hasUnreadInternalChat && !isInternalChatActive ? (
+                            <span className=" h-2.5 w-2.5 rounded-full border border-white bg-green-500 animate-pulse" />
+                          ) : null}
+                          <span className="text-xs font-medium text-gray-600">
+                            Internal Chat
+                          </span>
+                          {/* <button
+                            type="button"
+                            role="switch"
+                            aria-checked={isInternalChatActive}
+                            aria-label="Toggle internal chat"
+                            onClick={() => {
+                              const nextIsInternalChat = !isInternalChatActive;
+                              setConversationView(
+                                nextIsInternalChat
+                                  ? 'internal-chat'
+                                  : 'replies',
+                              );
+
+                              if (nextIsInternalChat) {
+                                setHasUnreadInternalChat(false);
+                              }
+                            }}
+                            className={`relative inline-flex h-6 w-10 items-center rounded-full transition ${
+                              isInternalChatActive
+                                ? 'bg-[#3B82F6]'
+                                : 'bg-gray-300'
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                                isInternalChatActive
+                                  ? 'translate-x-5'
+                                  : 'translate-x-1'
+                              }`}
+                            />
+                          </button> */}
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={isInternalChatActive}
+                            aria-label="Toggle internal chat"
+                            onClick={() => {
+                              const nextIsInternalChat = !isInternalChatActive;
+
+                              updateInternalChatParam(nextIsInternalChat);
+
+                              if (nextIsInternalChat) {
+                                setHasUnreadInternalChat(false);
+                              }
+                            }}
+                            className={`relative inline-flex h-6 w-10 items-center rounded-full transition ${
+                              isInternalChatActive
+                                ? 'bg-[#3B82F6]'
+                                : 'bg-gray-300'
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                                isInternalChatActive
+                                  ? 'translate-x-5'
+                                  : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                        </label>
+                      ) : null
+                    }
                     replies={
-                      canViewReplies
-                        ? (ticketRepliesQuery.data ?? ticket.replies)
-                        : []
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? internalChatMessages.map(
+                            mapChatMessageToDiscussionReply,
+                          )
+                        : canViewReplies
+                          ? liveReplies
+                          : []
                     }
                     emptyTitle={
-                      ticketRepliesQuery.isLoading
-                        ? 'Loading replies...'
-                        : 'No replies yet.'
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? internalChatLoading
+                          ? 'Loading internal chat...'
+                          : 'No messages yet.'
+                        : ticketRepliesQuery.isLoading
+                          ? 'Loading replies...'
+                          : 'No replies yet.'
                     }
                     emptyDescription={
-                      ticketRepliesQuery.isLoading
-                        ? 'Fetching ticket replies.'
-                        : 'No responses have been added to this ticket yet.'
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? internalChatLoading
+                          ? 'Fetching internal chat history.'
+                          : 'Start the internal conversation on this ticket.'
+                        : ticketRepliesQuery.isLoading
+                          ? 'Fetching ticket replies.'
+                          : 'No responses have been added to this ticket yet.'
                     }
-                    canCompose={canPostReplies}
+                    canCompose={
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? canPostReplies
+                        : canPostReplies
+                    }
                     canAttachFile={canAttachReplyFiles}
-                    isSubmittingReply={createReplyMutation.isPending}
+                    isSubmittingReply={
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? isSendingChatMessage
+                        : createReplyMutation.isPending
+                    }
                     onSubmitReply={
-                      canPostReplies ? handleSubmitReply : undefined
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? canPostReplies
+                          ? (payload) =>
+                              handleSubmitChatMessage({
+                                ...payload,
+                                channel: 'internal',
+                                sendMessage: sendInternalChatMessage,
+                              })
+                          : undefined
+                        : canPostReplies
+                          ? handleSubmitReply
+                          : undefined
                     }
                     requireMessage={false}
                     currentUserId={currentUserId}
+                    onDeleteReply={
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? handleDeleteChatMessage
+                        : undefined
+                    }
+                    deletingReplyId={
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? deletingChatMessageId
+                        : undefined
+                    }
                   />
-                </PermissionGuard>
+                ) : null}
               </div>
             </div>
-            <aside className="min-h-0 min-w-0 space-y-4 overflow-y-auto scrollbar-hide rounded-2xl bg-white p-5 xl:col-span-3 xl:h-full">
+            <aside className="min-h-0 min-w-0 space-y-4 overflow-y-auto scrollbar-hide  xl:col-span-3 xl:h-full">
               {!isExternalUser ? (
-                <section className="rounded-xl border border-gray-200 bg-white sm:rounded-2xl">
+                <section className="rounded-xl border border-gray-200 bg-white">
                   <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 md:text-base">
                     Status & Priority
                   </h3>
 
-                  <div className="space-y-4 p-3 sm:p-4">
+                  <div className="space-y-2 p-3 sm:p-4">
                     <div className="grid items-center md:grid-cols-2 gap-4">
                       <span className="text-sm text-black font-normal">
                         Status
                       </span>
                       <Dropdown
                         // label="Status"
+
                         options={statusOptions}
                         value={selectedStatus}
                         disabled={
                           updateTicketMutation.isPending || !canEditStatus
                         }
                         onChange={handleStatusChange}
+                        applyHeight={false}
                       />
                     </div>
                     <div className="grid items-center md:grid-cols-2 gap-4">
@@ -1303,6 +1828,7 @@ export default function TicketDetailPage() {
                           updateTicketMutation.isPending || !canEditPriority
                         }
                         onChange={handlePriorityChange}
+                        applyHeight={false}
                       />
                     </div>
 
@@ -1324,46 +1850,44 @@ export default function TicketDetailPage() {
                 </section>
               ) : null}
 
-              <section className="rounded-xl border border-gray-200 bg-white sm:rounded-2xl">
+              <section className="rounded-xl border border-gray-200 bg-white ">
                 <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 sm:px-4 md:text-base">
                   Attachments
                 </h3>
 
-                  <div className="space-y-3 p-3 sm:p-4">
-                    {ticket.attachments.length ? (
-                      ticket.attachments.map((attachment) => (
-                      <a
+                <div className="">
+                  {ticket.attachments.length ? (
+                    ticket.attachments.map((attachment) => (
+                      <div
                         key={attachment.id}
-                        href={getAttachmentUrl(attachment.storageKey)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-3 rounded-xl border border-gray-200 p-2.5 transition hover:bg-gray-50"
-                        onClick={(event) => {
-                          if (
-                            !isImageAttachmentExtension(attachment.extension)
-                          ) {
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => handleViewAttachment(attachment)}
+                        onKeyDown={(event) => {
+                          if (event.target !== event.currentTarget) {
                             return;
                           }
 
-                          event.preventDefault();
-                          const index = ticketAttachmentGalleryImages.findIndex(
-                            (image) => image.attachmentId === attachment.id,
-                          );
-
-                          openGallery(ticketAttachmentGalleryImages, index);
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            handleViewAttachment(attachment);
+                          }
                         }}
+                        className="flex cursor-pointer items-center gap-3 border-b border-gray-200 px-4 py-3 transition last:border-b-0 hover:bg-gray-50"
                       >
                         {isImageAttachmentExtension(attachment.extension) ? (
                           <img
                             alt={attachment.name}
-                            className="h-10 w-10 rounded-sm border border-gray-200"
+                            className="h-10 w-10 shrink-0 rounded-sm border border-gray-200 object-cover"
                             src={getFileUrl(attachment.storageKey)}
                           />
                         ) : (
-                          <FileBadgeIcon extension={attachment.extension} />
+                          <div className="shrink-0">
+                            <FileBadgeIcon extension={attachment.extension} />
+                          </div>
                         )}
 
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-semibold text-gray-800">
                             {attachment.name}
                           </p>
@@ -1372,34 +1896,111 @@ export default function TicketDetailPage() {
                             {attachment.sizeLabel}
                           </p>
                         </div>
-                        </a>
-                      ))
-                    ) : (
-                      <div className="py-2">
-                        <EmptyState
-                          imageUrl="/images/EmptyProjectIcon.svg"
-                          imageAlt="No attachments"
-                          title="No Attachments"
-                          description="No attachments have been added to this ticket yet."
-                        />
+
+                        <Menu
+                          as="div"
+                          className="relative ml-auto shrink-0"
+                          onClick={(event) => event.stopPropagation()}
+                          onMouseDown={(event) => event.stopPropagation()}
+                        >
+                          <MenuButton
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                            }}
+                            onMouseDown={(event) => {
+                              event.stopPropagation();
+                            }}
+                            className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 outline-none transition hover:bg-gray-100 data-open:bg-gray-100"
+                            aria-label={`Actions for ${attachment.name}`}
+                          >
+                            <ThreedotIcon />
+                          </MenuButton>
+
+                          <MenuItems
+                            anchor="bottom end"
+                            transition
+                            onClick={(event) => event.stopPropagation()}
+                            className="z-100 mt-2 w-40 origin-top-right rounded-xl border border-gray-200 bg-white p-1 shadow-[0_14px_44px_rgb(0_0_0/0.14)] outline-none transition duration-150 data-closed:-translate-y-2 data-closed:scale-95 data-closed:opacity-0"
+                          >
+                            <MenuItem>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleViewAttachment(attachment);
+                                }}
+                                className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-gray-700 outline-none transition data-focus:bg-gray-50"
+                              >
+                                <EyeOpenedIcon fill="#374151" />
+                                View
+                              </button>
+                            </MenuItem>
+
+                            <MenuItem>
+                              <button
+                                type="button"
+                                disabled={!attachment.storageKey}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleDownloadAttachment(attachment);
+                                }}
+                                className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-gray-700 outline-none transition data-focus:bg-gray-50 data-disabled:cursor-not-allowed data-disabled:opacity-50"
+                              >
+                                <DownloadIcon />
+                                Download
+                              </button>
+                            </MenuItem>
+
+                            <MenuItem>
+                              <button
+                                type="button"
+                                disabled={
+                                  projectFilesQuery.isLoading ||
+                                  deleteProjectFileMutation.isPending
+                                }
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+
+                                  handleRequestDeleteAttachment(attachment);
+                                }}
+                                className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-red-500 outline-none transition data-focus:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <TrashIcon />
+                                Delete
+                              </button>
+                            </MenuItem>
+                          </MenuItems>
+                        </Menu>
                       </div>
-                    )}
-                  </div>
-                </section>
+                    ))
+                  ) : (
+                    <div className="py-2">
+                      <EmptyState
+                        imageUrl="/images/EmptyProjectIcon.svg"
+                        imageAlt="No attachments"
+                        title="No Attachments"
+                        description="No attachments have been added to this ticket yet."
+                      />
+                    </div>
+                  )}
+                </div>
+              </section>
 
               {!isExternalUser ? (
-                <section className="rounded-xl border border-gray-200 bg-white sm:rounded-2xl">
+                <section className="rounded-xl border border-gray-200 bg-white ">
                   <div className="flex items-center justify-between border-b border-gray-200 px-3 py-3 sm:px-4">
                     <h3 className="text-sm font-semibold text-gray-900 md:text-base">
                       Due Date
                     </h3>
                   </div>
 
-                  <div className="p-3 sm:p-4">
+                  <div className="p-3 sm:p-4 grid md:grid-cols-2 items-center gap-4">
                     {/* <p className="mb-2 text-xs font-medium tracking-wide text-gray-500">
                       {selectedDueDate ? 'Select date' : 'No due date'}
                     </p> */}
-
+                    <p className="text-sm font-normal text-black">Overdue</p>
                     <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2.5">
                       <input
                         type="date"
@@ -1419,12 +2020,12 @@ export default function TicketDetailPage() {
               ) : null}
 
               {!isExternalUser ? (
-                <section className="rounded-2xl border border-gray-200 bg-white">
+                <section className="rounded-xl border border-gray-200 overflow-hidden bg-white">
                   <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 sm:px-4 md:text-base">
                     People
                   </h3>
 
-                  <div className="space-y-4 p-3 sm:p-4">
+                  <div>
                     <PersonCard person={ticket.reporter} />
 
                     {ticket.assigneeDetail ? (
@@ -1439,9 +2040,9 @@ export default function TicketDetailPage() {
       </div>
 
       <AppModal
-        isOpen={isChatDrawerOpen}
+        isOpen={isChatDrawerOpen && chatDrawerChannel === 'external'}
         onClose={() => setChatDrawerChannel(null)}
-        title={chatDrawerChannel === 'internal' ? 'Chat' : 'Chat'}
+        title="External Chat"
         // subtitle={getChatSubtitle({
         //   connected: chatConnected,
         //   loading: chatLoading,
@@ -1470,14 +2071,16 @@ export default function TicketDetailPage() {
             <TicketRepliesPanel
               hideHeader={true}
               className="rounded-none!"
-              title={
-                chatDrawerChannel === 'internal' ? 'Team Chat' : 'Client Chat'
-              }
+              title="Client Chat"
               subtitle=""
-              replies={chatMessages.map(mapChatMessageToDiscussionReply)}
-              emptyTitle={chatLoading ? 'Loading chat...' : 'No messages yet.'}
+              replies={externalChatMessages.map(
+                mapChatMessageToDiscussionReply,
+              )}
+              emptyTitle={
+                externalChatLoading ? 'Loading chat...' : 'No messages yet.'
+              }
               emptyDescription={
-                chatLoading
+                externalChatLoading
                   ? 'Fetching message history.'
                   : 'Start the conversation on this ticket.'
               }
@@ -1485,7 +2088,14 @@ export default function TicketDetailPage() {
               canAttachFile={canAttachReplyFiles}
               isSubmittingReply={isSendingChatMessage}
               onSubmitReply={
-                canPostReplies ? handleSubmitChatMessage : undefined
+                canPostReplies
+                  ? (payload) =>
+                      handleSubmitChatMessage({
+                        ...payload,
+                        channel: 'external',
+                        sendMessage: sendExternalChatMessage,
+                      })
+                  : undefined
               }
               requireMessage={false}
               currentUserId={currentUserId}
@@ -1517,6 +2127,32 @@ export default function TicketDetailPage() {
         isSubmitting={Boolean(deletingChatMessageId)}
         onConfirm={handleConfirmDeleteChatMessage}
       />
+      <ConfirmActionModal
+        isOpen={Boolean(attachmentToDelete)}
+        onClose={() => {
+          if (deleteProjectFileMutation.isPending) {
+            return;
+          }
+
+          setAttachmentToDelete(null);
+        }}
+        title="Delete Attachment?"
+        message={
+          <>
+            Are you sure you want to delete{' '}
+            <span className="font-semibold">
+              “{attachmentToDelete?.name ?? 'this attachment'}”
+            </span>
+            ? This action cannot be undone.
+          </>
+        }
+        confirmLabel="Yes, Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isSubmitting={deleteProjectFileMutation.isPending}
+        onConfirm={handleConfirmDeleteAttachment}
+      />
+
       <ImageGalleryLightbox
         images={galleryImages}
         activeIndex={activeGalleryIndex}
@@ -1944,6 +2580,12 @@ async function uploadChatAttachments(
   projectId: string,
   attachments: File[],
 ): Promise<UploadedProjectFile[]> {
+  const validationError = validateAttachments(attachments);
+
+  if (validationError) {
+    throw new Error(validationError);
+  }
+
   const formData = new FormData();
 
   attachments.forEach((file) => {
@@ -2510,13 +3152,13 @@ function SkeletonSidebarSection({ fields }: { fields: number }) {
 
 function PersonCard({ person }: { person: TicketPerson }) {
   return (
-    <div className="flex items-center gap-3 border-b border-purple-200 pb-4 last:border-b-0 last:pb-0">
+    <div className="flex items-center gap-3 border-b border-gray-200 py-3 px-4 ">
       <span className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-purple-100 text-sm md:text-base font-semibold text-purple-700">
         {person.initials}
       </span>
       <div>
         <p className="text-xs sm:text-sm text-gray-900">{person.role}</p>
-        <p className="text-sm md:text-lg font-semibold text-gray-900">
+        <p className="text-sm md:text-base font-semibold text-gray-900">
           {person.name}
         </p>
       </div>

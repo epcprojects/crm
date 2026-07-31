@@ -108,7 +108,7 @@ button[aria-disabled='true'] {
 
 /* 
 .fc {
-  --fc-border-color: #e5e7eb;
+  --fc-border-color: #e5e7eb;.
   --fc-page-bg-color: #ffffff;
   --fc-neutral-bg-color: #f9fafb;
   --fc-today-bg-color: #f5f3ff;
@@ -1029,7 +1029,7 @@ button[aria-disabled='true'] {
     grid-template-columns: 1fr;
     height: auto;
   }
-  .calendar-main { height: 70vh; padding: 10px; }
+  .calendar-main { height: 70vh; padding: 0px; }
   .day-sidebar { max-height: 50vh; border-left: none; border-top: 1px solid var(--border); }
   .topbar-legend { display: none; }
   .pri-tip { display: none; }
@@ -1078,3 +1078,233 @@ button[aria-disabled='true'] {
 /* full calendar css end */
 
 
+/* Rich text editor */
+
+.rich-text-editor .tiptap {
+  width: 100%;
+  outline: none;
+  overflow-wrap: anywhere;
+}
+
+.rich-text-editor .tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: #d1d5db;
+  pointer-events: none;
+}
+
+.rich-text-editor .tiptap p {
+  margin: 0;
+}
+
+.rich-text-editor .tiptap p + p {
+  margin-top: 0.5rem;
+}
+
+.rich-text-editor .tiptap h1 {
+  margin: 0.75rem 0 0.5rem;
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 700;
+  color: #101828;
+}
+
+.rich-text-editor .tiptap h2 {
+  margin: 0.75rem 0 0.5rem;
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: 700;
+  color: #101828;
+}
+
+.rich-text-editor .tiptap h3 {
+  margin: 0.75rem 0 0.5rem;
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+  color: #101828;
+}
+
+.rich-text-editor .tiptap ul {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+  list-style-type: disc;
+}
+
+.rich-text-editor .tiptap ol {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+  list-style-type: decimal;
+}
+
+.rich-text-editor .tiptap li {
+  margin: 0.25rem 0;
+}
+
+.rich-text-editor .tiptap li p {
+  margin: 0;
+}
+
+.rich-text-editor .tiptap blockquote {
+  margin: 0.75rem 0;
+  border-left: 3px solid #3165f6;
+  padding-left: 0.75rem;
+  color: #475467;
+}
+
+.rich-text-editor .tiptap code {
+  border-radius: 0.25rem;
+  background: #f2f4f7;
+  padding: 0.125rem 0.25rem;
+  font-size: 0.875em;
+  color: #344054;
+}
+
+.rich-text-editor .tiptap pre {
+  margin: 0.75rem 0;
+  overflow-x: auto;
+  border-radius: 0.5rem;
+  background: #101828;
+  padding: 0.75rem;
+  color: #ffffff;
+}
+
+.rich-text-editor .tiptap pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+.rich-text-editor .tiptap hr {
+  margin: 1rem 0;
+  border: 0;
+  border-top: 1px solid #e4e7ec;
+}
+
+.rich-text-editor .tiptap a {
+  color: #3165f6;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.rich-text-content {
+  width: 100%;
+  overflow-wrap: anywhere;
+  color: #344054;
+}
+
+.rich-text-content p {
+  margin: 0;
+}
+
+.rich-text-content p + p {
+  margin-top: 0.5rem;
+}
+
+.rich-text-content h1 {
+  margin: 0.75rem 0 0.5rem;
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 700;
+  color: #101828;
+}
+
+.rich-text-content h2 {
+  margin: 0.75rem 0 0.5rem;
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: 700;
+  color: #101828;
+}
+
+.rich-text-content h3 {
+  margin: 0.75rem 0 0.5rem;
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+  color: #101828;
+}
+
+.rich-text-content ul {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+  list-style-type: disc;
+}
+
+.rich-text-content ol {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+  list-style-type: decimal;
+}
+
+.rich-text-content li {
+  margin: 0.25rem 0;
+}
+
+.rich-text-content li p {
+  margin: 0;
+}
+
+.rich-text-content blockquote {
+  margin: 0.75rem 0;
+  border-left: 3px solid #3165f6;
+  padding-left: 0.75rem;
+  color: #475467;
+}
+
+.rich-text-content code {
+  border-radius: 0.25rem;
+  background: #f2f4f7;
+  padding: 0.125rem 0.25rem;
+  font-size: 0.875em;
+  color: #344054;
+}
+
+.rich-text-content pre {
+  margin: 0.75rem 0;
+  overflow-x: auto;
+  border-radius: 0.5rem;
+  background: #101828;
+  padding: 0.75rem;
+  color: white;
+}
+
+.rich-text-content pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+.rich-text-content hr {
+  margin: 1rem 0;
+  border: 0;
+  border-top: 1px solid #e4e7ec;
+}
+
+.rich-text-content a {
+  color: #3165f6;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.rich-text-scroll-area {
+  scrollbar-width: thin;
+  scrollbar-color: #98a2b3 #f2f4f7;
+}
+
+.rich-text-scroll-area::-webkit-scrollbar {
+  width: 6px;
+}
+
+.rich-text-scroll-area::-webkit-scrollbar-track {
+  background: #f2f4f7;
+}
+
+.rich-text-scroll-area::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: #98a2b3;
+}
+
+.rich-text-scroll-area::-webkit-scrollbar-thumb:hover {
+  background: #667085;
+}

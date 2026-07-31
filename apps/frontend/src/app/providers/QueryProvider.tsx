@@ -21,11 +21,11 @@ export const queryClient = new QueryClient({
   }),
   defaultOptions: {
     queries: {
-      staleTime: 30 * 1000,
-      gcTime: 5 * 60 * 1000,
+      staleTime: 0,
+      gcTime: 0,
       refetchOnWindowFocus: false,
       refetchOnReconnect: true,
-      refetchOnMount: false,
+      refetchOnMount: 'always',
       retry: (failureCount, error: any) => {
         const status = error?.status ?? error?.response?.status;
         if (status >= 400 && status < 500) return false;

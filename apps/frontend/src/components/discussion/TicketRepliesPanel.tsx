@@ -11,11 +11,17 @@ import {
   ALLOWED_ATTACHMENT_ACCEPT,
   validateAttachments,
 } from '../../lib/attachments';
-import { FileTypePlaceholder, TrashIcon } from '../../../public/icons';
+import {
+  EmptyRepliesIcon,
+  FileTypePlaceholder,
+  ThreedotIcon,
+  TrashIcon,
+} from '../../../public/icons';
 import { getFileUrl } from '../projects/ProjectFilesPanel';
 import ConfirmActionModal from '../modals/ConfirmActionModal';
 import ImageGalleryLightbox from '../ui/ImageGalleryLightbox';
 import type { DiscussionAttachment, DiscussionReply } from './types';
+import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 
 type DiscussionPanelProps = {
   title?: string;
@@ -55,7 +61,7 @@ type GalleryImage = {
 
 export default function TicketRepliesPanel({
   title = 'Replies',
-  subtitle = 'Files auto-sync to repository',
+  subtitle = '',
   headerAction,
   headerReply,
   replies,
@@ -87,11 +93,18 @@ export default function TicketRepliesPanel({
     null,
   );
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const conversationImages = getGalleryImagesFromDiscussion(
     headerReply,
     replies,
   );
+
+  const focusComposer = () => {
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+    });
+  };
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -105,6 +118,8 @@ export default function TicketRepliesPanel({
 
   const handleSubmit = async () => {
     const trimmedMessage = message.trim();
+    const currentMessage = message;
+    const currentAttachments = attachments;
 
     if (
       (requireMessage
@@ -116,16 +131,35 @@ export default function TicketRepliesPanel({
       return;
     }
 
-    await onSubmitReply({
-      message: trimmedMessage,
-      attachments,
-    });
     setMessage('');
     setAttachments([]);
     setAttachmentError('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    focusComposer();
+
+    try {
+      await onSubmitReply({
+        message: trimmedMessage,
+        attachments: currentAttachments,
+      });
+    } catch (error) {
+      setMessage(currentMessage);
+      setAttachments(currentAttachments);
+      throw error;
+    }
+  };
+
+  const handleComposerKeyDown = async (
+    event: React.KeyboardEvent<HTMLTextAreaElement>,
+  ) => {
+    if (event.key !== 'Enter' || event.shiftKey) {
+      return;
+    }
+
+    event.preventDefault();
+    await handleSubmit();
   };
 
   const handleAttachmentChange = (files: FileList | File[] | null) => {
@@ -133,6 +167,7 @@ export default function TicketRepliesPanel({
 
     if (!selectedFiles.length) {
       setAttachmentError('');
+      focusComposer();
       return;
     }
 
@@ -144,6 +179,7 @@ export default function TicketRepliesPanel({
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+      focusComposer();
       return;
     }
 
@@ -152,6 +188,7 @@ export default function TicketRepliesPanel({
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    focusComposer();
   };
   const handleAttachmentPaste = (
     event: ClipboardEvent<HTMLTextAreaElement>,
@@ -236,7 +273,7 @@ export default function TicketRepliesPanel({
   return (
     <>
       <section
-        className={`flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white ${className}`}
+        className={`flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl  border border-gray-200 bg-white ${className}`}
       >
         {!hideHeader && (
           <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-3 py-2 sm:py-3 md:px-5">
@@ -376,7 +413,7 @@ export default function TicketRepliesPanel({
                           <ChatStatusIcon status={reply.status} />
                         ) : null}
                       </div>
-                      {reply.message || reply.attachments?.length ? (
+                      {/* {reply.message || reply.attachments?.length ? (
                         <div
                           className={`w-full rounded-xl ${isCurrentUserReply ? 'rounded-tr-none' : 'rounded-tl-none'} ${reply.message && 'space-y-2 border border-gray-200 p-3 shadow-xs'}  bg-white  `}
                         >
@@ -457,6 +494,195 @@ export default function TicketRepliesPanel({
                             </div>
                           ) : null}
                         </div>
+                      ) : null} */}
+                      {reply.message || reply.attachments?.length ? (
+                        <div
+                          className={`group/reply relative w-full rounded-xl bg-white ${
+                            isCurrentUserReply
+                              ? 'rounded-tr-none'
+                              : 'rounded-tl-none'
+                          } ${
+                            reply.message
+                              ? 'space-y-2 border border-gray-200 p-3 shadow-xs'
+                              : ''
+                          }`}
+                        >
+                          <div
+                            className={
+                              onDeleteReply && isCurrentUserReply ? 'pr-7' : ''
+                            }
+                          >
+                            {reply.message ? (
+                              <ExpandableMessageText message={reply.message} />
+                            ) : null}
+
+                            {reply.attachments?.length ? (
+                              <div
+                                className={`grid gap-2 ${
+                                  reply.attachments.length > 1
+                                    ? 'md:grid-cols-2'
+                                    : ''
+                                } ${
+                                  !reply.message && reply.attachments.length > 1
+                                    ? 'rounded-xl border border-gray-200 p-2'
+                                    : ''
+                                } ${
+                                  isCurrentUserReply
+                                    ? 'rounded-tr-none'
+                                    : 'rounded-tl-none'
+                                }`}
+                              >
+                                {reply.attachments.map((attachment) => (
+                                  <div
+                                    key={attachment.id}
+                                    className="flex min-w-0 w-full items-start gap-3 rounded-xl border border-gray-200 bg-white p-2.5 transition hover:bg-gray-50"
+                                  >
+                                    <a
+                                      href={getAttachmentUrl(
+                                        attachment.storageKey,
+                                      )}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="flex min-w-0 flex-1 items-start gap-3"
+                                      onClick={(event) => {
+                                        if (
+                                          !isImageAttachment(
+                                            attachment.extension,
+                                          )
+                                        ) {
+                                          return;
+                                        }
+
+                                        event.preventDefault();
+
+                                        const index =
+                                          conversationImages.findIndex(
+                                            (image) =>
+                                              image.attachmentId ===
+                                              attachment.id,
+                                          );
+
+                                        openGallery(conversationImages, index);
+                                      }}
+                                    >
+                                      {isImageAttachment(
+                                        attachment.extension,
+                                      ) ? (
+                                        <img
+                                          alt={attachment.name}
+                                          className="h-10 w-10 rounded-sm border border-gray-200 object-cover"
+                                          src={getFileUrl(
+                                            attachment.storageKey,
+                                          )}
+                                        />
+                                      ) : (
+                                        <AttachmentFileIcon
+                                          extension={attachment.extension}
+                                        />
+                                      )}
+
+                                      <div className="min-w-0 flex-1">
+                                        <p className="truncate text-sm font-medium text-gray-700">
+                                          {attachment.name}
+                                        </p>
+
+                                        {attachment.sizeLabel ? (
+                                          <p className="text-sm text-gray-500">
+                                            {attachment.sizeLabel}
+                                          </p>
+                                        ) : null}
+                                      </div>
+                                    </a>
+
+                                    {onDeleteAttachment ? (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setAttachmentToDelete(attachment)
+                                        }
+                                        disabled={
+                                          deletingAttachmentId === attachment.id
+                                        }
+                                        className="shrink-0 text-gray-400 transition hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                                        aria-label={`Delete ${attachment.name}`}
+                                      >
+                                        <AttachmentTrashIcon />
+                                      </button>
+                                    ) : null}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
+
+                          {onDeleteReply && isCurrentUserReply ? (
+                            <Menu
+                              as="div"
+                              className="absolute right-1.5 top-1.5 z-10"
+                            >
+                              <MenuButton
+                                type="button"
+                                disabled={deletingReplyId === reply.id}
+                                aria-label="Message actions"
+                                className="
+            flex h-6 w-6 items-center justify-center
+            rounded-md text-gray-500 outline-none
+            transition hover:bg-gray-100
+            hover:text-gray-700
+            disabled:cursor-not-allowed
+            disabled:opacity-50
+            opacity-100
+            sm:opacity-0
+            sm:group-hover/reply:opacity-100
+            sm:data-open:opacity-100
+            sm:focus:opacity-100
+          "
+                              >
+                                <ThreedotIcon />
+                              </MenuButton>
+
+                              <MenuItems
+                                anchor="bottom end"
+                                transition
+                                className="
+            z-100 mt-1 w-32 origin-top-right
+            rounded-lg border border-gray-200
+            bg-white p-1
+            shadow-[0_10px_30px_rgb(0_0_0/0.12)]
+            outline-none transition duration-150
+            data-closed:-translate-y-1
+            data-closed:scale-95
+            data-closed:opacity-0
+          "
+                              >
+                                <MenuItem>
+                                  <button
+                                    type="button"
+                                    disabled={deletingReplyId === reply.id}
+                                    onClick={() => {
+                                      onDeleteReply(reply);
+                                    }}
+                                    className="
+                flex w-full items-center gap-2
+                rounded-md px-2.5 py-2
+                text-left text-xs font-medium
+                text-red-500 outline-none transition
+                data-focus:bg-red-50
+                disabled:cursor-not-allowed
+                disabled:opacity-50
+              "
+                                  >
+                                    <TrashIcon width="16" height="16" />
+
+                                    {deletingReplyId === reply.id
+                                      ? 'Deleting...'
+                                      : 'Delete'}
+                                  </button>
+                                </MenuItem>
+                              </MenuItems>
+                            </Menu>
+                          ) : null}
+                        </div>
                       ) : null}
 
                       {showReplyMeta ||
@@ -475,7 +701,7 @@ export default function TicketRepliesPanel({
                                 : 'Reply'}
                             </button>
                           ) : null}
-                          {onDeleteReply && isCurrentUserReply ? (
+                          {/* {onDeleteReply && isCurrentUserReply ? (
                             <button
                               type="button"
                               onClick={() => onDeleteReply(reply)}
@@ -485,7 +711,7 @@ export default function TicketRepliesPanel({
                               <AttachmentTrashIcon />
                               Delete
                             </button>
-                          ) : null}
+                          ) : null} */}
                         </div>
                       ) : null}
                     </div>
@@ -512,16 +738,18 @@ export default function TicketRepliesPanel({
         </div>
 
         {canCompose ? (
-          <div className="shrink-0 border-t border-gray-200 px-2 py-4 md:px-5">
-            <div className="rounded-xl border border-gray-200 bg-white p-2 sm:p-3">
+          <div className="shrink-0 border-t border-gray-200 px-2 py-4 md:py-0 md:px-0">
+            <div className="  bg-white p-2 ">
               <textarea
-                rows={3}
+                ref={textareaRef}
+                rows={2}
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
+                onKeyDown={(event) => void handleComposerKeyDown(event)}
                 placeholder={composerPlaceholder}
                 onPaste={handleAttachmentPaste}
                 disabled={isSubmittingReply}
-                className="min-h-14 md:min-h-18 w-full resize-none bg-transparent px-2 py-1 text-sm text-gray-700 outline-none placeholder:text-gray-400"
+                className="min-h-14 md:min-h-16 w-full resize-none bg-transparent px-2 py-1 text-sm text-gray-700 outline-none placeholder:text-gray-400"
               />
 
               <input
@@ -535,7 +763,7 @@ export default function TicketRepliesPanel({
                 }
               />
 
-              {attachments.length ? (
+              {/* {attachments.length ? (
                 <div className="mt-3 flex items-center max-h-32 flex-wrap min-h-0 grid-cols-1 gap-2 overflow-y-auto overscroll-contain pr-1 scrollbar-thin sm:grid-cols-2 lg:grid-cols-3">
                   {attachments.map((attachment) => (
                     <div
@@ -570,13 +798,55 @@ export default function TicketRepliesPanel({
                     </div>
                   ))}
                 </div>
-              ) : null}
+              ) : null} */}
 
               {attachmentError ? (
                 <p className="mt-2 text-xs text-red-600">{attachmentError}</p>
               ) : null}
 
-              <div className="mt-3 flex items-end justify-end gap-3">
+              <div
+                className={`flex items-end ${attachments.length === 0 ? 'justify-end' : 'justify-between'} gap-3`}
+              >
+                {attachments.length ? (
+                  <div className="mt-3 flex items-center max-h-32 flex-wrap min-h-0 grid-cols-1 gap-2 overflow-y-auto overscroll-contain pr-1 scrollbar-thin sm:grid-cols-2 lg:grid-cols-3">
+                    {attachments.map((attachment) => (
+                      <div
+                        key={`${attachment.name}-${attachment.size}-${attachment.lastModified}`}
+                        className="flex min-w-0 items-center gap-3 max-w-48 rounded-lg border border-gray-200 bg-gray-50 py-0.5 pr-2 pl-0.5"
+                      >
+                        <LocalAttachmentPreview file={attachment} />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-gray-700">
+                            {attachment.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {formatAttachmentSize(attachment.size)}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nextAttachments = attachments.filter(
+                              (file) => file !== attachment,
+                            );
+                            setAttachments(nextAttachments);
+                            if (
+                              !nextAttachments.length &&
+                              fileInputRef.current
+                            ) {
+                              fileInputRef.current.value = '';
+                            }
+                            focusComposer();
+                          }}
+                          disabled={isSubmittingReply}
+                          className="text-xs font-medium text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <TrashIcon width="16" height="16" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
                 {/* <div className="text-xs text-gray-500">
                   {canAttachFile ? ALLOWED_ATTACHMENT_HELPER_TEXT : null}
                 </div> */}
@@ -584,9 +854,10 @@ export default function TicketRepliesPanel({
                   {canAttachFile ? (
                     <button
                       type="button"
+                      onMouseDown={(event) => event.preventDefault()}
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isSubmittingReply}
-                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       <PaperclipIcon />
                     </button>
@@ -600,7 +871,7 @@ export default function TicketRepliesPanel({
                         : !message.trim() && !attachments.length) ||
                       isSubmittingReply
                     }
-                    className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#10175A] text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    className="flex h-10 w-10 items-center justify-center rounded-full bg-[#10175A] text-white disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <TelegramIcon />
                   </button>
@@ -1014,30 +1285,30 @@ function ReplyArrowIcon() {
   );
 }
 
-function EmptyRepliesIcon() {
-  return (
-    <svg
-      width="48"
-      height="48"
-      viewBox="0 0 48 48"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        opacity="0.4"
-        d="M20.1308 41.9077C21.4065 42.1474 22.7014 42.2675 24 42.2659C28.9628 42.2659 33.5038 40.5351 37 37.6698L9.43778 10C6.06626 13.4269 4 18.0436 4 23.1218C4 28.2014 6.06667 32.8168 9.43778 36.2419C10.18 36.996 10.6756 38.0263 10.4756 39.0868C10.1455 40.8206 9.39748 42.4379 8.30222 43.7858C11.1839 44.3221 14.1803 43.8392 16.75 42.4719C17.6584 41.9886 18.1125 41.7469 18.4331 41.6979C18.7536 41.6489 19.2127 41.7352 20.1308 41.9077Z"
-        fill="#6B7280"
-      />
-      <path
-        d="M24 5.5C20.9919 5.5 18.157 6.18357 15.6523 7.39323C14.9063 7.75351 14.0095 7.44083 13.6493 6.69485C13.289 5.94887 13.6017 5.05207 14.3476 4.69179C17.2535 3.28835 20.5339 2.5 24 2.5C35.8095 2.5 45.5 11.6768 45.5 23.1334C45.5 26.5935 44.6112 29.8567 43.0427 32.7205C42.6447 33.4471 41.7331 33.7136 41.0065 33.3156C40.2799 32.9177 40.0135 32.006 40.4115 31.2795C41.7464 28.8421 42.5 26.0726 42.5 23.1334C42.5 13.4575 34.2793 5.5 24 5.5Z"
-        fill="#6B7280"
-      />
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M2.93934 2.93934C3.52513 2.35355 4.47487 2.35355 5.06066 2.93934L45.0607 42.9393C45.6464 43.5251 45.6464 44.4749 45.0607 45.0607C44.4749 45.6464 43.5251 45.6464 42.9393 45.0607L37.2516 39.373C33.481 42.2005 28.8028 43.7555 23.9831 43.7555H23.943C22.5616 43.7555 21.1801 43.6357 19.8186 43.3759C19.6629 43.3491 19.5116 43.3223 19.3711 43.2974C18.9876 43.2295 18.6852 43.176 18.5973 43.176C18.5753 43.187 18.5202 43.216 18.4402 43.2581C18.2286 43.3695 17.8429 43.5725 17.436 43.7755C15.3138 44.8946 12.9512 45.4742 10.5887 45.4742L10.6488 45.4941C9.76781 45.4941 8.90688 45.4142 8.04595 45.2543C7.52539 45.1544 7.08492 44.7947 6.90473 44.2951C6.72453 43.7955 6.82465 43.236 7.14499 42.8363C8.086 41.6772 8.72669 40.2984 9.00699 38.7996C9.08708 38.3399 8.84681 37.7804 8.36629 37.2808C4.58223 33.4439 2.5 28.408 2.5 23.1123C2.5 18.1751 4.30987 13.481 7.62135 9.74267L2.93934 5.06066C2.35355 4.47487 2.35355 3.52513 2.93934 2.93934ZM9.74433 11.8657C6.99197 15.0237 5.4832 18.9765 5.4832 23.1323C5.4832 27.6486 7.26511 31.9052 10.4886 35.1825C11.6698 36.3815 12.2104 37.9003 11.9301 39.3591C11.7299 40.4582 11.3695 41.4974 10.869 42.4966C12.6509 42.4566 14.4328 41.997 16.0145 41.1577C17.1157 40.5781 17.6162 40.3183 18.1768 40.2184C18.7374 40.1385 19.278 40.2184 20.3191 40.4183C21.5404 40.6581 22.7618 40.758 23.9631 40.758C27.9855 40.758 31.8922 39.5028 35.0964 37.2177L9.74433 11.8657Z"
-        fill="#6B7280"
-      />
-    </svg>
-  );
-}
+// function EmptyRepliesIcon() {
+//   return (
+//     <svg
+//       width="48"
+//       height="48"
+//       viewBox="0 0 48 48"
+//       fill="none"
+//       xmlns="http://www.w3.org/2000/svg"
+//     >
+//       <path
+//         opacity="0.4"
+//         d="M20.1308 41.9077C21.4065 42.1474 22.7014 42.2675 24 42.2659C28.9628 42.2659 33.5038 40.5351 37 37.6698L9.43778 10C6.06626 13.4269 4 18.0436 4 23.1218C4 28.2014 6.06667 32.8168 9.43778 36.2419C10.18 36.996 10.6756 38.0263 10.4756 39.0868C10.1455 40.8206 9.39748 42.4379 8.30222 43.7858C11.1839 44.3221 14.1803 43.8392 16.75 42.4719C17.6584 41.9886 18.1125 41.7469 18.4331 41.6979C18.7536 41.6489 19.2127 41.7352 20.1308 41.9077Z"
+//         fill="#6B7280"
+//       />
+//       <path
+//         d="M24 5.5C20.9919 5.5 18.157 6.18357 15.6523 7.39323C14.9063 7.75351 14.0095 7.44083 13.6493 6.69485C13.289 5.94887 13.6017 5.05207 14.3476 4.69179C17.2535 3.28835 20.5339 2.5 24 2.5C35.8095 2.5 45.5 11.6768 45.5 23.1334C45.5 26.5935 44.6112 29.8567 43.0427 32.7205C42.6447 33.4471 41.7331 33.7136 41.0065 33.3156C40.2799 32.9177 40.0135 32.006 40.4115 31.2795C41.7464 28.8421 42.5 26.0726 42.5 23.1334C42.5 13.4575 34.2793 5.5 24 5.5Z"
+//         fill="#6B7280"
+//       />
+//       <path
+//         fillRule="evenodd"
+//         clipRule="evenodd"
+//         d="M2.93934 2.93934C3.52513 2.35355 4.47487 2.35355 5.06066 2.93934L45.0607 42.9393C45.6464 43.5251 45.6464 44.4749 45.0607 45.0607C44.4749 45.6464 43.5251 45.6464 42.9393 45.0607L37.2516 39.373C33.481 42.2005 28.8028 43.7555 23.9831 43.7555H23.943C22.5616 43.7555 21.1801 43.6357 19.8186 43.3759C19.6629 43.3491 19.5116 43.3223 19.3711 43.2974C18.9876 43.2295 18.6852 43.176 18.5973 43.176C18.5753 43.187 18.5202 43.216 18.4402 43.2581C18.2286 43.3695 17.8429 43.5725 17.436 43.7755C15.3138 44.8946 12.9512 45.4742 10.5887 45.4742L10.6488 45.4941C9.76781 45.4941 8.90688 45.4142 8.04595 45.2543C7.52539 45.1544 7.08492 44.7947 6.90473 44.2951C6.72453 43.7955 6.82465 43.236 7.14499 42.8363C8.086 41.6772 8.72669 40.2984 9.00699 38.7996C9.08708 38.3399 8.84681 37.7804 8.36629 37.2808C4.58223 33.4439 2.5 28.408 2.5 23.1123C2.5 18.1751 4.30987 13.481 7.62135 9.74267L2.93934 5.06066C2.35355 4.47487 2.35355 3.52513 2.93934 2.93934ZM9.74433 11.8657C6.99197 15.0237 5.4832 18.9765 5.4832 23.1323C5.4832 27.6486 7.26511 31.9052 10.4886 35.1825C11.6698 36.3815 12.2104 37.9003 11.9301 39.3591C11.7299 40.4582 11.3695 41.4974 10.869 42.4966C12.6509 42.4566 14.4328 41.997 16.0145 41.1577C17.1157 40.5781 17.6162 40.3183 18.1768 40.2184C18.7374 40.1385 19.278 40.2184 20.3191 40.4183C21.5404 40.6581 22.7618 40.758 23.9631 40.758C27.9855 40.758 31.8922 39.5028 35.0964 37.2177L9.74433 11.8657Z"
+//         fill="#6B7280"
+//       />
+//     </svg>
+//   );
+// }

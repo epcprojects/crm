@@ -13,6 +13,7 @@ import UserCard, {
   UserCardsSkeleton,
   type UserCardUser,
 } from '../../../components/users/UserCard';
+import type { NotificationItem } from '@harperhelp/interfaces';
 import type { ProjectNameRecord } from '../projects/projects.data';
 import { useProjectNamesQuery } from '../projects/projects.queries';
 import {
@@ -20,8 +21,14 @@ import {
   usePermissions,
 } from '../../providers/PermissionProvider';
 import { useAppLoader } from '../../providers/AppLoaderProvider';
+import { eventEmitter } from '../../../lib/event-emitter';
 import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
-import { FiltersIcon, PlusIcon, SearchIcon } from '../../../../public/icons';
+import {
+  CloseIcon,
+  FiltersIcon,
+  PlusIcon,
+  SearchIcon,
+} from '../../../../public/icons';
 import ThemeButton from '../../../components/ui/ThemeButton';
 import EmptyState from '../../../components/EmptyState';
 import Dropdown from '../../../components/ui/ThemeDropDown';
@@ -30,6 +37,8 @@ import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 const USERS_INVITATION_STATUS_QUERY_PARAM = 'invitationStatus';
 const USERS_PROJECT_QUERY_PARAM = 'project';
 const USERS_ROLE_QUERY_PARAM = 'role';
+const MEMBER_NOTIFICATION_ENTITY_TYPE = 'member';
+const MEMBER_JOINED_NOTIFICATION_TYPE = 'member_joined';
 
 export default function Page() {
   const router = useRouter();
@@ -65,7 +74,6 @@ export default function Page() {
     [projectsQuery.data],
   );
 
-
   const membersQuery = useQuery({
     queryKey: [
       'project-members',
@@ -84,15 +92,9 @@ export default function Page() {
             ? undefined
             : selectedInvitationStatus === 'accepted',
 
-        projectId:
-          selectedProjectId === 'all'
-            ? undefined
-            : selectedProjectId,
+        projectId: selectedProjectId === 'all' ? undefined : selectedProjectId,
 
-        roleId:
-          selectedRoleId === 'all'
-            ? undefined
-            : selectedRoleId,
+        roleId: selectedRoleId === 'all' ? undefined : selectedRoleId,
       }),
 
     enabled: projectsQuery.isSuccess && canViewUsers,
@@ -160,6 +162,10 @@ export default function Page() {
     [membersQuery.data],
   );
 
+  const isUsersLoading =
+    projectsQuery.isPending ||
+    (projectsQuery.isSuccess && membersQuery.isPending);
+
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
       const response = await fetch(`/api/users/${userId}`, {
@@ -200,14 +206,35 @@ export default function Page() {
 
   useEffect(() => {
     setHeaderCountOverride(
-      canViewUsers
-        ? membersQuery.data?.summary.totalUsers ?? 0
-        : null,
+      canViewUsers ? (membersQuery.data?.summary.totalUsers ?? 0) : null,
     );
     return () => {
       setHeaderCountOverride(null);
     };
-  }, [canViewUsers, membersQuery.data?.summary.totalUsers, setHeaderCountOverride]);
+  }, [
+    canViewUsers,
+    membersQuery.data?.summary.totalUsers,
+    setHeaderCountOverride,
+  ]);
+
+  useEffect(() => {
+    const handleNotificationNew = (payload: NotificationItem) => {
+      if (
+        payload.entityType !== MEMBER_NOTIFICATION_ENTITY_TYPE ||
+        payload.type !== MEMBER_JOINED_NOTIFICATION_TYPE
+      ) {
+        return;
+      }
+
+      void queryClient.invalidateQueries({ queryKey: ['project-members'] });
+    };
+
+    eventEmitter.on('notification:new', handleNotificationNew);
+
+    return () => {
+      eventEmitter.off('notification:new', handleNotificationNew);
+    };
+  }, [queryClient]);
 
   const updateUsersPageFilters = ({
     invitationStatus,
@@ -219,8 +246,7 @@ export default function Page() {
     roleId?: string;
   }) => {
     const nextSearchParams = new URLSearchParams(searchParams.toString());
-    const nextInvitationStatus =
-      invitationStatus ?? selectedInvitationStatus;
+    const nextInvitationStatus = invitationStatus ?? selectedInvitationStatus;
     const nextProjectId = projectId ?? selectedProjectId;
     const nextRoleId = roleId ?? selectedRoleId;
 
@@ -419,10 +445,18 @@ export default function Page() {
     selectedProjectId !== 'all';
 
   const hasSearchOrFilters = hasSearch || hasFilters;
+  const clearUsersFilters = () => {
+    setSearchValue('');
+    updateUsersPageFilters({
+      invitationStatus: 'all',
+      roleId: 'all',
+      projectId: 'all',
+    });
+  };
   return (
     <>
       <div className="relative z-100 h-full overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 xl:h-dvh">
-        <div className="flex h-full min-h-0 flex-col gap-3 xl:rounded-3xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
+        <div className="flex h-full min-h-0 flex-col gap-3 xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <DashboardSummaryBanner
             imageSrc="/images/UsersIcon.svg"
             imageAlt="Users"
@@ -430,7 +464,7 @@ export default function Page() {
             stats={userStats}
           />
 
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden rounded-[10px] xl:rounded-[20px] bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden rounded-xl bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
             <PermissionGuard
               permission="users.view_list"
               fallback={
@@ -441,81 +475,115 @@ export default function Page() {
             >
               <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
                 <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 sm:max-w-50">
-                    <div className="flex items-center gap-2">
-                      <SearchIcon fill="#374151" />
+                  <div className="flex gap-2">
+                    <div className="w-full">
+                      <div className=" w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 sm:max-w-50">
+                        <div className="flex items-center gap-2">
+                          <span className="shrink-0">
+                            <SearchIcon fill="#374151" />
+                          </span>
 
-                      <input
-                        type="text"
-                        value={searchValue}
-                        onChange={(event) => setSearchValue(event.target.value)}
-                        placeholder="Search"
-                        className="min-w-0 flex-1 bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400"
-                      />
-                    </div>
-                  </div>
-                  <Popover as="div" className="relative xl:hidden">
-                    {({ open }) => (
-                      <>
-                        <PopoverButton
-                          className={`flex h-10 shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium outline-none ${open
-                            ? 'border-primary  text-white'
-                            : 'border-gray-200 bg-white text-gray-700'
+                          <input
+                            type="text"
+                            value={searchValue}
+                            onChange={(event) =>
+                              setSearchValue(event.target.value)
+                            }
+                            placeholder="Search"
+                            className="sm:min-w-0 sm:flex-1 w-full bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400"
+                          />
+
+                          <button
+                            type="button"
+                            onClick={() => setSearchValue('')}
+                            disabled={!searchValue}
+                            tabIndex={searchValue ? 0 : -1}
+                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
+                              searchValue
+                                ? 'visible hover:bg-gray-100'
+                                : 'pointer-events-none invisible'
                             }`}
-                          aria-label="Open filters"
-                        >
-                          <FiltersIcon />
-                        </PopoverButton>
+                            aria-label="Clear search"
+                          >
+                            <CloseIcon width="15" height="15" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
 
-                        <PopoverPanel
-                          anchor="bottom end"
-                          transition
-                          className="z-100 mt-2 flex w-56 origin-top-right flex-col gap-3 overflow-visible!  rounded-xl border border-gray-200 bg-white p-3 shadow-[0_14px_44px_rgb(0_0_0/0.14)] outline-none transition duration-150 data-closed:-translate-y-2 data-closed:scale-95 data-closed:opacity-0"
-                        >
-                          <div className="relative w-full overflow-visible">
-                            <Dropdown
-                              options={invitationFilterOptions}
-                              value={selectedInvitationStatus}
-                              onChange={(value) =>
-                                updateUsersPageFilters({
-                                  invitationStatus: value as
-                                    | 'all'
-                                    | 'accepted'
-                                    | 'pending',
-                                })
-                              }
-                              placeholder="All Invitations"
-                              maxMenuHeight={150}
-                            />
-                          </div>
+                    <Popover as="div" className="relative xl:hidden">
+                      {({ open }) => (
+                        <>
+                          <PopoverButton
+                            className={`flex h-10 shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium outline-none ${
+                              open
+                                ? 'border-primary  text-white'
+                                : 'border-gray-200 bg-white text-gray-700'
+                            }`}
+                            aria-label="Open filters"
+                          >
+                            <FiltersIcon />
+                          </PopoverButton>
 
-                          <div className="relative w-full overflow-visible">
-                            <Dropdown
-                              options={roleFilterOptions}
-                              value={selectedRoleId}
-                              onChange={(value) =>
-                                updateUsersPageFilters({ roleId: value })
-                              }
-                              placeholder="All Roles"
-                              maxMenuHeight={150}
-                            />
-                          </div>
+                          <PopoverPanel
+                            anchor="bottom end"
+                            transition
+                            className="z-100 mt-2 flex w-56 origin-top-right flex-col gap-3 overflow-visible!  rounded-xl border border-gray-200 bg-white p-3 shadow-[0_14px_44px_rgb(0_0_0/0.14)] outline-none transition duration-150 data-closed:-translate-y-2 data-closed:scale-95 data-closed:opacity-0"
+                          >
+                            <div className="relative w-full overflow-visible">
+                              <Dropdown
+                                options={invitationFilterOptions}
+                                value={selectedInvitationStatus}
+                                onChange={(value) =>
+                                  updateUsersPageFilters({
+                                    invitationStatus: value as
+                                      | 'all'
+                                      | 'accepted'
+                                      | 'pending',
+                                  })
+                                }
+                                placeholder="All Invitations"
+                                maxMenuHeight={150}
+                              />
+                            </div>
 
-                          <div className="relative w-full overflow-visible">
-                            <Dropdown
-                              options={projectFilterOptions}
-                              value={selectedProjectId}
-                              onChange={(value) =>
-                                updateUsersPageFilters({ projectId: value })
-                              }
-                              placeholder="All Projects"
-                              maxMenuHeight={150}
-                            />
-                          </div>
-                        </PopoverPanel>
-                      </>
-                    )}
-                  </Popover>
+                            <div className="relative w-full overflow-visible">
+                              <Dropdown
+                                options={roleFilterOptions}
+                                value={selectedRoleId}
+                                onChange={(value) =>
+                                  updateUsersPageFilters({ roleId: value })
+                                }
+                                placeholder="All Roles"
+                                maxMenuHeight={150}
+                              />
+                            </div>
+
+                            <div className="relative w-full overflow-visible">
+                              <Dropdown
+                                options={projectFilterOptions}
+                                value={selectedProjectId}
+                                onChange={(value) =>
+                                  updateUsersPageFilters({ projectId: value })
+                                }
+                                placeholder="All Projects"
+                                maxMenuHeight={150}
+                              />
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={clearUsersFilters}
+                              disabled={!hasSearchOrFilters}
+                              className="inline-flex h-10 items-center justify-center rounded-lg border border-gray-200 px-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              Clear Filters
+                            </button>
+                          </PopoverPanel>
+                        </>
+                      )}
+                    </Popover>
+                  </div>
                   <div className="flex items-center gap-3">
                     <div className="w-full hidden xl:block xl:w-44">
                       <Dropdown
@@ -555,6 +623,15 @@ export default function Page() {
                       />
                     </div>
 
+                    <button
+                      type="button"
+                      onClick={clearUsersFilters}
+                      disabled={!hasSearchOrFilters}
+                      className="hidden h-10 shrink-0 items-center justify-center rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 xl:inline-flex"
+                    >
+                      Clear Filters
+                    </button>
+
                     {canCreateUser ? (
                       <ThemeButton
                         className="shrink-0 rounded-full"
@@ -571,7 +648,7 @@ export default function Page() {
                 </div>
 
                 <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hide">
-                  {membersQuery.isLoading ? (
+                  {isUsersLoading ? (
                     <UserCardsSkeleton />
                   ) : userList.length ? (
                     <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -582,13 +659,13 @@ export default function Page() {
                           onEdit={
                             user.isInvitationAccepted && canEditUser
                               ? (selectedUser) =>
-                                setEditingUserId(selectedUser.id)
+                                  setEditingUserId(selectedUser.id)
                               : undefined
                           }
                           onDelete={
                             canDeleteUser
                               ? (selectedUser) =>
-                                setDeletingUserId(selectedUser.id)
+                                  setDeletingUserId(selectedUser.id)
                               : undefined
                           }
                           onResendInvite={
@@ -607,13 +684,17 @@ export default function Page() {
                           : '/images/UsersEmptyIcon.svg'
                       }
                       imageAlt={hasSearch ? 'No search results' : 'No users'}
-                      title={hasSearchOrFilters ? 'No Results Found' : 'No Users Yet'}
+                      title={
+                        hasSearchOrFilters ? 'No Results Found' : 'No Users Yet'
+                      }
                       description={
                         hasSearch
                           ? "We couldn't find matching results for your search. Try a different keyword or clear the filters."
                           : 'Add your first team member to get started.'
                       }
-                      buttonLabel={hasSearchOrFilters ? 'Clear Search' : 'Add User'}
+                      buttonLabel={
+                        hasSearchOrFilters ? 'Clear Search' : 'Add User'
+                      }
                       buttonIcon={
                         hasSearch ? (
                           <SearchIcon fill="#3889FE" />
@@ -751,9 +832,9 @@ async function fetchProjectMembers(
 
   const payload = (await response.json().catch(() => null)) as
     | {
-      items?: ApiProjectMember[];
-      summary?: Partial<MemberSummary>;
-    }
+        items?: ApiProjectMember[];
+        summary?: Partial<MemberSummary>;
+      }
     | { message?: string }
     | null;
 

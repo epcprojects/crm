@@ -14,6 +14,8 @@ import { NotificationsService } from '../../notifications/notifications.service'
 import { EmailEventType } from '../../notifications/notifications.types';
 import { Ticket } from '../entities/ticket.entity';
 import { TicketRepliesGateway } from '../gateway/ticket-reply.gateway';
+import { NotificationEntityType, NotificationType } from '@harperhelp/types';
+import { UsersService } from '../../users/users.service';
 
 @Injectable()
 export class TicketRepliesService {
@@ -24,6 +26,7 @@ export class TicketRepliesService {
     private readonly filesService: FilesService,
     private readonly utilityService: UtilityService,
     private readonly notificationsService: NotificationsService,
+    private readonly usersService: UsersService,
     private readonly ticketRepliesGateway: TicketRepliesGateway,
   ) {}
 
@@ -76,22 +79,24 @@ export class TicketRepliesService {
           },
         });
 
-      const members = (ticket.project?.members || []).map((m) => ({
-        name: m.fullName,
-        email: m.email,
-      }));
+      const members = (ticket.project?.members || [])
+        .filter((m) => m.id !== userId)
+        .map((m) => ({
+          name: m.fullName,
+          email: m.email,
+        }));
 
       const participantsMap = new Map<
         string,
         { name: string; email: string }
       >();
       for (const m of members) participantsMap.set(m.email, m);
-      if (ticket.reporter)
+      if (ticket.reporter && ticket?.reporter?.id !== userId)
         participantsMap.set(ticket.reporter.email, {
           name: ticket.reporter.fullName,
           email: ticket.reporter.email,
         });
-      if (ticket.assignee)
+      if (ticket.assignee && ticket?.assignee?.id !== userId)
         participantsMap.set(ticket.assignee.email, {
           name: ticket.assignee.fullName,
           email: ticket.assignee.email,
@@ -128,6 +133,18 @@ export class TicketRepliesService {
     const createdReply = await this.findOne(reply.id);
 
     this.ticketRepliesGateway.broadcastReply(projectId, ticketId, createdReply);
+    const fullname = await this.usersService.getFullName(userId);
+    await this.notificationsService.notifyProjectMembers({
+      projectId: ticket.projectId,
+      actorId: userId,
+      type: NotificationType.TICKET_REPLY,
+      entityType: NotificationEntityType.TICKET_REPLY,
+      entityId: reply.id,
+      ticketId: ticket.id,
+      title: `New reply in ticket: "${ticket.ticketRefNo}" by ${fullname}`,
+      message: '',
+      requiredClaimValue: dto.isInternal ? 'view_internal_replies' : undefined,
+    });
 
     return createdReply;
   }

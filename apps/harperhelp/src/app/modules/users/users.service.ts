@@ -15,6 +15,7 @@ import { generateRandomToken } from '@harperhelp/utils';
 import { NotificationsService } from '../notifications/notifications.service';
 import { Project } from '../projects/entities/project.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { NotificationEntityType, NotificationType } from '@harperhelp/types';
 
 @Injectable()
 export class UsersService {
@@ -261,6 +262,9 @@ export class UsersService {
   async findByInviteToken(token: string) {
     const user = await this.userRepo.findOne({
       where: { inviteToken: token },
+      relations: {
+        projects: true,
+      },
     });
 
     if (!user) return null;
@@ -305,6 +309,11 @@ export class UsersService {
     });
   }
 
+  async getFullName(userId: string): Promise<string> {
+  const user = await this.userRepo.findOne({ where: { id: userId } });
+  return user?.fullName || '';
+}
+
   async setPasswordResetToken(userId: string, token: string, expiresAt: Date) {
     await this.userRepo.update(userId, {
       resetPasswordToken: token,
@@ -319,7 +328,7 @@ export class UsersService {
     });
   }
 
-  async updateUser(userId: string, dto: UpdateUserDto) {
+  async updateUser(userId: string, dto: UpdateUserDto, loggedInUser) {
     const user = await this.userRepo.findOne({
       where: { id: userId },
       relations: {
@@ -360,6 +369,22 @@ export class UsersService {
         userId,
         roleId: role.id,
       });
+    }
+
+    // Send global notification
+    // Project assigned/unassigned
+    // Don't send to self
+    if (userId !== loggedInUser.id) {
+      if (dto.projectIds) {
+        await this.notificationService.notifyProjectMembers({
+          actorId: loggedInUser.id,
+          type: NotificationType.PROJECT_ASSIGNED,
+          entityType: NotificationEntityType.PROJECT,
+          title: `Your project access has changed by ${loggedInUser.fullName}`,
+          message: `You now have access to (${user.projects.length}) project${user.projects.length === 1 ? '' : 's'}`,
+          explicitRecipientIds: [userId],
+        });
+      }
     }
 
     await this.userRepo.save(user);

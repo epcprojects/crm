@@ -51,4 +51,12 @@ export class GetMembersQueryDto {
   @IsOptional()
   // @IsUUID()
   roleId?: string;
+
+    @ApiPropertyOptional({
+    description: 'Optional Sort parameter to sort by following fields: updatedAt, createdAt, fullName',
+    example: 'updatedAt',
+  })
+  @IsOptional()
+  @IsString()
+  sortBy?: 'fullName' | 'createdAt' | 'updatedAt';
 }

@@ -6,11 +6,15 @@ import { Project } from './entities/project.entity';
 import { DataSource, Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { UserRole } from '../users/entities/user.roles.entity';
-import { SystemRoles, UserType } from '@harperhelp/types';
+import {
+  NotificationEntityType,
+  NotificationType,
+  SystemRoles,
+  UserType,
+} from '@harperhelp/types';
 import { Ticket } from '../tickets/entities/ticket.entity';
 import { GetProjectsQueryDto } from './dto/get-projects-query.dto';
 import { NotificationsService } from '../notifications/notifications.service';
-// import { EmailEventType } from '../notifications/notifications.types';
 import { GetMembersQueryDto } from './dto/get-members-query.dto';
 
 @Injectable()
@@ -44,33 +48,25 @@ export class ProjectsService {
       brandColor: dto.brandColor ?? '#5B4FCF',
       logoLetter: dto.logoLetter ?? 'HH',
       projectCode,
+      createdBy: currentUser.id,
     });
 
     const savedProject = await this.projectRepo.save(project);
 
-    // 2. Always include creator
-    const memberIds = new Set<string>();
-    memberIds.add(currentUser.id);
-
-    // 3. Check if user is NOT super admin
-    const isSuperAdmin = await this.userRoleRepo
+    // get all super admins
+    const superAdmins = await this.userRoleRepo
       .createQueryBuilder('ur')
       .innerJoin('ur.role', 'r')
-      .where('ur.userId = :userId', { userId: currentUser.id })
-      .andWhere('r.name = :role', { role: SystemRoles.SUPER_ADMIN })
-      .getExists();
+      .where('r.id = :roleId', {
+        roleId: '00000000-0000-0000-0000-000000000001',
+      })
+      .select('ur.userId', 'userId')
+      .getRawMany();
 
-    if (!isSuperAdmin) {
-      // get all super admins
-      const superAdmins = await this.userRoleRepo
-        .createQueryBuilder('ur')
-        .innerJoin('ur.role', 'r')
-        .where('r.name = :role', { role: SystemRoles.SUPER_ADMIN })
-        .select('ur.userId', 'userId')
-        .getRawMany();
-
-      superAdmins.forEach((u) => memberIds.add(u.userId));
-    }
+    const memberIds = new Set<string>([
+      currentUser.id,
+      ...superAdmins.map(({ userId }) => userId),
+    ]);
 
     // 4. Insert into user_projects join table
     await this.projectRepo
@@ -230,12 +226,13 @@ export class ProjectsService {
   }
   y;
 
-  findAllNames(user: {id: string}) {
+  findAllNames(user: { id: string }) {
     return this.projectRepo.find({
       select: {
         name: true,
         id: true,
-      },where: {
+      },
+      where: {
         members: {
           id: user.id,
         },
@@ -243,15 +240,26 @@ export class ProjectsService {
     });
   }
 
-async findOne(id: string) {
-  const project = await this.projectRepo.findOne({ where: { id } });
+  async findOne(id: string, members = false, user?: any) {
+    const query = this.projectRepo
+      .createQueryBuilder('p')
+      .innerJoin('p.members', 'u', 'u.id = :userId', {
+        userId: user?.id,
+      })
+      .where('p.id = :id', { id });
 
-  if (!project) {
-    throw new NotFoundException('Project not found');
+    if (members) {
+      query.leftJoinAndSelect('p.members', 'members');
+    }
+
+    const project = await query.getOne();
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    return project;
   }
-
-  return project;
-}
   // function for having summary of project section, return total project, active proejcts, open tickets and critical issues:
 
   async getGlobalProjectSummary(user) {
@@ -278,7 +286,6 @@ async findOne(id: string) {
   }
 
   async findProjectMembers(projectId: string, user) {
-    await this.findOne(projectId);
     return this.projectRepo
       .createQueryBuilder('project')
       .innerJoin('project.members', 'member')
@@ -292,12 +299,12 @@ async findOne(id: string) {
           .from(UserRole, 'ur')
           .innerJoin('ur.role', 'r')
           .where('ur.userId = member.id')
-          .andWhere('r.name = :superAdmin')
+          .andWhere('r.id = :superAdminId')
           .getQuery();
 
         return `NOT EXISTS ${subQuery}`;
       })
-      .setParameter('superAdmin', SystemRoles.SUPER_ADMIN)
+      .setParameter('superAdminId', '00000000-0000-0000-0000-000000000001')
       .select([
         'member.id AS id',
         'member.fullName AS "fullName"',
@@ -307,15 +314,40 @@ async findOne(id: string) {
   }
 
   async findMembersWithProjects(query: GetMembersQueryDto) {
-    const { search, isInvitationAccepted, projectId, roleId } = query;
+    const { search, isInvitationAccepted, projectId, roleId, sortBy } = query;
+
+    const sortConfig = {
+      fullName: {
+        column: 'u.fullName',
+        order: 'ASC' as const,
+      },
+      createdAt: {
+        column: 'u.createdAt',
+        order: 'DESC' as const,
+      },
+      updatedAt: {
+        column: 'u.updatedAt',
+        order: 'DESC' as const,
+      },
+    };
+
+    const { column, order } = sortConfig[sortBy] ?? sortConfig.updatedAt;
 
     const userRepository = this.projectRepo.manager.getRepository(User);
 
-    const baseQuery = userRepository
-      .createQueryBuilder('u')
-      .where('u.fullName != :superAdminName', {
-        superAdminName: 'Super Admin',
-      });
+    const baseQuery = userRepository.createQueryBuilder('u').where(
+      `
+  NOT EXISTS (
+    SELECT 1
+    FROM user_roles ur
+    WHERE ur."userId" = u.id
+      AND ur."roleId" = :excludedRoleId
+  )
+`,
+      {
+        excludedRoleId: '00000000-0000-0000-0000-000000000001',
+      },
+    );
 
     if (search?.trim()) {
       baseQuery.andWhere(
@@ -421,7 +453,7 @@ async findOne(id: string) {
         'r.id',
         'r.name',
       ])
-      .orderBy('u.fullName', 'ASC')
+      .orderBy(column, order)
       .getMany();
 
     return {
@@ -436,19 +468,54 @@ async findOne(id: string) {
     };
   }
 
-  async update(id: string, updateProjectDto: UpdateProjectDto) {
-    await this.findOne(id);
+  async update(id: string, updateProjectDto: UpdateProjectDto, user) {
+    const proj = await this.findOne(id, true, user);
 
-    await this.projectRepo.update(id, updateProjectDto);
+    await this.projectRepo.update(id, {
+      ...updateProjectDto,
+      updatedBy: user.id,
+    });
 
-    return this.findOne(id);
+    const recipients = proj.members
+      .map((m) => m.id)
+      .filter((id): id is string => !!id && id !== user.id);
+
+    // Send in App notification.
+    await this.notificationsService.notifyProjectMembers({
+      projectId: id,
+      actorId: user.id,
+      type: NotificationType.PROJECT_UPDATED,
+      entityType: NotificationEntityType.PROJECT,
+      entityId: id,
+      title: `Project "${proj.name}" was updated by ${user.fullName}`,
+      message: undefined,
+      explicitRecipientIds: [...new Set(recipients)],
+    });
+
+    return this.findOne(id, false, user);
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(id: string, user) {
+    const proj = await this.findOne(id, true, user);
     await this.projectRepo.update(id, {
       isActive: false,
       deletedAt: new Date(),
+    });
+
+    const recipients = proj.members
+      .map((m) => m.id)
+      .filter((id): id is string => !!id && id !== user.id);
+
+    // Send in App notification.
+    await this.notificationsService.notifyProjectMembers({
+      projectId: id,
+      actorId: user.id,
+      type: NotificationType.PROJECT_DELETED,
+      entityType: NotificationEntityType.PROJECT,
+      entityId: id,
+      title: `Project "${proj.name}" deleted by ${user.fullName}`,
+      message: undefined,
+      explicitRecipientIds: [...new Set(recipients)],
     });
 
     return {

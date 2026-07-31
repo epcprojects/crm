@@ -6,22 +6,42 @@ import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { CalendarQueryDto } from './dto/calendar-query.dto';
 import { getDateRange } from '@harperhelp/utils';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationEntityType, NotificationType } from '@harperhelp/types';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class CalendarService {
   constructor(
     @InjectRepository(Event)
     private readonly eventRepo: Repository<Event>,
+
+    private readonly notificationsService: NotificationsService,
+    private readonly usersService: UsersService,
   ) {}
 
   // CREATE
 
-  async create(pid: string, dto: CreateEventDto): Promise<Event> {
+  async create(pid: string, dto: CreateEventDto, user): Promise<Event> {
     const project = await this.eventRepo.manager
       .getRepository('projects')
       .findOne({ where: { id: pid } });
     if (!project) throw new NotFoundException('Project not found');
     const event = this.eventRepo.create({ ...dto, projectId: pid });
+
+     const username = await this.usersService.getFullName(user.id); // Fetch full name after activation
+
+    // Send in App notification.
+    await this.notificationsService.notifyProjectMembers({
+      projectId: pid,
+      actorId: user.id,
+      type: NotificationType.EVENT_CREATED,
+      entityType: NotificationEntityType.EVENT,
+      entityId: event.id,
+      title: `New event in ${project.name}: ${dto.title} by ${username}`,
+      message: undefined,
+    });
+
     return this.eventRepo.save(event);
   }
 

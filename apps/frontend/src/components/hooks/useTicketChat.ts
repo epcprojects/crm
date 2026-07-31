@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Socket } from 'socket.io-client';
-import { getChatSocket } from '../../lib/socket';
+import { getSocket } from '../../lib/socket';
 
 export type ChatChannel = 'internal' | 'external';
 
@@ -159,7 +159,7 @@ export function useTicketChat({
         }
 
         setMessages(initialMessages);
-        const socket = getChatSocket(socketToken);
+        const socket = getSocket('chat', socketToken);
         socketRef.current = socket;
 
         const joinRoom = () => {
@@ -216,6 +216,42 @@ export function useTicketChat({
           );
         };
 
+        // const handleMessageDeleted = (payload: {
+        //   channel: ChatChannel;
+        //   message: ChatMessage;
+        // }) => {
+        //   if (payload.channel !== channel) {
+        //     return;
+        //   }
+
+        //   setMessages((current) => {
+        //     const exists = current.some(
+        //       (message) => message.id === payload.message.id,
+        //     );
+
+        //     if (exists) {
+        //       return current.map((message) =>
+        //         message.id === payload.message.id ? payload.message : message,
+        //       );
+        //     }
+
+        //     return [...current, payload.message];
+        //   });
+        // };
+
+        const handleMessageDeleted = (payload: {
+          channel: ChatChannel;
+          message: string;
+        }) => {
+          if (payload.channel !== channel) {
+            return;
+          }
+
+          setMessages((current) =>
+            current.filter((message) => message.id !== payload.message),
+          );
+        };
+
         const handleTyping = (payload: {
           channel: ChatChannel;
           userId: string;
@@ -249,6 +285,8 @@ export function useTicketChat({
         socket.on('disconnect', handleDisconnect);
         socket.on('new_message', handleNewMessage);
         socket.on('messages_read', handleMessagesRead);
+        socket.on('message_deleted', handleMessageDeleted);
+
         socket.on('typing', handleTyping);
 
         if (socket.connected) {
@@ -263,6 +301,7 @@ export function useTicketChat({
           socket.off('disconnect', handleDisconnect);
           socket.off('new_message', handleNewMessage);
           socket.off('messages_read', handleMessagesRead);
+          socket.off('message_deleted', handleMessageDeleted);
           socket.off('typing', handleTyping);
         };
       } catch {

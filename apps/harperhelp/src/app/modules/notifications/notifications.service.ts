@@ -30,6 +30,13 @@ import {
   buildThreadMessageCreatedEmail,
 } from './templates/common';
 import { SqsNotificationQueueService } from './queue/sqs-notification-queue.service';
+import { DataSource, Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { NotificationsGateway } from './gateway/notifications.gateway';
+import { NotifyProjectMembersDto } from './dto/create-notification.dto';
+import { Notification } from './entities/notification.entity';
+import { ActivityLogService } from '../activity/activity-log.service';
+import { SearchNotificationsDto } from './dto/search-notification.dto';
 
 @Injectable()
 export class NotificationsService {
@@ -43,6 +50,16 @@ export class NotificationsService {
   constructor(
     private readonly configService: ConfigService,
     private readonly queueService: SqsNotificationQueueService,
+    private readonly activityLogService: ActivityLogService,
+
+    @InjectRepository(Notification)
+    private readonly notificationsRepo: Repository<Notification>,
+    // @InjectRepository(ActivityLog)
+    // private readonly activityLogService: Repository<ActivityLog>,
+
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
+    private readonly gateway: NotificationsGateway,
   ) {
     sgMail.setApiKey(this.configService.get<string>('sendgrid.apiKey'));
 
@@ -116,6 +133,7 @@ export class NotificationsService {
     const html = forgotPasswordTemplate({
       fullName,
       resetLink,
+      appUrl: this.appUrl,
     });
 
     const msg: sgMail.MailDataRequired = {
@@ -276,6 +294,219 @@ export class NotificationsService {
       (r) => r.email !== p.uploadedBy.email,
     );
     await this.sendBulk(recipients, subject, html);
+  }
+
+  // ====================================================================
+  async notifyProjectMembers(dto: NotifyProjectMembersDto): Promise<void> {
+    const recipientIds = await this.resolveRecipients(dto);
+    if (recipientIds.length === 0) return;
+
+    if (dto.skipCreate) {
+      recipientIds.forEach((recipientId) => {
+        this.gateway.emitNewNotification(
+          recipientId,
+          {
+            recipientId,
+            actorId: dto.actorId,
+            projectId: dto.projectId,
+            ticketId: dto.ticketId ?? null,
+            type: dto.type,
+            entityType: dto.entityType,
+            entityId: dto.entityId,
+            title: dto.title,
+            message: dto.message ?? null,
+            metadata: dto.metadata ?? {},
+          } as unknown as Notification,
+          0,
+          true,
+        );
+      });
+
+      return;
+    }
+
+    const rows = recipientIds.map((recipientId) =>
+      this.notificationsRepo.create({
+        recipientId,
+        actorId: dto.actorId,
+        projectId: dto.projectId,
+        ticketId: dto.ticketId ?? null,
+        type: dto.type,
+        entityType: dto.entityType,
+        entityId: dto.entityId,
+        title: dto.title,
+        message: dto.message ?? null,
+        metadata: dto.metadata ?? {},
+      }),
+    );
+
+    // Single multi-row INSERT, not N round trips
+    const saved = await this.notificationsRepo.save(rows);
+
+    for (const notification of saved) {
+      const unreadCount = await this.getUnreadCount(notification.recipientId);
+      this.gateway.emitNewNotification(
+        notification.recipientId,
+        notification,
+        unreadCount,
+      );
+    }
+
+    // TODO: Need to save the activity in the activity log table as well, so that it can be queried later for reporting purposes.
+
+    await this.activityLogService.createActivity({
+      actorId: dto.actorId,
+      projectId: dto.projectId ?? null,
+      ticketId: dto.ticketId ?? null,
+      type: dto.type,
+      title: dto.title,
+      entityType: dto.entityType,
+      entityId: dto.entityId ?? null,
+      metadata: dto.metadata ?? {},
+    });
+  }
+
+  async search(dto: SearchNotificationsDto, user) {
+    const qb = this.notificationsRepo
+      .createQueryBuilder('notification')
+      .where('notification.recipientId = :recipientId', {
+        recipientId: user?.id,
+      });
+
+    if (dto.query) {
+      qb.andWhere(
+        `(
+        notification.title ILIKE :query OR
+        notification.message ILIKE :query
+      )`,
+        {
+          query: `%${dto.query}%`,
+        },
+      );
+    }
+
+    return qb
+      .orderBy('notification.createdAt', 'DESC')
+      .take(dto.limit ?? 20)
+      .skip(dto.offset ?? 0)
+      .getMany();
+  }
+
+  private async resolveRecipients(
+    dto: NotifyProjectMembersDto,
+  ): Promise<string[]> {
+    let recipientIds: string[];
+
+    if (dto.explicitRecipientIds?.length) {
+      recipientIds = [...new Set(dto.explicitRecipientIds)];
+    } else if (dto.requiredClaimValue) {
+      recipientIds = await this.getProjectMemberIdsWithClaim(
+        dto.projectId,
+        dto.requiredClaimValue,
+      );
+    } else {
+      recipientIds = await this.getProjectMemberIds(dto.projectId);
+    }
+
+    // Never notify whoever caused the event
+    return recipientIds.filter((id) => id !== dto.actorId);
+  }
+
+  /** All active users assigned to a project, via user_projects_join. */
+  async getProjectMemberIds(projectId: string): Promise<string[]> {
+    const rows: { usersId: string }[] = await this.dataSource.query(
+      `
+      SELECT upj."usersId"
+      FROM user_projects_join upj
+      INNER JOIN users u ON u.id = upj."usersId"
+      WHERE upj."projectsId" = $1
+        AND u."isActive" = true
+        AND u."isDeleted" = false
+      `,
+      [projectId],
+    );
+    return rows.map((r) => r.usersId);
+  }
+
+  /**
+   * Project members whose role grants a specific claim, e.g. ('view_internal_replies').
+   * Roles/claims are global (user_roles has no projectId), so this intersects
+   * project membership with the user's role_claims.
+   */
+  async getProjectMemberIdsWithClaim(
+    projectId: string,
+    claimValue: string,
+  ): Promise<string[]> {
+    const rows: { usersId: string }[] = await this.dataSource.query(
+      `
+      SELECT DISTINCT upj."usersId"
+      FROM user_projects_join upj
+      INNER JOIN users u ON u.id = upj."usersId"
+      INNER JOIN user_roles ur ON ur."userId" = upj."usersId"
+      INNER JOIN role_claims rc ON rc."roleId" = ur."roleId"
+      WHERE upj."projectsId" = $1
+        AND rc."claimValue" = $2
+        AND u."isActive" = true
+        AND u."isDeleted" = false
+      `,
+      [projectId, claimValue],
+    );
+    return rows.map((r) => r.usersId);
+  }
+
+  async findForUser(
+    userId: string,
+    {
+      page = 1,
+      limit = 20,
+      unreadOnly = false,
+    }: { page?: number; limit?: number; unreadOnly?: boolean },
+  ) {
+    const qb = this.notificationsRepo
+      .createQueryBuilder('n')
+      .where('n."recipientId" = :userId', { userId })
+      .andWhere('n."isActive" = true')
+      .orderBy('n."createdAt"', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    if (unreadOnly) {
+      qb.andWhere('n."isRead" = false');
+    }
+
+    const [items, total] = await qb.getManyAndCount();
+    return { items, total, page, limit };
+  }
+
+  async findTopForUser(userId: string, limit = 5): Promise<Notification[]> {
+    return this.notificationsRepo.find({
+      where: { recipientId: userId, isActive: true },
+      order: { createdAt: 'DESC' },
+      take: limit,
+    });
+  }
+
+  async getUnreadCount(userId: string): Promise<number> {
+    return this.notificationsRepo.count({
+      where: { recipientId: userId, isRead: false, isActive: true },
+    });
+  }
+
+  async markAsRead(userId: string, notificationId: string): Promise<void> {
+    await this.notificationsRepo.update(
+      { id: notificationId, recipientId: userId },
+      { isRead: true, readAt: new Date() },
+    );
+    const unreadCount = await this.getUnreadCount(userId);
+    this.gateway.emitUnreadCount(userId, unreadCount);
+  }
+
+  async markAllAsRead(userId: string): Promise<void> {
+    await this.notificationsRepo.update(
+      { recipientId: userId, isRead: false },
+      { isRead: true, readAt: new Date() },
+    );
+    this.gateway.emitUnreadCount(userId, 0);
   }
 
   // SendGrid send helpers
