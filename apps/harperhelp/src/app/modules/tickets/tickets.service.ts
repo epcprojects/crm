@@ -25,6 +25,7 @@ import { NotificationEntityType, NotificationType } from '@harperhelp/types';
 import { TicketStatus } from './entities/ticket.statuses.entity';
 import { TicketPriority } from './entities/ticket.priority.entity';
 import { UsersService } from '../users/users.service';
+import { extname } from 'path';
 
 @Injectable()
 export class TicketsService {
@@ -863,13 +864,17 @@ export class TicketsService {
 
       await this.utilityService.uploadFile(file, key);
 
+      const rawExt = extname(file.originalname); // e.g. '.DOCX' or ''
+      const extension = rawExt ? rawExt.slice(1).toLowerCase() : 'unknown';
+
       await this.filesService.create({
         projectId,
         uploadedBy: userId,
         originalName: file.originalname,
         storageKey: key,
         sizeBytes: file.size,
-        extension: file.mimetype.split('/')[1],
+        // extension: file.mimetype.split('/')[1],
+        extension: extension,
         mimeType: file.mimetype,
         source: FileSource.TICKET,
         sourceId: ticketId,
