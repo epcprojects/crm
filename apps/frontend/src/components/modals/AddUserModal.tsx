@@ -96,12 +96,12 @@ export default function AddUserModal({
       onCancel={onClose}
       onConfirm={() => formik.submitForm()}
       confimBtnDisable={formik.isSubmitting}
-      scrollNeeded={false}
+      scrollNeeded={true}
       roundedCustom
       outSideClickClose={false}
       size="medium"
     >
-      <div className="space-y-4 p-4 md:p-5 overflow-y-auto max-h-[calc(100vh-200px)]">
+      <div className="space-y-4 p-4 md:p-5 ">
         <ThemeInput
           autoFocus
           label="Full Name"

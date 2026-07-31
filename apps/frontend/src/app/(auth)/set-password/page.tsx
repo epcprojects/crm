@@ -101,10 +101,10 @@ const Page = () => {
     <div className="grid grid-cols-1 md:grid-cols-2 p-3 bg-white flex-1 md:min-h-[calc(100dvh-32px)] min-h-[calc(100dvh-16px)] rounded-3xl md:rounded-4xl">
       <div className="md:p-8 flex flex-col relative items-center justify-center w-full">
         <Image
-                 alt="harper tech help logo"
-                 className="md:absolute mb-4 top-2 left-2 md:left-4 md:top-4"
-                 src={Images.auth.NewLogo}
-               />
+          alt="harper tech help logo"
+          className="md:absolute mb-4 top-2 left-2 md:left-4 md:top-4"
+          src={Images.auth.NewLogo}
+        />
         <div className="md:flex-1 max-w-117 w-full flex items-center justify-center flex-col">
           <div className="space-y-2">
             <h2 className="text-black text-xl md:text-2xl font-bold text-center">
@@ -182,7 +182,9 @@ const Page = () => {
             </h3>
           </div>
 
-          <Image alt="" src={Images.index.loginMockup} />
+          <div className="md:px-10">
+            <Image alt="" src={Images.index.loginMockup} />
+          </div>
         </div>
       </div>
     </div>
