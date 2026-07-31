@@ -124,6 +124,7 @@ export default function NotificationTray({
               onViewSingle={() => onViewSingle(item.id)}
               key={item.id}
               item={item}
+              onClose={onClose}
             />
           ))
         ) : (
@@ -203,9 +204,11 @@ function NotificationTab({
 function NotificationRow({
   item,
   onViewSingle,
+  onClose,
 }: {
   item: NotificationItem;
   onViewSingle?: () => void;
+  onClose: () => void;
 }) {
   const router = useRouter();
   return (
@@ -226,6 +229,7 @@ function NotificationRow({
         } else if (item.entityType === 'thread_message' && item.projectId) {
           router.push(`/projects/${item.projectId}?t=1`);
         }
+        onClose();
       }}
       className={`flex gap-4 border-b ${!item.isRead && 'bg-blue-50'} border-gray-200 px-3 sm:px-6 py-4.5 pb-2 transition hover:bg-gray-100 cursor-pointer`}
     >
