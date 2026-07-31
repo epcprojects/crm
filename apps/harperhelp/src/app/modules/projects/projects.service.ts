@@ -184,7 +184,7 @@ export class ProjectsService {
       .addGroupBy('p.projectCode')
       .addGroupBy('p.brandColor')
       .addGroupBy('p.logoLetter')
-      .orderBy('p.createdAt', 'DESC')
+      .orderBy('p.name', 'ASC')
       .offset((page - 1) * limit)
       .limit(limit)
       .getRawMany();

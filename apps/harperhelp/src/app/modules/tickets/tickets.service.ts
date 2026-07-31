@@ -25,6 +25,7 @@ import { NotificationEntityType, NotificationType } from '@harperhelp/types';
 import { TicketStatus } from './entities/ticket.statuses.entity';
 import { TicketPriority } from './entities/ticket.priority.entity';
 import { UsersService } from '../users/users.service';
+import { extname } from 'path';
 
 @Injectable()
 export class TicketsService {
@@ -466,6 +467,7 @@ export class TicketsService {
     qb.select([
       't.id',
       't.title',
+      't.description',
       't.createdAt',
       't.ticketRefNo',
       't.dueDate',
@@ -654,7 +656,7 @@ export class TicketsService {
       (id): id is string => !!id && id !== userId,
     );
     const fullname = await this.usersService.getFullName(
-      ticket?.reporterId || ticket?.assigneeId || '',
+  userId ,
     );
     // STATUS CHANGED
     if (dto.statusKey && oldStatus && dto.statusKey !== oldStatus.key) {
@@ -827,7 +829,8 @@ export class TicketsService {
       })
       .leftJoin('t.status', 's')
       .leftJoin('t.priority', 'pr')
-      .where('t.assigneeId IS NULL')
+      .where('t.assigneeId IS NULL and t.statusKey != :statusKey', { statusKey: 'Closed' })
+
       .select([
         't.id',
         't.title',
@@ -863,13 +866,17 @@ export class TicketsService {
 
       await this.utilityService.uploadFile(file, key);
 
+      const rawExt = extname(file.originalname); // e.g. '.DOCX' or ''
+      const extension = rawExt ? rawExt.slice(1).toLowerCase() : 'unknown';
+
       await this.filesService.create({
         projectId,
         uploadedBy: userId,
         originalName: file.originalname,
         storageKey: key,
         sizeBytes: file.size,
-        extension: file.mimetype.split('/')[1],
+        // extension: file.mimetype.split('/')[1],
+        extension: extension,
         mimeType: file.mimetype,
         source: FileSource.TICKET,
         sourceId: ticketId,

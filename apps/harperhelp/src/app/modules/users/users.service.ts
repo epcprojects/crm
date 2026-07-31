@@ -328,69 +328,111 @@ export class UsersService {
     });
   }
 
-  async updateUser(userId: string, dto: UpdateUserDto, loggedInUser) {
-    const user = await this.userRepo.findOne({
-      where: { id: userId },
-      relations: {
-        projects: true,
+async updateUser(userId: string, dto: UpdateUserDto, loggedInUser) {
+  const user = await this.userRepo.findOne({
+    where: { id: userId },
+    relations: {
+      projects: true,
+    },
+  });
+
+  if (!user) {
+    throw new NotFoundException('User not found');
+  }
+
+  if (dto.fullName !== undefined) {
+    user.fullName = dto.fullName;
+  }
+
+  // Snapshot the user's CURRENT projects before we overwrite them below.
+  // This is our only chance to know what the "old" state was —
+  // once we do `user.projects = projects`, the old list is gone.
+  const oldProjectIds = new Set(user.projects.map((p) => p.id));
+
+  // Will hold the actual diff (which projects were added/removed),
+  // used later to decide which notifications to send.
+  let addedProjects: { id: string; name: string }[] = [];
+  let removedProjects: { id: string; name: string }[] = [];
+
+  if (dto.projectIds !== undefined) {
+    // Fetch the NEW set of projects the user should belong to.
+    const projects = await this.projectRepo.find({
+      where: {
+        id: In(dto.projectIds),
       },
     });
 
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
+    const newProjectIds = new Set(projects.map((p) => p.id));
 
-    if (dto.fullName !== undefined) {
-      user.fullName = dto.fullName;
-    }
+    // ADDED = present in new list, but wasn't in the old list.
+    addedProjects = projects.filter((p) => !oldProjectIds.has(p.id));
 
-    if (dto.projectIds !== undefined) {
-      const projects = await this.projectRepo.find({
-        where: {
-          id: In(dto.projectIds),
-        },
-      });
+    // REMOVED = was in the old list, but isn't in the new list.
+    removedProjects = user.projects.filter((p) => !newProjectIds.has(p.id));
 
-      user.projects = projects;
-    }
-
-    if (dto.roleKey !== undefined) {
-      const role = await this.roleRepo.findOneBy({
-        normalizedName: dto.roleKey.toUpperCase(),
-      });
-
-      if (!role) {
-        throw new BadRequestException('Invalid role');
-      }
-
-      await this.userRoleRepo.delete({ userId });
-
-      await this.userRoleRepo.save({
-        userId,
-        roleId: role.id,
-      });
-    }
-
-    // Send global notification
-    // Project assigned/unassigned
-    // Don't send to self
-    if (userId !== loggedInUser.id) {
-      if (dto.projectIds) {
-        await this.notificationService.notifyProjectMembers({
-          actorId: loggedInUser.id,
-          type: NotificationType.PROJECT_ASSIGNED,
-          entityType: NotificationEntityType.PROJECT,
-          title: `Your project access has changed by ${loggedInUser.fullName}`,
-          message: `You now have access to (${user.projects.length}) project${user.projects.length === 1 ? '' : 's'}`,
-          explicitRecipientIds: [userId],
-        });
-      }
-    }
-
-    await this.userRepo.save(user);
-
-    return this.findById(userId);
+    // Now actually replace the user's projects (this is the mutation
+    // that made the "old" snapshot above necessary).
+    user.projects = projects;
   }
+
+  if (dto.roleKey !== undefined) {
+    const role = await this.roleRepo.findOneBy({
+      normalizedName: dto.roleKey.toUpperCase(),
+    });
+
+    if (!role) {
+      throw new BadRequestException('Invalid role');
+    }
+
+    await this.userRoleRepo.delete({ userId });
+
+    await this.userRoleRepo.save({
+      userId,
+      roleId: role.id,
+    });
+  }
+
+  // Send notifications based on the actual diff — not just "projectIds
+  // was passed in the request". Skip entirely if the admin is editing
+  // their own account (no self-notifications).
+// Send notifications based on the actual diff — not just "projectIds
+  // was passed in the request". Skip entirely if the admin is editing
+  // their own account (no self-notifications).
+  if (userId !== loggedInUser.id && dto.projectIds !== undefined) {
+    // Notify about newly added projects, if any.
+    if (addedProjects.length > 0) {
+      const addedNames = addedProjects.map((p) => p.name).join(', ');
+
+      await this.notificationService.notifyProjectMembers({
+        actorId: loggedInUser.id,
+        type: NotificationType.PROJECT_ASSIGNED,
+        entityType: NotificationEntityType.PROJECT,
+        title: `You have been granted access to "${addedNames}" by ${loggedInUser.fullName}`,
+        message: `New project${addedProjects.length === 1 ? '' : 's'}: ${addedNames}`,
+        explicitRecipientIds: [userId],
+      });
+    }
+
+    // Notify about removed projects, if any.
+    if (removedProjects.length > 0) {
+      const removedNames = removedProjects.map((p) => p.name).join(', ');
+
+      await this.notificationService.notifyProjectMembers({
+        actorId: loggedInUser.id,
+        type: NotificationType.PROJECT_UNASSIGNED,
+        entityType: NotificationEntityType.PROJECT,
+        title: `You have been removed from "${removedNames}" by ${loggedInUser.fullName}`,
+        message: `Removed project${removedProjects.length === 1 ? '' : 's'}: ${removedNames}`,
+        explicitRecipientIds: [userId],
+      });
+    }
+  }
+  
+
+  await this.userRepo.save(user);
+
+  return this.findById(userId);
+}
 
   async softDeleteUser(userId: string) {
     const user = await this.userRepo.findOne({
