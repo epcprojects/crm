@@ -101,7 +101,7 @@ export default function AddUserModal({
       outSideClickClose={false}
       size="medium"
     >
-      <div className="space-y-4 p-4 md:p-5">
+      <div className="space-y-4 p-4 md:p-5 overflow-y-auto max-h-[calc(100vh-200px)]">
         <ThemeInput
           autoFocus
           label="Full Name"
