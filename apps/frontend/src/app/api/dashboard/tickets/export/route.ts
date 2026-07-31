@@ -11,11 +11,26 @@ function getApiBaseUrl() {
   return baseUrl.replace(/\/docs\/?$/, '');
 }
 
+function htmlToPlainText(html: string) {
+  return html
+    .replace(/<\/(p|div|li|br|h[1-6])>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n+/g, ' ')
+    .trim();
+}
+
 type ApiDashboardTicket = {
   id: string;
   ticketRefNo?: string;
   createdAt: string;
   title: string;
+  description?: string | null;
   dueDate?: string | null;
   project: { id: string; name: string } | null;
   status: { key: string; label: string; color?: string } | null;
@@ -31,6 +46,7 @@ const EXPORT_COLUMNS: {
 }[] = [
   { header: 'Ticket Ref No', getValue: (t) => t.ticketRefNo ?? t.id },
   { header: 'Title', getValue: (t) => t.title },
+  {header: 'Description', getValue: (t) => htmlToPlainText(t.description ?? '')},
   {
     header: 'Status',
     getValue: (t) => t.status?.label ?? t.status?.key ?? '',

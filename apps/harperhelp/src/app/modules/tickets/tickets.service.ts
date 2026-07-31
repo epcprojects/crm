@@ -467,6 +467,7 @@ export class TicketsService {
     qb.select([
       't.id',
       't.title',
+      't.description',
       't.createdAt',
       't.ticketRefNo',
       't.dueDate',
