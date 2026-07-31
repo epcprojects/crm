@@ -2000,7 +2000,7 @@ export default function TicketDetailPage() {
                     {/* <p className="mb-2 text-xs font-medium tracking-wide text-gray-500">
                       {selectedDueDate ? 'Select date' : 'No due date'}
                     </p> */}
-                    <p className="text-sm font-normal text-black">Overdue</p>
+                    {/* <p className="text-sm font-normal text-black">Overdue</p> */}
                     <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2.5">
                       <input
                         type="date"
