@@ -64,7 +64,7 @@ export function adminInviteTemplate({
       <tr>
         <td align="left" style="padding: 20px;">
           <img
-            src="${appUrl}/images/logoWithText.svg"
+            src="${appUrl}/images/HarperLogo.png"
             width="150"
             alt="HarperHelp">
         </td>
