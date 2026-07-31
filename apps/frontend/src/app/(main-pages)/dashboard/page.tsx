@@ -134,6 +134,7 @@ type ApiTicketSetting = {
 
 const RECENT_TICKETS_STATUS_QUERY_PARAM = 'status';
 const RECENT_TICKETS_PRIORITY_QUERY_PARAM = 'priority';
+const TICKETS_PROJECT_QUERY_PARAM = 'project';
 const DASHBOARD_TABS_QUERY_PARAM = 'dashboardTab';
 const DASHBOARD_ACTIVITY_PAGE_SIZE = 20;
 
@@ -183,6 +184,10 @@ export default function Page() {
     searchParams.get(DASHBOARD_TABS_QUERY_PARAM),
   );
 
+    const selectedProject = getTicketsFilterValue(
+    searchParams.get(TICKETS_PROJECT_QUERY_PARAM),
+  );
+
   const ticketStatusesQuery = useQuery({
     queryKey: ['ticket-statuses'],
     queryFn: fetchTicketStatuses,
@@ -218,6 +223,16 @@ export default function Page() {
     ],
     [ticketPrioritiesQuery.data],
   );
+    const projectFilterOptions = useMemo(
+    () => [
+      { label: 'All Projects', value: 'all' },
+      ...(projectsQuery.data ?? []).map((project) => ({
+        label: project.name,
+        value: project.id,
+      })),
+    ],
+    [projectsQuery.data],
+  );
   const ticketSummaryQuery = useQuery({
     queryKey: ['dashboard', 'ticket-summary'],
     queryFn: fetchTicketSummary,
@@ -245,6 +260,7 @@ export default function Page() {
       'dashboard',
       'recent-tickets',
       searchValue.trim(),
+      selectedProject,
       selectedStatus,
       selectedPriority,
     ],
@@ -255,6 +271,7 @@ export default function Page() {
         limit: 20,
 
         search: searchValue.trim() || undefined,
+        projectId: selectedProject === 'all' ? undefined : selectedProject,
 
         statusKey: selectedStatus === 'all' ? undefined : selectedStatus,
 
@@ -310,13 +327,16 @@ export default function Page() {
   const updateRecentTicketsFilters = ({
     status,
     priority,
+    project,
   }: {
     status?: string;
     priority?: string;
+    project?: string;
   }) => {
     const nextSearchParams = new URLSearchParams(searchParams.toString());
     const nextStatus = status ?? selectedStatus;
     const nextPriority = priority ?? selectedPriority;
+    const nextProject = project ?? selectedProject;
 
     if (nextStatus === 'Open') {
       nextSearchParams.delete(RECENT_TICKETS_STATUS_QUERY_PARAM);
@@ -328,6 +348,12 @@ export default function Page() {
       nextSearchParams.delete(RECENT_TICKETS_PRIORITY_QUERY_PARAM);
     } else {
       nextSearchParams.set(RECENT_TICKETS_PRIORITY_QUERY_PARAM, nextPriority);
+    }
+
+    if (nextProject === 'all') {
+      nextSearchParams.delete(TICKETS_PROJECT_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(TICKETS_PROJECT_QUERY_PARAM, nextProject);
     }
 
     const nextQueryString = nextSearchParams.toString();
@@ -374,6 +400,14 @@ export default function Page() {
         exportParams.set('search', searchValue.trim());
         filenameParts.push(`search_${slugify(searchValue.trim())}`);
       }
+            if (selectedProject !== 'all') {
+        exportParams.set('projectId', selectedProject);
+        const projectLabel = projectFilterOptions.find(
+          (option) => option.value === selectedProject,
+        )?.label;
+        filenameParts.push(slugify(projectLabel ?? selectedProject));
+      }
+
 
       if (selectedStatus !== 'all') {
         exportParams.set('statusKey', selectedStatus);
@@ -857,7 +891,20 @@ export default function Page() {
 
                     {/* Desktop filters: xl and above */}
                     <div className="hidden items-center gap-2 xl:flex">
-                      <div className="w-38">
+                   
+                                                   <div className="relative w-full overflow-visible">
+                                  <Dropdown
+                                    options={projectFilterOptions}
+                                    value={selectedProject}
+                                    onChange={(value) =>
+                                      updateRecentTicketsFilters({
+                                        project: value,
+                                      })
+                                    }
+                                    placeholder="All Projects"
+                                    maxMenuHeight={150}
+                                  />
+                                </div>   <div className="w-38">
                         <Dropdown
                           options={statusFilterOptions}
                           value={selectedStatus}
@@ -1429,6 +1476,13 @@ function ActivityEntityIcon({ item }: { item: DashboardActivityItem }) {
     </span>
   );
 }
+function getTicketsFilterValue(value: string | null) {
+  if (!value || !value.trim()) {
+    return 'all';
+  }
+
+  return value;
+}
 
 function DashboardActivityRowSkeleton() {
   return (
@@ -1675,12 +1729,14 @@ async function fetchDashboardTickets({
   statusKey,
   priorityKey,
   search,
+  projectId,
 }: {
   page: number;
   limit: number;
   statusKey?: string;
   priorityKey?: string;
   search?: string;
+  projectId?: string;
 }): Promise<DashboardTicketsResponse> {
   const searchParams = new URLSearchParams({
     page: String(page),
@@ -1696,6 +1752,9 @@ async function fetchDashboardTickets({
   }
   if (statusKey) {
     searchParams.set('statusKey', statusKey);
+  }
+  if (projectId) {
+    searchParams.set('projectId', projectId);
   }
 
   const response = await fetch(
@@ -1836,7 +1895,7 @@ function mapApiDashboardTicketToRecentTicket(
     date: formatTicketDate(ticket.createdAt),
     sortDate: ticket.createdAt,
     reporter: {
-      id: ticket.reporter.id,
+      id: ticket.reporter.id ?? '',
       email: ticket.reporter.email,
       fullName: ticket.reporter.fullName,
     },
