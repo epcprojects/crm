@@ -26,7 +26,6 @@ import { TicketStatus } from './entities/ticket.statuses.entity';
 import { TicketPriority } from './entities/ticket.priority.entity';
 import { UsersService } from '../users/users.service';
 
-
 @Injectable()
 export class TicketsService {
   constructor(
@@ -135,22 +134,26 @@ export class TicketsService {
         },
       });
 
-      const members = (ticket.project?.members || []).map((m) => ({
-        name: m.fullName,
-        email: m.email,
-      }));
+      const members = (ticket.project?.members || []).map((m) => {
+        if (m.id === userId) return;
+
+        return {
+          name: m.fullName,
+          email: m.email,
+        };
+      });
 
       const participantsMap = new Map<
         string,
         { name: string; email: string }
       >();
       for (const m of members) participantsMap.set(m.email, m);
-      if (ticket.reporter)
+      if (ticket.reporter && ticket?.reporter?.id !== userId)
         participantsMap.set(ticket.reporter.email, {
           name: ticket.reporter.fullName,
           email: ticket.reporter.email,
         });
-      if (ticket.assignee)
+      if (ticket.assignee && ticket?.assignee?.id !== userId)
         participantsMap.set(ticket.assignee.email, {
           name: ticket.assignee.fullName,
           email: ticket.assignee.email,
@@ -183,7 +186,9 @@ export class TicketsService {
           participants,
         },
       });
-      const fullname = await this.usersService.getFullName(ticket?.reporterId || ticket?.assigneeId || '');
+      const fullname = await this.usersService.getFullName(
+        ticket?.reporterId || ticket?.assigneeId || '',
+      );
 
       // Send global notification
       await this.notificationsService.notifyProjectMembers({
@@ -274,6 +279,7 @@ export class TicketsService {
       .leftJoin('t.status', 's')
       .leftJoin('t.priority', 'pr')
       .leftJoin('t.assignee', 'a')
+      .leftJoin('t.reporter', 'r')
       .where('t.projectId = :projectId', { projectId });
 
     if (query.statusKey) {
@@ -321,6 +327,10 @@ export class TicketsService {
       'a.id',
       'a.fullName',
       'a.email',
+
+      'r.id',
+      'r.fullName',
+      'r.email',
     ]);
 
     qb.orderBy('t.createdAt', 'DESC')
@@ -352,7 +362,8 @@ export class TicketsService {
       })
       .leftJoin('t.status', 's')
       .leftJoin('t.priority', 'pr')
-      .leftJoin('t.assignee', 'a');
+      .leftJoin('t.assignee', 'a')
+      .leftJoin('t.reporter', 'r');
 
     if (query.statusKey) {
       qb.andWhere('t.statusKey = :statusKey', {
@@ -474,6 +485,10 @@ export class TicketsService {
       'a.id',
       'a.fullName',
       'a.email',
+
+      'r.id',
+      'r.fullName',
+      'r.email',
     ]);
 
     qb.orderBy('t.createdAt', 'DESC')
@@ -638,7 +653,9 @@ export class TicketsService {
     const recipients = [ticket.reporterId, ticket.assigneeId].filter(
       (id): id is string => !!id && id !== userId,
     );
-const fullname = await this.usersService.getFullName(ticket?.reporterId || ticket?.assigneeId || '');
+    const fullname = await this.usersService.getFullName(
+      ticket?.reporterId || ticket?.assigneeId || '',
+    );
     // STATUS CHANGED
     if (dto.statusKey && oldStatus && dto.statusKey !== oldStatus.key) {
       await this.notificationsService.notifyProjectMembers({
@@ -653,7 +670,7 @@ const fullname = await this.usersService.getFullName(ticket?.reporterId || ticke
         explicitRecipientIds: [...new Set(recipients)],
       });
     }
-    
+
     // PRIORITY CHANGED
     if (dto.priorityKey && oldPriority && dto.priorityKey !== oldPriority.key) {
       await this.notificationsService.notifyProjectMembers({
@@ -670,11 +687,14 @@ const fullname = await this.usersService.getFullName(ticket?.reporterId || ticke
     }
 
     // PERSON ASSIGNED
-if (dto.assigneeId !== undefined && dto.assigneeId !== oldTicket.assigneeId) {
-  const user = await this.userRepo.findOne({
-    where: { id: dto.assigneeId },
-    select: { id: true, fullName: true },
-  });
+    if (
+      dto.assigneeId !== undefined &&
+      dto.assigneeId !== oldTicket.assigneeId
+    ) {
+      const user = await this.userRepo.findOne({
+        where: { id: dto.assigneeId },
+        select: { id: true, fullName: true },
+      });
       const fullname = await this.usersService.getFullName(userId);
 
       await this.notificationsService.notifyProjectMembers({
@@ -685,8 +705,8 @@ if (dto.assigneeId !== undefined && dto.assigneeId !== oldTicket.assigneeId) {
         entityId: ticket.id,
         ticketId: ticket.id,
         title: dto.assigneeId
-          // ? `"${user.fullName || 'Someone'}" was assigned to ticket: "${ticket.ticketRefNo}"`
-          ? `"${ticket.ticketRefNo} is assigned to ${user.fullName} by ${fullname}"`
+          ? // ? `"${user.fullName || 'Someone'}" was assigned to ticket: "${ticket.ticketRefNo}"`
+            `"${ticket.ticketRefNo} is assigned to ${user.fullName} by ${fullname}"`
           : `Ticket: "${ticket.ticketRefNo}" is now unassigned`,
         explicitRecipientIds: [...new Set(recipients)],
       });

@@ -53,33 +53,20 @@ export class ProjectsService {
 
     const savedProject = await this.projectRepo.save(project);
 
-    // 2. Always include creator
-    const memberIds = new Set<string>();
-    memberIds.add(currentUser.id);
-
-    // 3. Check if user is NOT super admin
-    const isSuperAdmin = await this.userRoleRepo
+    // get all super admins
+    const superAdmins = await this.userRoleRepo
       .createQueryBuilder('ur')
       .innerJoin('ur.role', 'r')
-      .where('ur.userId = :userId', { userId: currentUser.id })
-      .andWhere('r.id = :roleId', {
+      .where('r.id = :roleId', {
         roleId: '00000000-0000-0000-0000-000000000001',
       })
-      .getExists();
+      .select('ur.userId', 'userId')
+      .getRawMany();
 
-    if (!isSuperAdmin) {
-      // get all super admins
-      const superAdmins = await this.userRoleRepo
-        .createQueryBuilder('ur')
-        .innerJoin('ur.role', 'r')
-        .where('r.id = :roleId', {
-          roleId: '00000000-0000-0000-0000-000000000001',
-        })
-        .select('ur.userId', 'userId')
-        .getRawMany();
-
-      superAdmins.forEach((u) => memberIds.add(u.userId));
-    }
+    const memberIds = new Set<string>([
+      currentUser.id,
+      ...superAdmins.map(({ userId }) => userId),
+    ]);
 
     // 4. Insert into user_projects join table
     await this.projectRepo

@@ -79,22 +79,24 @@ export class TicketRepliesService {
           },
         });
 
-      const members = (ticket.project?.members || []).map((m) => ({
-        name: m.fullName,
-        email: m.email,
-      }));
+      const members = (ticket.project?.members || [])
+        .filter((m) => m.id !== userId)
+        .map((m) => ({
+          name: m.fullName,
+          email: m.email,
+        }));
 
       const participantsMap = new Map<
         string,
         { name: string; email: string }
       >();
       for (const m of members) participantsMap.set(m.email, m);
-      if (ticket.reporter)
+      if (ticket.reporter && ticket?.reporter?.id !== userId)
         participantsMap.set(ticket.reporter.email, {
           name: ticket.reporter.fullName,
           email: ticket.reporter.email,
         });
-      if (ticket.assignee)
+      if (ticket.assignee && ticket?.assignee?.id !== userId)
         participantsMap.set(ticket.assignee.email, {
           name: ticket.assignee.fullName,
           email: ticket.assignee.email,
@@ -140,7 +142,7 @@ export class TicketRepliesService {
       entityId: reply.id,
       ticketId: ticket.id,
       title: `New reply in ticket: "${ticket.ticketRefNo}" by ${fullname}`,
-      message: dto.message.slice(0, 140),
+      message: '',
       requiredClaimValue: dto.isInternal ? 'view_internal_replies' : undefined,
     });
 

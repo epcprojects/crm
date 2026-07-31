@@ -83,10 +83,12 @@ export class ThreadService {
       });
     }
 
-    const participants = msg.project.members.map((m) => ({
-      name: m.fullName,
-      email: m.email,
-    }));
+    const participants = (msg?.project?.members || [])
+      .filter((m) => m.id !== user.id)
+      .map((m) => ({
+        name: m.fullName,
+        email: m.email,
+      }));
 
     // Call notification service to send email notifications to participants of the thread
     await this.notificationService.dispatch({

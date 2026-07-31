@@ -37,7 +37,6 @@ export const MODULE_DEFINITIONS: {
       'edit_priority',
       'edit_assignee',
       'edit_due_date',
-      'external_chat',
       'internal_chat',
       'filter',
     ],
