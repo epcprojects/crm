@@ -59,6 +59,11 @@ export const MODULE_DEFINITIONS: {
   },
   { key: 'files', label: 'Files', actions: ['view', 'upload', 'download'] },
   {
+    key: 'project_notes',
+    label: 'Project Notes',
+    actions: ['view_list', 'view_detail', 'create', 'edit', 'delete'],
+  },
+  {
     key: 'calendar',
     label: 'Calendar',
     actions: ['view_grid', 'view_upcoming', 'add_event', 'navigate'],
