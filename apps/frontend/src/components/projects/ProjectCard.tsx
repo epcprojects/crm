@@ -62,11 +62,14 @@ export default function ProjectCard({
       onClick={onClick}
       data-project-id={id}
     >
-      <div className="flex flex-wrap items-start justify-between gap-3 bg-gray-100 px-2.5 py-3.5 md:gap-4 md:px-4 md:py-4">
+      <div
+        className="flex flex-wrap items-start justify-between gap-3 bg-gray-100 px-2.5 py-3.5 md:gap-4 md:px-4 md:py-4"
+        style={{ backgroundColor: `${colorHex}30` }}
+      >
         <div className="flex min-w-0 flex-1 items-center gap-3 md:gap-4">
           <span
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sm font-semibold shadow-[0_0_35px_0_rgb(0_0_0/0.06)] md:h-10.5 md:w-10.5 md:text-base"
-            style={{ color: colorHex }}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white text-sm font-semibold shadow-[0_0_35px_0_rgb(0_0_0/0.06)] md:h-10.5 md:w-10.5 md:text-base"
+            style={{ backgroundColor: colorHex }}
           >
             {initials}
           </span>

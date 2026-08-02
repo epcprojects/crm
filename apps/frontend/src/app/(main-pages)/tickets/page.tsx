@@ -1057,6 +1057,7 @@ type ApiDashboardTicket = {
   id: string;
   ticketRefNo?: string;
   createdAt: string;
+  dueDate: string;
   title: string;
   project: {
     id: string;
@@ -1290,6 +1291,7 @@ function mapApiDashboardTicketToRecentTicket(
       initials: getInitials(ticket.project.name),
       brandColor: ticket.project?.brandColor ?? '#31d81b',
     },
+    dueDate: formatTicketDate(ticket.dueDate),
     status: statusLabel,
     statusColor: ticket.status?.color,
     priority: priorityLabel,
