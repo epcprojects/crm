@@ -90,9 +90,32 @@ export class ThreadController {
 
   @Put(':messageId')
   @UseGuards(FileSizeGuard)
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+        },
+        parentId: {
+          type: 'uuid',
+          nullable: true,
+        },
+        attachments: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
+        },
+      },
+      required: ['message'],
+    },
+  })
   @UseInterceptors(FilesInterceptor('attachments'))
   @ApiOperation({
-    description: 'Update thread message.',
+    description: 'Updates thread message.',
   })
   update(
     @Param('pid', ParseUUIDPipe) pid: string,
