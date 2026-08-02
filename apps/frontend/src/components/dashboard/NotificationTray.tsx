@@ -217,10 +217,11 @@ function NotificationRow({
         if (onViewSingle) {
           onViewSingle();
         }
-        if (
-          item.entityType === 'ticket_reply' ||
-          item.entityType === 'ticket'
-        ) {
+        if (item.entityType === 'ticket_reply') {
+          router.push(
+            `/tickets/${item.ticketId}?projectId=${item.projectId}&internal=false`,
+          );
+        } else if (item.entityType === 'ticket') {
           router.push(`/tickets/${item.ticketId}?projectId=${item.projectId}`);
         } else if (item.entityType === 'project' && !item.projectId) {
           router.push(`/projects`);

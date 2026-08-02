@@ -42,7 +42,6 @@ export default function ThemeButton({
             variant === 'secondary',
           'bg-primary-dark text-white border border-primary-dark hover:border-primary hover:bg-primary':
             variant === 'primary',
-            
         },
         className,
       )}
@@ -66,7 +65,7 @@ export default function ThemeButton({
         {hasIcon && (
           <span
             className={clsx(
-              'mr-1.5 w-6 md:w-8 md:h-8 h-6 shrink-0 rounded-full flex items-center justify-center',
+              'mr-1.5 w-6 md:w-8 md:h-8 h-6 shrink-0 rounded-full hidden md:flex items-center justify-center',
               iconBg ? iconBg : 'bg-white',
             )}
           >

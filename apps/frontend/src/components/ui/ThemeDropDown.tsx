@@ -1,17 +1,7 @@
-
 'use client';
 
-import React, {
-  Fragment,
-  useMemo,
-  useState,
-} from 'react';
-import {
-  Menu,
-  MenuButton,
-  MenuItem,
-  MenuItems,
-} from '@headlessui/react';
+import React, { Fragment, useMemo, useState } from 'react';
+import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import {
   ArrowDownIcon,
   CheckedBoxIcon,
@@ -44,13 +34,9 @@ interface DropdownBaseProps {
   width?: string;
   variant?: 'default' | 'input';
 
-  showDeleteForOption?: (
-    option: DropdownOption,
-  ) => boolean;
+  showDeleteForOption?: (option: DropdownOption) => boolean;
 
-  onDeleteOption?: (
-    option: DropdownOption,
-  ) => void;
+  onDeleteOption?: (option: DropdownOption) => void;
 
   disabled?: boolean;
   applyHeight?: boolean;
@@ -98,23 +84,15 @@ const Dropdown = ({
   minHeight,
   menuScrollable = true,
 }: DropdownProps) => {
-  const selectedValues = isMulti
-    ? Array.isArray(value)
-      ? value
-      : []
-    : [];
+  const selectedValues = isMulti ? (Array.isArray(value) ? value : []) : [];
 
   const selectedOption = !isMulti
-    ? options.find(
-        (option) => option.value === value,
-      )
+    ? options.find((option) => option.value === value)
     : undefined;
 
   const selectedLabels = isMulti
     ? options
-        .filter((option) =>
-          selectedValues.includes(option.value),
-        )
+        .filter((option) => selectedValues.includes(option.value))
         .map((option) => option.label)
     : [];
 
@@ -125,18 +103,14 @@ const Dropdown = ({
       return options;
     }
 
-    const normalizedQuery = query
-      .trim()
-      .toLowerCase();
+    const normalizedQuery = query.trim().toLowerCase();
 
     if (!normalizedQuery) {
       return options;
     }
 
     return options.filter((option) =>
-      option.label
-        .toLowerCase()
-        .includes(normalizedQuery),
+      option.label.toLowerCase().includes(normalizedQuery),
     );
   }, [options, query, showSearch]);
 
@@ -146,26 +120,15 @@ const Dropdown = ({
     }
 
     if (isMulti) {
-      const isAlreadySelected =
-        selectedValues.includes(selectedValue);
+      const isAlreadySelected = selectedValues.includes(selectedValue);
 
-      (
-        onChange as (
-          nextValue: string[],
-        ) => void
-      )(
+      (onChange as (nextValue: string[]) => void)(
         isAlreadySelected
-          ? selectedValues.filter(
-              (item) => item !== selectedValue,
-            )
+          ? selectedValues.filter((item) => item !== selectedValue)
           : [...selectedValues, selectedValue],
       );
     } else {
-      (
-        onChange as (
-          nextValue: string,
-        ) => void
-      )(selectedValue);
+      (onChange as (nextValue: string) => void)(selectedValue);
     }
 
     setQuery('');
@@ -193,33 +156,20 @@ const Dropdown = ({
         >
           {label}
 
-          {required ? (
-            <span className="text-red-500">
-              {' '}
-              *
-            </span>
-          ) : null}
+          {required ? <span className="text-red-500"> *</span> : null}
         </span>
       ) : null}
 
-      <Menu
-        as="div"
-        className="relative flex w-full"
-      >
+      <Menu as="div" className="relative flex w-full">
         <MenuButton
           disabled={disabled}
-          id={
-            selectedOption?.label ||
-            placeholder
-          }
+          id={selectedOption?.label || placeholder}
           className={`flex w-full items-center justify-between gap-2 text-gray-900 outline-none placeholder:font-normal placeholder:text-gray-400 focus:ring-0
             ${
               variant === 'input'
                 ? 'h-10 rounded-none border-0 border-b bg-transparent px-0 py-1.5 text-sm font-medium'
                 : `rounded-lg border bg-white p-3 md:px-3.5 md:py-2 ${
-                    applyHeight
-                      ? 'h-10.5'
-                      : ''
+                    applyHeight ? 'h-10.5' : ''
                   }`
             }
             ${
@@ -227,11 +177,7 @@ const Dropdown = ({
                 ? 'border-red-500 focus:ring-red-200'
                 : 'border-gray-200 focus:ring-gray-200'
             }
-            ${
-              disabled
-                ? 'cursor-not-allowed bg-gray-200! opacity-60'
-                : ''
-            }
+            ${disabled ? 'cursor-not-allowed bg-gray-200! opacity-60' : ''}
           `}
         >
           <span className="truncate text-sm">
@@ -239,15 +185,10 @@ const Dropdown = ({
               ? selectedLabels.length > 0
                 ? selectedLabels.join(', ')
                 : placeholder
-              : selectedOption?.label ||
-                placeholder}
+              : selectedOption?.label || placeholder}
           </span>
 
-          <span
-            className={
-              disabled ? 'opacity-60' : ''
-            }
-          >
+          <span className={disabled ? 'opacity-60' : ''}>
             <ArrowDownIcon />
           </span>
         </MenuButton>
@@ -275,9 +216,7 @@ const Dropdown = ({
             <div className="sticky top-0 z-10 bg-white p-1">
               <input
                 value={query}
-                onChange={(event) =>
-                  setQuery(event.target.value)
-                }
+                onChange={(event) => setQuery(event.target.value)}
                 placeholder={searchPlaceholder}
                 autoComplete="off"
                 className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm text-gray-800 outline-none placeholder:text-gray-400 focus:border-gray-300 focus:ring-0"
@@ -294,7 +233,7 @@ const Dropdown = ({
           <div
             className={`space-y-1 ${
               menuScrollable
-                ? 'overflow-y-auto overscroll-contain [-ms-overflow-style:none] scrollbar-none [&::-webkit-scrollbar]:hidden'
+                ? 'overflow-y-auto overscroll-contain tiny-scrollbar'
                 : 'overflow-visible'
             }`}
             style={
@@ -326,17 +265,12 @@ const Dropdown = ({
             ) : (
               filteredOptions.map((option) => {
                 const isSelected = isMulti
-                  ? selectedValues.includes(
-                      option.value,
-                    )
+                  ? selectedValues.includes(option.value)
                   : option.value === value;
 
-                const isDeleteVisible =
-                  Boolean(
-                    showDeleteForOption?.(
-                      option,
-                    ) && onDeleteOption,
-                  );
+                const isDeleteVisible = Boolean(
+                  showDeleteForOption?.(option) && onDeleteOption,
+                );
 
                 if (isMulti) {
                   return (
@@ -344,27 +278,16 @@ const Dropdown = ({
                       key={option.value}
                       className={[
                         'flex w-full items-center justify-between gap-2 rounded-md px-1 py-1 text-xs text-gray-800 hover:bg-gray-100 md:text-sm',
-                        isSelected
-                          ? 'bg-gray-100'
-                          : '',
+                        isSelected ? 'bg-gray-100' : '',
                       ].join(' ')}
                     >
                       <button
                         type="button"
-                        onMouseDown={
-                          keepMenuInteractionActive
-                        }
-                        onClick={() =>
-                          handleSelect(
-                            option.value,
-                          )
-                        }
+                        onMouseDown={keepMenuInteractionActive}
+                        onClick={() => handleSelect(option.value)}
                         className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-left font-medium"
                       >
-                        <span
-                          className="shrink-0"
-                          aria-hidden="true"
-                        >
+                        <span className="shrink-0" aria-hidden="true">
                           {isSelected ? (
                             <CheckedBoxIcon />
                           ) : (
@@ -373,17 +296,12 @@ const Dropdown = ({
                         </span>
 
                         {option.icon ? (
-                          <span
-                            className="shrink-0"
-                            aria-hidden="true"
-                          >
+                          <span className="shrink-0" aria-hidden="true">
                             {option.icon}
                           </span>
                         ) : null}
 
-                        <span className="truncate text-sm">
-                          {option.label}
-                        </span>
+                        <span className="truncate text-sm">{option.label}</span>
                       </button>
 
                       <div className="flex items-center gap-1">
@@ -391,18 +309,12 @@ const Dropdown = ({
                           <button
                             type="button"
                             aria-label={`Delete ${option.label}`}
-                            onMouseDown={
-                              keepMenuInteractionActive
-                            }
-                            onClick={(
-                              event,
-                            ) => {
+                            onMouseDown={keepMenuInteractionActive}
+                            onClick={(event) => {
                               event.preventDefault();
                               event.stopPropagation();
 
-                              onDeleteOption?.(
-                                option,
-                              );
+                              onDeleteOption?.(option);
                             }}
                             className="shrink-0 rounded-md p-1 transition hover:bg-red-50"
                           >
@@ -415,39 +327,23 @@ const Dropdown = ({
                 }
 
                 return (
-                  <MenuItem
-                    key={option.value}
-                    as={Fragment}
-                  >
+                  <MenuItem key={option.value} as={Fragment}>
                     {({ focus }) => (
                       <div
                         className={[
                           'flex w-full items-center justify-between gap-2 rounded-md px-1 py-1 text-xs text-gray-800 md:text-sm',
-                          focus
-                            ? 'bg-gray-100'
-                            : '',
-                          isSelected
-                            ? 'bg-gray-100'
-                            : '',
+                          focus ? 'bg-gray-100' : '',
+                          isSelected ? 'bg-gray-100' : '',
                         ].join(' ')}
                       >
                         <button
                           type="button"
-                          onMouseDown={
-                            keepMenuInteractionActive
-                          }
-                          onClick={() =>
-                            handleSelect(
-                              option.value,
-                            )
-                          }
+                          onMouseDown={keepMenuInteractionActive}
+                          onClick={() => handleSelect(option.value)}
                           className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-left font-medium"
                         >
                           {option.icon ? (
-                            <span
-                              className="shrink-0"
-                              aria-hidden="true"
-                            >
+                            <span className="shrink-0" aria-hidden="true">
                               {option.icon}
                             </span>
                           ) : null}
@@ -462,18 +358,12 @@ const Dropdown = ({
                             <button
                               type="button"
                               aria-label={`Delete ${option.label}`}
-                              onMouseDown={
-                                keepMenuInteractionActive
-                              }
-                              onClick={(
-                                event,
-                              ) => {
+                              onMouseDown={keepMenuInteractionActive}
+                              onClick={(event) => {
                                 event.preventDefault();
                                 event.stopPropagation();
 
-                                onDeleteOption?.(
-                                  option,
-                                );
+                                onDeleteOption?.(option);
                               }}
                               className="shrink-0 rounded-md p-1 transition hover:bg-red-50"
                             >
@@ -492,9 +382,7 @@ const Dropdown = ({
       </Menu>
 
       {error && errorMessage ? (
-        <p className="mt-1 text-sm text-red-500">
-          {errorMessage}
-        </p>
+        <p className="mt-1 text-sm text-red-500">{errorMessage}</p>
       ) : null}
     </div>
   );

@@ -755,10 +755,10 @@ export default function Page() {
               }
             >
               <div className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-hidden">
-                <div className="flex shrink-0 flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-col gap-3 rounded-xl md:flex-row justify-end items-end">
                   {canFilterTickets ? (
-                    <>
-                      <div className="flex flex-row gap-3">
+                    <div className="flex w-full md:flex-row flex-col gap-2 justify-between">
+                      <div className="flex flex-row justify-between w-fit gap-3">
                         <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 md:max-w-50">
                           <div className="flex items-center gap-2">
                             <span className="shrink-0">
@@ -791,7 +791,7 @@ export default function Page() {
                             </button>
                           </div>
                         </div>
-                        <Popover as="div" className="relative xl:hidden">
+                        <Popover as="div" className="relative  md:hidden">
                           {({ open }) => (
                             <>
                               <PopoverButton
@@ -808,7 +808,7 @@ export default function Page() {
                               <PopoverPanel
                                 anchor="bottom end"
                                 transition
-                                className="z-100 mt-2 flex w-56 origin-top-right flex-col gap-3 overflow-visible!  rounded-xl border border-gray-200 bg-white p-3 shadow-[0_14px_44px_rgb(0_0_0/0.14)] outline-none transition duration-150 data-closed:-translate-y-2 data-closed:scale-95 data-closed:opacity-0"
+                                className="z-100 mt-2 flex w-60 origin-top-right flex-col gap-3 overflow-visible!  rounded-xl border border-gray-200 bg-white p-3 shadow-[0_14px_44px_rgb(0_0_0/0.14)] outline-none transition duration-150 data-closed:-translate-y-2 data-closed:scale-95 data-closed:opacity-0"
                               >
                                 <div className="relative w-full overflow-visible">
                                   <Dropdown
@@ -866,7 +866,83 @@ export default function Page() {
                         </Popover>
                       </div>
 
-                      <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+                      <div className="flex  flex-col gap-3 md:flex-row xl:items-center  justify-end">
+                        <Popover
+                          as="div"
+                          className="hidden md:block  2xl:hidden"
+                        >
+                          {({ open }) => (
+                            <>
+                              <PopoverButton
+                                className={`flex h-10 shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium outline-none ${
+                                  open
+                                    ? 'border-primary  text-white'
+                                    : 'border-gray-200 bg-white text-gray-700'
+                                }`}
+                                aria-label="Open filters"
+                              >
+                                <FiltersIcon />
+                              </PopoverButton>
+
+                              <PopoverPanel
+                                anchor="bottom end"
+                                transition
+                                className="z-100 mt-2 flex w-60 origin-top-right flex-col gap-3 overflow-visible!  rounded-xl border border-gray-200 bg-white p-3 shadow-[0_14px_44px_rgb(0_0_0/0.14)] outline-none transition duration-150 data-closed:-translate-y-2 data-closed:scale-95 data-closed:opacity-0"
+                              >
+                                <div className="relative w-full overflow-visible">
+                                  <Dropdown
+                                    options={projectFilterOptions}
+                                    value={selectedProject}
+                                    onChange={(value) =>
+                                      updateTicketsPageFilters({
+                                        project: value,
+                                      })
+                                    }
+                                    placeholder="All Projects"
+                                    maxMenuHeight={150}
+                                  />
+                                </div>
+
+                                <div className="relative w-full overflow-visible">
+                                  <Dropdown
+                                    options={statusFilterOptions}
+                                    value={selectedStatus}
+                                    onChange={(value) =>
+                                      updateTicketsPageFilters({
+                                        status: value,
+                                      })
+                                    }
+                                    placeholder="All Status"
+                                    maxMenuHeight={150}
+                                  />
+                                </div>
+
+                                <div className="relative w-full overflow-visible">
+                                  <Dropdown
+                                    options={priorityFilterOptions}
+                                    value={selectedPriority}
+                                    onChange={(value) =>
+                                      updateTicketsPageFilters({
+                                        priority: value,
+                                      })
+                                    }
+                                    placeholder="All Priority"
+                                    maxMenuHeight={150}
+                                  />
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={clearTicketFilters}
+                                  disabled={!hasActiveTicketFilters}
+                                  className="inline-flex h-10 items-center justify-center rounded-lg border border-gray-200 px-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  Clear Filters
+                                </button>
+                              </PopoverPanel>
+                            </>
+                          )}
+                        </Popover>
                         <div className="hidden xl:flex  items-center rounded-lg border border-gray-200 bg-white">
                           <button
                             type="button"
@@ -895,7 +971,7 @@ export default function Page() {
                           </button>
                         </div>
 
-                        <div className="w-full hidden xl:block xl:w-44">
+                        <div className="w-full hidden 2xl:block 2xl:w-44">
                           <Dropdown
                             options={projectFilterOptions}
                             value={selectedProject}
@@ -903,11 +979,12 @@ export default function Page() {
                               updateTicketsPageFilters({ project: value })
                             }
                             placeholder="All Projects"
+                            maxMenuHeight={320}
                           />
                         </div>
 
                         {viewMode === 'table' && (
-                          <div className="w-full hidden xl:block xl:w-38">
+                          <div className="w-full hidden 2xl:block 2xl:w-38">
                             <Dropdown
                               options={statusFilterOptions}
                               value={selectedStatus}
@@ -921,7 +998,7 @@ export default function Page() {
                           </div>
                         )}
 
-                        <div className="w-full hidden xl:block xl:w-38">
+                        <div className="w-full hidden 2xl:block 2xl:w-38">
                           <Dropdown
                             options={priorityFilterOptions}
                             value={selectedPriority}
@@ -936,7 +1013,7 @@ export default function Page() {
                           type="button"
                           onClick={clearTicketFilters}
                           disabled={!hasActiveTicketFilters}
-                          className="hidden h-10 shrink-0 items-center justify-center rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 xl:inline-flex"
+                          className="hidden h-10 shrink-0 items-center justify-center rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 2xl:inline-flex"
                         >
                           Clear Filters
                         </button>
@@ -972,7 +1049,7 @@ export default function Page() {
                           </ThemeButton>
                         </div>
                       </div>
-                    </>
+                    </div>
                   ) : null}
                 </div>
 
@@ -1291,7 +1368,7 @@ function mapApiDashboardTicketToRecentTicket(
       initials: getInitials(ticket.project.name),
       brandColor: ticket.project?.brandColor ?? '#31d81b',
     },
-    dueDate: formatTicketDate(ticket.dueDate),
+    dueDate: ticket.dueDate ? formatTicketDate(ticket.dueDate) : '--',
     status: statusLabel,
     statusColor: ticket.status?.color,
     priority: priorityLabel,
