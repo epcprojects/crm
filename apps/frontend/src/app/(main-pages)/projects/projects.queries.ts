@@ -979,7 +979,8 @@ function mapApiProjectTicketToRecentTicket(
       name: assigneeName,
       initials: getInitials(assigneeName),
     },
-    date: formatTicketDate(ticket.dueDate ?? ticket.createdAt),
+    date: formatTicketDate( ticket.createdAt),
+     dueDate: formatTicketDate(ticket.dueDate ?? ticket.createdAt),
     sortDate: ticket.dueDate ?? ticket.createdAt,
     reporter: {
       id: ticket.reporter.id,
