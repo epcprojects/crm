@@ -365,11 +365,19 @@ export class TicketsService {
       .leftJoin('t.priority', 'pr')
       .leftJoin('t.assignee', 'a')
       .leftJoin('t.reporter', 'r');
+    const ACTIVE_STATUS_SENTINEL = '00000000-0000-0000-0000-000000000100';
 
     if (query.statusKey) {
-      qb.andWhere('t.statusKey = :statusKey', {
-        statusKey: query.statusKey,
-      });
+      if (
+        query.statusKey.toLowerCase() === 'active' ||
+        query.statusKey === ACTIVE_STATUS_SENTINEL
+      ) {
+        qb.andWhere('t.statusKey != :closedKey', { closedKey: 'Closed' });
+      } else {
+        qb.andWhere('t.statusKey = :statusKey', {
+          statusKey: query.statusKey,
+        });
+      }
     }
 
     if (query.priorityKey) {
@@ -655,9 +663,7 @@ export class TicketsService {
     const recipients = [ticket.reporterId, ticket.assigneeId].filter(
       (id): id is string => !!id && id !== userId,
     );
-    const fullname = await this.usersService.getFullName(
-  userId ,
-    );
+    const fullname = await this.usersService.getFullName(userId);
     // STATUS CHANGED
     if (dto.statusKey && oldStatus && dto.statusKey !== oldStatus.key) {
       await this.notificationsService.notifyProjectMembers({
@@ -822,7 +828,7 @@ export class TicketsService {
   // Tickets that are not closed, and either have no due date
   // or have a due date within the next 3 days (no overdue tickets)
   async getUpcomingTickets(user) {
-        const today = new Date();
+    const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const upperBound = new Date(today);
@@ -838,10 +844,13 @@ export class TicketsService {
       .leftJoin('t.status', 's')
       .leftJoin('t.priority', 'pr')
       .where('t.statusKey != :statusKey', { statusKey: 'Closed' })
-      .andWhere('t.dueDate IS NULL OR (t.dueDate BETWEEN :today AND :upperBound)', {
-        today: today.toISOString(),
-        upperBound: upperBound.toISOString(),
-      })
+      .andWhere(
+        't.dueDate IS NULL OR (t.dueDate BETWEEN :today AND :upperBound)',
+        {
+          today: today.toISOString(),
+          upperBound: upperBound.toISOString(),
+        },
+      )
 
       .select([
         't.id',
