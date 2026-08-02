@@ -707,7 +707,8 @@ export default function Page() {
                     </p>
 
                     <p className="text-sm text-gray-100 sm:text-lg">
-                      Here's what's happening across your companies
+                      Here's what's happening across your{' '}
+                      {displayedProjects.length > 1 ? 'companies' : 'company'}
                     </p>
                   </div>
 
@@ -781,84 +782,16 @@ export default function Page() {
                 className={`bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)]  flex flex-1 flex-col min-h-0 gap-3.5 rounded-xl p-3 h-full `}
               >
                 <div className="flex flex-row  flex-wrap gap-3 justify-between items-center">
-                  <div className="flex flex-row gap-2.5 items-center">
-                    <p className="text-lg font-bold text-black">
-                      Recent Tickets
-                    </p>
+                  <div className="flex items-center flex-wrap gap-3">
+                    <div className="flex flex-row gap-2.5 items-center">
+                      <p className="text-lg whitespace-nowrap font-bold text-black">
+                        Recent Tickets
+                      </p>
 
-                    <div className="w-7.5 h-7.5 flex items-center justify-center text-sm text-bright-gray rounded-full bg-gray-100">
-                      {recentTicketsQuery.data?.items?.length ?? 0}
+                      <div className="w-7.5 h-7.5 flex items-center justify-center text-sm text-bright-gray rounded-full bg-gray-100">
+                        {recentTicketsQuery.data?.items?.length ?? 0}
+                      </div>
                     </div>
-                  </div>
-
-                  {/* Compact filters: below xl only */}
-                  <Popover as="div" className="relative xl:hidden">
-                    {({ open }) => (
-                      <>
-                        <PopoverButton
-                          className={`flex h-10 shrink-0 items-center justify-center gap-1 rounded-lg border px-3 text-xs font-medium outline-none ${
-                            open ||
-                            selectedStatus !== 'all' ||
-                            selectedPriority !== 'all'
-                              ? 'border-primary bg-primary/5 text-primary'
-                              : 'border-gray-200 bg-gray-100 text-black-olive'
-                          }`}
-                          aria-label="Open ticket filters"
-                        >
-                          <FiltersIcon />
-                          <span>Filter</span>
-                        </PopoverButton>
-
-                        <PopoverPanel
-                          anchor="bottom end"
-                          transition
-                          className="z-100 mt-2 flex w-56 origin-top-right flex-col gap-3 overflow-visible! rounded-xl border border-gray-200 bg-white p-3 shadow-[0_14px_44px_rgb(0_0_0/0.14)] outline-none transition duration-150 data-closed:-translate-y-2 data-closed:scale-95 data-closed:opacity-0"
-                        >
-                          <div className="relative w-full overflow-visible">
-                            <Dropdown
-                              options={statusFilterOptions}
-                              value={selectedStatus}
-                              onChange={(value) =>
-                                updateRecentTicketsFilters({ status: value })
-                              }
-                              placeholder="All Status"
-                              maxMenuHeight={150}
-                            />
-                          </div>
-
-                          <div className="relative w-full overflow-visible">
-                            <Dropdown
-                              options={priorityFilterOptions}
-                              value={selectedPriority}
-                              onChange={(value) =>
-                                updateRecentTicketsFilters({ priority: value })
-                              }
-                              placeholder="All Priority"
-                              maxMenuHeight={150}
-                            />
-                          </div>
-
-                          {selectedStatus !== 'all' ||
-                          selectedPriority !== 'all' ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                updateRecentTicketsFilters({
-                                  status: 'all',
-                                  priority: 'all',
-                                });
-                              }}
-                              className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50"
-                            >
-                              Clear Filters
-                            </button>
-                          ) : null}
-                        </PopoverPanel>
-                      </>
-                    )}
-                  </Popover>
-
-                  <div className="flex flex-wrap gap-2">
                     <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-2.5 py-2 ">
                       <span className="shrink-0">
                         <SearchIcon fill="#374151" />
@@ -869,7 +802,7 @@ export default function Page() {
                         value={searchValue}
                         onChange={(event) => setSearchValue(event.target.value)}
                         placeholder="Search"
-                        className="min-w-0 flex-1 bg-transparent text-base text-gray-700 outline-none placeholder:text-gray-400"
+                        className="min-w-0 xl:flex-1 bg-transparent text-base text-gray-700 outline-none placeholder:text-gray-400"
                       />
 
                       <button
@@ -887,64 +820,149 @@ export default function Page() {
                         <CloseIcon width="15" height="15" />
                       </button>
                     </div>
+                  </div>
 
-                    {/* Desktop filters: xl and above */}
-                    <div className="hidden items-center gap-2 xl:flex">
-                      <div className="relative w-full overflow-visible">
-                        <Dropdown
-                          options={projectFilterOptions}
-                          value={selectedProject}
-                          onChange={(value) =>
-                            updateRecentTicketsFilters({
-                              project: value,
-                            })
-                          }
-                          placeholder="All Projects"
-                          maxMenuHeight={150}
-                        />
-                      </div>{' '}
-                      <div className="w-38">
-                        <Dropdown
-                          options={statusFilterOptions}
-                          value={selectedStatus}
-                          onChange={(value) =>
-                            updateRecentTicketsFilters({ status: value })
-                          }
-                          placeholder="All Status"
-                        />
+                  <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap gap-2">
+                      {/* Desktop filters: xl and above */}
+                      <div className="hidden items-center gap-2 xl:flex">
+                        <div className=" hidden relative w-full overflow-visible">
+                          <Dropdown
+                            options={projectFilterOptions}
+                            value={selectedProject}
+                            onChange={(value) =>
+                              updateRecentTicketsFilters({
+                                project: value,
+                              })
+                            }
+                            placeholder="All Projects"
+                            maxMenuHeight={150}
+                          />
+                        </div>{' '}
+                        <div className="w-38 hidden">
+                          <Dropdown
+                            options={statusFilterOptions}
+                            value={selectedStatus}
+                            onChange={(value) =>
+                              updateRecentTicketsFilters({ status: value })
+                            }
+                            placeholder="All Status"
+                          />
+                        </div>
+                        <div className="w-38 hidden">
+                          <Dropdown
+                            options={priorityFilterOptions}
+                            value={selectedPriority}
+                            onChange={(value) =>
+                              updateRecentTicketsFilters({ priority: value })
+                            }
+                            placeholder="All Priority"
+                          />
+                        </div>
                       </div>
-                      <div className="w-38">
-                        <Dropdown
-                          options={priorityFilterOptions}
-                          value={selectedPriority}
-                          onChange={(value) =>
-                            updateRecentTicketsFilters({ priority: value })
-                          }
-                          placeholder="All Priority"
-                        />
-                      </div>
-                    </div>
-                    <ThemeButton
-                      className="shrink-0 rounded-full"
-                      variant="primaryGradient"
-                      icon={<DownloadIcon />}
-                      onClick={handleExportTickets}
-                      disabled={isExportingTickets}
-                    >
-                      {isExportingTickets ? 'Exporting...' : 'Export Tickets'}
-                    </ThemeButton>
-
-                    {canViewTicketsList ? (
-                      <button
-                        type="button"
-                        onClick={handleViewAllTickets}
-                        className="ring text-sm hover:ring-transparent text-primary hover:text-white ring-primary  hover:bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 font-semibold bg-white rounded-lg py-2 px-4 flex items-center justify-center"
+                      <ThemeButton
+                        className="shrink-0 rounded-full"
+                        variant="primaryGradient"
+                        icon={<DownloadIcon />}
+                        onClick={handleExportTickets}
+                        disabled={isExportingTickets}
                       >
-                        View All
-                      </button>
-                    ) : null}
+                        {isExportingTickets ? 'Exporting...' : 'Export Tickets'}
+                      </ThemeButton>
+                      {/* Compact filters: below xl only */}
+                      <Popover as="div" className="relative ">
+                        {({ open }) => (
+                          <>
+                            <PopoverButton
+                              className={`ring text-sm gap-1  hover:bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 hover:text-white  font-semibold bg-white rounded-lg py-2 px-4 flex items-center justify-center ${
+                                open ||
+                                selectedStatus !== 'Open' ||
+                                selectedPriority !== 'all'
+                                  ? 'border-primary bg-primary/5 text-primary'
+                                  : 'border-gray-200 bg-white text-gray-600'
+                              }`}
+                              aria-label="Open ticket filters"
+                            >
+                              <FiltersIcon fill="currentColor" />
+                              <span>Filter</span>
+                            </PopoverButton>
 
-                    {/* <button
+                            <PopoverPanel
+                              anchor="bottom end"
+                              transition
+                              className="z-100 mt-2 flex w-56 origin-top-right flex-col gap-3 overflow-visible! rounded-xl border border-gray-200 bg-white p-3 shadow-[0_14px_44px_rgb(0_0_0/0.14)] outline-none transition duration-150 data-closed:-translate-y-2 data-closed:scale-95 data-closed:opacity-0"
+                            >
+                              <div className="relative w-full overflow-visible">
+                                <Dropdown
+                                  options={projectFilterOptions}
+                                  value={selectedProject}
+                                  onChange={(value) =>
+                                    updateRecentTicketsFilters({
+                                      project: value,
+                                    })
+                                  }
+                                  placeholder="All Projects"
+                                  maxMenuHeight={150}
+                                />
+                              </div>{' '}
+                              <div className="relative w-full overflow-visible">
+                                <Dropdown
+                                  options={statusFilterOptions}
+                                  value={selectedStatus}
+                                  onChange={(value) =>
+                                    updateRecentTicketsFilters({
+                                      status: value,
+                                    })
+                                  }
+                                  placeholder="All Status"
+                                  maxMenuHeight={150}
+                                />
+                              </div>
+                              <div className="relative w-full overflow-visible">
+                                <Dropdown
+                                  options={priorityFilterOptions}
+                                  value={selectedPriority}
+                                  onChange={(value) =>
+                                    updateRecentTicketsFilters({
+                                      priority: value,
+                                    })
+                                  }
+                                  placeholder="All Priority"
+                                  maxMenuHeight={150}
+                                />
+                              </div>
+                              {selectedStatus !== 'all' ||
+                              selectedPriority !== 'all' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    updateRecentTicketsFilters({
+                                      status: 'all',
+                                      priority: 'all',
+                                    });
+                                  }}
+                                  className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                                >
+                                  Clear Filters
+                                </button>
+                              ) : null}
+                            </PopoverPanel>
+                          </>
+                        )}
+                      </Popover>
+                      {canViewTicketsList ? (
+                        <div>
+                          <button
+                            type="button"
+                            onClick={handleViewAllTickets}
+                            className="ring text-sm hover:ring-transparent text-primary hover:text-white ring-primary  hover:bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 font-semibold bg-white rounded-lg py-2 px-4 flex items-center justify-center"
+                          >
+                            View All
+                          </button>
+                        </div>
+                      ) : null}
+
+                      {/* <button
                       type="button"
                       className="border border-gray-200 bg-gray-100 py-2 px-2.5 rounded-lg flex flex-row items-center gap-0.75"
                     >
@@ -953,6 +971,7 @@ export default function Page() {
                         Filter
                       </p>
                     </button> */}
+                    </div>
                   </div>
                 </div>
 
