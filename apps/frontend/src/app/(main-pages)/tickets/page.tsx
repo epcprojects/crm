@@ -1291,7 +1291,7 @@ function mapApiDashboardTicketToRecentTicket(
       initials: getInitials(ticket.project.name),
       brandColor: ticket.project?.brandColor ?? '#31d81b',
     },
-    dueDate: formatTicketDate(ticket.dueDate),
+    dueDate: ticket.dueDate ? formatTicketDate(ticket.dueDate) : '--',
     status: statusLabel,
     statusColor: ticket.status?.color,
     priority: priorityLabel,

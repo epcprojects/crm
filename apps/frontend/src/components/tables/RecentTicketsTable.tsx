@@ -170,11 +170,21 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
   },
   {
     id: 'createdAt',
+    accessorKey: 'date',
+    header: 'Created On',
+    cell: ({ row }) => (
+      <span className="text-gray-900 text-sm  whitespace-nowrap">
+        {row.original.date !== null ? row.original.date : '-'}
+      </span>
+    ),
+  },
+  {
+    id: 'dueDate',
     accessorKey: 'dueDate',
     header: 'Due Date',
     cell: ({ row }) => (
       <span className="text-gray-900 text-sm  whitespace-nowrap">
-        {row.original.dueDate ? row.original.dueDate : '-'}
+        {row.original.dueDate !== null ? row.original.dueDate : '-'}
       </span>
     ),
   },

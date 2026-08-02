@@ -262,15 +262,19 @@ export default function TicketDetailPage() {
   //   useState<ConversationView>('replies');
   const [hasUnreadInternalChat, setHasUnreadInternalChat] = useState(false);
   const isChatDrawerOpen = Boolean(chatDrawerChannel);
+  const internalChatParam = searchParams.get('internal');
+  const shouldDefaultToInternalChat = canViewInternalChatBtn && !isExternalUser;
   const isInternalChatActive =
-    searchParams.get('internal') === 'true' && canViewInternalChatBtn;
+    canViewInternalChatBtn &&
+    (internalChatParam === 'true' ||
+      (internalChatParam !== 'false' && shouldDefaultToInternalChat));
   const updateInternalChatParam = (isActive: boolean) => {
     const nextSearchParams = new URLSearchParams(searchParams.toString());
 
-    if (isActive) {
-      nextSearchParams.set('internal', 'true');
-    } else {
+    if (isActive === shouldDefaultToInternalChat) {
       nextSearchParams.delete('internal');
+    } else {
+      nextSearchParams.set('internal', isActive ? 'true' : 'false');
     }
 
     const nextQuery = nextSearchParams.toString();
@@ -2313,7 +2317,7 @@ function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
     },
     date: formatTicketDate(ticket.createdAt),
     description: ticket.description,
-    dueDate: ticket.dueDate ? formatTicketDate(ticket.dueDate) : 'No due date',
+    dueDate: ticket.dueDate ? formatTicketDate(ticket.dueDate) : null,
     dueDateValue: ticket.dueDate ?? '',
     assigneeId: ticket.assigneeId ?? '',
     reporterId: ticket.reporterId ?? '',
