@@ -135,15 +135,14 @@ export class TicketsService {
         },
       });
 
-      const members = (ticket.project?.members || []).map((m) => {
-        if (m.id === userId) return;
+const members = (ticket.project?.members || [])
+  .filter((m) => m.id !== userId)
+  .map((m) => ({
+    name: m.fullName,
+    email: m.email,
+  }));
 
-        return {
-          name: m.fullName,
-          email: m.email,
-        };
-      });
-
+      console.debug("Tcietk daved", saved.id, "members", members.length);
       const participantsMap = new Map<
         string,
         { name: string; email: string }
@@ -190,7 +189,7 @@ export class TicketsService {
       const fullname = await this.usersService.getFullName(
         ticket?.reporterId || ticket?.assigneeId || '',
       );
-
+      console.debug(`Retrieved full name: ${fullname}`);
       // Send global notification
       await this.notificationsService.notifyProjectMembers({
         projectId: ticket.projectId,
@@ -365,11 +364,19 @@ export class TicketsService {
       .leftJoin('t.priority', 'pr')
       .leftJoin('t.assignee', 'a')
       .leftJoin('t.reporter', 'r');
+    const ACTIVE_STATUS_SENTINEL = '00000000-0000-0000-0000-000000000100';
 
     if (query.statusKey) {
-      qb.andWhere('t.statusKey = :statusKey', {
-        statusKey: query.statusKey,
-      });
+      if (
+        query.statusKey.toLowerCase() === 'active' ||
+        query.statusKey === ACTIVE_STATUS_SENTINEL
+      ) {
+        qb.andWhere('t.statusKey != :closedKey', { closedKey: 'Closed' });
+      } else {
+        qb.andWhere('t.statusKey = :statusKey', {
+          statusKey: query.statusKey,
+        });
+      }
     }
 
     if (query.priorityKey) {
@@ -655,9 +662,7 @@ export class TicketsService {
     const recipients = [ticket.reporterId, ticket.assigneeId].filter(
       (id): id is string => !!id && id !== userId,
     );
-    const fullname = await this.usersService.getFullName(
-  userId ,
-    );
+    const fullname = await this.usersService.getFullName(userId);
     // STATUS CHANGED
     if (dto.statusKey && oldStatus && dto.statusKey !== oldStatus.key) {
       await this.notificationsService.notifyProjectMembers({
@@ -819,8 +824,16 @@ export class TicketsService {
   }
 
   // ---------------- UPCOMING TICKETS -------------
-  // Those tickets who have no assignee or
+  // Tickets that are not closed, and either have no due date
+  // or have a due date within the next 3 days (no overdue tickets)
   async getUpcomingTickets(user) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const upperBound = new Date(today);
+    upperBound.setDate(upperBound.getDate() + 2);
+    upperBound.setHours(23, 59, 59, 999);
+
     return this.ticketRepo
       .createQueryBuilder('t')
       .leftJoin('t.project', 'p')
@@ -829,7 +842,14 @@ export class TicketsService {
       })
       .leftJoin('t.status', 's')
       .leftJoin('t.priority', 'pr')
-      .where('t.assigneeId IS NULL and t.statusKey != :statusKey', { statusKey: 'Closed' })
+      .where('t.statusKey != :statusKey', { statusKey: 'Closed' })
+      .andWhere(
+        't.dueDate IS NULL OR (t.dueDate BETWEEN :today AND :upperBound)',
+        {
+          today: today.toISOString(),
+          upperBound: upperBound.toISOString(),
+        },
+      )
 
       .select([
         't.id',
