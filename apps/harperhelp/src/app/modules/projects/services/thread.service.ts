@@ -15,6 +15,7 @@ import { NotificationsService } from '../../notifications/notifications.service'
 import { Project } from '../entities/project.entity';
 import { ThreadGateway } from '../gateway/thread.gateway';
 import { NotificationEntityType, NotificationType } from '@harperhelp/types';
+import { extname } from 'path';
 
 @Injectable()
 export class ThreadService {
@@ -107,8 +108,9 @@ export class ThreadService {
       type: NotificationType.THREAD_REPLY,
       entityType: NotificationEntityType.THREAD_MESSAGE,
       entityId: msg.id,
-      title: `New thread in project: "${project.name} by ${user.fullName}"`,
-      message: message.message.slice(0, 140),
+      title: `New thread in project: "${project.name}" by "${user.fullName}"`,
+      // message: message.message.slice(0, 140),
+      message: message.message ? message.message.slice(0, 140) : 'New thread message' ,
     });
 
     return msg;
@@ -257,13 +259,18 @@ export class ThreadService {
 
       await this.utilityService.uploadFile(file, key);
 
+      
+      const rawExt = extname(file.originalname); // e.g. '.DOCX' or ''
+      const extension = rawExt ? rawExt.slice(1).toLowerCase() : 'unknown';
+
       await this.filesService.create({
         projectId,
         uploadedBy: userId,
         originalName: file.originalname,
         storageKey: key,
         sizeBytes: file.size,
-        extension: file.mimetype.split('/')[1],
+        // extension: file.mimetype.split('/')[1],
+        extension: extension,
         mimeType: file.mimetype,
         source: FileSource.THREAD,
         sourceId: messageId,

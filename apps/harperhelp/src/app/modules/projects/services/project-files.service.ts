@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { FilesService } from '../../files/files.service';
 import { UtilityService } from '../../utility/utility.service';
 import { Project } from '../entities/project.entity';
+import { extname } from 'path';
 
 @Injectable()
 export class ProjectsFilesService {
@@ -33,6 +34,10 @@ export class ProjectsFilesService {
       const key = `projects/${projectId}/files/${Date.now()}-${file.originalname}`;
 
       await this.utilityService.uploadFile(file, key);
+      
+      const rawExt = extname(file.originalname); // e.g. '.DOCX' or ''
+      const extension = rawExt ? rawExt.slice(1).toLowerCase() : 'unknown';
+
 
       await this.filesService.create({
         projectId,
@@ -40,7 +45,8 @@ export class ProjectsFilesService {
         originalName: file.originalname,
         storageKey: key,
         sizeBytes: file.size,
-        extension: file.mimetype.split('/')[1],
+        // extension: file.mimetype.split('/')[1],
+        extension: extension,
         mimeType: file.mimetype,
 
         source: FileSource.PROJECT,
