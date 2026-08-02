@@ -187,8 +187,12 @@ export class NotificationsService {
       this.appUrl,
       this.appName,
     );
+        // Internal notes: exclude the poster themselves from the notification list
+    const recipients = p.members.filter(
+      (r) => r.email !== p.createdBy.email,
+    );
     // Notify all members
-    await this.sendBulk(p.members, subject, html);
+    await this.sendBulk(recipients, subject, html);
   }
 
   private async onProjectAssigned(p: ProjectAssignedPayload): Promise<void> {
@@ -197,8 +201,11 @@ export class NotificationsService {
       this.appUrl,
       this.appName,
     );
+    const recipients = p.members.filter(
+      (r) => r.email !== p.createdBy.email,
+    );
     // Notify all members
-    await this.sendBulk(p.members, subject, html);
+    await this.sendBulk(recipients, subject, html);
   }
 
   private async onThreadMessageCreated(
@@ -209,8 +216,14 @@ export class NotificationsService {
       this.appUrl,
       this.appName,
     );
+            // Internal notes: exclude the poster themselves from the notification list
+    const recipients = p.participants.filter(
+      (r) => r.email !== p.createdBy.email,
+    );
+    // Notify all members
+    await this.sendBulk(recipients, subject, html);
     // Notify all participants
-    await this.sendBulk(p.participants, subject, html);
+    // await this.sendBulk(p.participants, subject, html);
   }
 
   private async onTicketCreated(p: TicketCreatedPayload): Promise<void> {
@@ -219,7 +232,13 @@ export class NotificationsService {
       this.appUrl,
       this.appName,
     );
-    await this.sendBulk(p.participants, subject, html);
+            // Internal notes: exclude the poster themselves from the notification list
+    const recipients = p.participants.filter(
+      (r) => r.email !== p.createdBy.email,
+    );
+    // Notify all members
+    await this.sendBulk(recipients, subject, html);
+    // await pthis.sendBulk(p.participants, subject, html);
   }
 
   private async onTicketReplyPosted(

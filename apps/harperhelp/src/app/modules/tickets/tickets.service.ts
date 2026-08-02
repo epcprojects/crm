@@ -135,15 +135,14 @@ export class TicketsService {
         },
       });
 
-      const members = (ticket.project?.members || []).map((m) => {
-        if (m.id === userId) return;
+const members = (ticket.project?.members || [])
+  .filter((m) => m.id !== userId)
+  .map((m) => ({
+    name: m.fullName,
+    email: m.email,
+  }));
 
-        return {
-          name: m.fullName,
-          email: m.email,
-        };
-      });
-
+      console.debug("Tcietk daved", saved.id, "members", members.length);
       const participantsMap = new Map<
         string,
         { name: string; email: string }
@@ -190,7 +189,7 @@ export class TicketsService {
       const fullname = await this.usersService.getFullName(
         ticket?.reporterId || ticket?.assigneeId || '',
       );
-
+      console.debug(`Retrieved full name: ${fullname}`);
       // Send global notification
       await this.notificationsService.notifyProjectMembers({
         projectId: ticket.projectId,
