@@ -184,7 +184,7 @@ export default function Page() {
     searchParams.get(DASHBOARD_TABS_QUERY_PARAM),
   );
 
-    const selectedProject = getTicketsFilterValue(
+  const selectedProject = getTicketsFilterValue(
     searchParams.get(TICKETS_PROJECT_QUERY_PARAM),
   );
 
@@ -223,7 +223,7 @@ export default function Page() {
     ],
     [ticketPrioritiesQuery.data],
   );
-    const projectFilterOptions = useMemo(
+  const projectFilterOptions = useMemo(
     () => [
       { label: 'All Projects', value: 'all' },
       ...(projectsQuery.data ?? []).map((project) => ({
@@ -400,14 +400,13 @@ export default function Page() {
         exportParams.set('search', searchValue.trim());
         filenameParts.push(`search_${slugify(searchValue.trim())}`);
       }
-            if (selectedProject !== 'all') {
+      if (selectedProject !== 'all') {
         exportParams.set('projectId', selectedProject);
         const projectLabel = projectFilterOptions.find(
           (option) => option.value === selectedProject,
         )?.label;
         filenameParts.push(slugify(projectLabel ?? selectedProject));
       }
-
 
       if (selectedStatus !== 'all') {
         exportParams.set('statusKey', selectedStatus);
@@ -891,20 +890,20 @@ export default function Page() {
 
                     {/* Desktop filters: xl and above */}
                     <div className="hidden items-center gap-2 xl:flex">
-                   
-                                                   <div className="relative w-full overflow-visible">
-                                  <Dropdown
-                                    options={projectFilterOptions}
-                                    value={selectedProject}
-                                    onChange={(value) =>
-                                      updateRecentTicketsFilters({
-                                        project: value,
-                                      })
-                                    }
-                                    placeholder="All Projects"
-                                    maxMenuHeight={150}
-                                  />
-                                </div>   <div className="w-38">
+                      <div className="relative w-full overflow-visible">
+                        <Dropdown
+                          options={projectFilterOptions}
+                          value={selectedProject}
+                          onChange={(value) =>
+                            updateRecentTicketsFilters({
+                              project: value,
+                            })
+                          }
+                          placeholder="All Projects"
+                          maxMenuHeight={150}
+                        />
+                      </div>{' '}
+                      <div className="w-38">
                         <Dropdown
                           options={statusFilterOptions}
                           value={selectedStatus}
@@ -914,7 +913,6 @@ export default function Page() {
                           placeholder="All Status"
                         />
                       </div>
-
                       <div className="w-38">
                         <Dropdown
                           options={priorityFilterOptions}
@@ -1648,6 +1646,7 @@ type ApiDashboardTicket = {
     email: string;
     fullName: string;
   };
+  dueDate: string;
 };
 
 type ApiDashboardTicketsResponse = {
@@ -1893,6 +1892,7 @@ function mapApiDashboardTicketToRecentTicket(
       initials: getInitials(assigneeName),
     },
     date: formatTicketDate(ticket.createdAt),
+    dueDate: formatTicketDate(ticket.dueDate),
     sortDate: ticket.createdAt,
     reporter: {
       id: ticket.reporter.id ?? '',
