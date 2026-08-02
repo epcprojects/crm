@@ -14,6 +14,7 @@ import { getFileUrl } from '../projects/ProjectFilesPanel';
 import ConfirmActionModal from '../modals/ConfirmActionModal';
 import ImageGalleryLightbox from '../ui/ImageGalleryLightbox';
 import type { DiscussionAttachment, DiscussionReply } from './types';
+import EmojiPickerButton from './EmojiPickerButton';
 
 type DiscussionPanelProps = {
   title?: string;
@@ -173,6 +174,29 @@ export default function ProjectThreadPanel({
       fileInputRef.current.value = '';
     }
     focusComposer();
+  };
+
+  const handleEmojiSelect = (emoji: string) => {
+    const textarea = textareaRef.current;
+
+    if (!textarea) {
+      setMessage((current) => `${current}${emoji}`);
+      focusComposer();
+      return;
+    }
+
+    const selectionStart = textarea.selectionStart ?? message.length;
+    const selectionEnd = textarea.selectionEnd ?? message.length;
+    const nextMessage =
+      message.slice(0, selectionStart) + emoji + message.slice(selectionEnd);
+    const nextCursorPosition = selectionStart + emoji.length;
+
+    setMessage(nextMessage);
+
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(nextCursorPosition, nextCursorPosition);
+    });
   };
 
   const handleConfirmDeleteAttachment = async () => {
@@ -554,6 +578,10 @@ export default function ProjectThreadPanel({
                   </div>
                 ) : null}
                 <div className="flex items-center gap-2">
+                  <EmojiPickerButton
+                    disabled={isSubmittingReply}
+                    onSelectEmoji={handleEmojiSelect}
+                  />
                   {canAttachFile ? (
                     <button
                       type="button"

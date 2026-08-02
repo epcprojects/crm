@@ -1316,7 +1316,7 @@ export default function TicketDetailPage() {
                 value={ticket.project.name}
               />
 
-              {selectedDueDate ? (
+              {ticket.dueDate ? (
                 <div>
                   <span className="block text-sm text-gray-300">Due Date</span>
 
@@ -1325,7 +1325,7 @@ export default function TicketDetailPage() {
                   >
                     <div className="flex w-full items-center gap-3">
                       <p className="pt-px text-sm font-medium">
-                        {selectedDueDate}
+                        {ticket.dueDate}
                       </p>
 
                       {isDueDateOverdue ? (
@@ -1476,7 +1476,7 @@ export default function TicketDetailPage() {
                       />
                     </div>
                   ) : (
-                    <div className="mt-2 w-full text-left">
+                    <div className="mt-2 w-full text-left max-h-52 overflow-y-auto tiny-scrollbar">
                       {hasDescriptionContent ? (
                         <>
                           <div
