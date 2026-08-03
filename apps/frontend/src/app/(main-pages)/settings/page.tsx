@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import SettingsItemModal, {
   type SettingsItemFormValues,
@@ -18,6 +18,8 @@ import {
   usePermissions,
 } from '../../providers/PermissionProvider';
 import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { PlusIcon } from 'apps/frontend/public/icons';
 
 type ApiTicketStatus = {
   id: string;
@@ -444,15 +446,62 @@ export default function Page() {
     },
   ];
 
+  // const settingsPageScrollRef = useRef<HTMLDivElement | null>(null);
+  // const settingsSectionRef = useRef<HTMLDivElement | null>(null);
+
+  // const [isSettingsSectionPinned, setIsSettingsSectionPinned] = useState(false);
+  // useEffect(() => {
+  //   const scrollContainer = settingsPageScrollRef.current;
+  //   const settingsSection = settingsSectionRef.current;
+
+  //   if (!scrollContainer || !settingsSection) {
+  //     return;
+  //   }
+
+  //   const updatePinnedState = () => {
+  //     if (window.innerWidth >= 1280) {
+  //       setIsSettingsSectionPinned(true);
+  //       return;
+  //     }
+
+  //     const containerRect = scrollContainer.getBoundingClientRect();
+  //     const sectionRect = settingsSection.getBoundingClientRect();
+
+  //     const hasReachedStickyPosition =
+  //       Math.ceil(sectionRect.top) <= Math.ceil(containerRect.top);
+
+  //     setIsSettingsSectionPinned(hasReachedStickyPosition);
+  //   };
+
+  //   updatePinnedState();
+
+  //   scrollContainer.addEventListener('scroll', updatePinnedState, {
+  //     passive: true,
+  //   });
+
+  //   window.addEventListener('resize', updatePinnedState);
+
+  //   return () => {
+  //     scrollContainer.removeEventListener('scroll', updatePinnedState);
+  //     window.removeEventListener('resize', updatePinnedState);
+  //   };
+  // }, [canViewSettings]);
+
   return (
     <div className="relative z-100 xl:h-dvh h-full overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0">
-      <div className="flex h-full min-h-0 flex-col space-y-3 xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
-        <DashboardSummaryBanner
-          imageSrc={'/images/settingsPageIcon.svg'}
-          title={'Settings'}
-          stats={projectSummaryStats}
-        />
-        <div className="hidden xl:flex-row flex-col  items-center gap-3 rounded-[10px] xl:rounded-full border border-warning-200 bg-[#FFFAEB] p-1 text-[#69410A]">
+      <div
+        // ref={settingsPageScrollRef}
+        className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
+        // className="flex h-full min-h-0 flex-col space-y-3 xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
+      >
+        <div className="shrink-0">
+          <DashboardSummaryBanner
+            imageSrc="/images/settingsPageIcon.svg"
+            title="Settings"
+            stats={projectSummaryStats}
+          />
+        </div>
+        <div className="hidden shrink-0 xl:flex-row flex-col  items-center gap-3 rounded-[10px] xl:rounded-full border border-warning-200 bg-[#FFFAEB] p-1 text-[#69410A]">
           <span className=" bg-white hidden xl:flex items-center justify-center  drop-shadow rounded-full   h-10 min-w-10 ">
             <TipIcon />
           </span>
@@ -471,7 +520,17 @@ export default function Page() {
           </p>
         </div>
         {canViewSettings ? (
-          <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-1 gap-2 overflow-y-auto  scrollbar-hide md:gap-4 xl:auto-rows-fr xl:grid-cols-2 xl:overflow-hidden ">
+          <div
+            // ref={settingsSectionRef}
+            // className={`sticky -top-5 z-20 grid h-full min-h-0 flex-none touch-pan-y auto-rows-max grid-cols-1 gap-2 bg-gray-200 scrollbar-hide md:gap-4 xl:static xl:z-auto xl:flex-1 xl:auto-rows-fr xl:grid-cols-2 xl:overflow-hidden xl:bg-transparent ${
+            //   isSettingsSectionPinned
+            //     ? 'overflow-y-auto overscroll-auto'
+            //     : 'overflow-y-hidden overscroll-auto'
+            // }`}
+            // className="sticky -top-5 z-20 grid h-full min-h-0 flex-none auto-rows-max grid-cols-1 gap-2 overflow-y-auto bg-gray-200 scrollbar-hide md:gap-4 xl:static xl:z-auto xl:flex-1 xl:auto-rows-fr xl:grid-cols-2 xl:overflow-hidden xl:bg-transparent"
+            // className="grid min-h-0 flex-1 auto-rows-max grid-cols-1 gap-2 overflow-y-auto  scrollbar-hide md:gap-4 xl:auto-rows-fr xl:grid-cols-2 xl:overflow-hidden "
+           className="grid h-auto min-h-0 flex-none auto-rows-max grid-cols-1 gap-2 overflow-visible scrollbar-hide md:gap-4 xl:h-full xl:flex-1 xl:auto-rows-fr xl:grid-cols-2 xl:overflow-hidden"
+          >
             <PermissionGuard permission="settings.view_statuses">
               <SettingsConfigCard
                 title="Ticket Statuses"
@@ -549,6 +608,19 @@ export default function Page() {
             You do not have permission to view settings.
           </div>
         )}
+        {canCreateStatus ? (
+          <button
+            type="button"
+            onClick={() => {
+              setStatusModalMode('create');
+              setEditingStatusId('new-status');
+            }}
+            aria-label="Add status"
+            className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 flex h-10 w-10 items-center justify-center rounded-full bg-linear-to-l from-royal-blue to-crystal-blue text-white shadow-[0_10px_30px_rgb(48_79_253/0.35)] transition hover:opacity-90 active:scale-95 xl:hidden"
+          >
+            <PlusIcon fill="#FFFFFF" width="24" height="24" />
+          </button>
+        ) : null}
       </div>
 
       <SettingsItemModal

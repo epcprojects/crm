@@ -172,14 +172,14 @@ export default function MobileBottomNavigation({
     >
       <div
         ref={containerRef}
-        className="relative grid w-full gap-2 rounded-full bg-white/20 p-1 shadow-[0_0_36px_-3px_rgb(0_0_0/0.20)] backdrop-blur-3xl"
+        className="relative grid w-full gap-2 rounded-xl bg-white/20 p-1 shadow-[0_0_36px_-3px_rgb(0_0_0/0.20)] backdrop-blur-3xl"
         style={{
           gridTemplateColumns: `repeat(${slotCount}, minmax(0, 1fr))`,
         }}
       >
         {/* Smooth moving white selection */}
         <div
-          className="pointer-events-none absolute top-1 bottom-1 left-0 rounded-full bg-white transition-all duration-300 ease-out"
+          className="pointer-events-none absolute top-1 bottom-1 left-0 rounded-lg bg-white transition-all duration-300 ease-out"
           style={{
             width: indicatorStyle.width,
             transform: indicatorStyle.transform,

@@ -18,7 +18,7 @@ export default function ThemeButton({
   variant = 'primaryGradient',
   size = 'md',
   icon,
-  fullRounded = true,
+  // fullRounded = true,
   className,
   iconBg = 'bg-white',
   borderclassName,
@@ -28,55 +28,22 @@ export default function ThemeButton({
   return (
     <button
       className={clsx(
-        `${hasIcon && 'p-0.75 text-base'} ${fullRounded ? 'rounded-full' : 'rounded-lg'}`,
-        !hasIcon && {
-          ' p-0 text-xs': size === 'xs',
-          'p-0 text-xs': size === 'sm',
-          'p-0 text-base': size === 'md',
-          'p-0 text-sm md:text-base': size === 'lg',
-        },
+        className,
         {
-          'bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 text-white hover:opacity-90':
+          'bg-linear-[271deg] from-aztec-purple  to-cyan-blue text-white hover:from-violet-blue hover:to-science-blue':
             variant === 'primaryGradient',
-          'bg-gray-50 border border-gray-200 text-black hover:bg-gray-100':
+          'bg-white border border-[#D4D4D4] text-black hover:bg-gray-100 drop-shadow-xs':
             variant === 'secondary',
           'bg-primary-dark text-white border border-primary-dark hover:border-primary hover:bg-primary':
             variant === 'primary',
         },
-        className,
+        'rounded-lg py-2 px-6 flex items-center justify-center text-[15px] font-medium gap-1.5 transition-all duration-300 ease-in-out',
       )}
       {...props}
     >
-      <div
-        className={clsx(
-          `flex items-center cursor-pointer justify-center ${fullRounded ? 'rounded-full' : 'rounded-lg'} ${borderclassName} ${hasIcon && 'p-px! pe-3! md:pe-5! text-sm md:text-base'} font-medium transition-all duration-300`,
-          !hasIcon && {
-            ' px-4 py-2 text-xs': size === 'xs',
-            ' px-6 py-3 text-xs': size === 'sm',
-            'px-2.5 py-2 text-base': size === 'md',
-            'px-6 py-2.5 text-sm md:text-base': size === 'lg',
-          },
-          // variant === 'primaryGradient' && {
-          //   'bg-linear-to-l from-[#304FFD]  to-[#40C3FF] text-white hover:opacity-90':
-          //     variant === 'primaryGradient',
-          // },
-        )}
-      >
-        {hasIcon && (
-          <span
-            className={clsx(
-              'mr-1.5 w-6 md:w-8 md:h-8 h-6 shrink-0 rounded-full hidden md:flex items-center justify-center',
-              iconBg ? iconBg : 'bg-white',
-            )}
-          >
-            {icon}
-          </span>
-        )}
+      {hasIcon && <span>{icon}</span>}
 
-        <span className="whitespace-nowrap text-sm font-medium">
-          {children}
-        </span>
-      </div>
+      <span className="whitespace-nowrap">{children}</span>
     </button>
   );
 }
