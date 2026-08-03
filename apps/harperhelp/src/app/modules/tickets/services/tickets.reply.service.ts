@@ -277,4 +277,35 @@ export class TicketRepliesService {
       });
     }
   }
+
+  async softRemove(
+    projectId: string,
+    ticketId: string,
+    replyId: string,
+    userId: string,
+  ) {
+    const reply = await this.replyRepo.findOne({
+      where: {
+        id: replyId,
+        ticketId,
+      },
+    });
+
+    if (!reply) {
+      throw new NotFoundException('Reply not found');
+    }
+
+    if (reply.authorId !== userId) {
+      throw new BadRequestException('You can only delete your own replies.');
+    }
+
+    reply.updatedBy = userId;
+    await this.replyRepo.save(reply);
+
+    await this.replyRepo.softDelete({ id: replyId, ticketId });
+
+    this.ticketRepliesGateway.broadcastDeleted(projectId, ticketId, replyId);
+
+    return { id: replyId, deleted: true };
+  }
 }
