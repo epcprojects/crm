@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import sgMail from '@sendgrid/mail';
 import { adminInviteTemplate } from './templates/invite.email.template';
 import { forgotPasswordTemplate } from './templates/forgot-password.email.template';
+// import { User } from '../users/entities/user.entity';
 
 import {
   EmailEventType,
@@ -52,6 +53,8 @@ export class NotificationsService {
     private readonly queueService: SqsNotificationQueueService,
     private readonly activityLogService: ActivityLogService,
 
+    // @InjectRepository(User)
+// private readonly userRepository: Repository<User>,
     @InjectRepository(Notification)
     private readonly notificationsRepo: Repository<Notification>,
     // @InjectRepository(ActivityLog)
@@ -156,18 +159,20 @@ export class NotificationsService {
       await this.queueService.publish(event);
       return;
     }
+    
+    console.debug(`Dispatching notification event ${event.type} directly`);
 
     switch (event.type) {
       case EmailEventType.PROJECT_CREATED:
-        return this.onProjectCreated(event.payload);
+        return this.onProjectCreated(event.payload); // not needed
       case EmailEventType.PROJECT_ASSIGNED:
         return this.onProjectAssigned(event.payload);
-      case EmailEventType.THREAD_MESSAGE_CREATED:
+      case EmailEventType.THREAD_MESSAGE_CREATED: // done
         return this.onThreadMessageCreated(event.payload);
-      case EmailEventType.TICKET_CREATED:
-        return this.onTicketCreated(event.payload);
-      case EmailEventType.TICKET_REPLY_POSTED:
-        return this.onTicketReplyPosted(event.payload);
+      case EmailEventType.TICKET_CREATED:// done
+        return this.onTicketCreated(event.payload);  
+      case EmailEventType.TICKET_REPLY_POSTED:// almost done
+        return this.onTicketReplyPosted(event.payload); 
       case EmailEventType.TICKET_STATUS_UPDATED:
         return this.onTicketStatusUpdated(event.payload);
       case EmailEventType.TICKET_PRIORITY_UPDATED:
@@ -218,7 +223,7 @@ export class NotificationsService {
     );
             // Internal notes: exclude the poster themselves from the notification list
     const recipients = p.participants.filter(
-      (r) => r.email !== p.createdBy.email,
+      (r) => r.email !== p.createdBy.email && r.isInvitationAccepted === true,
     );
     // Notify all members
     await this.sendBulk(recipients, subject, html);
@@ -234,7 +239,7 @@ export class NotificationsService {
     );
             // Internal notes: exclude the poster themselves from the notification list
     const recipients = p.participants.filter(
-      (r) => r.email !== p.createdBy.email,
+      (r) => r.email !== p.createdBy.email && r.isInvitationAccepted === true,
     );
     // Notify all members
     await this.sendBulk(recipients, subject, html);
@@ -251,7 +256,7 @@ export class NotificationsService {
     );
     // Internal notes: exclude the poster themselves from the notification list
     const recipients = p.participants.filter(
-      (r) => r.email !== p.postedBy.email,
+      (r) => r.email !== p.postedBy.email && r.isInvitationAccepted === true,
     );
     await this.sendBulk(recipients, subject, html);
   }
@@ -265,7 +270,7 @@ export class NotificationsService {
       this.appName,
     );
     const recipients = p.participants.filter(
-      (r) => r.email !== p.updatedBy.email,
+      (r) => r.email !== p.updatedBy.email && r.isInvitationAccepted === true,
     );
     await this.sendBulk(recipients, subject, html);
   }
@@ -279,7 +284,7 @@ export class NotificationsService {
       this.appName,
     );
     const recipients = p.participants.filter(
-      (r) => r.email !== p.updatedBy.email,
+      (r) => r.email !== p.updatedBy.email && r.isInvitationAccepted === true,
     );
     await this.sendBulk(recipients, subject, html);
   }
@@ -310,7 +315,7 @@ export class NotificationsService {
       this.appName,
     );
     const recipients = p.participants.filter(
-      (r) => r.email !== p.uploadedBy.email,
+      (r) => r.email !== p.uploadedBy.email && r.isInvitationAccepted === true,
     );
     await this.sendBulk(recipients, subject, html);
   }
