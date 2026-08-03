@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import {
   ALLOWED_ATTACHMENT_ACCEPT,
   validateAttachments,
@@ -9,6 +10,7 @@ import {
   EditIcon,
   EmptyRepliesIcon,
   FileTypePlaceholder,
+  ThreedotIcon,
   TrashIcon,
 } from '../../../public/icons';
 import { getFileUrl } from '../projects/ProjectFilesPanel';
@@ -46,6 +48,8 @@ type DiscussionPanelProps = {
     reply: DiscussionReply;
     message: string;
   }) => Promise<void> | void;
+  onDeleteReply?: (reply: DiscussionReply) => Promise<void> | void;
+  deletingReplyId?: string;
   editingReplyId?: string;
   onDeleteAttachment?: (attachment: DiscussionAttachment) => void;
   deletingAttachmentId?: string;
@@ -78,6 +82,8 @@ export default function ProjectThreadPanel({
   showReplyMeta = false,
   onReplyClick,
   onEditReply,
+  onDeleteReply,
+  deletingReplyId,
   editingReplyId,
   onDeleteAttachment,
   deletingAttachmentId,
@@ -88,6 +94,9 @@ export default function ProjectThreadPanel({
   const [attachmentError, setAttachmentError] = useState('');
   const [attachmentToDelete, setAttachmentToDelete] =
     useState<DiscussionAttachment | null>(null);
+  const [replyToDelete, setReplyToDelete] = useState<DiscussionReply | null>(
+    null,
+  );
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [activeGalleryIndex, setActiveGalleryIndex] = useState<number | null>(
     null,
@@ -291,6 +300,15 @@ export default function ProjectThreadPanel({
     setAttachmentToDelete(null);
   };
 
+  const handleConfirmDeleteReply = async () => {
+    if (!replyToDelete || !onDeleteReply) {
+      return;
+    }
+
+    await onDeleteReply(replyToDelete);
+    setReplyToDelete(null);
+  };
+
   const openGallery = (images: GalleryImage[], index: number) => {
     if (!images.length || index < 0) {
       return;
@@ -353,12 +371,12 @@ export default function ProjectThreadPanel({
         >
           {headerReply ? (
             <div className="  pb-4">
-              <article className="flex items-start gap-3">
+              <article className="flex  items-start gap-3">
                 <span className="flex w-7 h-7 md:h-9 md:w-9 shrink-0 items-center justify-center rounded-full border border-violet-200 bg-violet-100 text-xs font-bold text-purple-700">
                   {headerReply.author.initials}
                 </span>
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <div className="mb-1 flex flex-wrap items-center gap-2">
+                <div className="flex min-w-0 flex-1  p-2 rounded-xl rounded-tl-none border border-violet-200 flex-col">
+                  <div className="mb-1 flex  flex-wrap items-center gap-2">
                     <span className="text-sm font-bold text-gray-900">
                       {headerReply.author.name}
                     </span>
@@ -369,13 +387,55 @@ export default function ProjectThreadPanel({
                     currentUserId &&
                     headerReply.authorId === currentUserId &&
                     editingMessageId !== headerReply.id ? (
-                      <button
-                        type="button"
-                        onClick={() => startEditingReply(headerReply)}
-                        className="text-xs font-medium text-gray-500 transition hover:text-gray-700"
-                      >
-                        <EditIcon width="12" height="12" />
-                      </button>
+                      <Menu as="div" className="relative">
+                        <MenuButton
+                          type="button"
+                          disabled={
+                            deletingReplyId === headerReply.id ||
+                            editingReplyId === headerReply.id
+                          }
+                          aria-label="Message actions"
+                          className="flex h-6 w-6 items-center justify-center rounded-md text-gray-500 outline-none transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <ThreedotIcon />
+                        </MenuButton>
+
+                        <MenuItems
+                          anchor="bottom end"
+                          transition
+                          className="z-100 mt-1 w-32 origin-top-right rounded-lg border border-gray-200 bg-white p-1 shadow-[0_10px_30px_rgb(0_0_0/0.12)] outline-none transition duration-150 data-closed:-translate-y-1 data-closed:scale-95 data-closed:opacity-0"
+                        >
+                          {headerReply.message.trim() &&
+                          headerReply.message.trim() !== 'Message deleted' ? (
+                            <MenuItem>
+                              <button
+                                type="button"
+                                disabled={editingReplyId === headerReply.id}
+                                onClick={() => startEditingReply(headerReply)}
+                                className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs font-medium text-gray-700 outline-none transition data-focus:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <EditIcon width="14" height="14" />
+                                Edit
+                              </button>
+                            </MenuItem>
+                          ) : null}
+                          {onDeleteReply ? (
+                            <MenuItem>
+                              <button
+                                type="button"
+                                disabled={deletingReplyId === headerReply.id}
+                                onClick={() => setReplyToDelete(headerReply)}
+                                className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs font-medium text-red-500 outline-none transition data-focus:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <TrashIcon width="16" height="16" />
+                                {deletingReplyId === headerReply.id
+                                  ? 'Deleting...'
+                                  : 'Delete'}
+                              </button>
+                            </MenuItem>
+                          ) : null}
+                        </MenuItems>
+                      </Menu>
                     ) : null}
                   </div>
                   {editingMessageId === headerReply.id ? (
@@ -472,7 +532,7 @@ export default function ProjectThreadPanel({
                 return (
                   <article
                     key={reply.id}
-                    className={`flex items-start gap-2 md:gap-3 ${
+                    className={`flex items-start gap-2 md:gap-3  ${
                       isCurrentUserReply ? 'justify-start' : 'justify-start'
                     }`}
                   >
@@ -481,125 +541,176 @@ export default function ProjectThreadPanel({
                       {reply.author.initials}
                     </span>
                     {/* ) : null} */}
-                    <div
-                      className={`flex w-full flex-col ${
-                        isCurrentUserReply ? 'items-start' : 'items-start'
-                      }`}
-                    >
+                    <div className="flex flex-col ">
                       <div
-                        className={`mb-1 flex flex-wrap items-center gap-2 ${
-                          isCurrentUserReply ? 'justify-start' : ''
+                        className={`flex flex-col rounded-xl rounded-tl-none border border-violet-200 p-2 w-fit ${
+                          isCurrentUserReply ? 'items-start' : 'items-start'
                         }`}
                       >
-                        <span className="text-xs md:text-sm font-bold text-gray-900">
-                          {reply.author.name}
-                        </span>
-                        <span className="text-xs text-gray-700">
-                          {reply.createdAt}
-                        </span>
-                        {onEditReply &&
-                        isCurrentUserReply &&
-                        editingMessageId !== reply.id ? (
-                          <button
-                            type="button"
-                            onClick={() => startEditingReply(reply)}
-                            className="text-xs font-medium text-gray-500 transition hover:text-gray-700"
-                          >
-                            <EditIcon width="12" height="12" />
-                          </button>
-                        ) : null}
-                      </div>
-                      {reply.message || reply.attachments?.length ? (
                         <div
-                          className={`w-full rounded-xl ${isCurrentUserReply ? 'rounded-tr-none' : 'rounded-tl-none'} ${reply.message && 'space-y-2'}  bg-white  `}
+                          className={`mb-1 flex flex-wrap items-center gap-2 ${
+                            isCurrentUserReply ? 'justify-start' : ''
+                          }`}
                         >
-                          {editingMessageId === reply.id ? (
-                            <InlineEditComposer
-                              editingReplyId={editingReplyId}
-                              editingMessage={editingMessage}
-                              editingTextareaRef={editingTextareaRef}
-                              onChangeMessage={setEditingMessage}
-                              onCancel={cancelEditingReply}
-                              onSave={() => void handleSaveEditedReply(reply)}
-                              onSelectEmoji={handleEditingEmojiSelect}
-                            />
-                          ) : reply.message ? (
-                            <ExpandableMessageText
-                              message={reply.message}
-                              isEdited={reply.isEdited}
-                            />
-                          ) : null}
-                          {reply.attachments?.length ? (
-                            <div
-                              className={`grid flex-wrap gap-2 ${reply.attachments.length > 1 && 'md:grid-cols-3 2xl:grid-cols-6'} ${!reply.message && reply.attachments && reply.attachments.length > 1 && 'p-2'} ${isCurrentUserReply ? 'rounded-tr-none' : 'rounded-tl-none'}`}
-                            >
-                              {reply.attachments.map((attachment) => (
-                                <div
-                                  key={attachment.id}
-                                  className={`flex  min-w-0  w-fit items-start gap-3 ${reply.attachments && reply.attachments.length > 1 && 'md:min-w-40'}  rounded-xl  ${!isImageAttachment(attachment.extension) || (reply.attachments && reply.attachments.length > 1 && 'p-0.5 w-full md:min-w-72 border border-gray-200 bg-gray-50')} transition`}
-                                >
-                                  <a
-                                    href={getAttachmentUrl(
-                                      attachment.storageKey,
-                                    )}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="flex min-w-0 flex-1 items-start gap-3"
-                                    onClick={(event) => {
-                                      if (
-                                        !isImageAttachment(attachment.extension)
-                                      ) {
-                                        return;
-                                      }
+                          <span className="text-xs md:text-sm font-bold text-gray-900">
+                            {reply.author.name}
+                          </span>
+                          <span className="text-xs text-gray-700">
+                            {reply.createdAt}
+                          </span>
+                          {onEditReply &&
+                          isCurrentUserReply &&
+                          editingMessageId !== reply.id ? (
+                            <Menu as="div" className="relative">
+                              <MenuButton
+                                type="button"
+                                disabled={
+                                  deletingReplyId === reply.id ||
+                                  editingReplyId === reply.id
+                                }
+                                aria-label="Message actions"
+                                className="flex h-6 w-6 items-center justify-center rounded-md text-gray-500 outline-none transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <ThreedotIcon />
+                              </MenuButton>
 
-                                      event.preventDefault();
-                                      const index =
-                                        conversationImages.findIndex(
-                                          (image) =>
-                                            image.attachmentId ===
-                                            attachment.id,
-                                        );
-                                      openGallery(conversationImages, index);
-                                    }}
+                              <MenuItems
+                                anchor="bottom end"
+                                transition
+                                className="z-100 mt-1 w-32 origin-top-right rounded-lg border border-gray-200 bg-white p-1 shadow-[0_10px_30px_rgb(0_0_0/0.12)] outline-none transition duration-150 data-closed:-translate-y-1 data-closed:scale-95 data-closed:opacity-0"
+                              >
+                                {reply.message.trim() &&
+                                reply.message.trim() !== 'Message deleted' ? (
+                                  <MenuItem>
+                                    <button
+                                      type="button"
+                                      disabled={editingReplyId === reply.id}
+                                      onClick={() => startEditingReply(reply)}
+                                      className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs font-medium text-gray-700 outline-none transition data-focus:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                      <EditIcon width="14" height="14" />
+                                      Edit
+                                    </button>
+                                  </MenuItem>
+                                ) : null}
+                                {onDeleteReply ? (
+                                  <MenuItem>
+                                    <button
+                                      type="button"
+                                      disabled={deletingReplyId === reply.id}
+                                      onClick={() => setReplyToDelete(reply)}
+                                      className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs font-medium text-red-500 outline-none transition data-focus:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                      <TrashIcon width="16" height="16" />
+                                      {deletingReplyId === reply.id
+                                        ? 'Deleting...'
+                                        : 'Delete'}
+                                    </button>
+                                  </MenuItem>
+                                ) : null}
+                              </MenuItems>
+                            </Menu>
+                          ) : null}
+                        </div>
+                        {reply.message || reply.attachments?.length ? (
+                          <div
+                            className={`w-full rounded-xl ${isCurrentUserReply ? 'rounded-tr-none' : 'rounded-tl-none'} ${reply.message && 'space-y-2'}  bg-white  `}
+                          >
+                            {editingMessageId === reply.id ? (
+                              <InlineEditComposer
+                                editingReplyId={editingReplyId}
+                                editingMessage={editingMessage}
+                                editingTextareaRef={editingTextareaRef}
+                                onChangeMessage={setEditingMessage}
+                                onCancel={cancelEditingReply}
+                                onSave={() => void handleSaveEditedReply(reply)}
+                                onSelectEmoji={handleEditingEmojiSelect}
+                              />
+                            ) : reply.message ? (
+                              <ExpandableMessageText
+                                message={reply.message}
+                                isEdited={reply.isEdited}
+                              />
+                            ) : null}
+                            {reply.attachments?.length ? (
+                              <div
+                                className={`flex flex-wrap gap-2 ${reply.attachments.length > 1 && 'md:grid-cols-3 2xl:grid-cols-6'} ${!reply.message && reply.attachments && reply.attachments.length > 1 && 'p-2'} ${isCurrentUserReply ? 'rounded-tr-none' : 'rounded-tl-none'}`}
+                              >
+                                {reply.attachments.map((attachment) => (
+                                  <div
+                                    key={attachment.id}
+                                    className={`flex  min-w-0 w-full items-start gap-3 ${reply.attachments && reply.attachments.length > 1 && 'md:min-w-60 max-w-40'}  rounded-lg  ${!isImageAttachment(attachment.extension) || (reply.attachments && reply.attachments.length > 1 && 'p-0.5 w-full border border-gray-200 bg-gray-50')} transition`}
                                   >
-                                    {isImageAttachment(attachment.extension) &&
-                                    reply.attachments &&
-                                    reply.attachments.length < 2 ? (
-                                      <img
-                                        className="rounded-sm object-contain w-87.5 h-64  border border-gray-200"
-                                        src={getFileUrl(attachment.storageKey)}
-                                      />
-                                    ) : attachment.extension === 'png' ||
-                                      attachment.extension === 'svg' ||
-                                      attachment.extension === 'jpg' ||
-                                      attachment.extension === 'jpeg' ? (
-                                      <img
-                                        className="rounded-md border border-gray-200 h-10 w-10"
-                                        src={getFileUrl(attachment.storageKey)}
-                                      />
-                                    ) : (
-                                      <AttachmentFileIcon
-                                        extension={attachment.extension}
-                                      />
-                                    )}
-                                    {(!isImageAttachment(
-                                      attachment.extension,
-                                    ) ||
-                                      (reply.attachments &&
-                                        reply.attachments.length > 1)) && (
-                                      <div className="min-w-0 flex-1">
-                                        <p className="truncate text-sm font-medium text-gray-700">
-                                          {attachment.name}
-                                        </p>
-                                        {attachment.sizeLabel ? (
-                                          <p className="text-sm text-gray-500">
-                                            {attachment.sizeLabel}
+                                    <a
+                                      href={getAttachmentUrl(
+                                        attachment.storageKey,
+                                      )}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="flex min-w-0 flex-1 items-start gap-3"
+                                      onClick={(event) => {
+                                        if (
+                                          !isImageAttachment(
+                                            attachment.extension,
+                                          )
+                                        ) {
+                                          return;
+                                        }
+
+                                        event.preventDefault();
+                                        const index =
+                                          conversationImages.findIndex(
+                                            (image) =>
+                                              image.attachmentId ===
+                                              attachment.id,
+                                          );
+                                        openGallery(conversationImages, index);
+                                      }}
+                                    >
+                                      {isImageAttachment(
+                                        attachment.extension,
+                                      ) &&
+                                      reply.attachments &&
+                                      reply.attachments.length < 2 ? (
+                                        <img
+                                          className="rounded-sm object-contain w-87.5 h-64  border border-gray-200"
+                                          src={getFileUrl(
+                                            attachment.storageKey,
+                                          )}
+                                        />
+                                      ) : attachment.extension === 'png' ||
+                                        attachment.extension === 'svg' ||
+                                        attachment.extension === 'jpg' ||
+                                        attachment.extension === 'jpeg' ? (
+                                        <img
+                                          className="rounded-md border border-gray-200 h-10 w-10"
+                                          src={getFileUrl(
+                                            attachment.storageKey,
+                                          )}
+                                        />
+                                      ) : (
+                                        <AttachmentFileIcon
+                                          extension={attachment.extension}
+                                        />
+                                      )}
+                                      {(!isImageAttachment(
+                                        attachment.extension,
+                                      ) ||
+                                        (reply.attachments &&
+                                          reply.attachments.length > 1)) && (
+                                        <div className="min-w-0 flex-1">
+                                          <p className="truncate text-sm font-medium text-gray-700">
+                                            {attachment.name}
                                           </p>
-                                        ) : null}
-                                      </div>
-                                    )}
-                                  </a>
-                                  {/* {onDeleteAttachment ? (
+                                          {attachment.sizeLabel ? (
+                                            <p className="text-sm text-gray-500">
+                                              {attachment.sizeLabel}
+                                            </p>
+                                          ) : null}
+                                        </div>
+                                      )}
+                                    </a>
+                                    {/* {onDeleteAttachment ? (
                                     <button
                                       type="button"
                                       onClick={() =>
@@ -614,13 +725,13 @@ export default function ProjectThreadPanel({
                                       <AttachmentTrashIcon />
                                     </button>
                                   ) : null} */}
-                                </div>
-                              ))}
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : null}
-
+                                  </div>
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
                       {showReplyMeta ? (
                         <button
                           type="button"
@@ -849,6 +960,29 @@ export default function ProjectThreadPanel({
           deletingAttachmentId === attachmentToDelete?.id
         }
         onConfirm={handleConfirmDeleteAttachment}
+      />
+      <ConfirmActionModal
+        isOpen={Boolean(replyToDelete)}
+        onClose={() => {
+          if (replyToDelete && deletingReplyId === replyToDelete.id) {
+            return;
+          }
+
+          setReplyToDelete(null);
+        }}
+        title="Delete Message?"
+        message={
+          replyToDelete?.message.trim()
+            ? 'Are you sure you want to delete this thread message? This action cannot be undone.'
+            : 'Are you sure you want to delete this attachment message? This action cannot be undone.'
+        }
+        confirmLabel="Yes, Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isSubmitting={Boolean(
+          replyToDelete && deletingReplyId === replyToDelete.id,
+        )}
+        onConfirm={handleConfirmDeleteReply}
       />
       <ImageGalleryLightbox
         images={galleryImages}

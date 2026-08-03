@@ -27,7 +27,10 @@ import UploadFileModal, {
 } from '../../../../components/modals/UploadFileModal';
 import ConfirmActionModal from '../../../../components/modals/ConfirmActionModal';
 import ProjectThreadPanel from '../../../../components/discussion/ProjectThreadPanel';
-import type { DiscussionAttachment } from '../../../../components/discussion/types';
+import type {
+  DiscussionAttachment,
+  DiscussionReply,
+} from '../../../../components/discussion/types';
 import ProjectFilesPanel, {
   type ProjectFileRecord,
 } from '../../../../components/projects/ProjectFilesPanel';
@@ -113,6 +116,7 @@ export default function ProjectDetailPage() {
     null,
   );
   const [selectedThreadMessageId, setSelectedThreadMessageId] = useState('');
+  const [deletingThreadReplyId, setDeletingThreadReplyId] = useState('');
   const [editingThreadReplyId, setEditingThreadReplyId] = useState('');
   const [threadSocketToken, setThreadSocketToken] =
     useState<SocketTokenResponse | null>(null);
@@ -311,6 +315,56 @@ export default function ProjectDetailPage() {
         error instanceof Error
           ? error.message
           : 'Failed to update thread message.',
+      );
+    },
+  });
+
+  const deleteProjectThreadMutation = useMutation({
+    mutationFn: async ({ messageId }: { messageId: string }) => {
+      const response = await fetch(
+        `/api/projects/${projectId}/thread/${messageId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Accept: 'application/json',
+          },
+        },
+      );
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const errorMessage =
+          Array.isArray(data?.message) && data.message.length
+            ? data.message.join(', ')
+            : data?.message || 'Failed to delete thread message.';
+        throw new Error(errorMessage);
+      }
+
+      return data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: [...projectThreadQueryKey, projectId],
+      });
+
+      if (selectedThreadMessageId) {
+        await queryClient.invalidateQueries({
+          queryKey: [
+            ...projectThreadDetailQueryKey,
+            projectId,
+            selectedThreadMessageId,
+          ],
+        });
+      }
+
+      appToast.success('Thread deleted successfully.');
+    },
+    onError: (error) => {
+      appToast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to delete thread message.',
       );
     },
   });
@@ -735,7 +789,7 @@ export default function ProjectDetailPage() {
     reply,
     message,
   }: {
-    reply: { id: string };
+    reply: DiscussionReply;
     message: string;
   }) => {
     setEditingThreadReplyId(reply.id);
@@ -751,6 +805,22 @@ export default function ProjectDetailPage() {
       });
     } finally {
       setEditingThreadReplyId('');
+    }
+  };
+
+  const handleDeleteProjectThreadReply = async (reply: DiscussionReply) => {
+    try {
+      setDeletingThreadReplyId(reply.id);
+
+      if (selectedThreadMessageId === reply.id) {
+        setSelectedThreadMessageId('');
+      }
+
+      await deleteProjectThreadMutation.mutateAsync({
+        messageId: reply.id,
+      });
+    } finally {
+      setDeletingThreadReplyId('');
     }
   };
 
@@ -1254,10 +1324,16 @@ export default function ProjectDetailPage() {
                                 ? handleEditProjectThreadReply
                                 : undefined
                             }
+                            onDeleteReply={
+                              canPostThreadMessage
+                                ? handleDeleteProjectThreadReply
+                                : undefined
+                            }
                             isSubmittingReply={
                               createProjectThreadMutation.isPending &&
                               !selectedThreadMessageId
                             }
+                            deletingReplyId={deletingThreadReplyId}
                             editingReplyId={editingThreadReplyId}
                             canCompose={canPostThreadMessage}
                             canAttachFile={canAttachThreadFile}
@@ -1312,10 +1388,12 @@ export default function ProjectDetailPage() {
                                 : undefined
                             }
                             onEditReply={handleEditProjectThreadReply}
+                            onDeleteReply={handleDeleteProjectThreadReply}
                             isSubmittingReply={
                               createProjectThreadMutation.isPending &&
                               Boolean(selectedThreadMessageId)
                             }
+                            deletingReplyId={deletingThreadReplyId}
                             editingReplyId={editingThreadReplyId}
                             canCompose={canPostThreadReply}
                             canAttachFile={
