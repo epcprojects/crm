@@ -353,7 +353,7 @@ const members = (ticket.project?.members || [])
   }
 
   //
-  async findAllProjects(query: GetTicketsQueryDto, user) {
+ async findAllProjects(query: GetTicketsQueryDto, user) {
     const qb = this.ticketRepo
       .createQueryBuilder('t')
       .leftJoin('t.project', 'p')
@@ -478,10 +478,6 @@ const members = (ticket.project?.members || [])
       't.createdAt',
       't.ticketRefNo',
       't.dueDate',
-       
-      'cb.id',
-      'cb.email',
-      'cb.fullName',
 
       'p.id',
       'p.name',

@@ -118,8 +118,8 @@ export class ProjectsController {
   @Delete(':id')
   // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({ summary: 'Delete a project' })
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.projectsService.softRemove(id);
+  remove(@Param('id', ParseUUIDPipe) id: string, @GetUser() user) {
+    return this.projectsService.softRemove(id, user);
   }
 
   @Get(':id/members')

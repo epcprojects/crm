@@ -508,14 +508,15 @@ export class ProjectsService {
   //   };
   // }
 
-  async softRemove(id: string) {
-    await this.findOne(id);
+  async softRemove(id: string, user) {
+    const proj = await this.findOne(id);
 
     await this.projectRepo.softDelete(id);
 
     await this.projectRepo.update(id, {
       isActive: false,
     });
+
 
     const recipients = proj.members
       .map((m) => m.id)
