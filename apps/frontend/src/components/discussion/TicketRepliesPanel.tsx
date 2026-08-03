@@ -577,7 +577,6 @@ export default function TicketRepliesPanel({
                                       type="button"
                                       variant="secondary"
                                       size="md"
-                                      fullRounded
                                       onClick={cancelEditingReply}
                                       disabled={editingReplyId === reply.id}
                                       className="disabled:cursor-not-allowed disabled:opacity-60"
@@ -589,7 +588,6 @@ export default function TicketRepliesPanel({
                                       type="button"
                                       variant="primaryGradient"
                                       size="md"
-                                      fullRounded
                                       onClick={() =>
                                         void handleSaveEditedReply(reply)
                                       }

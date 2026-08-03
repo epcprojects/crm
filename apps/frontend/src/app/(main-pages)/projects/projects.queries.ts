@@ -856,9 +856,8 @@ function mapApiProjectThreadMessageToReply(
     updatedAt: getNonEmptyString(message.updatedAt) ?? undefined,
     isEdited: Boolean(
       message.updatedAt &&
-        message.createdAt &&
-        new Date(message.updatedAt).getTime() >
-          new Date(message.createdAt).getTime(),
+        Math.floor(new Date(message.updatedAt).getTime() / 1000) >
+          Math.floor(new Date(message.createdAt).getTime() / 1000),
     ),
     message: message.message?.trim() ?? '',
     attachments: Array.isArray(message.attachments)
@@ -986,8 +985,8 @@ function mapApiProjectTicketToRecentTicket(
       name: assigneeName,
       initials: getInitials(assigneeName),
     },
-    date: formatTicketDate( ticket.createdAt),
-     dueDate: formatTicketDate(ticket.dueDate ?? ticket.createdAt),
+    date: formatTicketDate(ticket.createdAt),
+    dueDate: formatTicketDate(ticket.dueDate ?? ticket.createdAt),
     sortDate: ticket.dueDate ?? ticket.createdAt,
     reporter: {
       id: ticket.reporter.id,

@@ -135,14 +135,14 @@ export class TicketsService {
         },
       });
 
-const members = (ticket.project?.members || [])
-  .filter((m) => m.id !== userId)
-  .map((m) => ({
-    name: m.fullName,
-    email: m.email,
-  }));
+      const members = (ticket.project?.members || [])
+        .filter((m) => m.id !== userId)
+        .map((m) => ({
+          name: m.fullName,
+          email: m.email,
+        }));
 
-      console.debug("Tcietk daved", saved.id, "members", members.length);
+      console.debug('Tcietk daved', saved.id, 'members', members.length);
       const participantsMap = new Map<
         string,
         { name: string; email: string }
@@ -353,7 +353,7 @@ const members = (ticket.project?.members || [])
   }
 
   //
- async findAllProjects(query: GetTicketsQueryDto, user) {
+  async findAllProjects(query: GetTicketsQueryDto, user) {
     const qb = this.ticketRepo
       .createQueryBuilder('t')
       .leftJoin('t.project', 'p')
@@ -640,6 +640,7 @@ const members = (ticket.project?.members || [])
     Object.assign(ticket, {
       ...rest,
       updatedBy: userId,
+      updatedAt: new Date(),
     });
 
     if (statusKey && statusKey !== oldStatus?.key) {
@@ -751,7 +752,6 @@ const members = (ticket.project?.members || [])
 
     return this.ticketRepo.save(ticket);
   }
-
 
   async findTicketRefNo(ticketId: string) {
     const ticket = await this.ticketRepo.findOne({

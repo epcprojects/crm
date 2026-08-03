@@ -1,16 +1,21 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { normalizeEmail } from '../../../../lib/api-client';
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    const normalizedBody =
+      typeof body?.email === 'string'
+        ? { ...body, email: normalizeEmail(body.email) }
+        : body;
 
     const response = await fetch(`${process.env.API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(normalizedBody),
     });
 
     const data = await response.json();

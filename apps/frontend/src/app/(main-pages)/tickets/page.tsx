@@ -814,7 +814,6 @@ export default function Page() {
                             <span className="shrink-0">
                               <SearchIcon fill="#374151" />
                             </span>
-
                             <input
                               type="text"
                               value={searchValue}
@@ -841,6 +840,79 @@ export default function Page() {
                             </button>
                           </div>
                         </div>
+                        <Popover as="div" className="block sm:hidden ">
+                          {({ open }) => (
+                            <>
+                              <PopoverButton
+                                className={`flex h-10 shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium outline-none ${
+                                  open
+                                    ? 'border-primary  text-white'
+                                    : 'border-gray-200 bg-white text-gray-700'
+                                }`}
+                                aria-label="Open filters"
+                              >
+                                <FiltersIcon />
+                              </PopoverButton>
+
+                              <PopoverPanel
+                                anchor="bottom end"
+                                transition
+                                className="z-100 mt-2 flex w-60 origin-top-right flex-col gap-3 overflow-visible!  rounded-xl border border-gray-200 bg-white p-3 shadow-[0_14px_44px_rgb(0_0_0/0.14)] outline-none transition duration-150 data-closed:-translate-y-2 data-closed:scale-95 data-closed:opacity-0"
+                              >
+                                <div className="relative w-full overflow-visible">
+                                  <Dropdown
+                                    options={projectFilterOptions}
+                                    value={selectedProject}
+                                    onChange={(value) =>
+                                      updateTicketsPageFilters({
+                                        project: value,
+                                      })
+                                    }
+                                    placeholder="All Projects"
+                                    maxMenuHeight={150}
+                                  />
+                                </div>
+
+                                <div className="relative w-full overflow-visible">
+                                  <Dropdown
+                                    options={statusFilterOptions}
+                                    value={selectedStatus}
+                                    onChange={(value) =>
+                                      updateTicketsPageFilters({
+                                        status: value,
+                                      })
+                                    }
+                                    placeholder="All Status"
+                                    maxMenuHeight={150}
+                                  />
+                                </div>
+
+                                <div className="relative w-full overflow-visible">
+                                  <Dropdown
+                                    options={priorityFilterOptions}
+                                    value={selectedPriority}
+                                    onChange={(value) =>
+                                      updateTicketsPageFilters({
+                                        priority: value,
+                                      })
+                                    }
+                                    placeholder="All Priority"
+                                    maxMenuHeight={150}
+                                  />
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={clearTicketFilters}
+                                  disabled={!hasActiveTicketFilters}
+                                  className="inline-flex h-10 items-center justify-center rounded-lg border border-gray-200 px-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  Clear Filters
+                                </button>
+                              </PopoverPanel>
+                            </>
+                          )}
+                        </Popover>
                       </div>
 
                       <div className="flex  flex-col gap-3 md:flex-row xl:items-center  justify-end">
@@ -957,6 +1029,7 @@ export default function Page() {
                             }
                             placeholder="All Projects"
                             maxMenuHeight={320}
+                            showSearch={true}
                           />
                         </div>
 
@@ -971,6 +1044,7 @@ export default function Page() {
                               placeholder="All Status"
                               minHeight="min-h-70"
                               menuScrollable={false}
+                              showSearch={true}
                             />
                           </div>
                         )}
@@ -982,6 +1056,7 @@ export default function Page() {
                             onChange={(value) =>
                               updateTicketsPageFilters({ priority: value })
                             }
+                            showSearch={true}
                             placeholder="All Priority"
                           />
                         </div>
@@ -997,7 +1072,6 @@ export default function Page() {
                         <ThemeButton
                           type="button"
                           variant="secondary"
-                          fullRounded
                           size="md"
                           onClick={clearTicketFilters}
                           disabled={!hasActiveTicketFilters}
@@ -1007,7 +1081,10 @@ export default function Page() {
                         </ThemeButton>
 
                         <div className="flex flex-row gap-3 ">
-                          <Popover as="div" className="relative  md:hidden">
+                          <Popover
+                            as="div"
+                            className="relative hidden md:hidden"
+                          >
                             {({ open }) => (
                               <>
                                 <PopoverButton

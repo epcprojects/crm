@@ -664,6 +664,7 @@ export default function Page() {
                         onChange={(value) =>
                           updateUsersPageFilters({ roleId: value })
                         }
+                        showSearch={true}
                         placeholder="All Roles"
                       />
                     </div>
@@ -675,6 +676,7 @@ export default function Page() {
                         onChange={(value) =>
                           updateUsersPageFilters({ projectId: value })
                         }
+                        showSearch={true}
                         placeholder="All Projects"
                       />
                     </div>
@@ -691,7 +693,6 @@ export default function Page() {
                       type="button"
                       variant="secondary"
                       size="md"
-                      fullRounded
                       onClick={clearUsersFilters}
                       disabled={!hasSearchOrFilters}
                       className="hidden h-10 shrink-0 disabled:cursor-not-allowed disabled:opacity-50 xl:inline-flex"
@@ -838,7 +839,7 @@ function getInviteUserPayload(
   roleOptions: Array<{ id?: string; value: string }>,
 ) {
   return {
-    email: values.email,
+    email: values.email.trim().toLowerCase(),
     ...getUpdateUserPayload({
       ...values,
       role:

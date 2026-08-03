@@ -80,7 +80,7 @@ export default function LoginPageClient() {
     onSubmit: async (values) => {
       const result = await dispatch(
         signInThunk({
-          email: values.email,
+          email: values.email.trim().toLowerCase(),
           password: values.password,
         }),
       );
@@ -158,7 +158,6 @@ export default function LoginPageClient() {
                   type="submit"
                   disabled={authStatus === 'loading'}
                   className="w-full"
-                  fullRounded
                   size="lg"
                 >
                   {authStatus === 'loading' ? 'Signing in...' : 'Sign in'}
@@ -216,7 +215,7 @@ export default function LoginPageClient() {
               Accept: 'application/json',
             },
             body: JSON.stringify({
-              email: values.email.trim(),
+              email: values.email.trim().toLowerCase(),
             }),
           });
 
