@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
@@ -35,6 +39,15 @@ export class ProjectsService {
   ) {}
 
   async createProject(dto: CreateProjectDto, currentUser: User) {
+    const existing = await this.projectRepo
+      .createQueryBuilder('p')
+      .where('LOWER(p.name) = LOWER(:name)', { name: dto.name.trim() })
+      .getOne();
+
+    if (existing) {
+      throw new ConflictException('A project with this name already exists');
+    }
+
     // 1. Create project
     const [{ nextval }] = await this.dataSource.query(
       `SELECT nextval('project_code_seq')`,
@@ -472,6 +485,24 @@ export class ProjectsService {
   async update(id: string, updateProjectDto: UpdateProjectDto, user) {
     const proj = await this.findOne(id, true, user);
 
+    if (updateProjectDto.name) {
+      const trimmedName = updateProjectDto.name.trim();
+      const nameChanged = trimmedName.toLowerCase() !== proj.name.toLowerCase();
+
+      if (nameChanged) {
+        const existing = await this.projectRepo
+          .createQueryBuilder('p')
+          .where('LOWER(p.name) = LOWER(:name)', { name: trimmedName })
+          .andWhere('p.id != :id', { id })
+          .getOne();
+
+        if (existing) {
+          throw new ConflictException(
+            'A project with this name already exists',
+          );
+        }
+      }
+    }
     await this.projectRepo.update(id, {
       ...updateProjectDto,
       updatedBy: user.id,
@@ -516,7 +547,6 @@ export class ProjectsService {
     await this.projectRepo.update(id, {
       isActive: false,
     });
-
 
     const recipients = proj.members
       .map((m) => m.id)
