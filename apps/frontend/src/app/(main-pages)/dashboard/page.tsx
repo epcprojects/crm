@@ -206,6 +206,10 @@ export default function Page() {
         label: 'All Status',
         value: 'all',
       },
+      {
+        label: 'Active',
+        value: 'Active',
+      },
       ...(ticketStatusesQuery.data ?? []).map(mapTicketSettingToDropdownOption),
     ],
     [ticketStatusesQuery.data],
@@ -2142,7 +2146,7 @@ export function getInitials(value: string) {
 
 function getDashboardStatusFilterValue(value: string | null) {
   if (!value || !value.trim()) {
-    return 'Open';
+    return 'Active';
   }
 
   return value;
