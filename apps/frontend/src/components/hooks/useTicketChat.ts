@@ -574,7 +574,19 @@ export function useTicketChat({
         return nextMessage;
       }
 
-      throw new Error('Failed to update message.');
+      return {
+        id: messageId,
+        projectId,
+        ticketId,
+        senderId: '',
+        message: payload.message,
+        messageType: payload.messageType ?? 'text',
+        attachmentUrls: payload.attachmentUrls ?? null,
+        attachmentName: payload.attachmentName ?? null,
+        attachmentSize: payload.attachmentSize ?? null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
     },
     [channel, projectId, ticketId],
   );
