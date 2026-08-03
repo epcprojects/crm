@@ -13,7 +13,7 @@ import { UpdateRoleDto } from './dto/update-role.dto';
 import { RoleClaim } from './entities/role.claim.entity';
 import { UserRole } from '../users/entities/user.roles.entity';
 import { GetRoleQueryDTO } from './dto/get-role-query.dto';
-import { User } from '../users/entities/user.entity';
+// import { User } from '../users/entities/user.entity';
 
 @Injectable()
 export class RolesService {
