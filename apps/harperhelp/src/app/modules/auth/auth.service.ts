@@ -91,7 +91,7 @@ export class AuthService {
 
     await this.usersService.activateInvitedUser(user.id, passwordHash);
 
-   const username = await this.usersService.getFullName(user.id); // Fetch full name after activation
+    const username = await this.usersService.getFullName(user.id); // Fetch full name after activation
 
     // Send in App notification.
     await this.notificationsService.notifyProjectMembers({
