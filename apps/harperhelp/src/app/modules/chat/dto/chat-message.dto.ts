@@ -50,7 +50,7 @@ export class GetMessagesQueryDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsNumber()
-  limit?: number = 50;
+  limit?: number;
 
   // cursor-based pagination — pass createdAt of oldest loaded message
   @ApiPropertyOptional()
