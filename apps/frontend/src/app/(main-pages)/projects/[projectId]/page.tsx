@@ -769,7 +769,7 @@ export default function ProjectDetailPage() {
     message: string;
     attachments: File[];
   }) => {
-    if (!canEditThread) {
+    if (!canPostThreadMessage) {
       return;
     }
 
