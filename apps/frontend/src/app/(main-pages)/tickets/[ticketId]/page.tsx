@@ -309,6 +309,52 @@ export default function TicketDetailPage() {
       );
     },
   });
+  const deleteReplyMutation = useMutation({
+    mutationFn: async ({ replyId }: { replyId: string }) => {
+      const response = await fetch(
+        `/api/tickets/${ticketId}/projects/${projectId}/reply/${replyId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Accept: 'application/json',
+          },
+        },
+      );
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const errorMessage =
+          Array.isArray(data?.message) && data.message.length
+            ? data.message.join(', ')
+            : data?.message || 'Failed to delete reply.';
+        throw new Error(errorMessage);
+      }
+
+      return data;
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['ticket-replies', ticketId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'ticket-summary'],
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: projectsQueryKey,
+          refetchType: 'all',
+        }),
+      ]);
+      appToast.success('Reply deleted successfully.');
+    },
+    onError: (error) => {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to delete reply.',
+      );
+    },
+  });
 
   const ticket = ticketDetailQuery.data ?? fallbackTicket;
   const [chatDrawerChannel, setChatDrawerChannel] =
@@ -385,6 +431,7 @@ export default function TicketDetailPage() {
 
   const [isSendingChatMessage, setIsSendingChatMessage] = useState(false);
   const [deletingChatMessageId, setDeletingChatMessageId] = useState('');
+  const [deletingTicketReplyId, setDeletingTicketReplyId] = useState('');
   const [editingChatMessageId, setEditingChatMessageId] = useState('');
   const [editingTicketReplyId, setEditingTicketReplyId] = useState('');
   const [chatMessagePendingDelete, setChatMessagePendingDelete] = useState<{
@@ -392,6 +439,8 @@ export default function TicketDetailPage() {
     message: string;
     channel: ChatChannel;
   } | null>(null);
+  const [ticketReplyPendingDelete, setTicketReplyPendingDelete] =
+    useState<DiscussionReply | null>(null);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [activeGalleryIndex, setActiveGalleryIndex] = useState<number | null>(
     null,
@@ -1265,6 +1314,10 @@ export default function TicketDetailPage() {
     });
   };
 
+  const handleDeleteTicketReply = (reply: DiscussionReply) => {
+    setTicketReplyPendingDelete(reply);
+  };
+
   const handleConfirmDeleteChatMessage = async () => {
     if (!chatMessagePendingDelete) {
       return;
@@ -1285,6 +1338,30 @@ export default function TicketDetailPage() {
     } finally {
       setDeletingChatMessageId('');
       setChatMessagePendingDelete(null);
+    }
+  };
+
+  const handleConfirmDeleteTicketReply = async () => {
+    if (!ticketReplyPendingDelete) {
+      return;
+    }
+
+    const replyId = ticketReplyPendingDelete.id;
+
+    try {
+      setDeletingTicketReplyId(replyId);
+      setLiveReplies((current) =>
+        current.filter((reply) => reply.id !== replyId),
+      );
+      await deleteReplyMutation.mutateAsync({ replyId });
+      setTicketReplyPendingDelete(null);
+    } catch (error) {
+      await queryClient.invalidateQueries({
+        queryKey: ['ticket-replies', ticketId],
+      });
+      throw error;
+    } finally {
+      setDeletingTicketReplyId('');
     }
   };
 
@@ -1875,6 +1952,8 @@ export default function TicketDetailPage() {
                     onDeleteReply={
                       isInternalChatActive && canViewInternalChatBtn
                         ? handleDeleteChatMessage
+                        : canPostReplies
+                          ? handleDeleteTicketReply
                         : undefined
                     }
                     onEditReply={
@@ -1892,7 +1971,7 @@ export default function TicketDetailPage() {
                     deletingReplyId={
                       isInternalChatActive && canViewInternalChatBtn
                         ? deletingChatMessageId
-                        : undefined
+                        : deletingTicketReplyId
                     }
                     editingReplyId={
                       isInternalChatActive && canViewInternalChatBtn
@@ -2272,6 +2351,27 @@ export default function TicketDetailPage() {
         variant="danger"
         isSubmitting={deleteProjectFileMutation.isPending}
         onConfirm={handleConfirmDeleteAttachment}
+      />
+      <ConfirmActionModal
+        isOpen={Boolean(ticketReplyPendingDelete)}
+        onClose={() => {
+          if (deletingTicketReplyId) {
+            return;
+          }
+
+          setTicketReplyPendingDelete(null);
+        }}
+        title="Delete Reply?"
+        message={
+          ticketReplyPendingDelete?.message.trim()
+            ? 'Are you sure you want to delete this reply? This action cannot be undone.'
+            : 'Are you sure you want to delete this attachment reply? This action cannot be undone.'
+        }
+        confirmLabel="Yes, Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isSubmitting={Boolean(deletingTicketReplyId)}
+        onConfirm={handleConfirmDeleteTicketReply}
       />
 
       <ImageGalleryLightbox

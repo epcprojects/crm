@@ -83,3 +83,62 @@ export async function PUT(
     );
   }
 }
+
+export async function DELETE(
+  _request: Request,
+  context: {
+    params: Promise<{
+      ticketId: string;
+      projectId: string;
+      replyId: string;
+    }>;
+  },
+) {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('access_token')?.value;
+
+    if (!token) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+
+    const apiBaseUrl = getApiBaseUrl();
+
+    if (!apiBaseUrl) {
+      return NextResponse.json(
+        { message: 'API_BASE_URL is not configured.' },
+        { status: 500 },
+      );
+    }
+
+    const { ticketId, projectId, replyId } = await context.params;
+
+    const response = await fetch(
+      `${apiBaseUrl}/tickets/${ticketId}/projects/${projectId}/reply/${replyId}`,
+      {
+        method: 'DELETE',
+        headers: {
+          Accept: '*/*',
+          Authorization: `Bearer ${token}`,
+        },
+        cache: 'no-store',
+      },
+    );
+
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { message: data?.message || 'Failed to delete ticket reply.' },
+        { status: response.status },
+      );
+    }
+
+    return NextResponse.json(data ?? { success: true }, { status: response.status });
+  } catch {
+    return NextResponse.json(
+      { message: 'Something went wrong while deleting the ticket reply.' },
+      { status: 500 },
+    );
+  }
+}
