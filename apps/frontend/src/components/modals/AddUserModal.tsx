@@ -67,7 +67,10 @@ export default function AddUserModal({
     enableReinitialize: true,
     validationSchema: addUserSchema,
     onSubmit: async (values, { resetForm }) => {
-      await onConfirm?.(values);
+      await onConfirm?.({
+        ...values,
+        email: values.email.trim().toLowerCase(),
+      });
       resetForm();
       onClose();
     },

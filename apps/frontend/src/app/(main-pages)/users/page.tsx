@@ -838,7 +838,7 @@ function getInviteUserPayload(
   roleOptions: Array<{ id?: string; value: string }>,
 ) {
   return {
-    email: values.email,
+    email: values.email.trim().toLowerCase(),
     ...getUpdateUserPayload({
       ...values,
       role:

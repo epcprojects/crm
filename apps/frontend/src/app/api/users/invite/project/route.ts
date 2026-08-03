@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { normalizeEmail } from '../../../../../lib/api-client';
 
 type InviteProjectUserPayload = {
   email?: string;
@@ -38,6 +39,11 @@ export async function POST(request: Request) {
     }
 
     const body = (await request.json()) as InviteProjectUserPayload;
+    const normalizedBody = {
+      ...body,
+      email:
+        typeof body.email === 'string' ? normalizeEmail(body.email) : body.email,
+    };
 
     const response = await fetch(`${apiBaseUrl}/users/invite/project`, {
       method: 'POST',
@@ -46,7 +52,7 @@ export async function POST(request: Request) {
         Accept: 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(normalizedBody),
     });
 
     const data = await response.json().catch(() => null);
