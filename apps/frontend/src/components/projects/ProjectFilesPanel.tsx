@@ -39,6 +39,7 @@ type ProjectFilesPanelProps = {
   deletingFileId?: string;
   title?: string;
   subtitle?: string;
+  internalScrollEnabled?: boolean;
 };
 
 type GalleryImage = {
@@ -58,6 +59,7 @@ export default function ProjectFilesPanel({
   deletingFileId,
   title = 'Project Files',
   subtitle = 'Internal team only',
+  internalScrollEnabled = true,
 }: ProjectFilesPanelProps) {
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [activeGalleryIndex, setActiveGalleryIndex] = useState<number | null>(
@@ -192,7 +194,14 @@ export default function ProjectFilesPanel({
             <p className="text-sm text-gray-900">{subtitle}</p>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div
+            className={`min-h-0 flex-1 touch-pan-y ${
+              internalScrollEnabled
+                ? 'overflow-y-auto overscroll-auto'
+                : 'overflow-y-hidden overscroll-auto xl:overflow-y-auto'
+            }`}
+            // className="min-h-0 flex-1 overflow-y-auto"
+          >
             {files.length ? (
               files.map((file) => (
                 <div
@@ -272,7 +281,7 @@ export default function ProjectFilesPanel({
                         }}
                         disabled={!getFileUrl(file.storageKey)}
                       >
-                        <EyeOpenedIcon fill='#374151' />
+                        <EyeOpenedIcon fill="#374151" />
                       </ThemeButton>
 
                       {onDeleteFile ? (

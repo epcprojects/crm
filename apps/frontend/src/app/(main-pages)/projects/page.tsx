@@ -309,19 +309,69 @@ export default function ProjectsPage() {
       eventEmitter.off('notification:new');
     };
   }, []);
+  const projectsPageScrollRef = useRef<HTMLDivElement | null>(null);
+  const projectsSectionRef = useRef<HTMLDivElement | null>(null);
+
+  const [isProjectsSectionPinned, setIsProjectsSectionPinned] = useState(false);
+  useEffect(() => {
+    const scrollContainer = projectsPageScrollRef.current;
+    const projectsSection = projectsSectionRef.current;
+
+    if (!scrollContainer || !projectsSection) {
+      return;
+    }
+
+    const updatePinnedState = () => {
+      if (window.innerWidth >= 1280) {
+        setIsProjectsSectionPinned(true);
+        return;
+      }
+
+      const containerRect = scrollContainer.getBoundingClientRect();
+      const sectionRect = projectsSection.getBoundingClientRect();
+
+      const hasReachedStickyPosition =
+        Math.ceil(sectionRect.top) <= Math.ceil(containerRect.top);
+
+      setIsProjectsSectionPinned(hasReachedStickyPosition);
+    };
+
+    updatePinnedState();
+
+    scrollContainer.addEventListener('scroll', updatePinnedState, {
+      passive: true,
+    });
+
+    window.addEventListener('resize', updatePinnedState);
+
+    return () => {
+      scrollContainer.removeEventListener('scroll', updatePinnedState);
+      window.removeEventListener('resize', updatePinnedState);
+    };
+  }, []);
 
   return (
     <>
       <div className="relative z-100 h-full xl:h-dvh xl:py-5 px-4 xl:px-0 pt-2 pb-0 xl:pr-5">
-        <div className="flex h-full flex-col gap-3 xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
-          <DashboardSummaryBanner
-            imageSrc="/images/ProjectsIcon.svg"
-            imageAlt="Projects"
-            title="Projects"
-            stats={projectSummaryStats}
-          />
+        <div
+          ref={projectsPageScrollRef}
+          className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
+          // className="flex h-full flex-col gap-3 xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
+        >
+          <div className="shrink-0">
+            <DashboardSummaryBanner
+              imageSrc="/images/ProjectsIcon.svg"
+              imageAlt="Projects"
+              title="Projects"
+              stats={projectSummaryStats}
+            />
+          </div>
 
-          <div className="flex min-h-0 flex-1 flex-col gap-4 rounded-xl bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
+          <div
+            ref={projectsSectionRef}
+            // className="flex min-h-0 flex-1 flex-col gap-4 rounded-xl bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5"
+            className="sticky -top-5 z-20 flex h-full min-h-0 flex-none flex-col gap-4 overflow-hidden rounded-xl bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5 xl:static xl:z-auto xl:flex-1"
+          >
             <PermissionGuard
               permission="projects.view_list"
               fallback={
@@ -333,7 +383,7 @@ export default function ProjectsPage() {
               <div className="flex min-h-0 flex-1 flex-col gap-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   {filteredProjects.length > 0 && (
-                    <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 sm:max-w-50">
+                    <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 md:max-w-100 md:min-w-80">
                       <div className="flex items-center gap-2">
                         <span className="shrink-0">
                           <SearchIcon fill="#374151" />
@@ -369,7 +419,7 @@ export default function ProjectsPage() {
 
                   {canCreateProject && filteredProjects.length > 0 ? (
                     <ThemeButton
-                      className="shrink-0 rounded-full"
+                      className="shrink-0 rounded-full hidden xl:block"
                       variant="primaryGradient"
                       icon={<PlusIcon width="20" height="20" />}
                       onClick={() => {
@@ -382,7 +432,14 @@ export default function ProjectsPage() {
                   ) : null}
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hide pr-1">
+                <div
+                  className={`min-h-0 flex-1 touch-pan-y pr-1 scrollbar-hide ${
+                    isProjectsSectionPinned
+                      ? 'overflow-y-auto overscroll-contain'
+                      : 'overflow-y-hidden overscroll-auto xl:overflow-y-auto xl:overscroll-contain'
+                  }`}
+                  // className="min-h-0 flex-1 overflow-y-auto scrollbar-hide pr-1"
+                >
                   {projectsQuery.isLoading ? (
                     <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-4">
                       {Array.from({ length: 6 }).map((_, index) => (
@@ -473,6 +530,19 @@ export default function ProjectsPage() {
             </PermissionGuard>
           </div>
         </div>
+        {canCreateProject ? (
+          <button
+            type="button"
+            onClick={() => {
+              setProjectToEdit(null);
+              setCreateProjectOpen(true);
+            }}
+            aria-label="Create new project"
+            className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 flex h-10 w-10 items-center justify-center rounded-full bg-linear-to-l from-royal-blue to-crystal-blue text-white shadow-[0_10px_30px_rgb(48_79_253/0.35)] transition hover:opacity-90 active:scale-95 xl:hidden"
+          >
+            <PlusIcon fill="#FFFFFF" width="24" height="24" />
+          </button>
+        ) : null}
       </div>
 
       <CreateProjectModal

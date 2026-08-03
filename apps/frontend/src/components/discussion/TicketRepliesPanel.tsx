@@ -847,7 +847,7 @@ export default function TicketRepliesPanel({
         </div>
 
         {canCompose ? (
-          <div className="shrink-0 border-t border-gray-200 px-2 py-4 md:py-0 md:px-0">
+          <div className="shrink-0 border-t border-gray-200  md:py-0 md:px-0">
             <div className="  bg-white p-2 ">
               <textarea
                 ref={textareaRef}
