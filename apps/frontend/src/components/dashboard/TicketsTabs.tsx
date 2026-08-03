@@ -60,7 +60,7 @@ type TicketsTabsProps = {
   activeTabKey?: TicketTabKey;
   onActiveTabChange?: (tabKey: TicketTabKey) => void;
   onTicketClick?: (ticket: TicketListItem) => void;
-  internalScrollEnabled?: boolean;
+  // internalScrollEnabled?: boolean;
 };
 
 export default function TicketsTabs({
@@ -68,7 +68,7 @@ export default function TicketsTabs({
   activeTabKey: controlledActiveTabKey,
   onActiveTabChange,
   onTicketClick,
-  internalScrollEnabled = true,
+  // internalScrollEnabled = true,
 }: TicketsTabsProps) {
   const [uncontrolledActiveTabKey, setUncontrolledActiveTabKey] =
     useState<TicketTabKey>(tabs[0]?.key ?? 'upcoming');
@@ -100,7 +100,7 @@ export default function TicketsTabs({
     });
   }, [activeIndex]);
   return (
-    <div className="rounded-[10px] xl:rounded-xl shadow-[0_0_35px_0_rgb(0_0_0/0.04)] min-w-78 max-w-none xl:min-w-81 xl:max-w-81  2xl:min-w-82.5 w-full 2xl:max-w-82.5  h-full bg-white space-y-2 py-4  flex flex-col gap-3 ">
+    <div className="h-auto rounded-[10px] xl:rounded-xl shadow-[0_0_35px_0_rgb(0_0_0/0.04)] min-w-78 max-w-none xl:min-w-81 xl:max-w-81  2xl:min-w-82.5 w-full 2xl:max-w-82.5  xl:h-full bg-white space-y-2 py-4  flex flex-col gap-3 ">
       <div className="px-4.5">
         <div className="relative grid w-full grid-cols-2 gap-1 rounded-full border border-gray-200 bg-gray-50 p-1">
           <div
@@ -143,13 +143,14 @@ export default function TicketsTabs({
         </div>
       </div>
       <div
-        className={clsx(
-          'flex min-h-0 flex-1 flex-col scrollbar-hide',
-          internalScrollEnabled
-            ? 'overflow-y-auto'
-            : 'overflow-y-hidden xl:overflow-y-auto',
-        )}
+        // className={clsx(
+        //   'flex min-h-0 flex-1 flex-col scrollbar-hide',
+        //   internalScrollEnabled
+        //     ? 'overflow-y-auto'
+        //     : 'overflow-y-hidden xl:overflow-y-auto',
+        // )}
         // className="flex min-h-0 flex-1 flex-col  overflow-y-auto scrollbar-hide  "
+        className="flex flex-none flex-col overflow-visible scrollbar-hide xl:min-h-0 xl:flex-1 xl:overflow-y-auto"
       >
         {activeTab?.tickets.length ? (
           activeTab.tickets.map((ticket, index) => {

@@ -446,51 +446,51 @@ export default function Page() {
     },
   ];
 
-  const settingsPageScrollRef = useRef<HTMLDivElement | null>(null);
-  const settingsSectionRef = useRef<HTMLDivElement | null>(null);
+  // const settingsPageScrollRef = useRef<HTMLDivElement | null>(null);
+  // const settingsSectionRef = useRef<HTMLDivElement | null>(null);
 
-  const [isSettingsSectionPinned, setIsSettingsSectionPinned] = useState(false);
-  useEffect(() => {
-    const scrollContainer = settingsPageScrollRef.current;
-    const settingsSection = settingsSectionRef.current;
+  // const [isSettingsSectionPinned, setIsSettingsSectionPinned] = useState(false);
+  // useEffect(() => {
+  //   const scrollContainer = settingsPageScrollRef.current;
+  //   const settingsSection = settingsSectionRef.current;
 
-    if (!scrollContainer || !settingsSection) {
-      return;
-    }
+  //   if (!scrollContainer || !settingsSection) {
+  //     return;
+  //   }
 
-    const updatePinnedState = () => {
-      if (window.innerWidth >= 1280) {
-        setIsSettingsSectionPinned(true);
-        return;
-      }
+  //   const updatePinnedState = () => {
+  //     if (window.innerWidth >= 1280) {
+  //       setIsSettingsSectionPinned(true);
+  //       return;
+  //     }
 
-      const containerRect = scrollContainer.getBoundingClientRect();
-      const sectionRect = settingsSection.getBoundingClientRect();
+  //     const containerRect = scrollContainer.getBoundingClientRect();
+  //     const sectionRect = settingsSection.getBoundingClientRect();
 
-      const hasReachedStickyPosition =
-        Math.ceil(sectionRect.top) <= Math.ceil(containerRect.top);
+  //     const hasReachedStickyPosition =
+  //       Math.ceil(sectionRect.top) <= Math.ceil(containerRect.top);
 
-      setIsSettingsSectionPinned(hasReachedStickyPosition);
-    };
+  //     setIsSettingsSectionPinned(hasReachedStickyPosition);
+  //   };
 
-    updatePinnedState();
+  //   updatePinnedState();
 
-    scrollContainer.addEventListener('scroll', updatePinnedState, {
-      passive: true,
-    });
+  //   scrollContainer.addEventListener('scroll', updatePinnedState, {
+  //     passive: true,
+  //   });
 
-    window.addEventListener('resize', updatePinnedState);
+  //   window.addEventListener('resize', updatePinnedState);
 
-    return () => {
-      scrollContainer.removeEventListener('scroll', updatePinnedState);
-      window.removeEventListener('resize', updatePinnedState);
-    };
-  }, [canViewSettings]);
+  //   return () => {
+  //     scrollContainer.removeEventListener('scroll', updatePinnedState);
+  //     window.removeEventListener('resize', updatePinnedState);
+  //   };
+  // }, [canViewSettings]);
 
   return (
     <div className="relative z-100 xl:h-dvh h-full overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0">
       <div
-        ref={settingsPageScrollRef}
+        // ref={settingsPageScrollRef}
         className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
         // className="flex h-full min-h-0 flex-col space-y-3 xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
       >
@@ -521,14 +521,15 @@ export default function Page() {
         </div>
         {canViewSettings ? (
           <div
-            ref={settingsSectionRef}
-            className={`sticky -top-5 z-20 grid h-full min-h-0 flex-none touch-pan-y auto-rows-max grid-cols-1 gap-2 bg-gray-200 scrollbar-hide md:gap-4 xl:static xl:z-auto xl:flex-1 xl:auto-rows-fr xl:grid-cols-2 xl:overflow-hidden xl:bg-transparent ${
-              isSettingsSectionPinned
-                ? 'overflow-y-auto overscroll-auto'
-                : 'overflow-y-hidden overscroll-auto'
-            }`}
+            // ref={settingsSectionRef}
+            // className={`sticky -top-5 z-20 grid h-full min-h-0 flex-none touch-pan-y auto-rows-max grid-cols-1 gap-2 bg-gray-200 scrollbar-hide md:gap-4 xl:static xl:z-auto xl:flex-1 xl:auto-rows-fr xl:grid-cols-2 xl:overflow-hidden xl:bg-transparent ${
+            //   isSettingsSectionPinned
+            //     ? 'overflow-y-auto overscroll-auto'
+            //     : 'overflow-y-hidden overscroll-auto'
+            // }`}
             // className="sticky -top-5 z-20 grid h-full min-h-0 flex-none auto-rows-max grid-cols-1 gap-2 overflow-y-auto bg-gray-200 scrollbar-hide md:gap-4 xl:static xl:z-auto xl:flex-1 xl:auto-rows-fr xl:grid-cols-2 xl:overflow-hidden xl:bg-transparent"
             // className="grid min-h-0 flex-1 auto-rows-max grid-cols-1 gap-2 overflow-y-auto  scrollbar-hide md:gap-4 xl:auto-rows-fr xl:grid-cols-2 xl:overflow-hidden "
+           className="grid h-auto min-h-0 flex-none auto-rows-max grid-cols-1 gap-2 overflow-visible scrollbar-hide md:gap-4 xl:h-full xl:flex-1 xl:auto-rows-fr xl:grid-cols-2 xl:overflow-hidden"
           >
             <PermissionGuard permission="settings.view_statuses">
               <SettingsConfigCard

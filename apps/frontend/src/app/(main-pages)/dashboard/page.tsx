@@ -662,60 +662,64 @@ export default function Page() {
   );
   // const displayedProjects = (projectsQuery.data ?? []).slice(0, 0);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const dashboardScrollRef = useRef<HTMLDivElement | null>(null);
-const upcomingSectionRef = useRef<HTMLDivElement | null>(null);
-const [isUpcomingSectionPinned, setIsUpcomingSectionPinned] = useState(false);
-useEffect(() => {
-  const scrollContainer = dashboardScrollRef.current;
-  const upcomingSection = upcomingSectionRef.current;
+  // const dashboardScrollRef = useRef<HTMLDivElement | null>(null);
+  // const upcomingSectionRef = useRef<HTMLDivElement | null>(null);
+  // const [isUpcomingSectionPinned, setIsUpcomingSectionPinned] = useState(false);
+  // useEffect(() => {
+  //   const scrollContainer = dashboardScrollRef.current;
+  //   const upcomingSection = upcomingSectionRef.current;
 
-  if (!scrollContainer || !upcomingSection) {
-    return;
-  }
+  //   if (!scrollContainer || !upcomingSection) {
+  //     return;
+  //   }
 
-  const updatePinnedState = () => {
-    if (window.innerWidth >= 1280) {
-      setIsUpcomingSectionPinned(true);
-      return;
-    }
+  //   const updatePinnedState = () => {
+  //     if (window.innerWidth >= 1280) {
+  //       setIsUpcomingSectionPinned(true);
+  //       return;
+  //     }
 
-    const containerRect = scrollContainer.getBoundingClientRect();
-    const sectionRect = upcomingSection.getBoundingClientRect();
+  //     const containerRect = scrollContainer.getBoundingClientRect();
+  //     const sectionRect = upcomingSection.getBoundingClientRect();
 
-    const hasReachedStickyPosition =
-      Math.ceil(sectionRect.top) <= Math.ceil(containerRect.top);
+  //     const hasReachedStickyPosition =
+  //       Math.ceil(sectionRect.top) <= Math.ceil(containerRect.top);
 
-    setIsUpcomingSectionPinned(hasReachedStickyPosition);
-  };
+  //     setIsUpcomingSectionPinned(hasReachedStickyPosition);
+  //   };
 
-  updatePinnedState();
+  //   updatePinnedState();
 
-  scrollContainer.addEventListener('scroll', updatePinnedState, {
-    passive: true,
-  });
+  //   scrollContainer.addEventListener('scroll', updatePinnedState, {
+  //     passive: true,
+  //   });
 
-  window.addEventListener('resize', updatePinnedState);
+  //   window.addEventListener('resize', updatePinnedState);
 
-  return () => {
-    scrollContainer.removeEventListener('scroll', updatePinnedState);
-    window.removeEventListener('resize', updatePinnedState);
-  };
-}, []);
+  //   return () => {
+  //     scrollContainer.removeEventListener('scroll', updatePinnedState);
+  //     window.removeEventListener('resize', updatePinnedState);
+  //   };
+  // }, []);
   return (
     <div className="xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 z-100 h-full xl:h-dvh relative">
       {/* <div className="bg-white/40 border border-white rounded-3xl p-3 flex flex-row h-full gap-3"> */}
-      <div 
-       ref={dashboardScrollRef}
-      className="flex h-full min-h-0 flex-col gap-3 xl:overflow-hidden  overflow-y-auto overscroll-contain scrollbar-hide xl:rounded-2xl  bg-gray-200 xl:flex-row xl:border xl:border-white xl:bg-white/40 xl:p-3">
+      <div
+        // ref={dashboardScrollRef}
+        className="flex h-full min-h-0 flex-col gap-3 xl:overflow-hidden  overflow-y-auto overscroll-contain scrollbar-hide xl:rounded-2xl  bg-gray-200 xl:flex-row xl:border xl:border-white xl:bg-white/40 xl:p-3"
+      >
         <PermissionGuard permission="dashboard.view_upcoming">
           <div
-           ref={upcomingSectionRef}
-            className={`sticky -top-5 z-20 order-2 h-full min-h-0 flex-none overflow-hidden bg-gray-200 xl:static xl:z-auto xl:order-0 xl:h-full xl:flex-none xl:bg-transparent ${
-              canViewRecentTickets ? 'xl:w-82.5' : 'xl:flex-1'
-            }`}
+            // ref={upcomingSectionRef}
+            // className={`sticky -top-5 z-20 order-2 h-full min-h-0 flex-none overflow-hidden bg-gray-200 xl:static xl:z-auto xl:order-0 xl:h-full xl:flex-none xl:bg-transparent ${
+            //   canViewRecentTickets ? 'xl:w-82.5' : 'xl:flex-1'
+            // }`}
             // className={`order-2 min-h-0 flex-1 overflow-hidden xl:order-0 xl:h-full xl:flex-none ${
             //   canViewRecentTickets ? 'xl:w-82.5' : 'xl:flex-1'
             // }`}
+            className={`order-2 min-h-0 flex-none overflow-visible xl:order-0 xl:h-full xl:flex-none xl:overflow-hidden ${
+              canViewRecentTickets ? 'xl:w-82.5' : 'xl:flex-1'
+            }`}
           >
             {isUpcomingTicketsLoading ? (
               <DashboardTabsSkeleton />
@@ -724,7 +728,7 @@ useEffect(() => {
                 tabs={dashboardTicketTabs}
                 activeTabKey={selectedDashboardTab}
                 onActiveTabChange={updateDashboardTab}
-                 internalScrollEnabled={isUpcomingSectionPinned}
+                // internalScrollEnabled={isUpcomingSectionPinned}
                 onTicketClick={
                   canViewTicketDetail
                     ? (ticket) =>
@@ -738,7 +742,6 @@ useEffect(() => {
                     : undefined
                 }
               />
-              
             )}
           </div>
         </PermissionGuard>
@@ -762,7 +765,7 @@ useEffect(() => {
 
                   {canCreateTicket ? (
                     <ThemeButton
-                      className="shrink-0 rounded-full xl:block hidden"
+                      className="shrink-0 rounded-full xl:flex hidden"
                       variant="primaryGradient"
                       icon={<PlusIcon width="20" height="20" />}
                       onClick={() => setCreateTicketOpen(true)}
@@ -876,7 +879,7 @@ useEffect(() => {
                       <ThemeButton
                         className="shrink-0 rounded-full"
                         variant="primaryGradient"
-                        icon={<DownloadIcon />}
+                        icon={<DownloadIcon fill="white" />}
                         onClick={handleExportTickets}
                         disabled={isExportingTickets}
                       >
@@ -965,7 +968,7 @@ useEffect(() => {
                         )}
                       </Popover>
 
-                      <button
+                      {/* <button
                         type="button"
                         onClick={() => setFiltersOpen((current) => !current)}
                         className={`flex items-center justify-center gap-1 rounded-lg px-4 py-2 text-sm font-semibold ring-1 transition duration-300 hover:bg-linear-to-l hover:from-royal-blue/80 hover:to-crystal-blue/80 hover:text-white ${
@@ -979,17 +982,37 @@ useEffect(() => {
                       >
                         <FiltersIcon fill="currentColor" />
                         <span>Filter</span>
-                      </button>
+                      </button> */}
+                      <ThemeButton
+                        type="button"
+                        variant="secondary"
+                        fullRounded={false}
+                        icon={<FiltersIcon fill="currentColor" />}
+                        onClick={() => setFiltersOpen((current) => !current)}
+                        aria-label="Open ticket filters"
+                        aria-expanded={filtersOpen}
+                        aria-controls="recent-ticket-filters"
+                      >
+                        Filter
+                      </ThemeButton>
 
                       {canViewTicketsList ? (
                         <div>
-                          <button
+                          {/* <button
                             type="button"
                             onClick={handleViewAllTickets}
                             className="ring text-sm hover:ring-transparent text-primary hover:text-white ring-primary  hover:bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 font-semibold bg-white rounded-lg py-2 px-4 flex items-center justify-center"
                           >
                             View All
-                          </button>
+                          </button> */}
+                          <ThemeButton
+                            type="button"
+                            variant="secondary"
+                            fullRounded={false}
+                            onClick={handleViewAllTickets}
+                          >
+                            View All
+                          </ThemeButton>
                         </div>
                       ) : null}
 
@@ -1091,23 +1114,30 @@ useEffect(() => {
                           />
                         </div>
 
-                        {selectedProject !== 'all' ||
+                        {/* {selectedProject !== 'all' ||
                         selectedStatus !== 'all' ||
-                        selectedPriority !== 'all' ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              updateRecentTicketsFilters({
-                                project: 'all',
-                                status: 'all',
-                                priority: 'all',
-                              });
-                            }}
-                            className="ml-auto shrink-0 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 transition hover:bg-gray-50"
-                          >
-                            Clear Filters
-                          </button>
-                        ) : null}
+                        selectedPriority !== 'all' ? ( */}
+                        <ThemeButton
+                          type="button"
+                          variant="secondary"
+                          fullRounded={false}
+                          size="xs"
+                          disabled={
+                            selectedProject === 'all' &&
+                            selectedStatus === 'all' &&
+                            selectedPriority === 'all'
+                          }
+                          onClick={() => {
+                            updateRecentTicketsFilters({
+                              project: 'all',
+                              status: 'all',
+                              priority: 'all',
+                            });
+                          }}
+                          className="disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Clear Filters
+                        </ThemeButton>
                       </div>
                     </div>
                   </div>

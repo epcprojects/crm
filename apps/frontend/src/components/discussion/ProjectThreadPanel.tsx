@@ -16,6 +16,7 @@ import ConfirmActionModal from '../modals/ConfirmActionModal';
 import ImageGalleryLightbox from '../ui/ImageGalleryLightbox';
 import type { DiscussionAttachment, DiscussionReply } from './types';
 import EmojiPickerButton from './EmojiPickerButton';
+import ThemeButton from '../ui/ThemeButton';
 
 const EMOJI_TEXT_STYLE = {
   fontFamily:
@@ -49,7 +50,7 @@ type DiscussionPanelProps = {
   editingReplyId?: string;
   onDeleteAttachment?: (attachment: DiscussionAttachment) => void;
   deletingAttachmentId?: string;
-  internalScrollEnabled?: boolean;
+  // internalScrollEnabled?: boolean;
 };
 
 type GalleryImage = {
@@ -81,7 +82,7 @@ export default function ProjectThreadPanel({
   editingReplyId,
   onDeleteAttachment,
   deletingAttachmentId,
-  internalScrollEnabled = true,
+  // internalScrollEnabled = true,
 }: DiscussionPanelProps) {
   const [message, setMessage] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -327,7 +328,10 @@ export default function ProjectThreadPanel({
 
   return (
     <>
-      <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white">
+      <section 
+      // className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white"
+      className="flex h-auto min-h-0 flex-none flex-col overflow-visible bg-white xl:h-full xl:flex-1 xl:overflow-hidden"
+      >
         <div className="flex items-center justify-between border-b border-gray-200 px-3 py-2 sm:py-3 md:px-5">
           <div className="flex items-center gap-3">
             <h3 className="text-sm md:text-base font-semibold text-gray-900">
@@ -344,12 +348,12 @@ export default function ProjectThreadPanel({
 
         <div
           ref={scrollContainerRef}
-          className={`min-h-0 flex-1 touch-pan-y px-3 py-5 scrollbar-hide md:px-5 ${
-            internalScrollEnabled
-              ? 'overflow-y-auto overscroll-auto'
-              : 'overflow-y-hidden overscroll-auto xl:overflow-y-auto'
-          }`}
-          // className="min-h-0 flex-1 overflow-y-auto px-3 py-5 scrollbar-hide md:px-5"
+          // className={`min-h-0 flex-1 touch-pan-y px-3 py-5 scrollbar-hide md:px-5 ${
+          //   internalScrollEnabled
+          //     ? 'overflow-y-auto overscroll-auto'
+          //     : 'overflow-y-hidden overscroll-auto xl:overflow-y-auto'
+          // }`}
+          className="min-h-0 flex-1 overflow-y-auto px-3 py-5 scrollbar-hide md:px-5"
         >
           {headerReply ? (
             <div className="  pb-4">
@@ -918,7 +922,7 @@ function InlineEditComposer({
           onSelectEmoji={onSelectEmoji}
         />
 
-        <div className="flex items-center gap-2">
+        {/* <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={onCancel}
@@ -935,7 +939,32 @@ function InlineEditComposer({
           >
             {editingReplyId ? 'Saving...' : 'Save'}
           </button>
-        </div>
+        </div> */}
+        <div className="flex gap-2">
+  <ThemeButton
+    type="button"
+    variant="secondary"
+    size="md"
+    fullRounded
+    onClick={onCancel}
+    disabled={Boolean(editingReplyId)}
+    className="disabled:cursor-not-allowed disabled:opacity-60"
+  >
+    Cancel
+  </ThemeButton>
+
+  <ThemeButton
+    type="button"
+    variant="primaryGradient"
+    size="md"
+    fullRounded
+    onClick={onSave}
+    disabled={!editingMessage.trim() || Boolean(editingReplyId)}
+    className="disabled:cursor-not-allowed disabled:opacity-60"
+  >
+    {editingReplyId ? 'Saving...' : 'Save'}
+  </ThemeButton>
+</div>
       </div>
     </div>
   );

@@ -23,6 +23,7 @@ import ImageGalleryLightbox from '../ui/ImageGalleryLightbox';
 import type { DiscussionAttachment, DiscussionReply } from './types';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import EmojiPickerButton from './EmojiPickerButton';
+import ThemeButton from '../ui/ThemeButton';
 
 const EMOJI_TEXT_STYLE = {
   fontFamily:
@@ -378,7 +379,8 @@ export default function TicketRepliesPanel({
   return (
     <>
       <section
-        className={`flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl  border border-gray-200 bg-white ${className}`}
+        // className={`flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl  border border-gray-200 bg-white ${className}`}
+        className={`flex h-auto min-h-0 flex-none flex-col overflow-visible rounded-xl border border-gray-200 bg-white xl:h-full xl:flex-1 xl:overflow-hidden ${className}`}
       >
         {!hideHeader && (
           <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-3 py-2 sm:py-3 md:px-5">
@@ -398,7 +400,8 @@ export default function TicketRepliesPanel({
 
         <div
           ref={scrollContainerRef}
-          className="min-h-0 flex-1 overflow-y-auto scrollbar-hide px-3 py-5 md:px-5"
+          // className="min-h-0 flex-1 overflow-y-auto scrollbar-hide px-3 py-5 md:px-5"
+          className="min-h-0 flex-none overflow-visible px-3 py-5 scrollbar-hide md:px-5 xl:flex-1 xl:overflow-y-auto"
         >
           {headerReply ? (
             <div className="mb-4 border-b border-gray-200 pb-4">
@@ -527,7 +530,7 @@ export default function TicketRepliesPanel({
                               : 'rounded-tl-none'
                           } ${
                             reply.message && editingMessageId !== reply.id
-                              ? 'space-y-2 border border-gray-200 p-3 shadow-xs'
+                              ? `${reply.attachments?.length ? 'space-y-2' : ''} border border-gray-200 p-3 shadow-xs`
                               : ''
                           }`}
                         >
@@ -569,8 +572,38 @@ export default function TicketRepliesPanel({
                                     onSelectEmoji={handleEditingEmojiSelect}
                                   />
 
-                                  <div className="flex items-center gap-2">
-                                    <button
+                                  <div className="flex  gap-2">
+                                    <ThemeButton
+                                      type="button"
+                                      variant="secondary"
+                                      size="md"
+                                      fullRounded
+                                      onClick={cancelEditingReply}
+                                      disabled={editingReplyId === reply.id}
+                                      className="disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                      Cancel
+                                    </ThemeButton>
+
+                                    <ThemeButton
+                                      type="button"
+                                      variant="primaryGradient"
+                                      size="md"
+                                      fullRounded
+                                      onClick={() =>
+                                        void handleSaveEditedReply(reply)
+                                      }
+                                      disabled={
+                                        !editingMessage.trim() ||
+                                        editingReplyId === reply.id
+                                      }
+                                      className="disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                      {editingReplyId === reply.id
+                                        ? 'Saving...'
+                                        : 'Save'}
+                                    </ThemeButton>
+                                    {/* <button
                                       type="button"
                                       onClick={cancelEditingReply}
                                       disabled={editingReplyId === reply.id}
@@ -592,7 +625,7 @@ export default function TicketRepliesPanel({
                                       {editingReplyId === reply.id
                                         ? 'Saving...'
                                         : 'Save'}
-                                    </button>
+                                    </button> */}
                                   </div>
                                 </div>
                               </div>
