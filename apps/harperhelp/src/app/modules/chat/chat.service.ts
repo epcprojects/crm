@@ -192,7 +192,7 @@ export class ChatMessagesService {
         sender: true,
       },
       order: { createdAt: 'DESC' },
-      take: query.limit ?? 50,
+      ...(query.limit ? { take: query.limit } : {}),
     });
   }
 
