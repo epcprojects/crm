@@ -562,7 +562,7 @@ export default function ProjectThreadPanel({
 
                       {reply.message || reply.attachments?.length ? (
                         <div
-                          className={`group/reply relative flex ${headerAction ? 'w-full' : 'w-fit md:max-w-3/4'}   flex-col rounded-xl rounded-tl-none border border-gray-200 bg-white p-2 ${
+                          className={`group/reply relative min-w-56 flex ${headerAction ? 'w-full' : editingMessageId ? 'w-full' : 'w-fit md:max-w-3/4'}   flex-col rounded-xl rounded-tl-none border border-gray-200 bg-white p-2 ${
                             reply.message && reply.attachments?.length != 0
                               ? 'space-y-2'
                               : ''
