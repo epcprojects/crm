@@ -1260,7 +1260,6 @@ export default function ProjectDetailPage() {
                               type="button"
                               variant="secondary"
                               size="md"
-                              fullRounded
                               onClick={clearProjectTicketFilters}
                               disabled={!hasActiveProjectTicketFilters}
                               className="hidden h-10 shrink-0 disabled:cursor-not-allowed disabled:opacity-50 xl:inline-flex"

@@ -40,7 +40,10 @@ export default function ForgotPasswordModal({
     onSubmit: async (values, { resetForm }) => {
       try {
         setLoading(true);
-        await onConfirm?.(values);
+        await onConfirm?.({
+          ...values,
+          email: values.email.trim().toLowerCase(),
+        });
         resetForm();
         onClose();
       } finally {

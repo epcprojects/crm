@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { normalizeEmail } from '../../../../lib/api-client';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const normalizedBody =
+      typeof body?.email === 'string'
+        ? { ...body, email: normalizeEmail(body.email) }
+        : body;
 
     const response = await fetch(
       `${process.env.API_BASE_URL}/auth/forgot-password`,
@@ -12,7 +17,7 @@ export async function POST(request: NextRequest) {
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify(normalizedBody),
       },
     );
 
