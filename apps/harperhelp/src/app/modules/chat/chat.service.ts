@@ -10,7 +10,11 @@ import { ChatMessageInternal } from './entities/chat-message-internal.entity';
 import { ChatMessageExternal } from './entities/chat-message-external.entity';
 import { SendMessageDto, GetMessagesQueryDto } from './dto/chat-message.dto';
 import { Ticket } from '../tickets/entities/ticket.entity';
-import { NotificationEntityType, NotificationType, UserType } from 'libs/shared/types/src/lib/types';
+import {
+  NotificationEntityType,
+  NotificationType,
+  UserType,
+} from 'libs/shared/types/src/lib/types';
 import { UpdateChatDto } from './dto/update-chat.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { UsersService } from '../users/users.service';
@@ -99,20 +103,20 @@ export class ChatMessagesService {
     });
 
     const saved = await this.repo(channel).save(message);
-const fullname = await this.usersService.getFullName(senderId);
-const ticketRefNo = await this.ticketsService.findTicketRefNo(ticketId);
+    const fullname = await this.usersService.getFullName(senderId);
+    const ticketRefNo = await this.ticketsService.findTicketRefNo(ticketId);
 
-        await this.notificationsService.notifyProjectMembers({
-          projectId: projectId,
-          actorId: senderId,
-          type: NotificationType.INTERNAL_MESSAGE,
-          entityType: NotificationEntityType.INTERNAL_MESSAGE,
-          entityId: saved.id,
-          ticketId: ticketId,
-          title: `New Internal Message in ticket "${ticketRefNo}" from ${fullname}`,
-          message: '',
-          // requiredClaimValue: dto.isInternal ? 'view_internal_replies' : undefined,
-        });
+    await this.notificationsService.notifyProjectMembers({
+      projectId: projectId,
+      actorId: senderId,
+      type: NotificationType.INTERNAL_MESSAGE,
+      entityType: NotificationEntityType.INTERNAL_MESSAGE,
+      entityId: saved.id,
+      ticketId: ticketId,
+      title: `New Internal Message in ticket "${ticketRefNo}" from ${fullname}`,
+      message: '',
+      // requiredClaimValue: dto.isInternal ? 'view_internal_replies' : undefined,
+    });
 
     // Reload with sender/receiver populated for broadcast payload
     return this.repo(channel).findOne({
@@ -156,6 +160,7 @@ const ticketRefNo = await this.ticketsService.findTicketRefNo(ticketId);
       attachmentUrls: dto.attachmentUrls ?? message.attachmentUrls,
       attachmentName: dto.attachmentName ?? message.attachmentName,
       attachmentSize: dto.attachmentSize ?? message.attachmentSize,
+      updatedAt: new Date(),
     });
 
     const updated = await repository.save(message);

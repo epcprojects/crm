@@ -506,6 +506,7 @@ export class ProjectsService {
     await this.projectRepo.update(id, {
       ...updateProjectDto,
       updatedBy: user.id,
+      updatedAt: new Date(),
     });
 
     const recipients = proj.members

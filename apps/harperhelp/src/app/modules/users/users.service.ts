@@ -428,6 +428,8 @@ export class UsersService {
       }
     }
 
+    user.updatedAt = new Date();
+
     await this.userRepo.save(user);
 
     return this.findById(userId);

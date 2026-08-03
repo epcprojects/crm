@@ -180,6 +180,7 @@ export class TicketRepliesService {
 
     reply.message = dto.message ?? reply.message;
     reply.updatedBy = userId;
+    reply.updatedAt = new Date();
 
     await this.replyRepo.save(reply);
 
@@ -216,8 +217,8 @@ export class TicketRepliesService {
     return Promise.all(
       replies.map(async (reply) => {
         if (reply.author) {
-            delete reply.author.passwordHash;
-          }
+          delete reply.author.passwordHash;
+        }
         // delete reply.author['passwordHash'];
 
         return {
