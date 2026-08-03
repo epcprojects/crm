@@ -52,7 +52,7 @@ const TICKETS_VIEW_QUERY_PARAM = 'view';
 const TICKETS_STATUS_QUERY_PARAM = 'status';
 const TICKETS_PRIORITY_QUERY_PARAM = 'priority';
 const TICKETS_PROJECT_QUERY_PARAM = 'project';
-const DEFAULT_TICKETS_STATUS_FILTER = 'Open';
+const DEFAULT_TICKETS_STATUS_FILTER = 'Active';
 
 export default function Page() {
   const router = useRouter();
@@ -167,6 +167,7 @@ export default function Page() {
   const statusFilterOptions = useMemo(
     () => [
       { label: 'All Status', value: 'all' },
+      { label: 'Active', value: 'Active' },
       ...(ticketStatusesQuery.data ?? []).map(mapTicketSettingToDropdownOption),
     ],
     [ticketStatusesQuery.data],
