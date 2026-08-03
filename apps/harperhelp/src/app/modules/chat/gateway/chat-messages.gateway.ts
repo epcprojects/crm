@@ -176,6 +176,16 @@ export class ChatMessagesGateway
     this.server.to(room).emit('message_deleted', { channel, message });
   }
 
+  broadcastMessageUpdated(
+    projectId: string,
+    ticketId: string,
+    channel: ChatChannel,
+    message: any,
+  ) {
+    const room = this.roomKey(projectId, ticketId, channel);
+    this.server.to(room).emit('message_updated', { channel, message });
+  }
+
   // - Utilities
 
   private roomKey(

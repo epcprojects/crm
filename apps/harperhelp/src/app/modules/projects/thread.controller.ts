@@ -8,6 +8,7 @@ import {
   UploadedFiles,
   UseGuards,
   ParseUUIDPipe,
+  Put,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { CreateThreadMessageDto } from './dto/create-thread-message.dto';
@@ -22,6 +23,7 @@ import {
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { FileSizeGuard } from '../../../common/guards/file-size.guard';
+import { UpdateThreadMessageDto } from './dto/update-thread-message.dto';
 
 @Controller('projects/:pid/thread')
 @ApiBearerAuth('JWT-auth')
@@ -79,8 +81,50 @@ export class ThreadController {
   @ApiOperation({
     description: 'Get full thread (parent + replies + attachments)',
   })
-  getThread(@Param('pid', ParseUUIDPipe) pid: string, @Param('messageId', ParseUUIDPipe) messageId: string) {
+  getThread(
+    @Param('pid', ParseUUIDPipe) pid: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+  ) {
     return this.service.getThread(messageId, pid);
+  }
+
+  @Put(':messageId')
+  @UseGuards(FileSizeGuard)
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+        },
+        parentId: {
+          type: 'uuid',
+          nullable: true,
+        },
+        attachments: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
+        },
+      },
+      required: ['message'],
+    },
+  })
+  @UseInterceptors(FilesInterceptor('attachments'))
+  @ApiOperation({
+    description: 'Updates thread message.',
+  })
+  update(
+    @Param('pid', ParseUUIDPipe) pid: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @Body() dto: UpdateThreadMessageDto,
+    @UploadedFiles() files: Express.Multer.File[],
+    @GetUser() user,
+  ) {
+    return this.service.update(messageId, pid, dto, user, files);
   }
 
   // @Get(':messageId/replies')
