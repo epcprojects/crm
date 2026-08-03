@@ -14,6 +14,7 @@ import ThemeButton from '../ui/ThemeButton';
 import { ArrowUpRightIcon } from '../../../public/icons';
 import { useAppSelector } from '../../app/Redux/store';
 import EmptyState from '../EmptyState';
+import { getInitials } from '../../app/(main-pages)/dashboard/page';
 
 export type TicketStatus = string;
 export type TicketPriority = string;
@@ -26,7 +27,9 @@ export type RecentTicket = {
     id?: string;
     initials: string;
     name: string;
+    brandColor: string;
   };
+  dueDate: string;
   status: TicketStatus;
   statusColor?: string;
   priority: TicketPriority | null;
@@ -36,6 +39,12 @@ export type RecentTicket = {
     initials: string;
   };
   date: string;
+  sortDate?: string;
+  reporter: {
+    id: string;
+    email: string;
+    fullName: string;
+  };
 };
 
 export type TicketSortBy =
@@ -84,7 +93,7 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     accessorKey: 'title',
     header: 'Title',
     cell: ({ row }) => (
-      <span className="block max-w-52 whitespace-break-spaces text-sm text-gray-800">
+      <span className=" max-w-52   line-clamp-3 text-ellipsis text-sm text-gray-800">
         {row.original.title}
       </span>
     ),
@@ -95,7 +104,13 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     header: 'Project',
     cell: ({ row }) => (
       <span className="inline-flex max-w-60 items-center gap-2 whitespace-nowrap rounded-full border border-gray-200 bg-white py-0.5 pr-2.5 pl-0.5 text-xs  text-gray-800">
-        <span className="flex h-6 w-6 items-center shrink-0 justify-center rounded-full bg-gray-100 text-xs text-gray-900">
+        <span
+          className="flex h-6 w-6 items-center shrink-0 justify-center rounded-full text-xs text-gray-900"
+          style={{
+            color: row.original.project.brandColor,
+            backgroundColor: `${row.original.project.brandColor}20`,
+          }}
+        >
           {row.original.project.initials}
         </span>
         <span className="truncate"> {row.original.project.name}</span>
@@ -113,8 +128,18 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     accessorKey: 'priority',
     header: 'Priority',
     cell: ({ row }) => (
-      <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-gray-200 bg-white px-2 py-1 text-sm font-meidum text-gray-700 shadow-xs">
-        <span
+      <span
+        className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg  border  text-white px-2 py-1 text-sm font-meidu shadow-xs"
+        style={
+          row.original.priorityColor
+            ? {
+                backgroundColor: row.original.priorityColor,
+                borderColor: row.original.priorityColor,
+              }
+            : undefined
+        }
+      >
+        {/* <span
           className={`h-1.5 w-1.5 whitespace-nowrap rounded-full ${
             row.original.priorityColor
               ? ''
@@ -125,31 +150,41 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
               ? { backgroundColor: row.original.priorityColor }
               : undefined
           }
-        />
+        /> */}
         {row.original.priority ?? 'No Priority'}
       </span>
     ),
   },
   {
-    id: 'assignee',
-    accessorKey: 'assignee.name',
-    header: 'Assignee',
+    id: 'Creater',
+    accessorKey: 'reporter.fullname',
+    header: 'Created by',
     cell: ({ row }) => (
       <span className="inline-flex items-center gap-2 text-gray-900 font-normal text-sm">
-        <span className="flex h-7.5 min-w-7.5 items-center justify-center rounded-full bg-linear-to-br from-orange-200 to-slate-800 text-xs font-medium text-white">
-          {row.original.assignee.initials}
+        <span className="flex h-7.5 min-w-7.5 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-900">
+          {getInitials(row.original.reporter.fullName)}
         </span>
-        {row.original.assignee.name}
+        {row.original.reporter.fullName}
       </span>
     ),
   },
   {
     id: 'createdAt',
     accessorKey: 'date',
-    header: 'Date',
+    header: 'Created On',
     cell: ({ row }) => (
       <span className="text-gray-900 text-sm  whitespace-nowrap">
-        {row.original.date}
+        {row.original.date !== null ? row.original.date : '-'}
+      </span>
+    ),
+  },
+  {
+    id: 'dueDate',
+    accessorKey: 'dueDate',
+    header: 'Due Date',
+    cell: ({ row }) => (
+      <span className="text-gray-900 text-sm  whitespace-nowrap">
+        {row.original.dueDate !== null ? row.original.dueDate : '-'}
       </span>
     ),
   },
@@ -263,8 +298,12 @@ export default function RecentTicketsTable({
       <EmptyState
         imageUrl="/images/RecentTicketEmpty.svg"
         imageAlt="No recent tickets"
-        title="No Recent Tickets"
-        description="Recent tickets will appear here once they are created."
+        title={manualPagination ? 'No Tickets Found' : 'No Recent Tickets'}
+        description={
+          manualPagination
+            ? 'Tickets will appear here once they are created.'
+            : 'Recent tickets will appear here once they are created.'
+        }
         buttonLabel="New Ticket"
         onButtonClick={onEmptyButtonClick}
       />

@@ -264,7 +264,7 @@ function Pill({ label, tone }: { label: string; tone: UserCardRole['tone'] }) {
 
   return (
     <span
-      className={`rounded-full border px-2 py-1 text-xs md:text-sm font-medium ${toneClasses[tone]}`}
+      className={`rounded-full border px-2 py-1 text-xs md:text-xs font-medium ${toneClasses[tone]}`}
     >
       {label}
     </span>

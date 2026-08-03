@@ -44,7 +44,7 @@ export class ProjectsController {
     private readonly projectsService: ProjectsService,
 
     private readonly projectsFilesService: ProjectsFilesService,
-  ) { }
+  ) {}
 
   @Post()
   // @Authorize({
@@ -56,9 +56,11 @@ export class ProjectsController {
     return this.projectsService.createProject(createProjectDto, user);
   }
 
-
   @Get()
-  @ApiOperation({ summary: 'Find all projects with search and pagination, returns summary too, based on search' })
+  @ApiOperation({
+    summary:
+      'Find all projects with search and pagination, returns summary too, based on search',
+  })
   findAll(@Query() query: GetProjectsQueryDto, @GetUser() user) {
     return this.projectsService.findAll(query, user);
   }
@@ -98,15 +100,19 @@ export class ProjectsController {
   //   SystemRoles.VIEWER,
   // )
   @ApiOperation({ summary: 'Find a project by ID' })
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.projectsService.findOne(id);
+  findOne(@Param('id', ParseUUIDPipe) id: string, @GetUser() user) {
+    return this.projectsService.findOne(id, false, user);
   }
 
   @Patch(':id')
   // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({ summary: 'Update a project' })
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() updateProjectDto: UpdateProjectDto) {
-    return this.projectsService.update(id, updateProjectDto);
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateProjectDto: UpdateProjectDto,
+    @GetUser() user,
+  ) {
+    return this.projectsService.update(id, updateProjectDto, user);
   }
 
   @Delete(':id')
@@ -128,9 +134,6 @@ export class ProjectsController {
   findProjectMembers(@Param('id', ParseUUIDPipe) id: string, @GetUser() user) {
     return this.projectsService.findProjectMembers(id, user);
   }
-
-
-
 
   // ---------------- UPLOAD FILES ----------------
   @Post(':projectId/files')
@@ -186,7 +189,10 @@ export class ProjectsController {
     status: 200,
     description: 'List of project files',
   })
-  async getFiles(@Param('projectId', ParseUUIDPipe) projectId: string, @GetUser() user) {
+  async getFiles(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @GetUser() user,
+  ) {
     return this.projectsFilesService.getProjectFiles(projectId, user);
   }
 

@@ -7,6 +7,8 @@ import AppModal from './AppModal';
 import ThemeInput from '../ui/ThemeInput';
 import Dropdown from '../ui/ThemeDropDown';
 import type { ProjectNameRecord } from '../../app/(main-pages)/projects/projects.data';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { EditLockedIcon } from 'apps/frontend/public/icons';
 
 export type AddUserType = 'internal' | 'external';
 
@@ -78,11 +80,7 @@ export default function AddUserModal({
   }, [isOpen]);
 
   useEffect(() => {
-    if (
-      isOpen &&
-      !formik.values.role &&
-      roleOptions[0]?.value
-    ) {
+    if (isOpen && !formik.values.role && roleOptions[0]?.value) {
       formik.setFieldValue('role', roleOptions[0].value);
     }
   }, [formik.values.role, formik.values.userType, isOpen, roleOptions]);
@@ -98,13 +96,14 @@ export default function AddUserModal({
       onCancel={onClose}
       onConfirm={() => formik.submitForm()}
       confimBtnDisable={formik.isSubmitting}
-      scrollNeeded={false}
+      scrollNeeded={true}
       roundedCustom
       outSideClickClose={false}
       size="medium"
     >
-      <div className="space-y-4 p-4 md:p-5">
+      <div className="space-y-4 p-4 md:p-5 ">
         <ThemeInput
+          autoFocus
           label="Full Name"
           name="fullName"
           value={formik.values.fullName}
@@ -119,8 +118,9 @@ export default function AddUserModal({
             <p className="mb-1.5 block text-sm font-normal text-gray-800 md:text-base">
               Email
             </p>
-            <p className="rounded-lg border border-gray-200 bg-gray-50 px-3.5 py-2 text-sm font-medium text-gray-700 md:text-base">
+            <p className="rounded-lg flex flex-row justify-between items-center  bg-gray-100 px-3.5 py-2 text-sm font-medium text-gray-500 md:text-base">
               {formik.values.email || '-'}
+              <EditLockedIcon />
             </p>
           </div>
         ) : (
@@ -140,32 +140,48 @@ export default function AddUserModal({
             User Type
           </label>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <UserTypeCard
-              title="Internal"
-              description="Devs & PMs — full project access"
-              isSelected={formik.values.userType === 'internal'}
-              disabled={mode === 'edit'}
-              onClick={() => {
-                formik.setFieldValue('userType', 'internal');
-                if (!formik.values.role) {
-                  formik.setFieldValue('role', roleOptions[0]?.value ?? '');
-                }
-              }}
-            />
+          <div
+            className={`grid grid-cols-1 gap-3 ${
+              mode === 'create' ? 'md:grid-cols-2' : ''
+            }`}
+          >
+            {(mode === 'create' || formik.values.userType === 'internal') && (
+              <UserTypeCard
+                title="Internal"
+                description="Devs & PMs — full project access"
+                isSelected={formik.values.userType === 'internal'}
+                disabled={mode === 'edit'}
+                onClick={() => {
+                  void formik.setFieldValue('userType', 'internal');
 
-            <UserTypeCard
-              title="External"
-              description="Clients — limited to their tickets + calendar"
-              isSelected={formik.values.userType === 'external'}
-              disabled={mode === 'edit'}
-              onClick={() => {
-                formik.setFieldValue('userType', 'external');
-                if (!formik.values.role) {
-                  formik.setFieldValue('role', roleOptions[0]?.value ?? '');
-                }
-              }}
-            />
+                  if (!formik.values.role) {
+                    void formik.setFieldValue(
+                      'role',
+                      roleOptions[0]?.value ?? '',
+                    );
+                  }
+                }}
+              />
+            )}
+
+            {(mode === 'create' || formik.values.userType === 'external') && (
+              <UserTypeCard
+                title="External"
+                description="Clients — limited to their tickets + calendar"
+                isSelected={formik.values.userType === 'external'}
+                disabled={mode === 'edit'}
+                onClick={() => {
+                  void formik.setFieldValue('userType', 'external');
+
+                  if (!formik.values.role) {
+                    void formik.setFieldValue(
+                      'role',
+                      roleOptions[0]?.value ?? '',
+                    );
+                  }
+                }}
+              />
+            )}
           </div>
         </div>
 
@@ -185,7 +201,9 @@ export default function AddUserModal({
 
           <div className="flex flex-wrap gap-2">
             {projects.map((project) => {
-              const isSelected = formik.values.projectAccess.includes(project.id);
+              const isSelected = formik.values.projectAccess.includes(
+                project.id,
+              );
               const initials = project.name
                 .split(' ')
                 .filter(Boolean)
@@ -222,7 +240,16 @@ export default function AddUserModal({
                       : undefined
                   }
                 >
-                  <span>{initials || 'PR'}</span>
+                  {/* <span>{initials || 'PR'}</span> */}
+                  <span
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${
+                      isSelected
+                        ? 'bg-violet-200 text-violet-700'
+                        : 'bg-gray-100 text-gray-700'
+                    }`}
+                  >
+                    {initials || 'PR'}
+                  </span>
                   <span>{project.name}</span>
                   <span className="text-base leading-none">
                     {isSelected ? '×' : '+'}
@@ -262,13 +289,38 @@ function UserTypeCard({
       onClick={onClick}
       disabled={disabled}
       className={`rounded-lg border p-3 text-left transition ${
-        isSelected
-          ? 'border-primary bg-violet-50 shadow-[inset_0_0_0_1px_#7F56D9]'
-          : 'border-gray-200 bg-white hover:border-gray-300'
-      } ${disabled ? 'cursor-not-allowed opacity-70' : ''}`}
+        disabled
+          ? 'cursor-not-allowed border-0 bg-gray-100'
+          : isSelected
+            ? 'border-primary bg-violet-50 shadow-[inset_0_0_0_1px_#7F56D9]'
+            : 'border-gray-200 bg-white hover:border-gray-300'
+      }`}
     >
-      <p className="text-sm font-semibold text-gray-900">{title}</p>
-      <p className="mt-1 text-xs text-gray-700">{description}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p
+            className={`text-sm font-semibold ${
+              disabled ? 'text-gray-500' : 'text-gray-900'
+            }`}
+          >
+            {title}
+          </p>
+
+          <p
+            className={`mt-1 text-xs ${
+              disabled ? 'text-gray-500' : 'text-gray-700'
+            }`}
+          >
+            {description}
+          </p>
+        </div>
+
+        {disabled ? (
+          <span className="shrink-0">
+            <EditLockedIcon />
+          </span>
+        ) : null}
+      </div>
     </button>
   );
 }

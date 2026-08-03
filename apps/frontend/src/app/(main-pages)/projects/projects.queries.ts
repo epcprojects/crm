@@ -83,14 +83,20 @@ export function useProjectNamesQuery(enabled = true) {
 }
 
 export function useProjectsInfiniteQuery(
-  enabled = true, limit = 12, search = '',) {
-
+  enabled = true,
+  limit = 12,
+  search = '',
+) {
   const normalizedSearch = search.trim();
 
   return useInfiniteQuery({
     queryKey: [...projectsQueryKey, 'infinite', limit, search],
     queryFn: ({ pageParam }) =>
-      fetchProjects({ page: Number(pageParam), limit, search: normalizedSearch, }),
+      fetchProjects({
+        page: Number(pageParam),
+        limit,
+        search: normalizedSearch,
+      }),
     enabled,
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
@@ -198,13 +204,7 @@ type ProjectTicketsQueryOptions = {
 
 export function useProjectTicketsQuery(
   projectId: string,
-  {
-    page,
-    limit,
-    search,
-    statusKey,
-    priorityKey,
-  }: ProjectTicketsQueryOptions,
+  { page, limit, search, statusKey, priorityKey }: ProjectTicketsQueryOptions,
   enabled = true,
 ) {
   return useQuery({
@@ -266,8 +266,8 @@ export function useDeleteProjectFileMutation() {
 }
 
 async function fetchProjects({
-  page,
-  limit,
+  page = 1,
+  limit = 100,
   search,
 }: {
   page: number;
@@ -293,10 +293,10 @@ async function fetchProjects({
   const payload = (await response.json().catch(() => null)) as
     | ApiProjectRecord[]
     | {
-      items?: ApiProjectRecord[];
-      summary?: Partial<ProjectSummary>;
-      meta?: Partial<ProjectsPaginationMeta>;
-    }
+        items?: ApiProjectRecord[];
+        summary?: Partial<ProjectSummary>;
+        meta?: Partial<ProjectsPaginationMeta>;
+      }
     | { message?: string }
     | null;
   const projectsResponse = normalizeProjectsResponse(payload, page, limit);
@@ -355,10 +355,10 @@ function normalizeProjectsResponse(
   payload:
     | ApiProjectRecord[]
     | {
-      items?: ApiProjectRecord[];
-      summary?: Partial<ProjectSummary>;
-      meta?: Partial<ProjectsPaginationMeta>;
-    }
+        items?: ApiProjectRecord[];
+        summary?: Partial<ProjectSummary>;
+        meta?: Partial<ProjectsPaginationMeta>;
+      }
     | { message?: string }
     | null,
   page: number,
@@ -395,7 +395,10 @@ function normalizeProjectsResponse(
   return {
     items: payload.items.map(mapApiProjectToProjectRecord),
     summary: {
-      totalProjects: payload.summary?.totalProjects ?? payload.meta?.total ?? payload.items.length,
+      totalProjects:
+        payload.summary?.totalProjects ??
+        payload.meta?.total ??
+        payload.items.length,
 
       activeProjects: payload.summary?.activeProjects ?? 0,
 
@@ -429,11 +432,15 @@ async function fetchProjectById(projectId: string) {
     | null;
 
   if (!response.ok || !isApiProjectRecord(payload)) {
-    throw new Error(
+    const error = new Error(
       isProjectErrorPayload(payload)
         ? payload.message || 'Failed to fetch project.'
         : 'Failed to fetch project.',
-    );
+    ) as Error & { status?: number };
+
+    error.status = response.status;
+
+    throw error;
   }
 
   return mapApiProjectToProjectRecord(payload);
@@ -526,12 +533,12 @@ function getProjectLogoLetter(name: string) {
 function isApiProjectRecord(value: unknown): value is ApiProjectRecord {
   return Boolean(
     value &&
-    typeof value === 'object' &&
-    'id' in value &&
-    'name' in value &&
-    'category' in value &&
-    'brandColor' in value &&
-    'logoLetter' in value,
+      typeof value === 'object' &&
+      'id' in value &&
+      'name' in value &&
+      'category' in value &&
+      'brandColor' in value &&
+      'logoLetter' in value,
   );
 }
 
@@ -590,6 +597,7 @@ type ApiProjectTicket = {
   project?: {
     id?: string;
     name?: string;
+    brandColor?: string;
   } | null;
   status?: {
     key?: string;
@@ -607,6 +615,11 @@ type ApiProjectTicket = {
     fullName?: string;
     name?: string;
   } | null;
+  reporter: {
+    id: string;
+    email: string;
+    fullName: string;
+  };
 };
 
 type ApiProjectFile = {
@@ -667,13 +680,16 @@ async function fetchProjectThread(projectId: string) {
 }
 
 async function fetchProjectThreadDetail(projectId: string, messageId: string) {
-  const response = await fetch(`/api/projects/${projectId}/thread/${messageId}`, {
-    method: 'GET',
-    headers: {
-      Accept: 'application/json',
+  const response = await fetch(
+    `/api/projects/${projectId}/thread/${messageId}`,
+    {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
     },
-    cache: 'no-store',
-  });
+  );
 
   const payload = (await response.json().catch(() => null)) as unknown;
 
@@ -690,13 +706,7 @@ async function fetchProjectThreadDetail(projectId: string, messageId: string) {
 
 async function fetchProjectTickets(
   projectId: string,
-  {
-    page,
-    limit,
-    search,
-    statusKey,
-    priorityKey,
-  }: ProjectTicketsQueryOptions,
+  { page, limit, search, statusKey, priorityKey }: ProjectTicketsQueryOptions,
 ) {
   const searchParams = new URLSearchParams({
     page: String(page),
@@ -731,22 +741,16 @@ async function fetchProjectTickets(
     | { message?: string }
     | null;
 
-  if (
-    !response.ok ||
-    !isApiProjectTicketsResponse(payload)
-  ) {
+  if (!response.ok || !isApiProjectTicketsResponse(payload)) {
     throw new Error(
       isProjectErrorPayload(payload)
-        ? payload.message ||
-        'Failed to fetch project tickets.'
+        ? payload.message || 'Failed to fetch project tickets.'
         : 'Failed to fetch project tickets.',
     );
   }
 
   return {
-    items: payload.items.map(
-      mapApiProjectTicketToRecentTicket,
-    ),
+    items: payload.items.map(mapApiProjectTicketToRecentTicket),
     meta: payload.meta,
   };
 }
@@ -861,7 +865,9 @@ function normalizeProjectThreadDetail(
   messageId: string,
 ): ProjectThreadDetail {
   const normalizedMessages = extractThreadMessages(payload);
-  const mappedReplies = normalizedMessages.map(mapApiProjectThreadMessageToReply);
+  const mappedReplies = normalizedMessages.map(
+    mapApiProjectThreadMessageToReply,
+  );
   const header =
     mappedReplies.find((reply) => reply.id === messageId) ??
     mappedReplies[0] ??
@@ -940,7 +946,9 @@ function mapApiDiscussionAttachment(attachment: ApiDiscussionAttachment) {
   };
 }
 
-function mapApiProjectTicketToRecentTicket(ticket: ApiProjectTicket): RecentTicket {
+function mapApiProjectTicketToRecentTicket(
+  ticket: ApiProjectTicket,
+): RecentTicket {
   const projectName = getNonEmptyString(ticket.project?.name) ?? 'Project';
   const statusLabel =
     getNonEmptyString(ticket.status?.label) ??
@@ -961,6 +969,7 @@ function mapApiProjectTicketToRecentTicket(ticket: ApiProjectTicket): RecentTick
       id: ticket.project?.id ?? ticket.projectId,
       initials: getInitials(projectName),
       name: projectName,
+      brandColor: ticket.project?.brandColor ?? '#ffffff',
     },
     status: statusLabel,
     statusColor: getNonEmptyString(ticket.status?.color),
@@ -970,7 +979,14 @@ function mapApiProjectTicketToRecentTicket(ticket: ApiProjectTicket): RecentTick
       name: assigneeName,
       initials: getInitials(assigneeName),
     },
-    date: formatTicketDate(ticket.dueDate ?? ticket.createdAt),
+    date: formatTicketDate( ticket.createdAt),
+     dueDate: formatTicketDate(ticket.dueDate ?? ticket.createdAt),
+    sortDate: ticket.dueDate ?? ticket.createdAt,
+    reporter: {
+      id: ticket.reporter.id,
+      email: ticket.reporter.email,
+      fullName: ticket.reporter.fullName,
+    },
   };
 }
 
@@ -986,7 +1002,9 @@ function mapApiProjectFileToProjectFileRecord(
   return {
     id: getNonEmptyString(file.id) ?? `${name}-${file.createdAt ?? Date.now()}`,
     name,
-    type: mapProjectFileType(file.type ?? file.mimeType ?? file.extension ?? name),
+    type: mapProjectFileType(
+      file.type ?? file.mimeType ?? file.extension ?? name,
+    ),
     size: formatFileSize(file.size ?? file.sizeBytes),
     uploadedBy:
       getNonEmptyString(file.uploadedBy) ?? getNonEmptyString(file.createdBy),
@@ -1005,10 +1023,10 @@ function isApiProjectTicketsResponse(
 ): value is ApiProjectTicketsResponse {
   return Boolean(
     value &&
-    typeof value === 'object' &&
-    'items' in value &&
-    'meta' in value &&
-    Array.isArray((value as ApiProjectTicketsResponse).items),
+      typeof value === 'object' &&
+      'items' in value &&
+      'meta' in value &&
+      Array.isArray((value as ApiProjectTicketsResponse).items),
   );
 }
 
@@ -1057,10 +1075,7 @@ function mapTicketPriority(value: string | null): TicketPriority | null {
 }
 
 function getInitials(value: string) {
-  const words = value
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
+  const words = value.trim().split(/\s+/).filter(Boolean);
 
   if (!words.length) {
     return 'NA';

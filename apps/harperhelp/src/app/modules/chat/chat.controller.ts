@@ -120,7 +120,17 @@ export class ChatMessagesController {
     @GetUser() user: any,
   ) {
     // this.service.assertAccess(user.role, channel);
-    await this.service.softDelete(channel, messageId, user.id);
+    const { pid, tid } = await this.service.softDelete(
+      channel,
+      messageId,
+      user.id,
+    );
+
+    console.debug('deleting message for ticket: ', tid, ' in project: ', pid);
+
+    // broadcast deleted message
+    this.gateway.broadcastMessageDeleted(pid, tid, channel, messageId);
+
     return { success: true };
   }
 

@@ -17,6 +17,7 @@ import TicketsKanbanView from '../../../components/tickets/TicketsKanbanView';
 import { appToast } from '../../../components/toast/AppToast';
 import Dropdown from '../../../components/ui/ThemeDropDown';
 import {
+  CloseIcon,
   DownloadIcon,
   FiltersIcon,
   PlusIcon,
@@ -36,6 +37,9 @@ import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanne
 import ThemeButton from '../../../components/ui/ThemeButton';
 import { RecentTicketsTableSkeleton } from '../dashboard/page';
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
+import { eventEmitter } from '../../../lib/event-emitter';
+import { NotificationItem } from '@harperhelp/interfaces';
+import { NotificationEntityType } from '@harperhelp/types';
 
 type TicketSummary = {
   open: number | null;
@@ -48,6 +52,7 @@ const TICKETS_VIEW_QUERY_PARAM = 'view';
 const TICKETS_STATUS_QUERY_PARAM = 'status';
 const TICKETS_PRIORITY_QUERY_PARAM = 'priority';
 const TICKETS_PROJECT_QUERY_PARAM = 'project';
+const DEFAULT_TICKETS_STATUS_FILTER = 'Open';
 
 export default function Page() {
   const router = useRouter();
@@ -76,9 +81,12 @@ export default function Page() {
   const viewMode = getTicketsViewMode(
     searchParams.get(TICKETS_VIEW_QUERY_PARAM),
   );
-  const selectedStatus = getTicketsStatusFilterValue(
-    searchParams.get(TICKETS_STATUS_QUERY_PARAM),
-  );
+  const selectedStatus =
+    viewMode === 'kanban'
+      ? 'all'
+      : getTicketsStatusFilterValue(
+          searchParams.get(TICKETS_STATUS_QUERY_PARAM),
+        );
   const selectedPriority = getTicketsFilterValue(
     searchParams.get(TICKETS_PRIORITY_QUERY_PARAM),
   );
@@ -550,6 +558,12 @@ export default function Page() {
     }));
   }, [searchValue, selectedPriority, selectedProject, selectedStatus]);
 
+  const hasActiveTicketFilters =
+    Boolean(searchValue.trim()) ||
+    selectedStatus !== DEFAULT_TICKETS_STATUS_FILTER ||
+    selectedPriority !== 'all' ||
+    selectedProject !== 'all';
+
   const updateTicketsPageFilters = ({
     view,
     status,
@@ -573,9 +587,12 @@ export default function Page() {
       nextSearchParams.set(TICKETS_VIEW_QUERY_PARAM, nextViewMode);
     }
 
-    if (nextStatus === 'Open') {
+    if (nextViewMode === 'kanban') {
       nextSearchParams.delete(TICKETS_STATUS_QUERY_PARAM);
-    } else {
+    } else if (
+      status !== undefined ||
+      searchParams.get(TICKETS_STATUS_QUERY_PARAM)?.trim()
+    ) {
       nextSearchParams.set(TICKETS_STATUS_QUERY_PARAM, nextStatus);
     }
 
@@ -602,6 +619,76 @@ export default function Page() {
       scroll: false,
     });
   };
+
+  const clearTicketFilters = () => {
+    setSearchValue('');
+    updateTicketsPageFilters({
+      status: DEFAULT_TICKETS_STATUS_FILTER,
+      priority: 'all',
+      project: 'all',
+    });
+  };
+
+  const invalidateTicketRelated = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'recent-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'upcoming'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'critical-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard-project-tickets'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'ticket-summary'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: projectsQueryKey,
+        refetchType: 'all',
+      }),
+    ]);
+  };
+
+  const invalideProjectsRelated = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ['project-names'],
+        refetchType: 'all',
+      }),
+      //projects
+      queryClient.invalidateQueries({
+        queryKey: ['projects'],
+        refetchType: 'all',
+      }),
+    ]);
+  };
+
+  // Event listener
+  useEffect(() => {
+    eventEmitter.on('notification:new', (payload: NotificationItem) => {
+      if (payload.entityType === NotificationEntityType.TICKET) {
+        invalidateTicketRelated();
+      }
+
+      if (payload.entityType === NotificationEntityType.PROJECT) {
+        invalideProjectsRelated();
+        invalidateTicketRelated();
+      }
+    });
+
+    return () => {
+      eventEmitter.off('notification:new');
+    };
+  }, []);
 
   const handleSortChange = (nextSortState: TicketSortState) => {
     setSortState(nextSortState);
@@ -649,7 +736,7 @@ export default function Page() {
   return (
     <>
       <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 py-4">
-        <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden xl:rounded-3xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
+        <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <div className="shrink-0">
             <DashboardSummaryBanner
               imageSrc="/images/TicketsIcon.svg"
@@ -658,7 +745,7 @@ export default function Page() {
               stats={ticketSummaryStats}
             />
           </div>
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[10px] xl:rounded-[20px] bg-white p-3 md:p-4">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-white p-3 md:p-4">
             <PermissionGuard
               permission="tickets.view_list"
               fallback={
@@ -668,13 +755,16 @@ export default function Page() {
               }
             >
               <div className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-hidden">
-                <div className="flex shrink-0 flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-col gap-3 rounded-xl md:flex-row justify-end items-end">
                   {canFilterTickets ? (
-                    <>
-                      <div className="flex flex-row gap-3">
+                    <div className="flex w-full md:flex-row flex-col gap-2 justify-between">
+                      <div className="flex flex-row justify-between w-fit gap-3">
                         <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 md:max-w-50">
                           <div className="flex items-center gap-2">
-                            <SearchIcon fill="#374151" />
+                            <span className="shrink-0">
+                              <SearchIcon fill="#374151" />
+                            </span>
+
                             <input
                               type="text"
                               value={searchValue}
@@ -684,9 +774,24 @@ export default function Page() {
                               placeholder="Search"
                               className="min-w-0 flex-1 bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400"
                             />
+
+                            <button
+                              type="button"
+                              onClick={() => setSearchValue('')}
+                              disabled={!searchValue}
+                              tabIndex={searchValue ? 0 : -1}
+                              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
+                                searchValue
+                                  ? 'visible hover:bg-gray-100'
+                                  : 'pointer-events-none invisible'
+                              }`}
+                              aria-label="Clear search"
+                            >
+                              <CloseIcon width="15" height="15" />
+                            </button>
                           </div>
                         </div>
-                        <Popover as="div" className="relative xl:hidden">
+                        <Popover as="div" className="relative  md:hidden">
                           {({ open }) => (
                             <>
                               <PopoverButton
@@ -703,7 +808,7 @@ export default function Page() {
                               <PopoverPanel
                                 anchor="bottom end"
                                 transition
-                                className="z-100 mt-2 flex w-56 origin-top-right flex-col gap-3 overflow-visible!  rounded-xl border border-gray-200 bg-white p-3 shadow-[0_14px_44px_rgb(0_0_0/0.14)] outline-none transition duration-150 data-closed:-translate-y-2 data-closed:scale-95 data-closed:opacity-0"
+                                className="z-100 mt-2 flex w-60 origin-top-right flex-col gap-3 overflow-visible!  rounded-xl border border-gray-200 bg-white p-3 shadow-[0_14px_44px_rgb(0_0_0/0.14)] outline-none transition duration-150 data-closed:-translate-y-2 data-closed:scale-95 data-closed:opacity-0"
                               >
                                 <div className="relative w-full overflow-visible">
                                   <Dropdown
@@ -746,20 +851,105 @@ export default function Page() {
                                     maxMenuHeight={150}
                                   />
                                 </div>
+
+                                <button
+                                  type="button"
+                                  onClick={clearTicketFilters}
+                                  disabled={!hasActiveTicketFilters}
+                                  className="inline-flex h-10 items-center justify-center rounded-lg border border-gray-200 px-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  Clear Filters
+                                </button>
                               </PopoverPanel>
                             </>
                           )}
                         </Popover>
                       </div>
 
-                      <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+                      <div className="flex  flex-col gap-3 md:flex-row xl:items-center  justify-end">
+                        <Popover
+                          as="div"
+                          className="hidden md:block  2xl:hidden"
+                        >
+                          {({ open }) => (
+                            <>
+                              <PopoverButton
+                                className={`flex h-10 shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium outline-none ${
+                                  open
+                                    ? 'border-primary  text-white'
+                                    : 'border-gray-200 bg-white text-gray-700'
+                                }`}
+                                aria-label="Open filters"
+                              >
+                                <FiltersIcon />
+                              </PopoverButton>
+
+                              <PopoverPanel
+                                anchor="bottom end"
+                                transition
+                                className="z-100 mt-2 flex w-60 origin-top-right flex-col gap-3 overflow-visible!  rounded-xl border border-gray-200 bg-white p-3 shadow-[0_14px_44px_rgb(0_0_0/0.14)] outline-none transition duration-150 data-closed:-translate-y-2 data-closed:scale-95 data-closed:opacity-0"
+                              >
+                                <div className="relative w-full overflow-visible">
+                                  <Dropdown
+                                    options={projectFilterOptions}
+                                    value={selectedProject}
+                                    onChange={(value) =>
+                                      updateTicketsPageFilters({
+                                        project: value,
+                                      })
+                                    }
+                                    placeholder="All Projects"
+                                    maxMenuHeight={150}
+                                  />
+                                </div>
+
+                                <div className="relative w-full overflow-visible">
+                                  <Dropdown
+                                    options={statusFilterOptions}
+                                    value={selectedStatus}
+                                    onChange={(value) =>
+                                      updateTicketsPageFilters({
+                                        status: value,
+                                      })
+                                    }
+                                    placeholder="All Status"
+                                    maxMenuHeight={150}
+                                  />
+                                </div>
+
+                                <div className="relative w-full overflow-visible">
+                                  <Dropdown
+                                    options={priorityFilterOptions}
+                                    value={selectedPriority}
+                                    onChange={(value) =>
+                                      updateTicketsPageFilters({
+                                        priority: value,
+                                      })
+                                    }
+                                    placeholder="All Priority"
+                                    maxMenuHeight={150}
+                                  />
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={clearTicketFilters}
+                                  disabled={!hasActiveTicketFilters}
+                                  className="inline-flex h-10 items-center justify-center rounded-lg border border-gray-200 px-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  Clear Filters
+                                </button>
+                              </PopoverPanel>
+                            </>
+                          )}
+                        </Popover>
                         <div className="hidden xl:flex  items-center rounded-lg border border-gray-200 bg-white">
                           <button
                             type="button"
                             onClick={() => handleViewModeChange('table')}
                             className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
                               viewMode === 'table'
-                                ? 'bg-primary-dark text-white shadow-sm'
+                                ? 'bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 text-white shadow-sm'
                                 : 'text-gray-500 hover:bg-gray-50'
                             }`}
                             aria-label="Table view"
@@ -772,7 +962,7 @@ export default function Page() {
                             onClick={() => handleViewModeChange('kanban')}
                             className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
                               viewMode === 'kanban'
-                                ? 'bg-primary-dark text-white shadow-sm'
+                                ? 'bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 text-white shadow-sm'
                                 : 'text-gray-500 hover:bg-gray-50'
                             }`}
                             aria-label="Kanban view"
@@ -781,7 +971,7 @@ export default function Page() {
                           </button>
                         </div>
 
-                        <div className="w-full hidden xl:block xl:w-44">
+                        <div className="w-full hidden 2xl:block 2xl:w-44">
                           <Dropdown
                             options={projectFilterOptions}
                             value={selectedProject}
@@ -789,11 +979,12 @@ export default function Page() {
                               updateTicketsPageFilters({ project: value })
                             }
                             placeholder="All Projects"
+                            maxMenuHeight={320}
                           />
                         </div>
 
                         {viewMode === 'table' && (
-                          <div className="w-full hidden xl:block xl:w-38">
+                          <div className="w-full hidden 2xl:block 2xl:w-38">
                             <Dropdown
                               options={statusFilterOptions}
                               value={selectedStatus}
@@ -801,11 +992,13 @@ export default function Page() {
                                 updateTicketsPageFilters({ status: value })
                               }
                               placeholder="All Status"
+                              minHeight="min-h-70"
+                              menuScrollable={false}
                             />
                           </div>
                         )}
 
-                        <div className="w-full hidden xl:block xl:w-38">
+                        <div className="w-full hidden 2xl:block 2xl:w-38">
                           <Dropdown
                             options={priorityFilterOptions}
                             value={selectedPriority}
@@ -816,32 +1009,47 @@ export default function Page() {
                           />
                         </div>
 
-                        {canCreateTicket ? (
-                          <ThemeButton
-                            className="rounded-full"
-                            variant="primaryGradient"
-                            icon={
-                              <PlusIcon fill="#3889FE" width="20" height="20" />
-                            }
-                            onClick={() => setCreateTicketOpen(true)}
-                          >
-                            New Ticket
-                          </ThemeButton>
-                        ) : null}
-
-                        <ThemeButton
-                          className="rounded-full"
-                          variant="primaryGradient"
-                          icon={<DownloadIcon />}
-                          onClick={handleExportTickets}
-                          disabled={isExportingTickets}
+                        <button
+                          type="button"
+                          onClick={clearTicketFilters}
+                          disabled={!hasActiveTicketFilters}
+                          className="hidden h-10 shrink-0 items-center justify-center rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 2xl:inline-flex"
                         >
-                          {isExportingTickets
-                            ? 'Exporting...'
-                            : 'Export Tickets'}
-                        </ThemeButton>
+                          Clear Filters
+                        </button>
+
+                        <div className="flex flex-row gap-3 ">
+                          {canCreateTicket ? (
+                            <ThemeButton
+                              className="rounded-full w-full"
+                              variant="primaryGradient"
+                              icon={
+                                <PlusIcon
+                                  fill="#000000"
+                                  width="20"
+                                  height="20"
+                                />
+                              }
+                              onClick={() => setCreateTicketOpen(true)}
+                            >
+                              New Ticket
+                            </ThemeButton>
+                          ) : null}
+
+                          <ThemeButton
+                            className="rounded-full w-full"
+                            variant="primaryGradient"
+                            icon={<DownloadIcon />}
+                            onClick={handleExportTickets}
+                            disabled={isExportingTickets}
+                          >
+                            {isExportingTickets
+                              ? 'Exporting...'
+                              : 'Export Tickets'}
+                          </ThemeButton>
+                        </div>
                       </div>
-                    </>
+                    </div>
                   ) : null}
                 </div>
 
@@ -926,10 +1134,12 @@ type ApiDashboardTicket = {
   id: string;
   ticketRefNo?: string;
   createdAt: string;
+  dueDate: string;
   title: string;
   project: {
     id: string;
     name: string;
+    brandColor?: string;
   };
   status: {
     key: string;
@@ -946,6 +1156,11 @@ type ApiDashboardTicket = {
     fullName?: string;
     name?: string;
   } | null;
+  reporter: {
+    id: string;
+    email: string;
+    fullName: string;
+  };
 };
 
 type ApiDashboardTicketsResponse = {
@@ -1151,7 +1366,9 @@ function mapApiDashboardTicketToRecentTicket(
       id: ticket.project.id,
       name: ticket.project.name,
       initials: getInitials(ticket.project.name),
+      brandColor: ticket.project?.brandColor ?? '#31d81b',
     },
+    dueDate: ticket.dueDate ? formatTicketDate(ticket.dueDate) : '--',
     status: statusLabel,
     statusColor: ticket.status?.color,
     priority: priorityLabel,
@@ -1160,7 +1377,13 @@ function mapApiDashboardTicketToRecentTicket(
       name: assigneeName,
       initials: getInitials(assigneeName),
     },
+    reporter: {
+      id: ticket.reporter.id,
+      email: ticket.reporter.email,
+      fullName: ticket.reporter.fullName,
+    },
     date: formatTicketDate(ticket.createdAt),
+    sortDate: ticket.createdAt,
   };
 }
 
@@ -1171,6 +1394,13 @@ function sortTicketsLocally(
   const direction = sortState.sortOrder === 'asc' ? 1 : -1;
 
   return [...tickets].sort((firstTicket, secondTicket) => {
+    if (sortState.sortBy === 'createdAt') {
+      const firstDateValue = getTicketSortDateValue(firstTicket);
+      const secondDateValue = getTicketSortDateValue(secondTicket);
+
+      return (firstDateValue - secondDateValue) * direction;
+    }
+
     const firstValue = getTicketSortValue(firstTicket, sortState.sortBy);
     const secondValue = getTicketSortValue(secondTicket, sortState.sortBy);
 
@@ -1181,6 +1411,17 @@ function sortTicketsLocally(
       }) * direction
     );
   });
+}
+
+function getTicketSortDateValue(ticket: RecentTicket) {
+  const rawValue = ticket.sortDate ?? ticket.date;
+  const parsedValue = new Date(rawValue).getTime();
+
+  if (Number.isNaN(parsedValue)) {
+    return 0;
+  }
+
+  return parsedValue;
 }
 
 function getTicketSortValue(
@@ -1231,7 +1472,7 @@ function getTicketsViewMode(value: string | null): 'table' | 'kanban' {
 
 function getTicketsStatusFilterValue(value: string | null) {
   if (!value || !value.trim()) {
-    return 'Open';
+    return DEFAULT_TICKETS_STATUS_FILTER;
   }
 
   return value;

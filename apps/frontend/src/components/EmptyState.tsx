@@ -23,12 +23,12 @@ export default function EmptyState({
   onButtonClick,
 }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center gap-3 py-10 text-center">
+    <div className="flex flex-col items-center gap-3 py-4 text-center">
       {imageUrl ? (
         <Image
           src={imageUrl}
-          width={124}
-          height={124}
+          width={110}
+          height={110}
           alt={imageAlt}
         />
       ) : null}

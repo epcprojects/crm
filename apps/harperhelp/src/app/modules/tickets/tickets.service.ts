@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -20,12 +21,21 @@ import { getDateRange } from '@harperhelp/utils';
 import { NotificationsService } from '../notifications/notifications.service';
 import { EmailEventType } from '../notifications/notifications.types';
 import { User } from '../users/entities/user.entity';
+import { NotificationEntityType, NotificationType } from '@harperhelp/types';
+import { TicketStatus } from './entities/ticket.statuses.entity';
+import { TicketPriority } from './entities/ticket.priority.entity';
+import { UsersService } from '../users/users.service';
+import { extname } from 'path';
 
 @Injectable()
 export class TicketsService {
   constructor(
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(TicketStatus)
+    private readonly statusRepo: Repository<TicketStatus>,
+    @InjectRepository(TicketPriority)
+    private readonly priorityRepo: Repository<TicketPriority>,
 
     @InjectRepository(Ticket)
     private readonly ticketRepo: Repository<Ticket>,
@@ -39,6 +49,7 @@ export class TicketsService {
     private readonly filesService: FilesService,
     private readonly utilityService: UtilityService,
     private readonly notificationsService: NotificationsService,
+    private readonly usersService: UsersService,
   ) {}
 
   // ---------------- CREATE ----------------
@@ -124,22 +135,25 @@ export class TicketsService {
         },
       });
 
-      const members = (ticket.project?.members || []).map((m) => ({
-        name: m.fullName,
-        email: m.email,
-      }));
+const members = (ticket.project?.members || [])
+  .filter((m) => m.id !== userId)
+  .map((m) => ({
+    name: m.fullName,
+    email: m.email,
+  }));
 
+      console.debug("Tcietk daved", saved.id, "members", members.length);
       const participantsMap = new Map<
         string,
         { name: string; email: string }
       >();
       for (const m of members) participantsMap.set(m.email, m);
-      if (ticket.reporter)
+      if (ticket.reporter && ticket?.reporter?.id !== userId)
         participantsMap.set(ticket.reporter.email, {
           name: ticket.reporter.fullName,
           email: ticket.reporter.email,
         });
-      if (ticket.assignee)
+      if (ticket.assignee && ticket?.assignee?.id !== userId)
         participantsMap.set(ticket.assignee.email, {
           name: ticket.assignee.fullName,
           email: ticket.assignee.email,
@@ -171,6 +185,21 @@ export class TicketsService {
             : undefined,
           participants,
         },
+      });
+      const fullname = await this.usersService.getFullName(
+        ticket?.reporterId || ticket?.assigneeId || '',
+      );
+      console.debug(`Retrieved full name: ${fullname}`);
+      // Send global notification
+      await this.notificationsService.notifyProjectMembers({
+        projectId: ticket.projectId,
+        actorId: ticket?.reporter?.id || ticket?.assignee?.id || '',
+        type: NotificationType.TICKET_CREATED,
+        entityType: NotificationEntityType.TICKET,
+        entityId: ticket.id,
+        ticketId: ticket.id,
+        title: `New ticket: "${ticket.title}" created in project "${ticket.project.name}" by ${fullname}`,
+        message: ticket.ticketRefNo ?? undefined,
       });
     } catch (err) {
       // ignore dispatch errors
@@ -250,6 +279,7 @@ export class TicketsService {
       .leftJoin('t.status', 's')
       .leftJoin('t.priority', 'pr')
       .leftJoin('t.assignee', 'a')
+      .leftJoin('t.reporter', 'r')
       .where('t.projectId = :projectId', { projectId });
 
     if (query.statusKey) {
@@ -297,6 +327,10 @@ export class TicketsService {
       'a.id',
       'a.fullName',
       'a.email',
+
+      'r.id',
+      'r.fullName',
+      'r.email',
     ]);
 
     qb.orderBy('t.createdAt', 'DESC')
@@ -329,12 +363,20 @@ export class TicketsService {
       .leftJoin('t.status', 's')
       .leftJoin('t.priority', 'pr')
       .leftJoin('t.assignee', 'a')
-      .leftJoin('t.submitter', 'cb')
+      .leftJoin('t.reporter', 'r');
+    const ACTIVE_STATUS_SENTINEL = '00000000-0000-0000-0000-000000000100';
 
     if (query.statusKey) {
-      qb.andWhere('t.statusKey = :statusKey', {
-        statusKey: query.statusKey,
-      });
+      if (
+        query.statusKey.toLowerCase() === 'active' ||
+        query.statusKey === ACTIVE_STATUS_SENTINEL
+      ) {
+        qb.andWhere('t.statusKey != :closedKey', { closedKey: 'Closed' });
+      } else {
+        qb.andWhere('t.statusKey = :statusKey', {
+          statusKey: query.statusKey,
+        });
+      }
     }
 
     if (query.priorityKey) {
@@ -432,6 +474,7 @@ export class TicketsService {
     qb.select([
       't.id',
       't.title',
+      't.description',
       't.createdAt',
       't.ticketRefNo',
       't.dueDate',
@@ -455,6 +498,10 @@ export class TicketsService {
       'a.id',
       'a.fullName',
       'a.email',
+
+      'r.id',
+      'r.fullName',
+      'r.email',
     ]);
 
     qb.orderBy('t.createdAt', 'DESC')
@@ -523,11 +570,17 @@ export class TicketsService {
   // }
 
   // ---------------- FIND ONE ----------------
-  async findOne(projectId: string, ticketId: string) {
-    // const project = await this.projectRepo.findOne({
-    //   where: { id: projectId },
-    // });
-    // if (!project) throw new NotFoundException('Project not found');
+  async findOne(projectId: string, ticketId: string, user) {
+    const isMember = await this.projectRepo
+      .createQueryBuilder('p')
+      .innerJoin('p.members', 'm', 'm.id = :userId', { userId: user.id })
+      .where('p.id = :projectId', { projectId })
+      .getExists();
+
+    if (!isMember) {
+      throw new ForbiddenException('You do not have access to this ticket');
+    }
+
     const ticket = await this.ticketRepo
       .createQueryBuilder('t')
       .leftJoinAndSelect('t.project', 'p')
@@ -583,11 +636,122 @@ export class TicketsService {
     // });
     // if (!project) throw new NotFoundException('Project not found');
     const ticket = await this.findEntity(projectId, ticketId);
+    const oldTicket = { ...ticket };
+    const oldStatus = ticket.status;
+    const oldPriority = ticket.priority;
+    const { statusKey, priorityKey, ...rest } = dto;
 
     Object.assign(ticket, {
-      ...dto,
+      ...rest,
       updatedBy: userId,
     });
+
+    if (statusKey && statusKey !== oldStatus?.key) {
+      const newStatus = await this.statusRepo.findOne({
+        where: { key: statusKey }, // adjust to however TicketStatus is scoped
+      });
+      if (!newStatus) throw new NotFoundException('Status not found');
+      ticket.status = newStatus; // let TypeORM derive statusKey from this
+      ticket.statusKey = statusKey;
+    }
+
+    if (priorityKey && priorityKey !== oldPriority?.key) {
+      const newPriority = await this.priorityRepo.findOne({
+        where: { key: priorityKey },
+      });
+      if (!newPriority) throw new NotFoundException('Priority not found');
+      ticket.priority = newPriority;
+      ticket.priorityKey = priorityKey;
+    }
+    const recipients = [ticket.reporterId, ticket.assigneeId].filter(
+      (id): id is string => !!id && id !== userId,
+    );
+    const fullname = await this.usersService.getFullName(userId);
+    // STATUS CHANGED
+    if (dto.statusKey && oldStatus && dto.statusKey !== oldStatus.key) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId: ticket.projectId,
+        actorId: userId,
+        type: NotificationType.TICKET_STATUS_CHANGED,
+        entityType: NotificationEntityType.TICKET,
+        entityId: ticket.id,
+        ticketId: ticket.id,
+        title: `"Ticket: "${ticket.ticketRefNo}" status changed to ${ticket.status.label} by ${fullname}`,
+        message: `${oldStatus.label} to ${dto.statusKey}`,
+        explicitRecipientIds: [...new Set(recipients)],
+      });
+    }
+
+    // PRIORITY CHANGED
+    if (dto.priorityKey && oldPriority && dto.priorityKey !== oldPriority.key) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId: ticket.projectId,
+        actorId: userId,
+        type: NotificationType.TICKET_PRIORITY_CHANGED,
+        entityType: NotificationEntityType.TICKET,
+        entityId: ticket.id,
+        ticketId: ticket.id,
+        title: `Ticket: "${ticket.ticketRefNo}" priority changed to ${ticket.priority.label} by ${fullname}`,
+        message: `${oldPriority.label} to ${dto.priorityKey}`,
+        explicitRecipientIds: [...new Set(recipients)],
+      });
+    }
+
+    // PERSON ASSIGNED
+    if (
+      dto.assigneeId !== undefined &&
+      dto.assigneeId !== oldTicket.assigneeId
+    ) {
+      const user = await this.userRepo.findOne({
+        where: { id: dto.assigneeId },
+        select: { id: true, fullName: true },
+      });
+      const fullname = await this.usersService.getFullName(userId);
+
+      await this.notificationsService.notifyProjectMembers({
+        projectId: ticket.projectId,
+        actorId: userId,
+        type: NotificationType.TICKET_ASSIGNEE_CHANGED,
+        entityType: NotificationEntityType.TICKET,
+        entityId: ticket.id,
+        ticketId: ticket.id,
+        title: dto.assigneeId
+          ? // ? `"${user.fullName || 'Someone'}" was assigned to ticket: "${ticket.ticketRefNo}"`
+            `"${ticket.ticketRefNo} is assigned to ${user.fullName} by ${fullname}"`
+          : `Ticket: "${ticket.ticketRefNo}" is now unassigned`,
+        explicitRecipientIds: [...new Set(recipients)],
+      });
+    }
+
+    if (
+      oldTicket.title !== dto.title &&
+      oldTicket.description === dto.description
+    ) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId: ticket.projectId,
+        actorId: userId,
+        type: NotificationType.TICKET_TITLE_CHANGED,
+        entityType: NotificationEntityType.TICKET,
+        entityId: ticket.id,
+        ticketId: ticket.id,
+        title: `Ticket: "${ticket.ticketRefNo}" renamed to "${dto.title}" by ${fullname}`,
+        message: `Previously: "${oldTicket.title}"`,
+        explicitRecipientIds: [...new Set(recipients)],
+      });
+    }
+
+    if (oldTicket.description !== dto.description) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId: ticket.projectId,
+        actorId: userId,
+        type: NotificationType.TICKET_DESCRIPTION_CHANGED,
+        entityType: NotificationEntityType.TICKET,
+        entityId: ticket.id,
+        ticketId: ticket.id,
+        title: `Ticket: "${ticket.ticketRefNo}" description was updated by ${fullname}`,
+        explicitRecipientIds: [...new Set(recipients)],
+      });
+    }
 
     return this.ticketRepo.save(ticket);
   }
@@ -599,6 +763,16 @@ export class TicketsService {
     ticket.updatedBy = userId;
 
     await this.ticketRepo.softRemove(ticket);
+    const fullname = await this.usersService.getFullName(userId);
+    await this.notificationsService.notifyProjectMembers({
+      projectId: ticket.projectId,
+      actorId: userId,
+      type: NotificationType.TICKET_DELETED,
+      entityType: NotificationEntityType.TICKET,
+      entityId: ticket.id,
+      ticketId: ticket.id,
+      title: `Ticket # "${ticket.ticketRefNo}" deleted by ${fullname}`,
+    });
 
     return { success: true };
   }
@@ -654,8 +828,16 @@ export class TicketsService {
   }
 
   // ---------------- UPCOMING TICKETS -------------
-  // Those tickets who have no assignee or
+  // Tickets that are not closed, and either have no due date
+  // or have a due date within the next 3 days (no overdue tickets)
   async getUpcomingTickets(user) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const upperBound = new Date(today);
+    upperBound.setDate(upperBound.getDate() + 2);
+    upperBound.setHours(23, 59, 59, 999);
+
     return this.ticketRepo
       .createQueryBuilder('t')
       .leftJoin('t.project', 'p')
@@ -664,7 +846,15 @@ export class TicketsService {
       })
       .leftJoin('t.status', 's')
       .leftJoin('t.priority', 'pr')
-      .where('t.assigneeId IS NULL')
+      .where('t.statusKey != :statusKey', { statusKey: 'Closed' })
+      .andWhere(
+        't.dueDate IS NULL OR (t.dueDate BETWEEN :today AND :upperBound)',
+        {
+          today: today.toISOString(),
+          upperBound: upperBound.toISOString(),
+        },
+      )
+
       .select([
         't.id',
         't.title',
@@ -700,13 +890,17 @@ export class TicketsService {
 
       await this.utilityService.uploadFile(file, key);
 
+      const rawExt = extname(file.originalname); // e.g. '.DOCX' or ''
+      const extension = rawExt ? rawExt.slice(1).toLowerCase() : 'unknown';
+
       await this.filesService.create({
         projectId,
         uploadedBy: userId,
         originalName: file.originalname,
         storageKey: key,
         sizeBytes: file.size,
-        extension: file.mimetype.split('/')[1],
+        // extension: file.mimetype.split('/')[1],
+        extension: extension,
         mimeType: file.mimetype,
         source: FileSource.TICKET,
         sourceId: ticketId,
@@ -718,6 +912,10 @@ export class TicketsService {
   private async findEntity(projectId: string, ticketId: string) {
     const ticket = await this.ticketRepo.findOne({
       where: { id: ticketId, projectId },
+      relations: {
+        status: true,
+        priority: true,
+      },
     });
 
     if (!ticket) throw new NotFoundException('Ticket not found');

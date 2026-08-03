@@ -1,44 +1,48 @@
 'use client';
 
-import { io, type Socket } from 'socket.io-client';
+import { io, Socket } from 'socket.io-client';
 
-type SocketConfig = {
+export type SocketConfig = {
   socketUrl: string;
   accessToken: string;
 };
 
-let socket: Socket | null = null;
-let socketCacheKey = '';
+const sockets = new Map<string, Socket>();
 
-export function getChatSocket(config: SocketConfig) {
-  const nextCacheKey = `${config.socketUrl}::${config.accessToken}`;
+export function getSocket(
+  namespace: string,
+  config: SocketConfig,
+): Socket {
+  const key = `${namespace}:${config.socketUrl}:${config.accessToken}`;
 
-  if (socket && socketCacheKey === nextCacheKey) {
-    if (!socket.connected) {
-      socket.connect();
+  const existing = sockets.get(key);
+
+  if (existing) {
+    if (!existing.connected) {
+      existing.connect();
     }
 
-    return socket;
+    return existing;
   }
 
-  if (socket) {
-    socket.disconnect();
-  }
-
-  socket = io(`${config.socketUrl}/chat`, {
+  const socket = io(`${config.socketUrl}/${namespace}`, {
     transports: ['websocket'],
     autoConnect: true,
     auth: {
       token: config.accessToken,
     },
   });
-  socketCacheKey = nextCacheKey;
+
+  sockets.set(key, socket);
 
   return socket;
 }
 
-export function disconnectChatSocket() {
-  socket?.disconnect();
-  socket = null;
-  socketCacheKey = '';
+export function disconnectSocket(namespace: string) {
+  for (const [key, socket] of sockets.entries()) {
+    if (key.startsWith(`${namespace}:`)) {
+      socket.disconnect();
+      sockets.delete(key);
+    }
+  }
 }

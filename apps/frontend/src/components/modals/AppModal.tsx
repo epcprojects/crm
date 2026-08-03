@@ -97,7 +97,7 @@ const AppModal: React.FC<AppModalProps> = ({
 
   const modalClasses =
     position === ModalPosition.RIGHT
-      ? `${baseModalClasses} w-full ${rightModalWidth} md:rounded-xl overflow-hidden`
+      ? `${baseModalClasses} w-full ${rightModalWidth}  md:rounded-xl overflow-hidden`
       : `${baseModalClasses} sm:h-fit relative w-full sm:max-h-[90dvh]   md:m-auto container md:mx-4 ${sizeClasses[size]}`;
 
   const wrapperClasses =
@@ -159,8 +159,8 @@ const AppModal: React.FC<AppModalProps> = ({
           )}
 
           <div
-            className={`flex-1 bg-white scrollbar-hide ${
-              scrollNeeded && 'overflow-y-auto max-h-dvh'
+            className={`flex-1 bg-white ${
+              scrollNeeded && 'overflow-y-auto tiny-scrollbar max-h-dvh'
             } ${!showFooter && (roundedCustom ? 'sm:rounded-b-[20px]' : 'sm:rounded-b-xl')} ${
               !showHeader &&
               (roundedCustom ? 'sm:rounded-t-[20px]' : 'sm:rounded-t-xl')
@@ -190,7 +190,7 @@ const AppModal: React.FC<AppModalProps> = ({
               {onConfirm && !hideConfirmButton && (
                 <div className="w-full">
                   <ThemeButton
-                    variant="primary"
+                    variant="primaryGradient"
                     size={isMobile ? 'md' : 'lg'}
                     onClick={onConfirm}
                     disabled={confimBtnDisable}

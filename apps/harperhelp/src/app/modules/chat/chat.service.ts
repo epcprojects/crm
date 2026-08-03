@@ -182,7 +182,7 @@ export class ChatMessagesService {
     channel: ChatChannel,
     messageId: string,
     requesterId: string,
-  ): Promise<void> {
+  ) {
     const msg = await this.repo(channel).findOne({ where: { id: messageId } });
 
     if (!msg) throw new NotFoundException('Message not found');
@@ -196,5 +196,12 @@ export class ChatMessagesService {
       // deletedAt: new Date(),
       message: '[Message deleted]',
     });
+
+    return {
+      messageId,
+      pid: msg.projectId,
+      tid: msg.ticketId,
+      senderId: msg.senderId,
+    };
   }
 }

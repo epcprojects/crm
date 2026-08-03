@@ -5,7 +5,7 @@ import clsx from 'clsx';
 
 type ThemeButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   children: ReactNode;
-  variant?: 'primaryGradient' | 'primary' | 'secondary';
+  variant?: 'primaryGradient' | 'primary' | 'secondary' | 'black';
   size?: 'xs' | 'sm' | 'md' | 'lg';
   icon?: ReactNode;
   fullRounded?: boolean;
@@ -56,16 +56,16 @@ export default function ThemeButton({
             'px-2.5 py-2 text-base': size === 'md',
             'px-6 py-2.5 text-sm md:text-base': size === 'lg',
           },
-          variant === 'primaryGradient' && {
-            'bg-linear-to-l from-[#304FFD]  to-[#40C3FF] text-white hover:opacity-90':
-              variant === 'primaryGradient',
-          },
+          // variant === 'primaryGradient' && {
+          //   'bg-linear-to-l from-[#304FFD]  to-[#40C3FF] text-white hover:opacity-90':
+          //     variant === 'primaryGradient',
+          // },
         )}
       >
         {hasIcon && (
           <span
             className={clsx(
-              'mr-1.5 w-6 md:w-8 md:h-8 h-6 shrink-0 rounded-full flex items-center justify-center',
+              'mr-1.5 w-6 md:w-8 md:h-8 h-6 shrink-0 rounded-full hidden md:flex items-center justify-center',
               iconBg ? iconBg : 'bg-white',
             )}
           >

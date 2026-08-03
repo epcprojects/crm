@@ -27,6 +27,7 @@ import { CalendarQueryDto } from './dto/calendar-query.dto';
 import { CalendarView } from '@harperhelp/types';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { EventType } from './entities/event.entity';
+import { GetUser } from 'apps/harperhelp/src/common/decorators/get-user.decorator';
 
 @ApiTags('Events')
 @Controller('project/:pid/calendar/events')
@@ -39,8 +40,8 @@ export class CalendarController {
   @ApiOperation({ summary: 'Create a new event' })
   @ApiResponse({ status: 201, description: 'Event created successfully' })
   @ApiResponse({ status: 400, description: 'Validation error' })
-  create(@Param('pid', ParseUUIDPipe) pid: string, @Body() dto: CreateEventDto) {
-    return this.calendarService.create(pid, dto);
+  create(@Param('pid', ParseUUIDPipe) pid: string, @Body() dto: CreateEventDto, @GetUser() user) {
+    return this.calendarService.create(pid, dto, user);
   }
 
   @Get()

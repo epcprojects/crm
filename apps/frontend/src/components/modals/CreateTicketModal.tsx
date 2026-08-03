@@ -17,6 +17,7 @@ import {
   validateAttachments,
 } from '../../lib/attachments';
 import { useIsMobile } from '../hooks/useIsMobile';
+import RichTextEditor from '../RichTextEditor';
 
 export type CreateTicketFormValues = {
   project: string;
@@ -30,6 +31,26 @@ export type CreateTicketFormValues = {
 
 const MAX_TITLE_LENGTH = 250;
 const MAX_DESCRIPTION_LENGTH = 4000;
+function getRichTextPlainText(value?: string) {
+  if (!value) {
+    return '';
+  }
+
+  if (typeof window !== 'undefined') {
+    const parsedDocument = new DOMParser().parseFromString(value, 'text/html');
+
+    return (parsedDocument.body.textContent ?? '').replace(/\u00a0/g, ' ');
+  }
+
+  return value
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'");
+}
 
 type CreateTicketModalProps = {
   isOpen: boolean;
@@ -66,11 +87,17 @@ export default function CreateTicketModal({
           .required('Title is required'),
         description: yup
           .string()
-          .max(
-            MAX_DESCRIPTION_LENGTH,
-            `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less`,
+          .test(
+            'description-required',
+            'Description is required',
+            (value) => getRichTextPlainText(value).trim().length > 0,
           )
-          .optional(),
+          .test(
+            'description-max-length',
+            `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less`,
+            (value) =>
+              getRichTextPlainText(value).length <= MAX_DESCRIPTION_LENGTH,
+          ),
         status: yup.string().required('Status is required'),
         priority: yup.string().optional(),
         dueDate: yup
@@ -245,7 +272,7 @@ export default function CreateTicketModal({
       roundedCustom
       outSideClickClose={false}
       size="extraLarge"
-      scrollNeeded={isMobile ? true : false}
+      scrollNeeded={true}
     >
       {/* space-y-4 p-4 md:p-5 */}
       <div className="grid grid-cols-1 xl:grid-cols-2 divide-x divide-gray-200">
@@ -264,14 +291,15 @@ export default function CreateTicketModal({
           <ThemeInput
             label="Title"
             required
+            autoFocus
             name="title"
             value={formik.values.title}
+            maxLength={MAX_TITLE_LENGTH}
             onChange={(event) => {
-              if (event.target.value.length > MAX_TITLE_LENGTH) {
-                return;
-              }
-
-              formik.handleChange(event);
+              void formik.setFieldValue(
+                'title',
+                event.target.value.slice(0, MAX_TITLE_LENGTH),
+              );
             }}
             onBlur={formik.handleBlur}
             errorText={formik.touched.title ? formik.errors.title : ''}
@@ -283,7 +311,7 @@ export default function CreateTicketModal({
             </p>
           </div>
 
-          <div className="w-full">
+          {/* <div className="w-full">
             <label className="mb-1.5 block text-sm font-normal text-gray-800 md:text-base">
               Description
             </label>
@@ -307,7 +335,26 @@ export default function CreateTicketModal({
                 {formik.values.description.length}/{MAX_DESCRIPTION_LENGTH}
               </p>
             </div>
-          </div>
+          </div> */}
+          <RichTextEditor
+            name="description"
+            label="Description"
+            required
+            value={formik.values.description}
+            onChange={(value) => {
+              void formik.setFieldValue('description', value);
+            }}
+            onBlur={() => {
+              void formik.setFieldTouched('description', true);
+            }}
+            placeholder="Describe the issue in detail..."
+            maxLength={MAX_DESCRIPTION_LENGTH}
+            errorText={
+              formik.touched.description && formik.errors.description
+                ? formik.errors.description
+                : ''
+            }
+          />
 
           <div
             className={`grid grid-cols-1 items-center gap-4 md:grid-cols-2 `}
