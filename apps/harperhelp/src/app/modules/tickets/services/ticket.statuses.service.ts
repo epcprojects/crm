@@ -176,7 +176,32 @@ export class TicketStatusesService {
     return this.statusRepo.save(status);
   }
 
-  async remove(id: string) {
+  // async remove(id: string) {
+  //   const status = await this.findOne(id);
+
+  //   const ticketsUsingStatus = await this.ticketRepo
+  //   .createQueryBuilder('t')
+  //   .innerJoin('t.project', 'p')
+  //   .where('t.statusKey = :statusKey', { statusKey: status.key })
+  //   .andWhere('p.deletedAt IS NULL') // Exclude tickets from deleted projects
+  //   .getCount();
+
+  //   if (ticketsUsingStatus > 0) {
+  //     throw new BadRequestException(
+  //       `Status '${status.key}' is already being used by ${ticketsUsingStatus} ticket(s) and cannot be deleted.`,
+  //     );
+  //   }
+
+  //   try {
+  //     await this.statusRepo.delete(id);
+  //     return { success: true };
+  //   } catch (err) {
+  //     console.error(err);
+  //     throw new BadRequestException('Unable to delete the status.');
+  //   }
+  // }
+
+  async softRemove(id: string) {
     const status = await this.findOne(id);
 
     const ticketsUsingStatus = await this.ticketRepo
@@ -193,7 +218,8 @@ export class TicketStatusesService {
     }
 
     try {
-      await this.statusRepo.delete(id);
+      await this.statusRepo.softDelete(id);
+
       return { success: true };
     } catch (err) {
       console.error(err);

@@ -221,6 +221,10 @@ function NotificationRow({
           router.push(
             `/tickets/${item.ticketId}?projectId=${item.projectId}&internal=false`,
           );
+        } else if (item.entityType === 'internal_message') {
+          router.push(
+            `/tickets/${item.ticketId}?projectId=${item.projectId}&internal=true`,
+          );
         } else if (item.entityType === 'ticket') {
           router.push(`/tickets/${item.ticketId}?projectId=${item.projectId}`);
         } else if (item.entityType === 'project' && !item.projectId) {

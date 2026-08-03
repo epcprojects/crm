@@ -353,7 +353,7 @@ const members = (ticket.project?.members || [])
   }
 
   //
-  async findAllProjects(query: GetTicketsQueryDto, user) {
+ async findAllProjects(query: GetTicketsQueryDto, user) {
     const qb = this.ticketRepo
       .createQueryBuilder('t')
       .leftJoin('t.project', 'p')
@@ -750,6 +750,15 @@ const members = (ticket.project?.members || [])
     }
 
     return this.ticketRepo.save(ticket);
+  }
+
+
+  async findTicketRefNo(ticketId: string) {
+    const ticket = await this.ticketRepo.findOne({
+      where: { id: ticketId },
+      select: { ticketRefNo: true },
+    });
+    return ticket?.ticketRefNo;
   }
 
   // ---------------- DELETE (SOFT) ----------------

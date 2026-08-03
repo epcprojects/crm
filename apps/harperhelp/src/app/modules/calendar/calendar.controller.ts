@@ -122,10 +122,10 @@ Returns events whose date falls within the range for the requested view:
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Delete an event' })
+  @ApiOperation({ summary: 'Delete an event Softly' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 404, description: 'Event not found' })
   remove(@Param('pid') pid: string, @Param('id', ParseUUIDPipe) id: string) {
-    return this.calendarService.remove(pid, id);
+    return this.calendarService.softRemove(pid, id);
   }
 }

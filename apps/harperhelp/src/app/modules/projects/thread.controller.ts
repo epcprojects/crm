@@ -9,6 +9,9 @@ import {
   UseGuards,
   ParseUUIDPipe,
   Put,
+  Delete,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { CreateThreadMessageDto } from './dto/create-thread-message.dto';
@@ -127,6 +130,20 @@ export class ThreadController {
     return this.service.update(messageId, pid, dto, user, files);
   }
 
+
+   @Delete(':messageId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    description: 'Deletes a thread message.',
+  })
+  remove(
+    @Param('pid', ParseUUIDPipe) pid: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @GetUser() user,
+  ) {
+    return this.service.remove(messageId, pid, user);
+  }
+  
   // @Get(':messageId/replies')
   // @ApiOperation({
   //   description: 'Get replies by parent message id',

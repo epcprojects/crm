@@ -9,6 +9,9 @@ import {
   UseGuards,
   ParseUUIDPipe,
   Put,
+  Delete,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { CreateReplyDto } from './dto/create-reply.dto';
@@ -109,4 +112,21 @@ export class TicketRepliesController {
   ) {
     return this.service.update(pid, ticketId, replyId, dto, user.id, files);
   }
+
+
+    @Delete('projects/:pid/reply/:replyId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    description: 'Soft deletes a reply for a ticket.',
+  })
+  remove(
+    @Param('pid', ParseUUIDPipe) pid: string,
+    @Param('ticketId', ParseUUIDPipe) ticketId: string,
+    @Param('replyId', ParseUUIDPipe) replyId: string,
+    @GetUser() user,
+  ) {
+    return this.service.softRemove(pid, ticketId, replyId, user.id);
+  }
+
+  
 }

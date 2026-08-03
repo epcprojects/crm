@@ -447,6 +447,7 @@ export class ProjectsService {
 
         'p.id',
         'p.name',
+        'p.brandColor',
 
         'ur.id',
 
@@ -495,12 +496,27 @@ export class ProjectsService {
     return this.findOne(id, false, user);
   }
 
-  async remove(id: string, user) {
-    const proj = await this.findOne(id, true, user);
+  // async remove(id: string) {
+  //   await this.findOne(id);
+  //   await this.projectRepo.update(id, {
+  //     isActive: false,
+  //     deletedAt: new Date(),
+  //   });
+
+  //   return {
+  //     success: true,
+  //   };
+  // }
+
+  async softRemove(id: string, user) {
+    const proj = await this.findOne(id);
+
+    await this.projectRepo.softDelete(id);
+
     await this.projectRepo.update(id, {
       isActive: false,
-      deletedAt: new Date(),
     });
+
 
     const recipients = proj.members
       .map((m) => m.id)

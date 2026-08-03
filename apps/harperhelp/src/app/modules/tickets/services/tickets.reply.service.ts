@@ -215,7 +215,10 @@ export class TicketRepliesService {
 
     return Promise.all(
       replies.map(async (reply) => {
-        delete reply.author['passwordHash'];
+        if (reply.author) {
+            delete reply.author.passwordHash;
+          }
+        // delete reply.author['passwordHash'];
 
         return {
           ...reply,
@@ -273,5 +276,36 @@ export class TicketRepliesService {
         sourceId: replyId,
       });
     }
+  }
+
+  async softRemove(
+    projectId: string,
+    ticketId: string,
+    replyId: string,
+    userId: string,
+  ) {
+    const reply = await this.replyRepo.findOne({
+      where: {
+        id: replyId,
+        ticketId,
+      },
+    });
+
+    if (!reply) {
+      throw new NotFoundException('Reply not found');
+    }
+
+    if (reply.authorId !== userId) {
+      throw new BadRequestException('You can only delete your own replies.');
+    }
+
+    reply.updatedBy = userId;
+    await this.replyRepo.save(reply);
+
+    await this.replyRepo.softDelete({ id: replyId, ticketId });
+
+    this.ticketRepliesGateway.broadcastDeleted(projectId, ticketId, replyId);
+
+    return { id: replyId, deleted: true };
   }
 }
