@@ -474,6 +474,7 @@ export default function Page() {
               }
             >
               <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
+                {/* {!hasSearchOrFilters && ( */}
                 <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex gap-2">
                     <div className="w-full">
@@ -505,7 +506,7 @@ export default function Page() {
                             }`}
                             aria-label="Clear search"
                           >
-                            <CloseIcon width="15" height="15" />
+                            <CloseIcon fill={'white'} width="15" height="15" />
                           </button>
                         </div>
                       </div>
@@ -636,9 +637,7 @@ export default function Page() {
                       <ThemeButton
                         className="shrink-0 rounded-full"
                         variant="primaryGradient"
-                        icon={
-                          <PlusIcon fill="#3889FE" width="20" height="20" />
-                        }
+                        icon={<PlusIcon width="20" height="20" />}
                         onClick={() => setAddUserOpen(true)}
                       >
                         Add User
@@ -646,7 +645,7 @@ export default function Page() {
                     ) : null}
                   </div>
                 </div>
-
+                {/* )} */}
                 <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hide">
                   {isUsersLoading ? (
                     <UserCardsSkeleton />

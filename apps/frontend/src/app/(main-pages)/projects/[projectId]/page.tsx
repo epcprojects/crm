@@ -113,6 +113,7 @@ export default function ProjectDetailPage() {
     null,
   );
   const [selectedThreadMessageId, setSelectedThreadMessageId] = useState('');
+  const [editingThreadReplyId, setEditingThreadReplyId] = useState('');
   const [threadSocketToken, setThreadSocketToken] =
     useState<SocketTokenResponse | null>(null);
   const [ticketsPagination, setTicketsPagination] = useState({
@@ -253,6 +254,63 @@ export default function ProjectDetailPage() {
         error instanceof Error
           ? error.message
           : 'Failed to post project thread message.',
+      );
+    },
+  });
+
+  const updateProjectThreadMutation = useMutation({
+    mutationFn: async ({
+      messageId,
+      message,
+      parentId,
+    }: {
+      messageId: string;
+      message: string;
+      parentId?: string;
+    }) => {
+      const formData = new FormData();
+      formData.append('message', message.trim());
+
+      if (parentId?.trim()) {
+        formData.append('parentId', parentId.trim());
+      }
+
+      const response = await fetch(`/api/projects/${projectId}/thread/${messageId}`, {
+        method: 'PUT',
+        body: formData,
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message =
+          Array.isArray(data?.message) && data.message.length
+            ? data.message.join(', ')
+            : data?.message || 'Failed to update thread message.';
+        throw new Error(message);
+      }
+
+      return data;
+    },
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({
+        queryKey: [...projectThreadQueryKey, projectId],
+      });
+
+      const detailMessageId = variables.parentId || selectedThreadMessageId;
+      if (detailMessageId) {
+        await queryClient.invalidateQueries({
+          queryKey: [...projectThreadDetailQueryKey, projectId, detailMessageId],
+        });
+      }
+
+      appToast.success('Thread updated successfully.');
+    },
+    onError: (error) => {
+      appToast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to update thread message.',
       );
     },
   });
@@ -647,6 +705,29 @@ export default function ProjectDetailPage() {
     });
   };
 
+  const handleEditProjectThreadReply = async ({
+    reply,
+    message,
+  }: {
+    reply: { id: string };
+    message: string;
+  }) => {
+    setEditingThreadReplyId(reply.id);
+
+    try {
+      await updateProjectThreadMutation.mutateAsync({
+        messageId: reply.id,
+        message,
+        parentId:
+          selectedThreadMessageId && selectedThreadMessageId !== reply.id
+            ? selectedThreadMessageId
+            : undefined,
+      });
+    } finally {
+      setEditingThreadReplyId('');
+    }
+  };
+
   const visibleProjectTabs = projectTabs.filter((tab) => {
     if (tab === 'Tickets') return canViewTickets;
     if (tab === 'Thread') return canViewThread;
@@ -1000,13 +1081,7 @@ export default function ProjectDetailPage() {
                               <ThemeButton
                                 className="shrink-0 rounded-full"
                                 variant="primaryGradient"
-                                icon={
-                                  <PlusIcon
-                                    fill="#3889FE"
-                                    width="20"
-                                    height="20"
-                                  />
-                                }
+                                icon={<PlusIcon width="20" height="20" />}
                                 onClick={() => setCreateTicketOpen(true)}
                               >
                                 New Ticket
@@ -1019,9 +1094,7 @@ export default function ProjectDetailPage() {
                           <ThemeButton
                             className="shrink-0 rounded-full"
                             variant="primaryGradient"
-                            icon={
-                              <PlusIcon fill="#3889FE" width="20" height="20" />
-                            }
+                            icon={<PlusIcon width="20" height="20" />}
                             onClick={() => setCreateTicketOpen(true)}
                           >
                             New Ticket
@@ -1082,10 +1155,16 @@ export default function ProjectDetailPage() {
                                 ? handleSubmitReply
                                 : undefined
                             }
+                            onEditReply={
+                              canPostThreadMessage
+                                ? handleEditProjectThreadReply
+                                : undefined
+                            }
                             isSubmittingReply={
                               createProjectThreadMutation.isPending &&
                               !selectedThreadMessageId
                             }
+                            editingReplyId={editingThreadReplyId}
                             canCompose={canPostThreadMessage}
                             canAttachFile={canAttachThreadFile}
                             requireMessage={false}
@@ -1137,10 +1216,12 @@ export default function ProjectDetailPage() {
                                 ? handleSubmitThreadReply
                                 : undefined
                             }
+                            onEditReply={handleEditProjectThreadReply}
                             isSubmittingReply={
                               createProjectThreadMutation.isPending &&
                               Boolean(selectedThreadMessageId)
                             }
+                            editingReplyId={editingThreadReplyId}
                             canCompose={canPostThreadReply}
                             canAttachFile={
                               canAttachThreadFile && canPostThreadReply

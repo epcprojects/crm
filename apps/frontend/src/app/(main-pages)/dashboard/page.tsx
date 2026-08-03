@@ -715,7 +715,7 @@ export default function Page() {
                     <ThemeButton
                       className="shrink-0 rounded-full"
                       variant="primaryGradient"
-                      icon={<PlusIcon fill="#3889FE" width="20" height="20" />}
+                      icon={<PlusIcon width="20" height="20" />}
                       onClick={() => setCreateTicketOpen(true)}
                     >
                       New Ticket
@@ -927,7 +927,7 @@ export default function Page() {
                     <ThemeButton
                       className="shrink-0 rounded-full"
                       variant="primaryGradient"
-                      icon={<DownloadIcon />}
+                      icon={<DownloadIcon fill="currentColor" />}
                       onClick={handleExportTickets}
                       disabled={isExportingTickets}
                     >
