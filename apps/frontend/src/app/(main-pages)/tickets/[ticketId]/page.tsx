@@ -1959,7 +1959,7 @@ export default function TicketDetailPage() {
                           : undefined
                         : canDeleteReplies
                           ? handleDeleteTicketReply
-                        : undefined
+                          : undefined
                     }
                     onEditReply={
                       isInternalChatActive && canViewInternalChatBtn
@@ -2779,9 +2779,10 @@ function mapApiTicketReplyToDiscussionReply(reply: ApiTicketReply) {
     updatedAt: reply.updatedAt,
     isEdited: Boolean(
       reply.updatedAt &&
-        reply.createdAt &&
-        new Date(reply.updatedAt).getTime() >
-          new Date(reply.createdAt).getTime(),
+        Math.floor(new Date(reply.updatedAt).getTime() / 1000) >
+          Math.floor(
+            new Date(reply.createdAt ?? reply.updatedAt).getTime() / 1000,
+          ),
     ),
     author: {
       name: authorName,
