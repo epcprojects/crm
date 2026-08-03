@@ -839,8 +839,9 @@ export default function Page() {
                         Recent Tickets
                       </p>
 
-                      <div className="w-7.5 h-7.5 flex items-center justify-center text-sm text-bright-gray rounded-full bg-gray-100">
+                      <div className="min-w-7.5 min-h-7.5 py-1 px-2 flex items-center justify-center text-sm text-bright-gray rounded-full bg-gray-100">
                         {recentTicketsQuery.data?.items?.length ?? 0}
+                        
                       </div>
                     </div>
                     <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-2.5 py-2 ">
@@ -992,6 +993,11 @@ export default function Page() {
                         aria-label="Open ticket filters"
                         aria-expanded={filtersOpen}
                         aria-controls="recent-ticket-filters"
+                        className={
+    filtersOpen
+      ? 'border-primary! bg-primary/5! text-primary! shadow-sm'
+      : ''
+  }
                       >
                         Filter
                       </ThemeButton>
