@@ -281,6 +281,7 @@ export default function CreateTicketModal({
             label="Project"
             required
             options={projectOptions}
+            showSearch={true}
             value={formik.values.project}
             onChange={(value) => formik.setFieldValue('project', value)}
             error={Boolean(formik.touched.project && formik.errors.project)}

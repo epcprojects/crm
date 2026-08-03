@@ -839,7 +839,7 @@ export default function Page() {
                         Recent Tickets
                       </p>
 
-                      <div className="w-7.5 h-7.5 flex items-center justify-center text-sm text-bright-gray rounded-full bg-gray-100">
+                      <div className="min-w-7.5 min-h-7.5 py-1 px-2 flex items-center justify-center text-sm text-bright-gray rounded-full bg-gray-100">
                         {recentTicketsQuery.data?.items?.length ?? 0}
                       </div>
                     </div>
@@ -986,12 +986,16 @@ export default function Page() {
                       <ThemeButton
                         type="button"
                         variant="secondary"
-                        fullRounded={false}
                         icon={<FiltersIcon fill="currentColor" />}
                         onClick={() => setFiltersOpen((current) => !current)}
                         aria-label="Open ticket filters"
                         aria-expanded={filtersOpen}
                         aria-controls="recent-ticket-filters"
+                        className={
+                          filtersOpen
+                            ? 'border-primary! bg-primary/5! text-primary! shadow-sm'
+                            : ''
+                        }
                       >
                         Filter
                       </ThemeButton>
@@ -1008,7 +1012,6 @@ export default function Page() {
                           <ThemeButton
                             type="button"
                             variant="secondary"
-                            fullRounded={false}
                             onClick={handleViewAllTickets}
                           >
                             View All
@@ -1078,6 +1081,7 @@ export default function Page() {
                           <Dropdown
                             options={projectFilterOptions}
                             value={selectedProject}
+                            showSearch={true}
                             onChange={(value) =>
                               updateRecentTicketsFilters({
                                 project: value,
@@ -1092,6 +1096,7 @@ export default function Page() {
                           <Dropdown
                             options={statusFilterOptions}
                             value={selectedStatus}
+                            showSearch={true}
                             onChange={(value) =>
                               updateRecentTicketsFilters({
                                 status: value,
@@ -1105,6 +1110,7 @@ export default function Page() {
                           <Dropdown
                             options={priorityFilterOptions}
                             value={selectedPriority}
+                            showSearch={true}
                             onChange={(value) =>
                               updateRecentTicketsFilters({
                                 priority: value,
@@ -1120,7 +1126,6 @@ export default function Page() {
                         <ThemeButton
                           type="button"
                           variant="secondary"
-                          fullRounded={false}
                           size="xs"
                           disabled={
                             selectedProject === 'all' &&

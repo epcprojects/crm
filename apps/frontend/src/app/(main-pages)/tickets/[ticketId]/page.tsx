@@ -843,13 +843,13 @@ export default function TicketDetailPage() {
           setHasUnreadInternalChat(true);
         }
 
-        appToast.info(
-          getIncomingChatToastMessage(payload.channel, payload.message),
-          {
-            position: 'top-right',
-            toastId: `ticket-chat-${payload.channel}-${payload.message.id}`,
-          },
-        );
+        // appToast.info(
+        //   getIncomingChatToastMessage(payload.channel, payload.message),
+        //   {
+        //     position: 'top-right',
+        //     toastId: `ticket-chat-${payload.channel}-${payload.message.id}`,
+        //   },
+        // );
       };
 
       socket.on('connect', joinUnreadRooms);
@@ -1264,6 +1264,7 @@ export default function TicketDetailPage() {
 
     setTitleDraft(ticket.title);
     setDescriptionDraft(ticket.description ?? '');
+    setIsDescriptionExpanded(false);
     setIsEditingTitle(true);
     setIsEditingDescription(true);
   };
@@ -1271,6 +1272,7 @@ export default function TicketDetailPage() {
   const handleCancelEditingContent = () => {
     setTitleDraft(ticket.title);
     setDescriptionDraft(ticket.description ?? '');
+    setIsDescriptionExpanded(false);
     setIsEditingTitle(false);
     setIsEditingDescription(false);
   };
@@ -1290,6 +1292,7 @@ export default function TicketDetailPage() {
     }
 
     if (nextTitle === ticket.title && nextDescription === currentDescription) {
+      setIsDescriptionExpanded(false);
       setIsEditingTitle(false);
       setIsEditingDescription(false);
       return;
@@ -1306,6 +1309,7 @@ export default function TicketDetailPage() {
       }),
     );
 
+    setIsDescriptionExpanded(false);
     setIsEditingTitle(false);
     setIsEditingDescription(false);
   };
@@ -1752,7 +1756,6 @@ export default function TicketDetailPage() {
                           type="button"
                           variant="secondary"
                           size="md"
-                          fullRounded={false}
                           onClick={handleCancelEditingContent}
                           disabled={updateTicketMutation.isPending}
                           className="disabled:cursor-not-allowed disabled:opacity-60"
@@ -1764,7 +1767,6 @@ export default function TicketDetailPage() {
                           type="button"
                           variant="primaryGradient"
                           size="md"
-                          fullRounded={false}
                           onClick={() => void handleSaveTicketContent()}
                           disabled={updateTicketMutation.isPending}
                           className="disabled:cursor-not-allowed disabled:opacity-60"
@@ -1959,7 +1961,7 @@ export default function TicketDetailPage() {
                           : undefined
                         : canDeleteReplies
                           ? handleDeleteTicketReply
-                        : undefined
+                          : undefined
                     }
                     onEditReply={
                       isInternalChatActive && canViewInternalChatBtn
@@ -1996,7 +1998,7 @@ export default function TicketDetailPage() {
               {!isExternalUser ? (
                 <section className="rounded-xl border border-gray-200 bg-white">
                   <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 md:text-base">
-                    Status & Priority
+                    Actions
                   </h3>
 
                   <div className="space-y-2 p-3 sm:p-4">
@@ -2030,21 +2032,30 @@ export default function TicketDetailPage() {
                         applyHeight={false}
                       />
                     </div>
-
-                    {/* <div className="grid items-center md:grid-cols-2 gap-4">
-                      <span className="text-sm text-black font-normal">
-                        Assignee
-                      </span>
-
-                      <Dropdown
-                        options={assigneeOptions}
-                        value={selectedAssigneeId}
-                        disabled={
-                          updateTicketMutation.isPending || !canEditAssignee
-                        }
-                        onChange={handleAssigneeChange}
-                      />
-                    </div> */}
+                    {!isExternalUser ? (
+                      <section className="grid items-center md:grid-cols-2 gap-4">
+                        <span className="text-sm text-black font-normal">
+                          Due Date
+                        </span>
+                        <div className="">
+                          <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-1.5">
+                            <input
+                              type="date"
+                              value={selectedDueDate}
+                              min={minimumDueDate}
+                              disabled={
+                                updateTicketMutation.isPending ||
+                                !canEditDueDate
+                              }
+                              onChange={(event) =>
+                                handleDueDateChange(event.target.value)
+                              }
+                              className="w-full bg-transparent text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:text-gray-400"
+                            />
+                          </label>
+                        </div>
+                      </section>
+                    ) : null}
                   </div>
                 </section>
               ) : null}
@@ -2186,37 +2197,6 @@ export default function TicketDetailPage() {
                   )}
                 </div>
               </section>
-
-              {!isExternalUser ? (
-                <section className="rounded-xl border border-gray-200 bg-white ">
-                  <div className="flex items-center justify-between border-b border-gray-200 px-3 py-3 sm:px-4">
-                    <h3 className="text-sm font-semibold text-gray-900 md:text-base">
-                      Due Date
-                    </h3>
-                  </div>
-
-                  <div className="p-3 sm:p-4 grid md:grid-cols-2 items-center gap-4">
-                    {/* <p className="mb-2 text-xs font-medium tracking-wide text-gray-500">
-                      {selectedDueDate ? 'Select date' : 'No due date'}
-                    </p> */}
-                    {/* <p className="text-sm font-normal text-black">Overdue</p> */}
-                    <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2.5">
-                      <input
-                        type="date"
-                        value={selectedDueDate}
-                        min={minimumDueDate}
-                        disabled={
-                          updateTicketMutation.isPending || !canEditDueDate
-                        }
-                        onChange={(event) =>
-                          handleDueDateChange(event.target.value)
-                        }
-                        className="w-full bg-transparent text-base text-gray-900 outline-none disabled:cursor-not-allowed disabled:text-gray-400"
-                      />
-                    </label>
-                  </div>
-                </section>
-              ) : null}
 
               {!isExternalUser ? (
                 <section className="rounded-xl border border-gray-200 overflow-hidden bg-white">
@@ -2779,9 +2759,10 @@ function mapApiTicketReplyToDiscussionReply(reply: ApiTicketReply) {
     updatedAt: reply.updatedAt,
     isEdited: Boolean(
       reply.updatedAt &&
-        reply.createdAt &&
-        new Date(reply.updatedAt).getTime() >
-          new Date(reply.createdAt).getTime(),
+        Math.floor(new Date(reply.updatedAt).getTime() / 1000) >
+          Math.floor(
+            new Date(reply.createdAt ?? reply.updatedAt).getTime() / 1000,
+          ),
     ),
     author: {
       name: authorName,
