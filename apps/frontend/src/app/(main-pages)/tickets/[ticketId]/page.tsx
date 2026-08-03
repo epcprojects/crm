@@ -843,13 +843,13 @@ export default function TicketDetailPage() {
           setHasUnreadInternalChat(true);
         }
 
-        appToast.info(
-          getIncomingChatToastMessage(payload.channel, payload.message),
-          {
-            position: 'top-right',
-            toastId: `ticket-chat-${payload.channel}-${payload.message.id}`,
-          },
-        );
+        // appToast.info(
+        //   getIncomingChatToastMessage(payload.channel, payload.message),
+        //   {
+        //     position: 'top-right',
+        //     toastId: `ticket-chat-${payload.channel}-${payload.message.id}`,
+        //   },
+        // );
       };
 
       socket.on('connect', joinUnreadRooms);
@@ -1264,6 +1264,7 @@ export default function TicketDetailPage() {
 
     setTitleDraft(ticket.title);
     setDescriptionDraft(ticket.description ?? '');
+    setIsDescriptionExpanded(false);
     setIsEditingTitle(true);
     setIsEditingDescription(true);
   };
@@ -1271,6 +1272,7 @@ export default function TicketDetailPage() {
   const handleCancelEditingContent = () => {
     setTitleDraft(ticket.title);
     setDescriptionDraft(ticket.description ?? '');
+    setIsDescriptionExpanded(false);
     setIsEditingTitle(false);
     setIsEditingDescription(false);
   };
@@ -1290,6 +1292,7 @@ export default function TicketDetailPage() {
     }
 
     if (nextTitle === ticket.title && nextDescription === currentDescription) {
+      setIsDescriptionExpanded(false);
       setIsEditingTitle(false);
       setIsEditingDescription(false);
       return;
@@ -1306,6 +1309,7 @@ export default function TicketDetailPage() {
       }),
     );
 
+    setIsDescriptionExpanded(false);
     setIsEditingTitle(false);
     setIsEditingDescription(false);
   };
@@ -1752,7 +1756,6 @@ export default function TicketDetailPage() {
                           type="button"
                           variant="secondary"
                           size="md"
-                          fullRounded={false}
                           onClick={handleCancelEditingContent}
                           disabled={updateTicketMutation.isPending}
                           className="disabled:cursor-not-allowed disabled:opacity-60"
@@ -1764,7 +1767,6 @@ export default function TicketDetailPage() {
                           type="button"
                           variant="primaryGradient"
                           size="md"
-                          fullRounded={false}
                           onClick={() => void handleSaveTicketContent()}
                           disabled={updateTicketMutation.isPending}
                           className="disabled:cursor-not-allowed disabled:opacity-60"

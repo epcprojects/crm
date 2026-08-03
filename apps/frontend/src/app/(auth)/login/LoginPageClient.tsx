@@ -158,7 +158,6 @@ export default function LoginPageClient() {
                   type="submit"
                   disabled={authStatus === 'loading'}
                   className="w-full"
-                  fullRounded
                   size="lg"
                 >
                   {authStatus === 'loading' ? 'Signing in...' : 'Sign in'}

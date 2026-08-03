@@ -527,7 +527,7 @@ export default function ProjectThreadPanel({
           ) : null}
 
           {replies.length ? (
-            <div className="space-y-5">
+            <div className="space-y-5 bg-red-">
               {replies.map((reply) => {
                 const isCurrentUserReply = Boolean(
                   currentUserId && reply.authorId === currentUserId,
@@ -544,7 +544,7 @@ export default function ProjectThreadPanel({
                       {reply.author.initials}
                     </span>
 
-                    <div className="flex min-w-0 flex-col">
+                    <div className="flex min-w-0 flex-col w-full">
                       {/* Name and date outside the bubble */}
                       <div
                         className={`mb-1 flex flex-wrap items-center gap-2 ${
@@ -562,8 +562,10 @@ export default function ProjectThreadPanel({
 
                       {reply.message || reply.attachments?.length ? (
                         <div
-                          className={`group/reply relative flex w-fit max-w-full flex-col rounded-xl rounded-tl-none border border-gray-200 bg-white p-2 ${
-                            reply.message && reply.attachments?.length!=0 ? 'space-y-2' : ''
+                          className={`group/reply relative flex ${headerAction ? 'w-full' : 'w-fit md:max-w-3/4'}   flex-col rounded-xl rounded-tl-none border border-gray-200 bg-white p-2 ${
+                            reply.message && reply.attachments?.length != 0
+                              ? 'space-y-2'
+                              : ''
                           }`}
                         >
                           {editingMessageId === reply.id ? (
@@ -1050,7 +1052,7 @@ function InlineEditComposer({
   onSelectEmoji: (emoji: string) => void;
 }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-3">
+    <div className="rounded-2xl w-full border border-gray-200 bg-white p-3">
       <textarea
         ref={editingTextareaRef}
         rows={3}
@@ -1096,7 +1098,6 @@ function InlineEditComposer({
             type="button"
             variant="secondary"
             size="md"
-            fullRounded
             onClick={onCancel}
             disabled={Boolean(editingReplyId)}
             className="disabled:cursor-not-allowed disabled:opacity-60"
@@ -1108,7 +1109,6 @@ function InlineEditComposer({
             type="button"
             variant="primaryGradient"
             size="md"
-            fullRounded
             onClick={onSave}
             disabled={!editingMessage.trim() || Boolean(editingReplyId)}
             className="disabled:cursor-not-allowed disabled:opacity-60"

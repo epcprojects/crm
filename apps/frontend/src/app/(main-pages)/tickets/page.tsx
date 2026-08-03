@@ -840,7 +840,7 @@ export default function Page() {
                             </button>
                           </div>
                         </div>
-                        <Popover as="div" className="block sm:block ">
+                        <Popover as="div" className="block sm:hidden ">
                           {({ open }) => (
                             <>
                               <PopoverButton
@@ -1029,6 +1029,7 @@ export default function Page() {
                             }
                             placeholder="All Projects"
                             maxMenuHeight={320}
+                            showSearch={true}
                           />
                         </div>
 
@@ -1043,6 +1044,7 @@ export default function Page() {
                               placeholder="All Status"
                               minHeight="min-h-70"
                               menuScrollable={false}
+                              showSearch={true}
                             />
                           </div>
                         )}
@@ -1054,6 +1056,7 @@ export default function Page() {
                             onChange={(value) =>
                               updateTicketsPageFilters({ priority: value })
                             }
+                            showSearch={true}
                             placeholder="All Priority"
                           />
                         </div>
@@ -1069,7 +1072,6 @@ export default function Page() {
                         <ThemeButton
                           type="button"
                           variant="secondary"
-                          fullRounded
                           size="md"
                           onClick={clearTicketFilters}
                           disabled={!hasActiveTicketFilters}

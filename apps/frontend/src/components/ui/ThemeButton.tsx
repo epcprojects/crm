@@ -8,7 +8,6 @@ type ThemeButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'primaryGradient' | 'primary' | 'secondary' | 'black';
   size?: 'xs' | 'sm' | 'md' | 'lg';
   icon?: ReactNode;
-  fullRounded?: boolean;
   iconBg?: string;
   borderclassName?: string;
 };
@@ -18,7 +17,6 @@ export default function ThemeButton({
   variant = 'primaryGradient',
   size = 'md',
   icon,
-  // fullRounded = true,
   className,
   iconBg = 'bg-white',
   borderclassName,
