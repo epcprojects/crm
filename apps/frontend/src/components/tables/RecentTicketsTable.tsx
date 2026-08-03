@@ -205,7 +205,7 @@ type RecentTicketsTableProps = {
   sortState?: TicketSortState;
   onSortChange?: (sortState: TicketSortState) => void;
   onEmptyButtonClick?: () => void;
-  internalScrollEnabled?: boolean;
+  // internalScrollEnabled?: boolean;
 };
 
 export default function RecentTicketsTable({
@@ -223,7 +223,7 @@ export default function RecentTicketsTable({
   onPaginationChange,
   sortState,
   onSortChange,
-  internalScrollEnabled = true,
+  // internalScrollEnabled = true,
 }: RecentTicketsTableProps) {
   const userType = useAppSelector((state) => state.auth.user?.userType);
   const isExternalUser = userType === 'EXTERNAL';
@@ -312,14 +312,18 @@ export default function RecentTicketsTable({
     );
   }
   return (
-    <div className="flex h-full min-h-0 flex-col  rounded-xl bg-white xl:w-full xl:border xl:border-gray-200">
+    <div 
+    // className="flex h-full min-h-0 flex-col  rounded-xl bg-white xl:w-full xl:border xl:border-gray-200"
+    className="flex h-auto min-h-0 flex-col overflow-visible rounded-xl bg-white xl:h-full xl:w-full xl:overflow-hidden xl:border xl:border-gray-200"
+    >
       <div
-        className={`min-h-0 flex-1 space-y-3 touch-pan-y scrollbar-hide xl:hidden xl:p-3 ${
-    internalScrollEnabled
-      ? 'overflow-y-auto overscroll-contain'
-      : 'overflow-y-hidden overscroll-auto'
-  }`}
+  //       className={`min-h-0 flex-1 space-y-3 touch-pan-y scrollbar-hide xl:hidden xl:p-3 ${
+  //   internalScrollEnabled
+  //     ? 'overflow-y-auto overscroll-contain'
+  //     : 'overflow-y-hidden overscroll-auto'
+  // }`}
         // className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain xl:p-3 scrollbar-hide xl:hidden"
+        className="flex-none space-y-3 overflow-visible scrollbar-hide xl:hidden xl:p-3"
       >
         {table.getRowModel().rows.length ? (
           table
