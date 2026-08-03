@@ -170,6 +170,47 @@ export class ThreadService {
     return updated;
   }
 
+async remove(id: string, projectId: string, user: any) {
+    const message = await this.repo.findOne({
+      where: {
+        id,
+        projectId,
+      },
+    });
+
+    if (!message) {
+      throw new NotFoundException('Thread message not found');
+    }
+
+    if (message.authorId !== user.id) {
+      throw new BadRequestException(
+        'You can only delete your own thread messages.',
+      );
+    }
+
+    if (message.parentId) {
+      // It's a reply — decrement the parent's replyCount
+      await this.repo.decrement({ id: message.parentId }, 'replyCount', 1);
+      await this.repo.softDelete({ id, projectId });
+    } else {
+      // It's a top-level message — cascade soft-delete to its replies
+      const replies = await this.repo.find({
+        where: { parentId: id },
+        select: { id: true },
+      });
+
+      if (replies.length) {
+        await this.repo.softDelete(replies.map((r) => r.id));
+      }
+
+      await this.repo.softDelete({ id, projectId });
+    }
+
+    this.threadGateway.broadcastDeleted(projectId, id);
+
+    return { id, deleted: true };
+  }
+
   // TODO: optimize N+1 issue
   async findAll(projectId: string) {
     const project = await this.repo.manager
@@ -330,4 +371,6 @@ export class ThreadService {
       });
     }
   }
+
+
 }
