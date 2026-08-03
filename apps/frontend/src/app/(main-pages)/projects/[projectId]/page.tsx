@@ -98,6 +98,8 @@ export default function ProjectDetailPage() {
   const canCreateTicket = hasPermission('tickets.create');
   const canFilterTickets = hasPermission('tickets.filter');
   const canViewThread = hasPermission('thread.view');
+  const canEditThread = hasPermission('thread.edit');
+  const canDeleteThread = hasPermission('thread.delete');
   const canPostThreadMessage = hasPermission('thread.post_message');
   const canPostThreadReply = hasPermission('thread.post_reply');
   const canAttachThreadFile = hasPermission('thread.attach_file');
@@ -767,7 +769,7 @@ export default function ProjectDetailPage() {
     message: string;
     attachments: File[];
   }) => {
-    if (!canPostThreadMessage) {
+    if (!canEditThread) {
       return;
     }
 
@@ -1359,12 +1361,12 @@ export default function ProjectDetailPage() {
                                 : undefined
                             }
                             onEditReply={
-                              canPostThreadMessage
+                              canEditThread
                                 ? handleEditProjectThreadReply
                                 : undefined
                             }
                             onDeleteReply={
-                              canPostThreadMessage
+                              canDeleteThread
                                 ? handleDeleteProjectThreadReply
                                 : undefined
                             }
@@ -1428,8 +1430,16 @@ export default function ProjectDetailPage() {
                                 ? handleSubmitThreadReply
                                 : undefined
                             }
-                            onEditReply={handleEditProjectThreadReply}
-                            onDeleteReply={handleDeleteProjectThreadReply}
+                            onEditReply={
+                              canEditThread
+                                ? handleEditProjectThreadReply
+                                : undefined
+                            }
+                            onDeleteReply={
+                              canDeleteThread
+                                ? handleDeleteProjectThreadReply
+                                : undefined
+                            }
                             isSubmittingReply={
                               createProjectThreadMutation.isPending &&
                               Boolean(selectedThreadMessageId)

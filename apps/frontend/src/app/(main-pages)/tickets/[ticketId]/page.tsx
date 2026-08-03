@@ -32,7 +32,6 @@ import {
 import { usePermissions } from '../../../providers/PermissionProvider';
 import { useAppSelector } from '../../../Redux/store';
 import {
-  CheckMarkCircleIcon,
   DownloadIcon,
   EditIcon,
   EyeOpenedIcon,
@@ -87,12 +86,16 @@ export default function TicketDetailPage() {
   const canViewTicketDetail = hasPermission('tickets.view_detail');
   const canViewReplies = hasPermission('ticket_replies.view');
   const canPostReplies = hasPermission('ticket_replies.post');
+  const canEditReplies = hasPermission('ticket_replies.edit');
+  const canDeleteReplies = hasPermission('ticket_replies.delete');
   const canAttachReplyFiles = hasPermission('ticket_replies.attach_file');
   const canEditStatus = hasPermission('tickets.edit_status');
   const canEditPriority = hasPermission('tickets.edit_priority');
   const canEditDueDate = hasPermission('tickets.edit_due_date');
   const canViewInternalChatBtn = hasPermission('tickets.internal_chat');
-  const canEditTicketContent = !isExternalUser;
+  const canEditTitleDescription = hasPermission(
+    'tickets.edit_title_description',
+  );
 
   const fallbackTicket = useMemo(() => getTicketById(ticketId), [ticketId]);
 
@@ -1142,7 +1145,7 @@ export default function TicketDetailPage() {
     message: string;
     attachments: File[];
   }) => {
-    if (!canPostReplies) {
+    if (!canEditReplies) {
       return;
     }
 
@@ -1255,7 +1258,7 @@ export default function TicketDetailPage() {
   };
 
   const handleStartEditingContent = () => {
-    if (!canEditTicketContent) {
+    if (!canEditTitleDescription) {
       return;
     }
 
@@ -1273,7 +1276,7 @@ export default function TicketDetailPage() {
   };
 
   const handleSaveTicketContent = async () => {
-    if (!canEditTicketContent) {
+    if (!canEditTitleDescription) {
       return;
     }
 
@@ -1636,7 +1639,7 @@ export default function TicketDetailPage() {
               <section className="rounded-xl border border-gray-200 bg-white p-3  md:p-5">
                 <div className=" relative">
                   <div className="mb-2 flex absolute top-0 inset-e-0 items-start justify-end">
-                    {canEditTicketContent &&
+                    {canEditTitleDescription &&
                     !isEditingTitle &&
                     !isEditingDescription ? (
                       <button
@@ -1648,7 +1651,7 @@ export default function TicketDetailPage() {
                         <EditIcon />
                       </button>
                     ) : null}
-                    {/* {canEditTicketContent ? (
+                    {/* {canEditTitleDescription ? (
                       <button
                         type="button"
                         disabled={updateTicketMutation.isPending}
@@ -1951,20 +1954,24 @@ export default function TicketDetailPage() {
                     currentUserId={currentUserId}
                     onDeleteReply={
                       isInternalChatActive && canViewInternalChatBtn
-                        ? handleDeleteChatMessage
-                        : canPostReplies
+                        ? canDeleteReplies
+                          ? handleDeleteChatMessage
+                          : undefined
+                        : canDeleteReplies
                           ? handleDeleteTicketReply
                         : undefined
                     }
                     onEditReply={
                       isInternalChatActive && canViewInternalChatBtn
-                        ? ({ reply, message }) =>
-                            handleEditChatMessage({
-                              reply,
-                              message,
-                              updateMessage: updateInternalChatMessage,
-                            })
-                        : canPostReplies
+                        ? canEditReplies
+                          ? ({ reply, message }) =>
+                              handleEditChatMessage({
+                                reply,
+                                message,
+                                updateMessage: updateInternalChatMessage,
+                              })
+                          : undefined
+                        : canEditReplies
                           ? handleEditTicketReply
                           : undefined
                     }
@@ -2721,8 +2728,8 @@ function mapChatMessageToDiscussionReply(message: ChatMessage) {
     updatedAt: message.updatedAt,
     isEdited: Boolean(
       message.updatedAt &&
-        new Date(message.updatedAt).getTime() >
-          new Date(message.createdAt).getTime(),
+        Math.floor(new Date(message.updatedAt).getTime() / 1000) >
+          Math.floor(new Date(message.createdAt).getTime() / 1000),
     ),
     author: {
       name: authorName,
