@@ -8,6 +8,7 @@ import {
   UploadedFiles,
   UseGuards,
   ParseUUIDPipe,
+  Put,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { CreateReplyDto } from './dto/create-reply.dto';
@@ -73,7 +74,7 @@ export class TicketRepliesController {
     return this.service.create(pid, ticketId, dto, user.id, files);
   }
 
-  @Post('projects/:pid/reply/:replyId')
+  @Put('projects/:pid/reply/:replyId')
   @UseGuards(FileSizeGuard)
   @ApiConsumes('multipart/form-data')
   @ApiBody({

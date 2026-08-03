@@ -144,7 +144,7 @@ export class ChatMessagesController {
     @GetUser() user: any,
   ) {
     // this.service.assertAccess(user.role, channel);
-    const { projectId, ticketId } = await this.service.update(
+    const { projectId, ticketId, ...msg } = await this.service.update(
       channel,
       messageId,
       user.id,
@@ -152,12 +152,10 @@ export class ChatMessagesController {
     );
 
     // broadcast deleted message
-    this.gateway.broadcastMessageUpdated(
-      projectId,
-      ticketId,
-      channel,
+    this.gateway.broadcastMessageUpdated(projectId, ticketId, channel, {
       messageId,
-    );
+      ...msg,
+    });
 
     return { success: true };
   }
