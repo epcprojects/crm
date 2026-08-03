@@ -27,7 +27,10 @@ import UploadFileModal, {
 } from '../../../../components/modals/UploadFileModal';
 import ConfirmActionModal from '../../../../components/modals/ConfirmActionModal';
 import ProjectThreadPanel from '../../../../components/discussion/ProjectThreadPanel';
-import type { DiscussionAttachment } from '../../../../components/discussion/types';
+import type {
+  DiscussionAttachment,
+  DiscussionReply,
+} from '../../../../components/discussion/types';
 import ProjectFilesPanel, {
   type ProjectFileRecord,
 } from '../../../../components/projects/ProjectFilesPanel';
@@ -95,6 +98,8 @@ export default function ProjectDetailPage() {
   const canCreateTicket = hasPermission('tickets.create');
   const canFilterTickets = hasPermission('tickets.filter');
   const canViewThread = hasPermission('thread.view');
+  const canEditThread = hasPermission('thread.edit');
+  const canDeleteThread = hasPermission('thread.delete');
   const canPostThreadMessage = hasPermission('thread.post_message');
   const canPostThreadReply = hasPermission('thread.post_reply');
   const canAttachThreadFile = hasPermission('thread.attach_file');
@@ -113,6 +118,7 @@ export default function ProjectDetailPage() {
     null,
   );
   const [selectedThreadMessageId, setSelectedThreadMessageId] = useState('');
+  const [deletingThreadReplyId, setDeletingThreadReplyId] = useState('');
   const [editingThreadReplyId, setEditingThreadReplyId] = useState('');
   const [threadSocketToken, setThreadSocketToken] =
     useState<SocketTokenResponse | null>(null);
@@ -275,10 +281,13 @@ export default function ProjectDetailPage() {
         formData.append('parentId', parentId.trim());
       }
 
-      const response = await fetch(`/api/projects/${projectId}/thread/${messageId}`, {
-        method: 'PUT',
-        body: formData,
-      });
+      const response = await fetch(
+        `/api/projects/${projectId}/thread/${messageId}`,
+        {
+          method: 'PUT',
+          body: formData,
+        },
+      );
 
       const data = await response.json().catch(() => null);
 
@@ -300,7 +309,11 @@ export default function ProjectDetailPage() {
       const detailMessageId = variables.parentId || selectedThreadMessageId;
       if (detailMessageId) {
         await queryClient.invalidateQueries({
-          queryKey: [...projectThreadDetailQueryKey, projectId, detailMessageId],
+          queryKey: [
+            ...projectThreadDetailQueryKey,
+            projectId,
+            detailMessageId,
+          ],
         });
       }
 
@@ -311,6 +324,56 @@ export default function ProjectDetailPage() {
         error instanceof Error
           ? error.message
           : 'Failed to update thread message.',
+      );
+    },
+  });
+
+  const deleteProjectThreadMutation = useMutation({
+    mutationFn: async ({ messageId }: { messageId: string }) => {
+      const response = await fetch(
+        `/api/projects/${projectId}/thread/${messageId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Accept: 'application/json',
+          },
+        },
+      );
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const errorMessage =
+          Array.isArray(data?.message) && data.message.length
+            ? data.message.join(', ')
+            : data?.message || 'Failed to delete thread message.';
+        throw new Error(errorMessage);
+      }
+
+      return data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: [...projectThreadQueryKey, projectId],
+      });
+
+      if (selectedThreadMessageId) {
+        await queryClient.invalidateQueries({
+          queryKey: [
+            ...projectThreadDetailQueryKey,
+            projectId,
+            selectedThreadMessageId,
+          ],
+        });
+      }
+
+      appToast.success('Thread deleted successfully.');
+    },
+    onError: (error) => {
+      appToast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to delete thread message.',
       );
     },
   });
@@ -440,31 +503,31 @@ export default function ProjectDetailPage() {
   //   [projectTicketsQuery.data?.items, ticketStatusesQuery.data],
   // );
   const projectTickets = useMemo(
-  () =>
-    (projectTicketsQuery.data?.items ?? []).map((ticket) => ({
-      ...ticket,
+    () =>
+      (projectTicketsQuery.data?.items ?? []).map((ticket) => ({
+        ...ticket,
 
-      project: {
-        ...ticket.project,
-        id: project?.id ?? ticket.project.id,
-        name: project?.name ?? ticket.project.name,
-        initials: project?.initials ?? ticket.project.initials,
-        brandColor: project?.colorHex ?? ticket.project.brandColor,
-      },
+        project: {
+          ...ticket.project,
+          id: project?.id ?? ticket.project.id,
+          name: project?.name ?? ticket.project.name,
+          initials: project?.initials ?? ticket.project.initials,
+          brandColor: project?.colorHex ?? ticket.project.brandColor,
+        },
 
-      statusColor:
-        ticket.statusColor ??
-        getTicketStatusColor(ticket.status, ticketStatusesQuery.data),
-    })),
-  [
-    projectTicketsQuery.data?.items,
-    ticketStatusesQuery.data,
-    project?.id,
-    project?.name,
-    project?.initials,
-    project?.colorHex,
-  ],
-);
+        statusColor:
+          ticket.statusColor ??
+          getTicketStatusColor(ticket.status, ticketStatusesQuery.data),
+      })),
+    [
+      projectTicketsQuery.data?.items,
+      ticketStatusesQuery.data,
+      project?.id,
+      project?.name,
+      project?.initials,
+      project?.colorHex,
+    ],
+  );
   const projectFiles = useMemo(() => {
     const normalizedSearch = fileSearchValue.trim().toLowerCase();
     const files = [...uploadedFilesState, ...(projectFilesQuery.data ?? [])];
@@ -706,7 +769,7 @@ export default function ProjectDetailPage() {
     message: string;
     attachments: File[];
   }) => {
-    if (!canPostThreadMessage) {
+    if (!canEditThread) {
       return;
     }
 
@@ -735,7 +798,7 @@ export default function ProjectDetailPage() {
     reply,
     message,
   }: {
-    reply: { id: string };
+    reply: DiscussionReply;
     message: string;
   }) => {
     setEditingThreadReplyId(reply.id);
@@ -751,6 +814,22 @@ export default function ProjectDetailPage() {
       });
     } finally {
       setEditingThreadReplyId('');
+    }
+  };
+
+  const handleDeleteProjectThreadReply = async (reply: DiscussionReply) => {
+    try {
+      setDeletingThreadReplyId(reply.id);
+
+      if (selectedThreadMessageId === reply.id) {
+        setSelectedThreadMessageId('');
+      }
+
+      await deleteProjectThreadMutation.mutateAsync({
+        messageId: reply.id,
+      });
+    } finally {
+      setDeletingThreadReplyId('');
     }
   };
 
@@ -772,61 +851,61 @@ export default function ProjectDetailPage() {
     const requestedTabIndex = visibleProjectTabs.indexOf(requestedTabName);
     return requestedTabIndex >= 0 ? requestedTabIndex : 0;
   }, [searchParams, visibleProjectTabs]);
-  const projectDetailScrollRef = useRef<HTMLDivElement | null>(null);
-  const projectDetailSectionRef = useRef<HTMLDivElement | null>(null);
+  // const projectDetailScrollRef = useRef<HTMLDivElement | null>(null);
+  // const projectDetailSectionRef = useRef<HTMLDivElement | null>(null);
 
-  const [isProjectDetailSectionPinned, setIsProjectDetailSectionPinned] =
-    useState(false);
+  // const [isProjectDetailSectionPinned, setIsProjectDetailSectionPinned] =
+  //   useState(false);
 
-  useEffect(() => {
-    if (
-      projectDetailQuery.isLoading ||
-      shouldRedirectToNotFound ||
-      !canViewProjectDetail ||
-      !project
-    ) {
-      return;
-    }
+  // useEffect(() => {
+  //   if (
+  //     projectDetailQuery.isLoading ||
+  //     shouldRedirectToNotFound ||
+  //     !canViewProjectDetail ||
+  //     !project
+  //   ) {
+  //     return;
+  //   }
 
-    const scrollContainer = projectDetailScrollRef.current;
-    const detailSection = projectDetailSectionRef.current;
+  //   const scrollContainer = projectDetailScrollRef.current;
+  //   const detailSection = projectDetailSectionRef.current;
 
-    if (!scrollContainer || !detailSection) {
-      return;
-    }
+  //   if (!scrollContainer || !detailSection) {
+  //     return;
+  //   }
 
-    const updatePinnedState = () => {
-      if (window.innerWidth >= 1280) {
-        setIsProjectDetailSectionPinned(true);
-        return;
-      }
+  //   const updatePinnedState = () => {
+  //     if (window.innerWidth >= 1280) {
+  //       setIsProjectDetailSectionPinned(true);
+  //       return;
+  //     }
 
-      const containerRect = scrollContainer.getBoundingClientRect();
-      const sectionRect = detailSection.getBoundingClientRect();
+  //     const containerRect = scrollContainer.getBoundingClientRect();
+  //     const sectionRect = detailSection.getBoundingClientRect();
 
-      setIsProjectDetailSectionPinned(
-        Math.ceil(sectionRect.top) <= Math.ceil(containerRect.top),
-      );
-    };
+  //     setIsProjectDetailSectionPinned(
+  //       Math.ceil(sectionRect.top) <= Math.ceil(containerRect.top),
+  //     );
+  //   };
 
-    updatePinnedState();
+  //   updatePinnedState();
 
-    scrollContainer.addEventListener('scroll', updatePinnedState, {
-      passive: true,
-    });
+  //   scrollContainer.addEventListener('scroll', updatePinnedState, {
+  //     passive: true,
+  //   });
 
-    window.addEventListener('resize', updatePinnedState);
+  //   window.addEventListener('resize', updatePinnedState);
 
-    return () => {
-      scrollContainer.removeEventListener('scroll', updatePinnedState);
-      window.removeEventListener('resize', updatePinnedState);
-    };
-  }, [
-    projectDetailQuery.isLoading,
-    shouldRedirectToNotFound,
-    canViewProjectDetail,
-    project?.id,
-  ]);
+  //   return () => {
+  //     scrollContainer.removeEventListener('scroll', updatePinnedState);
+  //     window.removeEventListener('resize', updatePinnedState);
+  //   };
+  // }, [
+  //   projectDetailQuery.isLoading,
+  //   shouldRedirectToNotFound,
+  //   canViewProjectDetail,
+  //   project?.id,
+  // ]);
 
   if (projectDetailQuery.isLoading) {
     return <ProjectDetailSkeleton onBack={() => router.back()} />;
@@ -930,7 +1009,7 @@ export default function ProjectDetailPage() {
     <>
       <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 py-4">
         <div
-          ref={projectDetailScrollRef}
+          // ref={projectDetailScrollRef}
           className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
           // className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
         >
@@ -947,9 +1026,11 @@ export default function ProjectDetailPage() {
           </div>
 
           <div
-            ref={projectDetailSectionRef}
-            className="sticky -top-5 z-20 flex h-full min-h-0 min-w-0 flex-none flex-col gap-4 overflow-hidden rounded-xl bg-white  shadow-[0_0_35px_0_rgb(0_0_0/0.04)] p-3 md:px-5 md:pt-4 xl:static xl:z-auto xl:flex-1"
+            // ref={projectDetailSectionRef}
+            // className="sticky -top-5 z-20 flex h-full min-h-0 min-w-0 flex-none flex-col gap-4 overflow-hidden rounded-xl bg-white  shadow-[0_0_35px_0_rgb(0_0_0/0.04)] p-3 md:px-5 md:pt-4 xl:static xl:z-auto xl:flex-1"
             // className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden rounded-xl bg-white px-0 pt-2 md:pt-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:px-5"
+
+            className="flex h-auto min-h-0 min-w-0 flex-none flex-col gap-4 overflow-visible rounded-xl bg-white p-3 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:px-5 md:pt-4 xl:h-full xl:flex-1 xl:overflow-hidden"
           >
             {/* <section className="w-full shrink-0">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -1005,7 +1086,8 @@ export default function ProjectDetailPage() {
 
             <TabGroup
               defaultIndex={defaultProjectTabIndex}
-              className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden"
+              // className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden"
+              className="flex h-auto min-h-0 min-w-0 flex-none flex-col gap-4 overflow-visible xl:h-full xl:flex-1 xl:overflow-hidden"
             >
               <TabList className="flex shrink-0 overflow-x-auto scrollbar-hide border-b border-gray-200">
                 {visibleProjectTabs.map((tab) => (
@@ -1030,9 +1112,15 @@ export default function ProjectDetailPage() {
                 ))}
               </TabList>
 
-              <TabPanels className="flex min-h-0 min-w-0 flex-1 flex-col pb-4 md:pb-4 overflow-hidden">
+              <TabPanels
+                // className="flex min-h-0 min-w-0 flex-1 flex-col pb-4 md:pb-4 overflow-hidden"
+                className="flex h-auto min-h-0 min-w-0 flex-none flex-col overflow-visible pb-4 md:pb-4 xl:h-full xl:flex-1 xl:overflow-hidden"
+              >
                 <PermissionGuard permission="tickets.view_list">
-                  <TabPanel className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-hidden">
+                  <TabPanel
+                    // className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-hidden"
+                    className="flex h-auto min-h-0 min-w-0 flex-none flex-col gap-4 overflow-visible xl:h-full xl:flex-1 xl:overflow-hidden"
+                  >
                     <div className="flex shrink-0 flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
                       {canFilterTickets ? (
                         <>
@@ -1160,18 +1248,29 @@ export default function ProjectDetailPage() {
                               />
                             </div>
 
-                            <button
+                            {/* <button
                               type="button"
                               onClick={clearProjectTicketFilters}
                               disabled={!hasActiveProjectTicketFilters}
                               className="hidden h-10 shrink-0 items-center justify-center rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 xl:inline-flex"
                             >
                               Clear Filters
-                            </button>
+                            </button> */}
+                            <ThemeButton
+                              type="button"
+                              variant="secondary"
+                              size="md"
+                              fullRounded
+                              onClick={clearProjectTicketFilters}
+                              disabled={!hasActiveProjectTicketFilters}
+                              className="hidden h-10 shrink-0 disabled:cursor-not-allowed disabled:opacity-50 xl:inline-flex"
+                            >
+                              Clear Filters
+                            </ThemeButton>
 
                             {canCreateTicket ? (
                               <ThemeButton
-                                className="shrink-0 rounded-full hidden xl:block"
+                                className="shrink-0 rounded-full hidden xl:flex"
                                 variant="primaryGradient"
                                 icon={<PlusIcon width="20" height="20" />}
                                 onClick={() => setCreateTicketOpen(true)}
@@ -1194,13 +1293,15 @@ export default function ProjectDetailPage() {
                         </div>
                       ) : null}
                     </div>
-                    <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+                    <div
+                      // className="min-h-0 min-w-0 flex-1 overflow-hidden"
+                      className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden"
+                    >
                       <RecentTicketsTable
                         tickets={projectTickets}
                         enablePagination
                         pageSizeOptions={[10, 25, 50, 100]}
                         pagination={ticketsPagination}
-                        internalScrollEnabled={isProjectDetailSectionPinned}
                         onPaginationChange={setTicketsPagination}
                         totalRows={projectTicketsQuery.data?.meta.total ?? 0}
                         manualPagination
@@ -1219,20 +1320,30 @@ export default function ProjectDetailPage() {
                 </PermissionGuard>
 
                 <PermissionGuard permission="thread.view">
-                  <TabPanel className="h-full min-h-0 min-w-0 overflow-hidden">
+                  <TabPanel
+                    // className="h-full min-h-0 min-w-0 overflow-hidden"
+                    className="h-auto min-h-0 min-w-0 overflow-visible xl:h-full xl:overflow-hidden"
+                  >
                     <div
-                      className={`grid h-full min-h-0 min-w-0 overflow-hidden rounded-xl border border-gray-200 md:rounded-2xl ${
+                      // className={`grid h-full min-h-0 min-w-0 overflow-hidden rounded-xl border border-gray-200 md:rounded-2xl ${
+                      //   selectedThreadMessageId && !isMobile
+                      //     ? 'xl:grid-cols-[minmax(0,1fr)_400px] xl:grid-rows-[minmax(0,1fr)] xl:divide-x xl:divide-gray-200'
+                      //     : 'grid-cols-1'
+                      // }`}
+                      className={`grid h-auto min-h-0 min-w-0 overflow-visible rounded-xl border border-gray-200 md:rounded-2xl xl:h-full xl:overflow-hidden ${
                         selectedThreadMessageId && !isMobile
                           ? 'xl:grid-cols-[minmax(0,1fr)_400px] xl:grid-rows-[minmax(0,1fr)] xl:divide-x xl:divide-gray-200'
                           : 'grid-cols-1'
                       }`}
                     >
                       {(!isMobile || !selectedThreadMessageId) && (
-                        <div className="h-full min-h-0 min-w-0 overflow-hidden">
+                        <div
+                          // className="h-full min-h-0 min-w-0 overflow-hidden"
+                          className="h-auto min-h-0 min-w-0 overflow-visible xl:h-full xl:overflow-hidden"
+                        >
                           <ProjectThreadPanel
                             title="Discussion"
                             replies={projectThreadQuery.data ?? []}
-                            internalScrollEnabled={isProjectDetailSectionPinned}
                             emptyTitle={
                               projectThreadQuery.isLoading
                                 ? 'Loading discussion...'
@@ -1250,14 +1361,20 @@ export default function ProjectDetailPage() {
                                 : undefined
                             }
                             onEditReply={
-                              canPostThreadMessage
+                              canEditThread
                                 ? handleEditProjectThreadReply
+                                : undefined
+                            }
+                            onDeleteReply={
+                              canDeleteThread
+                                ? handleDeleteProjectThreadReply
                                 : undefined
                             }
                             isSubmittingReply={
                               createProjectThreadMutation.isPending &&
                               !selectedThreadMessageId
                             }
+                            deletingReplyId={deletingThreadReplyId}
                             editingReplyId={editingThreadReplyId}
                             canCompose={canPostThreadMessage}
                             canAttachFile={canAttachThreadFile}
@@ -1278,11 +1395,13 @@ export default function ProjectDetailPage() {
                       )}
 
                       {selectedThreadMessageId ? (
-                        <div className="h-full min-h-0 min-w-0 overflow-hidden">
+                        <div
+                          // className="h-full min-h-0 min-w-0 overflow-hidden"
+                          className="h-auto min-h-0 min-w-0 overflow-visible xl:h-full xl:overflow-hidden"
+                        >
                           <ProjectThreadPanel
                             title="Thread"
                             subtitle=""
-                            internalScrollEnabled={isProjectDetailSectionPinned}
                             headerAction={
                               <button
                                 type="button"
@@ -1311,11 +1430,21 @@ export default function ProjectDetailPage() {
                                 ? handleSubmitThreadReply
                                 : undefined
                             }
-                            onEditReply={handleEditProjectThreadReply}
+                            onEditReply={
+                              canEditThread
+                                ? handleEditProjectThreadReply
+                                : undefined
+                            }
+                            onDeleteReply={
+                              canDeleteThread
+                                ? handleDeleteProjectThreadReply
+                                : undefined
+                            }
                             isSubmittingReply={
                               createProjectThreadMutation.isPending &&
                               Boolean(selectedThreadMessageId)
                             }
+                            deletingReplyId={deletingThreadReplyId}
                             editingReplyId={editingThreadReplyId}
                             canCompose={canPostThreadReply}
                             canAttachFile={
@@ -1337,11 +1466,13 @@ export default function ProjectDetailPage() {
                 </PermissionGuard>
 
                 <PermissionGuard permission="files.view">
-                  <TabPanel className="h-full min-h-0 min-w-0 overflow-hidden">
+                  <TabPanel
+                    // className="h-full min-h-0 min-w-0 overflow-hidden"
+                    className="h-auto min-h-0 min-w-0 overflow-visible xl:h-full xl:overflow-hidden"
+                  >
                     <ProjectFilesPanel
                       files={projectFiles}
                       searchValue={fileSearchValue}
-                      internalScrollEnabled={isProjectDetailSectionPinned}
                       onSearchChange={setFileSearchValue}
                       onUploadClick={
                         canUploadFiles
@@ -1369,11 +1500,12 @@ export default function ProjectDetailPage() {
 
                 <PermissionGuard permission="calendar.view_grid">
                   <TabPanel
-                    className={`h-full min-h-0 touch-pan-y ${
-                      isProjectDetailSectionPinned
-                        ? 'overflow-y-auto overscroll-auto '
-                        : 'overflow-y-hidden overscroll-auto xl:overflow-y-auto'
-                    }`}
+                    // className={`h-full min-h-0 touch-pan-y ${
+                    //   isProjectDetailSectionPinned
+                    //     ? 'overflow-y-auto overscroll-auto '
+                    //     : 'overflow-y-hidden overscroll-auto xl:overflow-y-auto'
+                    // }`}
+                    className="h-auto min-h-0 overflow-visible xl:h-full xl:overflow-y-auto"
                     // className="h-full min-h-0 overflow-y-auto"
                   >
                     <Calendar projectId={projectId} />

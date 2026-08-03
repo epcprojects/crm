@@ -32,7 +32,6 @@ import {
 import { usePermissions } from '../../../providers/PermissionProvider';
 import { useAppSelector } from '../../../Redux/store';
 import {
-  CheckMarkCircleIcon,
   DownloadIcon,
   EditIcon,
   EyeOpenedIcon,
@@ -53,6 +52,8 @@ import { eventEmitter } from '../../../../lib/event-emitter';
 import { validateAttachments } from '../../../../lib/attachments';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import RichTextEditor from 'apps/frontend/src/components/RichTextEditor';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import ThemeButton from 'apps/frontend/src/components/ui/ThemeButton';
 const MAX_DESCRIPTION_LENGTH = 4000;
 type GalleryImage = {
   attachmentId: string;
@@ -85,12 +86,16 @@ export default function TicketDetailPage() {
   const canViewTicketDetail = hasPermission('tickets.view_detail');
   const canViewReplies = hasPermission('ticket_replies.view');
   const canPostReplies = hasPermission('ticket_replies.post');
+  const canEditReplies = hasPermission('ticket_replies.edit');
+  const canDeleteReplies = hasPermission('ticket_replies.delete');
   const canAttachReplyFiles = hasPermission('ticket_replies.attach_file');
   const canEditStatus = hasPermission('tickets.edit_status');
   const canEditPriority = hasPermission('tickets.edit_priority');
   const canEditDueDate = hasPermission('tickets.edit_due_date');
   const canViewInternalChatBtn = hasPermission('tickets.internal_chat');
-  const canEditTicketContent = !isExternalUser;
+  const canEditTitleDescription = hasPermission(
+    'tickets.edit_title_description',
+  );
 
   const fallbackTicket = useMemo(() => getTicketById(ticketId), [ticketId]);
 
@@ -307,6 +312,52 @@ export default function TicketDetailPage() {
       );
     },
   });
+  const deleteReplyMutation = useMutation({
+    mutationFn: async ({ replyId }: { replyId: string }) => {
+      const response = await fetch(
+        `/api/tickets/${ticketId}/projects/${projectId}/reply/${replyId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Accept: 'application/json',
+          },
+        },
+      );
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const errorMessage =
+          Array.isArray(data?.message) && data.message.length
+            ? data.message.join(', ')
+            : data?.message || 'Failed to delete reply.';
+        throw new Error(errorMessage);
+      }
+
+      return data;
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['ticket-replies', ticketId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'ticket-summary'],
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: projectsQueryKey,
+          refetchType: 'all',
+        }),
+      ]);
+      appToast.success('Reply deleted successfully.');
+    },
+    onError: (error) => {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to delete reply.',
+      );
+    },
+  });
 
   const ticket = ticketDetailQuery.data ?? fallbackTicket;
   const [chatDrawerChannel, setChatDrawerChannel] =
@@ -383,6 +434,7 @@ export default function TicketDetailPage() {
 
   const [isSendingChatMessage, setIsSendingChatMessage] = useState(false);
   const [deletingChatMessageId, setDeletingChatMessageId] = useState('');
+  const [deletingTicketReplyId, setDeletingTicketReplyId] = useState('');
   const [editingChatMessageId, setEditingChatMessageId] = useState('');
   const [editingTicketReplyId, setEditingTicketReplyId] = useState('');
   const [chatMessagePendingDelete, setChatMessagePendingDelete] = useState<{
@@ -390,6 +442,8 @@ export default function TicketDetailPage() {
     message: string;
     channel: ChatChannel;
   } | null>(null);
+  const [ticketReplyPendingDelete, setTicketReplyPendingDelete] =
+    useState<DiscussionReply | null>(null);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [activeGalleryIndex, setActiveGalleryIndex] = useState<number | null>(
     null,
@@ -1091,7 +1145,7 @@ export default function TicketDetailPage() {
     message: string;
     attachments: File[];
   }) => {
-    if (!canPostReplies) {
+    if (!canEditReplies) {
       return;
     }
 
@@ -1204,7 +1258,7 @@ export default function TicketDetailPage() {
   };
 
   const handleStartEditingContent = () => {
-    if (!canEditTicketContent) {
+    if (!canEditTitleDescription) {
       return;
     }
 
@@ -1222,7 +1276,7 @@ export default function TicketDetailPage() {
   };
 
   const handleSaveTicketContent = async () => {
-    if (!canEditTicketContent) {
+    if (!canEditTitleDescription) {
       return;
     }
 
@@ -1263,6 +1317,10 @@ export default function TicketDetailPage() {
     });
   };
 
+  const handleDeleteTicketReply = (reply: DiscussionReply) => {
+    setTicketReplyPendingDelete(reply);
+  };
+
   const handleConfirmDeleteChatMessage = async () => {
     if (!chatMessagePendingDelete) {
       return;
@@ -1283,6 +1341,30 @@ export default function TicketDetailPage() {
     } finally {
       setDeletingChatMessageId('');
       setChatMessagePendingDelete(null);
+    }
+  };
+
+  const handleConfirmDeleteTicketReply = async () => {
+    if (!ticketReplyPendingDelete) {
+      return;
+    }
+
+    const replyId = ticketReplyPendingDelete.id;
+
+    try {
+      setDeletingTicketReplyId(replyId);
+      setLiveReplies((current) =>
+        current.filter((reply) => reply.id !== replyId),
+      );
+      await deleteReplyMutation.mutateAsync({ replyId });
+      setTicketReplyPendingDelete(null);
+    } catch (error) {
+      await queryClient.invalidateQueries({
+        queryKey: ['ticket-replies', ticketId],
+      });
+      throw error;
+    } finally {
+      setDeletingTicketReplyId('');
     }
   };
 
@@ -1405,8 +1487,11 @@ export default function TicketDetailPage() {
 
   return (
     <div className="relative z-100 h-full xl:h-dvh overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0">
-      <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden  xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
-        <div className="relative flex w-full flex-col gap-2 overflow-hidden rounded-xl bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat px-4 pt-4 pb-2 xl:flex-row xl:items-center xl:gap-4  xl:px-7.5 xl:py-6">
+      <div
+        className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
+        // className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden  xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
+      >
+        <div className="relative shrink-0 flex w-full flex-col gap-2 overflow-hidden rounded-xl bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat px-4 pt-4 pb-2 xl:flex-row xl:items-center xl:gap-4  xl:px-7.5 xl:py-6">
           {/* Background overlay */}
           <div
             className="absolute inset-0 bg-black/30 z-10"
@@ -1542,13 +1627,19 @@ export default function TicketDetailPage() {
           </div>
         </div>
 
-        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain  scrollbar-hide xl:overflow-hidden ">
+        <div
+          // className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain  scrollbar-hide xl:overflow-hidden "
+          className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden"
+        >
           <div className="grid h-auto min-h-0 min-w-0 grid-cols-1 gap-4 overflow-visible xl:h-full xl:grid-cols-12 xl:grid-rows-[minmax(0,1fr)] xl:overflow-hidden">
-            <div className="flex min-w-0 flex-col space-y-4 xl:col-span-9">
+            <div
+              className="flex h-auto min-w-0 flex-col space-y-4 overflow-visible xl:col-span-9 xl:h-full xl:min-h-0 xl:overflow-hidden"
+              // className="flex min-w-0 flex-col space-y-4 xl:col-span-9"
+            >
               <section className="rounded-xl border border-gray-200 bg-white p-3  md:p-5">
                 <div className=" relative">
                   <div className="mb-2 flex absolute top-0 inset-e-0 items-start justify-end">
-                    {canEditTicketContent &&
+                    {canEditTitleDescription &&
                     !isEditingTitle &&
                     !isEditingDescription ? (
                       <button
@@ -1560,7 +1651,7 @@ export default function TicketDetailPage() {
                         <EditIcon />
                       </button>
                     ) : null}
-                    {/* {canEditTicketContent ? (
+                    {/* {canEditTitleDescription ? (
                       <button
                         type="button"
                         disabled={updateTicketMutation.isPending}
@@ -1656,26 +1747,32 @@ export default function TicketDetailPage() {
                         disabled={updateTicketMutation.isPending}
                         showCharacterCount
                       />
-                      <div className="mt-4 flex items-center justify-end gap-3">
-                        <button
+                      <div className="mt-4 flex  justify-end gap-3">
+                        <ThemeButton
                           type="button"
+                          variant="secondary"
+                          size="md"
+                          fullRounded={false}
                           onClick={handleCancelEditingContent}
                           disabled={updateTicketMutation.isPending}
-                          className="inline-flex  items-center justify-center rounded-lg border border-[#D4D4D4] bg-white px-5 py-1.5 text-base font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           Discard
-                        </button>
+                        </ThemeButton>
 
-                        <button
+                        <ThemeButton
                           type="button"
+                          variant="primaryGradient"
+                          size="md"
+                          fullRounded={false}
                           onClick={() => void handleSaveTicketContent()}
                           disabled={updateTicketMutation.isPending}
-                          className="inline-flex items-center justify-center rounded-lg bg-linear-to-l from-[#8833FF] to-[#1175F9] px-5 py-1.5 text-base font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {updateTicketMutation.isPending
                             ? 'Updating...'
                             : 'Update'}
-                        </button>
+                        </ThemeButton>
                       </div>
                     </div>
                   ) : (
@@ -1719,7 +1816,10 @@ export default function TicketDetailPage() {
                   )}
                 </div>
               </section>
-              <div className="min-h-0 xl:flex-1 xl:overflow-hidden">
+              <div
+                // className="min-h-0 xl:flex-1 xl:overflow-hidden"
+                className="h-auto min-h-0 flex-none overflow-visible xl:h-full xl:flex-1 xl:overflow-hidden"
+              >
                 {canViewReplies || canViewInternalChatBtn ? (
                   <TicketRepliesPanel
                     title={
@@ -1854,25 +1954,31 @@ export default function TicketDetailPage() {
                     currentUserId={currentUserId}
                     onDeleteReply={
                       isInternalChatActive && canViewInternalChatBtn
-                        ? handleDeleteChatMessage
+                        ? canDeleteReplies
+                          ? handleDeleteChatMessage
+                          : undefined
+                        : canDeleteReplies
+                          ? handleDeleteTicketReply
                         : undefined
                     }
                     onEditReply={
                       isInternalChatActive && canViewInternalChatBtn
-                        ? ({ reply, message }) =>
-                            handleEditChatMessage({
-                              reply,
-                              message,
-                              updateMessage: updateInternalChatMessage,
-                            })
-                        : canPostReplies
+                        ? canEditReplies
+                          ? ({ reply, message }) =>
+                              handleEditChatMessage({
+                                reply,
+                                message,
+                                updateMessage: updateInternalChatMessage,
+                              })
+                          : undefined
+                        : canEditReplies
                           ? handleEditTicketReply
-                        : undefined
+                          : undefined
                     }
                     deletingReplyId={
                       isInternalChatActive && canViewInternalChatBtn
                         ? deletingChatMessageId
-                        : undefined
+                        : deletingTicketReplyId
                     }
                     editingReplyId={
                       isInternalChatActive && canViewInternalChatBtn
@@ -1883,7 +1989,10 @@ export default function TicketDetailPage() {
                 ) : null}
               </div>
             </div>
-            <aside className="min-h-0 min-w-0 space-y-4 overflow-y-auto scrollbar-hide  xl:col-span-3 xl:h-full">
+            <aside
+              className="h-auto min-h-0 min-w-0 space-y-4 overflow-visible scrollbar-hide xl:col-span-3 xl:h-full xl:overflow-y-auto"
+              // className="min-h-0 min-w-0 space-y-4 overflow-y-auto scrollbar-hide  xl:col-span-3 xl:h-full"
+            >
               {!isExternalUser ? (
                 <section className="rounded-xl border border-gray-200 bg-white">
                   <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 md:text-base">
@@ -2250,6 +2359,27 @@ export default function TicketDetailPage() {
         isSubmitting={deleteProjectFileMutation.isPending}
         onConfirm={handleConfirmDeleteAttachment}
       />
+      <ConfirmActionModal
+        isOpen={Boolean(ticketReplyPendingDelete)}
+        onClose={() => {
+          if (deletingTicketReplyId) {
+            return;
+          }
+
+          setTicketReplyPendingDelete(null);
+        }}
+        title="Delete Reply?"
+        message={
+          ticketReplyPendingDelete?.message.trim()
+            ? 'Are you sure you want to delete this reply? This action cannot be undone.'
+            : 'Are you sure you want to delete this attachment reply? This action cannot be undone.'
+        }
+        confirmLabel="Yes, Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isSubmitting={Boolean(deletingTicketReplyId)}
+        onConfirm={handleConfirmDeleteTicketReply}
+      />
 
       <ImageGalleryLightbox
         images={galleryImages}
@@ -2598,8 +2728,8 @@ function mapChatMessageToDiscussionReply(message: ChatMessage) {
     updatedAt: message.updatedAt,
     isEdited: Boolean(
       message.updatedAt &&
-        new Date(message.updatedAt).getTime() >
-          new Date(message.createdAt).getTime(),
+        Math.floor(new Date(message.updatedAt).getTime() / 1000) >
+          Math.floor(new Date(message.createdAt).getTime() / 1000),
     ),
     author: {
       name: authorName,
@@ -2650,7 +2780,8 @@ function mapApiTicketReplyToDiscussionReply(reply: ApiTicketReply) {
     isEdited: Boolean(
       reply.updatedAt &&
         reply.createdAt &&
-        new Date(reply.updatedAt).getTime() > new Date(reply.createdAt).getTime(),
+        new Date(reply.updatedAt).getTime() >
+          new Date(reply.createdAt).getTime(),
     ),
     author: {
       name: authorName,

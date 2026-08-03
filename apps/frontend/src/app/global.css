@@ -73,7 +73,7 @@ button[aria-disabled='true'] {
 }
 
 .hide-scrollbar {
-  -ms-overflow-style: none; /* IE and Edge. */
+  -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
 }
 
@@ -1312,3 +1312,4 @@ button[aria-disabled='true'] {
 .rich-text-scroll-area::-webkit-scrollbar-thumb:hover {
   background: #667085;
 }
+

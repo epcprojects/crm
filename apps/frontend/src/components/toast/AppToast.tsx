@@ -118,7 +118,7 @@ function AppToastContent({
           </svg>
         )}
       </span>
-      <span className="text-sm font-medium">{message}</span>
+      <span className="text-sm font-medium line-clamp-3">{message}</span>
     </div>
   );
 }
