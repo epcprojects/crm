@@ -80,7 +80,7 @@ export default function LoginPageClient() {
     onSubmit: async (values) => {
       const result = await dispatch(
         signInThunk({
-          email: values.email,
+          email: values.email.toLocaleLowerCase(),
           password: values.password,
         }),
       );
@@ -216,7 +216,7 @@ export default function LoginPageClient() {
               Accept: 'application/json',
             },
             body: JSON.stringify({
-              email: values.email.trim(),
+              email: values.email.trim().toLocaleLowerCase(),
             }),
           });
 

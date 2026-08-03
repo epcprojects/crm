@@ -1996,7 +1996,7 @@ export default function TicketDetailPage() {
               {!isExternalUser ? (
                 <section className="rounded-xl border border-gray-200 bg-white">
                   <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 md:text-base">
-                    Status & Priority
+                    Actions
                   </h3>
 
                   <div className="space-y-2 p-3 sm:p-4">
@@ -2030,21 +2030,30 @@ export default function TicketDetailPage() {
                         applyHeight={false}
                       />
                     </div>
-
-                    {/* <div className="grid items-center md:grid-cols-2 gap-4">
-                      <span className="text-sm text-black font-normal">
-                        Assignee
-                      </span>
-
-                      <Dropdown
-                        options={assigneeOptions}
-                        value={selectedAssigneeId}
-                        disabled={
-                          updateTicketMutation.isPending || !canEditAssignee
-                        }
-                        onChange={handleAssigneeChange}
-                      />
-                    </div> */}
+                    {!isExternalUser ? (
+                      <section className="grid items-center md:grid-cols-2 gap-4">
+                        <span className="text-sm text-black font-normal">
+                          Due Date
+                        </span>
+                        <div className="">
+                          <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-1.5">
+                            <input
+                              type="date"
+                              value={selectedDueDate}
+                              min={minimumDueDate}
+                              disabled={
+                                updateTicketMutation.isPending ||
+                                !canEditDueDate
+                              }
+                              onChange={(event) =>
+                                handleDueDateChange(event.target.value)
+                              }
+                              className="w-full bg-transparent text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:text-gray-400"
+                            />
+                          </label>
+                        </div>
+                      </section>
+                    ) : null}
                   </div>
                 </section>
               ) : null}
@@ -2186,37 +2195,6 @@ export default function TicketDetailPage() {
                   )}
                 </div>
               </section>
-
-              {!isExternalUser ? (
-                <section className="rounded-xl border border-gray-200 bg-white ">
-                  <div className="flex items-center justify-between border-b border-gray-200 px-3 py-3 sm:px-4">
-                    <h3 className="text-sm font-semibold text-gray-900 md:text-base">
-                      Due Date
-                    </h3>
-                  </div>
-
-                  <div className="p-3 sm:p-4 grid md:grid-cols-2 items-center gap-4">
-                    {/* <p className="mb-2 text-xs font-medium tracking-wide text-gray-500">
-                      {selectedDueDate ? 'Select date' : 'No due date'}
-                    </p> */}
-                    {/* <p className="text-sm font-normal text-black">Overdue</p> */}
-                    <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2.5">
-                      <input
-                        type="date"
-                        value={selectedDueDate}
-                        min={minimumDueDate}
-                        disabled={
-                          updateTicketMutation.isPending || !canEditDueDate
-                        }
-                        onChange={(event) =>
-                          handleDueDateChange(event.target.value)
-                        }
-                        className="w-full bg-transparent text-base text-gray-900 outline-none disabled:cursor-not-allowed disabled:text-gray-400"
-                      />
-                    </label>
-                  </div>
-                </section>
-              ) : null}
 
               {!isExternalUser ? (
                 <section className="rounded-xl border border-gray-200 overflow-hidden bg-white">
