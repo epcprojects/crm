@@ -1938,21 +1938,20 @@ export default function TicketDetailPage() {
                         ? isSendingChatMessage
                         : createReplyMutation.isPending
                     }
-                    // onSubmitReply={
-                    //   isInternalChatActive && canViewInternalChatBtn
-                    //     ? canPostReplies
-                    //       ? (payload) =>
-                    //           handleSubmitChatMessage({
-                    //             ...payload,
-                    //             channel: 'internal',
-                    //             sendMessage: sendInternalChatMessage,
-                    //           })
-                    //       : undefined
-                    //     : canPostReplies
-                    //       ? handleSubmitReply
-                    //       : undefined
-                    // }
-                    onSubmitReply={handleSubmitReply}
+                    onSubmitReply={
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? canPostReplies
+                          ? (payload) =>
+                              handleSubmitChatMessage({
+                                ...payload,
+                                channel: 'internal',
+                                sendMessage: sendInternalChatMessage,
+                              })
+                          : undefined
+                        : canPostReplies
+                          ? handleSubmitReply
+                          : undefined
+                    }
                     requireMessage={false}
                     currentUserId={currentUserId}
                     onDeleteReply={
