@@ -39,10 +39,9 @@ export class ProjectsService {
   ) {}
 
   async createProject(dto: CreateProjectDto, currentUser: User) {
-    const trimmedName = dto.name.trim();
     const existing = await this.projectRepo
       .createQueryBuilder('p')
-      .where('LOWER(p.name) = LOWER(:name)', { name: trimmedName })
+      .where('LOWER(p.name) = LOWER(:name)', { name: dto.name.trim() })
       .getOne();
 
     if (existing) {
@@ -57,7 +56,7 @@ export class ProjectsService {
     const projectCode = `HH${nextval}`;
 
     const project = this.projectRepo.create({
-      name: trimmedName,
+      name: dto.name,
       category: dto.category,
       brandColor: dto.brandColor ?? '#5B4FCF',
       logoLetter: dto.logoLetter ?? 'HH',
