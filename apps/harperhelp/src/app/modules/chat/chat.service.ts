@@ -191,7 +191,7 @@ export class ChatMessagesService {
       relations: {
         sender: true,
       },
-      order: { createdAt: 'DESC' },
+      order: { createdAt: 'ASC' },
       ...(query.limit ? { take: query.limit } : {}),
     });
   }
