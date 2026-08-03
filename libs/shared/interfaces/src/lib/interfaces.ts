@@ -57,6 +57,11 @@ export abstract class TimestampedEntityWithSoftDelete extends TimestampEntity {
   deletedAt!: Date | null;
 }
 
+export abstract class TimestampEntityWithSoftDelete extends TimestampEntity {
+  @DeleteDateColumn({ nullable: true })
+  deletedAt: Date | null | undefined;
+}
+
 export abstract class JoinEntity {
   @CreateDateColumn() assignedAt!: Date;
 }

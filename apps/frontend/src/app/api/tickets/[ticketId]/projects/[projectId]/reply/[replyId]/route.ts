@@ -11,74 +11,13 @@ function getApiBaseUrl() {
   return baseUrl.replace(/\/docs\/?$/, '');
 }
 
-export async function DELETE(
-  _request: Request,
-  context: {
-    params: Promise<{
-      projectId: string;
-      ticketId: string;
-      channel: string;
-      messageId: string;
-    }>;
-  },
-) {
-  try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('access_token')?.value;
-
-    if (!token) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
-
-    const apiBaseUrl = getApiBaseUrl();
-
-    if (!apiBaseUrl) {
-      return NextResponse.json(
-        { message: 'API_BASE_URL is not configured.' },
-        { status: 500 },
-      );
-    }
-
-    const { projectId, ticketId, channel, messageId } = await context.params;
-
-    const response = await fetch(
-      `${apiBaseUrl}/projects/${projectId}/tickets/${ticketId}/chat/${channel}/messages/${messageId}`,
-      {
-        method: 'DELETE',
-        headers: {
-          Accept: 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        cache: 'no-store',
-      },
-    );
-
-    const data = await response.json().catch(() => null);
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { message: data?.message || 'Failed to delete chat message.' },
-        { status: response.status },
-      );
-    }
-
-    return NextResponse.json(data ?? { success: true }, { status: response.status });
-  } catch {
-    return NextResponse.json(
-      { message: 'Something went wrong while deleting the chat message.' },
-      { status: 500 },
-    );
-  }
-}
-
 export async function PUT(
   request: Request,
   context: {
     params: Promise<{
-      projectId: string;
       ticketId: string;
-      channel: string;
-      messageId: string;
+      projectId: string;
+      replyId: string;
     }>;
   },
 ) {
@@ -99,19 +38,30 @@ export async function PUT(
       );
     }
 
-    const { projectId, ticketId, channel, messageId } = await context.params;
-    const body = await request.json().catch(() => null);
+    const { ticketId, projectId, replyId } = await context.params;
+    const formData = await request.formData().catch(() => null);
+    const messageValue = formData?.get('message');
+    const message = typeof messageValue === 'string' ? messageValue.trim() : '';
+
+    if (!message) {
+      return NextResponse.json(
+        { message: 'Message is required.' },
+        { status: 400 },
+      );
+    }
+
+    const upstreamFormData = new FormData();
+    upstreamFormData.append('message', message);
 
     const response = await fetch(
-      `${apiBaseUrl}/projects/${projectId}/tickets/${ticketId}/chat/${channel}/messages/${messageId}`,
+      `${apiBaseUrl}/tickets/${ticketId}/projects/${projectId}/reply/${replyId}`,
       {
         method: 'PUT',
         headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
+          Accept: '*/*',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(body ?? {}),
+        body: upstreamFormData,
         cache: 'no-store',
       },
     );
@@ -120,7 +70,7 @@ export async function PUT(
 
     if (!response.ok) {
       return NextResponse.json(
-        { message: data?.message || 'Failed to update chat message.' },
+        { message: data?.message || 'Failed to update ticket reply.' },
         { status: response.status },
       );
     }
@@ -128,7 +78,66 @@ export async function PUT(
     return NextResponse.json(data, { status: response.status });
   } catch {
     return NextResponse.json(
-      { message: 'Something went wrong while updating the chat message.' },
+      { message: 'Something went wrong while updating the ticket reply.' },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(
+  _request: Request,
+  context: {
+    params: Promise<{
+      ticketId: string;
+      projectId: string;
+      replyId: string;
+    }>;
+  },
+) {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('access_token')?.value;
+
+    if (!token) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+
+    const apiBaseUrl = getApiBaseUrl();
+
+    if (!apiBaseUrl) {
+      return NextResponse.json(
+        { message: 'API_BASE_URL is not configured.' },
+        { status: 500 },
+      );
+    }
+
+    const { ticketId, projectId, replyId } = await context.params;
+
+    const response = await fetch(
+      `${apiBaseUrl}/tickets/${ticketId}/projects/${projectId}/reply/${replyId}`,
+      {
+        method: 'DELETE',
+        headers: {
+          Accept: '*/*',
+          Authorization: `Bearer ${token}`,
+        },
+        cache: 'no-store',
+      },
+    );
+
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { message: data?.message || 'Failed to delete ticket reply.' },
+        { status: response.status },
+      );
+    }
+
+    return NextResponse.json(data ?? { success: true }, { status: response.status });
+  } catch {
+    return NextResponse.json(
+      { message: 'Something went wrong while deleting the ticket reply.' },
       { status: 500 },
     );
   }

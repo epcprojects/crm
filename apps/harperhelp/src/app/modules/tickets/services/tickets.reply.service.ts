@@ -17,6 +17,7 @@ import { TicketRepliesGateway } from '../gateway/ticket-reply.gateway';
 import { NotificationEntityType, NotificationType } from '@harperhelp/types';
 import { UsersService } from '../../users/users.service';
 import { extname } from 'path';
+import { UpdateReplyDto } from '../dto/update-ticket-reply.dto';
 
 @Injectable()
 export class TicketRepliesService {
@@ -150,6 +151,54 @@ export class TicketRepliesService {
     return createdReply;
   }
 
+  async update(
+    projectId: string,
+    ticketId: string,
+    replyId: string,
+    dto: UpdateReplyDto,
+    userId: string,
+    files?: Express.Multer.File[],
+  ) {
+    const reply = await this.replyRepo.findOne({
+      where: {
+        id: replyId,
+        ticketId,
+      },
+    });
+
+    if (!reply) {
+      throw new NotFoundException('Reply not found');
+    }
+
+    if (reply.authorId !== userId) {
+      throw new BadRequestException('You can only edit your own replies.');
+    }
+
+    if (!dto.message && !files?.length) {
+      throw new BadRequestException('Message or attachment is required.');
+    }
+
+    reply.message = dto.message ?? reply.message;
+    reply.updatedBy = userId;
+
+    await this.replyRepo.save(reply);
+
+    // Upload newly attached files
+    if (files?.length) {
+      await this.uploadAttachments(reply.id, files, userId, projectId);
+    }
+
+    const updatedReply = await this.findOne(reply.id);
+
+    this.ticketRepliesGateway.broadcastUpdated(
+      projectId,
+      ticketId,
+      updatedReply,
+    );
+
+    return updatedReply;
+  }
+
   // TODO: optimize N+1 issue
   async findByTicket(ticketId: string) {
     const ticket = await this.replyRepo.manager
@@ -166,7 +215,10 @@ export class TicketRepliesService {
 
     return Promise.all(
       replies.map(async (reply) => {
-        delete reply.author['passwordHash'];
+        if (reply.author) {
+            delete reply.author.passwordHash;
+          }
+        // delete reply.author['passwordHash'];
 
         return {
           ...reply,
@@ -208,7 +260,6 @@ export class TicketRepliesService {
 
       await this.utilityService.uploadFile(file, key);
 
-      
       const rawExt = extname(file.originalname); // e.g. '.DOCX' or ''
       const extension = rawExt ? rawExt.slice(1).toLowerCase() : 'unknown';
 
@@ -225,5 +276,36 @@ export class TicketRepliesService {
         sourceId: replyId,
       });
     }
+  }
+
+  async softRemove(
+    projectId: string,
+    ticketId: string,
+    replyId: string,
+    userId: string,
+  ) {
+    const reply = await this.replyRepo.findOne({
+      where: {
+        id: replyId,
+        ticketId,
+      },
+    });
+
+    if (!reply) {
+      throw new NotFoundException('Reply not found');
+    }
+
+    if (reply.authorId !== userId) {
+      throw new BadRequestException('You can only delete your own replies.');
+    }
+
+    reply.updatedBy = userId;
+    await this.replyRepo.save(reply);
+
+    await this.replyRepo.softDelete({ id: replyId, ticketId });
+
+    this.ticketRepliesGateway.broadcastDeleted(projectId, ticketId, replyId);
+
+    return { id: replyId, deleted: true };
   }
 }

@@ -152,11 +152,11 @@ export default function NotificationTray({
   );
 }
 
-export function NotificationBellIcon({ isActive }: { isActive: boolean }) {
+export function NotificationBellIcon({width="26",height="26", isActive }: { isActive: boolean,width?:string,height?:string }) {
   return (
     <svg
-      width="26"
-      height="26"
+      width={width}
+      height={height}
       viewBox="0 0 26 26"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -220,6 +220,10 @@ function NotificationRow({
         if (item.entityType === 'ticket_reply') {
           router.push(
             `/tickets/${item.ticketId}?projectId=${item.projectId}&internal=false`,
+          );
+        } else if (item.entityType === 'internal_message') {
+          router.push(
+            `/tickets/${item.ticketId}?projectId=${item.projectId}&internal=true`,
           );
         } else if (item.entityType === 'ticket') {
           router.push(`/tickets/${item.ticketId}?projectId=${item.projectId}`);

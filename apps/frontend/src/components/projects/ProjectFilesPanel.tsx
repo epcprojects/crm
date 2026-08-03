@@ -186,13 +186,23 @@ export default function ProjectFilesPanel({
           ) : null}
         </div>
 
-        <div className="flex max-h-[calc(100dvh-360px)] min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white sm:rounded-2xl">
+        <div 
+        // className="flex max-h-[calc(100dvh-360px)] min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white sm:rounded-2xl"
+        className="flex max-h-none min-h-0 flex-none flex-col overflow-visible rounded-xl border border-gray-200 bg-white sm:rounded-2xl xl:max-h-[calc(100dvh-360px)] xl:flex-1 xl:overflow-hidden"
+        >
           <div className="flex items-center justify-between border-b border-gray-200 px-3 py-3 sm:px-4">
             <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
             <p className="text-sm text-gray-900">{subtitle}</p>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div
+            // className={`min-h-0 flex-1 touch-pan-y ${
+            //   internalScrollEnabled
+            //     ? 'overflow-y-auto overscroll-auto'
+            //     : 'overflow-y-hidden overscroll-auto xl:overflow-y-auto'
+            // }`}
+            className="min-h-0 flex-1 overflow-y-auto"
+          >
             {files.length ? (
               files.map((file) => (
                 <div
@@ -272,7 +282,7 @@ export default function ProjectFilesPanel({
                         }}
                         disabled={!getFileUrl(file.storageKey)}
                       >
-                        <EyeOpenedIcon fill='#374151' />
+                        <EyeOpenedIcon fill="#374151" />
                       </ThemeButton>
 
                       {onDeleteFile ? (

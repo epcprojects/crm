@@ -19,32 +19,23 @@ export default function EmptyState({
   title,
   description,
   buttonLabel,
-  buttonIcon =<PlusIcon/>,
+  buttonIcon = <PlusIcon />,
   onButtonClick,
 }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center gap-3 py-4 text-center">
+    <div className="flex flex-col flex-1 h-full justify-center items-center gap-3 py-4 text-center">
       {imageUrl ? (
-        <Image
-          src={imageUrl}
-          width={110}
-          height={110}
-          alt={imageAlt}
-        />
+        <Image src={imageUrl} width={110} height={110} alt={imageAlt} />
       ) : null}
 
       {title || description ? (
         <div className="flex flex-col items-center gap-1">
           {title ? (
-            <p className="text-lg font-medium text-gray-700">
-              {title}
-            </p>
+            <p className="text-lg font-medium text-gray-700">{title}</p>
           ) : null}
 
           {description ? (
-            <p className="text-xs text-gray-700">
-              {description}
-            </p>
+            <p className="text-xs text-gray-700">{description}</p>
           ) : null}
         </div>
       ) : null}

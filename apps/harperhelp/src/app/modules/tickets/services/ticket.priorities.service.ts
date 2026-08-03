@@ -68,7 +68,35 @@ export class TicketPrioritiesService {
     return this.priorityRepo.save(priority);
   }
 
-  async remove(id: string) {
+  // async remove(id: string) {
+  //   const priority = await this.findOne(id);
+
+  //   // const ticketsUsingPriority = await this.ticketRepo.count({
+  //   //   where: {
+  //   //     priorityKey: priority.key,
+  //   //   },
+  //   // });
+  //   const ticketsUsingPriority = await this.ticketRepo
+  //     .createQueryBuilder('t')
+  //     .innerJoin('t.project', 'p')
+  //     .where('t.priorityKey = :priorityKey', { priorityKey: priority.key })
+  //     .andWhere('p.deletedAt IS NULL') // Exclude tickets from deleted projects
+  //     .getCount();
+
+  //   if (ticketsUsingPriority > 0) {
+  //     throw new BadRequestException(
+  //       `Priority '${priority.key}' is already being used by ${ticketsUsingPriority} ticket(s) and cannot be deleted.`,
+  //     );
+  //   }
+
+  //   await this.priorityRepo.delete(id);
+
+  //   return {
+  //     success: true,
+  //   };
+  // }
+
+  async softRemove(id: string) {
     const priority = await this.findOne(id);
 
     // const ticketsUsingPriority = await this.ticketRepo.count({
@@ -89,7 +117,7 @@ export class TicketPrioritiesService {
       );
     }
 
-    await this.priorityRepo.delete(id);
+    await this.priorityRepo.softDelete(id);
 
     return {
       success: true,

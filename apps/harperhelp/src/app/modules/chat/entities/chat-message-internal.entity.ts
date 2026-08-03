@@ -11,6 +11,7 @@ import {
 import { User } from '../../users/entities/user.entity';
 import { Ticket } from '../../tickets/entities/ticket.entity';
 import { Project } from '../../projects/entities/project.entity';
+import { TimestampEntityWithSoftDelete } from '@harperhelp/interfaces';
 
 export enum MessageType {
   TEXT = 'text',
@@ -20,9 +21,9 @@ export enum MessageType {
 @Entity('chat_messages_internal')
 @Index(['ticketId', 'createdAt'])
 @Index(['projectId', 'createdAt'])
-export class ChatMessageInternal {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+export class ChatMessageInternal extends TimestampEntityWithSoftDelete {
+  // @PrimaryGeneratedColumn('uuid')
+  // id: string;
 
   @Column({ name: 'project_id', type: 'uuid' })
   projectId: string;
@@ -70,8 +71,8 @@ export class ChatMessageInternal {
   @Column({ name: 'is_deleted', default: false })
   isDeleted: boolean;
 
-  @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })
-  deletedAt: Date | null;
+  // @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })
+  // deletedAt: Date | null;
 
   // ── Relations ──────────────────────────────────
   @ManyToOne(() => Project, { onDelete: 'CASCADE' })
@@ -90,9 +91,9 @@ export class ChatMessageInternal {
   @JoinColumn({ name: 'receiver_id' })
   receiver: User;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt: Date;
+  // @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  // createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt: Date;
+  // @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  // updatedAt: Date;
 }

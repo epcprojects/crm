@@ -37,6 +37,7 @@ export const MODULE_DEFINITIONS: {
       'edit_priority',
       'edit_assignee',
       'edit_due_date',
+      'edit_title_description',
       'internal_chat',
       'filter',
     ],
@@ -44,13 +45,7 @@ export const MODULE_DEFINITIONS: {
   {
     key: 'ticket_replies',
     label: 'Ticket Replies',
-    actions: [
-      'view',
-      'post',
-      'attach_file',
-      'delete',
-      'edit',
-    ],
+    actions: ['view', 'post', 'attach_file', 'delete', 'edit'],
   },
   {
     key: 'thread',

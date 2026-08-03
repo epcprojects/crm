@@ -122,4 +122,10 @@ export class CalendarService {
     await this.eventRepo.remove(event);
     return { message: `Event ${id} deleted` };
   }
+
+    async softRemove(pid: string, id: string): Promise<{ message: string }> {
+    const event = await this.findOne(pid, id);
+    await this.eventRepo.softDelete({ id: event.id, projectId: pid });
+    return { message: `Event ${id} deleted` };
+  }
 }

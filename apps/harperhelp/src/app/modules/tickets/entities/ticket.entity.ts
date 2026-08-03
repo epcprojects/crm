@@ -100,6 +100,13 @@ export class Ticket extends BaseEntity {
   @JoinColumn({ name: 'assigneeId' })
   assignee?: User;
 
+  @ManyToOne(() => User, {
+  nullable: true,
+  onDelete: 'SET NULL',
+})
+@JoinColumn({ name: 'createdBy' }) // reuses the existing FK column from BaseEntity
+submitter?: User;
+
   @Column({
     type: 'timestamptz',
     nullable: true,

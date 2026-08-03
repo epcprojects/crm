@@ -23,6 +23,10 @@
    --color-soft-peach: #EAEDE7;
    --color-error-100: #FEE4E2;
    --color-error-200: #FECDCA;
+   --color-aztec-purple: #8833FF;
+   --color-cyan-blue: #1175F9;
+   --color-violet-blue: #5906CE;
+   --color-science-blue: #0060DE;
 }
 
 html {
@@ -69,7 +73,7 @@ button[aria-disabled='true'] {
 }
 
 .hide-scrollbar {
-  -ms-overflow-style: none; /* IE and Edge. */
+  -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
 }
 
@@ -1308,3 +1312,4 @@ button[aria-disabled='true'] {
 .rich-text-scroll-area::-webkit-scrollbar-thumb:hover {
   background: #667085;
 }
+
