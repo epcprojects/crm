@@ -764,7 +764,7 @@ useEffect(() => {
                     <ThemeButton
                       className="shrink-0 rounded-full xl:block hidden"
                       variant="primaryGradient"
-                      icon={<PlusIcon fill="#3889FE" width="20" height="20" />}
+                      icon={<PlusIcon width="20" height="20" />}
                       onClick={() => setCreateTicketOpen(true)}
                     >
                       New Ticket

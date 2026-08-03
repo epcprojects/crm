@@ -382,42 +382,46 @@ export default function ProjectsPage() {
             >
               <div className="flex min-h-0 flex-1 flex-col gap-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 md:max-w-100 md:min-w-80">
-                    <div className="flex items-center gap-2">
-                      <span className="shrink-0">
-                        <SearchIcon fill="#374151" />
-                      </span>
+                  {filteredProjects.length > 0 && (
+                    <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 md:max-w-100 md:min-w-80">
+                      <div className="flex items-center gap-2">
+                        <span className="shrink-0">
+                          <SearchIcon fill="#374151" />
+                        </span>
 
-                      <input
-                        type="text"
-                        value={searchValue}
-                        onChange={(event) => setSearchValue(event.target.value)}
-                        placeholder="Search"
-                        className="min-w-0 flex-1 bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400"
-                      />
+                        <input
+                          type="text"
+                          value={searchValue}
+                          onChange={(event) =>
+                            setSearchValue(event.target.value)
+                          }
+                          placeholder="Search"
+                          className="min-w-0 flex-1 bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400"
+                        />
 
-                      <button
-                        type="button"
-                        onClick={() => setSearchValue('')}
-                        disabled={!searchValue}
-                        tabIndex={searchValue ? 0 : -1}
-                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
-                          searchValue
-                            ? 'visible hover:bg-gray-100'
-                            : 'pointer-events-none invisible'
-                        }`}
-                        aria-label="Clear search"
-                      >
-                        <CloseIcon width="15" height="15" />
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => setSearchValue('')}
+                          disabled={!searchValue}
+                          tabIndex={searchValue ? 0 : -1}
+                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
+                            searchValue
+                              ? 'visible hover:bg-gray-100'
+                              : 'pointer-events-none invisible'
+                          }`}
+                          aria-label="Clear search"
+                        >
+                          <CloseIcon width="15" height="15" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  {canCreateProject ? (
+                  {canCreateProject && filteredProjects.length > 0 ? (
                     <ThemeButton
                       className="shrink-0 rounded-full hidden xl:block"
                       variant="primaryGradient"
-                      icon={<PlusIcon fill="#3889FE" width="20" height="20" />}
+                      icon={<PlusIcon width="20" height="20" />}
                       onClick={() => {
                         setProjectToEdit(null);
                         setCreateProjectOpen(true);

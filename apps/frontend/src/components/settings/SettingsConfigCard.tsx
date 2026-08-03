@@ -84,7 +84,7 @@ export default function SettingsConfigCard({
           </h2>
         </div>
 
-        {onAdd ? (
+        {onAdd && !isLoading && items.length > 0 ? (
           <div className="w-full xl:w-auto">
             <ThemeButton
               className="w-full xl:w-auto hidden xl:block"

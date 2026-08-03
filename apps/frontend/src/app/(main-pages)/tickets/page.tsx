@@ -920,7 +920,7 @@ export default function Page() {
                             onClick={() => handleViewModeChange('table')}
                             className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
                               viewMode === 'table'
-                                ? 'bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 text-white shadow-sm'
+                                ? 'bg-linear-[271deg] from-aztec-purple  to-cyan-blue text-white shadow-sm'
                                 : 'text-gray-500 hover:bg-gray-50'
                             }`}
                             aria-label="Table view"
@@ -933,7 +933,7 @@ export default function Page() {
                             onClick={() => handleViewModeChange('kanban')}
                             className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
                               viewMode === 'kanban'
-                                ? 'bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 text-white shadow-sm'
+                                ? 'bg-linear-[271deg] from-aztec-purple  to-cyan-blue text-white shadow-sm'
                                 : 'text-gray-500 hover:bg-gray-50'
                             }`}
                             aria-label="Kanban view"
@@ -1067,13 +1067,7 @@ export default function Page() {
                             <ThemeButton
                               className="rounded-full w-full xl:block hidden"
                               variant="primaryGradient"
-                              icon={
-                                <PlusIcon
-                                  fill="#000000"
-                                  width="20"
-                                  height="20"
-                                />
-                              }
+                              icon={<PlusIcon width="20" height="20" />}
                               onClick={() => setCreateTicketOpen(true)}
                             >
                               New Ticket
@@ -1083,7 +1077,7 @@ export default function Page() {
                           <ThemeButton
                             className="rounded-full w-full"
                             variant="primaryGradient"
-                            icon={<DownloadIcon />}
+                            icon={<DownloadIcon fill="#ffffff" />}
                             onClick={handleExportTickets}
                             disabled={isExportingTickets}
                           >

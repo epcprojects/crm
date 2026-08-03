@@ -309,7 +309,7 @@ const [isRolesSectionPinned, setIsRolesSectionPinned] =
                     <ThemeButton
                       className="shrink-0 rounded-full hidden xl:block"
                       variant="primaryGradient"
-                      icon={<PlusIcon fill="#3889FE" width="20" height="20" />}
+                      icon={<PlusIcon width="20" height="20" />}
                       onClick={() => setAddRoleOpen(true)}
                     >
                       Add Role

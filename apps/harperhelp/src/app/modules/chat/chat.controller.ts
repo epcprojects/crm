@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   ParseUUIDPipe,
+  Put,
 } from '@nestjs/common';
 
 import { ChatMessagesService, ChatChannel } from './chat.service';
@@ -23,6 +24,7 @@ import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { GetUser } from '../../../common/decorators/get-user.decorator';
 import { UserType } from '@harperhelp/types';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { UpdateChatDto } from './dto/update-chat.dto';
 
 // Route: /projects/:projectId/tickets/:ticketId/chat/:channel
 // channel param is 'internal' or 'external'
@@ -130,6 +132,32 @@ export class ChatMessagesController {
 
     // broadcast deleted message
     this.gateway.broadcastMessageDeleted(pid, tid, channel, messageId);
+
+    return { success: true };
+  }
+
+  @Put('messages/:messageId')
+  async update(
+    @Param('channel') channel: ChatChannel,
+    @Param('messageId') messageId: string,
+    @Body() dto: UpdateChatDto,
+    @GetUser() user: any,
+  ) {
+    // this.service.assertAccess(user.role, channel);
+    const { projectId, ticketId } = await this.service.update(
+      channel,
+      messageId,
+      user.id,
+      dto,
+    );
+
+    // broadcast deleted message
+    this.gateway.broadcastMessageUpdated(
+      projectId,
+      ticketId,
+      channel,
+      messageId,
+    );
 
     return { success: true };
   }

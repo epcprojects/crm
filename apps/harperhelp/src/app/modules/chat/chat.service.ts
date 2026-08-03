@@ -11,6 +11,7 @@ import { ChatMessageExternal } from './entities/chat-message-external.entity';
 import { SendMessageDto, GetMessagesQueryDto } from './dto/chat-message.dto';
 import { Ticket } from '../tickets/entities/ticket.entity';
 import { UserType } from 'libs/shared/types/src/lib/types';
+import { UpdateChatDto } from './dto/update-chat.dto';
 
 export type ChatChannel = 'internal' | 'external';
 
@@ -96,6 +97,51 @@ export class ChatMessagesService {
     // Reload with sender/receiver populated for broadcast payload
     return this.repo(channel).findOne({
       where: { id: saved.id },
+      relations: {
+        sender: true,
+      },
+    });
+  }
+
+  async update(
+    channel: ChatChannel,
+    messageId: string,
+    requesterId: string,
+    dto: UpdateChatDto,
+  ) {
+    const repository = this.repo(channel);
+
+    const message = await repository.findOne({
+      where: { id: messageId },
+      relations: {
+        sender: true,
+      },
+    });
+
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    if (message.isDeleted) {
+      throw new ForbiddenException('Cannot edit a deleted message');
+    }
+
+    if (message.senderId !== requesterId) {
+      throw new ForbiddenException("Cannot edit another user's message");
+    }
+
+    repository.merge(message, {
+      message: dto.message,
+      messageType: dto.messageType ?? message.messageType,
+      attachmentUrls: dto.attachmentUrls ?? message.attachmentUrls,
+      attachmentName: dto.attachmentName ?? message.attachmentName,
+      attachmentSize: dto.attachmentSize ?? message.attachmentSize,
+    });
+
+    const updated = await repository.save(message);
+
+    return repository.findOne({
+      where: { id: updated.id },
       relations: {
         sender: true,
       },

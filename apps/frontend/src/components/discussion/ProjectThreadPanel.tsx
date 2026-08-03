@@ -6,6 +6,7 @@ import {
   validateAttachments,
 } from '../../lib/attachments';
 import {
+  EditIcon,
   EmptyRepliesIcon,
   FileTypePlaceholder,
   TrashIcon,
@@ -15,6 +16,11 @@ import ConfirmActionModal from '../modals/ConfirmActionModal';
 import ImageGalleryLightbox from '../ui/ImageGalleryLightbox';
 import type { DiscussionAttachment, DiscussionReply } from './types';
 import EmojiPickerButton from './EmojiPickerButton';
+
+const EMOJI_TEXT_STYLE = {
+  fontFamily:
+    "var(--poppins), 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif",
+};
 
 type DiscussionPanelProps = {
   title?: string;
@@ -36,6 +42,11 @@ type DiscussionPanelProps = {
   currentUserId?: string;
   showReplyMeta?: boolean;
   onReplyClick?: (reply: DiscussionReply) => void;
+  onEditReply?: (payload: {
+    reply: DiscussionReply;
+    message: string;
+  }) => Promise<void> | void;
+  editingReplyId?: string;
   onDeleteAttachment?: (attachment: DiscussionAttachment) => void;
   deletingAttachmentId?: string;
   internalScrollEnabled?: boolean;
@@ -66,6 +77,8 @@ export default function ProjectThreadPanel({
   currentUserId = '',
   showReplyMeta = false,
   onReplyClick,
+  onEditReply,
+  editingReplyId,
   onDeleteAttachment,
   deletingAttachmentId,
   internalScrollEnabled = true,
@@ -79,8 +92,11 @@ export default function ProjectThreadPanel({
   const [activeGalleryIndex, setActiveGalleryIndex] = useState<number | null>(
     null,
   );
+  const [editingMessageId, setEditingMessageId] = useState('');
+  const [editingMessage, setEditingMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const editingTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const conversationImages = getGalleryImagesFromDiscussion(
     headerReply,
@@ -201,6 +217,71 @@ export default function ProjectThreadPanel({
     });
   };
 
+  const handleEditingEmojiSelect = (emoji: string) => {
+    const textarea = editingTextareaRef.current;
+
+    if (!textarea) {
+      setEditingMessage((current) => `${current}${emoji}`);
+      return;
+    }
+
+    const selectionStart = textarea.selectionStart ?? editingMessage.length;
+    const selectionEnd = textarea.selectionEnd ?? editingMessage.length;
+    const nextMessage =
+      editingMessage.slice(0, selectionStart) +
+      emoji +
+      editingMessage.slice(selectionEnd);
+    const nextCursorPosition = selectionStart + emoji.length;
+
+    setEditingMessage(nextMessage);
+
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(nextCursorPosition, nextCursorPosition);
+    });
+  };
+
+  const startEditingReply = (reply: DiscussionReply) => {
+    setEditingMessageId(reply.id);
+    setEditingMessage(reply.message);
+
+    requestAnimationFrame(() => {
+      editingTextareaRef.current?.focus();
+      const messageLength = reply.message.length;
+      editingTextareaRef.current?.setSelectionRange(
+        messageLength,
+        messageLength,
+      );
+    });
+  };
+
+  const cancelEditingReply = () => {
+    setEditingMessageId('');
+    setEditingMessage('');
+  };
+
+  const handleSaveEditedReply = async (reply: DiscussionReply) => {
+    const trimmedMessage = editingMessage.trim();
+
+    if (!trimmedMessage || !onEditReply || editingReplyId === reply.id) {
+      return;
+    }
+
+    const nextMessage = trimmedMessage;
+    cancelEditingReply();
+
+    try {
+      await onEditReply({
+        reply,
+        message: nextMessage,
+      });
+    } catch (error) {
+      setEditingMessageId(reply.id);
+      setEditingMessage(nextMessage);
+      throw error;
+    }
+  };
+
   const handleConfirmDeleteAttachment = async () => {
     if (!attachmentToDelete || !onDeleteAttachment) {
       return;
@@ -284,9 +365,34 @@ export default function ProjectThreadPanel({
                     <span className="text-xs text-gray-700">
                       {headerReply.createdAt}
                     </span>
+                    {onEditReply &&
+                    currentUserId &&
+                    headerReply.authorId === currentUserId &&
+                    editingMessageId !== headerReply.id ? (
+                      <button
+                        type="button"
+                        onClick={() => startEditingReply(headerReply)}
+                        className="text-xs font-medium text-gray-500 transition hover:text-gray-700"
+                      >
+                        <EditIcon width="12" height="12" />
+                      </button>
+                    ) : null}
                   </div>
-                  {headerReply.message ? (
-                    <ExpandableMessageText message={headerReply.message} />
+                  {editingMessageId === headerReply.id ? (
+                    <InlineEditComposer
+                      editingReplyId={editingReplyId}
+                      editingMessage={editingMessage}
+                      editingTextareaRef={editingTextareaRef}
+                      onChangeMessage={setEditingMessage}
+                      onCancel={cancelEditingReply}
+                      onSave={() => void handleSaveEditedReply(headerReply)}
+                      onSelectEmoji={handleEditingEmojiSelect}
+                    />
+                  ) : headerReply.message ? (
+                    <ExpandableMessageText
+                      message={headerReply.message}
+                      isEdited={headerReply.isEdited}
+                    />
                   ) : null}
                   {headerReply.attachments?.length ? (
                     <div className="mt-2 grid gap-2">
@@ -391,13 +497,37 @@ export default function ProjectThreadPanel({
                         <span className="text-xs text-gray-700">
                           {reply.createdAt}
                         </span>
+                        {onEditReply &&
+                        isCurrentUserReply &&
+                        editingMessageId !== reply.id ? (
+                          <button
+                            type="button"
+                            onClick={() => startEditingReply(reply)}
+                            className="text-xs font-medium text-gray-500 transition hover:text-gray-700"
+                          >
+                            <EditIcon width="12" height="12" />
+                          </button>
+                        ) : null}
                       </div>
                       {reply.message || reply.attachments?.length ? (
                         <div
                           className={`w-full rounded-xl ${isCurrentUserReply ? 'rounded-tr-none' : 'rounded-tl-none'} ${reply.message && 'space-y-2'}  bg-white  `}
                         >
-                          {reply.message ? (
-                            <ExpandableMessageText message={reply.message} />
+                          {editingMessageId === reply.id ? (
+                            <InlineEditComposer
+                              editingReplyId={editingReplyId}
+                              editingMessage={editingMessage}
+                              editingTextareaRef={editingTextareaRef}
+                              onChangeMessage={setEditingMessage}
+                              onCancel={cancelEditingReply}
+                              onSave={() => void handleSaveEditedReply(reply)}
+                              onSelectEmoji={handleEditingEmojiSelect}
+                            />
+                          ) : reply.message ? (
+                            <ExpandableMessageText
+                              message={reply.message}
+                              isEdited={reply.isEdited}
+                            />
                           ) : null}
                           {reply.attachments?.length ? (
                             <div
@@ -747,7 +877,77 @@ function getAttachmentUrl(storageKey?: string) {
     : '#';
 }
 
-function ExpandableMessageText({ message }: { message: string }) {
+function InlineEditComposer({
+  editingReplyId,
+  editingMessage,
+  editingTextareaRef,
+  onChangeMessage,
+  onCancel,
+  onSave,
+  onSelectEmoji,
+}: {
+  editingReplyId?: string;
+  editingMessage: string;
+  editingTextareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  onChangeMessage: (message: string) => void;
+  onCancel: () => void;
+  onSave: () => void;
+  onSelectEmoji: (emoji: string) => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-3">
+      <textarea
+        ref={editingTextareaRef}
+        rows={3}
+        value={editingMessage}
+        onChange={(event) => onChangeMessage(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            onSave();
+          }
+        }}
+        disabled={Boolean(editingReplyId)}
+        style={EMOJI_TEXT_STYLE}
+        className="min-h-14 w-full resize-none bg-transparent px-2 py-1 text-sm text-gray-700 outline-none placeholder:text-gray-400"
+      />
+
+      <div className="mt-3 flex items-center justify-start gap-3">
+        <EmojiPickerButton
+          disabled={Boolean(editingReplyId)}
+          onSelectEmoji={onSelectEmoji}
+        />
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={Boolean(editingReplyId)}
+            className="rounded-full border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={!editingMessage.trim() || Boolean(editingReplyId)}
+            className="rounded-full bg-[#10175A] px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {editingReplyId ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExpandableMessageText({
+  message,
+  isEdited = false,
+}: {
+  message: string;
+  isEdited?: boolean;
+}) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [shouldShowToggle, setShouldShowToggle] = useState(false);
   const measureRef = useRef<HTMLParagraphElement | null>(null);
@@ -790,6 +990,7 @@ function ExpandableMessageText({ message }: { message: string }) {
     <div>
       <p
         ref={measureRef}
+        style={EMOJI_TEXT_STYLE}
         className={`text-sm font-normal whitespace-pre-wrap break-words text-gray-900 ${
           isExpanded ? '' : 'line-clamp-2'
         }`}
@@ -799,10 +1000,14 @@ function ExpandableMessageText({ message }: { message: string }) {
       <p
         ref={overflowMeasureRef}
         aria-hidden="true"
+        style={EMOJI_TEXT_STYLE}
         className="pointer-events-none invisible absolute left-0 top-0 -z-10 line-clamp-none w-full whitespace-pre-wrap break-words text-sm font-normal text-gray-900"
       >
         {message}
       </p>
+      {isEdited ? (
+        <p className="mt-1 text-[11px] font-medium text-gray-400">edited</p>
+      ) : null}
       {shouldShowToggle ? (
         <button
           type="button"

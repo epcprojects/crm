@@ -8,7 +8,7 @@ import {
   useRouter,
   useSearchParams,
 } from 'next/navigation';
-import DOMPurify from 'isomorphic-dompurify';
+import DOMPurify from 'dompurify';
 import TicketRepliesPanel from '../../../../components/discussion/TicketRepliesPanel';
 import AppModal, {
   ModalPosition,
@@ -254,6 +254,59 @@ export default function TicketDetailPage() {
       );
     },
   });
+  const updateReplyMutation = useMutation({
+    mutationFn: async ({
+      replyId,
+      message,
+    }: {
+      replyId: string;
+      message: string;
+    }) => {
+      const formData = new FormData();
+      formData.append('message', message.trim());
+
+      const response = await fetch(
+        `/api/tickets/${ticketId}/projects/${projectId}/reply/${replyId}`,
+        {
+          method: 'PUT',
+          body: formData,
+        },
+      );
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const errorMessage =
+          Array.isArray(data?.message) && data.message.length
+            ? data.message.join(', ')
+            : data?.message || 'Failed to update reply.';
+        throw new Error(errorMessage);
+      }
+
+      return data;
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['ticket-replies', ticketId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'ticket-summary'],
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: projectsQueryKey,
+          refetchType: 'all',
+        }),
+      ]);
+      appToast.success('Reply updated successfully.');
+    },
+    onError: (error) => {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to update reply.',
+      );
+    },
+  });
 
   const ticket = ticketDetailQuery.data ?? fallbackTicket;
   const [chatDrawerChannel, setChatDrawerChannel] =
@@ -289,6 +342,7 @@ export default function TicketDetailPage() {
     sendMessage: sendInternalChatMessage,
     markRead: markInternalChatRead,
     deleteMessage: deleteInternalChatMessage,
+    updateMessage: updateInternalChatMessage,
   } = useTicketChat({
     projectId: isInternalChatActive ? projectId : '',
     ticketId: isInternalChatActive ? ticketId : '',
@@ -301,6 +355,7 @@ export default function TicketDetailPage() {
     sendMessage: sendExternalChatMessage,
     markRead: markExternalChatRead,
     deleteMessage: deleteExternalChatMessage,
+    updateMessage: updateExternalChatMessage,
   } = useTicketChat({
     projectId:
       isChatDrawerOpen && chatDrawerChannel === 'external' ? projectId : '',
@@ -328,6 +383,8 @@ export default function TicketDetailPage() {
 
   const [isSendingChatMessage, setIsSendingChatMessage] = useState(false);
   const [deletingChatMessageId, setDeletingChatMessageId] = useState('');
+  const [editingChatMessageId, setEditingChatMessageId] = useState('');
+  const [editingTicketReplyId, setEditingTicketReplyId] = useState('');
   const [chatMessagePendingDelete, setChatMessagePendingDelete] = useState<{
     id: string;
     message: string;
@@ -928,8 +985,6 @@ export default function TicketDetailPage() {
     );
   };
 
-  console.log('liveReplies' + liveReplies);
-
   if (!canViewTicketDetail) {
     return (
       <div className="space-y-4 mt-8">
@@ -1044,6 +1099,38 @@ export default function TicketDetailPage() {
       message,
       attachments,
     });
+  };
+
+  const handleEditTicketReply = async ({
+    reply,
+    message,
+  }: {
+    reply: DiscussionReply;
+    message: string;
+  }) => {
+    try {
+      setEditingTicketReplyId(reply.id);
+
+      setLiveReplies((current) =>
+        current.map((currentReply) =>
+          currentReply.id === reply.id
+            ? {
+                ...currentReply,
+                message: message.trim(),
+                isEdited: true,
+                updatedAt: new Date().toISOString(),
+              }
+            : currentReply,
+        ),
+      );
+
+      await updateReplyMutation.mutateAsync({
+        replyId: reply.id,
+        message,
+      });
+    } finally {
+      setEditingTicketReplyId('');
+    }
   };
 
   const handleSubmitChatMessage = async ({
@@ -1196,6 +1283,40 @@ export default function TicketDetailPage() {
     } finally {
       setDeletingChatMessageId('');
       setChatMessagePendingDelete(null);
+    }
+  };
+
+  const handleEditChatMessage = async ({
+    reply,
+    message,
+    updateMessage,
+  }: {
+    reply: DiscussionReply;
+    message: string;
+    updateMessage: (
+      messageId: string,
+      payload: {
+        message: string;
+        messageType?: 'text' | 'attachment';
+        attachmentUrls?: string[];
+        attachmentName?: string;
+        attachmentSize?: number;
+      },
+    ) => Promise<ChatMessage>;
+  }) => {
+    try {
+      setEditingChatMessageId(reply.id);
+      await updateMessage(reply.id, {
+        message: message.trim(),
+      });
+      appToast.success('Message updated successfully.');
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to update message.',
+      );
+      throw error;
+    } finally {
+      setEditingChatMessageId('');
     }
   };
   const handleViewAttachment = (
@@ -1736,10 +1857,27 @@ export default function TicketDetailPage() {
                         ? handleDeleteChatMessage
                         : undefined
                     }
+                    onEditReply={
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? ({ reply, message }) =>
+                            handleEditChatMessage({
+                              reply,
+                              message,
+                              updateMessage: updateInternalChatMessage,
+                            })
+                        : canPostReplies
+                          ? handleEditTicketReply
+                        : undefined
+                    }
                     deletingReplyId={
                       isInternalChatActive && canViewInternalChatBtn
                         ? deletingChatMessageId
                         : undefined
+                    }
+                    editingReplyId={
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? editingChatMessageId
+                        : editingTicketReplyId
                     }
                   />
                 ) : null}
@@ -2052,7 +2190,15 @@ export default function TicketDetailPage() {
               requireMessage={false}
               currentUserId={currentUserId}
               onDeleteReply={handleDeleteChatMessage}
+              onEditReply={({ reply, message }) =>
+                handleEditChatMessage({
+                  reply,
+                  message,
+                  updateMessage: updateExternalChatMessage,
+                })
+              }
               deletingReplyId={deletingChatMessageId}
+              editingReplyId={editingChatMessageId}
             />
           </div>
         </div>
@@ -2449,6 +2595,12 @@ function mapChatMessageToDiscussionReply(message: ChatMessage) {
   return {
     id: message.id,
     authorId: message.senderId,
+    updatedAt: message.updatedAt,
+    isEdited: Boolean(
+      message.updatedAt &&
+        new Date(message.updatedAt).getTime() >
+          new Date(message.createdAt).getTime(),
+    ),
     author: {
       name: authorName,
       initials: getInitials(authorName),
@@ -2494,6 +2646,12 @@ function mapApiTicketReplyToDiscussionReply(reply: ApiTicketReply) {
   return {
     id: reply.id,
     authorId,
+    updatedAt: reply.updatedAt,
+    isEdited: Boolean(
+      reply.updatedAt &&
+        reply.createdAt &&
+        new Date(reply.updatedAt).getTime() > new Date(reply.createdAt).getTime(),
+    ),
     author: {
       name: authorName,
       initials: getInitials(authorName),
