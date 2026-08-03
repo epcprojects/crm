@@ -853,6 +853,13 @@ function mapApiProjectThreadMessageToReply(
       initials: authorInitials,
     },
     createdAt: formatThreadDate(message.createdAt),
+    updatedAt: getNonEmptyString(message.updatedAt) ?? undefined,
+    isEdited: Boolean(
+      message.updatedAt &&
+        message.createdAt &&
+        new Date(message.updatedAt).getTime() >
+          new Date(message.createdAt).getTime(),
+    ),
     message: message.message?.trim() ?? '',
     attachments: Array.isArray(message.attachments)
       ? message.attachments.map(mapApiDiscussionAttachment)

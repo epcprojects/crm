@@ -60,6 +60,7 @@ type TicketsTabsProps = {
   activeTabKey?: TicketTabKey;
   onActiveTabChange?: (tabKey: TicketTabKey) => void;
   onTicketClick?: (ticket: TicketListItem) => void;
+  internalScrollEnabled?: boolean;
 };
 
 export default function TicketsTabs({
@@ -67,6 +68,7 @@ export default function TicketsTabs({
   activeTabKey: controlledActiveTabKey,
   onActiveTabChange,
   onTicketClick,
+  internalScrollEnabled = true,
 }: TicketsTabsProps) {
   const [uncontrolledActiveTabKey, setUncontrolledActiveTabKey] =
     useState<TicketTabKey>(tabs[0]?.key ?? 'upcoming');
@@ -140,7 +142,15 @@ export default function TicketsTabs({
           })}
         </div>
       </div>
-      <div className="flex min-h-0 flex-1 flex-col  overflow-y-auto scrollbar-hide  ">
+      <div
+        className={clsx(
+          'flex min-h-0 flex-1 flex-col scrollbar-hide',
+          internalScrollEnabled
+            ? 'overflow-y-auto'
+            : 'overflow-y-hidden xl:overflow-y-auto',
+        )}
+        // className="flex min-h-0 flex-1 flex-col  overflow-y-auto scrollbar-hide  "
+      >
         {activeTab?.tickets.length ? (
           activeTab.tickets.map((ticket, index) => {
             const isLast = index === activeTab.tickets.length - 1;
@@ -189,6 +199,7 @@ export default function TicketsTabs({
                       <p className="shrink-0 text-gray-600 text-xs">
                         {ticket.date}
                       </p>
+                      
 
                       <div className="flex flex-row overflow-hidden w-full gap-1.5">
                         <span

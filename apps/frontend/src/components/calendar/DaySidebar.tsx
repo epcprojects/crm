@@ -103,7 +103,7 @@ export default function DaySidebar({
           ) : null}
         </div>
 
-        <div className="sidebar-content-scroll">
+        <div className="sidebar-content-scroll scrollbar-hide">
           <section className="sidebar-section">
             <h3 className="section-label">
               Events

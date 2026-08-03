@@ -64,7 +64,7 @@ export default function ProjectCard({
     >
       <div
         className="flex flex-wrap items-start justify-between gap-3 bg-gray-100 px-2.5 py-3.5 md:gap-4 md:px-4 md:py-4"
-        style={{ backgroundColor: `${colorHex}30` }}
+        style={{ backgroundColor: `${colorHex}10` }}
       >
         <div className="flex min-w-0 flex-1 items-center gap-3 md:gap-4">
           <span

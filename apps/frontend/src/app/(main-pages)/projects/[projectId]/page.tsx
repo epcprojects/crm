@@ -113,6 +113,7 @@ export default function ProjectDetailPage() {
     null,
   );
   const [selectedThreadMessageId, setSelectedThreadMessageId] = useState('');
+  const [editingThreadReplyId, setEditingThreadReplyId] = useState('');
   const [threadSocketToken, setThreadSocketToken] =
     useState<SocketTokenResponse | null>(null);
   const [ticketsPagination, setTicketsPagination] = useState({
@@ -257,6 +258,63 @@ export default function ProjectDetailPage() {
     },
   });
 
+  const updateProjectThreadMutation = useMutation({
+    mutationFn: async ({
+      messageId,
+      message,
+      parentId,
+    }: {
+      messageId: string;
+      message: string;
+      parentId?: string;
+    }) => {
+      const formData = new FormData();
+      formData.append('message', message.trim());
+
+      if (parentId?.trim()) {
+        formData.append('parentId', parentId.trim());
+      }
+
+      const response = await fetch(`/api/projects/${projectId}/thread/${messageId}`, {
+        method: 'PUT',
+        body: formData,
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message =
+          Array.isArray(data?.message) && data.message.length
+            ? data.message.join(', ')
+            : data?.message || 'Failed to update thread message.';
+        throw new Error(message);
+      }
+
+      return data;
+    },
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({
+        queryKey: [...projectThreadQueryKey, projectId],
+      });
+
+      const detailMessageId = variables.parentId || selectedThreadMessageId;
+      if (detailMessageId) {
+        await queryClient.invalidateQueries({
+          queryKey: [...projectThreadDetailQueryKey, projectId, detailMessageId],
+        });
+      }
+
+      appToast.success('Thread updated successfully.');
+    },
+    onError: (error) => {
+      appToast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to update thread message.',
+      );
+    },
+  });
+
   const projectOptions = useMemo(
     () => createTicketProjectOptions(projectsQuery.data ?? []),
     [projectsQuery.data],
@@ -371,16 +429,42 @@ export default function ProjectDetailPage() {
     shouldRedirectToNotFound,
   ]);
 
+  // const projectTickets = useMemo(
+  //   () =>
+  //     (projectTicketsQuery.data?.items ?? []).map((ticket) => ({
+  //       ...ticket,
+  //       statusColor:
+  //         ticket.statusColor ??
+  //         getTicketStatusColor(ticket.status, ticketStatusesQuery.data),
+  //     })),
+  //   [projectTicketsQuery.data?.items, ticketStatusesQuery.data],
+  // );
   const projectTickets = useMemo(
-    () =>
-      (projectTicketsQuery.data?.items ?? []).map((ticket) => ({
-        ...ticket,
-        statusColor:
-          ticket.statusColor ??
-          getTicketStatusColor(ticket.status, ticketStatusesQuery.data),
-      })),
-    [projectTicketsQuery.data?.items, ticketStatusesQuery.data],
-  );
+  () =>
+    (projectTicketsQuery.data?.items ?? []).map((ticket) => ({
+      ...ticket,
+
+      project: {
+        ...ticket.project,
+        id: project?.id ?? ticket.project.id,
+        name: project?.name ?? ticket.project.name,
+        initials: project?.initials ?? ticket.project.initials,
+        brandColor: project?.colorHex ?? ticket.project.brandColor,
+      },
+
+      statusColor:
+        ticket.statusColor ??
+        getTicketStatusColor(ticket.status, ticketStatusesQuery.data),
+    })),
+  [
+    projectTicketsQuery.data?.items,
+    ticketStatusesQuery.data,
+    project?.id,
+    project?.name,
+    project?.initials,
+    project?.colorHex,
+  ],
+);
   const projectFiles = useMemo(() => {
     const normalizedSearch = fileSearchValue.trim().toLowerCase();
     const files = [...uploadedFilesState, ...(projectFilesQuery.data ?? [])];
@@ -647,6 +731,29 @@ export default function ProjectDetailPage() {
     });
   };
 
+  const handleEditProjectThreadReply = async ({
+    reply,
+    message,
+  }: {
+    reply: { id: string };
+    message: string;
+  }) => {
+    setEditingThreadReplyId(reply.id);
+
+    try {
+      await updateProjectThreadMutation.mutateAsync({
+        messageId: reply.id,
+        message,
+        parentId:
+          selectedThreadMessageId && selectedThreadMessageId !== reply.id
+            ? selectedThreadMessageId
+            : undefined,
+      });
+    } finally {
+      setEditingThreadReplyId('');
+    }
+  };
+
   const visibleProjectTabs = projectTabs.filter((tab) => {
     if (tab === 'Tickets') return canViewTickets;
     if (tab === 'Thread') return canViewThread;
@@ -665,6 +772,61 @@ export default function ProjectDetailPage() {
     const requestedTabIndex = visibleProjectTabs.indexOf(requestedTabName);
     return requestedTabIndex >= 0 ? requestedTabIndex : 0;
   }, [searchParams, visibleProjectTabs]);
+  const projectDetailScrollRef = useRef<HTMLDivElement | null>(null);
+  const projectDetailSectionRef = useRef<HTMLDivElement | null>(null);
+
+  const [isProjectDetailSectionPinned, setIsProjectDetailSectionPinned] =
+    useState(false);
+
+  useEffect(() => {
+    if (
+      projectDetailQuery.isLoading ||
+      shouldRedirectToNotFound ||
+      !canViewProjectDetail ||
+      !project
+    ) {
+      return;
+    }
+
+    const scrollContainer = projectDetailScrollRef.current;
+    const detailSection = projectDetailSectionRef.current;
+
+    if (!scrollContainer || !detailSection) {
+      return;
+    }
+
+    const updatePinnedState = () => {
+      if (window.innerWidth >= 1280) {
+        setIsProjectDetailSectionPinned(true);
+        return;
+      }
+
+      const containerRect = scrollContainer.getBoundingClientRect();
+      const sectionRect = detailSection.getBoundingClientRect();
+
+      setIsProjectDetailSectionPinned(
+        Math.ceil(sectionRect.top) <= Math.ceil(containerRect.top),
+      );
+    };
+
+    updatePinnedState();
+
+    scrollContainer.addEventListener('scroll', updatePinnedState, {
+      passive: true,
+    });
+
+    window.addEventListener('resize', updatePinnedState);
+
+    return () => {
+      scrollContainer.removeEventListener('scroll', updatePinnedState);
+      window.removeEventListener('resize', updatePinnedState);
+    };
+  }, [
+    projectDetailQuery.isLoading,
+    shouldRedirectToNotFound,
+    canViewProjectDetail,
+    project?.id,
+  ]);
 
   if (projectDetailQuery.isLoading) {
     return <ProjectDetailSkeleton onBack={() => router.back()} />;
@@ -763,21 +925,32 @@ export default function ProjectDetailPage() {
   //   ],
   //   [ticketsQuery.data],
   // );
+
   return (
     <>
       <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 py-4">
-        <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
-          <DashboardSummaryBanner
-            imageSrc="/images/bannerBackBtn.svg"
-            onBack={() => router.back()}
-            imageAlt="Tickets"
-            title={project.name}
-            badge={project.category}
-            stats={projectSummaryStats}
-            badgeClr={project.colorHex}
-          />
+        <div
+          ref={projectDetailScrollRef}
+          className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
+          // className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
+        >
+          <div className="shrink-0">
+            <DashboardSummaryBanner
+              imageSrc="/images/bannerBackBtn.svg"
+              onBack={() => router.back()}
+              imageAlt="Tickets"
+              title={project.name}
+              badge={project.category}
+              stats={projectSummaryStats}
+              badgeClr={project.colorHex}
+            />
+          </div>
 
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden rounded-xl bg-white px-0 pt-2 md:pt-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:px-5">
+          <div
+            ref={projectDetailSectionRef}
+            className="sticky -top-5 z-20 flex h-full min-h-0 min-w-0 flex-none flex-col gap-4 overflow-hidden rounded-xl bg-white  shadow-[0_0_35px_0_rgb(0_0_0/0.04)] p-3 md:px-5 md:pt-4 xl:static xl:z-auto xl:flex-1"
+            // className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden rounded-xl bg-white px-0 pt-2 md:pt-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:px-5"
+          >
             {/* <section className="w-full shrink-0">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
@@ -998,15 +1171,9 @@ export default function ProjectDetailPage() {
 
                             {canCreateTicket ? (
                               <ThemeButton
-                                className="shrink-0 rounded-full"
+                                className="shrink-0 rounded-full hidden xl:block"
                                 variant="primaryGradient"
-                                icon={
-                                  <PlusIcon
-                                    fill="#3889FE"
-                                    width="20"
-                                    height="20"
-                                  />
-                                }
+                                icon={<PlusIcon width="20" height="20" />}
                                 onClick={() => setCreateTicketOpen(true)}
                               >
                                 New Ticket
@@ -1019,9 +1186,7 @@ export default function ProjectDetailPage() {
                           <ThemeButton
                             className="shrink-0 rounded-full"
                             variant="primaryGradient"
-                            icon={
-                              <PlusIcon fill="#3889FE" width="20" height="20" />
-                            }
+                            icon={<PlusIcon width="20" height="20" />}
                             onClick={() => setCreateTicketOpen(true)}
                           >
                             New Ticket
@@ -1035,6 +1200,7 @@ export default function ProjectDetailPage() {
                         enablePagination
                         pageSizeOptions={[10, 25, 50, 100]}
                         pagination={ticketsPagination}
+                        internalScrollEnabled={isProjectDetailSectionPinned}
                         onPaginationChange={setTicketsPagination}
                         totalRows={projectTicketsQuery.data?.meta.total ?? 0}
                         manualPagination
@@ -1066,6 +1232,7 @@ export default function ProjectDetailPage() {
                           <ProjectThreadPanel
                             title="Discussion"
                             replies={projectThreadQuery.data ?? []}
+                            internalScrollEnabled={isProjectDetailSectionPinned}
                             emptyTitle={
                               projectThreadQuery.isLoading
                                 ? 'Loading discussion...'
@@ -1082,10 +1249,16 @@ export default function ProjectDetailPage() {
                                 ? handleSubmitReply
                                 : undefined
                             }
+                            onEditReply={
+                              canPostThreadMessage
+                                ? handleEditProjectThreadReply
+                                : undefined
+                            }
                             isSubmittingReply={
                               createProjectThreadMutation.isPending &&
                               !selectedThreadMessageId
                             }
+                            editingReplyId={editingThreadReplyId}
                             canCompose={canPostThreadMessage}
                             canAttachFile={canAttachThreadFile}
                             requireMessage={false}
@@ -1109,6 +1282,7 @@ export default function ProjectDetailPage() {
                           <ProjectThreadPanel
                             title="Thread"
                             subtitle=""
+                            internalScrollEnabled={isProjectDetailSectionPinned}
                             headerAction={
                               <button
                                 type="button"
@@ -1137,10 +1311,12 @@ export default function ProjectDetailPage() {
                                 ? handleSubmitThreadReply
                                 : undefined
                             }
+                            onEditReply={handleEditProjectThreadReply}
                             isSubmittingReply={
                               createProjectThreadMutation.isPending &&
                               Boolean(selectedThreadMessageId)
                             }
+                            editingReplyId={editingThreadReplyId}
                             canCompose={canPostThreadReply}
                             canAttachFile={
                               canAttachThreadFile && canPostThreadReply
@@ -1165,6 +1341,7 @@ export default function ProjectDetailPage() {
                     <ProjectFilesPanel
                       files={projectFiles}
                       searchValue={fileSearchValue}
+                      internalScrollEnabled={isProjectDetailSectionPinned}
                       onSearchChange={setFileSearchValue}
                       onUploadClick={
                         canUploadFiles
@@ -1191,7 +1368,14 @@ export default function ProjectDetailPage() {
                 </PermissionGuard>
 
                 <PermissionGuard permission="calendar.view_grid">
-                  <TabPanel className="h-full min-h-0 overflow-y-auto">
+                  <TabPanel
+                    className={`h-full min-h-0 touch-pan-y ${
+                      isProjectDetailSectionPinned
+                        ? 'overflow-y-auto overscroll-auto '
+                        : 'overflow-y-hidden overscroll-auto xl:overflow-y-auto'
+                    }`}
+                    // className="h-full min-h-0 overflow-y-auto"
+                  >
                     <Calendar projectId={projectId} />
                   </TabPanel>
                 </PermissionGuard>
@@ -1199,6 +1383,16 @@ export default function ProjectDetailPage() {
             </TabGroup>
           </div>
         </div>
+        {canCreateTicket ? (
+          <button
+            type="button"
+            onClick={() => setCreateTicketOpen(true)}
+            aria-label="Create new ticket"
+            className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 flex h-10 w-10 items-center justify-center rounded-full bg-linear-to-l from-royal-blue to-crystal-blue text-white shadow-[0_10px_30px_rgb(48_79_253/0.35)] transition hover:opacity-90 active:scale-95 xl:hidden"
+          >
+            <PlusIcon fill="#FFFFFF" width="24" height="24" />
+          </button>
+        ) : null}
       </div>
 
       <CreateTicketModal

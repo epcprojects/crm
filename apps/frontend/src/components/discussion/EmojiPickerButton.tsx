@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import EmojiPicker, { Theme, type EmojiClickData } from 'emoji-picker-react';
+import Portal from '../modals/portal';
 
 type EmojiPickerButtonProps = {
   disabled?: boolean;
@@ -13,7 +14,63 @@ export default function EmojiPickerButton({
   onSelectEmoji,
 }: EmojiPickerButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [pickerStyle, setPickerStyle] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const pickerRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    if (!isOpen || !buttonRef.current) {
+      return;
+    }
+
+    const updatePosition = () => {
+      const rect = buttonRef.current?.getBoundingClientRect();
+
+      if (!rect) {
+        return;
+      }
+
+      const pickerWidth = 320;
+      const pickerHeight = 400;
+      const gap = 12;
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      let left = rect.right - pickerWidth;
+      let top = rect.top - pickerHeight - gap;
+
+      if (left < 12) {
+        left = 12;
+      }
+
+      if (left + pickerWidth > viewportWidth - 12) {
+        left = viewportWidth - pickerWidth - 12;
+      }
+
+      if (top < 12) {
+        top = rect.bottom + gap;
+      }
+
+      if (top + pickerHeight > viewportHeight - 12) {
+        top = Math.max(12, viewportHeight - pickerHeight - 12);
+      }
+
+      setPickerStyle({ top, left });
+    };
+
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -21,7 +78,11 @@ export default function EmojiPickerButton({
     }
 
     const handlePointerDown = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) {
+      const targetNode = event.target as Node;
+      const clickedTrigger = containerRef.current?.contains(targetNode);
+      const clickedPicker = pickerRef.current?.contains(targetNode);
+
+      if (!clickedTrigger && !clickedPicker) {
         setIsOpen(false);
       }
     };
@@ -49,6 +110,7 @@ export default function EmojiPickerButton({
   return (
     <div ref={containerRef} className="relative">
       <button
+        ref={buttonRef}
         type="button"
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => setIsOpen((current) => !current)}
@@ -60,17 +122,23 @@ export default function EmojiPickerButton({
         <EmojiSmileIcon />
       </button>
 
-      {isOpen ? (
-        <div className="absolute bottom-12 right-0 z-50 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_18px_50px_rgb(0_0_0/0.16)]">
-          <EmojiPicker
-            onEmojiClick={handleEmojiClick}
-            theme={Theme.LIGHT}
-            width={320}
-            height={400}
-            searchPlaceholder="Search emoji"
-            lazyLoadEmojis
-          />
-        </div>
+      {isOpen && pickerStyle ? (
+        <Portal>
+          <div
+            ref={pickerRef}
+            className="fixed z-[7000] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_18px_50px_rgb(0_0_0/0.16)]"
+            style={pickerStyle}
+          >
+            <EmojiPicker
+              onEmojiClick={handleEmojiClick}
+              theme={Theme.LIGHT}
+              width={320}
+              height={400}
+              searchPlaceholder="Search emoji"
+              lazyLoadEmojis
+            />
+          </div>
+        </Portal>
       ) : null}
     </div>
   );
