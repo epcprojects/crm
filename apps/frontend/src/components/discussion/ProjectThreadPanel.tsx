@@ -38,6 +38,7 @@ type DiscussionPanelProps = {
   onReplyClick?: (reply: DiscussionReply) => void;
   onDeleteAttachment?: (attachment: DiscussionAttachment) => void;
   deletingAttachmentId?: string;
+  internalScrollEnabled?: boolean;
 };
 
 type GalleryImage = {
@@ -67,6 +68,7 @@ export default function ProjectThreadPanel({
   onReplyClick,
   onDeleteAttachment,
   deletingAttachmentId,
+  internalScrollEnabled = true,
 }: DiscussionPanelProps) {
   const [message, setMessage] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -261,7 +263,12 @@ export default function ProjectThreadPanel({
 
         <div
           ref={scrollContainerRef}
-          className="min-h-0 flex-1 overflow-y-auto px-3 py-5 scrollbar-hide md:px-5"
+          className={`min-h-0 flex-1 touch-pan-y px-3 py-5 scrollbar-hide md:px-5 ${
+            internalScrollEnabled
+              ? 'overflow-y-auto overscroll-auto'
+              : 'overflow-y-hidden overscroll-auto xl:overflow-y-auto'
+          }`}
+          // className="min-h-0 flex-1 overflow-y-auto px-3 py-5 scrollbar-hide md:px-5"
         >
           {headerReply ? (
             <div className="  pb-4">

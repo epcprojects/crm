@@ -87,7 +87,7 @@ export default function SettingsConfigCard({
         {onAdd ? (
           <div className="w-full xl:w-auto">
             <ThemeButton
-              className="w-full xl:w-auto"
+              className="w-full xl:w-auto hidden xl:block"
               icon={<PlusIcon />}
               onClick={onAdd}
             >

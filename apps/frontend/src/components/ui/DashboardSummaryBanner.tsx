@@ -115,7 +115,7 @@ export default function DashboardSummaryBanner({
 
                 <div className="flex min-w-0 items-center justify-between gap-2 xl:shrink-0 xl:justify-start xl:gap-4">
                   <div className="flex min-w-0 items-center gap-2">
-                    <div className="relative flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-white">
+                    <div className="relative flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-white/40">
                       <span
                         className="absolute m-auto inline-block h-2.5 w-2.5 rounded-full"
                         style={{

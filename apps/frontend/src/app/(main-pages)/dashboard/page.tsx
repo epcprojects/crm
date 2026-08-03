@@ -661,15 +661,61 @@ export default function Page() {
     [activityQuery.data],
   );
   // const displayedProjects = (projectsQuery.data ?? []).slice(0, 0);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const dashboardScrollRef = useRef<HTMLDivElement | null>(null);
+const upcomingSectionRef = useRef<HTMLDivElement | null>(null);
+const [isUpcomingSectionPinned, setIsUpcomingSectionPinned] = useState(false);
+useEffect(() => {
+  const scrollContainer = dashboardScrollRef.current;
+  const upcomingSection = upcomingSectionRef.current;
+
+  if (!scrollContainer || !upcomingSection) {
+    return;
+  }
+
+  const updatePinnedState = () => {
+    if (window.innerWidth >= 1280) {
+      setIsUpcomingSectionPinned(true);
+      return;
+    }
+
+    const containerRect = scrollContainer.getBoundingClientRect();
+    const sectionRect = upcomingSection.getBoundingClientRect();
+
+    const hasReachedStickyPosition =
+      Math.ceil(sectionRect.top) <= Math.ceil(containerRect.top);
+
+    setIsUpcomingSectionPinned(hasReachedStickyPosition);
+  };
+
+  updatePinnedState();
+
+  scrollContainer.addEventListener('scroll', updatePinnedState, {
+    passive: true,
+  });
+
+  window.addEventListener('resize', updatePinnedState);
+
+  return () => {
+    scrollContainer.removeEventListener('scroll', updatePinnedState);
+    window.removeEventListener('resize', updatePinnedState);
+  };
+}, []);
   return (
     <div className="xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 z-100 h-full xl:h-dvh relative">
       {/* <div className="bg-white/40 border border-white rounded-3xl p-3 flex flex-row h-full gap-3"> */}
-      <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden xl:rounded-2xl  bg-gray-200 xl:flex-row xl:border xl:border-white xl:bg-white/40 xl:p-3">
+      <div 
+       ref={dashboardScrollRef}
+      className="flex h-full min-h-0 flex-col gap-3 xl:overflow-hidden  overflow-y-auto overscroll-contain scrollbar-hide xl:rounded-2xl  bg-gray-200 xl:flex-row xl:border xl:border-white xl:bg-white/40 xl:p-3">
         <PermissionGuard permission="dashboard.view_upcoming">
           <div
-            className={`order-2 min-h-0 flex-1 overflow-hidden xl:order-0 xl:h-full xl:flex-none ${
+           ref={upcomingSectionRef}
+            className={`sticky -top-5 z-20 order-2 h-full min-h-0 flex-none overflow-hidden bg-gray-200 xl:static xl:z-auto xl:order-0 xl:h-full xl:flex-none xl:bg-transparent ${
               canViewRecentTickets ? 'xl:w-82.5' : 'xl:flex-1'
             }`}
+            // className={`order-2 min-h-0 flex-1 overflow-hidden xl:order-0 xl:h-full xl:flex-none ${
+            //   canViewRecentTickets ? 'xl:w-82.5' : 'xl:flex-1'
+            // }`}
           >
             {isUpcomingTicketsLoading ? (
               <DashboardTabsSkeleton />
@@ -678,6 +724,7 @@ export default function Page() {
                 tabs={dashboardTicketTabs}
                 activeTabKey={selectedDashboardTab}
                 onActiveTabChange={updateDashboardTab}
+                 internalScrollEnabled={isUpcomingSectionPinned}
                 onTicketClick={
                   canViewTicketDetail
                     ? (ticket) =>
@@ -691,6 +738,7 @@ export default function Page() {
                     : undefined
                 }
               />
+              
             )}
           </div>
         </PermissionGuard>
@@ -714,7 +762,7 @@ export default function Page() {
 
                   {canCreateTicket ? (
                     <ThemeButton
-                      className="shrink-0 rounded-full"
+                      className="shrink-0 rounded-full xl:block hidden"
                       variant="primaryGradient"
                       icon={<PlusIcon fill="#3889FE" width="20" height="20" />}
                       onClick={() => setCreateTicketOpen(true)}
@@ -730,8 +778,8 @@ export default function Page() {
                     count={formatSummaryCount(ticketSummary?.open)}
                     icon={
                       <FolderIcon
-                        width={isMobile ? '12' : '24'}
-                        height={isMobile ? '12' : '24'}
+                        width={isMobile ? '12' : '20'}
+                        height={isMobile ? '12' : '20'}
                         fill="white"
                       />
                     }
@@ -742,8 +790,8 @@ export default function Page() {
                     count={formatSummaryCount(ticketSummary?.inProgress)}
                     icon={
                       <ClockIcon
-                        width={isMobile ? '12' : '24'}
-                        height={isMobile ? '12' : '24'}
+                        width={isMobile ? '12' : '20'}
+                        height={isMobile ? '12' : '20'}
                         fill="white"
                       />
                     }
@@ -754,8 +802,8 @@ export default function Page() {
                     count={formatSummaryCount(ticketSummary?.resolved)}
                     icon={
                       <CheckMarkCircleIcon
-                        width={isMobile ? '12' : '24'}
-                        height={isMobile ? '12' : '24'}
+                        width={isMobile ? '12' : '20'}
+                        height={isMobile ? '12' : '20'}
                         fill="white"
                       />
                     }
@@ -766,8 +814,8 @@ export default function Page() {
                     count={formatSummaryCount(ticketSummary?.critical)}
                     icon={
                       <AlertIcon
-                        width={isMobile ? '12' : '24'}
-                        height={isMobile ? '12' : '24'}
+                        width={isMobile ? '12' : '20'}
+                        height={isMobile ? '12' : '20'}
                         fill="white"
                       />
                     }
@@ -776,7 +824,7 @@ export default function Page() {
               </div>
             )}
           </PermissionGuard>
-          <div className="hidden min-h-0 flex-1 gap-3 xl:grid xl:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="hidden min-h-0 flex-1 gap-3 xl:grid xl:grid-cols-[minmax(0,1fr)_300px] 2xl:grid-cols-[minmax(0,1fr)_340px]">
             <PermissionGuard permission="dashboard.view_recent_tickets">
               <div
                 className={`bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)]  flex flex-1 flex-col min-h-0 gap-3.5 rounded-xl p-3 h-full `}
@@ -825,41 +873,6 @@ export default function Page() {
                   <div className="flex items-center gap-3">
                     <div className="flex flex-wrap gap-2">
                       {/* Desktop filters: xl and above */}
-                      <div className="hidden items-center gap-2 xl:flex">
-                        <div className=" hidden relative w-full overflow-visible">
-                          <Dropdown
-                            options={projectFilterOptions}
-                            value={selectedProject}
-                            onChange={(value) =>
-                              updateRecentTicketsFilters({
-                                project: value,
-                              })
-                            }
-                            placeholder="All Projects"
-                            maxMenuHeight={150}
-                          />
-                        </div>{' '}
-                        <div className="w-38 hidden">
-                          <Dropdown
-                            options={statusFilterOptions}
-                            value={selectedStatus}
-                            onChange={(value) =>
-                              updateRecentTicketsFilters({ status: value })
-                            }
-                            placeholder="All Status"
-                          />
-                        </div>
-                        <div className="w-38 hidden">
-                          <Dropdown
-                            options={priorityFilterOptions}
-                            value={selectedPriority}
-                            onChange={(value) =>
-                              updateRecentTicketsFilters({ priority: value })
-                            }
-                            placeholder="All Priority"
-                          />
-                        </div>
-                      </div>
                       <ThemeButton
                         className="shrink-0 rounded-full"
                         variant="primaryGradient"
@@ -869,8 +882,9 @@ export default function Page() {
                       >
                         {isExportingTickets ? 'Exporting...' : 'Export Tickets'}
                       </ThemeButton>
+
                       {/* Compact filters: below xl only */}
-                      <Popover as="div" className="relative ">
+                      <Popover as="div" className="relative xl:hidden block ">
                         {({ open }) => (
                           <>
                             <PopoverButton
@@ -950,6 +964,23 @@ export default function Page() {
                           </>
                         )}
                       </Popover>
+
+                      <button
+                        type="button"
+                        onClick={() => setFiltersOpen((current) => !current)}
+                        className={`flex items-center justify-center gap-1 rounded-lg px-4 py-2 text-sm font-semibold ring-1 transition duration-300 hover:bg-linear-to-l hover:from-royal-blue/80 hover:to-crystal-blue/80 hover:text-white ${
+                          filtersOpen
+                            ? 'bg-primary/5 text-primary ring-primary'
+                            : 'bg-white text-gray-600 ring-gray-200'
+                        }`}
+                        aria-label="Open ticket filters"
+                        aria-expanded={filtersOpen}
+                        aria-controls="recent-ticket-filters"
+                      >
+                        <FiltersIcon fill="currentColor" />
+                        <span>Filter</span>
+                      </button>
+
                       {canViewTicketsList ? (
                         <div>
                           <button
@@ -971,6 +1002,113 @@ export default function Page() {
                         Filter
                       </p>
                     </button> */}
+                    </div>
+                  </div>
+                  {/* <div className="hidden items-center gap-2 xl:flex">
+                        <div className="  relative w-full overflow-visible">
+                          <Dropdown
+                            options={projectFilterOptions}
+                            value={selectedProject}
+                            onChange={(value) =>
+                              updateRecentTicketsFilters({
+                                project: value,
+                              })
+                            }
+                            placeholder="All Projects"
+                            maxMenuHeight={150}
+                          />
+                        </div>{' '}
+                        <div className=" w-38">
+                          <Dropdown
+                            options={statusFilterOptions}
+                            value={selectedStatus}
+                            onChange={(value) =>
+                              updateRecentTicketsFilters({ status: value })
+                            }
+                            placeholder="All Status"
+                          />
+                        </div>
+                        <div className=" w-38">
+                          <Dropdown
+                            options={priorityFilterOptions}
+                            value={selectedPriority}
+                            onChange={(value) =>
+                              updateRecentTicketsFilters({ priority: value })
+                            }
+                            placeholder="All Priority"
+                          />
+                        </div>
+                      </div> */}
+                  <div
+                    className={`hidden w-full transition-[grid-template-rows,opacity,transform] duration-300 ease-out xl:grid ${
+                      filtersOpen
+                        ? 'grid-rows-[1fr] translate-y-0 opacity-100'
+                        : 'pointer-events-none grid-rows-[0fr] -translate-y-2 opacity-0'
+                    }`}
+                  >
+                    <div className="min-h-0 overflow-hidden">
+                      <div
+                        id="recent-ticket-filters"
+                        className="flex w-full items-center gap-2 pt-1"
+                      >
+                        <div className="relative w-full overflow-visible">
+                          <Dropdown
+                            options={projectFilterOptions}
+                            value={selectedProject}
+                            onChange={(value) =>
+                              updateRecentTicketsFilters({
+                                project: value,
+                              })
+                            }
+                            placeholder="All Projects"
+                            maxMenuHeight={150}
+                          />
+                        </div>
+
+                        <div className="w-full">
+                          <Dropdown
+                            options={statusFilterOptions}
+                            value={selectedStatus}
+                            onChange={(value) =>
+                              updateRecentTicketsFilters({
+                                status: value,
+                              })
+                            }
+                            placeholder="All Status"
+                          />
+                        </div>
+
+                        <div className="w-full">
+                          <Dropdown
+                            options={priorityFilterOptions}
+                            value={selectedPriority}
+                            onChange={(value) =>
+                              updateRecentTicketsFilters({
+                                priority: value,
+                              })
+                            }
+                            placeholder="All Priority"
+                          />
+                        </div>
+
+                        {selectedProject !== 'all' ||
+                        selectedStatus !== 'all' ||
+                        selectedPriority !== 'all' ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updateRecentTicketsFilters({
+                                project: 'all',
+                                status: 'all',
+                                priority: 'all',
+                              });
+                            }}
+                            className="ml-auto shrink-0 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 transition hover:bg-gray-50"
+                          >
+                            Clear Filters
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1155,6 +1293,16 @@ export default function Page() {
             </PermissionGuard>
           </div>
         </div>
+        {canCreateTicket ? (
+          <button
+            type="button"
+            onClick={() => setCreateTicketOpen(true)}
+            aria-label="Create new ticket"
+            className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 flex h-10 w-10 items-center justify-center rounded-full bg-linear-to-l from-royal-blue to-crystal-blue text-white shadow-[0_10px_30px_rgb(48_79_253/0.35)] transition hover:opacity-90 active:scale-95 xl:hidden"
+          >
+            <PlusIcon fill="#FFFFFF" width="24" height="24" />
+          </button>
+        ) : null}
       </div>
 
       <CreateTicketModal

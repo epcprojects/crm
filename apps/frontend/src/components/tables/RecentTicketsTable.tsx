@@ -205,6 +205,7 @@ type RecentTicketsTableProps = {
   sortState?: TicketSortState;
   onSortChange?: (sortState: TicketSortState) => void;
   onEmptyButtonClick?: () => void;
+  internalScrollEnabled?: boolean;
 };
 
 export default function RecentTicketsTable({
@@ -222,6 +223,7 @@ export default function RecentTicketsTable({
   onPaginationChange,
   sortState,
   onSortChange,
+  internalScrollEnabled = true,
 }: RecentTicketsTableProps) {
   const userType = useAppSelector((state) => state.auth.user?.userType);
   const isExternalUser = userType === 'EXTERNAL';
@@ -310,8 +312,15 @@ export default function RecentTicketsTable({
     );
   }
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl bg-white xl:w-full xl:border xl:border-gray-200">
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain xl:p-3 scrollbar-hide xl:hidden">
+    <div className="flex h-full min-h-0 flex-col  rounded-xl bg-white xl:w-full xl:border xl:border-gray-200">
+      <div
+        className={`min-h-0 flex-1 space-y-3 touch-pan-y scrollbar-hide xl:hidden xl:p-3 ${
+    internalScrollEnabled
+      ? 'overflow-y-auto overscroll-contain'
+      : 'overflow-y-hidden overscroll-auto'
+  }`}
+        // className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain xl:p-3 scrollbar-hide xl:hidden"
+      >
         {table.getRowModel().rows.length ? (
           table
             .getRowModel()
@@ -322,6 +331,7 @@ export default function RecentTicketsTable({
                 onClick={onRowClick}
                 showAssignee={!isExternalUser}
               />
+          
             ))
         ) : (
           <EmptyState
@@ -479,47 +489,130 @@ export default function RecentTicketsTable({
   );
 }
 
+// function TicketMobileCard({
+//   ticket,
+//   onClick,
+//   showAssignee = true,
+// }: {
+//   ticket: RecentTicket;
+//   onClick?: (ticket: RecentTicket) => void;
+//   showAssignee?: boolean;
+// }) {
+//   return (
+//     <button
+//       type="button"
+//       onClick={() => onClick?.(ticket)}
+//       className={`w-full rounded-xl border border-gray-200 bg-white p-3 text-left transition ${
+//         onClick ? 'hover:border-gray-300' : ''
+//       }`}
+//     >
+//       <div className="flex items-start justify-between gap-3">
+//         {showAssignee ? (
+//           <div className="flex min-w-0 items-center gap-3">
+//             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-orange-200 to-slate-800 text-base font-medium text-white">
+//               {ticket.assignee.initials}
+//             </span>
+//             <div className="min-w-0">
+//               <p className="truncate text-base font-semibold text-gray-900">
+//                 {ticket.assignee.name}
+//               </p>
+//               <p className=" text-xs text-gray-600">{ticket.date}</p>
+//             </div>
+//           </div>
+//         ) : (
+//           <div className="min-w-0">
+//             <p className="text-xs text-gray-600">{ticket.date}</p>
+//           </div>
+//         )}
+
+//         <div className="flex shrink-0 items-center gap-2">
+//           {renderStatusBadge(ticket)}
+//           <span className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2 py-1 text-sm font-semibold text-gray-700 shadow-xs">
+//             <span
+//               className={`h-2 w-2 rounded-full ${
+//                 ticket.priorityColor
+//                   ? ''
+//                   : (priorityStyles[ticket.priority ?? ''] ?? 'bg-gray-400')
+//               }`}
+//               style={
+//                 ticket.priorityColor
+//                   ? { backgroundColor: ticket.priorityColor }
+//                   : undefined
+//               }
+//             />
+//             {ticket.priority ?? 'No Priority'}
+//           </span>
+//         </div>
+//       </div>
+
+//       <div className="my-3 h-px bg-gray-200" />
+
+//       <div className="flex items-center flex-wrap gap-3">
+//         <span className="flex px-2 shrink-0 items-center justify-center rounded-full  text-sm font-semibold text-gray-900">
+//           {ticket.ticketRefNo ?? ticket.id}
+//         </span>
+//         <p className="truncate text-sm text-gray-800">{ticket.title}</p>
+//       </div>
+
+//       <div className="mt-2">
+//         <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-purple-100 py-0.5 pr-3 pl-0.5 text-sm font-medium text-purple-700">
+//           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-medium">
+//             {ticket.project.initials}
+//           </span>
+//           {ticket.project.name}
+//         </span>
+//       </div>
+//     </button>
+//   );
+// }
 function TicketMobileCard({
   ticket,
   onClick,
-  showAssignee = true,
 }: {
   ticket: RecentTicket;
   onClick?: (ticket: RecentTicket) => void;
   showAssignee?: boolean;
 }) {
+  const projectColor = ticket.project.brandColor || '#F79009';
+  const reporterInitials = getInitials(ticket.reporter.fullName);
+
+  const statusStyle = ticket.statusColor
+    ? getStatusBadgeStyle(ticket.statusColor)
+    : undefined;
+
   return (
     <button
       type="button"
       onClick={() => onClick?.(ticket)}
-      className={`w-full rounded-xl border border-gray-200 bg-white p-3 text-left transition ${
+      className={`flex w-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white text-left transition ${
         onClick ? 'hover:border-gray-300' : ''
       }`}
     >
-      <div className="flex items-start justify-between gap-3">
-        {showAssignee ? (
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-orange-200 to-slate-800 text-base font-medium text-white">
-              {ticket.assignee.initials}
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-base font-semibold text-gray-900">
-                {ticket.assignee.name}
-              </p>
-              <p className=" text-xs text-gray-600">{ticket.date}</p>
-            </div>
-          </div>
-        ) : (
-          <div className="min-w-0">
-            <p className="text-xs text-gray-600">{ticket.date}</p>
-          </div>
-        )}
+      <div className="flex flex-col gap-1 bg-gray-50 p-2.5">
+        <p className="line-clamp-2 text-sm font-medium text-gray-950">
+          {ticket.title}
+        </p>
 
-        <div className="flex shrink-0 items-center gap-2">
-          {renderStatusBadge(ticket)}
-          <span className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2 py-1 text-sm font-semibold text-gray-700 shadow-xs">
+        <div className="flex flex-row items-center gap-2">
+          <p className="min-w-0 flex-1 truncate text-xs text-gray-700">
+            {ticket.ticketRefNo ?? ticket.id}
+          </p>
+
+          <div className="flex shrink-0 flex-row items-center gap-2">
             <span
-              className={`h-2 w-2 rounded-full ${
+              className={`inline-flex whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-medium ${
+                ticket.statusColor
+                  ? ''
+                  : (statusStyles[ticket.status] ??
+                    'border-gray-200 bg-gray-50 text-gray-600')
+              }`}
+              style={statusStyle}
+            >
+              {ticket.status}
+            </span>
+
+            <span
+              className={`inline-flex whitespace-nowrap rounded-[5px] px-2 py-0.5 text-xs font-medium text-white ${
                 ticket.priorityColor
                   ? ''
                   : (priorityStyles[ticket.priority ?? ''] ?? 'bg-gray-400')
@@ -529,28 +622,57 @@ function TicketMobileCard({
                   ? { backgroundColor: ticket.priorityColor }
                   : undefined
               }
-            />
-            {ticket.priority ?? 'No Priority'}
-          </span>
+            >
+              {ticket.priority ?? 'No Priority'}
+            </span>
+          </div>
         </div>
       </div>
+      <div className="grid grid-cols-2 gap-2.5 p-2.5">
+        {/* Project */}
+        <div className="flex min-w-0 flex-col items-start gap-1">
+          <p className="text-[10px] text-gray-500">Project</p>
 
-      <div className="my-3 h-px bg-gray-200" />
+          <div className="flex max-w-full flex-row items-center gap-1.25 rounded-full border border-gray-100 bg-white py-0.5 pr-2 pl-0.5">
+            <span
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-medium"
+              style={{
+                backgroundColor: `${projectColor}20`,
+                color: projectColor,
+              }}
+            >
+              {ticket.project.initials}
+            </span>
 
-      <div className="flex items-center flex-wrap gap-3">
-        <span className="flex px-2 shrink-0 items-center justify-center rounded-full  text-sm font-semibold text-gray-900">
-          {ticket.ticketRefNo ?? ticket.id}
-        </span>
-        <p className="truncate text-sm text-gray-800">{ticket.title}</p>
-      </div>
+            <p className="truncate text-xs text-gray-800">
+              {ticket.project.name}
+            </p>
+          </div>
+        </div>
+        <div className="flex min-w-0 flex-col items-start gap-1">
+          <p className="text-[10px] text-gray-500">Created by</p>
 
-      <div className="mt-2">
-        <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-purple-100 py-0.5 pr-3 pl-0.5 text-sm font-medium text-purple-700">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-medium">
-            {ticket.project.initials}
-          </span>
-          {ticket.project.name}
-        </span>
+          <div className="flex min-w-0 flex-row items-center gap-1.25 py-0.5">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] font-medium text-gray-900">
+              {reporterInitials}
+            </span>
+
+            <p className="truncate text-xs text-gray-800">
+              {ticket.reporter.fullName}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-start gap-1">
+          <p className="text-[10px] text-gray-500">Created On</p>
+          <p className="text-xs text-gray-800">{ticket.date}</p>
+        </div>
+        <div className="flex flex-col items-start gap-1">
+          <p className="text-[10px] text-gray-500">Due Date</p>
+          <p className="text-xs text-gray-800">
+            {ticket.dueDate || 'No due date'}
+          </p>
+        </div>
       </div>
     </button>
   );

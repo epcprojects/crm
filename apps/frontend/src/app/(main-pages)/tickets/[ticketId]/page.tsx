@@ -1285,13 +1285,13 @@ export default function TicketDetailPage() {
   return (
     <div className="relative z-100 h-full xl:h-dvh overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0">
       <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden  xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
-        <div className="relative flex w-full flex-col gap-2 overflow-hidden rounded-xl bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat px-4 py-4 xl:flex-row xl:items-center xl:gap-4  xl:px-7.5 xl:py-6">
+        <div className="relative flex w-full flex-col gap-2 overflow-hidden rounded-xl bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat px-4 pt-4 pb-2 xl:flex-row xl:items-center xl:gap-4  xl:px-7.5 xl:py-6">
           {/* Background overlay */}
           <div
             className="absolute inset-0 bg-black/30 z-10"
             aria-hidden="true"
           />
-          <div className="relative flex min-w-0 items-center gap-3  z-20  w-full">
+          <div className="relative flex xl:flex-row xl:items-center items-start flex-col min-w-0  gap-3  z-20  w-full">
             <button className="mr-3" onClick={() => router.back()}>
               <Image
                 alt={''}
@@ -1302,7 +1302,7 @@ export default function TicketDetailPage() {
               />
             </button>
 
-            <div className="flex flex-wrap gap-4 w-full sm:grid sm:grid-cols-5">
+            <div className="hidden  gap-4 w-full xl:grid sm:grid-cols-5">
               <MetaItem
                 label="Ticket ID"
                 value={`${ticket.ticketRefNo ?? ticket.id}`}
@@ -1341,6 +1341,51 @@ export default function TicketDetailPage() {
                   </div>
                 </div>
               ) : null}
+            </div>
+            <div className="xl:hidden  flex flex-col gap-4 w-full">
+              <div className="grid grid-cols-3 gap-4">
+                <MetaItem
+                  label="Ticket ID"
+                  value={`${ticket.ticketRefNo ?? ticket.id}`}
+                />
+
+                <MetaItem label="Created on" value={ticket.date} />
+                <MetaItem
+                  label="Created By"
+                  value={(ticket as any).createdByDetail?.name ?? 'Unknown'}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <MetaItem
+                  label="Project"
+                  hideTooltip={false}
+                  value={ticket.project.name}
+                />
+
+                {ticket.dueDate ? (
+                  <div className="flex flex-col">
+                    <span className="block text-sm text-gray-300 leading-none">
+                      Due Date
+                    </span>
+
+                    <div
+                      className={`flex h-fit items-start gap-2 rounded-lg  text-white`}
+                    >
+                      <div className="flex w-full items-center gap-3">
+                        <p className="pt-px text-sm font-medium ">
+                          {ticket.dueDate}
+                        </p>
+
+                        {isDueDateOverdue ? (
+                          <p className="rounded-full bg-[#F04438] px-2.5 py-0.5 text-sm font-medium text-white">
+                            Overdue
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
           <div className="flex  items-center gap-2 relative z-20">
@@ -1382,7 +1427,19 @@ export default function TicketDetailPage() {
               <section className="rounded-xl border border-gray-200 bg-white p-3  md:p-5">
                 <div className=" relative">
                   <div className="mb-2 flex absolute top-0 inset-e-0 items-start justify-end">
-                    {canEditTicketContent ? (
+                    {canEditTicketContent &&
+                    !isEditingTitle &&
+                    !isEditingDescription ? (
+                      <button
+                        type="button"
+                        onClick={handleStartEditingContent}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-gray-700 transition hover:bg-gray-50"
+                        aria-label="Edit ticket content"
+                      >
+                        <EditIcon />
+                      </button>
+                    ) : null}
+                    {/* {canEditTicketContent ? (
                       <button
                         type="button"
                         disabled={updateTicketMutation.isPending}
@@ -1412,7 +1469,7 @@ export default function TicketDetailPage() {
                           <EditIcon />
                         )}
                       </button>
-                    ) : null}
+                    ) : null} */}
                   </div>
                   {isEditingTitle ? (
                     <div className="mr-10">
@@ -1478,6 +1535,27 @@ export default function TicketDetailPage() {
                         disabled={updateTicketMutation.isPending}
                         showCharacterCount
                       />
+                      <div className="mt-4 flex items-center justify-end gap-3">
+                        <button
+                          type="button"
+                          onClick={handleCancelEditingContent}
+                          disabled={updateTicketMutation.isPending}
+                          className="inline-flex  items-center justify-center rounded-lg border border-[#D4D4D4] bg-white px-5 py-1.5 text-base font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Discard
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => void handleSaveTicketContent()}
+                          disabled={updateTicketMutation.isPending}
+                          className="inline-flex items-center justify-center rounded-lg bg-linear-to-l from-[#8833FF] to-[#1175F9] px-5 py-1.5 text-base font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {updateTicketMutation.isPending
+                            ? 'Updating...'
+                            : 'Update'}
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <div className="mt-2 w-full text-left max-h-52 overflow-y-auto tiny-scrollbar">

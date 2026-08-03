@@ -588,7 +588,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         ) : null}
         <div className="hidden w-22.5 2xl:w-29.25  shrink-0 xl:block" />
         <aside
-          className={`fixed inset-y-0  left-0 z-40 hidden xl:flex flex-col items-center gap-10 bg-gray-200 px-4  2xl:px-6 pt-4  2xl:pt-6 pb-4 2xl:pb-8 transition-transform duration-300 ease-out  ${
+          className={`fixed inset-y-0  left-0 z-40 hidden xl:flex flex-col items-center gap-8 2xl:gap-10 bg-gray-200 px-4  2xl:px-6 pt-4  2xl:pt-6 pb-4 2xl:pb-8 transition-transform duration-300 ease-out  ${
             mobileOpen ? '' : '-translate-x-full lg:translate-x-0'
           }`}
         >
@@ -759,10 +759,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             profileMenu={
               <Menu as="div" className="relative z-100">
                 <MenuButton
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-left outline-none ring-1 ring-gray-200 transition hover:bg-gray-50"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-left outline-none ring-1 ring-gray-200 transition hover:bg-gray-50"
                   title={currentAccount.name}
                 >
-                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-linear-to-br from-slate-700 to-slate-950 text-sm font-semibold text-white">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-linear-to-br from-slate-700 to-slate-950 text-sm font-semibold text-white">
                     {currentAccount.initials}
                   </span>
                 </MenuButton>
