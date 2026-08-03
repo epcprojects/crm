@@ -10,8 +10,11 @@ import { ChatMessageInternal } from './entities/chat-message-internal.entity';
 import { ChatMessageExternal } from './entities/chat-message-external.entity';
 import { SendMessageDto, GetMessagesQueryDto } from './dto/chat-message.dto';
 import { Ticket } from '../tickets/entities/ticket.entity';
-import { UserType } from 'libs/shared/types/src/lib/types';
+import { NotificationEntityType, NotificationType, UserType } from 'libs/shared/types/src/lib/types';
 import { UpdateChatDto } from './dto/update-chat.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { UsersService } from '../users/users.service';
+import { TicketsService } from '../tickets/tickets.service';
 
 export type ChatChannel = 'internal' | 'external';
 
@@ -28,6 +31,9 @@ export class ChatMessagesService {
   private readonly logger = new Logger(ChatMessagesService.name);
 
   constructor(
+    private readonly usersService: UsersService,
+    private readonly ticketsService: TicketsService,
+    private readonly notificationsService: NotificationsService,
     @InjectRepository(ChatMessageInternal)
     private readonly internalRepo: Repository<ChatMessageInternal>,
 
@@ -93,6 +99,20 @@ export class ChatMessagesService {
     });
 
     const saved = await this.repo(channel).save(message);
+const fullname = await this.usersService.getFullName(senderId);
+const ticketRefNo = await this.ticketsService.findTicketRefNo(ticketId);
+
+        await this.notificationsService.notifyProjectMembers({
+          projectId: projectId,
+          actorId: senderId,
+          type: NotificationType.INTERNAL_MESSAGE,
+          entityType: NotificationEntityType.INTERNAL_MESSAGE,
+          entityId: saved.id,
+          ticketId: ticketId,
+          title: `New Internal Message in ticket "${ticketRefNo}" from ${fullname}`,
+          message: '',
+          // requiredClaimValue: dto.isInternal ? 'view_internal_replies' : undefined,
+        });
 
     // Reload with sender/receiver populated for broadcast payload
     return this.repo(channel).findOne({

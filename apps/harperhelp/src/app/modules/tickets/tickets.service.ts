@@ -752,6 +752,15 @@ const members = (ticket.project?.members || [])
     return this.ticketRepo.save(ticket);
   }
 
+
+  async findTicketRefNo(ticketId: string) {
+    const ticket = await this.ticketRepo.findOne({
+      where: { id: ticketId },
+      select: { ticketRefNo: true },
+    });
+    return ticket?.ticketRefNo;
+  }
+
   // ---------------- DELETE (SOFT) ----------------
   async remove(projectId: string, ticketId: string, userId: string) {
     const ticket = await this.findEntity(projectId, ticketId);
