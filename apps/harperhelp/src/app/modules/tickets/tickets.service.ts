@@ -140,23 +140,26 @@ export class TicketsService {
         .map((m) => ({
           name: m.fullName,
           email: m.email,
+          isInvitationAccepted: m.isInvitationAccepted,
         }));
 
-      console.debug('Tcietk daved', saved.id, 'members', members.length);
+      console.debug('Ticket saved', saved.id, 'members', members.length);
       const participantsMap = new Map<
         string,
-        { name: string; email: string }
+        { name: string; email: string; isInvitationAccepted?: boolean }
       >();
       for (const m of members) participantsMap.set(m.email, m);
       if (ticket.reporter && ticket?.reporter?.id !== userId)
         participantsMap.set(ticket.reporter.email, {
           name: ticket.reporter.fullName,
           email: ticket.reporter.email,
+          isInvitationAccepted: ticket.reporter.isInvitationAccepted,
         });
       if (ticket.assignee && ticket?.assignee?.id !== userId)
         participantsMap.set(ticket.assignee.email, {
           name: ticket.assignee.fullName,
           email: ticket.assignee.email,
+          isInvitationAccepted: ticket.assignee.isInvitationAccepted, // Include the isInvitationAccepted property
         });
 
       const participants = Array.from(participantsMap.values());
@@ -164,6 +167,10 @@ export class TicketsService {
       console.debug(
         `Dispatching ticket.created notification for ticket ${saved.id} to ${participants.length} participants`,
       );
+
+      console.debug(
+  JSON.stringify(participants, null, 2)
+);
 
       await this.notificationsService.dispatch({
         type: EmailEventType.TICKET_CREATED,
@@ -179,9 +186,11 @@ export class TicketsService {
           createdBy: {
             name: ticket.reporter?.fullName || '',
             email: ticket.reporter?.email || '',
+            isInvitationAccepted: ticket.reporter?.isInvitationAccepted ?? false,
+ 
           },
           assignee: ticket.assignee
-            ? { name: ticket.assignee.fullName, email: ticket.assignee.email }
+            ? { name: ticket.assignee.fullName, email: ticket.assignee.email, isInvitationAccepted: ticket.assignee.isInvitationAccepted, }
             : undefined,
           participants,
         },
