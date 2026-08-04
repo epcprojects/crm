@@ -127,7 +127,7 @@ export default function ProjectDetailPage() {
     pageSize: 10,
   });
   const projectId = String(params?.projectId ?? '');
-  const selectedStatus = getProjectTicketFilterValue(
+  const selectedStatus = getDashboardStatusFilterValue(
     searchParams.get(PROJECT_TICKETS_STATUS_QUERY_PARAM),
   );
   const selectedPriority = getProjectTicketFilterValue(
@@ -179,6 +179,10 @@ export default function ProjectDetailPage() {
       {
         label: 'All Status',
         value: 'all',
+      },
+      {
+        label: 'Active',
+        value: 'Active',
       },
       ...(ticketStatusesQuery.data ?? []).map(mapTicketSettingToDropdownOption),
     ],
@@ -429,11 +433,7 @@ export default function ProjectDetailPage() {
     const nextStatus = status ?? selectedStatus;
     const nextPriority = priority ?? selectedPriority;
 
-    if (nextStatus === 'all') {
-      nextSearchParams.delete(PROJECT_TICKETS_STATUS_QUERY_PARAM);
-    } else {
-      nextSearchParams.set(PROJECT_TICKETS_STATUS_QUERY_PARAM, nextStatus);
-    }
+    nextSearchParams.set(PROJECT_TICKETS_STATUS_QUERY_PARAM, nextStatus);
 
     if (nextPriority === 'all') {
       nextSearchParams.delete(PROJECT_TICKETS_PRIORITY_QUERY_PARAM);
@@ -1582,36 +1582,6 @@ function renderProjectTabIcon(tab: (typeof projectTabs)[number]) {
   return <CalendarTabIcon />;
 }
 
-function ThreadTabIcon() {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 20 20"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M5.83366 9.99999C5.83366 9.53974 6.20676 9.16666 6.66699 9.16666H6.67447C7.13471 9.16666 7.5078 9.53974 7.5078 9.99999C7.5078 10.4602 7.13471 10.8333 6.67447 10.8333H6.66699C6.20676 10.8333 5.83366 10.4602 5.83366 9.99999Z"
-        fill="currentColor"
-      />
-      <path
-        d="M9.16325 9.99999C9.16325 9.53974 9.53633 9.16666 9.99658 9.16666H10.0041C10.4643 9.16666 10.8374 9.53974 10.8374 9.99999C10.8374 10.4602 10.4643 10.8333 10.0041 10.8333H9.99658C9.53633 10.8333 9.16325 10.4602 9.16325 9.99999Z"
-        fill="currentColor"
-      />
-      <path
-        d="M13.3262 9.16666C12.8659 9.16666 12.4928 9.53974 12.4928 9.99999C12.4928 10.4602 12.8659 10.8333 13.3262 10.8333H13.3337C13.7939 10.8333 14.167 10.4602 14.167 9.99999C14.167 9.53974 13.7939 9.16666 13.3337 9.16666H13.3262Z"
-        fill="currentColor"
-      />
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M1.04199 9.63891C1.04199 4.86531 5.07968 1.04166 10.0003 1.04166C14.921 1.04166 18.9587 4.86531 18.9587 9.63891C18.9587 14.4125 14.921 18.2362 10.0003 18.2362C9.42041 18.2369 8.84228 18.1832 8.27281 18.0763C8.07515 18.0392 7.94957 18.0157 7.85613 18.003C7.81566 17.9974 7.79057 17.9953 7.77688 17.9945L7.78887 17.99C7.78887 17.99 7.78379 17.9912 7.77513 17.9925L7.76819 17.9934C7.77034 17.9935 7.77297 17.9942 7.77688 17.9945C7.76273 17.9999 7.73527 18.0111 7.69012 18.0326C7.59468 18.0779 7.46756 18.1453 7.27294 18.2488C6.07984 18.8833 4.68786 19.1083 3.34529 18.8586C3.1285 18.8182 2.94899 18.6667 2.87293 18.4597C2.79688 18.2527 2.83553 18.021 2.97463 17.8499C3.36447 17.3704 3.63252 16.7927 3.75106 16.171C3.78313 16 3.71055 15.7677 3.48742 15.5412C1.97509 14.0054 1.04199 11.9287 1.04199 9.63891ZM10.0003 2.29166C5.71727 2.29166 2.29199 5.60728 2.29199 9.63891C2.29199 11.5798 3.08112 13.3471 4.37804 14.6641C4.77323 15.0653 5.11369 15.691 4.9793 16.4032L4.9791 16.4042C4.89253 16.8588 4.7452 17.2972 4.5424 17.707C5.28728 17.6894 6.02474 17.4968 6.68603 17.1452L6.69892 17.1383L6.70171 17.1368C6.87883 17.0426 7.03028 16.9621 7.15384 16.9034C7.274 16.8463 7.42399 16.7817 7.5864 16.7568C7.74453 16.7327 7.89817 16.747 8.02603 16.7646C8.15379 16.7821 8.31008 16.8114 8.48888 16.845L8.50353 16.8477C8.99685 16.9404 9.49749 16.9868 9.99949 16.9862C14.2826 16.9862 17.7087 13.6706 17.7087 9.63891C17.7087 5.60728 14.2834 2.29166 10.0003 2.29166Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
 
 function FilesTabIcon() {
   return (
@@ -1800,6 +1770,14 @@ function getTicketStatusColor(status: string, statuses?: ApiTicketSetting[]) {
 function getProjectTicketFilterValue(value: string | null) {
   if (!value || !value.trim()) {
     return 'all';
+  }
+
+  return value;
+}
+
+function getDashboardStatusFilterValue(value: string | null) {
+  if (!value || !value.trim()) {
+    return 'Active';
   }
 
   return value;
