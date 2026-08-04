@@ -53,9 +53,9 @@ export class ProjectNotesController {
   findOne(
     @Param('pid', ParseUUIDPipe) pid: string,
     @Param('id', ParseUUIDPipe) id: string,
-    @GetUser() user,
+    @GetUser() user: { id: string },
   ) {
-    return this.notesService.findOne(pid, id, user);
+    return this.notesService.findOne(pid, id, user.id);
   }
 
   @Patch(':id')

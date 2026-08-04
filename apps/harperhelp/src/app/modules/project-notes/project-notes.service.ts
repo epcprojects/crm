@@ -18,17 +18,17 @@ export class ProjectNotesService {
     private readonly projectRepo: Repository<Project>,
   ) {}
 
-  private async ensureProject(projectId: string): Promise<Project> {
-    const project = await this.projectRepo.findOne({
-      where: { id: projectId },
-    });
+  // private async ensureProject(projectId: string): Promise<Project> {
+  //   const project = await this.projectRepo.findOne({
+  //     where: { id: projectId },
+  //   });
 
-    if (!project) {
-      throw new NotFoundException('Project not found');
-    }
+  //   if (!project) {
+  //     throw new NotFoundException('Project not found');
+  //   }
 
-    return project;
-  }
+  //   return project;
+  // }
 
   private async ensureProjectUserAccess(
   projectId: string,
@@ -41,7 +41,7 @@ export class ProjectNotesService {
     .getOne();
 
   if (!project) {
-    throw new NotFoundException('Notes not found');
+    throw new NotFoundException('Project not found');
   }
 
   return project;
@@ -101,8 +101,8 @@ export class ProjectNotesService {
     };
   }
 
-  async findOne(projectId: string, id: string, user): Promise<ProjectNote> {
-    await this.ensureProjectUserAccess(projectId, user.id);
+  async findOne(projectId: string, id: string, userId: string): Promise<ProjectNote> {
+    await this.ensureProjectUserAccess(projectId, userId);
     const note = await this.noteRepo.findOne({
       where: { id, projectId, isActive: true },
     });
@@ -120,7 +120,7 @@ export class ProjectNotesService {
     dto: UpdateProjectNoteDto,
     user,
   ): Promise<ProjectNote> {
-    const note = await this.findOne(projectId, id, user);
+    const note = await this.findOne(projectId, id, user.id);
 
     if (dto.title !== undefined) {
       note.title = dto.title;
@@ -135,7 +135,7 @@ export class ProjectNotesService {
 
     await this.noteRepo.save(note);
 
-    return this.findOne(projectId, id, user);
+    return this.findOne(projectId, id, user.id);
   }
 
   async softRemove(
@@ -143,7 +143,7 @@ export class ProjectNotesService {
     id: string,
     user,
   ): Promise<{ success: boolean }> {
-    const note = await this.findOne(projectId, id, user);
+    const note = await this.findOne(projectId, id, user.id);
 
     await this.noteRepo.softRemove(note);
 
