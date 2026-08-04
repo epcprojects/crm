@@ -43,8 +43,9 @@ export class ProjectNotesController {
   findAll(
     @Param('pid', ParseUUIDPipe) pid: string,
     @Query() query: GetProjectNotesQueryDto,
+    @GetUser() user,
   ) {
-    return this.notesService.findAll(pid, query);
+    return this.notesService.findAll(pid, query, user);
   }
 
   @Get(':id')
@@ -52,8 +53,9 @@ export class ProjectNotesController {
   findOne(
     @Param('pid', ParseUUIDPipe) pid: string,
     @Param('id', ParseUUIDPipe) id: string,
+    @GetUser() user,
   ) {
-    return this.notesService.findOne(pid, id);
+    return this.notesService.findOne(pid, id, user);
   }
 
   @Patch(':id')
@@ -74,6 +76,6 @@ export class ProjectNotesController {
     @Param('id', ParseUUIDPipe) id: string,
     @GetUser() user,
   ) {
-    return this.notesService.remove(pid, id, user);
+    return this.notesService.softRemove(pid, id, user);
   }
 }

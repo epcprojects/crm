@@ -30,12 +30,29 @@ export class ProjectNotesService {
     return project;
   }
 
+  private async ensureProjectUserAccess(
+  projectId: string,
+  userId: string,
+): Promise<Project> {
+  const project = await this.projectRepo
+    .createQueryBuilder('project')
+    .innerJoin('project.members', 'member', 'member.id = :userId', { userId })
+    .where('project.id = :projectId', { projectId })
+    .getOne();
+
+  if (!project) {
+    throw new NotFoundException('Notes not found');
+  }
+
+  return project;
+}
+
   async create(
     projectId: string,
     dto: CreateProjectNoteDto,
     user: { id: string },
   ): Promise<ProjectNote> {
-    await this.ensureProject(projectId);
+    await this.ensureProjectUserAccess(projectId, user.id);
 
     const note = await this.noteRepo.save(
       this.noteRepo.create({
@@ -46,11 +63,11 @@ export class ProjectNotesService {
       }),
     );
 
-    return this.findOne(projectId, note.id);
+    return this.findOne(projectId, note.id, user.id);
   }
 
-  async findAll(projectId: string, query: GetProjectNotesQueryDto) {
-    await this.ensureProject(projectId);
+  async findAll(projectId: string, query: GetProjectNotesQueryDto, user: { id: string }) {
+    await this.ensureProjectUserAccess(projectId, user.id);
 
     const { page = 1, limit = 10, search } = query;
 
@@ -84,7 +101,8 @@ export class ProjectNotesService {
     };
   }
 
-  async findOne(projectId: string, id: string): Promise<ProjectNote> {
+  async findOne(projectId: string, id: string, user): Promise<ProjectNote> {
+    await this.ensureProjectUserAccess(projectId, user.id);
     const note = await this.noteRepo.findOne({
       where: { id, projectId, isActive: true },
     });
@@ -100,9 +118,9 @@ export class ProjectNotesService {
     projectId: string,
     id: string,
     dto: UpdateProjectNoteDto,
-    user: { id: string },
+    user,
   ): Promise<ProjectNote> {
-    const note = await this.findOne(projectId, id);
+    const note = await this.findOne(projectId, id, user);
 
     if (dto.title !== undefined) {
       note.title = dto.title;
@@ -113,22 +131,25 @@ export class ProjectNotesService {
     }
 
     note.updatedBy = user.id;
+    note.updatedAt = new Date();
 
     await this.noteRepo.save(note);
 
-    return this.findOne(projectId, id);
+    return this.findOne(projectId, id, user);
   }
 
-  async remove(
+  async softRemove(
     projectId: string,
     id: string,
-    user: { id: string },
+    user,
   ): Promise<{ success: boolean }> {
-    const note = await this.findOne(projectId, id);
+    const note = await this.findOne(projectId, id, user);
+
+    await this.noteRepo.softRemove(note);
 
     await this.noteRepo.update(note.id, {
       isActive: false,
-      deletedAt: new Date(),
+      // deletedAt: new Date(),
       deletedBy: user.id,
     });
 
