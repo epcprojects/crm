@@ -152,7 +152,15 @@ export default function NotificationTray({
   );
 }
 
-export function NotificationBellIcon({width="26",height="26", isActive }: { isActive: boolean,width?:string,height?:string }) {
+export function NotificationBellIcon({
+  width = '26',
+  height = '26',
+  isActive,
+}: {
+  isActive: boolean;
+  width?: string;
+  height?: string;
+}) {
   return (
     <svg
       width={width}
@@ -225,6 +233,8 @@ function NotificationRow({
           router.push(
             `/tickets/${item.ticketId}?projectId=${item.projectId}&internal=true`,
           );
+        } else if (item.entityType === 'event') {
+          router.push(`/projects/${item.projectId}?t=3`);
         } else if (item.entityType === 'ticket') {
           router.push(`/tickets/${item.ticketId}?projectId=${item.projectId}`);
         } else if (item.entityType === 'project' && !item.projectId) {
