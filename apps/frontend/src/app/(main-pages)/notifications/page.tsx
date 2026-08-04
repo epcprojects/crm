@@ -402,6 +402,8 @@ export default function Page() {
                       router.push(
                         `/tickets/${notification.ticketId}?projectId=${notification.projectId}`,
                       );
+                    } else if (notification.entityType === 'event') {
+                      router.push(`/projects/${notification.projectId}?t=3`);
                     } else if (notification.entityType === 'internal_message') {
                       router.push(
                         `/tickets/${notification.ticketId}?projectId=${notification.projectId}&internal=true`,
