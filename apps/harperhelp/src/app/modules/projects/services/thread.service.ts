@@ -90,6 +90,7 @@ export class ThreadService {
       .map((m) => ({
         name: m.fullName,
         email: m.email,
+        isInvitationAccepted: m.isInvitationAccepted, // Include the isInviteAccepted property
       }));
 
     // Call notification service to send email notifications to participants of the thread
@@ -149,6 +150,7 @@ export class ThreadService {
 
     message.message = dto.message ?? message.message;
     message.updatedBy = user.id;
+    message.updatedAt = new Date();
 
     await this.repo.save(message);
 
@@ -170,7 +172,7 @@ export class ThreadService {
     return updated;
   }
 
-async remove(id: string, projectId: string, user: any) {
+  async remove(id: string, projectId: string, user: any) {
     const message = await this.repo.findOne({
       where: {
         id,
@@ -371,6 +373,4 @@ async remove(id: string, projectId: string, user: any) {
       });
     }
   }
-
-
 }

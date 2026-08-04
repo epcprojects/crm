@@ -18,7 +18,7 @@ export class AuthController {
 
   @Post('login')
   async login(@Body() dto: LoginDto) {
-    const user = await this.authService.validateUser(dto.email, dto.password);
+    const user = await this.authService.validateUser(dto.email.toLocaleLowerCase(), dto.password);
 
     return this.authService.login(user);
   }
@@ -30,7 +30,7 @@ export class AuthController {
 
   @Post('forgot-password')
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
-    return this.authService.forgotPassword(dto.email);
+    return this.authService.forgotPassword(dto.email.toLocaleLowerCase());
   }
 
   @Post('reset-password')
