@@ -84,6 +84,9 @@ type DashboardActivityItem = {
   timeLabel: string;
   accentClassName: string;
   entityType?: string;
+  actorId?: string;
+  ticketId?: string;
+  projectId?: string;
 };
 
 type ApiDashboardActivityResponse = {
@@ -99,6 +102,8 @@ type ApiDashboardActivityItem = {
   title: string;
   type?: string | null;
   entityType?: string | null;
+  projectId?: string | null;
+  ticketId?: string | null;
   actor?: {
     fullName?: string | null;
   } | null;
@@ -336,7 +341,9 @@ export default function Page() {
         tab.key === 'upcoming'
           ? {
               ...tab,
-              tickets: upcomingTickets.map(mapApiDashboardTicketToTicketListItem),
+              tickets: upcomingTickets.map(
+                mapApiDashboardTicketToTicketListItem,
+              ),
             }
           : tab.key === 'critical'
             ? {
@@ -772,10 +779,10 @@ export default function Page() {
                         void upcomingTicketsQuery.fetchNextPage();
                       }
                     : selectedDashboardTab === 'critical'
-                    ? () => {
-                        void criticalTicketsQuery.fetchNextPage();
-                      }
-                    : undefined
+                      ? () => {
+                          void criticalTicketsQuery.fetchNextPage();
+                        }
+                      : undefined
                 }
                 // internalScrollEnabled={isUpcomingSectionPinned}
                 onTicketClick={
@@ -1663,8 +1670,32 @@ function DashboardTabsSkeleton() {
 }
 
 function DashboardActivityRow({ item }: { item: DashboardActivityItem }) {
+  const router = useRouter();
   return (
-    <article className="flex items-start gap-3 border-b border-gray-200 px-1 py-3 last:border-b-0">
+    <article
+      onClick={() => {
+        if (item.entityType === 'ticket_reply') {
+          router.push(
+            `/tickets/${item.ticketId}?projectId=${item.projectId}&internal=false`,
+          );
+        } else if (item.entityType === 'event') {
+          router.push(`/projects/${item.projectId}?t=3`);
+        } else if (item.entityType === 'internal_message') {
+          router.push(
+            `/tickets/${item.ticketId}?projectId=${item.projectId}&internal=true`,
+          );
+        } else if (item.entityType === 'ticket') {
+          router.push(`/tickets/${item.ticketId}?projectId=${item.projectId}`);
+        } else if (item.entityType === 'project' && !item.projectId) {
+          router.push(`/projects`);
+        } else if (item.entityType === 'project' && item.projectId) {
+          router.push(`/projects/${item.projectId}`);
+        } else if (item.entityType === 'thread_message' && item.projectId) {
+          router.push(`/projects/${item.projectId}?t=1`);
+        }
+      }}
+      className="flex cursor-pointer items-start gap-3 border-b border-gray-200 px-1 py-3 last:border-b-0"
+    >
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full drop-shadow bg-gray-50 shadow-[0_0_20px_rgba(15,23,42,0.08)]">
         <ActivityEntityIcon item={item} />
       </div>
@@ -1917,13 +1948,16 @@ async function fetchUpcomingTickets(
     limit: String(limit),
   });
 
-  const response = await fetch(`/api/dashboard/upcoming?${searchParams.toString()}`, {
-    method: 'GET',
-    headers: {
-      Accept: 'application/json',
+  const response = await fetch(
+    `/api/dashboard/upcoming?${searchParams.toString()}`,
+    {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
     },
-    cache: 'no-store',
-  });
+  );
 
   const payload = (await response.json().catch(() => null)) as
     | ApiDashboardTicketsResponse
@@ -2127,6 +2161,8 @@ function mapApiActivityToDashboardItem(
     timeLabel: formatRelativeTime(item.createdAt),
     accentClassName: getActivityAccentClassName(item.type ?? item.entityType),
     entityType: item.entityType ?? undefined,
+    ticketId: item.ticketId ?? undefined,
+    projectId: item.projectId ?? undefined,
   };
 }
 
