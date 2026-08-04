@@ -11,7 +11,7 @@ function getApiBaseUrl() {
   return baseUrl.replace(/\/docs\/?$/, '');
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('access_token')?.value;
@@ -29,14 +29,34 @@ export async function GET() {
       );
     }
 
-    const response = await fetch(`${apiBaseUrl}/dashboard/upcoming`, {
+    const requestUrl = new URL(request.url);
+    const page = requestUrl.searchParams.get('page');
+    const limit = requestUrl.searchParams.get('limit');
+    const upstreamSearchParams = new URLSearchParams();
+
+    if (page) {
+      upstreamSearchParams.set('page', page);
+    }
+
+    if (limit) {
+      upstreamSearchParams.set('limit', limit);
+    }
+
+    const response = await fetch(
+      `${apiBaseUrl}/dashboard/upcoming${
+        upstreamSearchParams.size
+          ? `?${upstreamSearchParams.toString()}`
+          : ''
+      }`,
+      {
       method: 'GET',
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${token}`,
       },
       cache: 'no-store',
-    });
+      },
+    );
 
     const data = await response.json().catch(() => null);
 
@@ -47,7 +67,7 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json(Array.isArray(data) ? data : [], { status: 200 });
+    return NextResponse.json(data, { status: 200 });
   } catch {
     return NextResponse.json(
       { message: 'Something went wrong while fetching upcoming tickets.' },

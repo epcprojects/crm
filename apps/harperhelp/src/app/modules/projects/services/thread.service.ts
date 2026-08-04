@@ -15,6 +15,8 @@ import { NotificationsService } from '../../notifications/notifications.service'
 import { Project } from '../entities/project.entity';
 import { ThreadGateway } from '../gateway/thread.gateway';
 import { NotificationEntityType, NotificationType } from '@harperhelp/types';
+import { extname } from 'path';
+import { UpdateThreadMessageDto } from '../dto/update-thread-message.dto';
 
 @Injectable()
 export class ThreadService {
@@ -88,6 +90,7 @@ export class ThreadService {
       .map((m) => ({
         name: m.fullName,
         email: m.email,
+        isInvitationAccepted: m.isInvitationAccepted, // Include the isInviteAccepted property
       }));
 
     // Call notification service to send email notifications to participants of the thread
@@ -107,11 +110,107 @@ export class ThreadService {
       type: NotificationType.THREAD_REPLY,
       entityType: NotificationEntityType.THREAD_MESSAGE,
       entityId: msg.id,
-      title: `New thread in project: "${project.name} by ${user.fullName}"`,
-      message: message.message.slice(0, 140),
+      title: `New thread in project: "${project.name}" by "${user.fullName}"`,
+      // message: message.message.slice(0, 140),
+      message: message.message
+        ? message.message.slice(0, 140)
+        : 'New thread message',
     });
 
     return msg;
+  }
+
+  async update(
+    id: string,
+    projectId: string,
+    dto: UpdateThreadMessageDto,
+    user: any,
+    files?: Express.Multer.File[],
+  ) {
+    const message = await this.repo.findOne({
+      where: {
+        id,
+        projectId,
+      },
+    });
+
+    if (!message) {
+      throw new NotFoundException('Thread message not found');
+    }
+
+    if (message.authorId !== user.id) {
+      throw new BadRequestException(
+        'You can only edit your own thread messages.',
+      );
+    }
+
+    if (!dto.message && !files?.length) {
+      throw new BadRequestException('Message or attachment is required.');
+    }
+
+    message.message = dto.message ?? message.message;
+    message.updatedBy = user.id;
+    message.updatedAt = new Date();
+
+    await this.repo.save(message);
+
+    if (files?.length) {
+      await this.uploadAttachments(message.id, projectId, files, user.id);
+    }
+
+    const updated = await this.findOne(message.id);
+
+    this.threadGateway.broadcastUpdated(projectId, {
+      id: updated.id,
+      parentId: updated.parentId,
+      message: updated.message,
+      updatedAt: updated.updatedAt,
+      updatedBy: updated.updatedBy,
+      attachments: updated.attachments,
+    });
+
+    return updated;
+  }
+
+  async remove(id: string, projectId: string, user: any) {
+    const message = await this.repo.findOne({
+      where: {
+        id,
+        projectId,
+      },
+    });
+
+    if (!message) {
+      throw new NotFoundException('Thread message not found');
+    }
+
+    if (message.authorId !== user.id) {
+      throw new BadRequestException(
+        'You can only delete your own thread messages.',
+      );
+    }
+
+    if (message.parentId) {
+      // It's a reply — decrement the parent's replyCount
+      await this.repo.decrement({ id: message.parentId }, 'replyCount', 1);
+      await this.repo.softDelete({ id, projectId });
+    } else {
+      // It's a top-level message — cascade soft-delete to its replies
+      const replies = await this.repo.find({
+        where: { parentId: id },
+        select: { id: true },
+      });
+
+      if (replies.length) {
+        await this.repo.softDelete(replies.map((r) => r.id));
+      }
+
+      await this.repo.softDelete({ id, projectId });
+    }
+
+    this.threadGateway.broadcastDeleted(projectId, id);
+
+    return { id, deleted: true };
   }
 
   // TODO: optimize N+1 issue
@@ -257,13 +356,17 @@ export class ThreadService {
 
       await this.utilityService.uploadFile(file, key);
 
+      const rawExt = extname(file.originalname); // e.g. '.DOCX' or ''
+      const extension = rawExt ? rawExt.slice(1).toLowerCase() : 'unknown';
+
       await this.filesService.create({
         projectId,
         uploadedBy: userId,
         originalName: file.originalname,
         storageKey: key,
         sizeBytes: file.size,
-        extension: file.mimetype.split('/')[1],
+        // extension: file.mimetype.split('/')[1],
+        extension: extension,
         mimeType: file.mimetype,
         source: FileSource.THREAD,
         sourceId: messageId,

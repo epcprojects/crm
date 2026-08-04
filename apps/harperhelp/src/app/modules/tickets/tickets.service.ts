@@ -26,6 +26,7 @@ import { TicketStatus } from './entities/ticket.statuses.entity';
 import { TicketPriority } from './entities/ticket.priority.entity';
 import { UsersService } from '../users/users.service';
 import { extname } from 'path';
+import { PaginationQueryDto } from './dto/pagination-query.dto';
 
 @Injectable()
 export class TicketsService {
@@ -135,29 +136,31 @@ export class TicketsService {
         },
       });
 
-      const members = (ticket.project?.members || []).map((m) => {
-        if (m.id === userId) return;
-
-        return {
+      const members = (ticket.project?.members || [])
+        .filter((m) => m.id !== userId)
+        .map((m) => ({
           name: m.fullName,
           email: m.email,
-        };
-      });
+          isInvitationAccepted: m.isInvitationAccepted,
+        }));
 
+      console.debug('Ticket saved', saved.id, 'members', members.length);
       const participantsMap = new Map<
         string,
-        { name: string; email: string }
+        { name: string; email: string; isInvitationAccepted?: boolean }
       >();
       for (const m of members) participantsMap.set(m.email, m);
       if (ticket.reporter && ticket?.reporter?.id !== userId)
         participantsMap.set(ticket.reporter.email, {
           name: ticket.reporter.fullName,
           email: ticket.reporter.email,
+          isInvitationAccepted: ticket.reporter.isInvitationAccepted,
         });
       if (ticket.assignee && ticket?.assignee?.id !== userId)
         participantsMap.set(ticket.assignee.email, {
           name: ticket.assignee.fullName,
           email: ticket.assignee.email,
+          isInvitationAccepted: ticket.assignee.isInvitationAccepted, // Include the isInvitationAccepted property
         });
 
       const participants = Array.from(participantsMap.values());
@@ -165,6 +168,10 @@ export class TicketsService {
       console.debug(
         `Dispatching ticket.created notification for ticket ${saved.id} to ${participants.length} participants`,
       );
+
+      console.debug(
+  JSON.stringify(participants, null, 2)
+);
 
       await this.notificationsService.dispatch({
         type: EmailEventType.TICKET_CREATED,
@@ -180,9 +187,11 @@ export class TicketsService {
           createdBy: {
             name: ticket.reporter?.fullName || '',
             email: ticket.reporter?.email || '',
+            isInvitationAccepted: ticket.reporter?.isInvitationAccepted ?? false,
+ 
           },
           assignee: ticket.assignee
-            ? { name: ticket.assignee.fullName, email: ticket.assignee.email }
+            ? { name: ticket.assignee.fullName, email: ticket.assignee.email, isInvitationAccepted: ticket.assignee.isInvitationAccepted, }
             : undefined,
           participants,
         },
@@ -190,7 +199,7 @@ export class TicketsService {
       const fullname = await this.usersService.getFullName(
         ticket?.reporterId || ticket?.assigneeId || '',
       );
-
+      console.debug(`Retrieved full name: ${fullname}`);
       // Send global notification
       await this.notificationsService.notifyProjectMembers({
         projectId: ticket.projectId,
@@ -283,12 +292,21 @@ export class TicketsService {
       .leftJoin('t.reporter', 'r')
       .where('t.projectId = :projectId', { projectId });
 
-    if (query.statusKey) {
-      qb.andWhere('t.statusKey = :statusKey', {
-        statusKey: query.statusKey,
-      });
-    }
+    const ACTIVE_STATUS_SENTINEL = '00000000-0000-0000-0000-000000000100';
 
+    if (query.statusKey) {
+      if (
+        query.statusKey.toLowerCase() === 'active' ||
+        query.statusKey === ACTIVE_STATUS_SENTINEL
+      ) {
+        qb.andWhere('t.statusKey != :closedKey', { closedKey: 'Closed' });
+      } else {
+        qb.andWhere('t.statusKey = :statusKey', {
+          statusKey: query.statusKey,
+        });
+      }
+    }
+    
     if (query.priorityKey) {
       qb.andWhere('t.priorityKey = :priorityKey', {
         priorityKey: query.priorityKey,
@@ -365,11 +383,19 @@ export class TicketsService {
       .leftJoin('t.priority', 'pr')
       .leftJoin('t.assignee', 'a')
       .leftJoin('t.reporter', 'r');
+    const ACTIVE_STATUS_SENTINEL = '00000000-0000-0000-0000-000000000100';
 
     if (query.statusKey) {
-      qb.andWhere('t.statusKey = :statusKey', {
-        statusKey: query.statusKey,
-      });
+      if (
+        query.statusKey.toLowerCase() === 'active' ||
+        query.statusKey === ACTIVE_STATUS_SENTINEL
+      ) {
+        qb.andWhere('t.statusKey != :closedKey', { closedKey: 'Closed' });
+      } else {
+        qb.andWhere('t.statusKey = :statusKey', {
+          statusKey: query.statusKey,
+        });
+      }
     }
 
     if (query.priorityKey) {
@@ -633,6 +659,7 @@ export class TicketsService {
     Object.assign(ticket, {
       ...rest,
       updatedBy: userId,
+      updatedAt: new Date(),
     });
 
     if (statusKey && statusKey !== oldStatus?.key) {
@@ -655,9 +682,7 @@ export class TicketsService {
     const recipients = [ticket.reporterId, ticket.assigneeId].filter(
       (id): id is string => !!id && id !== userId,
     );
-    const fullname = await this.usersService.getFullName(
-  userId ,
-    );
+    const fullname = await this.usersService.getFullName(userId);
     // STATUS CHANGED
     if (dto.statusKey && oldStatus && dto.statusKey !== oldStatus.key) {
       await this.notificationsService.notifyProjectMembers({
@@ -747,6 +772,14 @@ export class TicketsService {
     return this.ticketRepo.save(ticket);
   }
 
+  async findTicketRefNo(ticketId: string) {
+    const ticket = await this.ticketRepo.findOne({
+      where: { id: ticketId },
+      select: { ticketRefNo: true },
+    });
+    return ticket?.ticketRefNo;
+  }
+
   // ---------------- DELETE (SOFT) ----------------
   async remove(projectId: string, ticketId: string, userId: string) {
     const ticket = await this.findEntity(projectId, ticketId);
@@ -819,9 +852,18 @@ export class TicketsService {
   }
 
   // ---------------- UPCOMING TICKETS -------------
-  // Those tickets who have no assignee or
-  async getUpcomingTickets(user) {
-    return this.ticketRepo
+  // Tickets that are not closed, and either have no due date
+  // or have a due date within the next 3 days (no overdue tickets)
+  async getUpcomingTickets(query: PaginationQueryDto, user) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const upperBound = new Date(today);
+    upperBound.setDate(upperBound.getDate() + 2);
+    upperBound.setHours(23, 59, 59, 999);
+
+    // return this.ticketRepo
+    const qb = this.ticketRepo
       .createQueryBuilder('t')
       .leftJoin('t.project', 'p')
       .innerJoin('p.members', 'u', 'u.id = :userId', {
@@ -829,9 +871,16 @@ export class TicketsService {
       })
       .leftJoin('t.status', 's')
       .leftJoin('t.priority', 'pr')
-      .where('t.assigneeId IS NULL and t.statusKey != :statusKey', { statusKey: 'Closed' })
+      .where('t.statusKey != :statusKey', { statusKey: 'Closed' })
+      .andWhere(
+        '(t.dueDate IS NULL OR t.dueDate BETWEEN :today AND :upperBound)',
+        {
+          today: today.toISOString(),
+          upperBound: upperBound.toISOString(),
+        },
+      )
 
-      .select([
+      qb.select([
         't.id',
         't.title',
         't.createdAt',
@@ -849,10 +898,27 @@ export class TicketsService {
         'pr.key',
         'pr.label',
         'pr.color',
-      ])
-      .orderBy('t.createdAt', 'DESC')
-      .getMany();
-  }
+      ]);
+
+      qb.orderBy('t.createdAt', 'DESC')
+      .skip((query.page - 1) * query.limit)
+      .take(query.limit);
+
+      const [items, total] = await qb.getManyAndCount();
+
+      return {
+        items,
+        meta: {
+          page: query.page,
+          limit: query.limit,
+          total,
+          totalPages: Math.ceil(total / query.limit),
+          hasNext: query.page * query.limit < total,
+          hasPrevious: query.page > 1,
+        },
+      };
+    }
+      // .getMany();
 
   // ---------------- ATTACHMENTS ----------------
   async handleAttachments(

@@ -61,6 +61,6 @@ export class TicketPrioritiesController {
     summary: 'Delete Ticket Priority',
   })
   remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.ticketPrioritiesService.remove(id);
+    return this.ticketPrioritiesService.softRemove(id);
   }
 }

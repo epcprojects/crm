@@ -76,6 +76,6 @@ export class RolesController {
   // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({ summary: 'Remove specific role from system.' })
   remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.rolesService.remove(id);
+    return this.rolesService.softRemove(id);
   }
 }

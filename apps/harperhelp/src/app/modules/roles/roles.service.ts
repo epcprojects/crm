@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -12,6 +13,7 @@ import { UpdateRoleDto } from './dto/update-role.dto';
 import { RoleClaim } from './entities/role.claim.entity';
 import { UserRole } from '../users/entities/user.roles.entity';
 import { GetRoleQueryDTO } from './dto/get-role-query.dto';
+// import { User } from '../users/entities/user.entity';
 
 @Injectable()
 export class RolesService {
@@ -21,6 +23,12 @@ export class RolesService {
 
     @InjectRepository(RoleClaim)
     private readonly roleClaimRepository: Repository<RoleClaim>,
+
+    @InjectRepository(UserRole)
+    private readonly userRoleRepository: Repository<UserRole>,
+
+    // @InjectRepository(User)
+    // private readonly userRepository: Repository<User>
   ) {}
 
   async create(dto: CreateRoleDto): Promise<Role> {
@@ -136,9 +144,47 @@ async findAll(query: GetRoleQueryDTO): Promise<Role[]> {
     return this.findOne(id);
   }
 
-  async remove(id: string): Promise<void> {
-    const role = await this.findOne(id);
+  // async remove(id: string): Promise<void> {
+  //   const role = await this.findOne(id);
 
-    await this.roleRepository.remove(role);
+  //   await this.roleRepository.remove(role);
+  // }
+
+  async softRemove(id: string) {
+  const role = await this.findOne(id);
+
+  // Check if any users are using this role
+const usersUsingRole = await this.userRoleRepository
+  .createQueryBuilder('ur')
+  .innerJoin('ur.user', 'u')
+  .where('ur.roleId = :roleId', { roleId: role.id })
+  .andWhere('u.deletedAt IS NULL')
+  .getCount();
+
+  if (usersUsingRole > 0) {
+    throw new BadRequestException(
+      `Role '${role.name}' is assigned to ${usersUsingRole} user(s) and cannot be deleted.`,
+    );
   }
+
+  try {
+    await this.roleRepository.softDelete(id);
+
+    return { success: true };
+  } catch (err) {
+    console.error(err);
+    throw new BadRequestException('Unable to delete the role.');
+  }
+}
+
+
+//   async softRemove(id: string) {
+//     await this.findOne(id);
+
+//     await this.roleRepository.softDelete(id);
+
+//     return { success: true };
+
+
+// }
 }

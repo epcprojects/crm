@@ -23,6 +23,17 @@ import ImageGalleryLightbox from '../ui/ImageGalleryLightbox';
 import type { DiscussionAttachment, DiscussionReply } from './types';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import EmojiPickerButton from './EmojiPickerButton';
+import ThemeButton from '../ui/ThemeButton';
+
+const EMOJI_TEXT_STYLE = {
+  fontFamily:
+    "var(--poppins), 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif",
+};
+const MAX_DISCUSSION_MESSAGE_LENGTH = 4000;
+
+function clampDiscussionMessage(value: string) {
+  return value.slice(0, MAX_DISCUSSION_MESSAGE_LENGTH);
+}
 
 type DiscussionPanelProps = {
   title?: string;
@@ -48,6 +59,11 @@ type DiscussionPanelProps = {
   deletingAttachmentId?: string;
   onDeleteReply?: (reply: DiscussionReply) => void;
   deletingReplyId?: string;
+  onEditReply?: (payload: {
+    reply: DiscussionReply;
+    message: string;
+  }) => Promise<void> | void;
+  editingReplyId?: string;
   hideHeader?: boolean;
   className?: string;
 };
@@ -81,6 +97,8 @@ export default function TicketRepliesPanel({
   deletingAttachmentId,
   onDeleteReply,
   deletingReplyId,
+  onEditReply,
+  editingReplyId,
   hideHeader = false,
   className,
 }: DiscussionPanelProps) {
@@ -93,8 +111,11 @@ export default function TicketRepliesPanel({
   const [activeGalleryIndex, setActiveGalleryIndex] = useState<number | null>(
     null,
   );
+  const [editingMessageId, setEditingMessageId] = useState('');
+  const [editingMessage, setEditingMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const editingTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const conversationImages = getGalleryImagesFromDiscussion(
     headerReply,
@@ -123,6 +144,7 @@ export default function TicketRepliesPanel({
     const currentAttachments = attachments;
 
     if (
+      trimmedMessage.length > MAX_DISCUSSION_MESSAGE_LENGTH ||
       (requireMessage
         ? !trimmedMessage
         : !trimmedMessage && !attachments.length) ||
@@ -196,15 +218,16 @@ export default function TicketRepliesPanel({
     const textarea = textareaRef.current;
 
     if (!textarea) {
-      setMessage((current) => `${current}${emoji}`);
+      setMessage((current) => clampDiscussionMessage(`${current}${emoji}`));
       focusComposer();
       return;
     }
 
     const selectionStart = textarea.selectionStart ?? message.length;
     const selectionEnd = textarea.selectionEnd ?? message.length;
-    const nextMessage =
-      message.slice(0, selectionStart) + emoji + message.slice(selectionEnd);
+    const nextMessage = clampDiscussionMessage(
+      message.slice(0, selectionStart) + emoji + message.slice(selectionEnd),
+    );
     const nextCursorPosition = selectionStart + emoji.length;
 
     setMessage(nextMessage);
@@ -213,6 +236,80 @@ export default function TicketRepliesPanel({
       textarea.focus();
       textarea.setSelectionRange(nextCursorPosition, nextCursorPosition);
     });
+  };
+
+  const handleEditingEmojiSelect = (emoji: string) => {
+    const textarea = editingTextareaRef.current;
+
+    if (!textarea) {
+      setEditingMessage((current) =>
+        clampDiscussionMessage(`${current}${emoji}`),
+      );
+      return;
+    }
+
+    const selectionStart = textarea.selectionStart ?? editingMessage.length;
+    const selectionEnd = textarea.selectionEnd ?? editingMessage.length;
+    const nextMessage = clampDiscussionMessage(
+      editingMessage.slice(0, selectionStart) +
+        emoji +
+        editingMessage.slice(selectionEnd),
+    );
+    const nextCursorPosition = selectionStart + emoji.length;
+
+    setEditingMessage(nextMessage);
+
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(nextCursorPosition, nextCursorPosition);
+    });
+  };
+
+  const startEditingReply = (reply: DiscussionReply) => {
+    setEditingMessageId(reply.id);
+    setEditingMessage(reply.message);
+
+    requestAnimationFrame(() => {
+      editingTextareaRef.current?.focus();
+      const messageLength = reply.message.length;
+      editingTextareaRef.current?.setSelectionRange(
+        messageLength,
+        messageLength,
+      );
+    });
+  };
+
+  const cancelEditingReply = () => {
+    setEditingMessageId('');
+    setEditingMessage('');
+  };
+
+  const handleSaveEditedReply = async (reply: DiscussionReply) => {
+    const trimmedMessage = editingMessage.trim();
+
+    if (
+      !trimmedMessage ||
+      trimmedMessage.length > MAX_DISCUSSION_MESSAGE_LENGTH ||
+      !onEditReply ||
+      editingReplyId === reply.id
+    ) {
+      return;
+    }
+
+    const nextMessage = trimmedMessage;
+
+    cancelEditingReply();
+
+    try {
+      await onEditReply({
+        reply,
+        message: nextMessage,
+      });
+    } catch (error) {
+      setEditingMessageId(reply.id);
+      setEditingMessage(nextMessage);
+      throw error;
+    }
   };
   const handleAttachmentPaste = (
     event: ClipboardEvent<HTMLTextAreaElement>,
@@ -297,7 +394,8 @@ export default function TicketRepliesPanel({
   return (
     <>
       <section
-        className={`flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl  border border-gray-200 bg-white ${className}`}
+        // className={`flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl  border border-gray-200 bg-white ${className}`}
+        className={`flex h-auto min-h-0 flex-none flex-col overflow-visible rounded-xl border border-gray-200 bg-white xl:h-full xl:flex-1 xl:overflow-hidden ${className}`}
       >
         {!hideHeader && (
           <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-3 py-2 sm:py-3 md:px-5">
@@ -317,7 +415,8 @@ export default function TicketRepliesPanel({
 
         <div
           ref={scrollContainerRef}
-          className="min-h-0 flex-1 overflow-y-auto scrollbar-hide px-3 py-5 md:px-5"
+          // className="min-h-0 flex-1 overflow-y-auto scrollbar-hide px-3 py-5 md:px-5"
+          className="min-h-0 flex-none overflow-visible px-3 py-5 scrollbar-hide md:px-5 xl:flex-1 xl:overflow-y-auto"
         >
           {headerReply ? (
             <div className="mb-4 border-b border-gray-200 pb-4">
@@ -418,7 +517,7 @@ export default function TicketRepliesPanel({
                       </span>
                     ) : null}
                     <div
-                      className={`flex max-w-200 w-fit flex-col ${
+                      className={`flex flex-col ${editingMessageId !== reply.id ? ' max-w-200 w-fit' : 'w-full'} ${
                         isCurrentUserReply ? 'items-end' : 'items-start'
                       }`}
                     >
@@ -437,88 +536,7 @@ export default function TicketRepliesPanel({
                           <ChatStatusIcon status={reply.status} />
                         ) : null}
                       </div>
-                      {/* {reply.message || reply.attachments?.length ? (
-                        <div
-                          className={`w-full rounded-xl ${isCurrentUserReply ? 'rounded-tr-none' : 'rounded-tl-none'} ${reply.message && 'space-y-2 border border-gray-200 p-3 shadow-xs'}  bg-white  `}
-                        >
-                          {reply.message ? (
-                            <ExpandableMessageText message={reply.message} />
-                          ) : null}
-                          {reply.attachments?.length ? (
-                            <div
-                              className={`grid gap-2 ${reply.attachments.length > 1 && 'md:grid-cols-2'} ${!reply.message && reply.attachments && reply.attachments.length > 1 && 'p-2 border border-gray-200 rounded-xl'} ${isCurrentUserReply ? 'rounded-tr-none' : 'rounded-tl-none'}`}
-                            >
-                              {reply.attachments.map((attachment) => (
-                                <div
-                                  key={attachment.id}
-                                  className="flex min-w-0 w-full items-start gap-3 rounded-xl border border-gray-200 bg-white p-2.5 transition hover:bg-gray-50"
-                                >
-                                  <a
-                                    href={getAttachmentUrl(
-                                      attachment.storageKey,
-                                    )}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="flex min-w-0 flex-1 items-start gap-3"
-                                    onClick={(event) => {
-                                      if (
-                                        !isImageAttachment(attachment.extension)
-                                      ) {
-                                        return;
-                                      }
 
-                                      event.preventDefault();
-                                      const index =
-                                        conversationImages.findIndex(
-                                          (image) =>
-                                            image.attachmentId ===
-                                            attachment.id,
-                                        );
-                                      openGallery(conversationImages, index);
-                                    }}
-                                  >
-                                    {isImageAttachment(attachment.extension) ? (
-                                      <img
-                                        className="rounded-sm h-10  border border-gray-200 w-10"
-                                        src={getFileUrl(attachment.storageKey)}
-                                      />
-                                    ) : (
-                                      <AttachmentFileIcon
-                                        extension={attachment.extension}
-                                      />
-                                    )}
-                                    <div className="min-w-0 flex-1">
-                                      <p className="truncate text-sm font-medium text-gray-700">
-                                        {attachment.name}
-                                      </p>
-                                      {attachment.sizeLabel ? (
-                                        <p className="text-sm text-gray-500">
-                                          {attachment.sizeLabel}
-                                        </p>
-                                      ) : null}
-                                    </div>
-                                  </a>
-                                  {onDeleteAttachment ? (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        setAttachmentToDelete(attachment)
-                                      }
-                                      disabled={
-                                        deletingAttachmentId === attachment.id
-                                      }
-                                      className="shrink-0 text-gray-400 transition hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
-                                      aria-label={`Delete ${attachment.name}`}
-                                    >
-                                      <AttachmentTrashIcon />
-                                    </button>
-                                  ) : null}
-                                </div>
-                              ))}
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : null} */}
                       {reply.message || reply.attachments?.length ? (
                         <div
                           className={`group/reply relative w-full rounded-xl bg-white ${
@@ -526,18 +544,121 @@ export default function TicketRepliesPanel({
                               ? 'rounded-tr-none'
                               : 'rounded-tl-none'
                           } ${
-                            reply.message
-                              ? 'space-y-2 border border-gray-200 p-3 shadow-xs'
+                            reply.message && editingMessageId !== reply.id
+                              ? `${reply.attachments?.length ? 'space-y-2' : ''} border border-gray-200 p-3 shadow-xs`
                               : ''
                           }`}
                         >
                           <div
                             className={
-                              onDeleteReply && isCurrentUserReply ? 'pr-7' : ''
+                              (onDeleteReply || onEditReply) &&
+                              isCurrentUserReply &&
+                              editingMessageId !== reply.id
+                                ? 'pr-7'
+                                : ''
                             }
                           >
-                            {reply.message ? (
-                              <ExpandableMessageText message={reply.message} />
+                            {editingMessageId === reply.id ? (
+                              <div className="rounded-2xl border w-full border-gray-200  p-3">
+                                <textarea
+                                  ref={editingTextareaRef}
+                                  rows={3}
+                                  value={editingMessage}
+                                  onChange={(event) =>
+                                    setEditingMessage(
+                                      clampDiscussionMessage(
+                                        event.target.value,
+                                      ),
+                                    )
+                                  }
+                                  onKeyDown={(event) => {
+                                    if (
+                                      event.key === 'Enter' &&
+                                      !event.shiftKey
+                                    ) {
+                                      event.preventDefault();
+                                      void handleSaveEditedReply(reply);
+                                    }
+                                  }}
+                                  disabled={editingReplyId === reply.id}
+                                  maxLength={MAX_DISCUSSION_MESSAGE_LENGTH}
+                                  style={EMOJI_TEXT_STYLE}
+                                  className="min-h-20 max-h-36 scrollbar-thin w-full resize-none bg-transparent px-2 py-1 text-sm text-gray-700 outline-none placeholder:text-gray-400"
+                                />
+
+                                <div className="mt-3 flex items-center justify-end gap-3">
+                                  <EmojiPickerButton
+                                    disabled={editingReplyId === reply.id}
+                                    onSelectEmoji={handleEditingEmojiSelect}
+                                  />
+
+                                  <div className="flex  gap-2">
+                                    <ThemeButton
+                                      type="button"
+                                      variant="secondary"
+                                      size="md"
+                                      onClick={cancelEditingReply}
+                                      disabled={editingReplyId === reply.id}
+                                      className="disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                      Cancel
+                                    </ThemeButton>
+
+                                    <ThemeButton
+                                      type="button"
+                                      variant="primaryGradient"
+                                      size="md"
+                                      onClick={() =>
+                                        void handleSaveEditedReply(reply)
+                                      }
+                                      disabled={
+                                        !editingMessage.trim() ||
+                                        editingMessage.trim().length >
+                                          MAX_DISCUSSION_MESSAGE_LENGTH ||
+                                        editingReplyId === reply.id
+                                      }
+                                      className="disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                      {editingReplyId === reply.id
+                                        ? 'Saving...'
+                                        : 'Save'}
+                                    </ThemeButton>
+                                    {/* <button
+                                      type="button"
+                                      onClick={cancelEditingReply}
+                                      disabled={editingReplyId === reply.id}
+                                      className="rounded-full border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        void handleSaveEditedReply(reply)
+                                      }
+                                      disabled={
+                                        !editingMessage.trim() ||
+                                        editingReplyId === reply.id
+                                      }
+                                      className="rounded-full bg-[#10175A] px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                      {editingReplyId === reply.id
+                                        ? 'Saving...'
+                                        : 'Save'}
+                                    </button> */}
+                                  </div>
+                                </div>
+
+                                <div className="mt-2 text-right text-xs text-gray-500">
+                                  {editingMessage.length}/
+                                  {MAX_DISCUSSION_MESSAGE_LENGTH}
+                                </div>
+                              </div>
+                            ) : reply.message ? (
+                              <ExpandableMessageText
+                                message={reply.message}
+                                isEdited={reply.isEdited}
+                              />
                             ) : null}
 
                             {reply.attachments?.length ? (
@@ -639,14 +760,19 @@ export default function TicketRepliesPanel({
                             ) : null}
                           </div>
 
-                          {onDeleteReply && isCurrentUserReply ? (
+                          {(onDeleteReply || onEditReply) &&
+                          isCurrentUserReply &&
+                          editingMessageId !== reply.id ? (
                             <Menu
                               as="div"
                               className="absolute right-1.5 top-1.5 z-10"
                             >
                               <MenuButton
                                 type="button"
-                                disabled={deletingReplyId === reply.id}
+                                disabled={
+                                  deletingReplyId === reply.id ||
+                                  editingReplyId === reply.id
+                                }
                                 aria-label="Message actions"
                                 className="
             flex h-6 w-6 items-center justify-center
@@ -679,14 +805,30 @@ export default function TicketRepliesPanel({
             data-closed:opacity-0
           "
                               >
-                                <MenuItem>
-                                  <button
-                                    type="button"
-                                    disabled={deletingReplyId === reply.id}
-                                    onClick={() => {
-                                      onDeleteReply(reply);
-                                    }}
-                                    className="
+                                {onEditReply &&
+                                reply.message.trim() &&
+                                reply.message.trim() !== 'Message deleted' ? (
+                                  <MenuItem>
+                                    <button
+                                      type="button"
+                                      disabled={editingReplyId === reply.id}
+                                      onClick={() => startEditingReply(reply)}
+                                      className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs font-medium text-gray-700 outline-none transition data-focus:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                      <EditPencilIcon />
+                                      Edit
+                                    </button>
+                                  </MenuItem>
+                                ) : null}
+                                {onDeleteReply ? (
+                                  <MenuItem>
+                                    <button
+                                      type="button"
+                                      disabled={deletingReplyId === reply.id}
+                                      onClick={() => {
+                                        onDeleteReply(reply);
+                                      }}
+                                      className="
                 flex w-full items-center gap-2
                 rounded-md px-2.5 py-2
                 text-left text-xs font-medium
@@ -695,14 +837,15 @@ export default function TicketRepliesPanel({
                 disabled:cursor-not-allowed
                 disabled:opacity-50
               "
-                                  >
-                                    <TrashIcon width="16" height="16" />
+                                    >
+                                      <TrashIcon width="16" height="16" />
 
-                                    {deletingReplyId === reply.id
-                                      ? 'Deleting...'
-                                      : 'Delete'}
-                                  </button>
-                                </MenuItem>
+                                      {deletingReplyId === reply.id
+                                        ? 'Deleting...'
+                                        : 'Delete'}
+                                    </button>
+                                  </MenuItem>
+                                ) : null}
                               </MenuItems>
                             </Menu>
                           ) : null}
@@ -710,7 +853,7 @@ export default function TicketRepliesPanel({
                       ) : null}
 
                       {showReplyMeta ||
-                      (onDeleteReply && isCurrentUserReply) ? (
+                      ((onDeleteReply || onEditReply) && isCurrentUserReply) ? (
                         <div className="mt-2 flex items-center gap-3">
                           {showReplyMeta ? (
                             <button
@@ -762,17 +905,20 @@ export default function TicketRepliesPanel({
         </div>
 
         {canCompose ? (
-          <div className="shrink-0 border-t border-gray-200 px-2 py-4 md:py-0 md:px-0">
+          <div className="shrink-0 border-t border-gray-200  md:py-0 md:px-0">
             <div className="  bg-white p-2 ">
               <textarea
                 ref={textareaRef}
                 rows={2}
                 value={message}
-                onChange={(event) => setMessage(event.target.value)}
+                onChange={(event) =>
+                  setMessage(clampDiscussionMessage(event.target.value))
+                }
                 onKeyDown={(event) => void handleComposerKeyDown(event)}
                 placeholder={composerPlaceholder}
                 onPaste={handleAttachmentPaste}
                 disabled={isSubmittingReply}
+                maxLength={MAX_DISCUSSION_MESSAGE_LENGTH}
                 className="min-h-14 md:min-h-16 w-full resize-none bg-transparent px-2 py-1 text-sm text-gray-700 outline-none placeholder:text-gray-400"
               />
 
@@ -897,6 +1043,7 @@ export default function TicketRepliesPanel({
                       (requireMessage
                         ? !message.trim()
                         : !message.trim() && !attachments.length) ||
+                      message.trim().length > MAX_DISCUSSION_MESSAGE_LENGTH ||
                       isSubmittingReply
                     }
                     className="flex h-10 w-10 items-center justify-center rounded-full bg-[#10175A] text-white disabled:cursor-not-allowed disabled:opacity-60"
@@ -904,6 +1051,9 @@ export default function TicketRepliesPanel({
                     <TelegramIcon />
                   </button>
                 </div>
+              </div>
+              <div className="mt-1 text-right text-xs text-gray-500">
+                {message.length}/{MAX_DISCUSSION_MESSAGE_LENGTH}
               </div>
             </div>
           </div>
@@ -963,7 +1113,13 @@ function getAttachmentUrl(storageKey?: string) {
     : '#';
 }
 
-function ExpandableMessageText({ message }: { message: string }) {
+function ExpandableMessageText({
+  message,
+  isEdited = false,
+}: {
+  message: string;
+  isEdited?: boolean;
+}) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [shouldShowToggle, setShouldShowToggle] = useState(false);
   const measureRef = useRef<HTMLParagraphElement | null>(null);
@@ -1006,6 +1162,7 @@ function ExpandableMessageText({ message }: { message: string }) {
     <div>
       <p
         ref={measureRef}
+        style={EMOJI_TEXT_STYLE}
         className={`text-sm font-normal whitespace-pre-wrap break-words text-gray-900 ${
           isExpanded ? '' : 'line-clamp-2'
         }`}
@@ -1015,10 +1172,14 @@ function ExpandableMessageText({ message }: { message: string }) {
       <p
         ref={overflowMeasureRef}
         aria-hidden="true"
+        style={EMOJI_TEXT_STYLE}
         className="pointer-events-none invisible absolute left-0 top-0 -z-10 line-clamp-none w-full whitespace-pre-wrap break-words text-sm font-normal text-gray-900"
       >
         {message}
       </p>
+      {isEdited ? (
+        <p className="mt-1 text-[11px] font-medium text-gray-400">edited</p>
+      ) : null}
       {shouldShowToggle ? (
         <button
           type="button"
@@ -1029,6 +1190,34 @@ function ExpandableMessageText({ message }: { message: string }) {
         </button>
       ) : null}
     </div>
+  );
+}
+
+function EditPencilIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        d="M2.66667 11.9999L5.25074 11.6307C5.62957 11.5766 5.98162 11.4029 6.256 11.1333L12.3905 5.10753C13.2032 4.30916 13.2032 3.01472 12.3905 2.21635C11.5778 1.41798 10.2601 1.41798 9.44741 2.21635L3.31294 8.24213C3.03857 8.51176 2.86179 8.85792 2.80674 9.23016L2.66667 11.9999Z"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8.66675 3L11.6667 5.94444"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 

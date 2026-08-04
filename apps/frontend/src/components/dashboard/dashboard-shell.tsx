@@ -244,8 +244,11 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const { setLoading } = useAppLoader();
   const { hasPermission, hasAnyPermission, isLoadingCatalog } =
     usePermissions();
-  const { markAllAsRead: syncMarkAllAsRead, recentNotifications } =
-    useNotificationsSocket();
+  const {
+    markAllAsRead: syncMarkAllAsRead,
+    recentNotifications,
+    unreadCount: socketUnreadCount,
+  } = useNotificationsSocket();
   const canViewProjectsList = hasPermission('projects.view_list');
   const canViewProjectDetail = hasPermission('projects.view_detail');
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -265,6 +268,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [allNotificationCount, setAllNotificationCount] = useState(0);
+  const [searchAllCount, setSearchAllCount] = useState(0);
+  const [searchUnreadCount, setSearchUnreadCount] = useState(0);
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [loading, setNotificationLoading] = useState(true);
   const projectsQuery = useProjectsQuery(
@@ -291,16 +297,28 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   }, [hasAnyPermission]);
 
   const desktopSidebarItems = useMemo(
-    () => [
-      ...visibleNavigationItems,
-      {
+    () => {
+      const notificationItem = {
         href: '__notifications__',
         label: 'Notification',
         icon: (isActive: boolean) => (
           <NotificationBellIcon isActive={isActive} />
         ),
-      },
-    ],
+      };
+      const settingsIndex = visibleNavigationItems.findIndex(
+        (item) => item.href === '/settings',
+      );
+
+      if (settingsIndex === -1) {
+        return [...visibleNavigationItems, notificationItem];
+      }
+
+      return [
+        ...visibleNavigationItems.slice(0, settingsIndex),
+        notificationItem,
+        ...visibleNavigationItems.slice(settingsIndex),
+      ];
+    },
     [visibleNavigationItems],
   );
 
@@ -505,9 +523,12 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         const nextItems = unreadOnlyFlag
           ? data.filter((item) => !item.isRead)
           : data;
+        const unreadItemsCount = data.filter((item) => !item.isRead).length;
 
         setItems(nextItems);
         setTotal((p - 1) * PAGE_SIZE + nextItems.length);
+        setSearchAllCount(data.length);
+        setSearchUnreadCount(unreadItemsCount);
         setNotificationLoading(false);
         return;
       }
@@ -522,6 +543,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       const data = await res.json();
       setItems(data.items);
       setTotal(data.total);
+      if (!unreadOnlyFlag) {
+        setAllNotificationCount(data.total);
+      }
       setNotificationLoading(false);
     },
     [isAuthenticated],
@@ -566,10 +590,16 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     syncMarkAllAsRead();
   }
 
-  const unreadNotificationsCount = useMemo(
+  const visibleUnreadNotificationsCount = useMemo(
     () => items.filter((notification) => !notification.isRead).length,
     [items],
   );
+  const unreadNotificationsCount = hasNotificationSearch
+    ? searchUnreadCount
+    : socketUnreadCount;
+  const totalNotificationsCount = hasNotificationSearch
+    ? searchAllCount
+    : allNotificationCount;
 
   if (isLoggingOut || !isAuthenticated) {
     return null;
@@ -588,7 +618,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         ) : null}
         <div className="hidden w-22.5 2xl:w-29.25  shrink-0 xl:block" />
         <aside
-          className={`fixed inset-y-0  left-0 z-40 hidden xl:flex flex-col items-center gap-10 bg-gray-200 px-4  2xl:px-6 pt-4  2xl:pt-6 pb-4 2xl:pb-8 transition-transform duration-300 ease-out  ${
+          className={`fixed inset-y-0  left-0 z-40 hidden xl:flex flex-col items-center gap-8 2xl:gap-10 bg-gray-200 px-4  2xl:px-6 pt-4  2xl:pt-6 pb-4 2xl:pb-8 transition-transform duration-300 ease-out  ${
             mobileOpen ? '' : '-translate-x-full lg:translate-x-0'
           }`}
         >
@@ -642,7 +672,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     2xl:[&>svg]:h-6 2xl:[&>svg]:w-6
                             ${
                               isActive
-                                ? 'bg-linear-to-l from-primary-light to-primary-dark text-white'
+                                ? 'bg-linear-[271deg] from-aztec-purple  to-cyan-blue text-white'
                                 : 'bg-white text-gray-700 hover:bg-gray-100 hover:text-primary'
                             }`}
                         >
@@ -748,7 +778,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                     }}
                     onViewSingle={handleMarkAsRead}
                     searchValue={notificationSearchValue}
-                    totalCount={items.length}
+                    totalCount={totalNotificationsCount}
                     unreadCount={unreadNotificationsCount}
                   />
                 </div>
@@ -759,10 +789,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             profileMenu={
               <Menu as="div" className="relative z-100">
                 <MenuButton
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-left outline-none ring-1 ring-gray-200 transition hover:bg-gray-50"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-left outline-none ring-1 ring-gray-200 transition hover:bg-gray-50"
                   title={currentAccount.name}
                 >
-                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-linear-to-br from-slate-700 to-slate-950 text-sm font-semibold text-white">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-linear-to-br from-slate-700 to-slate-950 text-sm font-semibold text-white">
                     {currentAccount.initials}
                   </span>
                 </MenuButton>
