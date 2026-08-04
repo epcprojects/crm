@@ -29,6 +29,11 @@ const EMOJI_TEXT_STYLE = {
   fontFamily:
     "var(--poppins), 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif",
 };
+const MAX_DISCUSSION_MESSAGE_LENGTH = 4000;
+
+function clampDiscussionMessage(value: string) {
+  return value.slice(0, MAX_DISCUSSION_MESSAGE_LENGTH);
+}
 
 type DiscussionPanelProps = {
   title?: string;
@@ -139,6 +144,7 @@ export default function TicketRepliesPanel({
     const currentAttachments = attachments;
 
     if (
+      trimmedMessage.length > MAX_DISCUSSION_MESSAGE_LENGTH ||
       (requireMessage
         ? !trimmedMessage
         : !trimmedMessage && !attachments.length) ||
@@ -212,15 +218,16 @@ export default function TicketRepliesPanel({
     const textarea = textareaRef.current;
 
     if (!textarea) {
-      setMessage((current) => `${current}${emoji}`);
+      setMessage((current) => clampDiscussionMessage(`${current}${emoji}`));
       focusComposer();
       return;
     }
 
     const selectionStart = textarea.selectionStart ?? message.length;
     const selectionEnd = textarea.selectionEnd ?? message.length;
-    const nextMessage =
-      message.slice(0, selectionStart) + emoji + message.slice(selectionEnd);
+    const nextMessage = clampDiscussionMessage(
+      message.slice(0, selectionStart) + emoji + message.slice(selectionEnd),
+    );
     const nextCursorPosition = selectionStart + emoji.length;
 
     setMessage(nextMessage);
@@ -235,16 +242,19 @@ export default function TicketRepliesPanel({
     const textarea = editingTextareaRef.current;
 
     if (!textarea) {
-      setEditingMessage((current) => `${current}${emoji}`);
+      setEditingMessage((current) =>
+        clampDiscussionMessage(`${current}${emoji}`),
+      );
       return;
     }
 
     const selectionStart = textarea.selectionStart ?? editingMessage.length;
     const selectionEnd = textarea.selectionEnd ?? editingMessage.length;
-    const nextMessage =
+    const nextMessage = clampDiscussionMessage(
       editingMessage.slice(0, selectionStart) +
-      emoji +
-      editingMessage.slice(selectionEnd);
+        emoji +
+        editingMessage.slice(selectionEnd),
+    );
     const nextCursorPosition = selectionStart + emoji.length;
 
     setEditingMessage(nextMessage);
@@ -277,7 +287,12 @@ export default function TicketRepliesPanel({
   const handleSaveEditedReply = async (reply: DiscussionReply) => {
     const trimmedMessage = editingMessage.trim();
 
-    if (!trimmedMessage || !onEditReply || editingReplyId === reply.id) {
+    if (
+      !trimmedMessage ||
+      trimmedMessage.length > MAX_DISCUSSION_MESSAGE_LENGTH ||
+      !onEditReply ||
+      editingReplyId === reply.id
+    ) {
       return;
     }
 
@@ -550,7 +565,11 @@ export default function TicketRepliesPanel({
                                   rows={3}
                                   value={editingMessage}
                                   onChange={(event) =>
-                                    setEditingMessage(event.target.value)
+                                    setEditingMessage(
+                                      clampDiscussionMessage(
+                                        event.target.value,
+                                      ),
+                                    )
                                   }
                                   onKeyDown={(event) => {
                                     if (
@@ -562,6 +581,7 @@ export default function TicketRepliesPanel({
                                     }
                                   }}
                                   disabled={editingReplyId === reply.id}
+                                  maxLength={MAX_DISCUSSION_MESSAGE_LENGTH}
                                   style={EMOJI_TEXT_STYLE}
                                   className="min-h-20 max-h-36 scrollbar-thin w-full resize-none bg-transparent px-2 py-1 text-sm text-gray-700 outline-none placeholder:text-gray-400"
                                 />
@@ -593,6 +613,8 @@ export default function TicketRepliesPanel({
                                       }
                                       disabled={
                                         !editingMessage.trim() ||
+                                        editingMessage.trim().length >
+                                          MAX_DISCUSSION_MESSAGE_LENGTH ||
                                         editingReplyId === reply.id
                                       }
                                       className="disabled:cursor-not-allowed disabled:opacity-60"
@@ -625,6 +647,11 @@ export default function TicketRepliesPanel({
                                         : 'Save'}
                                     </button> */}
                                   </div>
+                                </div>
+
+                                <div className="mt-2 text-right text-xs text-gray-500">
+                                  {editingMessage.length}/
+                                  {MAX_DISCUSSION_MESSAGE_LENGTH}
                                 </div>
                               </div>
                             ) : reply.message ? (
@@ -884,11 +911,14 @@ export default function TicketRepliesPanel({
                 ref={textareaRef}
                 rows={2}
                 value={message}
-                onChange={(event) => setMessage(event.target.value)}
+                onChange={(event) =>
+                  setMessage(clampDiscussionMessage(event.target.value))
+                }
                 onKeyDown={(event) => void handleComposerKeyDown(event)}
                 placeholder={composerPlaceholder}
                 onPaste={handleAttachmentPaste}
                 disabled={isSubmittingReply}
+                maxLength={MAX_DISCUSSION_MESSAGE_LENGTH}
                 className="min-h-14 md:min-h-16 w-full resize-none bg-transparent px-2 py-1 text-sm text-gray-700 outline-none placeholder:text-gray-400"
               />
 
@@ -1013,6 +1043,7 @@ export default function TicketRepliesPanel({
                       (requireMessage
                         ? !message.trim()
                         : !message.trim() && !attachments.length) ||
+                      message.trim().length > MAX_DISCUSSION_MESSAGE_LENGTH ||
                       isSubmittingReply
                     }
                     className="flex h-10 w-10 items-center justify-center rounded-full bg-[#10175A] text-white disabled:cursor-not-allowed disabled:opacity-60"
@@ -1020,6 +1051,9 @@ export default function TicketRepliesPanel({
                     <TelegramIcon />
                   </button>
                 </div>
+              </div>
+              <div className="mt-1 text-right text-xs text-gray-500">
+                {message.length}/{MAX_DISCUSSION_MESSAGE_LENGTH}
               </div>
             </div>
           </div>

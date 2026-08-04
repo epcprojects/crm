@@ -99,6 +99,7 @@ export default function ProjectDetailPage() {
   const canFilterTickets = hasPermission('tickets.filter');
   const canViewThread = hasPermission('thread.view');
   const canEditThread = hasPermission('thread.edit');
+  const canViewThreadReplies = hasPermission('thread.view_replies');
   const canDeleteThread = hasPermission('thread.delete');
   const canPostThreadMessage = hasPermission('thread.post_message');
   const canPostThreadReply = hasPermission('thread.post_reply');
@@ -135,6 +136,25 @@ export default function ProjectDetailPage() {
   );
   const hasShownError = useRef(false);
   const queryClient = useQueryClient();
+  const updateProjectThreadReplyCount = (
+    threadId: string,
+    updateCount: (currentCount: number) => number,
+  ) => {
+    queryClient.setQueryData<DiscussionReply[]>(
+      [...projectThreadQueryKey, projectId],
+      (currentReplies) =>
+        Array.isArray(currentReplies)
+          ? currentReplies.map((reply) =>
+              reply.id === threadId
+                ? {
+                    ...reply,
+                    replyCount: Math.max(0, updateCount(reply.replyCount ?? 0)),
+                  }
+                : reply,
+            )
+          : currentReplies,
+    );
+  };
   const projectDetailQuery = useProjectDetailQuery(
     projectId,
     canViewProjectDetail,
@@ -245,6 +265,13 @@ export default function ProjectDetailPage() {
       return data;
     },
     onSuccess: async (_data, variables) => {
+      if (variables.parentId) {
+        updateProjectThreadReplyCount(
+          variables.parentId,
+          (currentCount) => currentCount + 1,
+        );
+      }
+
       await queryClient.invalidateQueries({
         queryKey: [...projectThreadQueryKey, projectId],
       });
@@ -333,7 +360,13 @@ export default function ProjectDetailPage() {
   });
 
   const deleteProjectThreadMutation = useMutation({
-    mutationFn: async ({ messageId }: { messageId: string }) => {
+    mutationFn: async ({
+      messageId,
+      parentId: _parentId,
+    }: {
+      messageId: string;
+      parentId?: string;
+    }) => {
       const response = await fetch(
         `/api/projects/${projectId}/thread/${messageId}`,
         {
@@ -356,7 +389,14 @@ export default function ProjectDetailPage() {
 
       return data;
     },
-    onSuccess: async () => {
+    onSuccess: async (_data, variables) => {
+      if (variables.parentId) {
+        updateProjectThreadReplyCount(
+          variables.parentId,
+          (currentCount) => currentCount - 1,
+        );
+      }
+
       await queryClient.invalidateQueries({
         queryKey: [...projectThreadQueryKey, projectId],
       });
@@ -585,14 +625,21 @@ export default function ProjectDetailPage() {
       });
     },
     onReplyCreated: (reply) => {
-      void queryClient.invalidateQueries({
-        queryKey: [...projectThreadQueryKey, projectId],
-      });
-
       const parentId =
         reply && typeof reply === 'object' && 'parentId' in reply
           ? String((reply as { parentId?: string }).parentId ?? '')
           : '';
+
+      if (parentId) {
+        updateProjectThreadReplyCount(
+          parentId,
+          (currentCount) => currentCount + 1,
+        );
+      }
+
+      void queryClient.invalidateQueries({
+        queryKey: [...projectThreadQueryKey, projectId],
+      });
 
       if (parentId) {
         void queryClient.invalidateQueries({
@@ -827,6 +874,10 @@ export default function ProjectDetailPage() {
 
       await deleteProjectThreadMutation.mutateAsync({
         messageId: reply.id,
+        parentId:
+          selectedThreadMessageId && selectedThreadMessageId !== reply.id
+            ? selectedThreadMessageId
+            : undefined,
       });
     } finally {
       setDeletingThreadReplyId('');
@@ -1379,7 +1430,9 @@ export default function ProjectDetailPage() {
                             canAttachFile={canAttachThreadFile}
                             requireMessage={false}
                             currentUserId={currentUserId}
-                            showReplyMeta
+                            showReplyMeta={
+                              canViewThreadReplies || canPostThreadReply
+                            }
                             onReplyClick={(reply) =>
                               setSelectedThreadMessageId(reply.id)
                             }
@@ -1581,7 +1634,6 @@ function renderProjectTabIcon(tab: (typeof projectTabs)[number]) {
 
   return <CalendarTabIcon />;
 }
-
 
 function FilesTabIcon() {
   return (
@@ -1785,23 +1837,6 @@ function getDashboardStatusFilterValue(value: string | null) {
 
 function normalizeStatusValue(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, '');
-}
-
-function BackArrowIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 18 18"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M2.4375 8.99975C2.4375 9.27992 2.56174 9.53984 2.67939 9.73502C2.80635 9.94563 2.97708 10.1631 3.16439 10.3751C3.54013 10.8004 4.0304 11.2571 4.50618 11.6703C4.98475 12.0858 5.46167 12.4685 5.81794 12.7466C5.99637 12.8859 6.14523 12.9994 6.24978 13.0784C6.30207 13.1179 6.34332 13.1488 6.37169 13.1699L6.40436 13.1942L6.41303 13.2007L6.41604 13.2029C6.66617 13.3871 7.01862 13.334 7.20286 13.0838C7.3871 12.8337 7.33371 12.4816 7.08361 12.2973L7.07407 12.2903L7.04403 12.268C7.01746 12.2482 6.97815 12.2187 6.9279 12.1808C6.82738 12.1048 6.68327 11.9949 6.51014 11.8598C6.16329 11.589 5.70272 11.2194 5.2438 10.8208C4.78208 10.4199 4.33486 10.0008 4.00748 9.63023C3.98678 9.60679 3.96674 9.58375 3.94737 9.56114L15 9.56113C15.3107 9.56113 15.5625 9.30929 15.5625 8.99863C15.5625 8.68797 15.3107 8.43613 15 8.43613L3.94927 8.43614C3.96805 8.41423 3.98746 8.39194 4.00748 8.36927C4.33486 7.99871 4.78208 7.57959 5.2438 7.17865C5.70272 6.78013 6.16329 6.41046 6.51014 6.13974C6.68327 6.00461 6.82737 5.89466 6.9279 5.81872C6.97815 5.78076 7.01746 5.75133 7.04403 5.73153L7.07406 5.7092L7.08361 5.70214C7.33371 5.51789 7.3871 5.16578 7.20286 4.91567C7.01862 4.66554 6.66617 4.61237 6.41604 4.79662L6.41303 4.79884L6.40436 4.80525L6.37169 4.82954C6.34332 4.85069 6.30207 4.88157 6.24978 4.92107C6.14523 5.00005 5.99637 5.11363 5.81793 5.2529C5.46167 5.53098 4.98474 5.91364 4.50618 6.32922C4.0304 6.74237 3.54013 7.19911 3.16439 7.62441C2.97708 7.83642 2.80635 8.05386 2.67939 8.26448C2.56245 8.45847 2.43899 8.71646 2.43751 8.9947"
-        fill="black"
-      />
-    </svg>
-  );
 }
 
 function CloseCrossIcon() {
