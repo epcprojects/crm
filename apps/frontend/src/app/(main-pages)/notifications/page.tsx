@@ -113,11 +113,17 @@ export default function Page() {
   }, [items]);
 
   //hamza
-  const { markAllAsRead: syncMarkAllAsRead, recentNotifications } =
-    useNotificationsSocket();
+  const {
+    markAllAsRead: syncMarkAllAsRead,
+    recentNotifications,
+    unreadCount: socketUnreadCount,
+  } = useNotificationsSocket();
 
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [allNotificationCount, setAllNotificationCount] = useState(0);
+  const [searchAllCount, setSearchAllCount] = useState(0);
+  const [searchUnreadCount, setSearchUnreadCount] = useState(0);
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -141,9 +147,12 @@ export default function Page() {
         const nextItems = unreadOnlyFlag
           ? data.filter((item) => !item.isRead)
           : data;
+        const unreadItemsCount = data.filter((item) => !item.isRead).length;
 
         setItems(nextItems);
         setTotal((p - 1) * PAGE_SIZE + nextItems.length);
+        setSearchAllCount(data.length);
+        setSearchUnreadCount(unreadItemsCount);
         setLoading(false);
         return;
       }
@@ -157,6 +166,9 @@ export default function Page() {
       const data = await res.json();
       setItems(data.items);
       setTotal(data.total);
+      if (!unreadOnlyFlag) {
+        setAllNotificationCount(data.total);
+      }
       setLoading(false);
     },
     [],
@@ -190,10 +202,8 @@ export default function Page() {
     syncMarkAllAsRead();
   }
 
-  const unreadCount = useMemo(
-    () => items.filter((notification) => !notification.isRead).length,
-    [items],
-  );
+  const unreadCount = hasSearchQuery ? searchUnreadCount : socketUnreadCount;
+  const totalCount = hasSearchQuery ? searchAllCount : allNotificationCount;
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const canGoToNextPage = hasSearchQuery
@@ -225,7 +235,7 @@ export default function Page() {
                   }}
                 />
                 <TopFilterTab
-                  count={items.length}
+                  count={totalCount}
                   isActive={activeFilter === 'all'}
                   label="All"
                   tabRef={(element) => {
@@ -299,9 +309,10 @@ export default function Page() {
                 <TabGroup
                   selectedIndex={activeTabIndex}
                   className={'w-full'}
-                  onChange={(index) =>
-                    setActiveFilter(index === 1 ? 'unread' : 'all')
-                  }
+                  onChange={(index) => {
+                    setActiveFilter(index === 1 ? 'unread' : 'all');
+                    setUnreadOnly(index === 1);
+                  }}
                 >
                   <TabList className="relative grid w-full grid-cols-2 gap-1 rounded-full border border-gray-200 bg-gray-50 p-1">
                     <div
@@ -313,7 +324,7 @@ export default function Page() {
                       }}
                     />
                     <TopFilterTab
-                      count={items.length}
+                      count={totalCount}
                       isActive={activeFilter === 'all'}
                       label="All"
                       tabRef={(element) => {
@@ -390,6 +401,12 @@ export default function Page() {
                     ) {
                       router.push(
                         `/tickets/${notification.ticketId}?projectId=${notification.projectId}`,
+                      );
+                    } else if (notification.entityType === 'event') {
+                      router.push(`/projects/${notification.projectId}?t=3`);
+                    } else if (notification.entityType === 'internal_message') {
+                      router.push(
+                        `/tickets/${notification.ticketId}?projectId=${notification.projectId}&internal=true`,
                       );
                     } else if (
                       notification.entityType === 'project' &&

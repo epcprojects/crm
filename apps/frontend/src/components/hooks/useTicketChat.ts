@@ -252,6 +252,49 @@ export function useTicketChat({
           );
         };
 
+        const handleMessageUpdated = (payload: {
+          channel: ChatChannel;
+          message: {
+            messageId: string;
+            message?: string | null;
+            attachmentUrls?: string[] | null;
+            messageType?: 'text' | 'attachment';
+            attachmentName?: string | null;
+            attachmentSize?: number | null;
+          };
+        }) => {
+          if (
+            payload.channel !== channel ||
+            !payload.message ||
+            typeof payload.message.messageId !== 'string'
+          ) {
+            return;
+          }
+
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === payload.message.messageId
+                ? {
+                    ...message,
+                    message:
+                      typeof payload.message.message === 'string'
+                        ? payload.message.message
+                        : message.message,
+                    messageType:
+                      payload.message.messageType ?? message.messageType,
+                    attachmentUrls:
+                      payload.message.attachmentUrls ?? message.attachmentUrls,
+                    attachmentName:
+                      payload.message.attachmentName ?? message.attachmentName,
+                    attachmentSize:
+                      payload.message.attachmentSize ?? message.attachmentSize,
+                    updatedAt: new Date().toISOString(),
+                  }
+                : message,
+            ),
+          );
+        };
+
         const handleTyping = (payload: {
           channel: ChatChannel;
           userId: string;
@@ -286,6 +329,7 @@ export function useTicketChat({
         socket.on('new_message', handleNewMessage);
         socket.on('messages_read', handleMessagesRead);
         socket.on('message_deleted', handleMessageDeleted);
+        socket.on('message_updated', handleMessageUpdated);
 
         socket.on('typing', handleTyping);
 
@@ -302,6 +346,7 @@ export function useTicketChat({
           socket.off('new_message', handleNewMessage);
           socket.off('messages_read', handleMessagesRead);
           socket.off('message_deleted', handleMessageDeleted);
+          socket.off('message_updated', handleMessageUpdated);
           socket.off('typing', handleTyping);
         };
       } catch {
@@ -460,6 +505,92 @@ export function useTicketChat({
     [channel, projectId, ticketId],
   );
 
+  const updateMessage = useCallback(
+    async (
+      messageId: string,
+      payload: {
+        message: string;
+        messageType?: 'text' | 'attachment';
+        attachmentUrls?: string[];
+        attachmentName?: string;
+        attachmentSize?: number;
+      },
+    ) => {
+      const response = await fetch(
+        `/api/projects/${projectId}/tickets/${ticketId}/chat/${channel}/messages/${messageId}`,
+        {
+          method: 'PUT',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      const updatedMessage = (await response.json().catch(() => null)) as
+        | ChatMessage
+        | { message?: string; success?: boolean }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(
+          updatedMessage &&
+          !Array.isArray(updatedMessage) &&
+          'message' in updatedMessage
+            ? updatedMessage.message || 'Failed to update message.'
+            : 'Failed to update message.',
+        );
+      }
+
+      let nextMessage: ChatMessage | null = null;
+
+      setMessages((current) =>
+        current.map((message) => {
+          if (message.id !== messageId) {
+            return message;
+          }
+
+          nextMessage = isChatMessage(updatedMessage)
+            ? updatedMessage
+            : {
+                ...message,
+                message: payload.message,
+                messageType: payload.messageType ?? message.messageType,
+                attachmentUrls:
+                  payload.attachmentUrls ?? message.attachmentUrls,
+                attachmentName:
+                  payload.attachmentName ?? message.attachmentName,
+                attachmentSize:
+                  payload.attachmentSize ?? message.attachmentSize,
+                updatedAt: new Date().toISOString(),
+              };
+
+          return nextMessage;
+        }),
+      );
+
+      if (nextMessage) {
+        return nextMessage;
+      }
+
+      return {
+        id: messageId,
+        projectId,
+        ticketId,
+        senderId: '',
+        message: payload.message,
+        messageType: payload.messageType ?? 'text',
+        attachmentUrls: payload.attachmentUrls ?? null,
+        attachmentName: payload.attachmentName ?? null,
+        attachmentSize: payload.attachmentSize ?? null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    },
+    [channel, projectId, ticketId],
+  );
+
   const setTyping = useCallback(
     (isTyping: boolean) => {
       socketRef.current?.emit('typing', {
@@ -480,6 +611,7 @@ export function useTicketChat({
     sendMessage,
     markRead,
     deleteMessage,
+    updateMessage,
     setTyping,
   };
 }

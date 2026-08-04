@@ -12,13 +12,14 @@ import { User } from '../../users/entities/user.entity';
 import { Ticket } from '../../tickets/entities/ticket.entity';
 import { Project } from '../../projects/entities/project.entity';
 import { MessageType } from './chat-message-internal.entity';
+import { TimestampEntityWithSoftDelete } from '@harperhelp/interfaces';
 
 @Entity('chat_messages_external')
 @Index(['ticketId', 'createdAt'])
 @Index(['projectId', 'createdAt'])
-export class ChatMessageExternal {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+export class ChatMessageExternal extends TimestampEntityWithSoftDelete {
+  // @PrimaryGeneratedColumn('uuid')
+  // id: string;
 
   @Column({ name: 'project_id', type: 'uuid' })
   projectId: string;
@@ -66,8 +67,8 @@ export class ChatMessageExternal {
   @Column({ name: 'is_deleted', default: false })
   isDeleted: boolean;
 
-  @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })
-  deletedAt: Date | null;
+  // @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })
+  // deletedAt: Date | null;
 
   // ── Relations ──────────────────────────────────
   @ManyToOne(() => Project, { onDelete: 'CASCADE' })
@@ -86,9 +87,9 @@ export class ChatMessageExternal {
   @JoinColumn({ name: 'receiver_id' })
   receiver: User;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt: Date;
+  // @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  // createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt: Date;
+  // @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  // updatedAt: Date;
 }

@@ -12,6 +12,10 @@ export type ProjectCalendarEventType =
   | 'meeting'
   | 'milestone';
 
+export function normalizeEmail(value?: string | null) {
+  return value?.trim().toLowerCase() ?? '';
+}
+
 // ── Types matching the backend ──────────────────────────────────────────────
 
 export interface ApiEvent {

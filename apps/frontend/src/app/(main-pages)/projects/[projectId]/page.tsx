@@ -27,7 +27,10 @@ import UploadFileModal, {
 } from '../../../../components/modals/UploadFileModal';
 import ConfirmActionModal from '../../../../components/modals/ConfirmActionModal';
 import ProjectThreadPanel from '../../../../components/discussion/ProjectThreadPanel';
-import type { DiscussionAttachment } from '../../../../components/discussion/types';
+import type {
+  DiscussionAttachment,
+  DiscussionReply,
+} from '../../../../components/discussion/types';
 import ProjectFilesPanel, {
   type ProjectFileRecord,
 } from '../../../../components/projects/ProjectFilesPanel';
@@ -95,6 +98,9 @@ export default function ProjectDetailPage() {
   const canCreateTicket = hasPermission('tickets.create');
   const canFilterTickets = hasPermission('tickets.filter');
   const canViewThread = hasPermission('thread.view');
+  const canEditThread = hasPermission('thread.edit');
+  const canViewThreadReplies = hasPermission('thread.view_replies');
+  const canDeleteThread = hasPermission('thread.delete');
   const canPostThreadMessage = hasPermission('thread.post_message');
   const canPostThreadReply = hasPermission('thread.post_reply');
   const canAttachThreadFile = hasPermission('thread.attach_file');
@@ -113,6 +119,8 @@ export default function ProjectDetailPage() {
     null,
   );
   const [selectedThreadMessageId, setSelectedThreadMessageId] = useState('');
+  const [deletingThreadReplyId, setDeletingThreadReplyId] = useState('');
+  const [editingThreadReplyId, setEditingThreadReplyId] = useState('');
   const [threadSocketToken, setThreadSocketToken] =
     useState<SocketTokenResponse | null>(null);
   const [ticketsPagination, setTicketsPagination] = useState({
@@ -120,7 +128,7 @@ export default function ProjectDetailPage() {
     pageSize: 10,
   });
   const projectId = String(params?.projectId ?? '');
-  const selectedStatus = getProjectTicketFilterValue(
+  const selectedStatus = getDashboardStatusFilterValue(
     searchParams.get(PROJECT_TICKETS_STATUS_QUERY_PARAM),
   );
   const selectedPriority = getProjectTicketFilterValue(
@@ -128,6 +136,25 @@ export default function ProjectDetailPage() {
   );
   const hasShownError = useRef(false);
   const queryClient = useQueryClient();
+  const updateProjectThreadReplyCount = (
+    threadId: string,
+    updateCount: (currentCount: number) => number,
+  ) => {
+    queryClient.setQueryData<DiscussionReply[]>(
+      [...projectThreadQueryKey, projectId],
+      (currentReplies) =>
+        Array.isArray(currentReplies)
+          ? currentReplies.map((reply) =>
+              reply.id === threadId
+                ? {
+                    ...reply,
+                    replyCount: Math.max(0, updateCount(reply.replyCount ?? 0)),
+                  }
+                : reply,
+            )
+          : currentReplies,
+    );
+  };
   const projectDetailQuery = useProjectDetailQuery(
     projectId,
     canViewProjectDetail,
@@ -172,6 +199,10 @@ export default function ProjectDetailPage() {
       {
         label: 'All Status',
         value: 'all',
+      },
+      {
+        label: 'Active',
+        value: 'Active',
       },
       ...(ticketStatusesQuery.data ?? []).map(mapTicketSettingToDropdownOption),
     ],
@@ -234,6 +265,13 @@ export default function ProjectDetailPage() {
       return data;
     },
     onSuccess: async (_data, variables) => {
+      if (variables.parentId) {
+        updateProjectThreadReplyCount(
+          variables.parentId,
+          (currentCount) => currentCount + 1,
+        );
+      }
+
       await queryClient.invalidateQueries({
         queryKey: [...projectThreadQueryKey, projectId],
       });
@@ -253,6 +291,133 @@ export default function ProjectDetailPage() {
         error instanceof Error
           ? error.message
           : 'Failed to post project thread message.',
+      );
+    },
+  });
+
+  const updateProjectThreadMutation = useMutation({
+    mutationFn: async ({
+      messageId,
+      message,
+      parentId,
+    }: {
+      messageId: string;
+      message: string;
+      parentId?: string;
+    }) => {
+      const formData = new FormData();
+      formData.append('message', message.trim());
+
+      if (parentId?.trim()) {
+        formData.append('parentId', parentId.trim());
+      }
+
+      const response = await fetch(
+        `/api/projects/${projectId}/thread/${messageId}`,
+        {
+          method: 'PUT',
+          body: formData,
+        },
+      );
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message =
+          Array.isArray(data?.message) && data.message.length
+            ? data.message.join(', ')
+            : data?.message || 'Failed to update thread message.';
+        throw new Error(message);
+      }
+
+      return data;
+    },
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({
+        queryKey: [...projectThreadQueryKey, projectId],
+      });
+
+      const detailMessageId = variables.parentId || selectedThreadMessageId;
+      if (detailMessageId) {
+        await queryClient.invalidateQueries({
+          queryKey: [
+            ...projectThreadDetailQueryKey,
+            projectId,
+            detailMessageId,
+          ],
+        });
+      }
+
+      appToast.success('Thread updated successfully.');
+    },
+    onError: (error) => {
+      appToast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to update thread message.',
+      );
+    },
+  });
+
+  const deleteProjectThreadMutation = useMutation({
+    mutationFn: async ({
+      messageId,
+      parentId: _parentId,
+    }: {
+      messageId: string;
+      parentId?: string;
+    }) => {
+      const response = await fetch(
+        `/api/projects/${projectId}/thread/${messageId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Accept: 'application/json',
+          },
+        },
+      );
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const errorMessage =
+          Array.isArray(data?.message) && data.message.length
+            ? data.message.join(', ')
+            : data?.message || 'Failed to delete thread message.';
+        throw new Error(errorMessage);
+      }
+
+      return data;
+    },
+    onSuccess: async (_data, variables) => {
+      if (variables.parentId) {
+        updateProjectThreadReplyCount(
+          variables.parentId,
+          (currentCount) => currentCount - 1,
+        );
+      }
+
+      await queryClient.invalidateQueries({
+        queryKey: [...projectThreadQueryKey, projectId],
+      });
+
+      if (selectedThreadMessageId) {
+        await queryClient.invalidateQueries({
+          queryKey: [
+            ...projectThreadDetailQueryKey,
+            projectId,
+            selectedThreadMessageId,
+          ],
+        });
+      }
+
+      appToast.success('Thread deleted successfully.');
+    },
+    onError: (error) => {
+      appToast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to delete thread message.',
       );
     },
   });
@@ -308,11 +473,7 @@ export default function ProjectDetailPage() {
     const nextStatus = status ?? selectedStatus;
     const nextPriority = priority ?? selectedPriority;
 
-    if (nextStatus === 'all') {
-      nextSearchParams.delete(PROJECT_TICKETS_STATUS_QUERY_PARAM);
-    } else {
-      nextSearchParams.set(PROJECT_TICKETS_STATUS_QUERY_PARAM, nextStatus);
-    }
+    nextSearchParams.set(PROJECT_TICKETS_STATUS_QUERY_PARAM, nextStatus);
 
     if (nextPriority === 'all') {
       nextSearchParams.delete(PROJECT_TICKETS_PRIORITY_QUERY_PARAM);
@@ -371,15 +532,41 @@ export default function ProjectDetailPage() {
     shouldRedirectToNotFound,
   ]);
 
+  // const projectTickets = useMemo(
+  //   () =>
+  //     (projectTicketsQuery.data?.items ?? []).map((ticket) => ({
+  //       ...ticket,
+  //       statusColor:
+  //         ticket.statusColor ??
+  //         getTicketStatusColor(ticket.status, ticketStatusesQuery.data),
+  //     })),
+  //   [projectTicketsQuery.data?.items, ticketStatusesQuery.data],
+  // );
   const projectTickets = useMemo(
     () =>
       (projectTicketsQuery.data?.items ?? []).map((ticket) => ({
         ...ticket,
+
+        project: {
+          ...ticket.project,
+          id: project?.id ?? ticket.project.id,
+          name: project?.name ?? ticket.project.name,
+          initials: project?.initials ?? ticket.project.initials,
+          brandColor: project?.colorHex ?? ticket.project.brandColor,
+        },
+
         statusColor:
           ticket.statusColor ??
           getTicketStatusColor(ticket.status, ticketStatusesQuery.data),
       })),
-    [projectTicketsQuery.data?.items, ticketStatusesQuery.data],
+    [
+      projectTicketsQuery.data?.items,
+      ticketStatusesQuery.data,
+      project?.id,
+      project?.name,
+      project?.initials,
+      project?.colorHex,
+    ],
   );
   const projectFiles = useMemo(() => {
     const normalizedSearch = fileSearchValue.trim().toLowerCase();
@@ -438,14 +625,21 @@ export default function ProjectDetailPage() {
       });
     },
     onReplyCreated: (reply) => {
-      void queryClient.invalidateQueries({
-        queryKey: [...projectThreadQueryKey, projectId],
-      });
-
       const parentId =
         reply && typeof reply === 'object' && 'parentId' in reply
           ? String((reply as { parentId?: string }).parentId ?? '')
           : '';
+
+      if (parentId) {
+        updateProjectThreadReplyCount(
+          parentId,
+          (currentCount) => currentCount + 1,
+        );
+      }
+
+      void queryClient.invalidateQueries({
+        queryKey: [...projectThreadQueryKey, projectId],
+      });
 
       if (parentId) {
         void queryClient.invalidateQueries({
@@ -647,6 +841,49 @@ export default function ProjectDetailPage() {
     });
   };
 
+  const handleEditProjectThreadReply = async ({
+    reply,
+    message,
+  }: {
+    reply: DiscussionReply;
+    message: string;
+  }) => {
+    setEditingThreadReplyId(reply.id);
+
+    try {
+      await updateProjectThreadMutation.mutateAsync({
+        messageId: reply.id,
+        message,
+        parentId:
+          selectedThreadMessageId && selectedThreadMessageId !== reply.id
+            ? selectedThreadMessageId
+            : undefined,
+      });
+    } finally {
+      setEditingThreadReplyId('');
+    }
+  };
+
+  const handleDeleteProjectThreadReply = async (reply: DiscussionReply) => {
+    try {
+      setDeletingThreadReplyId(reply.id);
+
+      if (selectedThreadMessageId === reply.id) {
+        setSelectedThreadMessageId('');
+      }
+
+      await deleteProjectThreadMutation.mutateAsync({
+        messageId: reply.id,
+        parentId:
+          selectedThreadMessageId && selectedThreadMessageId !== reply.id
+            ? selectedThreadMessageId
+            : undefined,
+      });
+    } finally {
+      setDeletingThreadReplyId('');
+    }
+  };
+
   const visibleProjectTabs = projectTabs.filter((tab) => {
     if (tab === 'Tickets') return canViewTickets;
     if (tab === 'Thread') return canViewThread;
@@ -656,7 +893,12 @@ export default function ProjectDetailPage() {
   });
   const defaultProjectTabIndex = useMemo(() => {
     const requestedTab = searchParams.get('t');
-    const requestedTabName = requestedTab === '1' ? 'Thread' : null;
+    const requestedTabName =
+      requestedTab === '1'
+        ? 'Thread'
+        : requestedTab === '3'
+          ? 'Calendar'
+          : null;
 
     if (!requestedTabName) {
       return 0;
@@ -665,6 +907,61 @@ export default function ProjectDetailPage() {
     const requestedTabIndex = visibleProjectTabs.indexOf(requestedTabName);
     return requestedTabIndex >= 0 ? requestedTabIndex : 0;
   }, [searchParams, visibleProjectTabs]);
+  // const projectDetailScrollRef = useRef<HTMLDivElement | null>(null);
+  // const projectDetailSectionRef = useRef<HTMLDivElement | null>(null);
+
+  // const [isProjectDetailSectionPinned, setIsProjectDetailSectionPinned] =
+  //   useState(false);
+
+  // useEffect(() => {
+  //   if (
+  //     projectDetailQuery.isLoading ||
+  //     shouldRedirectToNotFound ||
+  //     !canViewProjectDetail ||
+  //     !project
+  //   ) {
+  //     return;
+  //   }
+
+  //   const scrollContainer = projectDetailScrollRef.current;
+  //   const detailSection = projectDetailSectionRef.current;
+
+  //   if (!scrollContainer || !detailSection) {
+  //     return;
+  //   }
+
+  //   const updatePinnedState = () => {
+  //     if (window.innerWidth >= 1280) {
+  //       setIsProjectDetailSectionPinned(true);
+  //       return;
+  //     }
+
+  //     const containerRect = scrollContainer.getBoundingClientRect();
+  //     const sectionRect = detailSection.getBoundingClientRect();
+
+  //     setIsProjectDetailSectionPinned(
+  //       Math.ceil(sectionRect.top) <= Math.ceil(containerRect.top),
+  //     );
+  //   };
+
+  //   updatePinnedState();
+
+  //   scrollContainer.addEventListener('scroll', updatePinnedState, {
+  //     passive: true,
+  //   });
+
+  //   window.addEventListener('resize', updatePinnedState);
+
+  //   return () => {
+  //     scrollContainer.removeEventListener('scroll', updatePinnedState);
+  //     window.removeEventListener('resize', updatePinnedState);
+  //   };
+  // }, [
+  //   projectDetailQuery.isLoading,
+  //   shouldRedirectToNotFound,
+  //   canViewProjectDetail,
+  //   project?.id,
+  // ]);
 
   if (projectDetailQuery.isLoading) {
     return <ProjectDetailSkeleton onBack={() => router.back()} />;
@@ -763,21 +1060,34 @@ export default function ProjectDetailPage() {
   //   ],
   //   [ticketsQuery.data],
   // );
+
   return (
     <>
       <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 py-4">
-        <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
-          <DashboardSummaryBanner
-            imageSrc="/images/bannerBackBtn.svg"
-            onBack={() => router.back()}
-            imageAlt="Tickets"
-            title={project.name}
-            badge={project.category}
-            stats={projectSummaryStats}
-            badgeClr={project.colorHex}
-          />
+        <div
+          // ref={projectDetailScrollRef}
+          className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
+          // className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
+        >
+          <div className="shrink-0">
+            <DashboardSummaryBanner
+              imageSrc="/images/bannerBackBtn.svg"
+              onBack={() => router.back()}
+              imageAlt="Tickets"
+              title={project.name}
+              badge={project.category}
+              stats={projectSummaryStats}
+              badgeClr={project.colorHex}
+            />
+          </div>
 
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden rounded-xl bg-white px-0 pt-2 md:pt-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:px-5">
+          <div
+            // ref={projectDetailSectionRef}
+            // className="sticky -top-5 z-20 flex h-full min-h-0 min-w-0 flex-none flex-col gap-4 overflow-hidden rounded-xl bg-white  shadow-[0_0_35px_0_rgb(0_0_0/0.04)] p-3 md:px-5 md:pt-4 xl:static xl:z-auto xl:flex-1"
+            // className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden rounded-xl bg-white px-0 pt-2 md:pt-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:px-5"
+
+            className="flex h-auto min-h-0 min-w-0 flex-none flex-col gap-4 overflow-visible rounded-xl bg-white p-3 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:px-5 md:pt-4 xl:h-full xl:flex-1 xl:overflow-hidden"
+          >
             {/* <section className="w-full shrink-0">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
@@ -832,7 +1142,8 @@ export default function ProjectDetailPage() {
 
             <TabGroup
               defaultIndex={defaultProjectTabIndex}
-              className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden"
+              // className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden"
+              className="flex h-auto min-h-0 min-w-0 flex-none flex-col gap-4 overflow-visible xl:h-full xl:flex-1 xl:overflow-hidden"
             >
               <TabList className="flex shrink-0 overflow-x-auto scrollbar-hide border-b border-gray-200">
                 {visibleProjectTabs.map((tab) => (
@@ -857,9 +1168,15 @@ export default function ProjectDetailPage() {
                 ))}
               </TabList>
 
-              <TabPanels className="flex min-h-0 min-w-0 flex-1 flex-col pb-4 md:pb-4 overflow-hidden">
+              <TabPanels
+                // className="flex min-h-0 min-w-0 flex-1 flex-col pb-4 md:pb-4 overflow-hidden"
+                className="flex h-auto min-h-0 min-w-0 flex-none flex-col overflow-visible pb-4 md:pb-4 xl:h-full xl:flex-1 xl:overflow-hidden"
+              >
                 <PermissionGuard permission="tickets.view_list">
-                  <TabPanel className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-hidden">
+                  <TabPanel
+                    // className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-hidden"
+                    className="flex h-auto min-h-0 min-w-0 flex-none flex-col gap-4 overflow-visible xl:h-full xl:flex-1 xl:overflow-hidden"
+                  >
                     <div className="flex shrink-0 flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
                       {canFilterTickets ? (
                         <>
@@ -987,26 +1304,30 @@ export default function ProjectDetailPage() {
                               />
                             </div>
 
-                            <button
+                            {/* <button
                               type="button"
                               onClick={clearProjectTicketFilters}
                               disabled={!hasActiveProjectTicketFilters}
                               className="hidden h-10 shrink-0 items-center justify-center rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 xl:inline-flex"
                             >
                               Clear Filters
-                            </button>
+                            </button> */}
+                            <ThemeButton
+                              type="button"
+                              variant="secondary"
+                              size="md"
+                              onClick={clearProjectTicketFilters}
+                              disabled={!hasActiveProjectTicketFilters}
+                              className="hidden h-10 shrink-0 disabled:cursor-not-allowed disabled:opacity-50 xl:inline-flex"
+                            >
+                              Clear Filters
+                            </ThemeButton>
 
                             {canCreateTicket ? (
                               <ThemeButton
-                                className="shrink-0 rounded-full"
+                                className="shrink-0 rounded-full hidden xl:flex"
                                 variant="primaryGradient"
-                                icon={
-                                  <PlusIcon
-                                    fill="#3889FE"
-                                    width="20"
-                                    height="20"
-                                  />
-                                }
+                                icon={<PlusIcon width="20" height="20" />}
                                 onClick={() => setCreateTicketOpen(true)}
                               >
                                 New Ticket
@@ -1019,9 +1340,7 @@ export default function ProjectDetailPage() {
                           <ThemeButton
                             className="shrink-0 rounded-full"
                             variant="primaryGradient"
-                            icon={
-                              <PlusIcon fill="#3889FE" width="20" height="20" />
-                            }
+                            icon={<PlusIcon width="20" height="20" />}
                             onClick={() => setCreateTicketOpen(true)}
                           >
                             New Ticket
@@ -1029,7 +1348,10 @@ export default function ProjectDetailPage() {
                         </div>
                       ) : null}
                     </div>
-                    <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+                    <div
+                      // className="min-h-0 min-w-0 flex-1 overflow-hidden"
+                      className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden"
+                    >
                       <RecentTicketsTable
                         tickets={projectTickets}
                         enablePagination
@@ -1053,28 +1375,39 @@ export default function ProjectDetailPage() {
                 </PermissionGuard>
 
                 <PermissionGuard permission="thread.view">
-                  <TabPanel className="h-full min-h-0 min-w-0 overflow-hidden">
+                  <TabPanel
+                    // className="h-full min-h-0 min-w-0 overflow-hidden"
+                    className="h-auto min-h-0 min-w-0 overflow-visible xl:h-full xl:overflow-hidden"
+                  >
                     <div
-                      className={`grid h-full min-h-0 min-w-0 overflow-hidden rounded-xl border border-gray-200 md:rounded-2xl ${
+                      // className={`grid h-full min-h-0 min-w-0 overflow-hidden rounded-xl border border-gray-200 md:rounded-2xl ${
+                      //   selectedThreadMessageId && !isMobile
+                      //     ? 'xl:grid-cols-[minmax(0,1fr)_400px] xl:grid-rows-[minmax(0,1fr)] xl:divide-x xl:divide-gray-200'
+                      //     : 'grid-cols-1'
+                      // }`}
+                      className={`grid h-auto min-h-0 min-w-0 overflow-visible rounded-xl border border-gray-200 md:rounded-2xl xl:h-full xl:overflow-hidden ${
                         selectedThreadMessageId && !isMobile
                           ? 'xl:grid-cols-[minmax(0,1fr)_400px] xl:grid-rows-[minmax(0,1fr)] xl:divide-x xl:divide-gray-200'
                           : 'grid-cols-1'
                       }`}
                     >
                       {(!isMobile || !selectedThreadMessageId) && (
-                        <div className="h-full min-h-0 min-w-0 overflow-hidden">
+                        <div
+                          // className="h-full min-h-0 min-w-0 overflow-hidden"
+                          className="h-auto min-h-0 min-w-0 overflow-visible xl:h-full xl:overflow-hidden"
+                        >
                           <ProjectThreadPanel
                             title="Discussion"
                             replies={projectThreadQuery.data ?? []}
                             emptyTitle={
                               projectThreadQuery.isLoading
                                 ? 'Loading discussion...'
-                                : 'No replies yet.'
+                                : 'No Threads yet.'
                             }
                             emptyDescription={
                               projectThreadQuery.isLoading
                                 ? 'Fetching project discussion messages.'
-                                : 'No discussion messages have been added to this project yet.'
+                                : 'No Threads messages have been added to this project yet.'
                             }
                             composerPlaceholder="Post the project thread..."
                             onSubmitReply={
@@ -1082,15 +1415,29 @@ export default function ProjectDetailPage() {
                                 ? handleSubmitReply
                                 : undefined
                             }
+                            onEditReply={
+                              canEditThread
+                                ? handleEditProjectThreadReply
+                                : undefined
+                            }
+                            onDeleteReply={
+                              canDeleteThread
+                                ? handleDeleteProjectThreadReply
+                                : undefined
+                            }
                             isSubmittingReply={
                               createProjectThreadMutation.isPending &&
                               !selectedThreadMessageId
                             }
+                            deletingReplyId={deletingThreadReplyId}
+                            editingReplyId={editingThreadReplyId}
                             canCompose={canPostThreadMessage}
                             canAttachFile={canAttachThreadFile}
                             requireMessage={false}
                             currentUserId={currentUserId}
-                            showReplyMeta
+                            showReplyMeta={
+                              canViewThreadReplies || canPostThreadReply
+                            }
                             onReplyClick={(reply) =>
                               setSelectedThreadMessageId(reply.id)
                             }
@@ -1105,7 +1452,10 @@ export default function ProjectDetailPage() {
                       )}
 
                       {selectedThreadMessageId ? (
-                        <div className="h-full min-h-0 min-w-0 overflow-hidden">
+                        <div
+                          // className="h-full min-h-0 min-w-0 overflow-hidden"
+                          className="h-auto min-h-0 min-w-0 overflow-visible xl:h-full xl:overflow-hidden"
+                        >
                           <ProjectThreadPanel
                             title="Thread"
                             subtitle=""
@@ -1124,12 +1474,12 @@ export default function ProjectDetailPage() {
                             emptyTitle={
                               projectThreadDetailQuery.isLoading
                                 ? 'Loading thread...'
-                                : 'No replies yet.'
+                                : 'No Threads yet.'
                             }
                             emptyDescription={
                               projectThreadDetailQuery.isLoading
                                 ? 'Fetching thread replies.'
-                                : 'No replies have been added to this thread yet.'
+                                : 'No Threads have been added to this thread yet.'
                             }
                             composerPlaceholder="Reply to thread..."
                             onSubmitReply={
@@ -1137,10 +1487,22 @@ export default function ProjectDetailPage() {
                                 ? handleSubmitThreadReply
                                 : undefined
                             }
+                            onEditReply={
+                              canEditThread
+                                ? handleEditProjectThreadReply
+                                : undefined
+                            }
+                            onDeleteReply={
+                              canDeleteThread
+                                ? handleDeleteProjectThreadReply
+                                : undefined
+                            }
                             isSubmittingReply={
                               createProjectThreadMutation.isPending &&
                               Boolean(selectedThreadMessageId)
                             }
+                            deletingReplyId={deletingThreadReplyId}
+                            editingReplyId={editingThreadReplyId}
                             canCompose={canPostThreadReply}
                             canAttachFile={
                               canAttachThreadFile && canPostThreadReply
@@ -1161,7 +1523,10 @@ export default function ProjectDetailPage() {
                 </PermissionGuard>
 
                 <PermissionGuard permission="files.view">
-                  <TabPanel className="h-full min-h-0 min-w-0 overflow-hidden">
+                  <TabPanel
+                    // className="h-full min-h-0 min-w-0 overflow-hidden"
+                    className="h-auto min-h-0 min-w-0 overflow-visible xl:h-full xl:overflow-hidden"
+                  >
                     <ProjectFilesPanel
                       files={projectFiles}
                       searchValue={fileSearchValue}
@@ -1191,7 +1556,15 @@ export default function ProjectDetailPage() {
                 </PermissionGuard>
 
                 <PermissionGuard permission="calendar.view_grid">
-                  <TabPanel className="h-full min-h-0 overflow-y-auto">
+                  <TabPanel
+                    // className={`h-full min-h-0 touch-pan-y ${
+                    //   isProjectDetailSectionPinned
+                    //     ? 'overflow-y-auto overscroll-auto '
+                    //     : 'overflow-y-hidden overscroll-auto xl:overflow-y-auto'
+                    // }`}
+                    className="h-auto min-h-0 overflow-visible xl:h-full xl:overflow-y-auto"
+                    // className="h-full min-h-0 overflow-y-auto"
+                  >
                     <Calendar projectId={projectId} />
                   </TabPanel>
                 </PermissionGuard>
@@ -1199,6 +1572,16 @@ export default function ProjectDetailPage() {
             </TabGroup>
           </div>
         </div>
+        {canCreateTicket ? (
+          <button
+            type="button"
+            onClick={() => setCreateTicketOpen(true)}
+            aria-label="Create new ticket"
+            className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 flex h-10 w-10 items-center justify-center rounded-full bg-linear-to-l from-royal-blue to-crystal-blue text-white shadow-[0_10px_30px_rgb(48_79_253/0.35)] transition hover:opacity-90 active:scale-95 xl:hidden"
+          >
+            <PlusIcon fill="#FFFFFF" width="24" height="24" />
+          </button>
+        ) : null}
       </div>
 
       <CreateTicketModal
@@ -1255,37 +1638,6 @@ function renderProjectTabIcon(tab: (typeof projectTabs)[number]) {
   }
 
   return <CalendarTabIcon />;
-}
-
-function ThreadTabIcon() {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 20 20"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M5.83366 9.99999C5.83366 9.53974 6.20676 9.16666 6.66699 9.16666H6.67447C7.13471 9.16666 7.5078 9.53974 7.5078 9.99999C7.5078 10.4602 7.13471 10.8333 6.67447 10.8333H6.66699C6.20676 10.8333 5.83366 10.4602 5.83366 9.99999Z"
-        fill="currentColor"
-      />
-      <path
-        d="M9.16325 9.99999C9.16325 9.53974 9.53633 9.16666 9.99658 9.16666H10.0041C10.4643 9.16666 10.8374 9.53974 10.8374 9.99999C10.8374 10.4602 10.4643 10.8333 10.0041 10.8333H9.99658C9.53633 10.8333 9.16325 10.4602 9.16325 9.99999Z"
-        fill="currentColor"
-      />
-      <path
-        d="M13.3262 9.16666C12.8659 9.16666 12.4928 9.53974 12.4928 9.99999C12.4928 10.4602 12.8659 10.8333 13.3262 10.8333H13.3337C13.7939 10.8333 14.167 10.4602 14.167 9.99999C14.167 9.53974 13.7939 9.16666 13.3337 9.16666H13.3262Z"
-        fill="currentColor"
-      />
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M1.04199 9.63891C1.04199 4.86531 5.07968 1.04166 10.0003 1.04166C14.921 1.04166 18.9587 4.86531 18.9587 9.63891C18.9587 14.4125 14.921 18.2362 10.0003 18.2362C9.42041 18.2369 8.84228 18.1832 8.27281 18.0763C8.07515 18.0392 7.94957 18.0157 7.85613 18.003C7.81566 17.9974 7.79057 17.9953 7.77688 17.9945L7.78887 17.99C7.78887 17.99 7.78379 17.9912 7.77513 17.9925L7.76819 17.9934C7.77034 17.9935 7.77297 17.9942 7.77688 17.9945C7.76273 17.9999 7.73527 18.0111 7.69012 18.0326C7.59468 18.0779 7.46756 18.1453 7.27294 18.2488C6.07984 18.8833 4.68786 19.1083 3.34529 18.8586C3.1285 18.8182 2.94899 18.6667 2.87293 18.4597C2.79688 18.2527 2.83553 18.021 2.97463 17.8499C3.36447 17.3704 3.63252 16.7927 3.75106 16.171C3.78313 16 3.71055 15.7677 3.48742 15.5412C1.97509 14.0054 1.04199 11.9287 1.04199 9.63891ZM10.0003 2.29166C5.71727 2.29166 2.29199 5.60728 2.29199 9.63891C2.29199 11.5798 3.08112 13.3471 4.37804 14.6641C4.77323 15.0653 5.11369 15.691 4.9793 16.4032L4.9791 16.4042C4.89253 16.8588 4.7452 17.2972 4.5424 17.707C5.28728 17.6894 6.02474 17.4968 6.68603 17.1452L6.69892 17.1383L6.70171 17.1368C6.87883 17.0426 7.03028 16.9621 7.15384 16.9034C7.274 16.8463 7.42399 16.7817 7.5864 16.7568C7.74453 16.7327 7.89817 16.747 8.02603 16.7646C8.15379 16.7821 8.31008 16.8114 8.48888 16.845L8.50353 16.8477C8.99685 16.9404 9.49749 16.9868 9.99949 16.9862C14.2826 16.9862 17.7087 13.6706 17.7087 9.63891C17.7087 5.60728 14.2834 2.29166 10.0003 2.29166Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
 }
 
 function FilesTabIcon() {
@@ -1480,25 +1832,16 @@ function getProjectTicketFilterValue(value: string | null) {
   return value;
 }
 
-function normalizeStatusValue(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, '');
+function getDashboardStatusFilterValue(value: string | null) {
+  if (!value || !value.trim()) {
+    return 'Active';
+  }
+
+  return value;
 }
 
-function BackArrowIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 18 18"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M2.4375 8.99975C2.4375 9.27992 2.56174 9.53984 2.67939 9.73502C2.80635 9.94563 2.97708 10.1631 3.16439 10.3751C3.54013 10.8004 4.0304 11.2571 4.50618 11.6703C4.98475 12.0858 5.46167 12.4685 5.81794 12.7466C5.99637 12.8859 6.14523 12.9994 6.24978 13.0784C6.30207 13.1179 6.34332 13.1488 6.37169 13.1699L6.40436 13.1942L6.41303 13.2007L6.41604 13.2029C6.66617 13.3871 7.01862 13.334 7.20286 13.0838C7.3871 12.8337 7.33371 12.4816 7.08361 12.2973L7.07407 12.2903L7.04403 12.268C7.01746 12.2482 6.97815 12.2187 6.9279 12.1808C6.82738 12.1048 6.68327 11.9949 6.51014 11.8598C6.16329 11.589 5.70272 11.2194 5.2438 10.8208C4.78208 10.4199 4.33486 10.0008 4.00748 9.63023C3.98678 9.60679 3.96674 9.58375 3.94737 9.56114L15 9.56113C15.3107 9.56113 15.5625 9.30929 15.5625 8.99863C15.5625 8.68797 15.3107 8.43613 15 8.43613L3.94927 8.43614C3.96805 8.41423 3.98746 8.39194 4.00748 8.36927C4.33486 7.99871 4.78208 7.57959 5.2438 7.17865C5.70272 6.78013 6.16329 6.41046 6.51014 6.13974C6.68327 6.00461 6.82737 5.89466 6.9279 5.81872C6.97815 5.78076 7.01746 5.75133 7.04403 5.73153L7.07406 5.7092L7.08361 5.70214C7.33371 5.51789 7.3871 5.16578 7.20286 4.91567C7.01862 4.66554 6.66617 4.61237 6.41604 4.79662L6.41303 4.79884L6.40436 4.80525L6.37169 4.82954C6.34332 4.85069 6.30207 4.88157 6.24978 4.92107C6.14523 5.00005 5.99637 5.11363 5.81793 5.2529C5.46167 5.53098 4.98474 5.91364 4.50618 6.32922C4.0304 6.74237 3.54013 7.19911 3.16439 7.62441C2.97708 7.83642 2.80635 8.05386 2.67939 8.26448C2.56245 8.45847 2.43899 8.71646 2.43751 8.9947"
-        fill="black"
-      />
-    </svg>
-  );
+function normalizeStatusValue(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, '');
 }
 
 function CloseCrossIcon() {

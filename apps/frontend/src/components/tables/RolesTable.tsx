@@ -42,6 +42,7 @@ type RolesTableProps = {
   onEdit?: (role: RoleRecord) => void;
   onDelete?: (role: RoleRecord) => void;
   onAddRole?: () => void;
+  // internalScrollEnabled?: boolean;
 };
 
 type RolesActionProps = Pick<
@@ -177,6 +178,7 @@ export default function RolesTable({
   onEdit,
   onDelete,
   onAddRole,
+  // internalScrollEnabled = true,
 }: RolesTableProps) {
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -223,8 +225,19 @@ export default function RolesTable({
     );
   }
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white">
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto scrollbar-hide p-3 xl:hidden">
+    <div 
+    // className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white"
+    className="flex h-auto min-h-0 flex-col overflow-visible rounded-xl border border-gray-200 bg-white xl:h-full xl:overflow-hidden"
+    >
+      <div 
+  //      className={`min-h-0 flex-1 space-y-3 touch-pan-y p-3 scrollbar-hide xl:hidden ${
+  //   internalScrollEnabled
+  //     ? 'overflow-y-auto overscroll-contain'
+  //     : 'overflow-y-hidden overscroll-auto'
+  // }`}
+      // className="min-h-0 flex-1 space-y-3 overflow-y-auto scrollbar-hide p-3 xl:hidden"
+      className="flex-none space-y-3 overflow-visible p-3 scrollbar-hide xl:hidden"
+      >
         {table.getRowModel().rows.length ? (
           table.getRowModel().rows.map((row) => {
             const role = row.original;

@@ -59,6 +59,6 @@ import { UsersModule } from '../users/users.module';
     WsJwtGuard,
     TicketRepliesGateway,
   ],
-  exports: [TicketRepliesGateway],
+  exports: [TicketRepliesGateway, TicketsService],
 })
 export class TicketsModule {}

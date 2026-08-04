@@ -11,11 +11,12 @@ export enum EventType {
   MEETING = 'meeting',
   MILESTONE = 'milestone',
 }
+import { TimestampEntityWithSoftDelete } from '@harperhelp/interfaces';
 
 @Entity('events')
-export class Event {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+export class Event extends TimestampEntityWithSoftDelete {
+  // @PrimaryGeneratedColumn('uuid')
+  // id: string;
 
   @Column({ type: 'uuid' })
   projectId: string;
@@ -35,9 +36,9 @@ export class Event {
   @Column({ type: 'varchar', length: 20, nullable: true })
   color: string;
 
-  @CreateDateColumn({ name: 'created_at' })
-  createdAt: Date;
+  // @CreateDateColumn({ name: 'created_at' })
+  // createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
-  updatedAt: Date;
+  // @UpdateDateColumn({ name: 'updated_at' })
+  // updatedAt: Date;
 }

@@ -1,8 +1,8 @@
 import { Column, Entity } from 'typeorm';
-import { TimestampEntity } from '@harperhelp/interfaces';
+import { TimestampEntityWithSoftDelete } from '@harperhelp/interfaces';
 
 @Entity('ticket_priorities')
-export class TicketPriority extends TimestampEntity {
+export class TicketPriority extends TimestampEntityWithSoftDelete {
   @Column({ unique: true, length: 60 })
   key: string;
 

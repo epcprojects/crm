@@ -53,6 +53,9 @@ export function forgotPasswordTemplate({
             <p>We received a request to reset your password.</p>
             <p style="margin: 28px 0">
               <a
+                href="${resetLink}" 
+                target="_blank" 
+                rel="noopener noreferrer"
                 style="
                   display: inline-block;
                   background: #000080;

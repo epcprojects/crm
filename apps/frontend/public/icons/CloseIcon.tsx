@@ -1,12 +1,12 @@
 import React from 'react';
 
-const CloseIcon = ({width="20",height="20"}) => {
+const CloseIcon = ({ width = '20', height = '20', fill = 'none' }) => {
   return (
     <svg
       width={width}
       height={height}
       viewBox="0 0 20 20"
-      fill="none"
+      fill={fill}
       xmlns="http://www.w3.org/2000/svg"
     >
       <path

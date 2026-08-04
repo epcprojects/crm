@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PaginationState } from '@tanstack/react-table';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -52,7 +52,7 @@ const TICKETS_VIEW_QUERY_PARAM = 'view';
 const TICKETS_STATUS_QUERY_PARAM = 'status';
 const TICKETS_PRIORITY_QUERY_PARAM = 'priority';
 const TICKETS_PROJECT_QUERY_PARAM = 'project';
-const DEFAULT_TICKETS_STATUS_FILTER = 'Open';
+const DEFAULT_TICKETS_STATUS_FILTER = 'Active';
 
 export default function Page() {
   const router = useRouter();
@@ -167,6 +167,7 @@ export default function Page() {
   const statusFilterOptions = useMemo(
     () => [
       { label: 'All Status', value: 'all' },
+      { label: 'Active', value: 'Active' },
       ...(ticketStatusesQuery.data ?? []).map(mapTicketSettingToDropdownOption),
     ],
     [ticketStatusesQuery.data],
@@ -732,11 +733,53 @@ export default function Page() {
       status: nextViewMode === 'kanban' ? 'all' : undefined,
     });
   };
+  // const ticketsPageScrollRef = useRef<HTMLDivElement | null>(null);
+  // const ticketsSectionRef = useRef<HTMLDivElement | null>(null);
 
+  // const [isTicketsSectionPinned, setIsTicketsSectionPinned] = useState(false);
+  // useEffect(() => {
+  //   const scrollContainer = ticketsPageScrollRef.current;
+  //   const ticketsSection = ticketsSectionRef.current;
+
+  //   if (!scrollContainer || !ticketsSection) {
+  //     return;
+  //   }
+
+  //   const updatePinnedState = () => {
+  //     if (window.innerWidth >= 1280) {
+  //       setIsTicketsSectionPinned(true);
+  //       return;
+  //     }
+
+  //     const containerRect = scrollContainer.getBoundingClientRect();
+  //     const sectionRect = ticketsSection.getBoundingClientRect();
+
+  //     const hasReachedStickyPosition =
+  //       Math.ceil(sectionRect.top) <= Math.ceil(containerRect.top);
+
+  //     setIsTicketsSectionPinned(hasReachedStickyPosition);
+  //   };
+
+  //   updatePinnedState();
+
+  //   scrollContainer.addEventListener('scroll', updatePinnedState, {
+  //     passive: true,
+  //   });
+
+  //   window.addEventListener('resize', updatePinnedState);
+
+  //   return () => {
+  //     scrollContainer.removeEventListener('scroll', updatePinnedState);
+  //     window.removeEventListener('resize', updatePinnedState);
+  //   };
+  // }, []);
   return (
     <>
       <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 py-4">
-        <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
+        <div
+          //  ref={ticketsPageScrollRef}
+          className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden overflow-y-auto overscroll-contain scrollbar-hide xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
+        >
           <div className="shrink-0">
             <DashboardSummaryBanner
               imageSrc="/images/TicketsIcon.svg"
@@ -745,7 +788,12 @@ export default function Page() {
               stats={ticketSummaryStats}
             />
           </div>
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-white p-3 md:p-4">
+          <div
+            // ref={ticketsSectionRef}
+            // className="sticky -top-5 z-20 h-full min-h-0 min-w-0 flex-none overflow-hidden rounded-xl bg-white p-3 md:p-4 xl:static xl:z-auto xl:h-full xl:flex-1"
+            className="flex h-auto min-h-0 min-w-0 flex-none flex-col overflow-visible rounded-xl bg-white p-3 md:p-4 xl:h-full xl:flex-1 xl:overflow-hidden"
+            // className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-white p-3 md:p-4"
+          >
             <PermissionGuard
               permission="tickets.view_list"
               fallback={
@@ -754,17 +802,19 @@ export default function Page() {
                 </div>
               }
             >
-              <div className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-hidden">
-                <div className="flex shrink-0 flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
+              <div
+                className="flex h-auto min-h-0 min-w-0 flex-col gap-4 overflow-visible xl:h-full xl:overflow-hidden"
+                // className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-hidden"
+              >
+                <div className="flex flex-col gap-3 rounded-xl md:flex-row justify-end items-end">
                   {canFilterTickets ? (
-                    <>
-                      <div className="flex flex-row gap-3">
-                        <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 md:max-w-50">
+                    <div className="flex w-full md:flex-row flex-col gap-2 justify-between">
+                      <div className="flex flex-row justify-between w-fit gap-3">
+                        <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 md:max-w-100 md:min-w-80">
                           <div className="flex items-center gap-2">
                             <span className="shrink-0">
                               <SearchIcon fill="#374151" />
                             </span>
-
                             <input
                               type="text"
                               value={searchValue}
@@ -791,7 +841,7 @@ export default function Page() {
                             </button>
                           </div>
                         </div>
-                        <Popover as="div" className="relative xl:hidden">
+                        <Popover as="div" className="block sm:hidden ">
                           {({ open }) => (
                             <>
                               <PopoverButton
@@ -808,7 +858,7 @@ export default function Page() {
                               <PopoverPanel
                                 anchor="bottom end"
                                 transition
-                                className="z-100 mt-2 flex w-56 origin-top-right flex-col gap-3 overflow-visible!  rounded-xl border border-gray-200 bg-white p-3 shadow-[0_14px_44px_rgb(0_0_0/0.14)] outline-none transition duration-150 data-closed:-translate-y-2 data-closed:scale-95 data-closed:opacity-0"
+                                className="z-100 mt-2 flex w-60 origin-top-right flex-col gap-3 overflow-visible!  rounded-xl border border-gray-200 bg-white p-3 shadow-[0_14px_44px_rgb(0_0_0/0.14)] outline-none transition duration-150 data-closed:-translate-y-2 data-closed:scale-95 data-closed:opacity-0"
                               >
                                 <div className="relative w-full overflow-visible">
                                   <Dropdown
@@ -819,6 +869,7 @@ export default function Page() {
                                         project: value,
                                       })
                                     }
+                                    showSearch={true}
                                     placeholder="All Projects"
                                     maxMenuHeight={150}
                                   />
@@ -833,6 +884,7 @@ export default function Page() {
                                         status: value,
                                       })
                                     }
+                                    showSearch={true}
                                     placeholder="All Status"
                                     maxMenuHeight={150}
                                   />
@@ -847,6 +899,7 @@ export default function Page() {
                                         priority: value,
                                       })
                                     }
+                                    showSearch={true}
                                     placeholder="All Priority"
                                     maxMenuHeight={150}
                                   />
@@ -866,14 +919,93 @@ export default function Page() {
                         </Popover>
                       </div>
 
-                      <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+                      <div className="flex  flex-col gap-3 md:flex-row xl:items-center  justify-end">
+                        <Popover
+                          as="div"
+                          className="hidden md:block  2xl:hidden"
+                        >
+                          {({ open }) => (
+                            <>
+                              <PopoverButton
+                                className={`flex h-10 shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium outline-none ${
+                                  open
+                                    ? 'border-primary  text-white'
+                                    : 'border-gray-200 bg-white text-gray-700'
+                                }`}
+                                aria-label="Open filters"
+                              >
+                                <FiltersIcon />
+                              </PopoverButton>
+
+                              <PopoverPanel
+                                anchor="bottom end"
+                                transition
+                                className="z-100 mt-2 flex w-60 origin-top-right flex-col gap-3 overflow-visible!  rounded-xl border border-gray-200 bg-white p-3 shadow-[0_14px_44px_rgb(0_0_0/0.14)] outline-none transition duration-150 data-closed:-translate-y-2 data-closed:scale-95 data-closed:opacity-0"
+                              >
+                                <div className="relative w-full overflow-visible">
+                                  <Dropdown
+                                    options={projectFilterOptions}
+                                    value={selectedProject}
+                                    onChange={(value) =>
+                                      updateTicketsPageFilters({
+                                        project: value,
+                                      })
+                                    }
+                                    showSearch={true}
+                                    placeholder="All Projects"
+                                    maxMenuHeight={150}
+                                  />
+                                </div>
+
+                                <div className="relative w-full overflow-visible">
+                                  <Dropdown
+                                    options={statusFilterOptions}
+                                    value={selectedStatus}
+                                    onChange={(value) =>
+                                      updateTicketsPageFilters({
+                                        status: value,
+                                      })
+                                    }
+                                    showSearch={true}
+                                    placeholder="All Status"
+                                    maxMenuHeight={150}
+                                  />
+                                </div>
+
+                                <div className="relative w-full overflow-visible">
+                                  <Dropdown
+                                    options={priorityFilterOptions}
+                                    value={selectedPriority}
+                                    onChange={(value) =>
+                                      updateTicketsPageFilters({
+                                        priority: value,
+                                      })
+                                    }
+                                    showSearch={true}
+                                    placeholder="All Priority"
+                                    maxMenuHeight={150}
+                                  />
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={clearTicketFilters}
+                                  disabled={!hasActiveTicketFilters}
+                                  className="inline-flex h-10 items-center justify-center rounded-lg border border-gray-200 px-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  Clear Filters
+                                </button>
+                              </PopoverPanel>
+                            </>
+                          )}
+                        </Popover>
                         <div className="hidden xl:flex  items-center rounded-lg border border-gray-200 bg-white">
                           <button
                             type="button"
                             onClick={() => handleViewModeChange('table')}
                             className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
                               viewMode === 'table'
-                                ? 'bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 text-white shadow-sm'
+                                ? 'bg-linear-[271deg] from-aztec-purple  to-cyan-blue text-white shadow-sm'
                                 : 'text-gray-500 hover:bg-gray-50'
                             }`}
                             aria-label="Table view"
@@ -886,7 +1018,7 @@ export default function Page() {
                             onClick={() => handleViewModeChange('kanban')}
                             className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
                               viewMode === 'kanban'
-                                ? 'bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 text-white shadow-sm'
+                                ? 'bg-linear-[271deg] from-aztec-purple  to-cyan-blue text-white shadow-sm'
                                 : 'text-gray-500 hover:bg-gray-50'
                             }`}
                             aria-label="Kanban view"
@@ -895,7 +1027,7 @@ export default function Page() {
                           </button>
                         </div>
 
-                        <div className="w-full hidden xl:block xl:w-44">
+                        <div className="w-full hidden 2xl:block 2xl:w-44">
                           <Dropdown
                             options={projectFilterOptions}
                             value={selectedProject}
@@ -903,11 +1035,13 @@ export default function Page() {
                               updateTicketsPageFilters({ project: value })
                             }
                             placeholder="All Projects"
+                            maxMenuHeight={320}
+                            showSearch={true}
                           />
                         </div>
 
                         {viewMode === 'table' && (
-                          <div className="w-full hidden xl:block xl:w-38">
+                          <div className="w-full hidden 2xl:block 2xl:w-38">
                             <Dropdown
                               options={statusFilterOptions}
                               value={selectedStatus}
@@ -917,42 +1051,127 @@ export default function Page() {
                               placeholder="All Status"
                               minHeight="min-h-70"
                               menuScrollable={false}
+                              showSearch={true}
                             />
                           </div>
                         )}
 
-                        <div className="w-full hidden xl:block xl:w-38">
+                        <div className="w-full hidden 2xl:block 2xl:w-38">
                           <Dropdown
                             options={priorityFilterOptions}
                             value={selectedPriority}
                             onChange={(value) =>
                               updateTicketsPageFilters({ priority: value })
                             }
+                            showSearch={true}
                             placeholder="All Priority"
                           />
                         </div>
 
-                        <button
+                        {/* <button
                           type="button"
                           onClick={clearTicketFilters}
                           disabled={!hasActiveTicketFilters}
-                          className="hidden h-10 shrink-0 items-center justify-center rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 xl:inline-flex"
+                          className="hidden h-10 shrink-0 items-center justify-center rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 2xl:inline-flex"
                         >
                           Clear Filters
-                        </button>
+                        </button> */}
+                        <ThemeButton
+                          type="button"
+                          variant="secondary"
+                          size="md"
+                          onClick={clearTicketFilters}
+                          disabled={!hasActiveTicketFilters}
+                          className="hidden h-10 shrink-0 disabled:cursor-not-allowed disabled:opacity-50 2xl:inline-flex"
+                        >
+                          Clear Filters
+                        </ThemeButton>
 
                         <div className="flex flex-row gap-3 ">
+                          <Popover
+                            as="div"
+                            className="relative hidden md:hidden"
+                          >
+                            {({ open }) => (
+                              <>
+                                <PopoverButton
+                                  className={`flex h-10 shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium outline-none ${
+                                    open
+                                      ? 'border-primary  text-white'
+                                      : 'border-gray-200 bg-white text-gray-700'
+                                  }`}
+                                  aria-label="Open filters"
+                                >
+                                  <FiltersIcon />
+                                </PopoverButton>
+
+                                <PopoverPanel
+                                  anchor="bottom end"
+                                  transition
+                                  className="z-100 mt-2 flex w-60 origin-top-right flex-col gap-3 overflow-visible!  rounded-xl border border-gray-200 bg-white p-3 shadow-[0_14px_44px_rgb(0_0_0/0.14)] outline-none transition duration-150 data-closed:-translate-y-2 data-closed:scale-95 data-closed:opacity-0"
+                                >
+                                  <div className="relative w-full overflow-visible">
+                                    <Dropdown
+                                      options={projectFilterOptions}
+                                      value={selectedProject}
+                                      onChange={(value) =>
+                                        updateTicketsPageFilters({
+                                          project: value,
+                                        })
+                                      }
+                                      placeholder="All Projects"
+                                      maxMenuHeight={150}
+                                      showSearch={true}
+                                    />
+                                  </div>
+
+                                  <div className="relative w-full overflow-visible">
+                                    <Dropdown
+                                      options={statusFilterOptions}
+                                      value={selectedStatus}
+                                      onChange={(value) =>
+                                        updateTicketsPageFilters({
+                                          status: value,
+                                        })
+                                      }
+                                      placeholder="All Status"
+                                      maxMenuHeight={150}
+                                      showSearch={true}
+                                    />
+                                  </div>
+
+                                  <div className="relative w-full overflow-visible">
+                                    <Dropdown
+                                      options={priorityFilterOptions}
+                                      value={selectedPriority}
+                                      onChange={(value) =>
+                                        updateTicketsPageFilters({
+                                          priority: value,
+                                        })
+                                      }
+                                      placeholder="All Priority"
+                                      maxMenuHeight={150}
+                                      showSearch={true}
+                                    />
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={clearTicketFilters}
+                                    disabled={!hasActiveTicketFilters}
+                                    className="inline-flex h-10 items-center justify-center rounded-lg border border-gray-200 px-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    Clear Filters
+                                  </button>
+                                </PopoverPanel>
+                              </>
+                            )}
+                          </Popover>
                           {canCreateTicket ? (
                             <ThemeButton
-                              className="rounded-full w-full"
+                              className="rounded-full w-full xl:flex hidden"
                               variant="primaryGradient"
-                              icon={
-                                <PlusIcon
-                                  fill="#000000"
-                                  width="20"
-                                  height="20"
-                                />
-                              }
+                              icon={<PlusIcon width="20" height="20" />}
                               onClick={() => setCreateTicketOpen(true)}
                             >
                               New Ticket
@@ -962,7 +1181,7 @@ export default function Page() {
                           <ThemeButton
                             className="rounded-full w-full"
                             variant="primaryGradient"
-                            icon={<DownloadIcon />}
+                            icon={<DownloadIcon fill="#ffffff" />}
                             onClick={handleExportTickets}
                             disabled={isExportingTickets}
                           >
@@ -972,11 +1191,14 @@ export default function Page() {
                           </ThemeButton>
                         </div>
                       </div>
-                    </>
+                    </div>
                   ) : null}
                 </div>
 
-                <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+                <div
+                  className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden"
+                  // className="min-h-0 min-w-0 flex-1 overflow-hidden"
+                >
                   {ticketsQuery.isLoading ? (
                     <RecentTicketsTableSkeleton />
                   ) : viewMode === 'kanban' ? (
@@ -1005,6 +1227,7 @@ export default function Page() {
                       initialPageSize={10}
                       pageSizeOptions={[10, 25, 50, 100]}
                       pagination={pagination}
+                      // internalScrollEnabled={isTicketsSectionPinned}
                       onPaginationChange={setPagination}
                       totalRows={ticketsQuery.data?.meta.total ?? 0}
                       manualPagination
@@ -1020,6 +1243,16 @@ export default function Page() {
             </PermissionGuard>
           </div>
         </div>
+        {canCreateTicket ? (
+          <button
+            type="button"
+            onClick={() => setCreateTicketOpen(true)}
+            className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 flex h-10 w-10 items-center justify-center rounded-full bg-linear-to-l from-royal-blue to-crystal-blue text-white shadow-[0_10px_30px_rgb(48_79_253/0.35)] transition hover:opacity-90 active:scale-95 xl:hidden"
+            aria-label="Create new ticket"
+          >
+            <PlusIcon fill="#ffffff" width="24" height="24" />
+          </button>
+        ) : null}
       </div>
 
       <CreateTicketModal
@@ -1057,6 +1290,7 @@ type ApiDashboardTicket = {
   id: string;
   ticketRefNo?: string;
   createdAt: string;
+  dueDate: string;
   title: string;
   project: {
     id: string;
@@ -1290,6 +1524,7 @@ function mapApiDashboardTicketToRecentTicket(
       initials: getInitials(ticket.project.name),
       brandColor: ticket.project?.brandColor ?? '#31d81b',
     },
+    dueDate: ticket.dueDate ? formatTicketDate(ticket.dueDate) : '--',
     status: statusLabel,
     statusColor: ticket.status?.color,
     priority: priorityLabel,

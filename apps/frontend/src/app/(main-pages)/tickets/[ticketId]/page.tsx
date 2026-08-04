@@ -8,7 +8,7 @@ import {
   useRouter,
   useSearchParams,
 } from 'next/navigation';
-import DOMPurify from 'isomorphic-dompurify';
+import DOMPurify from 'dompurify';
 import TicketRepliesPanel from '../../../../components/discussion/TicketRepliesPanel';
 import AppModal, {
   ModalPosition,
@@ -32,7 +32,6 @@ import {
 import { usePermissions } from '../../../providers/PermissionProvider';
 import { useAppSelector } from '../../../Redux/store';
 import {
-  CheckMarkCircleIcon,
   DownloadIcon,
   EditIcon,
   EyeOpenedIcon,
@@ -53,6 +52,8 @@ import { eventEmitter } from '../../../../lib/event-emitter';
 import { validateAttachments } from '../../../../lib/attachments';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import RichTextEditor from 'apps/frontend/src/components/RichTextEditor';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import ThemeButton from 'apps/frontend/src/components/ui/ThemeButton';
 const MAX_DESCRIPTION_LENGTH = 4000;
 type GalleryImage = {
   attachmentId: string;
@@ -85,12 +86,16 @@ export default function TicketDetailPage() {
   const canViewTicketDetail = hasPermission('tickets.view_detail');
   const canViewReplies = hasPermission('ticket_replies.view');
   const canPostReplies = hasPermission('ticket_replies.post');
+  const canEditReplies = hasPermission('ticket_replies.edit');
+  const canDeleteReplies = hasPermission('ticket_replies.delete');
   const canAttachReplyFiles = hasPermission('ticket_replies.attach_file');
   const canEditStatus = hasPermission('tickets.edit_status');
   const canEditPriority = hasPermission('tickets.edit_priority');
   const canEditDueDate = hasPermission('tickets.edit_due_date');
   const canViewInternalChatBtn = hasPermission('tickets.internal_chat');
-  const canEditTicketContent = !isExternalUser;
+  const canEditTitleDescription = hasPermission(
+    'tickets.edit_title_description',
+  );
 
   const fallbackTicket = useMemo(() => getTicketById(ticketId), [ticketId]);
 
@@ -254,6 +259,105 @@ export default function TicketDetailPage() {
       );
     },
   });
+  const updateReplyMutation = useMutation({
+    mutationFn: async ({
+      replyId,
+      message,
+    }: {
+      replyId: string;
+      message: string;
+    }) => {
+      const formData = new FormData();
+      formData.append('message', message.trim());
+
+      const response = await fetch(
+        `/api/tickets/${ticketId}/projects/${projectId}/reply/${replyId}`,
+        {
+          method: 'PUT',
+          body: formData,
+        },
+      );
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const errorMessage =
+          Array.isArray(data?.message) && data.message.length
+            ? data.message.join(', ')
+            : data?.message || 'Failed to update reply.';
+        throw new Error(errorMessage);
+      }
+
+      return data;
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['ticket-replies', ticketId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'ticket-summary'],
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: projectsQueryKey,
+          refetchType: 'all',
+        }),
+      ]);
+      appToast.success('Reply updated successfully.');
+    },
+    onError: (error) => {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to update reply.',
+      );
+    },
+  });
+  const deleteReplyMutation = useMutation({
+    mutationFn: async ({ replyId }: { replyId: string }) => {
+      const response = await fetch(
+        `/api/tickets/${ticketId}/projects/${projectId}/reply/${replyId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Accept: 'application/json',
+          },
+        },
+      );
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const errorMessage =
+          Array.isArray(data?.message) && data.message.length
+            ? data.message.join(', ')
+            : data?.message || 'Failed to delete reply.';
+        throw new Error(errorMessage);
+      }
+
+      return data;
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['ticket-replies', ticketId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'ticket-summary'],
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: projectsQueryKey,
+          refetchType: 'all',
+        }),
+      ]);
+      appToast.success('Reply deleted successfully.');
+    },
+    onError: (error) => {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to delete reply.',
+      );
+    },
+  });
 
   const ticket = ticketDetailQuery.data ?? fallbackTicket;
   const [chatDrawerChannel, setChatDrawerChannel] =
@@ -262,15 +366,19 @@ export default function TicketDetailPage() {
   //   useState<ConversationView>('replies');
   const [hasUnreadInternalChat, setHasUnreadInternalChat] = useState(false);
   const isChatDrawerOpen = Boolean(chatDrawerChannel);
+  const internalChatParam = searchParams.get('internal');
+  const shouldDefaultToInternalChat = false;
   const isInternalChatActive =
-    searchParams.get('internal') === 'true' && canViewInternalChatBtn;
+    canViewInternalChatBtn &&
+    (internalChatParam === 'true' ||
+      (internalChatParam !== 'false' && shouldDefaultToInternalChat));
   const updateInternalChatParam = (isActive: boolean) => {
     const nextSearchParams = new URLSearchParams(searchParams.toString());
 
-    if (isActive) {
-      nextSearchParams.set('internal', 'true');
-    } else {
+    if (isActive === shouldDefaultToInternalChat) {
       nextSearchParams.delete('internal');
+    } else {
+      nextSearchParams.set('internal', isActive ? 'true' : 'false');
     }
 
     const nextQuery = nextSearchParams.toString();
@@ -285,6 +393,7 @@ export default function TicketDetailPage() {
     sendMessage: sendInternalChatMessage,
     markRead: markInternalChatRead,
     deleteMessage: deleteInternalChatMessage,
+    updateMessage: updateInternalChatMessage,
   } = useTicketChat({
     projectId: isInternalChatActive ? projectId : '',
     ticketId: isInternalChatActive ? ticketId : '',
@@ -297,6 +406,7 @@ export default function TicketDetailPage() {
     sendMessage: sendExternalChatMessage,
     markRead: markExternalChatRead,
     deleteMessage: deleteExternalChatMessage,
+    updateMessage: updateExternalChatMessage,
   } = useTicketChat({
     projectId:
       isChatDrawerOpen && chatDrawerChannel === 'external' ? projectId : '',
@@ -324,11 +434,16 @@ export default function TicketDetailPage() {
 
   const [isSendingChatMessage, setIsSendingChatMessage] = useState(false);
   const [deletingChatMessageId, setDeletingChatMessageId] = useState('');
+  const [deletingTicketReplyId, setDeletingTicketReplyId] = useState('');
+  const [editingChatMessageId, setEditingChatMessageId] = useState('');
+  const [editingTicketReplyId, setEditingTicketReplyId] = useState('');
   const [chatMessagePendingDelete, setChatMessagePendingDelete] = useState<{
     id: string;
     message: string;
     channel: ChatChannel;
   } | null>(null);
+  const [ticketReplyPendingDelete, setTicketReplyPendingDelete] =
+    useState<DiscussionReply | null>(null);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [activeGalleryIndex, setActiveGalleryIndex] = useState<number | null>(
     null,
@@ -728,13 +843,13 @@ export default function TicketDetailPage() {
           setHasUnreadInternalChat(true);
         }
 
-        appToast.info(
-          getIncomingChatToastMessage(payload.channel, payload.message),
-          {
-            position: 'top-right',
-            toastId: `ticket-chat-${payload.channel}-${payload.message.id}`,
-          },
-        );
+        // appToast.info(
+        //   getIncomingChatToastMessage(payload.channel, payload.message),
+        //   {
+        //     position: 'top-right',
+        //     toastId: `ticket-chat-${payload.channel}-${payload.message.id}`,
+        //   },
+        // );
       };
 
       socket.on('connect', joinUnreadRooms);
@@ -924,8 +1039,6 @@ export default function TicketDetailPage() {
     );
   };
 
-  console.log('liveReplies' + liveReplies);
-
   if (!canViewTicketDetail) {
     return (
       <div className="space-y-4 mt-8">
@@ -1042,6 +1155,38 @@ export default function TicketDetailPage() {
     });
   };
 
+  const handleEditTicketReply = async ({
+    reply,
+    message,
+  }: {
+    reply: DiscussionReply;
+    message: string;
+  }) => {
+    try {
+      setEditingTicketReplyId(reply.id);
+
+      setLiveReplies((current) =>
+        current.map((currentReply) =>
+          currentReply.id === reply.id
+            ? {
+                ...currentReply,
+                message: message.trim(),
+                isEdited: true,
+                updatedAt: new Date().toISOString(),
+              }
+            : currentReply,
+        ),
+      );
+
+      await updateReplyMutation.mutateAsync({
+        replyId: reply.id,
+        message,
+      });
+    } finally {
+      setEditingTicketReplyId('');
+    }
+  };
+
   const handleSubmitChatMessage = async ({
     message,
     attachments,
@@ -1113,12 +1258,13 @@ export default function TicketDetailPage() {
   };
 
   const handleStartEditingContent = () => {
-    if (!canEditTicketContent) {
+    if (!canEditTitleDescription) {
       return;
     }
 
     setTitleDraft(ticket.title);
     setDescriptionDraft(ticket.description ?? '');
+    setIsDescriptionExpanded(false);
     setIsEditingTitle(true);
     setIsEditingDescription(true);
   };
@@ -1126,12 +1272,13 @@ export default function TicketDetailPage() {
   const handleCancelEditingContent = () => {
     setTitleDraft(ticket.title);
     setDescriptionDraft(ticket.description ?? '');
+    setIsDescriptionExpanded(false);
     setIsEditingTitle(false);
     setIsEditingDescription(false);
   };
 
   const handleSaveTicketContent = async () => {
-    if (!canEditTicketContent) {
+    if (!canEditTitleDescription) {
       return;
     }
 
@@ -1145,6 +1292,7 @@ export default function TicketDetailPage() {
     }
 
     if (nextTitle === ticket.title && nextDescription === currentDescription) {
+      setIsDescriptionExpanded(false);
       setIsEditingTitle(false);
       setIsEditingDescription(false);
       return;
@@ -1161,6 +1309,7 @@ export default function TicketDetailPage() {
       }),
     );
 
+    setIsDescriptionExpanded(false);
     setIsEditingTitle(false);
     setIsEditingDescription(false);
   };
@@ -1170,6 +1319,10 @@ export default function TicketDetailPage() {
       ...reply,
       channel: isInternalChatActive ? 'internal' : 'external',
     });
+  };
+
+  const handleDeleteTicketReply = (reply: DiscussionReply) => {
+    setTicketReplyPendingDelete(reply);
   };
 
   const handleConfirmDeleteChatMessage = async () => {
@@ -1192,6 +1345,64 @@ export default function TicketDetailPage() {
     } finally {
       setDeletingChatMessageId('');
       setChatMessagePendingDelete(null);
+    }
+  };
+
+  const handleConfirmDeleteTicketReply = async () => {
+    if (!ticketReplyPendingDelete) {
+      return;
+    }
+
+    const replyId = ticketReplyPendingDelete.id;
+
+    try {
+      setDeletingTicketReplyId(replyId);
+      setLiveReplies((current) =>
+        current.filter((reply) => reply.id !== replyId),
+      );
+      await deleteReplyMutation.mutateAsync({ replyId });
+      setTicketReplyPendingDelete(null);
+    } catch (error) {
+      await queryClient.invalidateQueries({
+        queryKey: ['ticket-replies', ticketId],
+      });
+      throw error;
+    } finally {
+      setDeletingTicketReplyId('');
+    }
+  };
+
+  const handleEditChatMessage = async ({
+    reply,
+    message,
+    updateMessage,
+  }: {
+    reply: DiscussionReply;
+    message: string;
+    updateMessage: (
+      messageId: string,
+      payload: {
+        message: string;
+        messageType?: 'text' | 'attachment';
+        attachmentUrls?: string[];
+        attachmentName?: string;
+        attachmentSize?: number;
+      },
+    ) => Promise<ChatMessage>;
+  }) => {
+    try {
+      setEditingChatMessageId(reply.id);
+      await updateMessage(reply.id, {
+        message: message.trim(),
+      });
+      appToast.success('Message updated successfully.');
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to update message.',
+      );
+      throw error;
+    } finally {
+      setEditingChatMessageId('');
     }
   };
   const handleViewAttachment = (
@@ -1280,14 +1491,17 @@ export default function TicketDetailPage() {
 
   return (
     <div className="relative z-100 h-full xl:h-dvh overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0">
-      <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden  xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
-        <div className="relative flex w-full flex-col gap-2 overflow-hidden rounded-xl bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat px-4 py-4 xl:flex-row xl:items-center xl:gap-4  xl:px-7.5 xl:py-6">
+      <div
+        className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
+        // className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden  xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
+      >
+        <div className="relative shrink-0 flex w-full flex-col gap-2 overflow-hidden rounded-xl bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat px-4 pt-4 pb-2 xl:flex-row xl:items-center xl:gap-4  xl:px-7.5 xl:py-6">
           {/* Background overlay */}
           <div
             className="absolute inset-0 bg-black/30 z-10"
             aria-hidden="true"
           />
-          <div className="relative flex min-w-0 items-center gap-3  z-20  w-full">
+          <div className="relative flex xl:flex-row xl:items-center items-start flex-col min-w-0  gap-3  z-20  w-full">
             <button className="mr-3" onClick={() => router.back()}>
               <Image
                 alt={''}
@@ -1298,7 +1512,7 @@ export default function TicketDetailPage() {
               />
             </button>
 
-            <div className="flex flex-wrap gap-4 w-full sm:grid sm:grid-cols-5">
+            <div className="hidden  gap-4 w-full xl:grid sm:grid-cols-5">
               <MetaItem
                 label="Ticket ID"
                 value={`${ticket.ticketRefNo ?? ticket.id}`}
@@ -1316,7 +1530,7 @@ export default function TicketDetailPage() {
                 value={ticket.project.name}
               />
 
-              {selectedDueDate ? (
+              {ticket.dueDate ? (
                 <div>
                   <span className="block text-sm text-gray-300">Due Date</span>
 
@@ -1325,7 +1539,7 @@ export default function TicketDetailPage() {
                   >
                     <div className="flex w-full items-center gap-3">
                       <p className="pt-px text-sm font-medium">
-                        {selectedDueDate}
+                        {ticket.dueDate}
                       </p>
 
                       {isDueDateOverdue ? (
@@ -1337,6 +1551,51 @@ export default function TicketDetailPage() {
                   </div>
                 </div>
               ) : null}
+            </div>
+            <div className="xl:hidden  flex flex-col gap-4 w-full">
+              <div className="grid grid-cols-3 gap-4">
+                <MetaItem
+                  label="Ticket ID"
+                  value={`${ticket.ticketRefNo ?? ticket.id}`}
+                />
+
+                <MetaItem label="Created on" value={ticket.date} />
+                <MetaItem
+                  label="Created By"
+                  value={(ticket as any).createdByDetail?.name ?? 'Unknown'}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <MetaItem
+                  label="Project"
+                  hideTooltip={false}
+                  value={ticket.project.name}
+                />
+
+                {ticket.dueDate ? (
+                  <div className="flex flex-col">
+                    <span className="block text-sm text-gray-300 leading-none">
+                      Due Date
+                    </span>
+
+                    <div
+                      className={`flex h-fit items-start gap-2 rounded-lg  text-white`}
+                    >
+                      <div className="flex w-full items-center gap-3">
+                        <p className="pt-px text-sm font-medium ">
+                          {ticket.dueDate}
+                        </p>
+
+                        {isDueDateOverdue ? (
+                          <p className="rounded-full bg-[#F04438] px-2.5 py-0.5 text-sm font-medium text-white">
+                            Overdue
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
           <div className="flex  items-center gap-2 relative z-20">
@@ -1372,13 +1631,31 @@ export default function TicketDetailPage() {
           </div>
         </div>
 
-        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain  scrollbar-hide xl:overflow-hidden ">
+        <div
+          // className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain  scrollbar-hide xl:overflow-hidden "
+          className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden"
+        >
           <div className="grid h-auto min-h-0 min-w-0 grid-cols-1 gap-4 overflow-visible xl:h-full xl:grid-cols-12 xl:grid-rows-[minmax(0,1fr)] xl:overflow-hidden">
-            <div className="flex min-w-0 flex-col space-y-4 xl:col-span-9">
+            <div
+              className="flex h-auto min-w-0 flex-col space-y-4 overflow-visible xl:col-span-9 xl:h-full xl:min-h-0 xl:overflow-hidden"
+              // className="flex min-w-0 flex-col space-y-4 xl:col-span-9"
+            >
               <section className="rounded-xl border border-gray-200 bg-white p-3  md:p-5">
                 <div className=" relative">
                   <div className="mb-2 flex absolute top-0 inset-e-0 items-start justify-end">
-                    {canEditTicketContent ? (
+                    {canEditTitleDescription &&
+                    !isEditingTitle &&
+                    !isEditingDescription ? (
+                      <button
+                        type="button"
+                        onClick={handleStartEditingContent}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-gray-700 transition hover:bg-gray-50"
+                        aria-label="Edit ticket content"
+                      >
+                        <EditIcon />
+                      </button>
+                    ) : null}
+                    {/* {canEditTitleDescription ? (
                       <button
                         type="button"
                         disabled={updateTicketMutation.isPending}
@@ -1408,7 +1685,7 @@ export default function TicketDetailPage() {
                           <EditIcon />
                         )}
                       </button>
-                    ) : null}
+                    ) : null} */}
                   </div>
                   {isEditingTitle ? (
                     <div className="mr-10">
@@ -1474,9 +1751,34 @@ export default function TicketDetailPage() {
                         disabled={updateTicketMutation.isPending}
                         showCharacterCount
                       />
+                      <div className="mt-4 flex  justify-end gap-3">
+                        <ThemeButton
+                          type="button"
+                          variant="secondary"
+                          size="md"
+                          onClick={handleCancelEditingContent}
+                          disabled={updateTicketMutation.isPending}
+                          className="disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Discard
+                        </ThemeButton>
+
+                        <ThemeButton
+                          type="button"
+                          variant="primaryGradient"
+                          size="md"
+                          onClick={() => void handleSaveTicketContent()}
+                          disabled={updateTicketMutation.isPending}
+                          className="disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {updateTicketMutation.isPending
+                            ? 'Updating...'
+                            : 'Update'}
+                        </ThemeButton>
+                      </div>
                     </div>
                   ) : (
-                    <div className="mt-2 w-full text-left">
+                    <div className="mt-2 w-full text-left max-h-52 overflow-y-auto tiny-scrollbar">
                       {hasDescriptionContent ? (
                         <>
                           <div
@@ -1516,7 +1818,10 @@ export default function TicketDetailPage() {
                   )}
                 </div>
               </section>
-              <div className="min-h-0 xl:flex-1 xl:overflow-hidden">
+              <div
+                // className="min-h-0 xl:flex-1 xl:overflow-hidden"
+                className="h-auto min-h-0 flex-none overflow-visible xl:h-full xl:flex-1 xl:overflow-hidden"
+              >
                 {canViewReplies || canViewInternalChatBtn ? (
                   <TicketRepliesPanel
                     title={
@@ -1651,23 +1956,49 @@ export default function TicketDetailPage() {
                     currentUserId={currentUserId}
                     onDeleteReply={
                       isInternalChatActive && canViewInternalChatBtn
-                        ? handleDeleteChatMessage
-                        : undefined
+                        ? canDeleteReplies
+                          ? handleDeleteChatMessage
+                          : undefined
+                        : canDeleteReplies
+                          ? handleDeleteTicketReply
+                          : undefined
+                    }
+                    onEditReply={
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? canEditReplies
+                          ? ({ reply, message }) =>
+                              handleEditChatMessage({
+                                reply,
+                                message,
+                                updateMessage: updateInternalChatMessage,
+                              })
+                          : undefined
+                        : canEditReplies
+                          ? handleEditTicketReply
+                          : undefined
                     }
                     deletingReplyId={
                       isInternalChatActive && canViewInternalChatBtn
                         ? deletingChatMessageId
-                        : undefined
+                        : deletingTicketReplyId
+                    }
+                    editingReplyId={
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? editingChatMessageId
+                        : editingTicketReplyId
                     }
                   />
                 ) : null}
               </div>
             </div>
-            <aside className="min-h-0 min-w-0 space-y-4 overflow-y-auto scrollbar-hide  xl:col-span-3 xl:h-full">
+            <aside
+              className="h-auto min-h-0 min-w-0 space-y-4 overflow-visible scrollbar-hide xl:col-span-3 xl:h-full xl:overflow-y-auto"
+              // className="min-h-0 min-w-0 space-y-4 overflow-y-auto scrollbar-hide  xl:col-span-3 xl:h-full"
+            >
               {!isExternalUser ? (
                 <section className="rounded-xl border border-gray-200 bg-white">
                   <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 md:text-base">
-                    Status & Priority
+                    Actions
                   </h3>
 
                   <div className="space-y-2 p-3 sm:p-4">
@@ -1701,21 +2032,30 @@ export default function TicketDetailPage() {
                         applyHeight={false}
                       />
                     </div>
-
-                    {/* <div className="grid items-center md:grid-cols-2 gap-4">
-                      <span className="text-sm text-black font-normal">
-                        Assignee
-                      </span>
-
-                      <Dropdown
-                        options={assigneeOptions}
-                        value={selectedAssigneeId}
-                        disabled={
-                          updateTicketMutation.isPending || !canEditAssignee
-                        }
-                        onChange={handleAssigneeChange}
-                      />
-                    </div> */}
+                    {!isExternalUser ? (
+                      <section className="grid items-center md:grid-cols-2 gap-4">
+                        <span className="text-sm text-black font-normal">
+                          Due Date
+                        </span>
+                        <div className="">
+                          <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-1.5">
+                            <input
+                              type="date"
+                              value={selectedDueDate}
+                              min={minimumDueDate}
+                              disabled={
+                                updateTicketMutation.isPending ||
+                                !canEditDueDate
+                              }
+                              onChange={(event) =>
+                                handleDueDateChange(event.target.value)
+                              }
+                              className="w-full bg-transparent text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:text-gray-400"
+                            />
+                          </label>
+                        </div>
+                      </section>
+                    ) : null}
                   </div>
                 </section>
               ) : null}
@@ -1859,37 +2199,6 @@ export default function TicketDetailPage() {
               </section>
 
               {!isExternalUser ? (
-                <section className="rounded-xl border border-gray-200 bg-white ">
-                  <div className="flex items-center justify-between border-b border-gray-200 px-3 py-3 sm:px-4">
-                    <h3 className="text-sm font-semibold text-gray-900 md:text-base">
-                      Due Date
-                    </h3>
-                  </div>
-
-                  <div className="p-3 sm:p-4 grid md:grid-cols-2 items-center gap-4">
-                    {/* <p className="mb-2 text-xs font-medium tracking-wide text-gray-500">
-                      {selectedDueDate ? 'Select date' : 'No due date'}
-                    </p> */}
-                    {/* <p className="text-sm font-normal text-black">Overdue</p> */}
-                    <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2.5">
-                      <input
-                        type="date"
-                        value={selectedDueDate}
-                        min={minimumDueDate}
-                        disabled={
-                          updateTicketMutation.isPending || !canEditDueDate
-                        }
-                        onChange={(event) =>
-                          handleDueDateChange(event.target.value)
-                        }
-                        className="w-full bg-transparent text-base text-gray-900 outline-none disabled:cursor-not-allowed disabled:text-gray-400"
-                      />
-                    </label>
-                  </div>
-                </section>
-              ) : null}
-
-              {!isExternalUser ? (
                 <section className="rounded-xl border border-gray-200 overflow-hidden bg-white">
                   <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 sm:px-4 md:text-base">
                     People
@@ -1970,7 +2279,15 @@ export default function TicketDetailPage() {
               requireMessage={false}
               currentUserId={currentUserId}
               onDeleteReply={handleDeleteChatMessage}
+              onEditReply={({ reply, message }) =>
+                handleEditChatMessage({
+                  reply,
+                  message,
+                  updateMessage: updateExternalChatMessage,
+                })
+              }
               deletingReplyId={deletingChatMessageId}
+              editingReplyId={editingChatMessageId}
             />
           </div>
         </div>
@@ -2021,6 +2338,27 @@ export default function TicketDetailPage() {
         variant="danger"
         isSubmitting={deleteProjectFileMutation.isPending}
         onConfirm={handleConfirmDeleteAttachment}
+      />
+      <ConfirmActionModal
+        isOpen={Boolean(ticketReplyPendingDelete)}
+        onClose={() => {
+          if (deletingTicketReplyId) {
+            return;
+          }
+
+          setTicketReplyPendingDelete(null);
+        }}
+        title="Delete Reply?"
+        message={
+          ticketReplyPendingDelete?.message.trim()
+            ? 'Are you sure you want to delete this reply? This action cannot be undone.'
+            : 'Are you sure you want to delete this attachment reply? This action cannot be undone.'
+        }
+        confirmLabel="Yes, Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isSubmitting={Boolean(deletingTicketReplyId)}
+        onConfirm={handleConfirmDeleteTicketReply}
       />
 
       <ImageGalleryLightbox
@@ -2313,7 +2651,7 @@ function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
     },
     date: formatTicketDate(ticket.createdAt),
     description: ticket.description,
-    dueDate: ticket.dueDate ? formatTicketDate(ticket.dueDate) : 'No due date',
+    dueDate: ticket.dueDate ? formatTicketDate(ticket.dueDate) : null,
     dueDateValue: ticket.dueDate ?? '',
     assigneeId: ticket.assigneeId ?? '',
     reporterId: ticket.reporterId ?? '',
@@ -2367,6 +2705,12 @@ function mapChatMessageToDiscussionReply(message: ChatMessage) {
   return {
     id: message.id,
     authorId: message.senderId,
+    updatedAt: message.updatedAt,
+    isEdited: Boolean(
+      message.updatedAt &&
+        Math.floor(new Date(message.updatedAt).getTime() / 1000) >
+          Math.floor(new Date(message.createdAt).getTime() / 1000),
+    ),
     author: {
       name: authorName,
       initials: getInitials(authorName),
@@ -2412,6 +2756,14 @@ function mapApiTicketReplyToDiscussionReply(reply: ApiTicketReply) {
   return {
     id: reply.id,
     authorId,
+    updatedAt: reply.updatedAt,
+    isEdited: Boolean(
+      reply.updatedAt &&
+        Math.floor(new Date(reply.updatedAt).getTime() / 1000) >
+          Math.floor(
+            new Date(reply.createdAt ?? reply.updatedAt).getTime() / 1000,
+          ),
+    ),
     author: {
       name: authorName,
       initials: getInitials(authorName),

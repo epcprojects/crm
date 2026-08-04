@@ -66,6 +66,7 @@ export enum NotificationType {
   MEMBER_JOINED = 'member_joined',
   MEMBER_LEFT = 'member_left',
   MEMBER_UPDATED = 'member_updated',
+  INTERNAL_MESSAGE = 'internal_message',
 }
 
 export enum NotificationEntityType {
@@ -75,6 +76,7 @@ export enum NotificationEntityType {
   THREAD_MESSAGE = 'thread_message',
   EVENT = 'event',
   MEMBER = 'member',
+  INTERNAL_MESSAGE = 'internal_message',
 }
 
 export * from './tickets.types';

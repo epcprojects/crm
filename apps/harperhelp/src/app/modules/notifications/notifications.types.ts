@@ -13,6 +13,7 @@ export enum EmailEventType {
 export interface EmailRecipient {
   email: string;
   name: string;
+  isInvitationAccepted?: boolean; // optional property to indicate if the invite is accepted
 }
 
 // Payload shapes per event
