@@ -31,7 +31,7 @@ export default function EmptyState({
       {title || description ? (
         <div className="flex flex-col items-center gap-1">
           {title ? (
-            <p className="text-lg font-medium text-gray-700">{title}</p>
+            <p className="text-lg font-medium text-gray-800">{title}</p>
           ) : null}
 
           {description ? (
