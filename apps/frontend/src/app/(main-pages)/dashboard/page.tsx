@@ -137,6 +137,8 @@ const RECENT_TICKETS_PRIORITY_QUERY_PARAM = 'priority';
 const TICKETS_PROJECT_QUERY_PARAM = 'project';
 const DASHBOARD_TABS_QUERY_PARAM = 'dashboardTab';
 const DASHBOARD_ACTIVITY_PAGE_SIZE = 20;
+const DASHBOARD_UPCOMING_TICKETS_PAGE_SIZE = 50;
+const DASHBOARD_CRITICAL_TICKETS_PAGE_SIZE = 50;
 
 export default function Page() {
   const router = useRouter();
@@ -284,19 +286,30 @@ export default function Page() {
 
     enabled: canViewRecentTickets,
   });
-  const criticalTicketsQuery = useQuery({
+  const criticalTicketsQuery = useInfiniteQuery({
     queryKey: ['dashboard', 'critical-tickets'],
-    queryFn: () =>
+    queryFn: ({ pageParam }) =>
       fetchDashboardTickets({
-        page: 1,
-        limit: 10,
+        page: Number(pageParam ?? 1),
+        limit: DASHBOARD_CRITICAL_TICKETS_PAGE_SIZE,
         priorityKey: 'Critical',
+        statusKey: 'Active',
       }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.meta.hasNext ? lastPage.meta.page + 1 : undefined,
     enabled: canViewUpcoming,
   });
-  const upcomingTicketsQuery = useQuery({
+  const upcomingTicketsQuery = useInfiniteQuery({
     queryKey: ['dashboard', 'upcoming'],
-    queryFn: fetchUpcomingTickets,
+    queryFn: ({ pageParam }) =>
+      fetchUpcomingTickets(
+        Number(pageParam ?? 1),
+        DASHBOARD_UPCOMING_TICKETS_PAGE_SIZE,
+      ),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.meta.hasNext ? lastPage.meta.page + 1 : undefined,
     enabled: canViewUpcoming,
   });
   const updateProjectMutation = useUpdateProjectMutation();
@@ -306,26 +319,33 @@ export default function Page() {
     () => createTicketProjectOptions(projectNamesQuery.data ?? []),
     [projectNamesQuery.data],
   );
+  const criticalTickets = useMemo(
+    () =>
+      (criticalTicketsQuery.data?.pages ?? []).flatMap((page) => page.items),
+    [criticalTicketsQuery.data?.pages],
+  );
+  const upcomingTickets = useMemo(
+    () =>
+      (upcomingTicketsQuery.data?.pages ?? []).flatMap((page) => page.items),
+    [upcomingTicketsQuery.data?.pages],
+  );
+
   const dashboardTicketTabs = useMemo<TicketTab[]>(
     () =>
       ticketTabs.map((tab) =>
         tab.key === 'upcoming'
           ? {
               ...tab,
-              tickets: (upcomingTicketsQuery.data ?? []).map(
-                mapApiDashboardTicketToTicketListItem,
-              ),
+              tickets: upcomingTickets.map(mapApiDashboardTicketToTicketListItem),
             }
           : tab.key === 'critical'
             ? {
                 ...tab,
-                tickets: (criticalTicketsQuery.data?.items ?? []).map(
-                  mapRecentTicketToTicketListItem,
-                ),
+                tickets: criticalTickets.map(mapRecentTicketToTicketListItem),
               }
             : tab,
       ),
-    [criticalTicketsQuery.data?.items, upcomingTicketsQuery.data],
+    [criticalTickets, upcomingTickets],
   );
 
   const updateRecentTicketsFilters = ({
@@ -732,6 +752,31 @@ export default function Page() {
                 tabs={dashboardTicketTabs}
                 activeTabKey={selectedDashboardTab}
                 onActiveTabChange={updateDashboardTab}
+                hasNextPage={
+                  selectedDashboardTab === 'upcoming'
+                    ? Boolean(upcomingTicketsQuery.hasNextPage)
+                    : selectedDashboardTab === 'critical'
+                      ? Boolean(criticalTicketsQuery.hasNextPage)
+                      : false
+                }
+                isFetchingNextPage={
+                  selectedDashboardTab === 'upcoming'
+                    ? upcomingTicketsQuery.isFetchingNextPage
+                    : selectedDashboardTab === 'critical'
+                      ? criticalTicketsQuery.isFetchingNextPage
+                      : false
+                }
+                onLoadMore={
+                  selectedDashboardTab === 'upcoming'
+                    ? () => {
+                        void upcomingTicketsQuery.fetchNextPage();
+                      }
+                    : selectedDashboardTab === 'critical'
+                    ? () => {
+                        void criticalTicketsQuery.fetchNextPage();
+                      }
+                    : undefined
+                }
                 // internalScrollEnabled={isUpcomingSectionPinned}
                 onTicketClick={
                   canViewTicketDetail
@@ -922,6 +967,7 @@ export default function Page() {
                                       project: value,
                                     })
                                   }
+                                  showSearch={true}
                                   placeholder="All Projects"
                                   maxMenuHeight={150}
                                 />
@@ -935,6 +981,7 @@ export default function Page() {
                                       status: value,
                                     })
                                   }
+                                  showSearch={true}
                                   placeholder="All Status"
                                   maxMenuHeight={150}
                                 />
@@ -948,6 +995,7 @@ export default function Page() {
                                       priority: value,
                                     })
                                   }
+                                  showSearch={true}
                                   placeholder="All Priority"
                                   maxMenuHeight={150}
                                 />
@@ -1860,8 +1908,16 @@ type ApiDashboardTicketsResponse = {
   meta: DashboardTicketsResponse['meta'];
 };
 
-async function fetchUpcomingTickets(): Promise<ApiDashboardTicket[]> {
-  const response = await fetch('/api/dashboard/upcoming', {
+async function fetchUpcomingTickets(
+  page = 1,
+  limit = DASHBOARD_UPCOMING_TICKETS_PAGE_SIZE,
+): Promise<ApiDashboardTicketsResponse> {
+  const searchParams = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+
+  const response = await fetch(`/api/dashboard/upcoming?${searchParams.toString()}`, {
     method: 'GET',
     headers: {
       Accept: 'application/json',
@@ -1870,19 +1926,22 @@ async function fetchUpcomingTickets(): Promise<ApiDashboardTicket[]> {
   });
 
   const payload = (await response.json().catch(() => null)) as
-    | ApiDashboardTicket[]
+    | ApiDashboardTicketsResponse
     | { message?: string }
     | null;
 
-  if (!response.ok || !Array.isArray(payload)) {
+  if (!response.ok || !isApiDashboardTicketsResponse(payload)) {
     throw new Error(
-      !Array.isArray(payload)
+      !isApiDashboardTicketsResponse(payload)
         ? payload?.message || 'Failed to fetch upcoming tickets.'
         : 'Failed to fetch upcoming tickets.',
     );
   }
 
-  return payload;
+  return {
+    items: payload.items,
+    meta: payload.meta,
+  };
 }
 
 async function fetchDashboardActivity(
