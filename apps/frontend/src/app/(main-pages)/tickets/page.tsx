@@ -869,6 +869,7 @@ export default function Page() {
                                         project: value,
                                       })
                                     }
+                                    showSearch={true}
                                     placeholder="All Projects"
                                     maxMenuHeight={150}
                                   />
@@ -883,6 +884,7 @@ export default function Page() {
                                         status: value,
                                       })
                                     }
+                                    showSearch={true}
                                     placeholder="All Status"
                                     maxMenuHeight={150}
                                   />
@@ -897,6 +899,7 @@ export default function Page() {
                                         priority: value,
                                       })
                                     }
+                                    showSearch={true}
                                     placeholder="All Priority"
                                     maxMenuHeight={150}
                                   />
@@ -948,6 +951,7 @@ export default function Page() {
                                         project: value,
                                       })
                                     }
+                                    showSearch={true}
                                     placeholder="All Projects"
                                     maxMenuHeight={150}
                                   />
@@ -962,6 +966,7 @@ export default function Page() {
                                         status: value,
                                       })
                                     }
+                                    showSearch={true}
                                     placeholder="All Status"
                                     maxMenuHeight={150}
                                   />
@@ -976,6 +981,7 @@ export default function Page() {
                                         priority: value,
                                       })
                                     }
+                                    showSearch={true}
                                     placeholder="All Priority"
                                     maxMenuHeight={150}
                                   />
@@ -1115,6 +1121,7 @@ export default function Page() {
                                       }
                                       placeholder="All Projects"
                                       maxMenuHeight={150}
+                                      showSearch={true}
                                     />
                                   </div>
 
@@ -1129,6 +1136,7 @@ export default function Page() {
                                       }
                                       placeholder="All Status"
                                       maxMenuHeight={150}
+                                      showSearch={true}
                                     />
                                   </div>
 
@@ -1143,6 +1151,7 @@ export default function Page() {
                                       }
                                       placeholder="All Priority"
                                       maxMenuHeight={150}
+                                      showSearch={true}
                                     />
                                   </div>
 

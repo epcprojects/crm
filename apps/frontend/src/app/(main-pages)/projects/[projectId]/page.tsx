@@ -1346,12 +1346,12 @@ export default function ProjectDetailPage() {
                             emptyTitle={
                               projectThreadQuery.isLoading
                                 ? 'Loading discussion...'
-                                : 'No replies yet.'
+                                : 'No Threads yet.'
                             }
                             emptyDescription={
                               projectThreadQuery.isLoading
                                 ? 'Fetching project discussion messages.'
-                                : 'No discussion messages have been added to this project yet.'
+                                : 'No Threads messages have been added to this project yet.'
                             }
                             composerPlaceholder="Post the project thread..."
                             onSubmitReply={
@@ -1416,12 +1416,12 @@ export default function ProjectDetailPage() {
                             emptyTitle={
                               projectThreadDetailQuery.isLoading
                                 ? 'Loading thread...'
-                                : 'No replies yet.'
+                                : 'No Threads yet.'
                             }
                             emptyDescription={
                               projectThreadDetailQuery.isLoading
                                 ? 'Fetching thread replies.'
-                                : 'No replies have been added to this thread yet.'
+                                : 'No Threads have been added to this thread yet.'
                             }
                             composerPlaceholder="Reply to thread..."
                             onSubmitReply={

@@ -612,6 +612,7 @@ export default function Page() {
                                 }
                                 placeholder="All Roles"
                                 maxMenuHeight={150}
+                                showSearch={true}
                               />
                             </div>
 
@@ -624,6 +625,7 @@ export default function Page() {
                                 }
                                 placeholder="All Projects"
                                 maxMenuHeight={150}
+                                showSearch={true}
                               />
                             </div>
 

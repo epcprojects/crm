@@ -137,6 +137,7 @@ const RECENT_TICKETS_PRIORITY_QUERY_PARAM = 'priority';
 const TICKETS_PROJECT_QUERY_PARAM = 'project';
 const DASHBOARD_TABS_QUERY_PARAM = 'dashboardTab';
 const DASHBOARD_ACTIVITY_PAGE_SIZE = 20;
+const DASHBOARD_CRITICAL_TICKETS_PAGE_SIZE = 50;
 
 export default function Page() {
   const router = useRouter();
@@ -284,14 +285,18 @@ export default function Page() {
 
     enabled: canViewRecentTickets,
   });
-  const criticalTicketsQuery = useQuery({
+  const criticalTicketsQuery = useInfiniteQuery({
     queryKey: ['dashboard', 'critical-tickets'],
-    queryFn: () =>
+    queryFn: ({ pageParam }) =>
       fetchDashboardTickets({
-        page: 1,
-        limit: 10,
+        page: Number(pageParam ?? 1),
+        limit: DASHBOARD_CRITICAL_TICKETS_PAGE_SIZE,
         priorityKey: 'Critical',
+        statusKey: 'Active',
       }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.meta.hasNext ? lastPage.meta.page + 1 : undefined,
     enabled: canViewUpcoming,
   });
   const upcomingTicketsQuery = useQuery({
@@ -306,6 +311,12 @@ export default function Page() {
     () => createTicketProjectOptions(projectNamesQuery.data ?? []),
     [projectNamesQuery.data],
   );
+  const criticalTickets = useMemo(
+    () =>
+      (criticalTicketsQuery.data?.pages ?? []).flatMap((page) => page.items),
+    [criticalTicketsQuery.data?.pages],
+  );
+
   const dashboardTicketTabs = useMemo<TicketTab[]>(
     () =>
       ticketTabs.map((tab) =>
@@ -319,13 +330,11 @@ export default function Page() {
           : tab.key === 'critical'
             ? {
                 ...tab,
-                tickets: (criticalTicketsQuery.data?.items ?? []).map(
-                  mapRecentTicketToTicketListItem,
-                ),
+                tickets: criticalTickets.map(mapRecentTicketToTicketListItem),
               }
             : tab,
       ),
-    [criticalTicketsQuery.data?.items, upcomingTicketsQuery.data],
+    [criticalTickets, upcomingTicketsQuery.data],
   );
 
   const updateRecentTicketsFilters = ({
@@ -732,6 +741,21 @@ export default function Page() {
                 tabs={dashboardTicketTabs}
                 activeTabKey={selectedDashboardTab}
                 onActiveTabChange={updateDashboardTab}
+                hasNextPage={
+                  selectedDashboardTab === 'critical' &&
+                  Boolean(criticalTicketsQuery.hasNextPage)
+                }
+                isFetchingNextPage={
+                  selectedDashboardTab === 'critical' &&
+                  criticalTicketsQuery.isFetchingNextPage
+                }
+                onLoadMore={
+                  selectedDashboardTab === 'critical'
+                    ? () => {
+                        void criticalTicketsQuery.fetchNextPage();
+                      }
+                    : undefined
+                }
                 // internalScrollEnabled={isUpcomingSectionPinned}
                 onTicketClick={
                   canViewTicketDetail
@@ -922,6 +946,7 @@ export default function Page() {
                                       project: value,
                                     })
                                   }
+                                  showSearch={true}
                                   placeholder="All Projects"
                                   maxMenuHeight={150}
                                 />
@@ -935,6 +960,7 @@ export default function Page() {
                                       status: value,
                                     })
                                   }
+                                  showSearch={true}
                                   placeholder="All Status"
                                   maxMenuHeight={150}
                                 />
@@ -948,6 +974,7 @@ export default function Page() {
                                       priority: value,
                                     })
                                   }
+                                  showSearch={true}
                                   placeholder="All Priority"
                                   maxMenuHeight={150}
                                 />
