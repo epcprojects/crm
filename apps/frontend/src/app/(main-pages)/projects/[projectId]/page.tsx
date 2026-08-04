@@ -893,7 +893,12 @@ export default function ProjectDetailPage() {
   });
   const defaultProjectTabIndex = useMemo(() => {
     const requestedTab = searchParams.get('t');
-    const requestedTabName = requestedTab === '1' ? 'Thread' : null;
+    const requestedTabName =
+      requestedTab === '1'
+        ? 'Thread'
+        : requestedTab === '3'
+          ? 'Calendar'
+          : null;
 
     if (!requestedTabName) {
       return 0;
