@@ -26,6 +26,7 @@ import { TicketStatus } from './entities/ticket.statuses.entity';
 import { TicketPriority } from './entities/ticket.priority.entity';
 import { UsersService } from '../users/users.service';
 import { extname } from 'path';
+import { PaginationQueryDto } from './dto/pagination-query.dto';
 
 @Injectable()
 export class TicketsService {
@@ -291,12 +292,21 @@ export class TicketsService {
       .leftJoin('t.reporter', 'r')
       .where('t.projectId = :projectId', { projectId });
 
-    if (query.statusKey) {
-      qb.andWhere('t.statusKey = :statusKey', {
-        statusKey: query.statusKey,
-      });
-    }
+    const ACTIVE_STATUS_SENTINEL = '00000000-0000-0000-0000-000000000100';
 
+    if (query.statusKey) {
+      if (
+        query.statusKey.toLowerCase() === 'active' ||
+        query.statusKey === ACTIVE_STATUS_SENTINEL
+      ) {
+        qb.andWhere('t.statusKey != :closedKey', { closedKey: 'Closed' });
+      } else {
+        qb.andWhere('t.statusKey = :statusKey', {
+          statusKey: query.statusKey,
+        });
+      }
+    }
+    
     if (query.priorityKey) {
       qb.andWhere('t.priorityKey = :priorityKey', {
         priorityKey: query.priorityKey,
@@ -844,7 +854,7 @@ export class TicketsService {
   // ---------------- UPCOMING TICKETS -------------
   // Tickets that are not closed, and either have no due date
   // or have a due date within the next 3 days (no overdue tickets)
-  async getUpcomingTickets(user) {
+  async getUpcomingTickets(query: PaginationQueryDto, user) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -852,7 +862,8 @@ export class TicketsService {
     upperBound.setDate(upperBound.getDate() + 2);
     upperBound.setHours(23, 59, 59, 999);
 
-    return this.ticketRepo
+    // return this.ticketRepo
+    const qb = this.ticketRepo
       .createQueryBuilder('t')
       .leftJoin('t.project', 'p')
       .innerJoin('p.members', 'u', 'u.id = :userId', {
@@ -862,14 +873,14 @@ export class TicketsService {
       .leftJoin('t.priority', 'pr')
       .where('t.statusKey != :statusKey', { statusKey: 'Closed' })
       .andWhere(
-        't.dueDate IS NULL OR (t.dueDate BETWEEN :today AND :upperBound)',
+        '(t.dueDate IS NULL OR t.dueDate BETWEEN :today AND :upperBound)',
         {
           today: today.toISOString(),
           upperBound: upperBound.toISOString(),
         },
       )
 
-      .select([
+      qb.select([
         't.id',
         't.title',
         't.createdAt',
@@ -887,10 +898,27 @@ export class TicketsService {
         'pr.key',
         'pr.label',
         'pr.color',
-      ])
-      .orderBy('t.createdAt', 'DESC')
-      .getMany();
-  }
+      ]);
+
+      qb.orderBy('t.createdAt', 'DESC')
+      .skip((query.page - 1) * query.limit)
+      .take(query.limit);
+
+      const [items, total] = await qb.getManyAndCount();
+
+      return {
+        items,
+        meta: {
+          page: query.page,
+          limit: query.limit,
+          total,
+          totalPages: Math.ceil(total / query.limit),
+          hasNext: query.page * query.limit < total,
+          hasPrevious: query.page > 1,
+        },
+      };
+    }
+      // .getMany();
 
   // ---------------- ATTACHMENTS ----------------
   async handleAttachments(
