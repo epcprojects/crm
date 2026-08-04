@@ -47,21 +47,25 @@ export function useThread({
 
     socket.on('connect', join);
 
-    socket.on('thread_created', (payload) => {
-      console.log(payload);
+    const handleThreadCreated = (payload: unknown) => {
       if (onCreated) {
         onCreated(payload);
       }
-    });
-    socket.on('thread_created', (payload) => {
-      console.log(payload);
+    };
+    const handleThreadReplyCreated = (payload: unknown) => {
       if (onReplyCreated) {
         onReplyCreated(payload);
       }
-    });
-    socket.on('thread_updated', onUpdated ?? (() => {}));
-    socket.on('thread_deleted', onDeleted ?? (() => {}));
-    socket.on('typing', onTyping ?? (() => {}));
+    };
+    const handleThreadUpdated = onUpdated ?? (() => {});
+    const handleThreadDeleted = onDeleted ?? (() => {});
+    const handleTyping = onTyping ?? (() => {});
+
+    socket.on('thread_created', handleThreadCreated);
+    socket.on('thread_reply_created', handleThreadReplyCreated);
+    socket.on('thread_updated', handleThreadUpdated);
+    socket.on('thread_deleted', handleThreadDeleted);
+    socket.on('typing', handleTyping);
 
     if (socket.connected) {
       join();
@@ -71,11 +75,11 @@ export function useThread({
       socket.emit('leave', { projectId });
 
       socket.off('connect', join);
-      socket.off('thread_created', onCreated);
-      socket.off('thread_reply_created', onReplyCreated);
-      socket.off('thread_updated', onUpdated);
-      socket.off('thread_deleted', onDeleted);
-      socket.off('typing', onTyping);
+      socket.off('thread_created', handleThreadCreated);
+      socket.off('thread_reply_created', handleThreadReplyCreated);
+      socket.off('thread_updated', handleThreadUpdated);
+      socket.off('thread_deleted', handleThreadDeleted);
+      socket.off('typing', handleTyping);
     };
   }, [
     enabled,
