@@ -1141,6 +1141,7 @@ export default function ProjectDetailPage() {
             </section> */}
 
             <TabGroup
+              key={`${projectId}-${searchParams.get('t') ?? '0'}`}
               defaultIndex={defaultProjectTabIndex}
               // className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden"
               className="flex h-auto min-h-0 min-w-0 flex-none flex-col gap-4 overflow-visible xl:h-full xl:flex-1 xl:overflow-hidden"

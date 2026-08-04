@@ -65,6 +65,7 @@ import Dropdown from '../../../components/ui/ThemeDropDown';
 import { eventEmitter } from '../../../../src/lib/event-emitter';
 import { NotificationItem } from '@harperhelp/interfaces';
 import { NotificationEntityType } from '@harperhelp/types';
+import { getNotificationNavigationPath } from '../../../lib/notification-navigation';
 
 type TicketSummary = {
   open: number | null;
@@ -1674,24 +1675,10 @@ function DashboardActivityRow({ item }: { item: DashboardActivityItem }) {
   return (
     <article
       onClick={() => {
-        if (item.entityType === 'ticket_reply') {
-          router.push(
-            `/tickets/${item.ticketId}?projectId=${item.projectId}&internal=false`,
-          );
-        } else if (item.entityType === 'event') {
-          router.push(`/projects/${item.projectId}?t=3`);
-        } else if (item.entityType === 'internal_message') {
-          router.push(
-            `/tickets/${item.ticketId}?projectId=${item.projectId}&internal=true`,
-          );
-        } else if (item.entityType === 'ticket') {
-          router.push(`/tickets/${item.ticketId}?projectId=${item.projectId}`);
-        } else if (item.entityType === 'project' && !item.projectId) {
-          router.push(`/projects`);
-        } else if (item.entityType === 'project' && item.projectId) {
-          router.push(`/projects/${item.projectId}`);
-        } else if (item.entityType === 'thread_message' && item.projectId) {
-          router.push(`/projects/${item.projectId}?t=1`);
+        const nextPath = getNotificationNavigationPath(item);
+
+        if (nextPath) {
+          router.push(nextPath);
         }
       }}
       className="flex cursor-pointer items-start gap-3 border-b border-gray-200 px-1 py-3 last:border-b-0"

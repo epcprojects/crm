@@ -5,6 +5,7 @@ import { CloseIcon, CrossIcon, SearchIcon } from '../../../public/icons';
 import EmptyState from '../EmptyState';
 import { NotificationItem } from '@harperhelp/interfaces';
 import { useRouter } from 'next/navigation';
+import { getNotificationNavigationPath } from '../../lib/notification-navigation';
 
 type NotificationTrayProps = {
   activeFilter: 'all' | 'unread';
@@ -225,24 +226,10 @@ function NotificationRow({
         if (onViewSingle) {
           onViewSingle();
         }
-        if (item.entityType === 'ticket_reply') {
-          router.push(
-            `/tickets/${item.ticketId}?projectId=${item.projectId}&internal=false`,
-          );
-        } else if (item.entityType === 'internal_message') {
-          router.push(
-            `/tickets/${item.ticketId}?projectId=${item.projectId}&internal=true`,
-          );
-        } else if (item.entityType === 'event') {
-          router.push(`/projects/${item.projectId}?t=3`);
-        } else if (item.entityType === 'ticket') {
-          router.push(`/tickets/${item.ticketId}?projectId=${item.projectId}`);
-        } else if (item.entityType === 'project' && !item.projectId) {
-          router.push(`/projects`);
-        } else if (item.entityType === 'project' && item.projectId) {
-          router.push(`/projects/${item.projectId}`);
-        } else if (item.entityType === 'thread_message' && item.projectId) {
-          router.push(`/projects/${item.projectId}?t=1`);
+        const nextPath = getNotificationNavigationPath(item);
+
+        if (nextPath) {
+          router.push(nextPath);
         }
         onClose();
       }}
