@@ -66,40 +66,94 @@ export class ProjectNotesService {
     return this.findOne(projectId, note.id, user.id);
   }
 
-  async findAll(projectId: string, query: GetProjectNotesQueryDto, user: { id: string }) {
-    await this.ensureProjectUserAccess(projectId, user.id);
+  // async findAll(projectId: string, query: GetProjectNotesQueryDto, user: { id: string }) {
+  //   await this.ensureProjectUserAccess(projectId, user.id);
 
-    const { page = 1, limit = 10, search } = query;
+  //   const { page = 1, limit = 10, search } = query;
 
-    const qb = this.noteRepo
-      .createQueryBuilder('n')
-      .where('n.projectId = :projectId', { projectId })
-      .andWhere('n.isActive = true');
+  //   const qb = this.noteRepo
+  //     .createQueryBuilder('n')
+  //     .where('n.projectId = :projectId', { projectId })
+  //     .andWhere('n.isActive = true');
 
-    if (search?.trim()) {
-      qb.andWhere('(n.title ILIKE :search OR n.description ILIKE :search)', {
+  //   if (search?.trim()) {
+  //     qb.andWhere('(n.title ILIKE :search OR n.description ILIKE :search)', {
+  //       search: `%${search.trim()}%`,
+  //     });
+  //   }
+
+  //   qb.orderBy('n.createdAt', 'DESC')
+  //     .skip((page - 1) * limit)
+  //     .take(limit);
+
+  //   const [items, total] = await qb.getManyAndCount();
+
+  //   return {
+  //     items,
+  //     meta: {
+  //       page,
+  //       limit,
+  //       total,
+  //       totalPages: Math.ceil(total / limit),
+  //       hasNext: page * limit < total,
+  //       hasPrevious: page > 1,
+  //     },
+  //   };
+  // }
+
+  async findAll(
+  projectId: string,
+  query: GetProjectNotesQueryDto,
+  user: { id: string },
+) {
+  await this.ensureProjectUserAccess(projectId, user.id);
+
+  const { page = 1, limit = 10, search } = query;
+
+  const qb = this.noteRepo
+    .createQueryBuilder('n')
+    .select([
+      'n.id AS id',
+      'n.title AS title',
+      'LEFT(n.description, 100) AS description',
+      'n.createdAt AS "createdAt"',
+      'n.updatedAt AS "updatedAt"',
+      'n.createdBy AS "createdBy"',
+      'n.updatedBy AS "updatedBy"',
+    ])
+    .where('n.projectId = :projectId', { projectId })
+    .andWhere('n.isActive = true');
+
+  if (search?.trim()) {
+    qb.andWhere(
+      '(n.title ILIKE :search OR n.description ILIKE :search)',
+      {
         search: `%${search.trim()}%`,
-      });
-    }
-
-    qb.orderBy('n.updatedAt', 'DESC')
-      .skip((page - 1) * limit)
-      .take(limit);
-
-    const [items, total] = await qb.getManyAndCount();
-
-    return {
-      items,
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-        hasNext: page * limit < total,
-        hasPrevious: page > 1,
       },
-    };
+    );
   }
+
+  qb.orderBy('n.createdAt', 'DESC')
+    .offset((page - 1) * limit)
+    .limit(limit);
+
+  const [items, total] = await Promise.all([
+    qb.getRawMany(),
+    qb.clone().offset(undefined).limit(undefined).getCount(),
+  ]);
+
+  return {
+    items,
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      hasNext: page * limit < total,
+      hasPrevious: page > 1,
+    },
+  };
+}
 
   async findOne(projectId: string, id: string, userId: string): Promise<ProjectNote> {
     await this.ensureProjectUserAccess(projectId, userId);
