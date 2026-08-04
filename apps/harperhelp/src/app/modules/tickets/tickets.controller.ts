@@ -31,6 +31,7 @@ import { GetTicketsQueryDto } from './dto/get-tickets-query.dto';
 import { CalendarView } from '@harperhelp/types';
 import { CalendarQueryDto } from '../calendar/dto/calendar-query.dto';
 import { FileSizeGuard } from '../../../common/guards/file-size.guard';
+import { PaginationQueryDto } from './dto/pagination-query.dto';
 
 @Controller('projects/:pid/tickets')
 @ApiBearerAuth('JWT-auth')
@@ -228,7 +229,7 @@ export class DashboardController {
 
   @Get('upcoming')
   @ApiOperation({ summary: 'Get upcoming tickets' })
-  getUpcomingTickets(@GetUser() user) {
-    return this.ticketsService.getUpcomingTickets(user);
+  getUpcomingTickets(@Query() query: PaginationQueryDto, @GetUser() user) {
+    return this.ticketsService.getUpcomingTickets(query, user);
   }
 }
