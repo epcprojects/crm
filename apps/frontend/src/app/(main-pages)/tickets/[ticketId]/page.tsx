@@ -367,7 +367,7 @@ export default function TicketDetailPage() {
   const [hasUnreadInternalChat, setHasUnreadInternalChat] = useState(false);
   const isChatDrawerOpen = Boolean(chatDrawerChannel);
   const internalChatParam = searchParams.get('internal');
-  const shouldDefaultToInternalChat = canViewInternalChatBtn && !isExternalUser;
+  const shouldDefaultToInternalChat = false;
   const isInternalChatActive =
     canViewInternalChatBtn &&
     (internalChatParam === 'true' ||
