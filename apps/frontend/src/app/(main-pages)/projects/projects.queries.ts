@@ -28,6 +28,8 @@ export const projectThreadQueryKey = ['project-thread'];
 export const projectThreadDetailQueryKey = ['project-thread-detail'];
 export const projectTicketsQueryKey = ['project-tickets'];
 export const projectFilesQueryKey = ['project-files'];
+export const projectNotesQueryKey = ['project-notes'];
+export const projectNoteDetailQueryKey = ['project-note-detail'];
 
 type ProjectThreadDetail = {
   header: DiscussionReply | null;
@@ -59,6 +61,21 @@ type ProjectsPaginationMeta = {
 type ProjectsResponse = {
   items: ProjectRecord[];
   summary: ProjectSummary; //TODO: later on,may need to remove []
+  meta: ProjectsPaginationMeta;
+};
+
+export type ProjectNoteRecord = {
+  id: string;
+  projectId: string;
+  title: string;
+  description: string;
+  createdAt: string | null;
+  updatedAt: string | null;
+  isActive: boolean;
+};
+
+type ProjectNotesResponse = {
+  items: ProjectNoteRecord[];
   meta: ProjectsPaginationMeta;
 };
 
@@ -236,6 +253,163 @@ export function useProjectFilesQuery(projectId: string, enabled = true) {
     queryKey: [...projectFilesQueryKey, projectId],
     queryFn: () => fetchProjectFiles(projectId),
     enabled: Boolean(projectId && enabled),
+  });
+}
+
+type ProjectNotesQueryOptions = {
+  page?: number;
+  limit?: number;
+  search?: string;
+};
+
+export function useProjectNotesQuery(
+  projectId: string,
+  { page = 1, limit = 50, search }: ProjectNotesQueryOptions = {},
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: [...projectNotesQueryKey, projectId, page, limit, search ?? ''],
+    queryFn: () =>
+      fetchProjectNotes(projectId, {
+        page,
+        limit,
+        search,
+      }),
+    enabled: Boolean(projectId && enabled),
+  });
+}
+
+export function useCreateProjectNoteMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: createProjectNote,
+    onSuccess: async (createdNote, variables) => {
+      queryClient.setQueriesData<ProjectNotesResponse>(
+        {
+          queryKey: [...projectNotesQueryKey, variables.projectId],
+        },
+        (currentData) => {
+          if (!currentData) {
+            return currentData;
+          }
+
+          const nextItems = [
+            createdNote,
+            ...currentData.items.filter((note) => note.id !== createdNote.id),
+          ];
+
+          return {
+            ...currentData,
+            items: nextItems,
+            meta: {
+              ...currentData.meta,
+              total: Math.max(currentData.meta.total + 1, nextItems.length),
+            },
+          };
+        },
+      );
+
+      await queryClient.invalidateQueries({
+        queryKey: [...projectNotesQueryKey, variables.projectId],
+      });
+    },
+  });
+}
+
+export function useUpdateProjectNoteMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateProjectNote,
+    onSuccess: async (_updatedNote, variables) => {
+      queryClient.setQueriesData<ProjectNotesResponse>(
+        {
+          queryKey: [...projectNotesQueryKey, variables.projectId],
+        },
+        (currentData) => {
+          if (!currentData) {
+            return currentData;
+          }
+
+          return {
+            ...currentData,
+            items: currentData.items.map((note) =>
+              note.id === variables.noteId
+                ? {
+                    ...note,
+                    title: variables.values.title.trim(),
+                    description: variables.values.description?.trim() ?? '',
+                  }
+                : note,
+            ),
+          };
+        },
+      );
+
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: [...projectNotesQueryKey, variables.projectId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: [...projectNoteDetailQueryKey, variables.projectId, variables.noteId],
+        }),
+      ]);
+    },
+  });
+}
+
+export function useDeleteProjectNoteMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteProjectNote,
+    onSuccess: async (_result, variables) => {
+      queryClient.setQueriesData<ProjectNotesResponse>(
+        {
+          queryKey: [...projectNotesQueryKey, variables.projectId],
+        },
+        (currentData) => {
+          if (!currentData) {
+            return currentData;
+          }
+
+          const nextItems = currentData.items.filter(
+            (note) => note.id !== variables.noteId,
+          );
+
+          return {
+            ...currentData,
+            items: nextItems,
+            meta: {
+              ...currentData.meta,
+              total: Math.max(0, currentData.meta.total - 1),
+            },
+          };
+        },
+      );
+
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: [...projectNotesQueryKey, variables.projectId],
+        }),
+        queryClient.removeQueries({
+          queryKey: [...projectNoteDetailQueryKey, variables.projectId, variables.noteId],
+        }),
+      ]);
+    },
+  });
+}
+
+export function useProjectNoteDetailQuery(
+  projectId: string,
+  noteId: string,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: [...projectNoteDetailQueryKey, projectId, noteId],
+    queryFn: () => fetchProjectNoteDetail(projectId, noteId),
+    enabled: Boolean(projectId && noteId && enabled),
   });
 }
 
@@ -444,6 +618,335 @@ async function fetchProjectById(projectId: string) {
   }
 
   return mapApiProjectToProjectRecord(payload);
+}
+
+type ApiProjectNoteRecord = {
+  id?: string;
+  projectId?: string;
+  title?: string | null;
+  description?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  isActive?: boolean | null;
+};
+
+async function fetchProjectNotes(
+  projectId: string,
+  { page = 1, limit = 50, search }: ProjectNotesQueryOptions,
+): Promise<ProjectNotesResponse> {
+  const searchParams = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+
+  if (search?.trim()) {
+    searchParams.set('search', search.trim());
+  }
+
+  const response = await fetch(
+    `/api/projects/${projectId}/notes?${searchParams.toString()}`,
+    {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+    },
+  );
+
+  const payload = (await response.json().catch(() => null)) as
+    | {
+        items?: ApiProjectNoteRecord[];
+        meta?: Partial<ProjectsPaginationMeta>;
+        message?: string;
+      }
+    | { message?: string }
+    | null;
+
+  const noteItems =
+    payload && typeof payload === 'object' && 'items' in payload
+      ? payload.items
+      : undefined;
+  const noteMeta =
+    payload && typeof payload === 'object' && 'meta' in payload
+      ? payload.meta
+      : undefined;
+
+  if (!response.ok || !Array.isArray(noteItems)) {
+    throw new Error(payload?.message || 'Failed to fetch project notes.');
+  }
+
+  return {
+    items: noteItems.flatMap((item) => {
+      const id = item.id?.trim();
+      const currentProjectId = item.projectId?.trim() || projectId;
+      const title = item.title?.trim();
+
+      if (!id || !title) {
+        return [];
+      }
+
+      return [
+        {
+          id,
+          projectId: currentProjectId,
+          title,
+          description: item.description?.trim() ?? '',
+          createdAt: item.createdAt ?? null,
+          updatedAt: item.updatedAt ?? null,
+          isActive: item.isActive ?? true,
+        },
+      ];
+    }),
+    meta: {
+      page: noteMeta?.page ?? page,
+      limit: noteMeta?.limit ?? limit,
+      total: noteMeta?.total ?? noteItems.length,
+      totalPages: noteMeta?.totalPages ?? 1,
+      hasNext: noteMeta?.hasNext ?? false,
+      hasPrevious: noteMeta?.hasPrevious ?? page > 1,
+    },
+  };
+}
+
+async function createProjectNote({
+  projectId,
+  values,
+}: {
+  projectId: string;
+  values: {
+    title: string;
+    description?: string;
+  };
+}): Promise<ProjectNoteRecord> {
+  const response = await fetch(`/api/projects/${projectId}/notes`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({
+      title: values.title.trim(),
+      description: values.description?.trim() || undefined,
+    }),
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiProjectNoteRecord
+    | { message?: string }
+    | null;
+  const errorMessage =
+    payload && typeof payload === 'object' && 'message' in payload
+      ? payload.message
+      : undefined;
+
+  if (!response.ok) {
+    throw new Error(errorMessage || 'Failed to create project note.');
+  }
+
+  const id =
+    payload && typeof payload === 'object' && 'id' in payload
+      ? payload.id?.trim()
+      : '';
+  const currentProjectId =
+    payload && typeof payload === 'object' && 'projectId' in payload
+      ? payload.projectId?.trim()
+      : projectId;
+  const title =
+    payload && typeof payload === 'object' && 'title' in payload
+      ? payload.title?.trim()
+      : values.title.trim();
+
+  if (!id || !currentProjectId || !title) {
+    throw new Error('Failed to create project note.');
+  }
+
+  return {
+    id,
+    projectId: currentProjectId,
+    title,
+    description:
+      payload && typeof payload === 'object' && 'description' in payload
+        ? payload.description?.trim() ?? ''
+        : values.description?.trim() ?? '',
+    createdAt:
+      payload && typeof payload === 'object' && 'createdAt' in payload
+        ? payload.createdAt ?? null
+        : null,
+    updatedAt:
+      payload && typeof payload === 'object' && 'updatedAt' in payload
+        ? payload.updatedAt ?? null
+        : null,
+    isActive:
+      payload && typeof payload === 'object' && 'isActive' in payload
+        ? payload.isActive ?? true
+        : true,
+  };
+}
+
+async function fetchProjectNoteDetail(
+  projectId: string,
+  noteId: string,
+): Promise<ProjectNoteRecord> {
+  const response = await fetch(`/api/projects/${projectId}/notes/${noteId}`, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiProjectNoteRecord
+    | { message?: string }
+    | null;
+  const errorMessage =
+    payload && typeof payload === 'object' && 'message' in payload
+      ? payload.message
+      : undefined;
+
+  if (!response.ok) {
+    throw new Error(errorMessage || 'Failed to fetch project note.');
+  }
+
+  const id =
+    payload && typeof payload === 'object' && 'id' in payload
+      ? payload.id?.trim()
+      : '';
+  const currentProjectId =
+    payload && typeof payload === 'object' && 'projectId' in payload
+      ? payload.projectId?.trim()
+      : '';
+  const title =
+    payload && typeof payload === 'object' && 'title' in payload
+      ? payload.title?.trim()
+      : '';
+
+  if (!id || !currentProjectId || !title) {
+    throw new Error('Failed to fetch project note.');
+  }
+
+  return {
+    id,
+    projectId: currentProjectId,
+    title,
+    description:
+      payload && typeof payload === 'object' && 'description' in payload
+        ? payload.description?.trim() ?? ''
+        : '',
+    createdAt:
+      payload && typeof payload === 'object' && 'createdAt' in payload
+        ? payload.createdAt ?? null
+        : null,
+    updatedAt:
+      payload && typeof payload === 'object' && 'updatedAt' in payload
+        ? payload.updatedAt ?? null
+        : null,
+    isActive:
+      payload && typeof payload === 'object' && 'isActive' in payload
+        ? payload.isActive ?? true
+        : true,
+  };
+}
+
+async function updateProjectNote({
+  projectId,
+  noteId,
+  values,
+}: {
+  projectId: string;
+  noteId: string;
+  values: {
+    title: string;
+    description?: string;
+  };
+}): Promise<ProjectNoteRecord> {
+  const response = await fetch(`/api/projects/${projectId}/notes/${noteId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({
+      title: values.title.trim(),
+      description: values.description?.trim() || undefined,
+    }),
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiProjectNoteRecord
+    | { message?: string }
+    | null;
+  const errorMessage =
+    payload && typeof payload === 'object' && 'message' in payload
+      ? payload.message
+      : undefined;
+
+  if (!response.ok) {
+    throw new Error(errorMessage || 'Failed to update project note.');
+  }
+
+  const id =
+    payload && typeof payload === 'object' && 'id' in payload
+      ? payload.id?.trim()
+      : noteId;
+  const currentProjectId =
+    payload && typeof payload === 'object' && 'projectId' in payload
+      ? payload.projectId?.trim()
+      : projectId;
+  const title =
+    payload && typeof payload === 'object' && 'title' in payload
+      ? payload.title?.trim()
+      : values.title.trim();
+
+  if (!id || !currentProjectId || !title) {
+    throw new Error('Failed to update project note.');
+  }
+
+  return {
+    id,
+    projectId: currentProjectId,
+    title,
+    description:
+      payload && typeof payload === 'object' && 'description' in payload
+        ? payload.description?.trim() ?? ''
+        : values.description?.trim() ?? '',
+    createdAt:
+      payload && typeof payload === 'object' && 'createdAt' in payload
+        ? payload.createdAt ?? null
+        : null,
+    updatedAt:
+      payload && typeof payload === 'object' && 'updatedAt' in payload
+        ? payload.updatedAt ?? null
+        : null,
+    isActive:
+      payload && typeof payload === 'object' && 'isActive' in payload
+        ? payload.isActive ?? true
+        : true,
+  };
+}
+
+async function deleteProjectNote({
+  projectId,
+  noteId,
+}: {
+  projectId: string;
+  noteId: string;
+}) {
+  const response = await fetch(`/api/projects/${projectId}/notes/${noteId}`, {
+    method: 'DELETE',
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(payload?.message || 'Failed to delete project note.');
+  }
+
+  return payload;
 }
 async function createProject(values: CreateProjectFormValues) {
   const response = await fetch('/api/projects', {

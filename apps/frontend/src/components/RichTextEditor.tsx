@@ -379,7 +379,8 @@ export default function RichTextEditor({
       <div
         className={clsx(
           'rich-text-editor flex flex-col overflow-hidden rounded-lg border bg-transparent',
-          'transition focus-within:border-gray-400',
+          'transition focus-within:border-gray-400 ',
+          editorHeight,
           errorText ? 'border-red-500' : 'border-gray-200',
           disabled && 'cursor-not-allowed bg-gray-100 opacity-70',
         )}
@@ -395,10 +396,10 @@ export default function RichTextEditor({
               editorHeight,
             )}
           >
-            <EditorContent editor={editor} />
+            <EditorContent className="h-full" editor={editor} />
           </div>
         ) : (
-          <div className={clsx('w-full shrink-0 px-3.5 py-2', editorHeight)} />
+          <div className={clsx('w-full shrink-0 px-3.5 py-4', editorHeight)} />
         )}
       </div>
 
