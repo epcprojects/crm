@@ -130,8 +130,7 @@ export class ThreadController {
     return this.service.update(messageId, pid, dto, user, files);
   }
 
-
-   @Delete(':messageId')
+  @Delete(':messageId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     description: 'Deletes a thread message.',
@@ -143,7 +142,44 @@ export class ThreadController {
   ) {
     return this.service.remove(messageId, pid, user);
   }
-  
+
+  @Post(':messageId/reactions')
+  @ApiOperation({
+    description: 'Adds or updates a reaction on a thread message.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        emoji: {
+          type: 'string',
+          example: '❤️',
+        },
+      },
+      required: ['emoji'],
+    },
+  })
+  addReaction(
+    @Param('pid', ParseUUIDPipe) pid: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @Body() { emoji }: { emoji: string },
+    @GetUser() user,
+  ) {
+    return this.service.addReaction(pid, messageId, user.id, emoji);
+  }
+
+  @Delete(':messageId/reactions')
+  @ApiOperation({
+    description:
+      'Removes the authenticated user reaction from a thread message.',
+  })
+  removeReaction(
+    @Param('pid', ParseUUIDPipe) pid: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @GetUser() user,
+  ) {
+    return this.service.removeReaction(pid, messageId, user.id);
+  }
   // @Get(':messageId/replies')
   // @ApiOperation({
   //   description: 'Get replies by parent message id',

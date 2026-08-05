@@ -23,7 +23,7 @@ import {
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { GetUser } from '../../../common/decorators/get-user.decorator';
 import { UserType } from '@harperhelp/types';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiTags } from '@nestjs/swagger';
 import { UpdateChatDto } from './dto/update-chat.dto';
 
 // Route: /projects/:projectId/tickets/:ticketId/chat/:channel
@@ -43,10 +43,10 @@ export class ChatMessagesController {
   @Get('messages')
   async getMessages(
     @Param('projectId', ParseUUIDPipe) projectId: string,
-    @Param('ticketId', ParseUUIDPipe) ticketId: string,
     @Param('channel') channel: ChatChannel,
+    @Param('ticketId', ParseUUIDPipe) ticketId: string,
     @Query() query: GetMessagesQueryDto,
-    @GetUser() user: any,
+    @GetUser() user,
   ) {
     // this.service.assertAccess(user.role, channel);
 
@@ -54,7 +54,7 @@ export class ChatMessagesController {
     //   await this.service.assertExternalTicketAccess(user.id, ticketId);
     // }
 
-    return this.service.getMessages(channel, ticketId, query);
+    return this.service.getMessages(projectId, channel, ticketId, query);
   }
 
   // Send a message — persists to DB then broadcasts via socket
@@ -65,7 +65,7 @@ export class ChatMessagesController {
     @Param('ticketId', ParseUUIDPipe) ticketId: string,
     @Param('channel') channel: ChatChannel,
     @Body() dto: SendMessageDto,
-    @GetUser() user: any,
+    @GetUser() user,
   ) {
     // this.service.assertAccess(user.role, channel);
 
@@ -95,7 +95,7 @@ export class ChatMessagesController {
     @Param('ticketId', ParseUUIDPipe) ticketId: string,
     @Param('channel') channel: ChatChannel,
     @Body() dto: MarkReadDto,
-    @GetUser() user: any,
+    @GetUser() user,
   ) {
     // this.service.assertAccess(user.role, channel);
 
@@ -119,7 +119,7 @@ export class ChatMessagesController {
   async deleteMessage(
     @Param('channel') channel: ChatChannel,
     @Param('messageId') messageId: string,
-    @GetUser() user: any,
+    @GetUser() user,
   ) {
     // this.service.assertAccess(user.role, channel);
     const { pid, tid } = await this.service.softDelete(
@@ -141,21 +141,21 @@ export class ChatMessagesController {
     @Param('channel') channel: ChatChannel,
     @Param('messageId') messageId: string,
     @Body() dto: UpdateChatDto,
-    @GetUser() user: any,
+    @GetUser() user,
   ) {
     // this.service.assertAccess(user.role, channel);
-    const { projectId, ticketId, ...msg } = await this.service.update(
-      channel,
-      messageId,
-      user.id,
-      dto,
-    );
+    const updated = await this.service.update(channel, messageId, user.id, dto);
 
-    // broadcast deleted message
-    this.gateway.broadcastMessageUpdated(projectId, ticketId, channel, {
-      messageId,
-      ...msg,
-    });
+    // broadcast updated message
+    this.gateway.broadcastMessageUpdated(
+      updated.projectId,
+      updated.ticketId,
+      channel,
+      {
+        messageId: updated.id,
+        updated,
+      },
+    );
 
     return { success: true };
   }
@@ -165,8 +165,70 @@ export class ChatMessagesController {
   @Get('unread')
   async getUnreadCounts(
     @Param('ticketId', ParseUUIDPipe) ticketId: string,
-    @GetUser() user: any,
+    @GetUser() user,
   ): Promise<UnreadCountDto> {
     return this.service.getUnreadCounts(ticketId, user.id, user.userType);
+  }
+
+  @Post('messages/:messageId/reactions')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        emoji: {
+          type: 'string',
+          example: '❤️',
+        },
+      },
+      required: ['emoji'],
+    },
+  })
+  async addReaction(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('ticketId', ParseUUIDPipe) ticketId: string,
+    @Param('channel') channel: ChatChannel,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @Body() { emoji }: { emoji: string },
+    @GetUser() user,
+  ) {
+    const updated = await this.service.addReaction(
+      projectId,
+      ticketId,
+      channel,
+      messageId,
+      user.id,
+      emoji,
+    );
+
+    this.gateway.broadcastMessageUpdated(projectId, ticketId, channel, {
+      messageId: updated.id,
+      updated,
+    });
+
+    return updated;
+  }
+
+  @Delete('messages/:messageId/reactions')
+  async removeReaction(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('ticketId', ParseUUIDPipe) ticketId: string,
+    @Param('channel') channel: ChatChannel,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @GetUser() user,
+  ) {
+    const updated = await this.service.removeReaction(
+      projectId,
+      ticketId,
+      channel,
+      messageId,
+      user.id,
+    );
+
+    this.gateway.broadcastMessageUpdated(projectId, ticketId, channel, {
+      messageId: updated.id,
+      updated,
+    });
+
+    return updated;
   }
 }
