@@ -16,8 +16,13 @@ import {
 import { getFileUrl } from '../projects/ProjectFilesPanel';
 import ConfirmActionModal from '../modals/ConfirmActionModal';
 import ImageGalleryLightbox from '../ui/ImageGalleryLightbox';
-import type { DiscussionAttachment, DiscussionReply } from './types';
+import type {
+  DiscussionAttachment,
+  DiscussionReaction,
+  DiscussionReply,
+} from './types';
 import EmojiPickerButton from './EmojiPickerButton';
+import MessageReactionBar from './MessageReactionBar';
 import ThemeButton from '../ui/ThemeButton';
 
 const EMOJI_TEXT_STYLE = {
@@ -103,6 +108,9 @@ export default function ProjectThreadPanel({
   const [replyToDelete, setReplyToDelete] = useState<DiscussionReply | null>(
     null,
   );
+  const [messageReactions, setMessageReactions] = useState<
+    Record<string, DiscussionReaction[]>
+  >({});
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [activeGalleryIndex, setActiveGalleryIndex] = useState<number | null>(
     null,
@@ -325,6 +333,36 @@ export default function ProjectThreadPanel({
     setReplyToDelete(null);
   };
 
+  const toggleMessageReaction = (messageId: string, emoji: string) => {
+    setMessageReactions((current) => {
+      const currentReactions = current[messageId] ?? [];
+      const existingReaction = currentReactions.find(
+        (reaction) => reaction.emoji === emoji,
+      );
+
+      return {
+        ...current,
+        [messageId]: existingReaction
+          ? currentReactions.map((reaction) =>
+              reaction.emoji === emoji
+                ? {
+                    ...reaction,
+                    reactedByCurrentUser: !reaction.reactedByCurrentUser,
+                  }
+                : reaction,
+            )
+          : [
+              ...currentReactions,
+              {
+                emoji,
+                count: 1,
+                reactedByCurrentUser: true,
+              },
+            ],
+      };
+    });
+  };
+
   const openGallery = (images: GalleryImage[], index: number) => {
     if (!images.length || index < 0) {
       return;
@@ -394,7 +432,7 @@ export default function ProjectThreadPanel({
                 <span className="flex w-7 h-7 md:h-9 md:w-9 shrink-0 items-center justify-center rounded-full border border-violet-200 bg-violet-100 text-xs font-bold text-purple-700">
                   {headerReply.author.initials}
                 </span>
-                <div className="flex min-w-0 flex-1  p-2 rounded-xl rounded-tl-none border border-violet-200 flex-col">
+                <div className="group/reply relative flex min-w-0 flex-1  rounded-xl rounded-tl-none border border-violet-200 p-2 flex-col">
                   <div className="mb-1 flex  flex-wrap items-center gap-2">
                     <span className="text-sm font-bold text-gray-900">
                       {headerReply.author.name}
@@ -522,6 +560,13 @@ export default function ProjectThreadPanel({
                       ))}
                     </div>
                   ) : null}
+                  <MessageReactionBar
+                    reactions={messageReactions[headerReply.id] ?? []}
+                    onToggleReaction={(emoji) =>
+                      toggleMessageReaction(headerReply.id, emoji)
+                    }
+                    className="left-auto right-3"
+                  />
                 </div>
               </article>
 
@@ -583,6 +628,12 @@ export default function ProjectThreadPanel({
                               : ''
                           }`}
                         >
+                          <MessageReactionBar
+                            reactions={messageReactions[reply.id] ?? []}
+                            onToggleReaction={(emoji) =>
+                              toggleMessageReaction(reply.id, emoji)
+                            }
+                          />
                           {editingMessageId === reply.id ? (
                             <InlineEditComposer
                               editingReplyId={editingReplyId}
