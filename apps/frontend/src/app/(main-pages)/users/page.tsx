@@ -1037,6 +1037,7 @@ function mapApiMemberToUserCard(
     id: member.id,
     name: member.fullName,
     email: member.email,
+    userType: member.userType,
     isInvitationAccepted: member.isInvitationAccepted,
     initials: initials || 'NU',
     accentColor: mappedProjects[0]?.colorHex ?? '#875BF7',
@@ -1144,7 +1145,16 @@ function mapUserToFormValues(
   user: UserCardUser,
   roleOptions: Array<{ id?: string; label: string; value: string }> = [],
 ): AddUserFormValues {
-  const hasExternalRole = user.roles.some((role) => role.label === 'External');
+  const normalizedUserType = user.userType?.trim().toUpperCase();
+  const hasExternalRole = user.roles.some((role) => {
+    const normalizedLabel = role.label.trim().toUpperCase();
+    const normalizedValue = role.value?.trim().toUpperCase();
+
+    return (
+      normalizedLabel.includes('EXTERNAL') ||
+      normalizedValue?.includes('EXTERNAL')
+    );
+  });
   const role = user.roles.find(
     (role) => role.label !== 'Internal' && role.label !== 'External',
   );
@@ -1152,7 +1162,14 @@ function mapUserToFormValues(
   return {
     fullName: user.name,
     email: user.email,
-    userType: hasExternalRole ? 'external' : 'internal',
+    userType:
+      normalizedUserType === 'EXTERNAL'
+        ? 'external'
+        : normalizedUserType === 'INTERNAL'
+          ? 'internal'
+          : hasExternalRole
+            ? 'external'
+            : 'internal',
     role: resolveUserRoleValue(role, roleOptions),
     projectAccess: user.projects.map((project) => project.id),
   };
