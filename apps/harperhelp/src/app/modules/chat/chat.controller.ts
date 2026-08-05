@@ -225,7 +225,7 @@ export class ChatMessagesController {
     );
 
     this.gateway.broadcastMessageUpdated(projectId, ticketId, channel, {
-      messageId: updated.id,
+      msgId: updated.id,
       updated,
     });
 
