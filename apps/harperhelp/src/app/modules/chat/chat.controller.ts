@@ -25,6 +25,7 @@ import { GetUser } from '../../../common/decorators/get-user.decorator';
 import { UserType } from '@harperhelp/types';
 import { ApiBearerAuth, ApiBody, ApiTags } from '@nestjs/swagger';
 import { UpdateChatDto } from './dto/update-chat.dto';
+import { pid } from 'process';
 
 // Route: /projects/:projectId/tickets/:ticketId/chat/:channel
 // channel param is 'internal' or 'external'
@@ -143,17 +144,16 @@ export class ChatMessagesController {
     @Body() dto: UpdateChatDto,
     @GetUser() user,
   ) {
-    // this.service.assertAccess(user.role, channel);
-    const updated = await this.service.update(channel, messageId, user.id, dto);
+    const { projectId, ticketId, ...msg } = await this.service.update(channel, messageId, user.id, dto);
 
     // broadcast updated message
     this.gateway.broadcastMessageUpdated(
-      updated.projectId,
-      updated.ticketId,
+      projectId,
+      ticketId,
       channel,
       {
-        messageId: updated.id,
-        updated,
+        messageId,
+        ...msg,
       },
     );
 
@@ -191,7 +191,7 @@ export class ChatMessagesController {
     @Body() { emoji }: { emoji: string },
     @GetUser() user,
   ) {
-    const updated = await this.service.addReaction(
+    const {projectId:pid, ticketId:tid, ...msg} = await this.service.addReaction(
       projectId,
       ticketId,
       channel,
@@ -200,12 +200,12 @@ export class ChatMessagesController {
       emoji,
     );
 
-    this.gateway.broadcastMessageUpdated(projectId, ticketId, channel, {
-      messageId: updated.id,
-      updated,
+    this.gateway.broadcastMessageUpdated(pid, tid, channel, {
+      messageId,
+      ...msg,
     });
 
-    return updated;
+    return { success: true };
   }
 
   @Delete('messages/:messageId/reactions')
@@ -216,7 +216,7 @@ export class ChatMessagesController {
     @Param('messageId', ParseUUIDPipe) messageId: string,
     @GetUser() user,
   ) {
-    const updated = await this.service.removeReaction(
+    const {projectId:pid, ticketId:tid, ...msg} = await this.service.removeReaction(
       projectId,
       ticketId,
       channel,
@@ -224,11 +224,11 @@ export class ChatMessagesController {
       user.id,
     );
 
-    this.gateway.broadcastMessageUpdated(projectId, ticketId, channel, {
-      msgId: updated.id,
-      updated,
+    this.gateway.broadcastMessageUpdated(pid, tid, channel, {
+      messageId,
+      ...msg,
     });
 
-    return updated;
+    return { success: true };
   }
 }

@@ -354,7 +354,7 @@ export class ChatMessagesService {
         await this.reactionsService.getInternalChatReactions(messageId),
     };
 
-    return payload;
+    return { ...payload };
   }
 
   async removeReaction(
@@ -411,7 +411,7 @@ export class ChatMessagesService {
         await this.reactionsService.getInternalChatReactions(messageId),
     };
 
-    return payload;
+    return { ...payload };
   }
 
   private async ensureProjectUserAccess(projectId: string, userId: string) {
