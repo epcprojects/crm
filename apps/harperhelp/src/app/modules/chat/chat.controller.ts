@@ -196,7 +196,7 @@ export class ChatMessagesController {
       ticketId,
       channel,
       messageId,
-      user.id,
+      user,
       emoji,
     );
 

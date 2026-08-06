@@ -259,10 +259,7 @@ export class TicketRepliesService {
     if (!reply) throw new NotFoundException('Reply not found');
 
     const [attachments, reactions] = await Promise.all([
-      this.filesService.findBySource(
-        FileSource.TICKET_REPLY,
-        id,
-      ),
+      this.filesService.findBySource(FileSource.TICKET_REPLY, id),
       this.reactionsService.getTicketReplyReactions(id),
     ]);
 
@@ -339,11 +336,10 @@ export class TicketRepliesService {
     projectId: string,
     ticketId: string,
     replyId: string,
-    userId: string,
+    user,
     emoji: string,
   ) {
-  
-    await this.ensureProjectUserAccess(projectId, userId);
+    await this.ensureProjectUserAccess(projectId, user.id);
     const ticket = await this.replyRepo.manager.getRepository(Ticket).findOne({
       where: {
         id: ticketId,
@@ -366,9 +362,25 @@ export class TicketRepliesService {
       throw new NotFoundException('Reply not found');
     }
 
-    await this.reactionsService.addTicketReplyReaction(replyId, userId, emoji);
-    
+    await this.reactionsService.addTicketReplyReaction(replyId, user.id, emoji);
+
     const updated = await this.findOne(replyId);
+
+    if (updated.authorId !== user.id) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId,
+        ticketId,
+        actorId: user.id,
+        explicitRecipientIds: [updated.authorId],
+
+        type: NotificationType.TICKET_REPLY_REACTION,
+        entityType: NotificationEntityType.TICKET_REPLY,
+        entityId: updated.id,
+
+        title: `${user.fullName} reacted to your reply in ticket "${ticket.ticketRefNo}"`,
+        message: emoji,
+      });
+    }
 
     this.ticketRepliesGateway.broadcastUpdated(projectId, ticketId, updated);
     // console.debug(`after broadcast Broadcasting updated reply for ticket ${ticketId} in project ${projectId}:`, updated);
@@ -400,7 +412,7 @@ export class TicketRepliesService {
         ticketId,
       },
     });
-    
+
     if (!reply) {
       throw new NotFoundException('Reply not found');
     }

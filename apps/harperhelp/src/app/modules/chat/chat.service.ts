@@ -300,7 +300,7 @@ export class ChatMessagesService {
     ticketId: string,
     channel: ChatChannel,
     messageId: string,
-    userId: string,
+    user,
     emoji: string,
   ) {
     if (channel.toLowerCase() !== 'internal') {
@@ -309,7 +309,7 @@ export class ChatMessagesService {
       );
     }
 
-    await this.ensureProjectUserAccess(projectId, userId);
+    await this.ensureProjectUserAccess(projectId, user.id);
 
     const ticket = await this.repo(channel)
       .manager.getRepository(Ticket)
@@ -338,7 +338,7 @@ export class ChatMessagesService {
 
     await this.reactionsService.addInternalChatReaction(
       messageId,
-      userId,
+      user.id,
       emoji,
     );
     const updated = await this.repo(channel).findOne({
@@ -347,6 +347,23 @@ export class ChatMessagesService {
         sender: true,
       },
     });
+
+        if (updated.senderId !== user.id) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId,
+        ticketId,
+        actorId: user.id,
+        explicitRecipientIds: [updated.senderId],
+
+        type: NotificationType.INTERNAL_MESSAGE_REACTION,
+        entityType: NotificationEntityType.INTERNAL_MESSAGE,
+        entityId: updated.id,
+
+        title: `${user.fullName} reacted to your Message in Internal Chat, ticket "${ticket.ticketRefNo}"`,
+        message: emoji,
+      });
+    }
+
 
     const payload = {
       ...updated,

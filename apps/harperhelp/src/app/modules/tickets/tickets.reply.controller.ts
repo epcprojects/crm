@@ -150,7 +150,7 @@ export class TicketRepliesController {
     @Body() emoji: { emoji: string },
     @GetUser() user,
   ) {
-    return this.service.addReaction(pid, ticketId, replyId, user.id, emoji.emoji);
+    return this.service.addReaction(pid, ticketId, replyId, user, emoji.emoji);
   }
 
   @Delete('projects/:pid/reply/:replyId/reactions')
