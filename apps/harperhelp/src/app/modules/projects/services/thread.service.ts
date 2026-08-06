@@ -280,7 +280,7 @@ export class ThreadService {
       reactions,
     };
   }
-
+  // msgid, projectid
   async getThread(parentId: string, projectId: string) {
     const parent = await this.repo.findOne({
       where: { id: parentId, projectId },
@@ -317,11 +317,15 @@ export class ThreadService {
       ...parent,
       attachments: attachMap.get(parent.id) || [],
       parentReactions: parentReactions,
-      replies: replies.map(async (r) => ({
-        ...r,
-        attachments: attachMap.get(r.id) || [],
-        reactions: await this.reactionsService.getThreadMessageReactions(r.id),
-      })),
+      replies: await Promise.all(
+        replies.map(async (r) => ({
+          ...r,
+          attachments: attachMap.get(r.id) || [],
+          reactions: await this.reactionsService.getThreadMessageReactions(
+            r.id,
+          ),
+        })),
+      ),
     };
   }
 
@@ -442,7 +446,6 @@ export class ThreadService {
 
     const updated = await this.findOne(messageId);
 
-    
     this.threadGateway.broadcastUpdated(projectId, {
       id: updated.id,
       parentId: updated.parentId,
