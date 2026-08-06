@@ -91,6 +91,7 @@ export default function TicketDetailPage() {
   const canPostReplies = hasPermission('ticket_replies.post');
   const canEditReplies = hasPermission('ticket_replies.edit');
   const canDeleteReplies = hasPermission('ticket_replies.delete');
+  const canEditAssignee = hasPermission('tickets.edit_assignee');
   const canAttachReplyFiles = hasPermission('ticket_replies.attach_file');
   const canEditStatus = hasPermission('tickets.edit_status');
   const canEditPriority = hasPermission('tickets.edit_priority');
@@ -1162,6 +1163,28 @@ export default function TicketDetailPage() {
     );
   };
 
+  const handleAssigneeChange = async (value: string) => {
+    if (!canEditAssignee) {
+      return;
+    }
+
+    const selectedOption = assigneeOptions.find(
+      (option) => option.value === value,
+    );
+    setSelectedAssignee(selectedOption?.label ?? '');
+
+    await updateTicketMutation.mutateAsync(
+      buildUpdateTicketPayload({
+        title: ticket.title,
+        description: ticket.description,
+        statusKey: selectedStatus,
+        priorityKey: selectedPriority,
+        assigneeId: value,
+        dueDate: selectedDueDate,
+      }),
+    );
+  };
+
   const handleDueDateChange = async (value: string) => {
     if (!canEditDueDate) {
       return;
@@ -1583,8 +1606,7 @@ export default function TicketDetailPage() {
   ) => {
     const remove = Boolean(
       reply.reactions?.some(
-        (reaction) =>
-          reaction.emoji === emoji && reaction.reactedByCurrentUser,
+        (reaction) => reaction.emoji === emoji && reaction.reactedByCurrentUser,
       ),
     );
     const previousReplies = liveReplies;
@@ -1612,8 +1634,7 @@ export default function TicketDetailPage() {
   ) => {
     const remove = Boolean(
       reply.reactions?.some(
-        (reaction) =>
-          reaction.emoji === emoji && reaction.reactedByCurrentUser,
+        (reaction) => reaction.emoji === emoji && reaction.reactedByCurrentUser,
       ),
     );
 
@@ -2191,6 +2212,20 @@ export default function TicketDetailPage() {
                       applyHeight={false}
                     />
                   </div>
+                  <div className="grid items-center md:grid-cols-2 gap-4">
+                    <span className="text-sm text-black font-normal">
+                      Assignee
+                    </span>
+
+                    <Dropdown
+                      options={assigneeOptions}
+                      value={selectedAssigneeId}
+                      disabled={
+                        updateTicketMutation.isPending || !canEditAssignee
+                      }
+                      onChange={handleAssigneeChange}
+                    />
+                  </div>
                   {/* {!isExternalUser ? ( */}
                   <section className="grid items-center md:grid-cols-2 gap-4">
                     <span className="text-sm text-black font-normal">
@@ -2695,12 +2730,10 @@ type ApiTicketReply = {
 type ApiTicketReplyReaction = {
   emoji?: string | null;
   count?: number | string | null;
-  actors?:
-    | Array<{
-        id?: string | null;
-        fullName?: string | null;
-      }>
-    | null;
+  actors?: Array<{
+    id?: string | null;
+    fullName?: string | null;
+  }> | null;
   reactedByCurrentUser?: boolean | null;
   isCurrentUser?: boolean | null;
   userReacted?: boolean | null;
@@ -3064,7 +3097,9 @@ function incrementDiscussionReaction(
   emoji: string,
   currentUserId?: string,
 ) {
-  const existingReaction = reactions.find((reaction) => reaction.emoji === emoji);
+  const existingReaction = reactions.find(
+    (reaction) => reaction.emoji === emoji,
+  );
 
   if (!existingReaction) {
     return [
@@ -3129,9 +3164,7 @@ function decrementDiscussionReaction(
           reactedByCurrentUser: false,
           actors:
             reaction.actors?.filter((actor) =>
-              currentUserId
-                ? actor.id !== currentUserId
-                : !actor.isCurrentUser,
+              currentUserId ? actor.id !== currentUserId : !actor.isCurrentUser,
             ) ?? reaction.actors,
         },
       ];
