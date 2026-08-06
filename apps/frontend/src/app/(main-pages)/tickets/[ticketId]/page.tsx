@@ -44,7 +44,10 @@ import Tooltip from '../../../../components/tooltip';
 import Image from 'next/image';
 import EmptyState from '../../../../components/EmptyState';
 import ImageGalleryLightbox from '../../../../components/ui/ImageGalleryLightbox';
-import type { DiscussionReply } from '../../../../components/discussion/types';
+import type {
+  DiscussionReaction,
+  DiscussionReply,
+} from '../../../../components/discussion/types';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { NotificationItem } from '@harperhelp/interfaces';
 import { NotificationEntityType } from '@harperhelp/types';
@@ -113,7 +116,7 @@ export default function TicketDetailPage() {
 
   const ticketRepliesQuery = useQuery({
     queryKey: ['ticket-replies', ticketId],
-    queryFn: () => fetchTicketReplies(ticketId),
+    queryFn: () => fetchTicketReplies(ticketId, currentUserId),
     enabled: Boolean(ticketId && canViewReplies),
   });
   const [replySocketToken, setReplySocketToken] =
@@ -358,6 +361,48 @@ export default function TicketDetailPage() {
       );
     },
   });
+  const toggleReplyReactionMutation = useMutation({
+    mutationFn: async ({
+      replyId,
+      emoji,
+      remove,
+    }: {
+      replyId: string;
+      emoji: string;
+      remove: boolean;
+    }) => {
+      const response = await fetch(
+        `/api/tickets/${ticketId}/projects/${projectId}/reply/${replyId}/reactions`,
+        {
+          method: remove ? 'DELETE' : 'POST',
+          headers: {
+            Accept: 'application/json',
+            ...(remove ? {} : { 'Content-Type': 'application/json' }),
+          },
+          body: remove ? undefined : JSON.stringify({ emoji }),
+        },
+      );
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const errorMessage =
+          Array.isArray(data?.message) && data.message.length
+            ? data.message.join(', ')
+            : data?.message || 'Failed to update reply reaction.';
+        throw new Error(errorMessage);
+      }
+
+      return { replyId, emoji, remove };
+    },
+    onError: (error) => {
+      appToast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to update reply reaction.',
+      );
+    },
+  });
 
   const ticket = ticketDetailQuery.data ?? fallbackTicket;
   const [chatDrawerChannel, setChatDrawerChannel] =
@@ -394,6 +439,7 @@ export default function TicketDetailPage() {
     markRead: markInternalChatRead,
     deleteMessage: deleteInternalChatMessage,
     updateMessage: updateInternalChatMessage,
+    toggleReaction: toggleInternalChatReaction,
   } = useTicketChat({
     projectId: isInternalChatActive ? projectId : '',
     ticketId: isInternalChatActive ? ticketId : '',
@@ -407,6 +453,7 @@ export default function TicketDetailPage() {
     markRead: markExternalChatRead,
     deleteMessage: deleteExternalChatMessage,
     updateMessage: updateExternalChatMessage,
+    toggleReaction: toggleExternalChatReaction,
   } = useTicketChat({
     projectId:
       isChatDrawerOpen && chatDrawerChannel === 'external' ? projectId : '',
@@ -1488,6 +1535,103 @@ export default function TicketDetailPage() {
       );
     }
   };
+  const applyReplyReactionOptimisticUpdate = (
+    replies: DiscussionReply[],
+    replyId: string,
+    emoji: string,
+    remove: boolean,
+  ) =>
+    replies.map((reply) => {
+      if (reply.id !== replyId) {
+        return reply;
+      }
+
+      const currentReactions = reply.reactions ?? [];
+      const currentUserReaction = currentReactions.find(
+        (reaction) => reaction.reactedByCurrentUser,
+      );
+      let nextReactions = currentReactions.map((reaction) => ({ ...reaction }));
+
+      if (
+        currentUserReaction &&
+        (!remove || currentUserReaction.emoji !== emoji)
+      ) {
+        nextReactions = decrementDiscussionReaction(
+          nextReactions,
+          currentUserReaction.emoji,
+          currentUserId,
+        );
+      }
+
+      if (!remove) {
+        nextReactions = incrementDiscussionReaction(
+          nextReactions,
+          emoji,
+          currentUserId,
+        );
+      }
+
+      return {
+        ...reply,
+        reactions: nextReactions,
+      };
+    });
+
+  const handleToggleTicketReplyReaction = async (
+    reply: DiscussionReply,
+    emoji: string,
+  ) => {
+    const remove = Boolean(
+      reply.reactions?.some(
+        (reaction) =>
+          reaction.emoji === emoji && reaction.reactedByCurrentUser,
+      ),
+    );
+    const previousReplies = liveReplies;
+
+    setLiveReplies((current) =>
+      applyReplyReactionOptimisticUpdate(current, reply.id, emoji, remove),
+    );
+
+    try {
+      await toggleReplyReactionMutation.mutateAsync({
+        replyId: reply.id,
+        emoji,
+        remove,
+      });
+    } catch (error) {
+      setLiveReplies(previousReplies);
+      throw error;
+    }
+  };
+
+  const handleToggleChatMessageReaction = async (
+    reply: DiscussionReply,
+    emoji: string,
+    channel: ChatChannel,
+  ) => {
+    const remove = Boolean(
+      reply.reactions?.some(
+        (reaction) =>
+          reaction.emoji === emoji && reaction.reactedByCurrentUser,
+      ),
+    );
+
+    if (channel === 'internal') {
+      await toggleInternalChatReaction({
+        messageId: reply.id,
+        emoji,
+        remove,
+      });
+      return;
+    }
+
+    await toggleExternalChatReaction({
+      messageId: reply.id,
+      emoji,
+      remove,
+    });
+  };
 
   return (
     <div className="relative z-100 h-full xl:h-dvh overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0">
@@ -1902,8 +2046,11 @@ export default function TicketDetailPage() {
                     }
                     replies={
                       isInternalChatActive && canViewInternalChatBtn
-                        ? internalChatMessages.map(
-                            mapChatMessageToDiscussionReply,
+                        ? internalChatMessages.map((message) =>
+                            mapChatMessageToDiscussionReply(
+                              message,
+                              currentUserId,
+                            ),
                           )
                         : canViewReplies
                           ? liveReplies
@@ -1975,6 +2122,18 @@ export default function TicketDetailPage() {
                           : undefined
                         : canEditReplies
                           ? handleEditTicketReply
+                          : undefined
+                    }
+                    onToggleReaction={
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? (reply, emoji) =>
+                            handleToggleChatMessageReaction(
+                              reply,
+                              emoji,
+                              'internal',
+                            )
+                        : !isInternalChatActive && canViewReplies
+                          ? handleToggleTicketReplyReaction
                           : undefined
                     }
                     deletingReplyId={
@@ -2251,8 +2410,8 @@ export default function TicketDetailPage() {
               className="rounded-none!"
               title="Client Chat"
               subtitle=""
-              replies={externalChatMessages.map(
-                mapChatMessageToDiscussionReply,
+              replies={externalChatMessages.map((message) =>
+                mapChatMessageToDiscussionReply(message, currentUserId),
               )}
               emptyTitle={
                 externalChatLoading ? 'Loading chat...' : 'No messages yet.'
@@ -2478,7 +2637,7 @@ async function fetchTicketPriorities() {
     .sort((first, second) => first.sortOrder - second.sortOrder);
 }
 
-async function fetchTicketReplies(ticketId: string) {
+async function fetchTicketReplies(ticketId: string, currentUserId: string) {
   const response = await fetch(`/api/tickets/${ticketId}/replies`, {
     method: 'GET',
     headers: {
@@ -2500,7 +2659,9 @@ async function fetchTicketReplies(ticketId: string) {
     );
   }
 
-  return payload.map(mapApiTicketReplyToDiscussionReply);
+  return payload.map((reply) =>
+    mapApiTicketReplyToDiscussionReply(reply, currentUserId),
+  );
 }
 
 type ApiProjectMember = {
@@ -2528,6 +2689,21 @@ type ApiTicketReply = {
   message?: string | null;
   author?: ApiTicketPerson | null;
   attachments?: ApiTicketReplyAttachment[];
+  reactions?: ApiTicketReplyReaction[] | null;
+};
+
+type ApiTicketReplyReaction = {
+  emoji?: string | null;
+  count?: number | string | null;
+  actors?:
+    | Array<{
+        id?: string | null;
+        fullName?: string | null;
+      }>
+    | null;
+  reactedByCurrentUser?: boolean | null;
+  isCurrentUser?: boolean | null;
+  userReacted?: boolean | null;
 };
 
 type ApiTicketReplyAttachment = {
@@ -2686,7 +2862,10 @@ function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
   };
 }
 
-function mapChatMessageToDiscussionReply(message: ChatMessage) {
+function mapChatMessageToDiscussionReply(
+  message: ChatMessage,
+  currentUserId: string,
+) {
   const authorName =
     message.sender?.fullName ??
     message.sender?.name ??
@@ -2744,10 +2923,57 @@ function mapChatMessageToDiscussionReply(message: ChatMessage) {
             url: attachmentUrl,
           }))
         : [],
+    reactions: mapChatMessageReactions(message.reactions, currentUserId),
   };
 }
 
-function mapApiTicketReplyToDiscussionReply(reply: ApiTicketReply) {
+function mapChatMessageReactions(
+  reactions: ChatMessage['reactions'] | null | undefined,
+  currentUserId: string,
+): DiscussionReaction[] {
+  if (!Array.isArray(reactions)) {
+    return [];
+  }
+
+  return reactions.flatMap((reaction) => {
+    const emoji = reaction.emoji?.trim();
+
+    if (!emoji) {
+      return [];
+    }
+
+    const countValue = Number(reaction.count ?? 0);
+    const reactedByCurrentUserFromActors = Array.isArray(reaction.actors)
+      ? reaction.actors.some((actor) => actor.id?.trim() === currentUserId)
+      : false;
+    const reactedByCurrentUserFlag =
+      reaction.reactedByCurrentUser ??
+      reaction.isCurrentUser ??
+      reaction.userReacted;
+
+    return [
+      {
+        emoji,
+        count: Number.isFinite(countValue) && countValue > 0 ? countValue : 1,
+        reactedByCurrentUser: Boolean(
+          reactedByCurrentUserFromActors || reactedByCurrentUserFlag,
+        ),
+        actors: Array.isArray(reaction.actors)
+          ? reaction.actors.map((actor) => ({
+              id: actor.id?.trim() || undefined,
+              name: actor.fullName?.trim() || undefined,
+              isCurrentUser: actor.id?.trim() === currentUserId,
+            }))
+          : undefined,
+      },
+    ];
+  });
+}
+
+function mapApiTicketReplyToDiscussionReply(
+  reply: ApiTicketReply,
+  currentUserId: string,
+) {
   const authorId = reply.authorId ?? reply.createdBy ?? '';
   const authorName =
     reply.author?.fullName ??
@@ -2771,6 +2997,7 @@ function mapApiTicketReplyToDiscussionReply(reply: ApiTicketReply) {
     },
     createdAt: formatReplyDate(reply.createdAt ?? reply.updatedAt ?? ''),
     message: reply.message?.trim() || '',
+    reactions: mapApiTicketReplyReactions(reply.reactions, currentUserId),
     attachments: Array.isArray(reply.attachments)
       ? reply.attachments.map(mapApiTicketReplyAttachment)
       : [],
@@ -2787,6 +3014,141 @@ function mapApiTicketReplyAttachment(attachment: ApiTicketReplyAttachment) {
     extension: attachment.extension ?? attachment.mimeType ?? undefined,
     storageKey: attachment.storageKey ?? undefined,
   };
+}
+
+function mapApiTicketReplyReactions(
+  reactions: ApiTicketReplyReaction[] | null | undefined,
+  currentUserId: string,
+): DiscussionReaction[] {
+  if (!Array.isArray(reactions)) {
+    return [];
+  }
+
+  return reactions.flatMap((reaction) => {
+    const emoji = reaction.emoji?.trim();
+
+    if (!emoji) {
+      return [];
+    }
+
+    const countValue = Number(reaction.count ?? 0);
+    const reactedByCurrentUserFromActors = Array.isArray(reaction.actors)
+      ? reaction.actors.some((actor) => actor.id?.trim() === currentUserId)
+      : false;
+    const reactedByCurrentUserFlag =
+      reaction.reactedByCurrentUser ??
+      reaction.isCurrentUser ??
+      reaction.userReacted;
+
+    return [
+      {
+        emoji,
+        count: Number.isFinite(countValue) && countValue > 0 ? countValue : 1,
+        reactedByCurrentUser: Boolean(
+          reactedByCurrentUserFromActors || reactedByCurrentUserFlag,
+        ),
+        actors: Array.isArray(reaction.actors)
+          ? reaction.actors.map((actor) => ({
+              id: actor.id?.trim() || undefined,
+              name: actor.fullName?.trim() || undefined,
+              isCurrentUser: actor.id?.trim() === currentUserId,
+            }))
+          : undefined,
+      },
+    ];
+  });
+}
+
+function incrementDiscussionReaction(
+  reactions: DiscussionReaction[],
+  emoji: string,
+  currentUserId?: string,
+) {
+  const existingReaction = reactions.find((reaction) => reaction.emoji === emoji);
+
+  if (!existingReaction) {
+    return [
+      ...reactions,
+      {
+        emoji,
+        count: 1,
+        reactedByCurrentUser: true,
+        actors: currentUserId
+          ? [{ id: currentUserId, name: 'You', isCurrentUser: true }]
+          : [{ name: 'You', isCurrentUser: true }],
+      },
+    ];
+  }
+
+  return reactions.map((reaction) =>
+    reaction.emoji === emoji
+      ? {
+          ...reaction,
+          count: reaction.count + (reaction.reactedByCurrentUser ? 0 : 1),
+          reactedByCurrentUser: true,
+          actors: reaction.reactedByCurrentUser
+            ? reaction.actors
+            : [
+                ...(reaction.actors ?? []),
+                currentUserId
+                  ? { id: currentUserId, name: 'You', isCurrentUser: true }
+                  : { name: 'You', isCurrentUser: true },
+              ],
+        }
+      : {
+          ...reaction,
+          reactedByCurrentUser: false,
+          actors:
+            reaction.actors?.map((actor) => ({
+              ...actor,
+              isCurrentUser: false,
+            })) ?? reaction.actors,
+        },
+  );
+}
+
+function decrementDiscussionReaction(
+  reactions: DiscussionReaction[],
+  emoji: string,
+  currentUserId?: string,
+) {
+  return reactions
+    .flatMap((reaction) => {
+      if (reaction.emoji !== emoji) {
+        return [reaction];
+      }
+
+      if (reaction.count <= 1) {
+        return [];
+      }
+
+      return [
+        {
+          ...reaction,
+          count: reaction.count - 1,
+          reactedByCurrentUser: false,
+          actors:
+            reaction.actors?.filter((actor) =>
+              currentUserId
+                ? actor.id !== currentUserId
+                : !actor.isCurrentUser,
+            ) ?? reaction.actors,
+        },
+      ];
+    })
+    .map((reaction) =>
+      reaction.emoji === emoji
+        ? reaction
+        : {
+            ...reaction,
+            reactedByCurrentUser: false,
+            actors:
+              reaction.actors?.map((actor) => ({
+                ...actor,
+                isCurrentUser: false,
+              })) ?? reaction.actors,
+          },
+    );
 }
 
 type UploadedProjectFile = {

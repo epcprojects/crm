@@ -35,7 +35,11 @@ export default function ThemeButton({
           'bg-primary-dark text-white border border-primary-dark hover:border-primary hover:bg-primary':
             variant === 'primary',
         },
-        'rounded-lg py-2 px-4 flex items-center justify-center text-[15px] font-medium gap-1.5 transition-all duration-300 ease-in-out',
+        {
+          'py-2 px-4 text-[15px] gap-1.5': size === 'md',
+          'py-1.75 px-3 text-[13px] gap-1': size === 'sm',
+        },
+        'rounded-lg  flex items-center justify-center  font-medium  transition-all duration-300 ease-in-out',
       )}
       {...props}
     >

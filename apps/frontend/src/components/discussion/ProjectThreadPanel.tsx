@@ -18,6 +18,7 @@ import ConfirmActionModal from '../modals/ConfirmActionModal';
 import ImageGalleryLightbox from '../ui/ImageGalleryLightbox';
 import type { DiscussionAttachment, DiscussionReply } from './types';
 import EmojiPickerButton from './EmojiPickerButton';
+import MessageReactionBar from './MessageReactionBar';
 import ThemeButton from '../ui/ThemeButton';
 
 const EMOJI_TEXT_STYLE = {
@@ -55,6 +56,10 @@ type DiscussionPanelProps = {
     message: string;
   }) => Promise<void> | void;
   onDeleteReply?: (reply: DiscussionReply) => Promise<void> | void;
+  onToggleReaction?: (
+    reply: DiscussionReply,
+    emoji: string,
+  ) => Promise<void> | void;
   deletingReplyId?: string;
   editingReplyId?: string;
   onDeleteAttachment?: (attachment: DiscussionAttachment) => void;
@@ -89,6 +94,7 @@ export default function ProjectThreadPanel({
   onReplyClick,
   onEditReply,
   onDeleteReply,
+  onToggleReaction,
   deletingReplyId,
   editingReplyId,
   onDeleteAttachment,
@@ -388,39 +394,36 @@ export default function ProjectThreadPanel({
           // }`}
           className="min-h-0 flex-1 overflow-y-auto px-3 py-5 scrollbar-hide md:px-5"
         >
-          <div
-            className={`flex min-h-full flex-col ${replies.length > 0 && headerReply ? 'justify-between' : replies.length > 0 && !headerReply ? 'justify-end' : 'justify-center'}`}
-          >
-            {headerReply ? (
-              <div className="pb-4">
-                <article className="flex  items-start gap-3">
-                  <span className="flex w-7 h-7 md:h-9 md:w-9 shrink-0 items-center justify-center rounded-full border border-violet-200 bg-violet-100 text-xs font-bold text-purple-700">
-                    {headerReply.author.initials}
-                  </span>
-                  <div className="flex min-w-0 flex-1  p-2 rounded-xl rounded-tl-none border border-violet-200 flex-col">
-                    <div className="mb-1 flex  flex-wrap items-center gap-2">
-                      <span className="text-sm font-bold text-gray-900">
-                        {headerReply.author.name}
-                      </span>
-                      <span className="text-xs text-gray-700">
-                        {headerReply.createdAt}
-                      </span>
-                      {onEditReply &&
-                      currentUserId &&
-                      headerReply.authorId === currentUserId &&
-                      editingMessageId !== headerReply.id ? (
-                        <Menu as="div" className="relative">
-                          <MenuButton
-                            type="button"
-                            disabled={
-                              deletingReplyId === headerReply.id ||
-                              editingReplyId === headerReply.id
-                            }
-                            aria-label="Message actions"
-                            className="flex h-6 w-6 items-center justify-center rounded-md text-gray-500 outline-none transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            <ThreedotIcon />
-                          </MenuButton>
+          {headerReply ? (
+            <div className="  pb-4">
+              <article className="flex  items-start gap-3">
+                <span className="flex w-7 h-7 md:h-9 md:w-9 shrink-0 items-center justify-center rounded-full border border-violet-200 bg-violet-100 text-xs font-bold text-purple-700">
+                  {headerReply.author.initials}
+                </span>
+                <div className="group/reply relative flex min-w-0 flex-1  rounded-xl rounded-tl-none border border-violet-200 p-2 flex-col">
+                  <div className="mb-1 flex  flex-wrap items-center gap-2">
+                    <span className="text-sm font-bold text-gray-900">
+                      {headerReply.author.name}
+                    </span>
+                    <span className="text-xs text-gray-700">
+                      {headerReply.createdAt}
+                    </span>
+                    {onEditReply &&
+                    currentUserId &&
+                    headerReply.authorId === currentUserId &&
+                    editingMessageId !== headerReply.id ? (
+                      <Menu as="div" className="relative">
+                        <MenuButton
+                          type="button"
+                          disabled={
+                            deletingReplyId === headerReply.id ||
+                            editingReplyId === headerReply.id
+                          }
+                          aria-label="Message actions"
+                          className="flex h-6 w-6 items-center justify-center rounded-md text-gray-500 outline-none transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <ThreedotIcon />
+                        </MenuButton>
 
                           <MenuItems
                             anchor="bottom end"
@@ -515,32 +518,23 @@ export default function ProjectThreadPanel({
                                 <p className="truncate text-sm font-medium text-gray-700">
                                   {attachment.name}
                                 </p>
-                                {attachment.sizeLabel ? (
-                                  <p className="text-sm text-gray-500">
-                                    {attachment.sizeLabel}
-                                  </p>
-                                ) : null}
-                              </div>
-                            </a>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                </article>
-
-                <div className="flex mt-3 items-center gap-2">
-                  <hr className="flex-1 text-gray-200" />{' '}
-                  <span className="text-gray-700 font-semibold text-xs">
-                    {typeof headerReply.replyCount === 'number' &&
-                    headerReply.replyCount > 0 ? (
-                      <p className=" text-xs font-medium text-gray-500">
-                        {headerReply.replyCount}{' '}
-                        {headerReply.replyCount === 1 ? 'Reply' : 'Replies'}
-                      </p>
-                    ) : null}
-                  </span>
-                  <hr className="flex-1 text-gray-200" />
+                              ) : null}
+                            </div>
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  <MessageReactionBar
+                    reactions={headerReply.reactions ?? []}
+                    onToggleReaction={(emoji) =>
+                      void onToggleReaction?.(headerReply, emoji)
+                    }
+                    currentUserId={currentUserId}
+                    align="end"
+                    from="thread"
+                    className="left-auto right-3"
+                  />
                 </div>
               </div>
             ) : null}
@@ -570,32 +564,41 @@ export default function ProjectThreadPanel({
                             isCurrentUserReply ? 'justify-start' : ''
                           }`}
                         >
-                          <span className="text-xs font-bold text-gray-900 md:text-sm">
-                            {reply.author.name}
-                          </span>
-
-                          <span className="text-xs text-gray-700">
-                            {reply.createdAt}
-                          </span>
-                        </div>
-
-                        {reply.message || reply.attachments?.length ? (
-                          <div
-                            className={`group/reply relative min-w-56 flex ${headerAction ? 'w-full' : editingMessageId ? 'w-full' : 'w-fit md:max-w-3/4'}   flex-col rounded-xl rounded-tl-none border border-gray-200 bg-white p-2 ${
-                              reply.message && reply.attachments?.length != 0
-                                ? 'space-y-2'
-                                : ''
-                            }`}
-                          >
-                            {editingMessageId === reply.id ? (
-                              <InlineEditComposer
-                                editingReplyId={editingReplyId}
-                                editingMessage={editingMessage}
-                                editingTextareaRef={editingTextareaRef}
-                                onChangeMessage={setEditingMessage}
-                                onCancel={cancelEditingReply}
-                                onSave={() => void handleSaveEditedReply(reply)}
-                                onSelectEmoji={handleEditingEmojiSelect}
+                          <MessageReactionBar
+                            reactions={reply.reactions ?? []}
+                            onToggleReaction={(emoji) =>
+                              void onToggleReaction?.(reply, emoji)
+                            }
+                            currentUserId={currentUserId}
+                            align={isCurrentUserReply ? 'start' : 'start'}
+                            from="thread"
+                            className={
+                              isCurrentUserReply
+                                ? 'left-auto right-3'
+                                : undefined
+                            }
+                          />
+                          {editingMessageId === reply.id ? (
+                            <InlineEditComposer
+                              editingReplyId={editingReplyId}
+                              editingMessage={editingMessage}
+                              editingTextareaRef={editingTextareaRef}
+                              onChangeMessage={setEditingMessage}
+                              onCancel={cancelEditingReply}
+                              onSave={() => void handleSaveEditedReply(reply)}
+                              onSelectEmoji={handleEditingEmojiSelect}
+                            />
+                          ) : reply.message ? (
+                            <div
+                              className={
+                                onEditReply && isCurrentUserReply
+                                  ? 'pr-7'
+                                  : undefined
+                              }
+                            >
+                              <ExpandableMessageText
+                                message={reply.message}
+                                isEdited={reply.isEdited}
                               />
                             ) : reply.message ? (
                               <div

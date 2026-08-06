@@ -115,6 +115,12 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    requestUrl.searchParams.getAll('projectIds').forEach((projectId) => {
+      if (projectId) {
+        upstreamUrl.searchParams.append('projectIds', projectId);
+      }
+    });
+
     // Mirrors exactly what "Recent Tickets" shows — first page, 20 items.
     upstreamUrl.searchParams.set('page', '1');
     upstreamUrl.searchParams.set('limit', '20');

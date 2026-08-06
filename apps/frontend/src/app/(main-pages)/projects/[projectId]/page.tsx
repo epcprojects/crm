@@ -1,6 +1,10 @@
 'use client';
 
 import {
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuItems,
   Popover,
   PopoverButton,
   PopoverPanel,
@@ -29,19 +33,24 @@ import ConfirmActionModal from '../../../../components/modals/ConfirmActionModal
 import ProjectThreadPanel from '../../../../components/discussion/ProjectThreadPanel';
 import type {
   DiscussionAttachment,
+  DiscussionReaction,
   DiscussionReply,
 } from '../../../../components/discussion/types';
 import ProjectFilesPanel, {
   type ProjectFileRecord,
 } from '../../../../components/projects/ProjectFilesPanel';
+import RichTextEditor from '../../../../components/RichTextEditor';
 import { createTicketProjectOptions } from '../../../../components/modals/create-ticket-modal.data';
 import RecentTicketsTable from '../../../../components/tables/RecentTicketsTable';
 import { appToast } from '../../../../components/toast/AppToast';
 import {
+  EditIcon,
   FiltersIcon,
   SearchIcon,
   PlusIcon,
+  ThreedotIcon,
   TicketsIcon,
+  TrashIcon,
   CloseIcon,
   ThreadIcon,
 } from '../../../../../public/icons';
@@ -56,13 +65,19 @@ import {
   projectTicketsQueryKey,
   projectThreadQueryKey,
   projectThreadDetailQueryKey,
+  type ProjectNoteRecord,
+  useCreateProjectNoteMutation,
+  useDeleteProjectNoteMutation,
   useDeleteProjectFileMutation,
   useProjectDetailQuery,
   useProjectFilesQuery,
   useProjectNamesQuery,
+  useProjectNoteDetailQuery,
+  useProjectNotesQuery,
   useProjectThreadDetailQuery,
   useProjectTicketsQuery,
   useProjectThreadQuery,
+  useUpdateProjectNoteMutation,
   useUploadProjectFilesMutation,
 } from '../projects.queries';
 import {
@@ -73,10 +88,19 @@ import { useAppSelector } from '../../../Redux/store';
 import Calendar from '../../../../components/calendar/Calendar';
 import DashboardSummaryBanner from '../../../../components/ui/DashboardSummaryBanner';
 import EmptyState from '../../../../components/EmptyState';
+import AppModal from '../../../../components/modals/AppModal';
 
-const projectTabs = ['Tickets', 'Thread', 'Files', 'Calendar'] as const;
+const projectTabs = [
+  'Tickets',
+  'Thread',
+  'Files',
+  'Calendar',
+  'Notes',
+] as const;
 const PROJECT_TICKETS_STATUS_QUERY_PARAM = 'ticketStatus';
 const PROJECT_TICKETS_PRIORITY_QUERY_PARAM = 'ticketPriority';
+const PROJECT_NOTES_LIMIT = 50;
+const MAX_PROJECT_NOTE_DESCRIPTION_LENGTH = 4000;
 
 type SocketTokenResponse = {
   accessToken: string;
@@ -112,6 +136,7 @@ export default function ProjectDetailPage() {
   const [uploadFileOpen, setUploadFileOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [fileSearchValue, setFileSearchValue] = useState('');
+  const [notesSearchValue, setNotesSearchValue] = useState('');
   const [uploadedFilesState, setUploadedFilesState] = useState<
     ProjectFileRecord[]
   >([]);
@@ -119,8 +144,19 @@ export default function ProjectDetailPage() {
     null,
   );
   const [selectedThreadMessageId, setSelectedThreadMessageId] = useState('');
+  const [selectedProjectNoteId, setSelectedProjectNoteId] = useState('');
+  const [isProjectNoteMobileModalOpen, setIsProjectNoteMobileModalOpen] =
+    useState(false);
+  const [isCreatingProjectNote, setIsCreatingProjectNote] = useState(false);
+  const [isEditingProjectNote, setIsEditingProjectNote] = useState(false);
+  const [pendingProjectNoteEditId, setPendingProjectNoteEditId] = useState('');
   const [deletingThreadReplyId, setDeletingThreadReplyId] = useState('');
   const [editingThreadReplyId, setEditingThreadReplyId] = useState('');
+  const [projectNoteTitleDraft, setProjectNoteTitleDraft] = useState('');
+  const [projectNoteDescriptionDraft, setProjectNoteDescriptionDraft] =
+    useState('');
+  const [projectNoteToDelete, setProjectNoteToDelete] =
+    useState<ProjectNoteRecord | null>(null);
   const [threadSocketToken, setThreadSocketToken] =
     useState<SocketTokenResponse | null>(null);
   const [ticketsPagination, setTicketsPagination] = useState({
@@ -141,7 +177,7 @@ export default function ProjectDetailPage() {
     updateCount: (currentCount: number) => number,
   ) => {
     queryClient.setQueryData<DiscussionReply[]>(
-      [...projectThreadQueryKey, projectId],
+      [...projectThreadQueryKey, projectId, currentUserId],
       (currentReplies) =>
         Array.isArray(currentReplies)
           ? currentReplies.map((reply) =>
@@ -161,14 +197,36 @@ export default function ProjectDetailPage() {
   );
   const shouldRedirectToNotFound =
     projectDetailQuery.isError && isNotFoundError(projectDetailQuery.error);
-  const projectThreadQuery = useProjectThreadQuery(projectId, canViewThread);
+  const projectThreadQuery = useProjectThreadQuery(
+    projectId,
+    currentUserId,
+    canViewThread,
+  );
   const projectThreadDetailQuery = useProjectThreadDetailQuery(
     projectId,
     selectedThreadMessageId,
+    currentUserId,
     canViewThread,
   );
 
   const projectFilesQuery = useProjectFilesQuery(projectId, canViewFiles);
+  const createProjectNoteMutation = useCreateProjectNoteMutation();
+  const updateProjectNoteMutation = useUpdateProjectNoteMutation();
+  const deleteProjectNoteMutation = useDeleteProjectNoteMutation();
+  const projectNotesQuery = useProjectNotesQuery(
+    projectId,
+    {
+      page: 1,
+      limit: PROJECT_NOTES_LIMIT,
+      search: notesSearchValue.trim() || undefined,
+    },
+    canViewProjectDetail,
+  );
+  const projectNoteDetailQuery = useProjectNoteDetailQuery(
+    projectId,
+    selectedProjectNoteId,
+    canViewProjectDetail && !isCreatingProjectNote,
+  );
   const projectTicketsQuery = useProjectTicketsQuery(
     projectId,
     {
@@ -182,6 +240,48 @@ export default function ProjectDetailPage() {
   );
   const uploadProjectFilesMutation = useUploadProjectFilesMutation();
   const deleteProjectFileMutation = useDeleteProjectFileMutation();
+  const toggleProjectThreadReactionMutation = useMutation({
+    mutationFn: async ({
+      messageId,
+      emoji,
+      remove,
+    }: {
+      messageId: string;
+      emoji: string;
+      remove: boolean;
+    }) => {
+      const response = await fetch(
+        `/api/projects/${projectId}/thread/${messageId}/reactions`,
+        {
+          method: remove ? 'DELETE' : 'POST',
+          headers: {
+            Accept: 'application/json',
+            ...(remove ? {} : { 'Content-Type': 'application/json' }),
+          },
+          ...(remove ? {} : { body: JSON.stringify({ emoji }) }),
+        },
+      );
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message =
+          Array.isArray(data?.message) && data.message.length
+            ? data.message.join(', ')
+            : data?.message || 'Failed to update thread reaction.';
+        throw new Error(message);
+      }
+
+      return data;
+    },
+    onError: (error) => {
+      appToast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to update thread reaction.',
+      );
+    },
+  });
   const projectsQuery = useProjectNamesQuery(canCreateTicket);
   const ticketStatusesQuery = useQuery({
     queryKey: ['ticket-statuses'],
@@ -614,6 +714,215 @@ export default function ProjectDetailPage() {
 
     return projectThreadDetailQuery.data?.replies ?? [];
   }, [projectThreadDetailQuery.data, selectedThreadMessageId]);
+  const projectNotes = useMemo(
+    () => projectNotesQuery.data?.items ?? [],
+    [projectNotesQuery.data?.items],
+  );
+  const selectedProjectNoteSummary = useMemo(
+    () =>
+      projectNotes.find((note) => note.id === selectedProjectNoteId) ??
+      (!isCreatingProjectNote ? projectNotes[0] : null) ??
+      null,
+    [isCreatingProjectNote, projectNotes, selectedProjectNoteId],
+  );
+  const selectedProjectNote =
+    !isCreatingProjectNote && projectNoteDetailQuery.data
+      ? projectNoteDetailQuery.data
+      : selectedProjectNoteSummary;
+
+  useEffect(() => {
+    if (!projectNotes.length) {
+      if (selectedProjectNoteId) {
+        setSelectedProjectNoteId('');
+      }
+
+      return;
+    }
+
+    const hasSelectedNote = projectNotes.some(
+      (note) => note.id === selectedProjectNoteId,
+    );
+
+    if (!hasSelectedNote && !isCreatingProjectNote) {
+      setSelectedProjectNoteId(projectNotes[0].id);
+    }
+  }, [isCreatingProjectNote, projectNotes, selectedProjectNoteId]);
+
+  useEffect(() => {
+    if (!isMobile && isProjectNoteMobileModalOpen) {
+      setIsProjectNoteMobileModalOpen(false);
+    }
+  }, [isMobile, isProjectNoteMobileModalOpen]);
+
+  useEffect(() => {
+    if (isCreatingProjectNote) {
+      return;
+    }
+
+    if (
+      pendingProjectNoteEditId &&
+      selectedProjectNote?.id === pendingProjectNoteEditId
+    ) {
+      setIsEditingProjectNote(true);
+      setProjectNoteTitleDraft(selectedProjectNote.title);
+      setProjectNoteDescriptionDraft(selectedProjectNote.description);
+      setPendingProjectNoteEditId('');
+      return;
+    }
+
+    if (isEditingProjectNote) {
+      return;
+    }
+
+    setIsEditingProjectNote(false);
+    setProjectNoteTitleDraft(selectedProjectNote?.title ?? '');
+    setProjectNoteDescriptionDraft(selectedProjectNote?.description ?? '');
+  }, [
+    isCreatingProjectNote,
+    isEditingProjectNote,
+    pendingProjectNoteEditId,
+    selectedProjectNote,
+  ]);
+
+  const handleStartCreatingProjectNote = () => {
+    if (isMobile) {
+      setIsProjectNoteMobileModalOpen(true);
+    }
+
+    setIsCreatingProjectNote(true);
+    setIsEditingProjectNote(false);
+    setPendingProjectNoteEditId('');
+    setSelectedProjectNoteId('');
+    setProjectNoteTitleDraft('');
+    setProjectNoteDescriptionDraft('');
+  };
+
+  const handleCancelCreatingProjectNote = () => {
+    setIsCreatingProjectNote(false);
+    setProjectNoteTitleDraft(selectedProjectNote?.title ?? '');
+    setProjectNoteDescriptionDraft(selectedProjectNote?.description ?? '');
+  };
+
+  const handleStartEditingProjectNote = () => {
+    if (!selectedProjectNote) {
+      return;
+    }
+
+    if (isMobile) {
+      setIsProjectNoteMobileModalOpen(true);
+    }
+
+    setIsEditingProjectNote(true);
+    setProjectNoteTitleDraft(selectedProjectNote.title);
+    setProjectNoteDescriptionDraft(selectedProjectNote.description);
+  };
+
+  const handleCancelEditingProjectNote = () => {
+    setIsEditingProjectNote(false);
+    setPendingProjectNoteEditId('');
+    setProjectNoteTitleDraft(selectedProjectNote?.title ?? '');
+    setProjectNoteDescriptionDraft(selectedProjectNote?.description ?? '');
+  };
+
+  const handleCloseProjectNoteMobileModal = () => {
+    setIsProjectNoteMobileModalOpen(false);
+    setIsEditingProjectNote(false);
+    setPendingProjectNoteEditId('');
+
+    if (isCreatingProjectNote) {
+      setIsCreatingProjectNote(false);
+      setSelectedProjectNoteId('');
+      setProjectNoteTitleDraft('');
+      setProjectNoteDescriptionDraft('');
+      return;
+    }
+
+    setProjectNoteTitleDraft(selectedProjectNote?.title ?? '');
+    setProjectNoteDescriptionDraft(selectedProjectNote?.description ?? '');
+  };
+
+  const handleCreateProjectNote = async () => {
+    const normalizedTitle = projectNoteTitleDraft.trim();
+
+    if (!normalizedTitle) {
+      appToast.error('Note title is required.');
+      return;
+    }
+
+    const createdNote = await createProjectNoteMutation.mutateAsync({
+      projectId,
+      values: {
+        title: normalizedTitle,
+        description: projectNoteDescriptionDraft,
+      },
+    });
+
+    setIsCreatingProjectNote(false);
+    setSelectedProjectNoteId(createdNote.id);
+    setPendingProjectNoteEditId('');
+    setProjectNoteTitleDraft(createdNote.title);
+    setProjectNoteDescriptionDraft(createdNote.description);
+    appToast.success('Note created successfully.');
+  };
+
+  const handleUpdateProjectNote = async () => {
+    if (!selectedProjectNote) {
+      return;
+    }
+
+    const normalizedTitle = projectNoteTitleDraft.trim();
+
+    if (!normalizedTitle) {
+      appToast.error('Note title is required.');
+      return;
+    }
+
+    const updatedNote = await updateProjectNoteMutation.mutateAsync({
+      projectId,
+      noteId: selectedProjectNote.id,
+      values: {
+        title: normalizedTitle,
+        description: projectNoteDescriptionDraft,
+      },
+    });
+
+    setIsEditingProjectNote(false);
+    setPendingProjectNoteEditId('');
+    setProjectNoteTitleDraft(updatedNote.title);
+    setProjectNoteDescriptionDraft(updatedNote.description);
+    appToast.success('Note updated successfully.');
+  };
+
+  const handleDeleteProjectNote = async () => {
+    if (!projectNoteToDelete) {
+      return;
+    }
+
+    const deletingNoteId = projectNoteToDelete.id;
+    const isDeletingSelectedNote = selectedProjectNoteId === deletingNoteId;
+    const nextNote = isDeletingSelectedNote
+      ? (projectNotes.find((note) => note.id !== deletingNoteId) ?? null)
+      : null;
+
+    if (isDeletingSelectedNote) {
+      setSelectedProjectNoteId(nextNote?.id ?? '');
+      setProjectNoteTitleDraft(nextNote?.title ?? '');
+      setProjectNoteDescriptionDraft(nextNote?.description ?? '');
+      setIsEditingProjectNote(false);
+      setPendingProjectNoteEditId('');
+    }
+
+    await deleteProjectNoteMutation.mutateAsync({
+      projectId,
+      noteId: deletingNoteId,
+    });
+
+    setProjectNoteToDelete(null);
+    setIsEditingProjectNote(false);
+    setIsCreatingProjectNote(false);
+
+    appToast.success('Note deleted successfully.');
+  };
 
   useThread({
     projectId,
@@ -884,11 +1193,148 @@ export default function ProjectDetailPage() {
     }
   };
 
+  const updateThreadReactionInDetail = (
+    detail:
+      | {
+          header: DiscussionReply | null;
+          replies: DiscussionReply[];
+        }
+      | undefined,
+    replyId: string,
+    emoji: string,
+    remove: boolean,
+  ) => {
+    if (!detail) {
+      return detail;
+    }
+
+    return {
+      ...detail,
+      header:
+        detail.header?.id === replyId
+          ? {
+              ...detail.header,
+              reactions: applyProjectThreadReactionUpdate(
+                detail.header.reactions ?? [],
+                emoji,
+                remove,
+                currentUserId,
+              ),
+            }
+          : detail.header,
+      replies: detail.replies.map((reply) =>
+        reply.id === replyId
+          ? {
+              ...reply,
+              reactions: applyProjectThreadReactionUpdate(
+                reply.reactions ?? [],
+                emoji,
+                remove,
+                currentUserId,
+              ),
+            }
+          : reply,
+      ),
+    };
+  };
+
+  const handleToggleProjectThreadReaction = async (
+    reply: DiscussionReply,
+    emoji: string,
+  ) => {
+    const remove = Boolean(
+      reply.reactions?.some(
+        (reaction) =>
+          reaction.emoji === emoji && reaction.reactedByCurrentUser,
+      ),
+    );
+
+    const threadQueryKey = [
+      ...projectThreadQueryKey,
+      projectId,
+      currentUserId,
+    ] as const;
+    const detailQueryKeys = selectedThreadMessageId
+      ? [[
+          ...projectThreadDetailQueryKey,
+          projectId,
+          selectedThreadMessageId,
+          currentUserId,
+        ]]
+      : [];
+    const previousThreadReplies =
+      queryClient.getQueryData<DiscussionReply[]>(threadQueryKey);
+    const previousThreadDetails = detailQueryKeys.map((queryKey) => ({
+      queryKey,
+      data: queryClient.getQueryData<{
+        header: DiscussionReply | null;
+        replies: DiscussionReply[];
+      }>(queryKey),
+    }));
+
+    queryClient.setQueryData<DiscussionReply[]>(threadQueryKey, (current) =>
+      Array.isArray(current)
+        ? current.map((threadReply) =>
+            threadReply.id === reply.id
+              ? {
+                  ...threadReply,
+                  reactions: applyProjectThreadReactionUpdate(
+                    threadReply.reactions ?? [],
+                    emoji,
+                    remove,
+                    currentUserId,
+                  ),
+                }
+              : threadReply,
+          )
+        : current,
+    );
+
+    detailQueryKeys.forEach((queryKey) => {
+      queryClient.setQueryData<{
+        header: DiscussionReply | null;
+        replies: DiscussionReply[];
+      }>(queryKey, (current) =>
+        updateThreadReactionInDetail(current, reply.id, emoji, remove),
+      );
+    });
+
+    try {
+      await toggleProjectThreadReactionMutation.mutateAsync({
+        messageId: reply.id,
+        emoji,
+        remove,
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: threadQueryKey,
+      });
+
+      if (selectedThreadMessageId) {
+        await queryClient.invalidateQueries({
+          queryKey: [
+            ...projectThreadDetailQueryKey,
+            projectId,
+            selectedThreadMessageId,
+            currentUserId,
+          ],
+        });
+      }
+    } catch (error) {
+      queryClient.setQueryData(threadQueryKey, previousThreadReplies);
+      previousThreadDetails.forEach(({ queryKey, data }) => {
+        queryClient.setQueryData(queryKey, data);
+      });
+      throw error;
+    }
+  };
+
   const visibleProjectTabs = projectTabs.filter((tab) => {
     if (tab === 'Tickets') return canViewTickets;
     if (tab === 'Thread') return canViewThread;
     if (tab === 'Files') return canViewFiles;
     if (tab === 'Calendar') return canViewCalendar;
+    if (tab === 'Notes') return true;
     return false;
   });
   const defaultProjectTabIndex = useMemo(() => {
@@ -896,9 +1342,11 @@ export default function ProjectDetailPage() {
     const requestedTabName =
       requestedTab === '1'
         ? 'Thread'
-        : requestedTab === '3'
-          ? 'Calendar'
-          : null;
+        : requestedTab === '4'
+          ? 'Notes'
+          : requestedTab === '3'
+            ? 'Calendar'
+            : null;
 
     if (!requestedTabName) {
       return 0;
@@ -1141,6 +1589,7 @@ export default function ProjectDetailPage() {
             </section> */}
 
             <TabGroup
+              key={`${projectId}-${searchParams.get('t') ?? '0'}`}
               defaultIndex={defaultProjectTabIndex}
               // className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden"
               className="flex h-auto min-h-0 min-w-0 flex-none flex-col gap-4 overflow-visible xl:h-full xl:flex-1 xl:overflow-hidden"
@@ -1151,7 +1600,7 @@ export default function ProjectDetailPage() {
                     key={tab}
                     className={({ selected }) =>
                       clsx(
-                        'shrink-0 border-b-2 px-2 xl:px-4 py-3 text-sm font-semibold outline-none transition',
+                        'shrink-0 border-b-2 px-2 xl:px-4 pt-3 pb-1.5 text-sm font-semibold outline-none transition',
                         selected
                           ? 'border-[#3165F6] text-[#3165F6]'
                           : 'border-transparent text-gray-500 hover:text-gray-700',
@@ -1170,7 +1619,7 @@ export default function ProjectDetailPage() {
 
               <TabPanels
                 // className="flex min-h-0 min-w-0 flex-1 flex-col pb-4 md:pb-4 overflow-hidden"
-                className="flex h-auto min-h-0 min-w-0 flex-none flex-col overflow-visible pb-4 md:pb-4 xl:h-full xl:flex-1 xl:overflow-hidden"
+                className="flex h-auto min-h-0 min-w-0 flex-none flex-col overflow-visible pb-2  xl:h-full xl:flex-1 xl:overflow-hidden"
               >
                 <PermissionGuard permission="tickets.view_list">
                   <TabPanel
@@ -1442,6 +1891,7 @@ export default function ProjectDetailPage() {
                               setSelectedThreadMessageId(reply.id)
                             }
                             onDeleteAttachment={handleDeleteThreadAttachment}
+                            onToggleReaction={handleToggleProjectThreadReaction}
                             deletingAttachmentId={
                               deleteProjectFileMutation.isPending
                                 ? deleteProjectFileMutation.variables?.fileId
@@ -1509,6 +1959,7 @@ export default function ProjectDetailPage() {
                             }
                             requireMessage={false}
                             currentUserId={currentUserId}
+                            onToggleReaction={handleToggleProjectThreadReaction}
                             onDeleteAttachment={handleDeleteThreadAttachment}
                             deletingAttachmentId={
                               deleteProjectFileMutation.isPending
@@ -1568,6 +2019,621 @@ export default function ProjectDetailPage() {
                     <Calendar projectId={projectId} />
                   </TabPanel>
                 </PermissionGuard>
+
+                <TabPanel className="h-auto min-h-0 overflow-visible xl:h-full border rounded-2xl border-gray-200 xl:overflow-hidden">
+                  <div className="grid h-auto min-h-0 min-w-0 xl:h-full xl:grid-cols-[340px_minmax(0,1fr)]">
+                    <section className="flex min-h-96 flex-col overflow-hidden border-e border-gray-200 bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+                      <div className="border-b border-gray-200 px-3.5 py-3.5 bg-gray-50">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-base font-bold text-gray-900">
+                              Notes
+                            </h3>
+                            <p className="text-xs font-medium border border-gray-200 px-1.5 py-0.5 rounded-full bg-white text-gray-600">
+                              {projectNotesQuery.data?.meta.total ?? 0} notes
+                            </p>
+                          </div>
+                          <ThemeButton
+                            type="button"
+                            variant="primaryGradient"
+                            size="sm"
+                            icon={<PlusIcon width="14" height="14" />}
+                            onClick={handleStartCreatingProjectNote}
+                          >
+                            New
+                          </ThemeButton>
+                        </div>
+
+                        <div className="mt-4 rounded-lg border border-gray-200 bg-white px-2.5 py-2">
+                          <div className="flex items-center gap-2">
+                            <span className="shrink-0">
+                              <SearchIcon fill="#374151" />
+                            </span>
+
+                            <input
+                              type="text"
+                              value={notesSearchValue}
+                              onChange={(event) =>
+                                setNotesSearchValue(event.target.value)
+                              }
+                              placeholder="Search..."
+                              className="min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="min-h-0 flex-1 scrollbar-thin overflow-y-auto bg-white">
+                        {projectNotesQuery.isLoading ? (
+                          <div className="space-y-3 p-4">
+                            {Array.from({ length: 5 }).map((_, index) => (
+                              <div
+                                key={index}
+                                className="rounded-2xl border border-gray-200 px-4 py-3"
+                              >
+                                <div className="h-4 w-2/3 animate-pulse rounded bg-gray-200" />
+                                <div className="mt-3 h-3 w-full animate-pulse rounded bg-gray-100" />
+                                <div className="mt-2 h-3 w-1/2 animate-pulse rounded bg-gray-100" />
+                              </div>
+                            ))}
+                          </div>
+                        ) : projectNotes.length ? (
+                          <div>
+                            {projectNotes.map((note) => {
+                              const isActive =
+                                note.id === selectedProjectNoteSummary?.id;
+
+                              return (
+                                <article
+                                  key={note.id}
+                                  className={clsx(
+                                    'border-b px-2.5 py-3 transition last:border-b-0',
+                                    isActive
+                                      ? 'border-gray-200 bg-blue-50'
+                                      : 'border-gray-200 bg-white hover:bg-gray-50',
+                                  )}
+                                >
+                                  <div className="flex items-start gap-3">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (isMobile) {
+                                          setIsProjectNoteMobileModalOpen(true);
+                                        }
+
+                                        setIsCreatingProjectNote(false);
+                                        setIsEditingProjectNote(false);
+                                        setPendingProjectNoteEditId('');
+                                        setSelectedProjectNoteId(note.id);
+                                      }}
+                                      className="min-w-0 flex-1 text-left space-y-1"
+                                    >
+                                      <h4 className="truncate text-base font-bold text-gray-900">
+                                        {note.title}
+                                      </h4>
+                                      <p className="line-clamp-1 text-sm text-gray-600">
+                                        {getProjectNotePreview(note)}
+                                      </p>
+                                      <div className="flex items-center gap-1 text-xs font-normal text-gray-500">
+                                        <CalendarTabIcon
+                                          width="14"
+                                          height="14"
+                                        />
+                                        <span>
+                                          {formatProjectNoteDate(note)}
+                                        </span>
+                                      </div>
+                                    </button>
+
+                                    <Menu as="div" className="relative">
+                                      <MenuButton
+                                        type="button"
+                                        aria-label="Note actions"
+                                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-500 outline-none transition hover:bg-white hover:text-gray-700"
+                                      >
+                                        <ThreedotIcon />
+                                      </MenuButton>
+
+                                      <MenuItems
+                                        anchor="bottom end"
+                                        transition
+                                        className="z-100 mt-1 w-32 origin-top-right rounded-xl border border-gray-200 bg-white p-1.5 shadow-[0_10px_30px_rgb(0_0_0/0.12)] outline-none transition duration-150 data-closed:-translate-y-1 data-closed:scale-95 data-closed:opacity-0"
+                                      >
+                                        <MenuItem>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              if (isMobile) {
+                                                setIsProjectNoteMobileModalOpen(
+                                                  true,
+                                                );
+                                              }
+
+                                              setIsCreatingProjectNote(false);
+                                              setSelectedProjectNoteId(note.id);
+                                              setPendingProjectNoteEditId(
+                                                note.id,
+                                              );
+                                            }}
+                                            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-medium text-gray-700 outline-none transition data-focus:bg-gray-100"
+                                          >
+                                            <EditIcon width="14" height="14" />
+                                            Edit
+                                          </button>
+                                        </MenuItem>
+                                        <MenuItem>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setProjectNoteToDelete(note)
+                                            }
+                                            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-medium text-red-500 outline-none transition data-focus:bg-red-50"
+                                          >
+                                            <TrashIcon width="16" height="16" />
+                                            Delete
+                                          </button>
+                                        </MenuItem>
+                                      </MenuItems>
+                                    </Menu>
+                                  </div>
+                                </article>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="flex h-full items-center justify-center p-4 md:p-5">
+                            <EmptyState
+                              imageUrl="/images/noNotesIllu.svg"
+                              imageAlt="No notes yet"
+                              title="No notes yet"
+                              description="Project notes will appear here once they are available."
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </section>
+
+                    <section className="flex min-h-96 flex-col overflow-hidden  bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+                      {isCreatingProjectNote ? (
+                        <>
+                          {isMobile ? (
+                            <AppModal
+                              onClose={handleCloseProjectNoteMobileModal}
+                              isOpen={isProjectNoteMobileModalOpen}
+                              scrollNeeded={true}
+                            >
+                              <div className="border-b border-gray-200 px-4 py-4 md:px-5">
+                                <input
+                                  type="text"
+                                  value={projectNoteTitleDraft}
+                                  onChange={(event) =>
+                                    setProjectNoteTitleDraft(event.target.value)
+                                  }
+                                  className="w-full border-b border-b-gray-300 bg-transparent pb-3 text-base font-semibold text-gray-900 outline-none md:text-xl"
+                                  placeholder="Note title"
+                                />
+                              </div>
+
+                              <div className="p-4 md:p-5">
+                                <RichTextEditor
+                                  value={projectNoteDescriptionDraft}
+                                  onChange={setProjectNoteDescriptionDraft}
+                                  placeholder="Write your project note..."
+                                  maxLength={
+                                    MAX_PROJECT_NOTE_DESCRIPTION_LENGTH
+                                  }
+                                  disabled={createProjectNoteMutation.isPending}
+                                  showCharacterCount
+                                  editorHeight="h-[50dvh] min-h-[18rem]"
+                                  editorClassName="text-sm font-normal text-gray-700"
+                                />
+                              </div>
+                              <div className="flex items-center justify-end gap-3 px-3 md:px-5 pb-4">
+                                <div className="flex items-center gap-2">
+                                  <ThemeButton
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={handleCloseProjectNoteMobileModal}
+                                    disabled={
+                                      createProjectNoteMutation.isPending
+                                    }
+                                    className="disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    Cancel
+                                  </ThemeButton>
+                                  <ThemeButton
+                                    type="button"
+                                    variant="primaryGradient"
+                                    size="sm"
+                                    onClick={() =>
+                                      void handleCreateProjectNote()
+                                    }
+                                    disabled={
+                                      createProjectNoteMutation.isPending
+                                    }
+                                    className="disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    {createProjectNoteMutation.isPending
+                                      ? 'Saving...'
+                                      : 'Save Note'}
+                                  </ThemeButton>
+                                </div>
+                              </div>
+                            </AppModal>
+                          ) : (
+                            <>
+                              <div className="border-b border-gray-200 px-4 py-4 md:px-5">
+                                <input
+                                  type="text"
+                                  value={projectNoteTitleDraft}
+                                  onChange={(event) =>
+                                    setProjectNoteTitleDraft(event.target.value)
+                                  }
+                                  className="w-full border-b border-b-gray-300 bg-transparent pb-3 text-base font-semibold text-gray-900 outline-none md:text-xl"
+                                  placeholder="Note title"
+                                />
+                              </div>
+
+                              <div className=" flex flex-col mb-4 flex-1 overflow-y-auto p-4 md:p-5">
+                                <RichTextEditor
+                                  value={projectNoteDescriptionDraft}
+                                  onChange={setProjectNoteDescriptionDraft}
+                                  placeholder="Write your project note..."
+                                  maxLength={
+                                    MAX_PROJECT_NOTE_DESCRIPTION_LENGTH
+                                  }
+                                  disabled={createProjectNoteMutation.isPending}
+                                  showCharacterCount
+                                  editorHeight="h-[20rem] xl:h-[calc(100%)] flex-1"
+                                  className="h-full"
+                                  editorClassName="text-sm font-normal text-gray-700"
+                                />
+                              </div>
+                              <div className="flex items-center justify-end gap-3 px-3 md:px-5 pb-4">
+                                <div className="flex items-center gap-2">
+                                  <ThemeButton
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={handleCancelCreatingProjectNote}
+                                    disabled={
+                                      createProjectNoteMutation.isPending
+                                    }
+                                    className="disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    Cancel
+                                  </ThemeButton>
+                                  <ThemeButton
+                                    type="button"
+                                    variant="primaryGradient"
+                                    size="sm"
+                                    onClick={() =>
+                                      void handleCreateProjectNote()
+                                    }
+                                    disabled={
+                                      createProjectNoteMutation.isPending
+                                    }
+                                    className="disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    {createProjectNoteMutation.isPending
+                                      ? 'Saving...'
+                                      : 'Save Note'}
+                                  </ThemeButton>
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </>
+                      ) : selectedProjectNote ? (
+                        <>
+                          {isMobile ? (
+                            <AppModal
+                              onClose={handleCloseProjectNoteMobileModal}
+                              isOpen={isProjectNoteMobileModalOpen}
+                              scrollNeeded={true}
+                              bodyPaddingClasses="flex  flex-col max-h-[calc(100dvh-200px)]"
+                              title="projectNoteTitleDraft"
+                            >
+                              <div className="px-4 pt-4 md:px-5 hidden sm:block">
+                                <input
+                                  type="text"
+                                  value={projectNoteTitleDraft}
+                                  onChange={(event) =>
+                                    setProjectNoteTitleDraft(event.target.value)
+                                  }
+                                  readOnly={!isEditingProjectNote}
+                                  className={`w-full ${!isEditingProjectNote ? 'pb-0' : 'border-b border-b-gray-300 pb-2'} bg-transparent text-base font-semibold text-gray-900 outline-none md:text-xl`}
+                                  placeholder="Note title"
+                                />
+                                {/* <p className="mt-3 text-xs text-gray-400">
+                              {formatProjectNoteDate(selectedProjectNote)}
+                            </p> */}
+                              </div>
+                              <div
+                                className={`${isEditingProjectNote ? 'pt-4' : ''} ps-4 md:ps-5 flex-1 max-h-[90dvh]`}
+                              >
+                                {projectNoteDetailQuery.isLoading &&
+                                selectedProjectNoteId ? (
+                                  <div className="space-y-4 pb-4 pt-2">
+                                    <div className="h-[50dvh] min-h-[18rem] w-full animate-pulse rounded-lg bg-gray-100" />
+                                  </div>
+                                ) : (
+                                  <>
+                                    <RichTextEditor
+                                      value={projectNoteDescriptionDraft}
+                                      onChange={setProjectNoteDescriptionDraft}
+                                      placeholder="No note description available."
+                                      readOnly={!isEditingProjectNote}
+                                      maxLength={
+                                        isEditingProjectNote
+                                          ? MAX_PROJECT_NOTE_DESCRIPTION_LENGTH
+                                          : undefined
+                                      }
+                                      showCharacterCount={isEditingProjectNote}
+                                      disabled={
+                                        updateProjectNoteMutation.isPending
+                                      }
+                                      className="flex-1 h-full a pe-2 md:pe-3"
+                                      editorHeight="min-h-[18rem] b border-none! h-full"
+                                      editorClassName={`text-sm c font-normal h-full text-gray-700 ${!isEditingProjectNote && 'px-0!'}`}
+                                    />
+                                  </>
+                                )}
+                              </div>
+                              <div className="flex items-center justify-end gap-3  px-4 md:px-5 pb-3">
+                                {isEditingProjectNote && (
+                                  <>
+                                    <ThemeButton
+                                      type="button"
+                                      variant="secondary"
+                                      size="sm"
+                                      onClick={handleCancelEditingProjectNote}
+                                      disabled={
+                                        updateProjectNoteMutation.isPending
+                                      }
+                                      className="disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                      Cancel
+                                    </ThemeButton>
+                                    <ThemeButton
+                                      type="button"
+                                      variant="primaryGradient"
+                                      size="sm"
+                                      onClick={() =>
+                                        void handleUpdateProjectNote()
+                                      }
+                                      disabled={
+                                        updateProjectNoteMutation.isPending
+                                      }
+                                      className="disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                      {updateProjectNoteMutation.isPending
+                                        ? 'Saving...'
+                                        : 'Save'}
+                                    </ThemeButton>
+                                  </>
+                                )}
+                                <div className="hidden items-center gap-2">
+                                  {isEditingProjectNote ? (
+                                    <>
+                                      <ThemeButton
+                                        type="button"
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={handleCancelEditingProjectNote}
+                                        disabled={
+                                          updateProjectNoteMutation.isPending
+                                        }
+                                        className="disabled:cursor-not-allowed disabled:opacity-60"
+                                      >
+                                        Cancel
+                                      </ThemeButton>
+                                      <ThemeButton
+                                        type="button"
+                                        variant="primaryGradient"
+                                        size="sm"
+                                        onClick={() =>
+                                          void handleUpdateProjectNote()
+                                        }
+                                        disabled={
+                                          updateProjectNoteMutation.isPending
+                                        }
+                                        className="disabled:cursor-not-allowed disabled:opacity-60"
+                                      >
+                                        {updateProjectNoteMutation.isPending
+                                          ? 'Saving...'
+                                          : 'Save'}
+                                      </ThemeButton>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ThemeButton
+                                        type="button"
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={handleStartEditingProjectNote}
+                                      >
+                                        Edit
+                                      </ThemeButton>
+                                      <ThemeButton
+                                        type="button"
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={() =>
+                                          setProjectNoteToDelete(
+                                            selectedProjectNote,
+                                          )
+                                        }
+                                        className="border-red-200 text-red-600 hover:bg-red-50"
+                                      >
+                                        Delete
+                                      </ThemeButton>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </AppModal>
+                          ) : (
+                            <>
+                              <div className="px-4 pt-4 md:px-5">
+                                <input
+                                  type="text"
+                                  value={projectNoteTitleDraft}
+                                  onChange={(event) =>
+                                    setProjectNoteTitleDraft(event.target.value)
+                                  }
+                                  readOnly={!isEditingProjectNote}
+                                  className={`w-full ${!isEditingProjectNote ? 'pb-0' : 'border-b border-b-gray-300 pb-2'} bg-transparent text-base font-semibold text-gray-900 outline-none md:text-xl`}
+                                  placeholder="Note title"
+                                />
+                                {/* <p className="mt-3 text-xs text-gray-400">
+                              {formatProjectNoteDate(selectedProjectNote)}
+                            </p> */}
+                              </div>
+
+                              <div
+                                className={` ${isEditingProjectNote && 'pt-4'} min-h-0 flex-1 overflow-y-auto px-4 md:px-5`}
+                              >
+                                {projectNoteDetailQuery.isLoading &&
+                                selectedProjectNoteId ? (
+                                  <div className="space-y-4 flex flex-col pb-4 pt-2 h-full">
+                                    <div className="flex-1 h-full w-full animate-pulse rounded-lg bg-gray-100" />
+                                  </div>
+                                ) : (
+                                  <>
+                                    <RichTextEditor
+                                      value={projectNoteDescriptionDraft}
+                                      onChange={setProjectNoteDescriptionDraft}
+                                      placeholder="No note description available."
+                                      readOnly={!isEditingProjectNote}
+                                      maxLength={
+                                        isEditingProjectNote
+                                          ? MAX_PROJECT_NOTE_DESCRIPTION_LENGTH
+                                          : undefined
+                                      }
+                                      showCharacterCount={isEditingProjectNote}
+                                      disabled={
+                                        updateProjectNoteMutation.isPending
+                                      }
+                                      editorHeight={` flex-1 ${!isEditingProjectNote ? 'border-0! h-full' : 'h-[calc(100%-32px)]'}`}
+                                      className="h-full "
+                                      editorClassName={`text-sm font-normal h-full text-gray-700 ${!isEditingProjectNote && 'px-0!'}`}
+                                    />
+                                  </>
+                                )}
+                              </div>
+                              <div className="flex items-center justify-end gap-3  px-4 md:px-5 pb-3">
+                                {isEditingProjectNote && (
+                                  <>
+                                    <ThemeButton
+                                      type="button"
+                                      variant="secondary"
+                                      size="sm"
+                                      onClick={handleCancelEditingProjectNote}
+                                      disabled={
+                                        updateProjectNoteMutation.isPending
+                                      }
+                                      className="disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                      Cancel
+                                    </ThemeButton>
+                                    <ThemeButton
+                                      type="button"
+                                      variant="primaryGradient"
+                                      size="sm"
+                                      onClick={() =>
+                                        void handleUpdateProjectNote()
+                                      }
+                                      disabled={
+                                        updateProjectNoteMutation.isPending
+                                      }
+                                      className="disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                      {updateProjectNoteMutation.isPending
+                                        ? 'Saving...'
+                                        : 'Save'}
+                                    </ThemeButton>
+                                  </>
+                                )}
+                                <div className="hidden items-center gap-2">
+                                  {isEditingProjectNote ? (
+                                    <>
+                                      <ThemeButton
+                                        type="button"
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={handleCancelEditingProjectNote}
+                                        disabled={
+                                          updateProjectNoteMutation.isPending
+                                        }
+                                        className="disabled:cursor-not-allowed disabled:opacity-60"
+                                      >
+                                        Cancel
+                                      </ThemeButton>
+                                      <ThemeButton
+                                        type="button"
+                                        variant="primaryGradient"
+                                        size="sm"
+                                        onClick={() =>
+                                          void handleUpdateProjectNote()
+                                        }
+                                        disabled={
+                                          updateProjectNoteMutation.isPending
+                                        }
+                                        className="disabled:cursor-not-allowed disabled:opacity-60"
+                                      >
+                                        {updateProjectNoteMutation.isPending
+                                          ? 'Saving...'
+                                          : 'Save'}
+                                      </ThemeButton>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ThemeButton
+                                        type="button"
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={handleStartEditingProjectNote}
+                                      >
+                                        Edit
+                                      </ThemeButton>
+                                      <ThemeButton
+                                        type="button"
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={() =>
+                                          setProjectNoteToDelete(
+                                            selectedProjectNote,
+                                          )
+                                        }
+                                        className="border-red-200 text-red-600 hover:bg-red-50"
+                                      >
+                                        Delete
+                                      </ThemeButton>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </>
+                      ) : (
+                        <div className="flex h-full items-center justify-center p-4 md:p-5">
+                          <EmptyState
+                            imageUrl="/images/noNotesIllu.svg"
+                            imageAlt="Select a note"
+                            title="Select a note"
+                            description="Choose a note from the left sidebar to view its title and description."
+                            buttonIcon={<PlusIcon />}
+                            buttonLabel="Add Note"
+                            onButtonClick={handleCancelCreatingProjectNote}
+                          />
+                        </div>
+                      )}
+                    </section>
+                  </div>
+                </TabPanel>
               </TabPanels>
             </TabGroup>
           </div>
@@ -1618,8 +2684,153 @@ export default function ProjectDetailPage() {
         isSubmitting={deleteProjectFileMutation.isPending}
         onConfirm={handleDeleteFile}
       />
+
+      <ConfirmActionModal
+        isOpen={Boolean(projectNoteToDelete)}
+        onClose={() => setProjectNoteToDelete(null)}
+        title="Delete Note?"
+        message={
+          <>
+            Are you sure you want to delete{' '}
+            <span className="font-semibold">
+              “{projectNoteToDelete?.title ?? 'this note'}”
+            </span>
+            ? This action cannot be undone.
+          </>
+        }
+        confirmLabel="Yes, Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isSubmitting={deleteProjectNoteMutation.isPending}
+        onConfirm={handleDeleteProjectNote}
+      />
     </>
   );
+}
+
+function applyProjectThreadReactionUpdate(
+  reactions: DiscussionReaction[],
+  emoji: string,
+  remove: boolean,
+  currentUserId?: string,
+) {
+  const currentUserReaction = reactions.find(
+    (reaction) => reaction.reactedByCurrentUser,
+  );
+  let nextReactions = reactions.map((reaction) => ({ ...reaction }));
+
+  if (
+    currentUserReaction &&
+    (!remove || currentUserReaction.emoji !== emoji)
+  ) {
+    nextReactions = decrementProjectThreadReaction(
+      nextReactions,
+      currentUserReaction.emoji,
+      currentUserId,
+    );
+  }
+
+  if (!remove) {
+    nextReactions = incrementProjectThreadReaction(
+      nextReactions,
+      emoji,
+      currentUserId,
+    );
+  }
+
+  return nextReactions;
+}
+
+function incrementProjectThreadReaction(
+  reactions: DiscussionReaction[],
+  emoji: string,
+  currentUserId?: string,
+) {
+  const existingReaction = reactions.find((reaction) => reaction.emoji === emoji);
+
+  if (!existingReaction) {
+    return [
+      ...reactions,
+      {
+        emoji,
+        count: 1,
+        reactedByCurrentUser: true,
+        actors: currentUserId
+          ? [{ id: currentUserId, name: 'You', isCurrentUser: true }]
+          : [{ name: 'You', isCurrentUser: true }],
+      },
+    ];
+  }
+
+  return reactions.map((reaction) =>
+    reaction.emoji === emoji
+      ? {
+          ...reaction,
+          count: reaction.count + (reaction.reactedByCurrentUser ? 0 : 1),
+          reactedByCurrentUser: true,
+          actors: reaction.reactedByCurrentUser
+            ? reaction.actors
+            : [
+                ...(reaction.actors ?? []),
+                currentUserId
+                  ? { id: currentUserId, name: 'You', isCurrentUser: true }
+                  : { name: 'You', isCurrentUser: true },
+              ],
+        }
+      : {
+          ...reaction,
+          reactedByCurrentUser: false,
+          actors:
+            reaction.actors?.map((actor) => ({
+              ...actor,
+              isCurrentUser: false,
+            })) ?? reaction.actors,
+        },
+  );
+}
+
+function decrementProjectThreadReaction(
+  reactions: DiscussionReaction[],
+  emoji: string,
+  currentUserId?: string,
+) {
+  return reactions
+    .flatMap((reaction) => {
+      if (reaction.emoji !== emoji) {
+        return [reaction];
+      }
+
+      if (reaction.count <= 1) {
+        return [];
+      }
+
+      return [
+        {
+          ...reaction,
+          count: reaction.count - 1,
+          reactedByCurrentUser: false,
+          actors:
+            reaction.actors?.filter((actor) =>
+              currentUserId
+                ? actor.id !== currentUserId
+                : !actor.isCurrentUser,
+            ) ?? reaction.actors,
+        },
+      ];
+    })
+    .map((reaction) =>
+      reaction.emoji === emoji
+        ? reaction
+        : {
+            ...reaction,
+            reactedByCurrentUser: false,
+            actors:
+              reaction.actors?.map((actor) => ({
+                ...actor,
+                isCurrentUser: false,
+              })) ?? reaction.actors,
+          },
+    );
 }
 
 function renderProjectTabIcon(tab: (typeof projectTabs)[number]) {
@@ -1635,6 +2846,10 @@ function renderProjectTabIcon(tab: (typeof projectTabs)[number]) {
 
   if (tab === 'Files') {
     return <FilesTabIcon />;
+  }
+
+  if (tab === 'Notes') {
+    return <NotesTabIcon />;
   }
 
   return <CalendarTabIcon />;
@@ -1663,11 +2878,11 @@ function FilesTabIcon() {
   );
 }
 
-function CalendarTabIcon() {
+function CalendarTabIcon({ width = '20', height = '20' }) {
   return (
     <svg
-      width="20"
-      height="20"
+      width={width}
+      height={height}
       viewBox="0 0 20 20"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -1696,6 +2911,101 @@ function CalendarTabIcon() {
       />
     </svg>
   );
+}
+
+function NotesTabIcon() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M5.83337 2.5H10.3418C11.3059 2.5 11.788 2.5 12.2289 2.68062C12.6698 2.86124 13.0107 3.20212 13.6924 3.88388L15.9495 6.14098C16.6312 6.82274 16.9722 7.16362 17.1528 7.60451C17.3334 8.04541 17.3334 8.52747 17.3334 9.49159V12.5C17.3334 14.8577 17.3334 16.0366 16.6016 16.7684C15.8698 17.5 14.6909 17.5 12.3334 17.5H7.66671C5.30922 17.5 4.13043 17.5 3.39857 16.7684C2.66671 16.0366 2.66671 14.8577 2.66671 12.5V7.5C2.66671 5.14231 2.66671 3.96347 3.39857 3.23161C4.13043 2.5 5.30922 2.5 7.66671 2.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M10.6667 2.91666V5.83332C10.6667 6.61972 10.6667 7.01297 10.9111 7.2574C11.1554 7.50182 11.5487 7.50182 12.3351 7.50182H15.2517"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M6.66671 10H13.3334M6.66671 13.3333H10.8334"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function NoteDateIcon() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 12 12"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="shrink-0"
+    >
+      <path
+        d="M4 1V2.33333M8 1V2.33333M1.33334 4.16667H10.6667M2.66667 2H9.33334C10.0697 2 10.6667 2.59695 10.6667 3.33333V9.33333C10.6667 10.0697 10.0697 10.6667 9.33334 10.6667H2.66667C1.93029 10.6667 1.33334 10.0697 1.33334 9.33333V3.33333C1.33334 2.59695 1.93029 2 2.66667 2Z"
+        stroke="currentColor"
+        strokeWidth="1.1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function getProjectNotePreview(note: ProjectNoteRecord) {
+  const description = stripProjectNoteHtml(note.description);
+
+  if (description) {
+    return description;
+  }
+
+  return 'No description added yet.';
+}
+
+function formatProjectNoteDate(note: ProjectNoteRecord) {
+  const dateValue = note.updatedAt || note.createdAt;
+
+  if (!dateValue) {
+    return 'No timestamp available';
+  }
+
+  const parsedDate = new Date(dateValue);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return 'No timestamp available';
+  }
+
+  return `${note.updatedAt ? 'Updated' : 'Created'} ${new Intl.DateTimeFormat(
+    'en-US',
+    {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    },
+  ).format(parsedDate)}`;
+}
+
+function stripProjectNoteHtml(value: string) {
+  return value
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 type ApiTicketSetting = {
@@ -1871,20 +3181,6 @@ function ProjectDetailSkeleton({ onBack }: { onBack: () => void }) {
       aria-hidden="true"
     >
       <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden rounded-3xl border border-white bg-white/40 p-3">
-        {/* Back button */}
-        {/* <div className="shrink-0">
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
-            aria-hidden="false"
-          >
-            <BackArrowIcon />
-            Back
-          </button>
-        </div> */}
-
-        {/* Project detail card */}
         <div className="flex min-h-0 min-w-0 flex-1 animate-pulse flex-col gap-4 overflow-hidden rounded-3xl bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
           {/* Project summary */}
           <section className="w-full shrink-0">

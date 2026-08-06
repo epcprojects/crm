@@ -23,6 +23,7 @@ import ImageGalleryLightbox from '../ui/ImageGalleryLightbox';
 import type { DiscussionAttachment, DiscussionReply } from './types';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import EmojiPickerButton from './EmojiPickerButton';
+import MessageReactionBar from './MessageReactionBar';
 import ThemeButton from '../ui/ThemeButton';
 
 const EMOJI_TEXT_STYLE = {
@@ -63,6 +64,10 @@ type DiscussionPanelProps = {
     reply: DiscussionReply;
     message: string;
   }) => Promise<void> | void;
+  onToggleReaction?: (
+    reply: DiscussionReply,
+    emoji: string,
+  ) => Promise<void> | void;
   editingReplyId?: string;
   hideHeader?: boolean;
   className?: string;
@@ -98,6 +103,7 @@ export default function TicketRepliesPanel({
   onDeleteReply,
   deletingReplyId,
   onEditReply,
+  onToggleReaction,
   editingReplyId,
   hideHeader = false,
   className,
@@ -478,41 +484,47 @@ export default function TicketRepliesPanel({
                                 <p className="truncate text-sm font-medium text-gray-700">
                                   {attachment.name}
                                 </p>
-                                {attachment.sizeLabel ? (
-                                  <p className="text-sm text-gray-500">
-                                    {attachment.sizeLabel}
-                                  </p>
-                                ) : null}
-                              </div>
-                            </a>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                    {typeof headerReply.replyCount === 'number' &&
-                    headerReply.replyCount > 0 ? (
-                      <p className="mt-2 text-xs font-medium text-gray-500">
-                        {headerReply.replyCount}{' '}
-                        {headerReply.replyCount === 1 ? 'Reply' : 'Replies'}
-                      </p>
-                    ) : null}
-                  </div>
-                </article>
-              </div>
-            ) : null}
+                              ) : null}
+                            </div>
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  {typeof headerReply.replyCount === 'number' &&
+                  headerReply.replyCount > 0 ? (
+                    <p className="mt-2 text-xs font-medium text-gray-500">
+                      {headerReply.replyCount}
+                      {headerReply.replyCount === 1 ? 'Reply' : 'Replies'}
+                    </p>
+                  ) : null}
+                </div>
+              </article>
+            </div>
+          ) : null}
 
-            {replies.length ? (
-              <div className="space-y-5">
-                {replies.map((reply) => {
-                  const isCurrentUserReply = Boolean(
-                    currentUserId && reply.authorId === currentUserId,
-                  );
+          {replies.length ? (
+            <div className="space-y-5">
+              {replies.map((reply) => {
+                const isCurrentUserReply = Boolean(
+                  currentUserId && reply.authorId === currentUserId,
+                );
 
-                  return (
-                    <article
-                      key={reply.id}
-                      className={`flex items-start gap-3 ${
-                        isCurrentUserReply ? 'justify-end' : 'justify-start'
+                return (
+                  <article
+                    key={reply.id}
+                    className={`flex items-start gap-3 ${
+                      isCurrentUserReply ? 'justify-end' : 'justify-start'
+                    }`}
+                  >
+                    {!isCurrentUserReply ? (
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-violet-200 bg-violet-100 text-xs font-bold text-purple-700">
+                        {reply.author.initials}
+                      </span>
+                    ) : null}
+                    <div
+                      className={`flex flex-col ${editingMessageId !== reply.id ? ' max-w-[80%] w-fit' : 'w-full'} ${
+                        isCurrentUserReply ? 'items-end' : 'items-start'
                       }`}
                     >
                       {!isCurrentUserReply ? (
@@ -530,18 +542,19 @@ export default function TicketRepliesPanel({
                             isCurrentUserReply ? 'justify-end' : 'justify-start'
                           }`}
                         >
-                          <span className="text-sm font-bold text-gray-900">
-                            {reply.author.name}
-                          </span>
-                          <span className="text-xs text-gray-700">
-                            {reply.createdAt}
-                          </span>
-                          {isCurrentUserReply && reply.status ? (
-                            <ChatStatusIcon status={reply.status} />
-                          ) : null}
-                        </div>
-
-                        {reply.message || reply.attachments?.length ? (
+                          <MessageReactionBar
+                            reactions={reply.reactions ?? []}
+                            onToggleReaction={(emoji) =>
+                              void onToggleReaction?.(reply, emoji)
+                            }
+                            currentUserId={currentUserId}
+                            align={isCurrentUserReply ? 'end' : 'start'}
+                            className={
+                              isCurrentUserReply
+                                ? 'left-auto right-3'
+                                : undefined
+                            }
+                          />
                           <div
                             className={`group/reply relative w-full rounded-xl bg-white ${
                               isCurrentUserReply
