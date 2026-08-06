@@ -27,6 +27,7 @@ export type UserCardUser = {
   id: string;
   name: string;
   email: string;
+  userType?: 'INTERNAL' | 'EXTERNAL' | string;
   isInvitationAccepted: boolean;
   initials: string;
   accentColor: string;

@@ -1569,7 +1569,10 @@ function mapApiProjectTicketToRecentTicket(
       initials: getInitials(assigneeName),
     },
     date: formatTicketDate(ticket.createdAt),
-    dueDate: formatTicketDate(ticket.dueDate ?? ticket.createdAt),
+    dueDate: formatTicketDate(
+      (ticket.dueDate ?? ticket.createdAt).split('T')[0] ??
+        (ticket.dueDate ?? ticket.createdAt),
+    ),
     sortDate: ticket.dueDate ?? ticket.createdAt,
     reporter: {
       id: ticket.reporter.id,
@@ -1678,7 +1681,9 @@ function getInitials(value: string) {
 }
 
 function formatTicketDate(value: string) {
-  const date = new Date(value);
+  const date = new Date(
+    /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value,
+  );
 
   if (Number.isNaN(date.getTime())) {
     return value;

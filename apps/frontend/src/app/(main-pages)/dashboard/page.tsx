@@ -2209,7 +2209,9 @@ function mapApiDashboardTicketToRecentTicket(
       initials: getInitials(assigneeName),
     },
     date: formatTicketDate(ticket.createdAt),
-    dueDate: ticket.dueDate ? formatTicketDate(ticket.dueDate) : '--',
+    dueDate: ticket.dueDate
+      ? formatTicketDate(ticket.dueDate.split('T')[0] ?? ticket.dueDate)
+      : '--',
     sortDate: ticket.createdAt,
     reporter: {
       id: ticket.reporter.id ?? '',
@@ -2374,7 +2376,9 @@ function slugify(value: string) {
 }
 
 function formatTicketDate(value: string) {
-  const date = new Date(value);
+  const date = new Date(
+    /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value,
+  );
 
   if (Number.isNaN(date.getTime())) {
     return '-';

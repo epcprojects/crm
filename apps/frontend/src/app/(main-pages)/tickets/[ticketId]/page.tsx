@@ -2154,70 +2154,69 @@ export default function TicketDetailPage() {
               className="h-auto min-h-0 min-w-0 space-y-4 overflow-visible scrollbar-hide xl:col-span-3 xl:h-full xl:overflow-y-auto"
               // className="min-h-0 min-w-0 space-y-4 overflow-y-auto scrollbar-hide  xl:col-span-3 xl:h-full"
             >
-              {!isExternalUser ? (
-                <section className="rounded-xl border border-gray-200 bg-white">
-                  <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 md:text-base">
-                    Actions
-                  </h3>
+              {/* {!isExternalUser ? ( */}
+              <section className="rounded-xl border border-gray-200 bg-white">
+                <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 md:text-base">
+                  Actions
+                </h3>
 
-                  <div className="space-y-2 p-3 sm:p-4">
-                    <div className="grid items-center md:grid-cols-2 gap-4">
-                      <span className="text-sm text-black font-normal">
-                        Status
-                      </span>
-                      <Dropdown
-                        // label="Status"
+                <div className="space-y-2 p-3 sm:p-4">
+                  <div className="grid items-center md:grid-cols-2 gap-4">
+                    <span className="text-sm text-black font-normal">
+                      Status
+                    </span>
+                    <Dropdown
+                      // label="Status"
 
-                        options={statusOptions}
-                        value={selectedStatus}
-                        disabled={
-                          updateTicketMutation.isPending || !canEditStatus
-                        }
-                        onChange={handleStatusChange}
-                        applyHeight={false}
-                      />
-                    </div>
-                    <div className="grid items-center md:grid-cols-2 gap-4">
-                      <span className="text-sm text-black font-normal">
-                        Priority
-                      </span>
-                      <Dropdown
-                        options={priorityOptions}
-                        value={selectedPriority}
-                        disabled={
-                          updateTicketMutation.isPending || !canEditPriority
-                        }
-                        onChange={handlePriorityChange}
-                        applyHeight={false}
-                      />
-                    </div>
-                    {!isExternalUser ? (
-                      <section className="grid items-center md:grid-cols-2 gap-4">
-                        <span className="text-sm text-black font-normal">
-                          Due Date
-                        </span>
-                        <div className="">
-                          <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-1.5">
-                            <input
-                              type="date"
-                              value={selectedDueDate}
-                              min={minimumDueDate}
-                              disabled={
-                                updateTicketMutation.isPending ||
-                                !canEditDueDate
-                              }
-                              onChange={(event) =>
-                                handleDueDateChange(event.target.value)
-                              }
-                              className="w-full bg-transparent text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:text-gray-400"
-                            />
-                          </label>
-                        </div>
-                      </section>
-                    ) : null}
+                      options={statusOptions}
+                      value={selectedStatus}
+                      disabled={
+                        updateTicketMutation.isPending || !canEditStatus
+                      }
+                      onChange={handleStatusChange}
+                      applyHeight={false}
+                    />
                   </div>
-                </section>
-              ) : null}
+                  <div className="grid items-center md:grid-cols-2 gap-4">
+                    <span className="text-sm text-black font-normal">
+                      Priority
+                    </span>
+                    <Dropdown
+                      options={priorityOptions}
+                      value={selectedPriority}
+                      disabled={
+                        updateTicketMutation.isPending || !canEditPriority
+                      }
+                      onChange={handlePriorityChange}
+                      applyHeight={false}
+                    />
+                  </div>
+                  {/* {!isExternalUser ? ( */}
+                  <section className="grid items-center md:grid-cols-2 gap-4">
+                    <span className="text-sm text-black font-normal">
+                      Due Date
+                    </span>
+                    <div className="">
+                      <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-1.5">
+                        <input
+                          type="date"
+                          value={selectedDueDate}
+                          min={minimumDueDate}
+                          disabled={
+                            updateTicketMutation.isPending || !canEditDueDate
+                          }
+                          onChange={(event) =>
+                            handleDueDateChange(event.target.value)
+                          }
+                          className="w-full bg-transparent text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:text-gray-400"
+                        />
+                      </label>
+                    </div>
+                  </section>
+                  {/* ) : null} */}
+                </div>
+              </section>
+              {/* ) : null} */}
 
               <section className="rounded-xl border border-gray-200 bg-white ">
                 <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 sm:px-4 md:text-base">
@@ -2827,7 +2826,9 @@ function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
     },
     date: formatTicketDate(ticket.createdAt),
     description: ticket.description,
-    dueDate: ticket.dueDate ? formatTicketDate(ticket.dueDate) : null,
+    dueDate: ticket.dueDate
+      ? formatTicketDate(toDateInputValue(ticket.dueDate))
+      : null,
     dueDateValue: ticket.dueDate ?? '',
     assigneeId: ticket.assigneeId ?? '',
     reporterId: ticket.reporterId ?? '',
@@ -3343,7 +3344,9 @@ function getInitials(value: string) {
 }
 
 function formatTicketDate(value: string) {
-  const date = new Date(value);
+  const date = new Date(
+    /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value,
+  );
 
   if (Number.isNaN(date.getTime())) {
     return value;

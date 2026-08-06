@@ -1924,12 +1924,12 @@ export default function ProjectDetailPage() {
                             emptyTitle={
                               projectThreadDetailQuery.isLoading
                                 ? 'Loading thread...'
-                                : 'No Threads yet.'
+                                : 'No Threads replies yet.'
                             }
                             emptyDescription={
                               projectThreadDetailQuery.isLoading
                                 ? 'Fetching thread replies.'
-                                : 'No Threads have been added to this thread yet.'
+                                : 'No Threads replies have been added to this thread yet.'
                             }
                             composerPlaceholder="Reply to thread..."
                             onSubmitReply={
