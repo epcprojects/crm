@@ -10,12 +10,14 @@ import {
   ReactNode,
 } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { useRouter } from 'next/navigation';
 
 import { NotificationItem } from '@harperhelp/interfaces';
 
 import { useAppSelector } from '../Redux/store';
 import { eventEmitter } from '../../lib/event-emitter';
 import { appToast } from '../../components/toast/AppToast';
+import { getNotificationNavigationPath } from '../../lib/notification-navigation';
 
 type SocketTokenResponse = {
   accessToken: string;
@@ -38,6 +40,7 @@ export function NotificationsSocketProvider({
 }: {
   children: ReactNode;
 }) {
+  const router = useRouter();
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const authStatus = useAppSelector((state) => state.auth.status);
   const socketRef = useRef<Socket | null>(null);
@@ -122,6 +125,13 @@ export function NotificationsSocketProvider({
             appToast.info(getNotificationToastMessage(payload), {
               position: 'bottom-right',
               toastId: `notification:${payload.id}`,
+              onClick: () => {
+                const nextPath = getNotificationNavigationPath(payload);
+
+                if (nextPath) {
+                  router.push(nextPath);
+                }
+              },
             });
             eventEmitter.emit('notification:new', payload); // Emit to all over
           },
@@ -171,7 +181,7 @@ export function NotificationsSocketProvider({
       socketRef.current?.disconnect();
       socketRef.current = null;
     };
-  }, [authStatus, isAuthenticated]);
+  }, [authStatus, isAuthenticated, router]);
 
   const markAsRead = useCallback(async (id: string) => {
     setRecentNotifications((prev) =>

@@ -37,7 +37,6 @@ export async function GET(request: NextRequest) {
       'priorityKey',
       'search',
       'assigneeId',
-      'projectId',
       'page',
       'limit',
     ]) {
@@ -47,6 +46,12 @@ export async function GET(request: NextRequest) {
         upstreamUrl.searchParams.set(key, value);
       }
     }
+
+    requestUrl.searchParams.getAll('projectIds').forEach((projectId) => {
+      if (projectId) {
+        upstreamUrl.searchParams.append('projectIds', projectId);
+      }
+    });
 
     const response = await fetch(upstreamUrl.toString(), {
       method: 'GET',

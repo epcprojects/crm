@@ -7,6 +7,7 @@ export type DiscussionReply = {
   status?: 'sent' | 'read';
   updatedAt?: string;
   isEdited?: boolean;
+  reactions?: DiscussionReaction[];
   author: {
     name: string;
     initials: string;
@@ -14,6 +15,19 @@ export type DiscussionReply = {
   createdAt: string;
   message: string;
   attachments?: DiscussionAttachment[];
+};
+
+export type DiscussionReaction = {
+  emoji: string;
+  count: number;
+  reactedByCurrentUser?: boolean;
+  actors?: DiscussionReactionActor[];
+};
+
+export type DiscussionReactionActor = {
+  id?: string;
+  name?: string;
+  isCurrentUser?: boolean;
 };
 
 export type DiscussionAttachment = {

@@ -6,6 +6,20 @@ import { getSocket } from '../../lib/socket';
 
 export type ChatChannel = 'internal' | 'external';
 
+export type ChatMessageReactionActor = {
+  id?: string | null;
+  fullName?: string | null;
+};
+
+export type ChatMessageReaction = {
+  emoji: string;
+  count: number;
+  actors?: ChatMessageReactionActor[] | null;
+  reactedByCurrentUser?: boolean | null;
+  isCurrentUser?: boolean | null;
+  userReacted?: boolean | null;
+};
+
 export type ChatMessage = {
   id: string;
   projectId: string;
@@ -21,6 +35,7 @@ export type ChatMessage = {
   readAt?: string | null;
   createdAt: string;
   updatedAt?: string;
+  reactions?: ChatMessageReaction[] | null;
   sender?: {
     id: string;
     name?: string;
@@ -261,6 +276,7 @@ export function useTicketChat({
             messageType?: 'text' | 'attachment';
             attachmentName?: string | null;
             attachmentSize?: number | null;
+            reactions?: ChatMessageReaction[] | null;
           };
         }) => {
           if (
@@ -288,6 +304,8 @@ export function useTicketChat({
                       payload.message.attachmentName ?? message.attachmentName,
                     attachmentSize:
                       payload.message.attachmentSize ?? message.attachmentSize,
+                    reactions:
+                      payload.message.reactions ?? message.reactions,
                     updatedAt: new Date().toISOString(),
                   }
                 : message,
@@ -591,6 +609,54 @@ export function useTicketChat({
     [channel, projectId, ticketId],
   );
 
+  const toggleReaction = useCallback(
+    async ({
+      messageId,
+      emoji,
+      remove,
+    }: {
+      messageId: string;
+      emoji: string;
+      remove: boolean;
+    }) => {
+      const response = await fetch(
+        `/api/projects/${projectId}/tickets/${ticketId}/chat/${channel}/messages/${messageId}/reactions`,
+        {
+          method: remove ? 'DELETE' : 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ emoji }),
+        },
+      );
+
+      const payload = (await response.json().catch(() => null)) as
+        | ChatMessage
+        | { message?: string; success?: boolean }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(
+          payload && !Array.isArray(payload) && 'message' in payload
+            ? payload.message || 'Failed to update reaction.'
+            : 'Failed to update reaction.',
+        );
+      }
+
+      if (isChatMessage(payload)) {
+        setMessages((current) =>
+          current.map((message) =>
+            message.id === messageId ? payload : message,
+          ),
+        );
+      }
+
+      return payload;
+    },
+    [channel, projectId, ticketId],
+  );
+
   const setTyping = useCallback(
     (isTyping: boolean) => {
       socketRef.current?.emit('typing', {
@@ -612,6 +678,7 @@ export function useTicketChat({
     markRead,
     deleteMessage,
     updateMessage,
+    toggleReaction,
     setTyping,
   };
 }

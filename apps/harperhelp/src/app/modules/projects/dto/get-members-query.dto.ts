@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
 import {
+  IsArray,
   IsBoolean,
   IsOptional,
   IsString,
@@ -36,13 +37,24 @@ export class GetMembersQueryDto {
   isInvitationAccepted?: boolean;
 
   @ApiPropertyOptional({
-    description: 'Filter users assigned to a specific project.',
+    description: 'Filter users assigned to any of the specified projects.',
+    type: [String],
     format: 'uuid',
   })
   @IsOptional()
-  @IsUUID()
-  // @IsString()
-  projectId?: string;
+  @Transform(({ value }) => {
+    const values = Array.isArray(value) ? value : [value];
+
+    return values
+      .flatMap((item) =>
+        typeof item === 'string' ? item.split(',') : [item],
+      )
+      .map((item) => (typeof item === 'string' ? item.trim() : item))
+      .filter(Boolean);
+  })
+  @IsArray()
+  @IsUUID('4', { each: true })
+  projectIds?: string[];
 
   @ApiPropertyOptional({
     description: 'Filter users assigned to a specific role.',

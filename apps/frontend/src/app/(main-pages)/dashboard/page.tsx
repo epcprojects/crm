@@ -65,6 +65,7 @@ import Dropdown from '../../../components/ui/ThemeDropDown';
 import { eventEmitter } from '../../../../src/lib/event-emitter';
 import { NotificationItem } from '@harperhelp/interfaces';
 import { NotificationEntityType } from '@harperhelp/types';
+import { getNotificationNavigationPath } from '../../../lib/notification-navigation';
 
 type TicketSummary = {
   open: number | null;
@@ -191,9 +192,11 @@ export default function Page() {
     searchParams.get(DASHBOARD_TABS_QUERY_PARAM),
   );
 
-  const selectedProject = getTicketsFilterValue(
+  const selectedProjectIds = getTicketsProjectFilterValues(
+    searchParams.getAll(TICKETS_PROJECT_QUERY_PARAM),
     searchParams.get(TICKETS_PROJECT_QUERY_PARAM),
   );
+  const selectedProjectIdsKey = selectedProjectIds.join(',');
 
   const ticketStatusesQuery = useQuery({
     queryKey: ['ticket-statuses'],
@@ -235,13 +238,11 @@ export default function Page() {
     [ticketPrioritiesQuery.data],
   );
   const projectFilterOptions = useMemo(
-    () => [
-      { label: 'All Projects', value: 'all' },
-      ...(projectsQuery.data ?? []).map((project) => ({
+    () =>
+      (projectsQuery.data ?? []).map((project) => ({
         label: project.name,
         value: project.id,
       })),
-    ],
     [projectsQuery.data],
   );
   const ticketSummaryQuery = useQuery({
@@ -271,7 +272,7 @@ export default function Page() {
       'dashboard',
       'recent-tickets',
       searchValue.trim(),
-      selectedProject,
+      selectedProjectIdsKey,
       selectedStatus,
       selectedPriority,
     ],
@@ -282,7 +283,7 @@ export default function Page() {
         limit: 20,
 
         search: searchValue.trim() || undefined,
-        projectId: selectedProject === 'all' ? undefined : selectedProject,
+        projectIds: selectedProjectIds.length ? selectedProjectIds : undefined,
 
         statusKey: selectedStatus === 'all' ? undefined : selectedStatus,
 
@@ -362,12 +363,12 @@ export default function Page() {
   }: {
     status?: string;
     priority?: string;
-    project?: string;
+    project?: string[];
   }) => {
     const nextSearchParams = new URLSearchParams(searchParams.toString());
     const nextStatus = status ?? selectedStatus;
     const nextPriority = priority ?? selectedPriority;
-    const nextProject = project ?? selectedProject;
+    const nextProjectIds = project ?? selectedProjectIds;
 
     if (nextStatus === 'Open') {
       nextSearchParams.delete(RECENT_TICKETS_STATUS_QUERY_PARAM);
@@ -381,11 +382,10 @@ export default function Page() {
       nextSearchParams.set(RECENT_TICKETS_PRIORITY_QUERY_PARAM, nextPriority);
     }
 
-    if (nextProject === 'all') {
-      nextSearchParams.delete(TICKETS_PROJECT_QUERY_PARAM);
-    } else {
-      nextSearchParams.set(TICKETS_PROJECT_QUERY_PARAM, nextProject);
-    }
+    nextSearchParams.delete(TICKETS_PROJECT_QUERY_PARAM);
+    nextProjectIds.forEach((projectId) => {
+      nextSearchParams.append(TICKETS_PROJECT_QUERY_PARAM, projectId);
+    });
 
     const nextQueryString = nextSearchParams.toString();
     const currentQueryString = searchParams.toString();
@@ -431,12 +431,18 @@ export default function Page() {
         exportParams.set('search', searchValue.trim());
         filenameParts.push(`search_${slugify(searchValue.trim())}`);
       }
-      if (selectedProject !== 'all') {
-        exportParams.set('projectId', selectedProject);
-        const projectLabel = projectFilterOptions.find(
-          (option) => option.value === selectedProject,
-        )?.label;
-        filenameParts.push(slugify(projectLabel ?? selectedProject));
+      if (selectedProjectIds.length) {
+        selectedProjectIds.forEach((projectId) => {
+          exportParams.append('projectIds', projectId);
+        });
+        const projectLabels = selectedProjectIds.map(
+          (projectId) =>
+            projectFilterOptions.find((option) => option.value === projectId)
+              ?.label ?? projectId,
+        );
+        filenameParts.push(
+          `projects_${projectLabels.map((label) => slugify(label)).join('_')}`,
+        );
       }
 
       if (selectedStatus !== 'all') {
@@ -968,7 +974,8 @@ export default function Page() {
                               <div className="relative w-full overflow-visible">
                                 <Dropdown
                                   options={projectFilterOptions}
-                                  value={selectedProject}
+                                  isMulti
+                                  value={selectedProjectIds}
                                   onChange={(value) =>
                                     updateRecentTicketsFilters({
                                       project: value,
@@ -1008,11 +1015,13 @@ export default function Page() {
                                 />
                               </div>
                               {selectedStatus !== 'all' ||
-                              selectedPriority !== 'all' ? (
+                              selectedPriority !== 'all' ||
+                              selectedProjectIds.length > 0 ? (
                                 <button
                                   type="button"
                                   onClick={() => {
                                     updateRecentTicketsFilters({
+                                      project: [],
                                       status: 'all',
                                       priority: 'all',
                                     });
@@ -1093,7 +1102,8 @@ export default function Page() {
                         <div className="  relative w-full overflow-visible">
                           <Dropdown
                             options={projectFilterOptions}
-                            value={selectedProject}
+                            isMulti
+                            value={selectedProjectIds}
                             onChange={(value) =>
                               updateRecentTicketsFilters({
                                 project: value,
@@ -1139,7 +1149,8 @@ export default function Page() {
                         <div className="relative w-full overflow-visible">
                           <Dropdown
                             options={projectFilterOptions}
-                            value={selectedProject}
+                            isMulti
+                            value={selectedProjectIds}
                             showSearch={true}
                             onChange={(value) =>
                               updateRecentTicketsFilters({
@@ -1187,13 +1198,13 @@ export default function Page() {
                           variant="secondary"
                           size="xs"
                           disabled={
-                            selectedProject === 'all' &&
+                            selectedProjectIds.length === 0 &&
                             selectedStatus === 'all' &&
                             selectedPriority === 'all'
                           }
                           onClick={() => {
                             updateRecentTicketsFilters({
-                              project: 'all',
+                              project: [],
                               status: 'all',
                               priority: 'all',
                             });
@@ -1674,24 +1685,10 @@ function DashboardActivityRow({ item }: { item: DashboardActivityItem }) {
   return (
     <article
       onClick={() => {
-        if (item.entityType === 'ticket_reply') {
-          router.push(
-            `/tickets/${item.ticketId}?projectId=${item.projectId}&internal=false`,
-          );
-        } else if (item.entityType === 'event') {
-          router.push(`/projects/${item.projectId}?t=3`);
-        } else if (item.entityType === 'internal_message') {
-          router.push(
-            `/tickets/${item.ticketId}?projectId=${item.projectId}&internal=true`,
-          );
-        } else if (item.entityType === 'ticket') {
-          router.push(`/tickets/${item.ticketId}?projectId=${item.projectId}`);
-        } else if (item.entityType === 'project' && !item.projectId) {
-          router.push(`/projects`);
-        } else if (item.entityType === 'project' && item.projectId) {
-          router.push(`/projects/${item.projectId}`);
-        } else if (item.entityType === 'thread_message' && item.projectId) {
-          router.push(`/projects/${item.projectId}?t=1`);
+        const nextPath = getNotificationNavigationPath(item);
+
+        if (nextPath) {
+          router.push(nextPath);
         }
       }}
       className="flex cursor-pointer items-start gap-3 border-b border-gray-200 px-1 py-3 last:border-b-0"
@@ -1765,6 +1762,23 @@ function getTicketsFilterValue(value: string | null) {
   }
 
   return value;
+}
+
+function getTicketsProjectFilterValues(
+  values: string[],
+  fallbackValue: string | null,
+) {
+  const sourceValues =
+    values.length > 0 ? values : fallbackValue ? [fallbackValue] : [];
+
+  return Array.from(
+    new Set(
+      sourceValues
+        .flatMap((value) => value.split(','))
+        .map((value) => value.trim())
+        .filter((value) => value && value !== 'all'),
+    ),
+  );
 }
 
 function DashboardActivityRowSkeleton() {
@@ -2027,14 +2041,14 @@ async function fetchDashboardTickets({
   statusKey,
   priorityKey,
   search,
-  projectId,
+  projectIds,
 }: {
   page: number;
   limit: number;
   statusKey?: string;
   priorityKey?: string;
   search?: string;
-  projectId?: string;
+  projectIds?: string[];
 }): Promise<DashboardTicketsResponse> {
   const searchParams = new URLSearchParams({
     page: String(page),
@@ -2051,9 +2065,11 @@ async function fetchDashboardTickets({
   if (statusKey) {
     searchParams.set('statusKey', statusKey);
   }
-  if (projectId) {
-    searchParams.set('projectId', projectId);
-  }
+  projectIds?.forEach((projectId) => {
+    if (projectId) {
+      searchParams.append('projectIds', projectId);
+    }
+  });
 
   const response = await fetch(
     `/api/dashboard/tickets?${searchParams.toString()}`,
