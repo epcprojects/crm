@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import EmojiPicker, { Theme, type EmojiClickData } from 'emoji-picker-react';
 import Portal from '../modals/portal';
+import type { CSSProperties } from 'react';
 
 type EmojiPickerButtonProps = {
   disabled?: boolean;
@@ -136,6 +137,13 @@ export default function EmojiPickerButton({
               height={400}
               searchPlaceholder="Search emoji"
               lazyLoadEmojis
+              skinTonesDisabled
+              style={
+                {
+                  '--epr-emoji-size': '20px',
+                  '--epr-emoji-gap': '4px',
+                } as CSSProperties
+              }
             />
           </div>
         </Portal>

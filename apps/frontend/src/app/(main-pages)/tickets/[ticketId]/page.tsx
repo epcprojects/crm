@@ -439,6 +439,7 @@ export default function TicketDetailPage() {
     markRead: markInternalChatRead,
     deleteMessage: deleteInternalChatMessage,
     updateMessage: updateInternalChatMessage,
+    toggleReaction: toggleInternalChatReaction,
   } = useTicketChat({
     projectId: isInternalChatActive ? projectId : '',
     ticketId: isInternalChatActive ? ticketId : '',
@@ -452,6 +453,7 @@ export default function TicketDetailPage() {
     markRead: markExternalChatRead,
     deleteMessage: deleteExternalChatMessage,
     updateMessage: updateExternalChatMessage,
+    toggleReaction: toggleExternalChatReaction,
   } = useTicketChat({
     projectId:
       isChatDrawerOpen && chatDrawerChannel === 'external' ? projectId : '',
@@ -1557,11 +1559,16 @@ export default function TicketDetailPage() {
         nextReactions = decrementDiscussionReaction(
           nextReactions,
           currentUserReaction.emoji,
+          currentUserId,
         );
       }
 
       if (!remove) {
-        nextReactions = incrementDiscussionReaction(nextReactions, emoji);
+        nextReactions = incrementDiscussionReaction(
+          nextReactions,
+          emoji,
+          currentUserId,
+        );
       }
 
       return {
@@ -1596,6 +1603,34 @@ export default function TicketDetailPage() {
       setLiveReplies(previousReplies);
       throw error;
     }
+  };
+
+  const handleToggleChatMessageReaction = async (
+    reply: DiscussionReply,
+    emoji: string,
+    channel: ChatChannel,
+  ) => {
+    const remove = Boolean(
+      reply.reactions?.some(
+        (reaction) =>
+          reaction.emoji === emoji && reaction.reactedByCurrentUser,
+      ),
+    );
+
+    if (channel === 'internal') {
+      await toggleInternalChatReaction({
+        messageId: reply.id,
+        emoji,
+        remove,
+      });
+      return;
+    }
+
+    await toggleExternalChatReaction({
+      messageId: reply.id,
+      emoji,
+      remove,
+    });
   };
 
   return (
@@ -2011,8 +2046,11 @@ export default function TicketDetailPage() {
                     }
                     replies={
                       isInternalChatActive && canViewInternalChatBtn
-                        ? internalChatMessages.map(
-                            mapChatMessageToDiscussionReply,
+                        ? internalChatMessages.map((message) =>
+                            mapChatMessageToDiscussionReply(
+                              message,
+                              currentUserId,
+                            ),
                           )
                         : canViewReplies
                           ? liveReplies
@@ -2087,9 +2125,16 @@ export default function TicketDetailPage() {
                           : undefined
                     }
                     onToggleReaction={
-                      !isInternalChatActive && canViewReplies
-                        ? handleToggleTicketReplyReaction
-                        : undefined
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? (reply, emoji) =>
+                            handleToggleChatMessageReaction(
+                              reply,
+                              emoji,
+                              'internal',
+                            )
+                        : !isInternalChatActive && canViewReplies
+                          ? handleToggleTicketReplyReaction
+                          : undefined
                     }
                     deletingReplyId={
                       isInternalChatActive && canViewInternalChatBtn
@@ -2366,8 +2411,8 @@ export default function TicketDetailPage() {
               className="rounded-none!"
               title="Client Chat"
               subtitle=""
-              replies={externalChatMessages.map(
-                mapChatMessageToDiscussionReply,
+              replies={externalChatMessages.map((message) =>
+                mapChatMessageToDiscussionReply(message, currentUserId),
               )}
               emptyTitle={
                 externalChatLoading ? 'Loading chat...' : 'No messages yet.'
@@ -2816,7 +2861,10 @@ function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
   };
 }
 
-function mapChatMessageToDiscussionReply(message: ChatMessage) {
+function mapChatMessageToDiscussionReply(
+  message: ChatMessage,
+  currentUserId: string,
+) {
   const authorName =
     message.sender?.fullName ??
     message.sender?.name ??
@@ -2874,7 +2922,51 @@ function mapChatMessageToDiscussionReply(message: ChatMessage) {
             url: attachmentUrl,
           }))
         : [],
+    reactions: mapChatMessageReactions(message.reactions, currentUserId),
   };
+}
+
+function mapChatMessageReactions(
+  reactions: ChatMessage['reactions'] | null | undefined,
+  currentUserId: string,
+): DiscussionReaction[] {
+  if (!Array.isArray(reactions)) {
+    return [];
+  }
+
+  return reactions.flatMap((reaction) => {
+    const emoji = reaction.emoji?.trim();
+
+    if (!emoji) {
+      return [];
+    }
+
+    const countValue = Number(reaction.count ?? 0);
+    const reactedByCurrentUserFromActors = Array.isArray(reaction.actors)
+      ? reaction.actors.some((actor) => actor.id?.trim() === currentUserId)
+      : false;
+    const reactedByCurrentUserFlag =
+      reaction.reactedByCurrentUser ??
+      reaction.isCurrentUser ??
+      reaction.userReacted;
+
+    return [
+      {
+        emoji,
+        count: Number.isFinite(countValue) && countValue > 0 ? countValue : 1,
+        reactedByCurrentUser: Boolean(
+          reactedByCurrentUserFromActors || reactedByCurrentUserFlag,
+        ),
+        actors: Array.isArray(reaction.actors)
+          ? reaction.actors.map((actor) => ({
+              id: actor.id?.trim() || undefined,
+              name: actor.fullName?.trim() || undefined,
+              isCurrentUser: actor.id?.trim() === currentUserId,
+            }))
+          : undefined,
+      },
+    ];
+  });
 }
 
 function mapApiTicketReplyToDiscussionReply(
@@ -2954,6 +3046,13 @@ function mapApiTicketReplyReactions(
         reactedByCurrentUser: Boolean(
           reactedByCurrentUserFromActors || reactedByCurrentUserFlag,
         ),
+        actors: Array.isArray(reaction.actors)
+          ? reaction.actors.map((actor) => ({
+              id: actor.id?.trim() || undefined,
+              name: actor.fullName?.trim() || undefined,
+              isCurrentUser: actor.id?.trim() === currentUserId,
+            }))
+          : undefined,
       },
     ];
   });
@@ -2962,6 +3061,7 @@ function mapApiTicketReplyReactions(
 function incrementDiscussionReaction(
   reactions: DiscussionReaction[],
   emoji: string,
+  currentUserId?: string,
 ) {
   const existingReaction = reactions.find((reaction) => reaction.emoji === emoji);
 
@@ -2972,6 +3072,9 @@ function incrementDiscussionReaction(
         emoji,
         count: 1,
         reactedByCurrentUser: true,
+        actors: currentUserId
+          ? [{ id: currentUserId, name: 'You', isCurrentUser: true }]
+          : [{ name: 'You', isCurrentUser: true }],
       },
     ];
   }
@@ -2982,10 +3085,23 @@ function incrementDiscussionReaction(
           ...reaction,
           count: reaction.count + (reaction.reactedByCurrentUser ? 0 : 1),
           reactedByCurrentUser: true,
+          actors: reaction.reactedByCurrentUser
+            ? reaction.actors
+            : [
+                ...(reaction.actors ?? []),
+                currentUserId
+                  ? { id: currentUserId, name: 'You', isCurrentUser: true }
+                  : { name: 'You', isCurrentUser: true },
+              ],
         }
       : {
           ...reaction,
           reactedByCurrentUser: false,
+          actors:
+            reaction.actors?.map((actor) => ({
+              ...actor,
+              isCurrentUser: false,
+            })) ?? reaction.actors,
         },
   );
 }
@@ -2993,6 +3109,7 @@ function incrementDiscussionReaction(
 function decrementDiscussionReaction(
   reactions: DiscussionReaction[],
   emoji: string,
+  currentUserId?: string,
 ) {
   return reactions
     .flatMap((reaction) => {
@@ -3009,6 +3126,12 @@ function decrementDiscussionReaction(
           ...reaction,
           count: reaction.count - 1,
           reactedByCurrentUser: false,
+          actors:
+            reaction.actors?.filter((actor) =>
+              currentUserId
+                ? actor.id !== currentUserId
+                : !actor.isCurrentUser,
+            ) ?? reaction.actors,
         },
       ];
     })
@@ -3018,6 +3141,11 @@ function decrementDiscussionReaction(
         : {
             ...reaction,
             reactedByCurrentUser: false,
+            actors:
+              reaction.actors?.map((actor) => ({
+                ...actor,
+                isCurrentUser: false,
+              })) ?? reaction.actors,
           },
     );
 }

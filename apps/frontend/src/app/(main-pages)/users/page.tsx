@@ -62,9 +62,11 @@ export default function Page() {
   const selectedInvitationStatus = getUsersInvitationStatusValue(
     searchParams.get(USERS_INVITATION_STATUS_QUERY_PARAM),
   );
-  const selectedProjectId = getUsersFilterValue(
+  const selectedProjectIds = getUsersProjectFilterValues(
+    searchParams.getAll(USERS_PROJECT_QUERY_PARAM),
     searchParams.get(USERS_PROJECT_QUERY_PARAM),
   );
+  const selectedProjectIdsKey = selectedProjectIds.join(',');
   const selectedRoleId = getUsersFilterValue(
     searchParams.get(USERS_ROLE_QUERY_PARAM),
   );
@@ -79,7 +81,7 @@ export default function Page() {
       'project-members',
       searchValue.trim(),
       selectedInvitationStatus,
-      selectedProjectId,
+      selectedProjectIdsKey,
       selectedRoleId,
     ],
 
@@ -92,7 +94,7 @@ export default function Page() {
             ? undefined
             : selectedInvitationStatus === 'accepted',
 
-        projectId: selectedProjectId === 'all' ? undefined : selectedProjectId,
+        projectIds: selectedProjectIds.length ? selectedProjectIds : undefined,
 
         roleId: selectedRoleId === 'all' ? undefined : selectedRoleId,
       }),
@@ -238,16 +240,16 @@ export default function Page() {
 
   const updateUsersPageFilters = ({
     invitationStatus,
-    projectId,
+    project,
     roleId,
   }: {
     invitationStatus?: 'all' | 'accepted' | 'pending';
-    projectId?: string;
+    project?: string[];
     roleId?: string;
   }) => {
     const nextSearchParams = new URLSearchParams(searchParams.toString());
     const nextInvitationStatus = invitationStatus ?? selectedInvitationStatus;
-    const nextProjectId = projectId ?? selectedProjectId;
+    const nextProjectIds = project ?? selectedProjectIds;
     const nextRoleId = roleId ?? selectedRoleId;
 
     if (nextInvitationStatus === 'all') {
@@ -259,11 +261,10 @@ export default function Page() {
       );
     }
 
-    if (nextProjectId === 'all') {
-      nextSearchParams.delete(USERS_PROJECT_QUERY_PARAM);
-    } else {
-      nextSearchParams.set(USERS_PROJECT_QUERY_PARAM, nextProjectId);
-    }
+    nextSearchParams.delete(USERS_PROJECT_QUERY_PARAM);
+    nextProjectIds.forEach((projectId) => {
+      nextSearchParams.append(USERS_PROJECT_QUERY_PARAM, projectId);
+    });
 
     if (nextRoleId === 'all') {
       nextSearchParams.delete(USERS_ROLE_QUERY_PARAM);
@@ -363,10 +364,6 @@ export default function Page() {
 
   const projectFilterOptions = useMemo(
     () => [
-      {
-        label: 'All Projects',
-        value: 'all',
-      },
       ...projects.map((project) => ({
         label: project.name,
         value: project.id,
@@ -442,7 +439,7 @@ export default function Page() {
   const hasFilters =
     selectedInvitationStatus !== 'all' ||
     selectedRoleId !== 'all' ||
-    selectedProjectId !== 'all';
+    selectedProjectIds.length > 0;
 
   const hasSearchOrFilters = hasSearch || hasFilters;
   const clearUsersFilters = () => {
@@ -450,7 +447,7 @@ export default function Page() {
     updateUsersPageFilters({
       invitationStatus: 'all',
       roleId: 'all',
-      projectId: 'all',
+      project: [],
     });
   };
 
@@ -619,9 +616,10 @@ export default function Page() {
                             <div className="relative w-full overflow-visible">
                               <Dropdown
                                 options={projectFilterOptions}
-                                value={selectedProjectId}
+                                isMulti
+                                value={selectedProjectIds}
                                 onChange={(value) =>
-                                  updateUsersPageFilters({ projectId: value })
+                                  updateUsersPageFilters({ project: value })
                                 }
                                 placeholder="All Projects"
                                 maxMenuHeight={150}
@@ -674,9 +672,10 @@ export default function Page() {
                     <div className="w-full hidden xl:block xl:w-38">
                       <Dropdown
                         options={projectFilterOptions}
-                        value={selectedProjectId}
+                        isMulti
+                        value={selectedProjectIds}
                         onChange={(value) =>
-                          updateUsersPageFilters({ projectId: value })
+                          updateUsersPageFilters({ project: value })
                         }
                         showSearch={true}
                         placeholder="All Projects"
@@ -862,7 +861,7 @@ function getUpdateUserPayload(values: AddUserFormValues) {
 type ProjectMembersQuery = {
   search?: string;
   isInvitationAccepted?: boolean;
-  projectId?: string;
+  projectIds?: string[];
   roleId?: string;
 };
 
@@ -895,9 +894,11 @@ async function fetchProjectMembers(
     );
   }
 
-  if (query.projectId) {
-    searchParams.set('projectId', query.projectId);
-  }
+  query.projectIds?.forEach((projectId) => {
+    if (projectId) {
+      searchParams.append('projectIds', projectId);
+    }
+  });
 
   if (query.roleId) {
     searchParams.set('roleId', query.roleId);
@@ -1086,6 +1087,23 @@ function getUsersFilterValue(value: string | null) {
   }
 
   return value;
+}
+
+function getUsersProjectFilterValues(
+  values: string[],
+  fallbackValue: string | null,
+) {
+  const sourceValues =
+    values.length > 0 ? values : fallbackValue ? [fallbackValue] : [];
+
+  return Array.from(
+    new Set(
+      sourceValues
+        .flatMap((value) => value.split(','))
+        .map((value) => value.trim())
+        .filter((value) => value && value !== 'all'),
+    ),
+  );
 }
 
 function getRoleKey(role?: {

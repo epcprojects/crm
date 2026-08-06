@@ -33,6 +33,7 @@ import ConfirmActionModal from '../../../../components/modals/ConfirmActionModal
 import ProjectThreadPanel from '../../../../components/discussion/ProjectThreadPanel';
 import type {
   DiscussionAttachment,
+  DiscussionReaction,
   DiscussionReply,
 } from '../../../../components/discussion/types';
 import ProjectFilesPanel, {
@@ -176,7 +177,7 @@ export default function ProjectDetailPage() {
     updateCount: (currentCount: number) => number,
   ) => {
     queryClient.setQueryData<DiscussionReply[]>(
-      [...projectThreadQueryKey, projectId],
+      [...projectThreadQueryKey, projectId, currentUserId],
       (currentReplies) =>
         Array.isArray(currentReplies)
           ? currentReplies.map((reply) =>
@@ -196,10 +197,15 @@ export default function ProjectDetailPage() {
   );
   const shouldRedirectToNotFound =
     projectDetailQuery.isError && isNotFoundError(projectDetailQuery.error);
-  const projectThreadQuery = useProjectThreadQuery(projectId, canViewThread);
+  const projectThreadQuery = useProjectThreadQuery(
+    projectId,
+    currentUserId,
+    canViewThread,
+  );
   const projectThreadDetailQuery = useProjectThreadDetailQuery(
     projectId,
     selectedThreadMessageId,
+    currentUserId,
     canViewThread,
   );
 
@@ -234,6 +240,48 @@ export default function ProjectDetailPage() {
   );
   const uploadProjectFilesMutation = useUploadProjectFilesMutation();
   const deleteProjectFileMutation = useDeleteProjectFileMutation();
+  const toggleProjectThreadReactionMutation = useMutation({
+    mutationFn: async ({
+      messageId,
+      emoji,
+      remove,
+    }: {
+      messageId: string;
+      emoji: string;
+      remove: boolean;
+    }) => {
+      const response = await fetch(
+        `/api/projects/${projectId}/thread/${messageId}/reactions`,
+        {
+          method: remove ? 'DELETE' : 'POST',
+          headers: {
+            Accept: 'application/json',
+            ...(remove ? {} : { 'Content-Type': 'application/json' }),
+          },
+          ...(remove ? {} : { body: JSON.stringify({ emoji }) }),
+        },
+      );
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message =
+          Array.isArray(data?.message) && data.message.length
+            ? data.message.join(', ')
+            : data?.message || 'Failed to update thread reaction.';
+        throw new Error(message);
+      }
+
+      return data;
+    },
+    onError: (error) => {
+      appToast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to update thread reaction.',
+      );
+    },
+  });
   const projectsQuery = useProjectNamesQuery(canCreateTicket);
   const ticketStatusesQuery = useQuery({
     queryKey: ['ticket-statuses'],
@@ -1145,6 +1193,142 @@ export default function ProjectDetailPage() {
     }
   };
 
+  const updateThreadReactionInDetail = (
+    detail:
+      | {
+          header: DiscussionReply | null;
+          replies: DiscussionReply[];
+        }
+      | undefined,
+    replyId: string,
+    emoji: string,
+    remove: boolean,
+  ) => {
+    if (!detail) {
+      return detail;
+    }
+
+    return {
+      ...detail,
+      header:
+        detail.header?.id === replyId
+          ? {
+              ...detail.header,
+              reactions: applyProjectThreadReactionUpdate(
+                detail.header.reactions ?? [],
+                emoji,
+                remove,
+                currentUserId,
+              ),
+            }
+          : detail.header,
+      replies: detail.replies.map((reply) =>
+        reply.id === replyId
+          ? {
+              ...reply,
+              reactions: applyProjectThreadReactionUpdate(
+                reply.reactions ?? [],
+                emoji,
+                remove,
+                currentUserId,
+              ),
+            }
+          : reply,
+      ),
+    };
+  };
+
+  const handleToggleProjectThreadReaction = async (
+    reply: DiscussionReply,
+    emoji: string,
+  ) => {
+    const remove = Boolean(
+      reply.reactions?.some(
+        (reaction) =>
+          reaction.emoji === emoji && reaction.reactedByCurrentUser,
+      ),
+    );
+
+    const threadQueryKey = [
+      ...projectThreadQueryKey,
+      projectId,
+      currentUserId,
+    ] as const;
+    const detailQueryKeys = selectedThreadMessageId
+      ? [[
+          ...projectThreadDetailQueryKey,
+          projectId,
+          selectedThreadMessageId,
+          currentUserId,
+        ]]
+      : [];
+    const previousThreadReplies =
+      queryClient.getQueryData<DiscussionReply[]>(threadQueryKey);
+    const previousThreadDetails = detailQueryKeys.map((queryKey) => ({
+      queryKey,
+      data: queryClient.getQueryData<{
+        header: DiscussionReply | null;
+        replies: DiscussionReply[];
+      }>(queryKey),
+    }));
+
+    queryClient.setQueryData<DiscussionReply[]>(threadQueryKey, (current) =>
+      Array.isArray(current)
+        ? current.map((threadReply) =>
+            threadReply.id === reply.id
+              ? {
+                  ...threadReply,
+                  reactions: applyProjectThreadReactionUpdate(
+                    threadReply.reactions ?? [],
+                    emoji,
+                    remove,
+                    currentUserId,
+                  ),
+                }
+              : threadReply,
+          )
+        : current,
+    );
+
+    detailQueryKeys.forEach((queryKey) => {
+      queryClient.setQueryData<{
+        header: DiscussionReply | null;
+        replies: DiscussionReply[];
+      }>(queryKey, (current) =>
+        updateThreadReactionInDetail(current, reply.id, emoji, remove),
+      );
+    });
+
+    try {
+      await toggleProjectThreadReactionMutation.mutateAsync({
+        messageId: reply.id,
+        emoji,
+        remove,
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: threadQueryKey,
+      });
+
+      if (selectedThreadMessageId) {
+        await queryClient.invalidateQueries({
+          queryKey: [
+            ...projectThreadDetailQueryKey,
+            projectId,
+            selectedThreadMessageId,
+            currentUserId,
+          ],
+        });
+      }
+    } catch (error) {
+      queryClient.setQueryData(threadQueryKey, previousThreadReplies);
+      previousThreadDetails.forEach(({ queryKey, data }) => {
+        queryClient.setQueryData(queryKey, data);
+      });
+      throw error;
+    }
+  };
+
   const visibleProjectTabs = projectTabs.filter((tab) => {
     if (tab === 'Tickets') return canViewTickets;
     if (tab === 'Thread') return canViewThread;
@@ -1707,6 +1891,7 @@ export default function ProjectDetailPage() {
                               setSelectedThreadMessageId(reply.id)
                             }
                             onDeleteAttachment={handleDeleteThreadAttachment}
+                            onToggleReaction={handleToggleProjectThreadReaction}
                             deletingAttachmentId={
                               deleteProjectFileMutation.isPending
                                 ? deleteProjectFileMutation.variables?.fileId
@@ -1774,6 +1959,7 @@ export default function ProjectDetailPage() {
                             }
                             requireMessage={false}
                             currentUserId={currentUserId}
+                            onToggleReaction={handleToggleProjectThreadReaction}
                             onDeleteAttachment={handleDeleteThreadAttachment}
                             deletingAttachmentId={
                               deleteProjectFileMutation.isPending
@@ -2520,6 +2706,131 @@ export default function ProjectDetailPage() {
       />
     </>
   );
+}
+
+function applyProjectThreadReactionUpdate(
+  reactions: DiscussionReaction[],
+  emoji: string,
+  remove: boolean,
+  currentUserId?: string,
+) {
+  const currentUserReaction = reactions.find(
+    (reaction) => reaction.reactedByCurrentUser,
+  );
+  let nextReactions = reactions.map((reaction) => ({ ...reaction }));
+
+  if (
+    currentUserReaction &&
+    (!remove || currentUserReaction.emoji !== emoji)
+  ) {
+    nextReactions = decrementProjectThreadReaction(
+      nextReactions,
+      currentUserReaction.emoji,
+      currentUserId,
+    );
+  }
+
+  if (!remove) {
+    nextReactions = incrementProjectThreadReaction(
+      nextReactions,
+      emoji,
+      currentUserId,
+    );
+  }
+
+  return nextReactions;
+}
+
+function incrementProjectThreadReaction(
+  reactions: DiscussionReaction[],
+  emoji: string,
+  currentUserId?: string,
+) {
+  const existingReaction = reactions.find((reaction) => reaction.emoji === emoji);
+
+  if (!existingReaction) {
+    return [
+      ...reactions,
+      {
+        emoji,
+        count: 1,
+        reactedByCurrentUser: true,
+        actors: currentUserId
+          ? [{ id: currentUserId, name: 'You', isCurrentUser: true }]
+          : [{ name: 'You', isCurrentUser: true }],
+      },
+    ];
+  }
+
+  return reactions.map((reaction) =>
+    reaction.emoji === emoji
+      ? {
+          ...reaction,
+          count: reaction.count + (reaction.reactedByCurrentUser ? 0 : 1),
+          reactedByCurrentUser: true,
+          actors: reaction.reactedByCurrentUser
+            ? reaction.actors
+            : [
+                ...(reaction.actors ?? []),
+                currentUserId
+                  ? { id: currentUserId, name: 'You', isCurrentUser: true }
+                  : { name: 'You', isCurrentUser: true },
+              ],
+        }
+      : {
+          ...reaction,
+          reactedByCurrentUser: false,
+          actors:
+            reaction.actors?.map((actor) => ({
+              ...actor,
+              isCurrentUser: false,
+            })) ?? reaction.actors,
+        },
+  );
+}
+
+function decrementProjectThreadReaction(
+  reactions: DiscussionReaction[],
+  emoji: string,
+  currentUserId?: string,
+) {
+  return reactions
+    .flatMap((reaction) => {
+      if (reaction.emoji !== emoji) {
+        return [reaction];
+      }
+
+      if (reaction.count <= 1) {
+        return [];
+      }
+
+      return [
+        {
+          ...reaction,
+          count: reaction.count - 1,
+          reactedByCurrentUser: false,
+          actors:
+            reaction.actors?.filter((actor) =>
+              currentUserId
+                ? actor.id !== currentUserId
+                : !actor.isCurrentUser,
+            ) ?? reaction.actors,
+        },
+      ];
+    })
+    .map((reaction) =>
+      reaction.emoji === emoji
+        ? reaction
+        : {
+            ...reaction,
+            reactedByCurrentUser: false,
+            actors:
+              reaction.actors?.map((actor) => ({
+                ...actor,
+                isCurrentUser: false,
+              })) ?? reaction.actors,
+          },
+    );
 }
 
 function renderProjectTabIcon(tab: (typeof projectTabs)[number]) {

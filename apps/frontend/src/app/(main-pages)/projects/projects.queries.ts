@@ -15,7 +15,10 @@ import {
 } from './projects.data';
 import type { CreateProjectFormValues } from '../../../components/modals/CreateProjectModal';
 import type { UploadFileFormValues } from '../../../components/modals/UploadFileModal';
-import type { DiscussionReply } from '../../../components/discussion/types';
+import type {
+  DiscussionReaction,
+  DiscussionReply,
+} from '../../../components/discussion/types';
 import type {
   RecentTicket,
   TicketPriority,
@@ -191,10 +194,14 @@ export function useDeleteProjectMutation() {
   });
 }
 
-export function useProjectThreadQuery(projectId: string, enabled = true) {
+export function useProjectThreadQuery(
+  projectId: string,
+  currentUserId = '',
+  enabled = true,
+) {
   return useQuery({
-    queryKey: [...projectThreadQueryKey, projectId],
-    queryFn: () => fetchProjectThread(projectId),
+    queryKey: [...projectThreadQueryKey, projectId, currentUserId],
+    queryFn: () => fetchProjectThread(projectId, currentUserId),
     enabled: Boolean(projectId && enabled),
   });
 }
@@ -202,11 +209,12 @@ export function useProjectThreadQuery(projectId: string, enabled = true) {
 export function useProjectThreadDetailQuery(
   projectId: string,
   messageId: string,
+  currentUserId = '',
   enabled = true,
 ) {
   return useQuery({
-    queryKey: [...projectThreadDetailQueryKey, projectId, messageId],
-    queryFn: () => fetchProjectThreadDetail(projectId, messageId),
+    queryKey: [...projectThreadDetailQueryKey, projectId, messageId, currentUserId],
+    queryFn: () => fetchProjectThreadDetail(projectId, messageId, currentUserId),
     enabled: Boolean(projectId && messageId && enabled),
   });
 }
@@ -1067,7 +1075,24 @@ type ApiProjectThreadMessage = {
     name?: string;
   } | null;
   attachments?: ApiDiscussionAttachment[];
+  reactions?: ApiProjectThreadReaction[] | null;
+  parentReactions?: ApiProjectThreadReaction[] | null;
   replies?: ApiProjectThreadMessage[];
+};
+
+type ApiProjectThreadReactionActor = {
+  id?: string | null;
+  fullName?: string | null;
+  name?: string | null;
+};
+
+type ApiProjectThreadReaction = {
+  emoji?: string | null;
+  count?: string | number | null;
+  reactedByCurrentUser?: boolean | null;
+  isCurrentUser?: boolean | null;
+  userReacted?: boolean | null;
+  actors?: ApiProjectThreadReactionActor[] | null;
 };
 
 type ApiDiscussionAttachment = {
@@ -1157,7 +1182,7 @@ type ApiProjectTicketsResponse = {
   };
 };
 
-async function fetchProjectThread(projectId: string) {
+async function fetchProjectThread(projectId: string, currentUserId: string) {
   const response = await fetch(`/api/projects/${projectId}/thread`, {
     method: 'GET',
     headers: {
@@ -1179,10 +1204,16 @@ async function fetchProjectThread(projectId: string) {
     );
   }
 
-  return payload.map(mapApiProjectThreadMessageToReply);
+  return payload.map((message) =>
+    mapApiProjectThreadMessageToReply(message, currentUserId),
+  );
 }
 
-async function fetchProjectThreadDetail(projectId: string, messageId: string) {
+async function fetchProjectThreadDetail(
+  projectId: string,
+  messageId: string,
+  currentUserId: string,
+) {
   const response = await fetch(
     `/api/projects/${projectId}/thread/${messageId}`,
     {
@@ -1204,7 +1235,7 @@ async function fetchProjectThreadDetail(projectId: string, messageId: string) {
     );
   }
 
-  return normalizeProjectThreadDetail(payload, messageId);
+  return normalizeProjectThreadDetail(payload, messageId, currentUserId);
 }
 
 async function fetchProjectTickets(
@@ -1335,6 +1366,7 @@ async function deleteProjectFile({
 
 function mapApiProjectThreadMessageToReply(
   message: ApiProjectThreadMessage,
+  currentUserId = '',
 ): DiscussionReply {
   const authorName =
     getNonEmptyString(message.author?.fullName) ??
@@ -1351,6 +1383,10 @@ function mapApiProjectThreadMessageToReply(
     id: message.id,
     authorId: message.createdBy ?? message.authorId,
     replyCount: normalizeReplyCount(message.replyCount),
+    reactions: mapApiProjectThreadReactions(
+      message.reactions ?? message.parentReactions,
+      currentUserId,
+    ),
     author: {
       name: authorName,
       initials: authorInitials,
@@ -1369,13 +1405,57 @@ function mapApiProjectThreadMessageToReply(
   };
 }
 
+function mapApiProjectThreadReactions(
+  reactions: ApiProjectThreadReaction[] | null | undefined,
+  currentUserId = '',
+): DiscussionReaction[] {
+  if (!Array.isArray(reactions)) {
+    return [];
+  }
+
+  return reactions.flatMap((reaction) => {
+    const emoji = reaction.emoji?.trim();
+
+    if (!emoji) {
+      return [];
+    }
+
+    const countValue = Number(reaction.count ?? 0);
+    const reactedByCurrentUserFromActors = Array.isArray(reaction.actors)
+      ? reaction.actors.some((actor) => actor.id?.trim() === currentUserId)
+      : false;
+
+    return [
+      {
+        emoji,
+        count: Number.isFinite(countValue) && countValue > 0 ? countValue : 1,
+        reactedByCurrentUser: Boolean(
+          reactedByCurrentUserFromActors ||
+            (reaction.reactedByCurrentUser ??
+              reaction.isCurrentUser ??
+              reaction.userReacted),
+        ),
+        actors: Array.isArray(reaction.actors)
+          ? reaction.actors.map((actor) => ({
+              id: actor.id?.trim() || undefined,
+              name:
+                actor.fullName?.trim() || actor.name?.trim() || undefined,
+              isCurrentUser: actor.id?.trim() === currentUserId,
+            }))
+          : undefined,
+      },
+    ];
+  });
+}
+
 function normalizeProjectThreadDetail(
   payload: unknown,
   messageId: string,
+  currentUserId: string,
 ): ProjectThreadDetail {
   const normalizedMessages = extractThreadMessages(payload);
   const mappedReplies = normalizedMessages.map(
-    mapApiProjectThreadMessageToReply,
+    (message) => mapApiProjectThreadMessageToReply(message, currentUserId),
   );
   const header =
     mappedReplies.find((reply) => reply.id === messageId) ??
@@ -1397,7 +1477,7 @@ function normalizeProjectThreadDetail(
 
 function extractThreadMessages(payload: unknown): ApiProjectThreadMessage[] {
   if (Array.isArray(payload)) {
-    return payload as ApiProjectThreadMessage[];
+    return payload.flatMap((item) => extractThreadMessages(item));
   }
 
   if (!payload || typeof payload !== 'object') {

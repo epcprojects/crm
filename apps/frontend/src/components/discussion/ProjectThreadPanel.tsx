@@ -16,11 +16,7 @@ import {
 import { getFileUrl } from '../projects/ProjectFilesPanel';
 import ConfirmActionModal from '../modals/ConfirmActionModal';
 import ImageGalleryLightbox from '../ui/ImageGalleryLightbox';
-import type {
-  DiscussionAttachment,
-  DiscussionReaction,
-  DiscussionReply,
-} from './types';
+import type { DiscussionAttachment, DiscussionReply } from './types';
 import EmojiPickerButton from './EmojiPickerButton';
 import MessageReactionBar from './MessageReactionBar';
 import ThemeButton from '../ui/ThemeButton';
@@ -60,6 +56,10 @@ type DiscussionPanelProps = {
     message: string;
   }) => Promise<void> | void;
   onDeleteReply?: (reply: DiscussionReply) => Promise<void> | void;
+  onToggleReaction?: (
+    reply: DiscussionReply,
+    emoji: string,
+  ) => Promise<void> | void;
   deletingReplyId?: string;
   editingReplyId?: string;
   onDeleteAttachment?: (attachment: DiscussionAttachment) => void;
@@ -94,6 +94,7 @@ export default function ProjectThreadPanel({
   onReplyClick,
   onEditReply,
   onDeleteReply,
+  onToggleReaction,
   deletingReplyId,
   editingReplyId,
   onDeleteAttachment,
@@ -108,9 +109,6 @@ export default function ProjectThreadPanel({
   const [replyToDelete, setReplyToDelete] = useState<DiscussionReply | null>(
     null,
   );
-  const [messageReactions, setMessageReactions] = useState<
-    Record<string, DiscussionReaction[]>
-  >({});
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [activeGalleryIndex, setActiveGalleryIndex] = useState<number | null>(
     null,
@@ -333,36 +331,6 @@ export default function ProjectThreadPanel({
     setReplyToDelete(null);
   };
 
-  const toggleMessageReaction = (messageId: string, emoji: string) => {
-    setMessageReactions((current) => {
-      const currentReactions = current[messageId] ?? [];
-      const existingReaction = currentReactions.find(
-        (reaction) => reaction.emoji === emoji,
-      );
-
-      return {
-        ...current,
-        [messageId]: existingReaction
-          ? currentReactions.map((reaction) =>
-              reaction.emoji === emoji
-                ? {
-                    ...reaction,
-                    reactedByCurrentUser: !reaction.reactedByCurrentUser,
-                  }
-                : reaction,
-            )
-          : [
-              ...currentReactions,
-              {
-                emoji,
-                count: 1,
-                reactedByCurrentUser: true,
-              },
-            ],
-      };
-    });
-  };
-
   const openGallery = (images: GalleryImage[], index: number) => {
     if (!images.length || index < 0) {
       return;
@@ -561,10 +529,13 @@ export default function ProjectThreadPanel({
                     </div>
                   ) : null}
                   <MessageReactionBar
-                    reactions={messageReactions[headerReply.id] ?? []}
+                    reactions={headerReply.reactions ?? []}
                     onToggleReaction={(emoji) =>
-                      toggleMessageReaction(headerReply.id, emoji)
+                      void onToggleReaction?.(headerReply, emoji)
                     }
+                    currentUserId={currentUserId}
+                    align="end"
+                    from="thread"
                     className="left-auto right-3"
                   />
                 </div>
@@ -629,9 +600,17 @@ export default function ProjectThreadPanel({
                           }`}
                         >
                           <MessageReactionBar
-                            reactions={messageReactions[reply.id] ?? []}
+                            reactions={reply.reactions ?? []}
                             onToggleReaction={(emoji) =>
-                              toggleMessageReaction(reply.id, emoji)
+                              void onToggleReaction?.(reply, emoji)
+                            }
+                            currentUserId={currentUserId}
+                            align={isCurrentUserReply ? 'start' : 'start'}
+                            from="thread"
+                            className={
+                              isCurrentUserReply
+                                ? 'left-auto right-3'
+                                : undefined
                             }
                           />
                           {editingMessageId === reply.id ? (

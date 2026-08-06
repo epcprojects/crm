@@ -21,6 +21,13 @@ export type DiscussionReaction = {
   emoji: string;
   count: number;
   reactedByCurrentUser?: boolean;
+  actors?: DiscussionReactionActor[];
+};
+
+export type DiscussionReactionActor = {
+  id?: string;
+  name?: string;
+  isCurrentUser?: boolean;
 };
 
 export type DiscussionAttachment = {

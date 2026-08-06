@@ -90,9 +90,11 @@ export default function Page() {
   const selectedPriority = getTicketsFilterValue(
     searchParams.get(TICKETS_PRIORITY_QUERY_PARAM),
   );
-  const selectedProject = getTicketsFilterValue(
+  const selectedProjectIds = getTicketsProjectFilterValues(
+    searchParams.getAll(TICKETS_PROJECT_QUERY_PARAM),
     searchParams.get(TICKETS_PROJECT_QUERY_PARAM),
   );
+  const selectedProjectIdsKey = selectedProjectIds.join(',');
   // const canViewTickets = hasPermission('tickets.view_list');
 
   const ticketStatusesQuery = useQuery({
@@ -118,7 +120,7 @@ export default function Page() {
       'dashboard-project-tickets',
       selectedStatus,
       selectedPriority,
-      selectedProject,
+      selectedProjectIdsKey,
       searchValue.trim(),
       viewMode,
       pagination.pageIndex,
@@ -128,7 +130,7 @@ export default function Page() {
       fetchDashboardTickets({
         statusKey: selectedStatus === 'all' ? undefined : selectedStatus,
         priorityKey: selectedPriority === 'all' ? undefined : selectedPriority,
-        projectId: selectedProject === 'all' ? undefined : selectedProject,
+        projectIds: selectedProjectIds.length ? selectedProjectIds : undefined,
         search: searchValue.trim(),
         page: viewMode === 'kanban' ? 1 : pagination.pageIndex + 1,
         limit: viewMode === 'kanban' ? 100 : pagination.pageSize,
@@ -182,13 +184,11 @@ export default function Page() {
     [ticketPrioritiesQuery.data],
   );
   const projectFilterOptions = useMemo(
-    () => [
-      { label: 'All Projects', value: 'all' },
-      ...(projectsQuery.data ?? []).map((project) => ({
+    () =>
+      (projectsQuery.data ?? []).map((project) => ({
         label: project.name,
         value: project.id,
       })),
-    ],
     [projectsQuery.data],
   );
 
@@ -249,12 +249,20 @@ export default function Page() {
         filenameParts.push(slugify(priorityLabel ?? selectedPriority));
       }
 
-      if (selectedProject !== 'all') {
-        exportParams.set('projectId', selectedProject);
-        const projectLabel = projectFilterOptions.find(
-          (option) => option.value === selectedProject,
-        )?.label;
-        filenameParts.push(slugify(projectLabel ?? selectedProject));
+      if (selectedProjectIds.length) {
+        selectedProjectIds.forEach((projectId) => {
+          exportParams.append('projectIds', projectId);
+        });
+
+        const projectLabels = selectedProjectIds.map(
+          (projectId) =>
+            projectFilterOptions.find((option) => option.value === projectId)
+              ?.label ?? projectId,
+        );
+
+        filenameParts.push(
+          `projects_${projectLabels.map((label) => slugify(label)).join('_')}`,
+        );
       }
 
       const response = await fetch(
@@ -557,13 +565,13 @@ export default function Page() {
       ...current,
       pageIndex: 0,
     }));
-  }, [searchValue, selectedPriority, selectedProject, selectedStatus]);
+  }, [searchValue, selectedPriority, selectedProjectIdsKey, selectedStatus]);
 
   const hasActiveTicketFilters =
     Boolean(searchValue.trim()) ||
     selectedStatus !== DEFAULT_TICKETS_STATUS_FILTER ||
     selectedPriority !== 'all' ||
-    selectedProject !== 'all';
+    selectedProjectIds.length > 0;
 
   const updateTicketsPageFilters = ({
     view,
@@ -574,13 +582,13 @@ export default function Page() {
     view?: 'table' | 'kanban';
     status?: string;
     priority?: string;
-    project?: string;
+    project?: string[];
   }) => {
     const nextSearchParams = new URLSearchParams(searchParams.toString());
     const nextViewMode = view ?? viewMode;
     const nextStatus = status ?? selectedStatus;
     const nextPriority = priority ?? selectedPriority;
-    const nextProject = project ?? selectedProject;
+    const nextProjectIds = project ?? selectedProjectIds;
 
     if (nextViewMode === 'table') {
       nextSearchParams.delete(TICKETS_VIEW_QUERY_PARAM);
@@ -603,11 +611,10 @@ export default function Page() {
       nextSearchParams.set(TICKETS_PRIORITY_QUERY_PARAM, nextPriority);
     }
 
-    if (nextProject === 'all') {
-      nextSearchParams.delete(TICKETS_PROJECT_QUERY_PARAM);
-    } else {
-      nextSearchParams.set(TICKETS_PROJECT_QUERY_PARAM, nextProject);
-    }
+    nextSearchParams.delete(TICKETS_PROJECT_QUERY_PARAM);
+    nextProjectIds.forEach((projectId) => {
+      nextSearchParams.append(TICKETS_PROJECT_QUERY_PARAM, projectId);
+    });
 
     const nextQueryString = nextSearchParams.toString();
     const currentQueryString = searchParams.toString();
@@ -626,7 +633,7 @@ export default function Page() {
     updateTicketsPageFilters({
       status: DEFAULT_TICKETS_STATUS_FILTER,
       priority: 'all',
-      project: 'all',
+      project: [],
     });
   };
 
@@ -863,7 +870,8 @@ export default function Page() {
                                 <div className="relative w-full overflow-visible">
                                   <Dropdown
                                     options={projectFilterOptions}
-                                    value={selectedProject}
+                                    isMulti
+                                    value={selectedProjectIds}
                                     onChange={(value) =>
                                       updateTicketsPageFilters({
                                         project: value,
@@ -945,7 +953,8 @@ export default function Page() {
                                 <div className="relative w-full overflow-visible">
                                   <Dropdown
                                     options={projectFilterOptions}
-                                    value={selectedProject}
+                                    isMulti
+                                    value={selectedProjectIds}
                                     onChange={(value) =>
                                       updateTicketsPageFilters({
                                         project: value,
@@ -1030,7 +1039,8 @@ export default function Page() {
                         <div className="w-full hidden 2xl:block 2xl:w-44">
                           <Dropdown
                             options={projectFilterOptions}
-                            value={selectedProject}
+                            isMulti
+                            value={selectedProjectIds}
                             onChange={(value) =>
                               updateTicketsPageFilters({ project: value })
                             }
@@ -1113,7 +1123,8 @@ export default function Page() {
                                   <div className="relative w-full overflow-visible">
                                     <Dropdown
                                       options={projectFilterOptions}
-                                      value={selectedProject}
+                                      isMulti
+                                      value={selectedProjectIds}
                                       onChange={(value) =>
                                         updateTicketsPageFilters({
                                           project: value,
@@ -1328,14 +1339,14 @@ type ApiDashboardTicketsResponse = {
 async function fetchDashboardTickets({
   statusKey,
   priorityKey,
-  projectId,
+  projectIds,
   search,
   page,
   limit,
 }: {
   statusKey?: string;
   priorityKey?: string;
-  projectId?: string;
+  projectIds?: string[];
   search?: string;
   page: number;
   limit: number;
@@ -1353,9 +1364,11 @@ async function fetchDashboardTickets({
     searchParams.set('priorityKey', priorityKey);
   }
 
-  if (projectId) {
-    searchParams.set('projectId', projectId);
-  }
+  projectIds?.forEach((projectId) => {
+    if (projectId) {
+      searchParams.append('projectIds', projectId);
+    }
+  });
 
   if (search) {
     searchParams.set('search', search);
@@ -1640,6 +1653,23 @@ function getTicketsFilterValue(value: string | null) {
   }
 
   return value;
+}
+
+function getTicketsProjectFilterValues(
+  values: string[],
+  fallbackValue: string | null,
+) {
+  const sourceValues =
+    values.length > 0 ? values : fallbackValue ? [fallbackValue] : [];
+
+  return Array.from(
+    new Set(
+      sourceValues
+        .flatMap((value) => value.split(','))
+        .map((value) => value.trim())
+        .filter((value) => value && value !== 'all'),
+    ),
+  );
 }
 
 function formatTicketDate(value: string) {
