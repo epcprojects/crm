@@ -1524,7 +1524,9 @@ function mapApiDashboardTicketToRecentTicket(
       initials: getInitials(ticket.project.name),
       brandColor: ticket.project?.brandColor ?? '#31d81b',
     },
-    dueDate: ticket.dueDate ? formatTicketDate(ticket.dueDate) : '--',
+    dueDate: ticket.dueDate
+      ? formatTicketDate(ticket.dueDate.split('T')[0] ?? ticket.dueDate)
+      : '--',
     status: statusLabel,
     statusColor: ticket.status?.color,
     priority: priorityLabel,
@@ -1643,7 +1645,9 @@ function getTicketsFilterValue(value: string | null) {
 }
 
 function formatTicketDate(value: string) {
-  const date = new Date(value);
+  const date = new Date(
+    /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value,
+  );
 
   if (Number.isNaN(date.getTime())) {
     return '-';
