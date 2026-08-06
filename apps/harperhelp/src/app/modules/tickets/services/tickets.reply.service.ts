@@ -1,6 +1,7 @@
 import { FileSource } from '@harperhelp/types';
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -18,12 +19,16 @@ import { NotificationEntityType, NotificationType } from '@harperhelp/types';
 import { UsersService } from '../../users/users.service';
 import { extname } from 'path';
 import { UpdateReplyDto } from '../dto/update-ticket-reply.dto';
+import { ReactionsService } from '../../reactions/reactions.service';
+import { Project } from '../../projects/entities/project.entity';
 
 @Injectable()
 export class TicketRepliesService {
   constructor(
     @InjectRepository(TicketReply)
     private readonly replyRepo: Repository<TicketReply>,
+
+    private readonly reactionsService: ReactionsService,
 
     private readonly filesService: FilesService,
     private readonly utilityService: UtilityService,
@@ -52,6 +57,7 @@ export class TicketRepliesService {
       .getRepository(Ticket)
       .findOne({ where: { id: ticketId } });
     if (!ticket) throw new NotFoundException('Ticket not found');
+    await this.ensureProjectUserAccess(projectId, userId);
     const reply = await this.replyRepo.save(
       this.replyRepo.create({
         ticketId,
@@ -162,6 +168,8 @@ export class TicketRepliesService {
     userId: string,
     files?: Express.Multer.File[],
   ) {
+    await this.ensureProjectUserAccess(projectId, userId);
+
     const reply = await this.replyRepo.findOne({
       where: {
         id: replyId,
@@ -209,6 +217,7 @@ export class TicketRepliesService {
       .getRepository(Ticket)
       .findOne({ where: { id: ticketId } });
     if (!ticket) throw new NotFoundException('Ticket not found');
+
     const replies = await this.replyRepo.find({
       where: { ticketId },
       order: { createdAt: 'ASC' },
@@ -224,12 +233,19 @@ export class TicketRepliesService {
         }
         // delete reply.author['passwordHash'];
 
+        const [attachments, reactions] = await Promise.all([
+          this.filesService.findBySource(FileSource.TICKET_REPLY, reply.id),
+          this.reactionsService.getTicketReplyReactions(reply.id),
+        ]);
+
         return {
           ...reply,
-          attachments: await this.filesService.findBySource(
-            FileSource.TICKET_REPLY,
-            reply.id,
-          ),
+          attachments,
+          reactions,
+          // attachments: await this.filesService.findBySource(
+          //   FileSource.TICKET_REPLY,
+          //   reply.id,
+          // ),
         };
       }),
     );
@@ -242,14 +258,15 @@ export class TicketRepliesService {
 
     if (!reply) throw new NotFoundException('Reply not found');
 
-    const attachments = await this.filesService.findBySource(
-      FileSource.TICKET_REPLY,
-      id,
-    );
+    const [attachments, reactions] = await Promise.all([
+      this.filesService.findBySource(FileSource.TICKET_REPLY, id),
+      this.reactionsService.getTicketReplyReactions(id),
+    ]);
 
     return {
       ...reply,
       attachments,
+      reactions,
     };
   }
 
@@ -288,6 +305,8 @@ export class TicketRepliesService {
     replyId: string,
     userId: string,
   ) {
+    await this.ensureProjectUserAccess(projectId, userId);
+
     const reply = await this.replyRepo.findOne({
       where: {
         id: replyId,
@@ -311,5 +330,111 @@ export class TicketRepliesService {
     this.ticketRepliesGateway.broadcastDeleted(projectId, ticketId, replyId);
 
     return { id: replyId, deleted: true };
+  }
+
+  async addReaction(
+    projectId: string,
+    ticketId: string,
+    replyId: string,
+    user,
+    emoji: string,
+  ) {
+    await this.ensureProjectUserAccess(projectId, user.id);
+    const ticket = await this.replyRepo.manager.getRepository(Ticket).findOne({
+      where: {
+        id: ticketId,
+        projectId,
+      },
+    });
+
+    if (!ticket) {
+      throw new NotFoundException('Ticket not found');
+    }
+
+    const reply = await this.replyRepo.findOne({
+      where: {
+        id: replyId,
+        ticketId,
+      },
+    });
+
+    if (!reply) {
+      throw new NotFoundException('Reply not found');
+    }
+
+    await this.reactionsService.addTicketReplyReaction(replyId, user.id, emoji);
+
+    const updated = await this.findOne(replyId);
+
+    if (updated.authorId !== user.id) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId,
+        ticketId,
+        actorId: user.id,
+        explicitRecipientIds: [updated.authorId],
+
+        type: NotificationType.TICKET_REPLY_REACTION,
+        entityType: NotificationEntityType.TICKET_REPLY,
+        entityId: updated.id,
+
+        title: `${user.fullName} reacted to your reply in ticket "${ticket.ticketRefNo}"`,
+        message: emoji,
+      });
+    }
+
+    this.ticketRepliesGateway.broadcastUpdated(projectId, ticketId, updated);
+    // console.debug(`after broadcast Broadcasting updated reply for ticket ${ticketId} in project ${projectId}:`, updated);
+    return updated;
+  }
+
+  async removeReaction(
+    projectId: string,
+    ticketId: string,
+    replyId: string,
+    userId: string,
+  ) {
+    await this.ensureProjectUserAccess(projectId, userId);
+
+    const ticket = await this.replyRepo.manager.getRepository(Ticket).findOne({
+      where: {
+        id: ticketId,
+        projectId,
+      },
+    });
+
+    if (!ticket) {
+      throw new NotFoundException('Ticket not found');
+    }
+
+    const reply = await this.replyRepo.findOne({
+      where: {
+        id: replyId,
+        ticketId,
+      },
+    });
+
+    if (!reply) {
+      throw new NotFoundException('Reply not found');
+    }
+    await this.reactionsService.removeTicketReplyReaction(replyId, userId);
+
+    const updated = await this.findOne(replyId);
+
+    this.ticketRepliesGateway.broadcastUpdated(projectId, ticketId, updated);
+    return updated;
+    //
+  }
+
+  private async ensureProjectUserAccess(projectId: string, userId: string) {
+    const hasAccess = await this.replyRepo.manager
+      .getRepository(Project)
+      .createQueryBuilder('p')
+      .innerJoin('p.members', 'm', 'm.id = :userId', { userId })
+      .where('p.id = :projectId', { projectId })
+      .getExists();
+
+    if (!hasAccess) {
+      throw new ForbiddenException('Project Not Found or Access Denied');
+    }
   }
 }

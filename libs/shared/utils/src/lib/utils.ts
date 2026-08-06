@@ -27,6 +27,11 @@ export const MODULE_DEFINITIONS: {
     actions: ['view_list', 'view_detail', 'create', 'edit', 'delete'],
   },
   {
+    key: 'projects_notes',
+    label: 'Projects Notes',
+    actions: ['create', 'delete', 'edit', 'view_detail', 'view_list'],
+  },
+  {
     key: 'tickets',
     label: 'Tickets',
     actions: [
@@ -61,6 +66,11 @@ export const MODULE_DEFINITIONS: {
     ],
   },
   { key: 'files', label: 'Files', actions: ['view', 'upload', 'download'] },
+  {
+    key: 'project_notes',
+    label: 'Project Notes',
+    actions: ['view_list', 'view_detail', 'create', 'edit', 'delete'],
+  },
   {
     key: 'calendar',
     label: 'Calendar',

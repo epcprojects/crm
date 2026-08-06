@@ -1,6 +1,7 @@
 import { FileSource } from '@harperhelp/types';
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -17,6 +18,7 @@ import { ThreadGateway } from '../gateway/thread.gateway';
 import { NotificationEntityType, NotificationType } from '@harperhelp/types';
 import { extname } from 'path';
 import { UpdateThreadMessageDto } from '../dto/update-thread-message.dto';
+import { ReactionsService } from '../../reactions/reactions.service';
 
 @Injectable()
 export class ThreadService {
@@ -26,8 +28,8 @@ export class ThreadService {
 
     private readonly filesService: FilesService,
     private readonly utilityService: UtilityService,
-    private readonly notificationService: NotificationsService,
-
+    private readonly notificationsService: NotificationsService,
+    private readonly reactionsService: ReactionsService,
     private readonly threadGateway: ThreadGateway,
   ) {}
 
@@ -94,7 +96,7 @@ export class ThreadService {
       }));
 
     // Call notification service to send email notifications to participants of the thread
-    await this.notificationService.dispatch({
+    await this.notificationsService.dispatch({
       type: EmailEventType.THREAD_MESSAGE_CREATED,
       payload: {
         messageId: message.id,
@@ -104,7 +106,7 @@ export class ThreadService {
       },
     });
 
-    await this.notificationService.notifyProjectMembers({
+    await this.notificationsService.notifyProjectMembers({
       projectId,
       actorId: user.id,
       type: NotificationType.THREAD_REPLY,
@@ -252,6 +254,9 @@ export class ThreadService {
           FileSource.THREAD,
           message.id,
         ),
+        reactions: await this.reactionsService.getThreadMessageReactions(
+          message.id,
+        ),
       })),
     );
   }
@@ -261,18 +266,21 @@ export class ThreadService {
       where: { id },
       ...(members ? { relations: { project: { members: true } } } : {}),
     });
-
-    const attachments = await this.filesService.findBySource(
-      FileSource.THREAD,
-      id,
-    );
+    if (!msg) {
+      throw new NotFoundException('Thread message not found');
+    }
+    const [attachments, reactions] = await Promise.all([
+      this.filesService.findBySource(FileSource.THREAD, id),
+      this.reactionsService.getThreadMessageReactions(id),
+    ]);
 
     return {
       ...msg,
       attachments,
+      reactions,
     };
   }
-
+  // msgid, projectid
   async getThread(parentId: string, projectId: string) {
     const parent = await this.repo.findOne({
       where: { id: parentId, projectId },
@@ -302,13 +310,22 @@ export class ThreadService {
       attachMap.set(file.sourceId, arr);
     }
 
+    const parentReactions =
+      await this.reactionsService.getThreadMessageReactions(parent.id);
+
     return {
       ...parent,
       attachments: attachMap.get(parent.id) || [],
-      replies: replies.map((r) => ({
-        ...r,
-        attachments: attachMap.get(r.id) || [],
-      })),
+      parentReactions: parentReactions,
+      replies: await Promise.all(
+        replies.map(async (r) => ({
+          ...r,
+          attachments: attachMap.get(r.id) || [],
+          reactions: await this.reactionsService.getThreadMessageReactions(
+            r.id,
+          ),
+        })),
+      ),
     };
   }
 
@@ -371,6 +388,107 @@ export class ThreadService {
         source: FileSource.THREAD,
         sourceId: messageId,
       });
+    }
+  }
+  async addReaction(projectId: string, messageId: string, user, emoji: string) {
+    await this.ensureProjectUserAccess(projectId, user.id);
+
+    const message = await this.repo.findOne({
+      where: {
+        id: messageId,
+        projectId,
+      },
+    });
+
+    if (!message) {
+      throw new NotFoundException('Thread message not found');
+    }
+
+    await this.reactionsService.addThreadMessageReaction(
+      messageId,
+      user.id,
+      emoji,
+    );
+    const updated = await this.findOne(messageId);
+    // console.debug('Updated thread message after adding reaction:', updated);
+    const project = await this.repo.manager.getRepository(Project).findOne({
+      where: { id: projectId },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+
+    if (updated.authorId !== user.id) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId,
+        // ticketId,
+        actorId: user.id,
+        explicitRecipientIds: [updated.authorId],
+
+        type: NotificationType.THREAD_MESSAGE_REACTION,
+        entityType: NotificationEntityType.THREAD_MESSAGE,
+        entityId: updated.id,
+
+        title: `${user.fullName} reacted to your thread message in project "${project?.name}"`,
+        message: emoji,
+      });
+    }
+
+    this.threadGateway.broadcastUpdated(projectId, {
+      id: updated.id,
+      parentId: updated.parentId,
+      message: updated.message,
+      updatedAt: updated.updatedAt,
+      updatedBy: updated.updatedBy,
+      attachments: updated.attachments,
+    });
+
+    console.debug('Updated thread message after adding reaction:', updated);
+    return updated;
+  }
+
+  async removeReaction(projectId: string, messageId: string, userId: string) {
+    await this.ensureProjectUserAccess(projectId, userId);
+
+    const message = await this.repo.findOne({
+      where: {
+        id: messageId,
+        projectId,
+      },
+    });
+
+    if (!message) {
+      throw new NotFoundException('Thread message not found');
+    }
+
+    await this.reactionsService.removeThreadMessageReaction(messageId, userId);
+
+    const updated = await this.findOne(messageId);
+
+    this.threadGateway.broadcastUpdated(projectId, {
+      id: updated.id,
+      parentId: updated.parentId,
+      message: updated.message,
+      updatedAt: updated.updatedAt,
+      updatedBy: updated.updatedBy,
+      attachments: updated.attachments,
+    });
+
+    return updated;
+    // return this.reactionsService.removeThreadMessageReaction(messageId, userId);
+  }
+
+  private async ensureProjectUserAccess(projectId: string, userId: string) {
+    const hasAccess = await this.repo.manager
+      .getRepository(Project)
+      .createQueryBuilder('project')
+      .innerJoin('project.members', 'member', 'member.id = :userId', { userId })
+      .where('project.id = :projectId', { projectId })
+      .getExists();
+
+    if (!hasAccess) {
+      throw new ForbiddenException('You do not have access to this project.');
     }
   }
 }

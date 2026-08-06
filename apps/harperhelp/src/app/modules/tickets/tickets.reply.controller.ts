@@ -113,8 +113,7 @@ export class TicketRepliesController {
     return this.service.update(pid, ticketId, replyId, dto, user.id, files);
   }
 
-
-    @Delete('projects/:pid/reply/:replyId')
+  @Delete('projects/:pid/reply/:replyId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     description: 'Soft deletes a reply for a ticket.',
@@ -128,5 +127,43 @@ export class TicketRepliesController {
     return this.service.softRemove(pid, ticketId, replyId, user.id);
   }
 
-  
+  @Post('projects/:pid/reply/:replyId/reactions')
+  @ApiOperation({
+    description: 'Adds or updates a reaction on a ticket reply.',
+  })
+  @ApiBody({
+  schema: {
+    type: 'object',
+    properties: {
+      emoji: {
+        type: 'string',
+        example: '❤️',
+      },
+    },
+    required: ['emoji'],
+  },
+})
+  addReaction(
+    @Param('pid', ParseUUIDPipe) pid: string,
+    @Param('ticketId', ParseUUIDPipe) ticketId: string,
+    @Param('replyId', ParseUUIDPipe) replyId: string,
+    @Body() emoji: { emoji: string },
+    @GetUser() user,
+  ) {
+    return this.service.addReaction(pid, ticketId, replyId, user, emoji.emoji);
+  }
+
+  @Delete('projects/:pid/reply/:replyId/reactions')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    description: 'Removes the authenticated user reaction from a ticket reply.',
+  })
+  removeReaction(
+    @Param('pid', ParseUUIDPipe) pid: string,
+    @Param('ticketId', ParseUUIDPipe) ticketId: string,
+    @Param('replyId', ParseUUIDPipe) replyId: string,
+    @GetUser() user,
+  ) {
+    return this.service.removeReaction(pid, ticketId, replyId, user.id);
+  }
 }

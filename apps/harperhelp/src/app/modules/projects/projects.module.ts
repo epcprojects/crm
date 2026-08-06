@@ -13,9 +13,10 @@ import { ProjectsFilesService } from './services/project-files.service';
 import { UserRole } from '../users/entities/user.roles.entity';
 import { Ticket } from '../tickets/entities/ticket.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
-import { WsJwtGuard } from 'apps/harperhelp/src/common/guards/ws-jwt.guard';
+import { WsJwtGuard } from '../../../common/guards/ws-jwt.guard';
 import { ThreadGateway } from './gateway/thread.gateway';
 import { JwtModule } from '@nestjs/jwt';
+import { ReactionsModule } from '../reactions/reactions.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { JwtModule } from '@nestjs/jwt';
     FilesModule,
     NotificationsModule,
     JwtModule,
+    ReactionsModule,
   ],
   controllers: [ProjectsController, ThreadController],
   providers: [

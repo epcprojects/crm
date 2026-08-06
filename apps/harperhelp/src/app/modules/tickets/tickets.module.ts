@@ -24,6 +24,7 @@ import { WsJwtGuard } from '../../../common/guards/ws-jwt.guard';
 import { TicketRepliesGateway } from './gateway/ticket-reply.gateway';
 import { JwtModule } from '@nestjs/jwt';
 import { UsersModule } from '../users/users.module';
+import { ReactionsModule } from '../reactions/reactions.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { UsersModule } from '../users/users.module';
       Project,
       User,
     ]),
+    ReactionsModule,
     NotificationsModule,
     JwtModule,
     UsersModule,

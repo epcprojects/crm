@@ -410,9 +410,9 @@ export class TicketsService {
       });
     }
 
-    if (query.projectId) {
-      qb.andWhere('t.projectId = :projectId', {
-        projectId: query.projectId,
+    if (query.projectIds?.length) {
+      qb.andWhere('t.projectId IN (:...projectIds)', {
+        projectIds: query.projectIds,
       });
     }
 

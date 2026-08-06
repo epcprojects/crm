@@ -36,26 +36,15 @@ export class GetMembersQueryDto {
   @IsBoolean()
   isInvitationAccepted?: boolean;
 
-  @ApiPropertyOptional({
-    description: 'Filter users assigned to any of the specified projects.',
-    type: [String],
-    format: 'uuid',
-  })
+  @ApiPropertyOptional({ type: [String], isArray: true })
   @IsOptional()
-  @Transform(({ value }) => {
-    const values = Array.isArray(value) ? value : [value];
-
-    return values
-      .flatMap((item) =>
-        typeof item === 'string' ? item.split(',') : [item],
-      )
-      .map((item) => (typeof item === 'string' ? item.trim() : item))
-      .filter(Boolean);
-  })
+  @Transform(({ value }) =>
+    value === undefined ? undefined : Array.isArray(value) ? value : [value],
+  )
   @IsArray()
   @IsUUID('4', { each: true })
   projectIds?: string[];
-
+  
   @ApiPropertyOptional({
     description: 'Filter users assigned to a specific role.',
     format: 'uuid',
@@ -64,8 +53,9 @@ export class GetMembersQueryDto {
   // @IsUUID()
   roleId?: string;
 
-    @ApiPropertyOptional({
-    description: 'Optional Sort parameter to sort by following fields: updatedAt, createdAt, fullName',
+  @ApiPropertyOptional({
+    description:
+      'Optional Sort parameter to sort by following fields: updatedAt, createdAt, fullName',
     example: 'updatedAt',
   })
   @IsOptional()
