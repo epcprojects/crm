@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
 import {
+  IsArray,
   IsBoolean,
   IsOptional,
   IsString,
@@ -35,15 +36,15 @@ export class GetMembersQueryDto {
   @IsBoolean()
   isInvitationAccepted?: boolean;
 
-  @ApiPropertyOptional({
-    description: 'Filter users assigned to a specific project.',
-    format: 'uuid',
-  })
+  @ApiPropertyOptional({ type: [String], isArray: true })
   @IsOptional()
-  @IsUUID()
-  // @IsString()
-  projectId?: string;
-
+  @Transform(({ value }) =>
+    value === undefined ? undefined : Array.isArray(value) ? value : [value],
+  )
+  @IsArray()
+  @IsUUID('4', { each: true })
+  projectIds?: string[];
+  
   @ApiPropertyOptional({
     description: 'Filter users assigned to a specific role.',
     format: 'uuid',
@@ -52,8 +53,9 @@ export class GetMembersQueryDto {
   // @IsUUID()
   roleId?: string;
 
-    @ApiPropertyOptional({
-    description: 'Optional Sort parameter to sort by following fields: updatedAt, createdAt, fullName',
+  @ApiPropertyOptional({
+    description:
+      'Optional Sort parameter to sort by following fields: updatedAt, createdAt, fullName',
     example: 'updatedAt',
   })
   @IsOptional()

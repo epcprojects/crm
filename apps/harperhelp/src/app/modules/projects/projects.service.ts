@@ -328,7 +328,7 @@ export class ProjectsService {
   }
 
   async findMembersWithProjects(query: GetMembersQueryDto) {
-    const { search, isInvitationAccepted, projectId, roleId, sortBy } = query;
+    const { search, isInvitationAccepted, projectIds, roleId, sortBy } = query;
 
     const sortConfig = {
       fullName: {
@@ -382,18 +382,18 @@ export class ProjectsService {
         isInvitationAccepted,
       });
     }
-    if (projectId) {
+    if (projectIds?.length) {
       baseQuery.andWhere(
         `
       EXISTS (
         SELECT 1
         FROM user_projects_join upj
         WHERE upj."usersId" = u.id
-          AND upj."projectsId" = :projectId
+          AND upj."projectsId" IN (:...projectIds)
       )
       `,
         {
-          projectId,
+          projectIds,
         },
       );
     }

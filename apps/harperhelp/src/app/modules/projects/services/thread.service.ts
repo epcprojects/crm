@@ -28,7 +28,7 @@ export class ThreadService {
 
     private readonly filesService: FilesService,
     private readonly utilityService: UtilityService,
-    private readonly notificationService: NotificationsService,
+    private readonly notificationsService: NotificationsService,
     private readonly reactionsService: ReactionsService,
     private readonly threadGateway: ThreadGateway,
   ) {}
@@ -96,7 +96,7 @@ export class ThreadService {
       }));
 
     // Call notification service to send email notifications to participants of the thread
-    await this.notificationService.dispatch({
+    await this.notificationsService.dispatch({
       type: EmailEventType.THREAD_MESSAGE_CREATED,
       payload: {
         messageId: message.id,
@@ -106,7 +106,7 @@ export class ThreadService {
       },
     });
 
-    await this.notificationService.notifyProjectMembers({
+    await this.notificationsService.notifyProjectMembers({
       projectId,
       actorId: user.id,
       type: NotificationType.THREAD_REPLY,
@@ -390,13 +390,8 @@ export class ThreadService {
       });
     }
   }
-  async addReaction(
-    projectId: string,
-    messageId: string,
-    userId: string,
-    emoji: string,
-  ) {
-    await this.ensureProjectUserAccess(projectId, userId);
+  async addReaction(projectId: string, messageId: string, user, emoji: string) {
+    await this.ensureProjectUserAccess(projectId, user.id);
 
     const message = await this.repo.findOne({
       where: {
@@ -411,10 +406,34 @@ export class ThreadService {
 
     await this.reactionsService.addThreadMessageReaction(
       messageId,
-      userId,
+      user.id,
       emoji,
     );
     const updated = await this.findOne(messageId);
+    // console.debug('Updated thread message after adding reaction:', updated);
+    const project = await this.repo.manager.getRepository(Project).findOne({
+      where: { id: projectId },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+
+    if (updated.authorId !== user.id) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId,
+        // ticketId,
+        actorId: user.id,
+        explicitRecipientIds: [updated.authorId],
+
+        type: NotificationType.THREAD_MESSAGE_REACTION,
+        entityType: NotificationEntityType.THREAD_MESSAGE,
+        entityId: updated.id,
+
+        title: `${user.fullName} reacted to your thread message in project "${project?.name}"`,
+        message: emoji,
+      });
+    }
 
     this.threadGateway.broadcastUpdated(projectId, {
       id: updated.id,
@@ -425,6 +444,7 @@ export class ThreadService {
       attachments: updated.attachments,
     });
 
+    console.debug('Updated thread message after adding reaction:', updated);
     return updated;
   }
 

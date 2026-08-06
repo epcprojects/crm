@@ -165,7 +165,7 @@ export class ThreadController {
     @Body() { emoji }: { emoji: string },
     @GetUser() user,
   ) {
-    return this.service.addReaction(pid, messageId, user.id, emoji);
+    return this.service.addReaction(pid, messageId, user, emoji);
   }
 
   @Delete(':messageId/reactions')
