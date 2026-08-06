@@ -128,13 +128,19 @@ export async function GET(request: NextRequest) {
     const requestUrl = new URL(request.url);
     const filterParams = new URLSearchParams();
 
-    for (const key of ['statusKey', 'priorityKey', 'search', 'projectId']) {
+    for (const key of ['statusKey', 'priorityKey', 'search']) {
       const value = requestUrl.searchParams.get(key);
 
       if (value) {
         filterParams.set(key, value);
       }
     }
+
+    requestUrl.searchParams.getAll('projectIds').forEach((projectId) => {
+      if (projectId) {
+        filterParams.append('projectIds', projectId);
+      }
+    });
 
     const allItems: ApiTicket[] = [];
     let currentPage = 1;
@@ -143,7 +149,7 @@ export async function GET(request: NextRequest) {
       const upstreamUrl = new URL(`${apiBaseUrl}/dashboard/tickets`);
 
       filterParams.forEach((value, key) => {
-        upstreamUrl.searchParams.set(key, value);
+        upstreamUrl.searchParams.append(key, value);
       });
 
       upstreamUrl.searchParams.set('page', String(currentPage));

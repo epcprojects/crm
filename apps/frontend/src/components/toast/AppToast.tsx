@@ -21,6 +21,7 @@ export type ShowAppToastOptions = {
   position?: ToastPosition;
   autoClose?: number | false;
   toastId?: string;
+  onClick?: () => void;
 };
 
 const toastConfig: Record<AppToastType, AppToastConfig> = {
@@ -45,15 +46,19 @@ const toastConfig: Record<AppToastType, AppToastConfig> = {
 function AppToastContent({
   message,
   type,
+  isClickable = false,
 }: {
   message: string;
   type: AppToastType;
+  isClickable?: boolean;
 }) {
   const config = toastConfig[type];
 
   return (
     <div
-      className={`${config.backgroundClass} flex w-fit max-w-[calc(100vw-32px)] items-center gap-3 rounded-xl px-4 py-3 text-white shadow-lg`}
+      className={`${config.backgroundClass} flex w-fit max-w-[calc(100vw-32px)] items-center gap-3 rounded-xl px-4 py-3 text-white shadow-lg ${
+        isClickable ? 'cursor-pointer' : ''
+      }`}
     >
       <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full">
         {type === 'success' ? (
@@ -129,6 +134,7 @@ export function showAppToast({
   position = 'top-center',
   autoClose = 2500,
   toastId,
+  onClick,
 }: ShowAppToastOptions) {
   const config = toastConfig[type];
   const options: ToastOptions = {
@@ -139,10 +145,15 @@ export function showAppToast({
     icon: false,
     className: 'app-toast-shell',
     toastId,
+    onClick,
   };
 
   return toast(
-    <AppToastContent message={message || config.defaultMessage} type={type} />,
+    <AppToastContent
+      message={message || config.defaultMessage}
+      type={type}
+      isClickable={Boolean(onClick)}
+    />,
     options,
   );
 }

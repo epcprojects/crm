@@ -46,6 +46,7 @@ import { useIsMobile } from '../hooks/useIsMobile';
 import MobileBottomNavigation from './MobileBottomNavigation';
 import MobileTopHeader from './MobileTopHeader';
 import { useNotificationsSocket } from '../../app/providers/NotificationsSocketProvider';
+import EmptyState from '../EmptyState';
 
 const PAGE_SIZE = 20;
 
@@ -295,32 +296,34 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         label: item.roleLabels?.[currentUserRole] ?? item.label,
       }));
   }, [hasAnyPermission]);
+  const canShowNotificationEntry =
+    !isLoggingOut &&
+    isAuthenticated &&
+    !isLoadingCatalog &&
+    visibleNavigationItems.length > 0;
 
-  const desktopSidebarItems = useMemo(
-    () => {
-      const notificationItem = {
-        href: '__notifications__',
-        label: 'Notification',
-        icon: (isActive: boolean) => (
-          <NotificationBellIcon isActive={isActive} />
-        ),
-      };
-      const settingsIndex = visibleNavigationItems.findIndex(
-        (item) => item.href === '/settings',
-      );
+  const desktopSidebarItems = useMemo(() => {
+    const notificationItem = {
+      href: '__notifications__',
+      label: 'Notification',
+      icon: (isActive: boolean) => <NotificationBellIcon isActive={isActive} />,
+    };
+    const settingsIndex = visibleNavigationItems.findIndex(
+      (item) => item.href === '/settings',
+    );
 
-      if (settingsIndex === -1) {
-        return [...visibleNavigationItems, notificationItem];
-      }
+    if (settingsIndex === -1) {
+      return canShowNotificationEntry
+        ? [...visibleNavigationItems, notificationItem]
+        : visibleNavigationItems;
+    }
 
-      return [
-        ...visibleNavigationItems.slice(0, settingsIndex),
-        notificationItem,
-        ...visibleNavigationItems.slice(settingsIndex),
-      ];
-    },
-    [visibleNavigationItems],
-  );
+    return [
+      ...visibleNavigationItems.slice(0, settingsIndex),
+      ...(canShowNotificationEntry ? [notificationItem] : []),
+      ...visibleNavigationItems.slice(settingsIndex),
+    ];
+  }, [canShowNotificationEntry, visibleNavigationItems]);
 
   useEffect(() => {
     const currentMainRoute = navigationItems.find(
@@ -348,6 +351,12 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     setIsNotificationTrayOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!canShowNotificationEntry && isNotificationTrayOpen) {
+      setIsNotificationTrayOpen(false);
+    }
+  }, [canShowNotificationEntry, isNotificationTrayOpen]);
 
   const currentAccount = useMemo(() => {
     const name = user?.fullName || fallbackAccount.name;
@@ -608,7 +617,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   return (
     <DashboardHeaderActionContext.Provider value={headerActionContextValue}>
       <div className="flex h-dvh min-h-0  bg-gray-200 text-slate-900">
-        {mobileOpen ? (
+        {mobileOpen && !shouldShowNoAccessPage ? (
           <button
             aria-label="Close navigation"
             className="fixed inset-0 z-30 bg-slate-950/40 lg:hidden"
@@ -616,140 +625,144 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             type="button"
           />
         ) : null}
-        <div className="hidden w-22.5 2xl:w-29.25  shrink-0 xl:block" />
-        <aside
-          className={`fixed inset-y-0  left-0 z-40 hidden xl:flex flex-col items-center gap-8 2xl:gap-10 bg-gray-200 px-4  2xl:px-6 pt-4  2xl:pt-6 pb-4 2xl:pb-8 transition-transform duration-300 ease-out  ${
-            mobileOpen ? '' : '-translate-x-full lg:translate-x-0'
-          }`}
-        >
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="2xl:min-w-16 2xl:min-h-16 max-h-16 max-w-16 w-10 h-10 bg-white rounded-full flex items-center justify-center"
-          >
-            <Image
-              src={Images.index.logoIconImage}
-              className="2xl:h-8 h-6 w-6 2xl:w-8"
-              alt={'LOGO'}
-            />
-          </button>
-          <div className="flex flex-col h-full  min-h-0 flex-1  justify-between">
-            <div className="flex-1 overflow-y-auto scrollbar-hide">
-              {isSidebarLoading ? (
-                <SidebarNavSkeleton />
-              ) : (
-                <nav
-                  className={`flex flex-col w-fit items-center gap-2.5 2xl:gap-4 scrollbar-hide`}
-                >
-                  {desktopSidebarItems.map((item) => {
-                    const isNotificationItem =
-                      item.href === '__notifications__';
-                    const isActive = isNotificationItem
-                      ? isNotificationTrayOpen ||
-                        pathname?.startsWith('/notifications')
-                      : pathname === item.href;
-
-                    return (
-                      <button
-                        key={item.href}
-                        onClick={() => {
-                          setMobileOpen(false);
-
-                          if (isNotificationItem) {
-                            setIsNotificationTrayOpen(
-                              (currentValue) => !currentValue,
-                            );
-                            return;
-                          }
-
-                          void router.push(item.href);
-                        }}
-                        className="flex w-fit flex-col items-center gap-1 2xl:gap-2 scrollbar-hide"
-                        type="button"
-                      >
-                        <div
-                          className={`2xl:w-13 2xl:h-13 w-10 relative h-10 rounded-full flex items-center justify-center transition
-                             [&>svg]:h-5 [&>svg]:w-5
-    2xl:[&>svg]:h-6 2xl:[&>svg]:w-6
-                            ${
-                              isActive
-                                ? 'bg-linear-[271deg] from-aztec-purple  to-cyan-blue text-white'
-                                : 'bg-white text-gray-700 hover:bg-gray-100 hover:text-primary'
-                            }`}
-                        >
-                          {item.icon(isActive)}{' '}
-                          {item.label === 'Notification' &&
-                            unreadNotificationsCount > 0 && (
-                              <span className="px-1.5 py-0.5 text-xs text-white -top-1 -inset-e-0.5 bg-red-500 rounded-full absolute">
-                                {unreadNotificationsCount > 99
-                                  ? '99+'
-                                  : unreadNotificationsCount}
-                              </span>
-                            )}
-                        </div>
-
-                        <p
-                          className={`2xl:text-sm text-xs transition text-gray-900`}
-                        >
-                          {item.label}
-                        </p>
-                      </button>
-                    );
-                  })}
-                </nav>
-              )}
-            </div>
-
-            <div className="relativen self-center z-300">
-              <Menu as="div" className="relative z-300">
-                <MenuButton
-                  className="flex 2xl:h-14 2xl:w-14 w-10 h-10 items-center justify-center rounded-full bg-white text-left outline-none ring-1 ring-gray-200 transition hover:bg-gray-50"
-                  title={currentAccount.name}
-                >
-                  {/* fallback initials */}
-                  <span className="flex 2xl:h-14 2xl:w-14 w-10 h-10 items-center justify-center rounded-full bg-linear-to-br from-slate-700 to-slate-950 text-sm font-semibold text-white">
-                    {currentAccount.initials}
-                  </span>
-                </MenuButton>
-
-                <MenuItems
-                  anchor="top start"
-                  className="z-300 mb-3 w-52 sm:w-66 origin-bottom-left rounded-xl bg-white p-1 ring-1 ring-gray-200 focus:outline-none"
-                >
-                  <MenuItem>
-                    <button
-                      className="flex w-full items-center gap-2 sm:gap-3 rounded-lg px-3 py-2 text-left text-sm md:text-base font-medium text-black transition data-focus:bg-gray-50"
-                      onClick={handleChangePassword}
-                      type="button"
+        {!shouldShowNoAccessPage ? (
+          <>
+            <div className="hidden w-22.5 2xl:w-29.25  shrink-0 xl:block" />
+            <aside
+              className={`fixed inset-y-0  left-0 z-40 hidden xl:flex flex-col items-center gap-4 2xl:gap-6 bg-gray-200 px-4  2xl:px-6 pt-4  2xl:pt-6 pb-4 2xl:pb-8 transition-transform duration-300 ease-out  ${
+                mobileOpen ? '' : '-translate-x-full lg:translate-x-0'
+              }`}
+            >
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="2xl:min-w-16 2xl:min-h-16 max-h-16 max-w-16 w-10 h-10 bg-white rounded-full flex items-center justify-center"
+              >
+                <Image
+                  src={Images.index.logoIconImage}
+                  className="2xl:h-8 h-6 w-6 2xl:w-8"
+                  alt={'LOGO'}
+                />
+              </button>
+              <div className="flex flex-col h-full  min-h-0 flex-1  justify-between">
+                <div className="flex-1 overflow-y-auto scrollbar-hide">
+                  {isSidebarLoading ? (
+                    <SidebarNavSkeleton />
+                  ) : (
+                    <nav
+                      className={`flex flex-col w-fit items-center gap-2.5 2xl:gap-4 scrollbar-hide`}
                     >
-                      <PasswordMenuIcon
-                        height={isMobile ? '20' : '24'}
-                        width={isMobile ? '20' : '24'}
-                      />
-                      Change Password
-                    </button>
-                  </MenuItem>
+                      {desktopSidebarItems.map((item) => {
+                        const isNotificationItem =
+                          item.href === '__notifications__';
+                        const isActive = isNotificationItem
+                          ? isNotificationTrayOpen ||
+                            pathname?.startsWith('/notifications')
+                          : pathname === item.href;
 
-                  <MenuItem>
-                    <button
-                      className="flex w-full items-center gap-2 sm:gap-3 rounded-lg px-3 py-2 text-left text-sm md:text-base font-medium text-red-500 transition data-focus:bg-red-50"
-                      onClick={handleLogout}
-                      type="button"
+                        return (
+                          <button
+                            key={item.href}
+                            onClick={() => {
+                              setMobileOpen(false);
+
+                              if (isNotificationItem) {
+                                setIsNotificationTrayOpen(
+                                  (currentValue) => !currentValue,
+                                );
+                                return;
+                              }
+
+                              void router.push(item.href);
+                            }}
+                            className="flex w-fit flex-col items-center gap-1 2xl:gap-2 scrollbar-hide"
+                            type="button"
+                          >
+                            <div
+                              className={`2xl:w-13 2xl:h-13 w-10 relative h-10 rounded-full flex items-center justify-center transition
+                               [&>svg]:h-5 [&>svg]:w-5
+      2xl:[&>svg]:h-6 2xl:[&>svg]:w-6
+                              ${
+                                isActive
+                                  ? 'bg-linear-[271deg] from-aztec-purple  to-cyan-blue text-white'
+                                  : 'bg-white text-gray-700 hover:bg-gray-100 hover:text-primary'
+                              }`}
+                            >
+                              {item.icon(isActive)}{' '}
+                              {item.label === 'Notification' &&
+                                unreadNotificationsCount > 0 && (
+                                  <span className="px-1.5 py-0.5 text-xs text-white -top-1 -inset-e-0.5 bg-red-500 rounded-full absolute">
+                                    {unreadNotificationsCount > 99
+                                      ? '99+'
+                                      : unreadNotificationsCount}
+                                  </span>
+                                )}
+                            </div>
+
+                            <p
+                              className={`2xl:text-sm text-xs transition text-gray-900`}
+                            >
+                              {item.label}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </nav>
+                  )}
+                </div>
+
+                <div className="relativen self-center z-300">
+                  <Menu as="div" className="relative z-300">
+                    <MenuButton
+                      className="flex 2xl:h-14 2xl:w-14 w-10 h-10 items-center justify-center rounded-full bg-white text-left outline-none ring-1 ring-gray-200 transition hover:bg-gray-50"
+                      title={currentAccount.name}
                     >
-                      <LogoutMenuIcon
-                        height={isMobile ? '20' : '24'}
-                        width={isMobile ? '20' : '24'}
-                      />
-                      Logout
-                    </button>
-                  </MenuItem>
-                </MenuItems>
-              </Menu>
-            </div>
-          </div>
-        </aside>
+                      {/* fallback initials */}
+                      <span className="flex 2xl:h-14 2xl:w-14 w-10 h-10 items-center justify-center rounded-full bg-linear-to-br from-slate-700 to-slate-950 text-sm font-semibold text-white">
+                        {currentAccount.initials}
+                      </span>
+                    </MenuButton>
+
+                    <MenuItems
+                      anchor="top start"
+                      className="z-300 mb-3 w-52 sm:w-66 origin-bottom-left rounded-xl bg-white p-1 ring-1 ring-gray-200 focus:outline-none"
+                    >
+                      <MenuItem>
+                        <button
+                          className="flex w-full items-center gap-2 sm:gap-3 rounded-lg px-3 py-2 text-left text-sm md:text-base font-medium text-black transition data-focus:bg-gray-50"
+                          onClick={handleChangePassword}
+                          type="button"
+                        >
+                          <PasswordMenuIcon
+                            height={isMobile ? '20' : '24'}
+                            width={isMobile ? '20' : '24'}
+                          />
+                          Change Password
+                        </button>
+                      </MenuItem>
+
+                      <MenuItem>
+                        <button
+                          className="flex w-full items-center gap-2 sm:gap-3 rounded-lg px-3 py-2 text-left text-sm md:text-base font-medium text-red-500 transition data-focus:bg-red-50"
+                          onClick={handleLogout}
+                          type="button"
+                        >
+                          <LogoutMenuIcon
+                            height={isMobile ? '20' : '24'}
+                            width={isMobile ? '20' : '24'}
+                          />
+                          Logout
+                        </button>
+                      </MenuItem>
+                    </MenuItems>
+                  </Menu>
+                </div>
+              </div>
+            </aside>
+          </>
+        ) : null}
 
         <div className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden  bg-gray-200 transition-all duration-300 ease-out">
-          {isNotificationTrayOpen ? (
+          {canShowNotificationEntry && isNotificationTrayOpen ? (
             <Portal>
               <div
                 className="fixed inset-0 z-200 xl:left-22.5 2xl:left-27.5"
@@ -834,6 +847,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             onNotificaitonClick={() =>
               setIsNotificationTrayOpen(!isNotificationTrayOpen)
             }
+            showNotifications={canShowNotificationEntry}
             unreadNotificationsCount={unreadNotificationsCount}
           />
           {!shouldHideHeader ? (
@@ -886,10 +900,12 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           >
             {shouldShowNoAccessPage ? <NoAccessPage /> : children}
           </main>
-          <MobileBottomNavigation
-            items={visibleNavigationItems}
-            isLoading={isSidebarLoading}
-          />
+          {!shouldShowNoAccessPage ? (
+            <MobileBottomNavigation
+              items={visibleNavigationItems}
+              isLoading={isSidebarLoading}
+            />
+          ) : null}
         </div>
 
         <ChangePasswordModal
@@ -955,20 +971,19 @@ function NoAccessIcon() {
 
 function NoAccessPage() {
   return (
-    <div className="flex min-h-[calc(100dvh-2rem)] flex-1 items-center justify-center">
-      <section className="w-full max-w-xl rounded-2xl border border-gray-200 bg-white px-6 py-10 text-center shadow-sm">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-500">
-          <NoAccessIcon />
+    <div className="xl:py-5 xl:pr-5 px-4 pt-2 pb-0 z-100 h-full xl:h-dvh relative">
+      <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden xl:rounded-2xl  bg-gray-200 xl:flex-row xl:border xl:border-white xl:bg-white xl:p-3">
+        <div className="flex items-center w-120 mx-auto">
+          <EmptyState
+            imageUrl="/images/noPermissionIllu.svg"
+            imageAlt="No permissions available"
+            title="No permissions available"
+            description="Your account does not currently have access to any page in this workspace. Please contact your administrator to assign the required permissions.
+"
+            buttonLabel="New Project"
+          />
         </div>
-        <h1 className="mt-5 text-xl font-semibold text-gray-900">
-          No page permissions available
-        </h1>
-        <p className="mt-3 text-sm leading-6 text-gray-600">
-          Your account does not currently have access to any page in this
-          workspace. Please contact your administrator to assign the required
-          permissions.
-        </p>
-      </section>
+      </div>
     </div>
   );
 }

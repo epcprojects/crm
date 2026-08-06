@@ -25,6 +25,7 @@ import {
   TicketsIcon,
 } from '../../../../public/icons';
 import { useRouter } from 'next/navigation';
+import { getNotificationNavigationPath } from '../../../lib/notification-navigation';
 
 type NotificationFilter = 'all' | 'unread';
 
@@ -395,34 +396,11 @@ export default function Page() {
                   item={notification}
                   onClick={() => {
                     !notification.isRead && handleMarkAsRead(notification.id);
-                    if (
-                      notification.entityType === 'ticket_reply' ||
-                      notification.entityType === 'ticket'
-                    ) {
-                      router.push(
-                        `/tickets/${notification.ticketId}?projectId=${notification.projectId}`,
-                      );
-                    } else if (notification.entityType === 'event') {
-                      router.push(`/projects/${notification.projectId}?t=3`);
-                    } else if (notification.entityType === 'internal_message') {
-                      router.push(
-                        `/tickets/${notification.ticketId}?projectId=${notification.projectId}&internal=true`,
-                      );
-                    } else if (
-                      notification.entityType === 'project' &&
-                      !notification.projectId
-                    ) {
-                      router.push(`/projects`);
-                    } else if (
-                      notification.entityType === 'project' &&
-                      notification.projectId
-                    ) {
-                      router.push(`/projects/${notification.projectId}`);
-                    } else if (
-                      notification.entityType === 'thread_message' &&
-                      notification.projectId
-                    ) {
-                      router.push(`/projects/${notification.projectId}?t=1`);
+                    const nextPath =
+                      getNotificationNavigationPath(notification);
+
+                    if (nextPath) {
+                      router.push(nextPath);
                     }
                   }}
                 />

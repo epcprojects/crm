@@ -18,6 +18,7 @@ import ConfirmActionModal from '../modals/ConfirmActionModal';
 import ImageGalleryLightbox from '../ui/ImageGalleryLightbox';
 import type { DiscussionAttachment, DiscussionReply } from './types';
 import EmojiPickerButton from './EmojiPickerButton';
+import MessageReactionBar from './MessageReactionBar';
 import ThemeButton from '../ui/ThemeButton';
 
 const EMOJI_TEXT_STYLE = {
@@ -55,6 +56,10 @@ type DiscussionPanelProps = {
     message: string;
   }) => Promise<void> | void;
   onDeleteReply?: (reply: DiscussionReply) => Promise<void> | void;
+  onToggleReaction?: (
+    reply: DiscussionReply,
+    emoji: string,
+  ) => Promise<void> | void;
   deletingReplyId?: string;
   editingReplyId?: string;
   onDeleteAttachment?: (attachment: DiscussionAttachment) => void;
@@ -89,6 +94,7 @@ export default function ProjectThreadPanel({
   onReplyClick,
   onEditReply,
   onDeleteReply,
+  onToggleReaction,
   deletingReplyId,
   editingReplyId,
   onDeleteAttachment,
@@ -392,12 +398,12 @@ export default function ProjectThreadPanel({
             className={`flex min-h-full flex-col ${replies.length > 0 && headerReply ? 'justify-between' : replies.length > 0 && !headerReply ? 'justify-end' : 'justify-center'}`}
           >
             {headerReply ? (
-              <div className="pb-4">
+              <div className="  pb-4">
                 <article className="flex  items-start gap-3">
                   <span className="flex w-7 h-7 md:h-9 md:w-9 shrink-0 items-center justify-center rounded-full border border-violet-200 bg-violet-100 text-xs font-bold text-purple-700">
                     {headerReply.author.initials}
                   </span>
-                  <div className="flex min-w-0 flex-1  p-2 rounded-xl rounded-tl-none border border-violet-200 flex-col">
+                  <div className="group/reply relative flex min-w-0 flex-1  rounded-xl rounded-tl-none border border-violet-200 p-2 flex-col">
                     <div className="mb-1 flex  flex-wrap items-center gap-2">
                       <span className="text-sm font-bold text-gray-900">
                         {headerReply.author.name}
@@ -526,6 +532,16 @@ export default function ProjectThreadPanel({
                         ))}
                       </div>
                     ) : null}
+                    <MessageReactionBar
+                      reactions={headerReply.reactions ?? []}
+                      onToggleReaction={(emoji) =>
+                        void onToggleReaction?.(headerReply, emoji)
+                      }
+                      currentUserId={currentUserId}
+                      align="end"
+                      from="thread"
+                      className="left-auto right-3"
+                    />
                   </div>
                 </article>
 
@@ -587,6 +603,20 @@ export default function ProjectThreadPanel({
                                 : ''
                             }`}
                           >
+                            <MessageReactionBar
+                              reactions={reply.reactions ?? []}
+                              onToggleReaction={(emoji) =>
+                                void onToggleReaction?.(reply, emoji)
+                              }
+                              currentUserId={currentUserId}
+                              align={isCurrentUserReply ? 'start' : 'start'}
+                              from="thread"
+                              className={
+                                isCurrentUserReply
+                                  ? 'left-auto right-3'
+                                  : undefined
+                              }
+                            />
                             {editingMessageId === reply.id ? (
                               <InlineEditComposer
                                 editingReplyId={editingReplyId}

@@ -31,8 +31,18 @@ export async function GET(request: Request) {
     const requestUrl = new URL(request.url);
     const upstreamUrl = new URL(`${apiBaseUrl}/projects/members`);
 
-    requestUrl.searchParams.forEach((value, key) => {
-      upstreamUrl.searchParams.set(key, value);
+    for (const key of ['search', 'isInvitationAccepted', 'roleId', 'sortBy']) {
+      const value = requestUrl.searchParams.get(key);
+
+      if (value) {
+        upstreamUrl.searchParams.set(key, value);
+      }
+    }
+
+    requestUrl.searchParams.getAll('projectIds').forEach((projectId) => {
+      if (projectId) {
+        upstreamUrl.searchParams.append('projectIds', projectId);
+      }
     });
 
     const response = await fetch(upstreamUrl.toString(), {
