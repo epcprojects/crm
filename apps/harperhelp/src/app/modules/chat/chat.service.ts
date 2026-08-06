@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   NotFoundException,
   Logger,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan } from 'typeorm';
@@ -14,11 +15,14 @@ import {
   NotificationEntityType,
   NotificationType,
   UserType,
-} from 'libs/shared/types/src/lib/types';
+} from '@harperhelp/types';
+// } from 'libs/shared/types/src/lib/types';
 import { UpdateChatDto } from './dto/update-chat.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { UsersService } from '../users/users.service';
 import { TicketsService } from '../tickets/tickets.service';
+import { ReactionsService } from '../reactions/reactions.service';
+import { Project } from '../projects/entities/project.entity';
 
 export type ChatChannel = 'internal' | 'external';
 
@@ -38,6 +42,7 @@ export class ChatMessagesService {
     private readonly usersService: UsersService,
     private readonly ticketsService: TicketsService,
     private readonly notificationsService: NotificationsService,
+    private readonly reactionsService: ReactionsService,
     @InjectRepository(ChatMessageInternal)
     private readonly internalRepo: Repository<ChatMessageInternal>,
 
@@ -165,17 +170,25 @@ export class ChatMessagesService {
 
     const updated = await repository.save(message);
 
-    return repository.findOne({
+    const updatedMessage = await repository.findOne({
       where: { id: updated.id },
       relations: {
         sender: true,
       },
     });
+
+    return {
+      ...updatedMessage,
+      reactions: await this.reactionsService.getInternalChatReactions(
+        updated.id,
+      ),
+    };
   }
 
   // Fetch history (cursor-based pagination)
 
   async getMessages(
+    projectId: string,
     channel: ChatChannel,
     ticketId: string,
     query: GetMessagesQueryDto,
@@ -186,7 +199,7 @@ export class ChatMessagesService {
       where.createdAt = LessThan(new Date(query.before));
     }
 
-    return this.repo(channel).find({
+    const messages = await this.repo(channel).find({
       where,
       relations: {
         sender: true,
@@ -194,6 +207,12 @@ export class ChatMessagesService {
       order: { createdAt: 'ASC' },
       ...(query.limit ? { take: query.limit } : {}),
     });
+    return Promise.all(
+      messages.map(async (msg) => ({
+        ...msg,
+        reactions: await this.reactionsService.getInternalChatReactions(msg.id),
+      })),
+    );
   }
 
   // - Mark read
@@ -274,5 +293,137 @@ export class ChatMessagesService {
       tid: msg.ticketId,
       senderId: msg.senderId,
     };
+  }
+
+  async addReaction(
+    projectId: string,
+    ticketId: string,
+    channel: ChatChannel,
+    messageId: string,
+    userId: string,
+    emoji: string,
+  ) {
+    if (channel.toLowerCase() !== 'internal') {
+      throw new BadRequestException(
+        'Reactions are only supported for internal chat.',
+      );
+    }
+
+    await this.ensureProjectUserAccess(projectId, userId);
+
+    const ticket = await this.repo(channel)
+      .manager.getRepository(Ticket)
+      .findOne({
+        where: {
+          id: ticketId,
+          projectId,
+        },
+      });
+
+    if (!ticket) {
+      throw new NotFoundException('Ticket not found');
+    }
+
+    const message = await this.repo(channel).findOne({
+      where: {
+        id: messageId,
+        ticketId,
+        isDeleted: false,
+      },
+    });
+
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    await this.reactionsService.addInternalChatReaction(
+      messageId,
+      userId,
+      emoji,
+    );
+    const updated = await this.repo(channel).findOne({
+      where: { id: messageId },
+      relations: {
+        sender: true,
+      },
+    });
+
+    const payload = {
+      ...updated,
+      reactions:
+        await this.reactionsService.getInternalChatReactions(messageId),
+    };
+
+    return { ...payload };
+  }
+
+  async removeReaction(
+    projectId: string,
+    ticketId: string,
+    channel: ChatChannel,
+    messageId: string,
+    userId: string,
+  ) {
+    if (channel.toLowerCase() !== 'internal') {
+      throw new BadRequestException(
+        'Reactions are only supported for internal chat.',
+      );
+    }
+
+    await this.ensureProjectUserAccess(projectId, userId);
+
+    const ticket = await this.repo(channel)
+      .manager.getRepository(Ticket)
+      .findOne({
+        where: {
+          id: ticketId,
+          projectId,
+        },
+      });
+
+    if (!ticket) {
+      throw new NotFoundException('Ticket not found');
+    }
+
+    const message = await this.repo(channel).findOne({
+      where: {
+        id: messageId,
+        ticketId,
+        isDeleted: false,
+      },
+    });
+
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    await this.reactionsService.removeInternalChatReaction(messageId, userId);
+    const updated = await this.repo(channel).findOne({
+      where: { id: messageId },
+      relations: {
+        sender: true,
+      },
+    });
+
+    const payload = {
+      ...updated,
+      reactions:
+        await this.reactionsService.getInternalChatReactions(messageId),
+    };
+
+    return { ...payload };
+  }
+
+  private async ensureProjectUserAccess(projectId: string, userId: string) {
+    const hasAccess = await this.repo('internal')
+      .manager.getRepository(Project)
+      .createQueryBuilder('project')
+      .innerJoin('project.members', 'member', 'member.id = :userId', { userId })
+      .where('project.id = :projectId', { projectId })
+      .getExists();
+
+    if (!hasAccess) {
+      throw new ForbiddenException('You do not have access to this project.');
+    }
   }
 }

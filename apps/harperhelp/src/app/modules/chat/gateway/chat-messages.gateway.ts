@@ -11,7 +11,7 @@ import { UseGuards, Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { ChatMessagesService, ChatChannel } from '../chat.service';
 import { WsJwtGuard } from '../../../../common/guards/ws-jwt.guard';
-import { UserType } from 'libs/shared/types/src/lib/types';
+import { UserType } from '@harperhelp/types';
 
 interface JoinPayload {
   projectId: string;

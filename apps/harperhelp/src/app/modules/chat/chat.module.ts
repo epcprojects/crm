@@ -11,6 +11,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { UsersModule } from '../users/users.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { TicketsModule } from '../tickets/tickets.module';
+import { ReactionsModule } from '../reactions/reactions.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { TicketsModule } from '../tickets/tickets.module';
     NotificationsModule,
     JwtModule,
     TicketsModule,
+    ReactionsModule,
   ],
   controllers: [ChatMessagesController],
   providers: [ChatMessagesService, ChatMessagesGateway, WsJwtGuard],

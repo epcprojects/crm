@@ -27,6 +27,11 @@ export const MODULE_DEFINITIONS: {
     actions: ['view_list', 'view_detail', 'create', 'edit', 'delete'],
   },
   {
+    key: 'projects_notes',
+    label: 'Projects Notes',
+    actions: ['create', 'delete', 'edit', 'view_detail', 'view_list'],
+  },
+  {
     key: 'tickets',
     label: 'Tickets',
     actions: [
