@@ -101,6 +101,10 @@ export class TicketRepliesGateway
     this.server.to(this.room(projectId, ticketId)).emit('reply_updated', reply);
   }
 
+  broadcastReacted(projectId: string, ticketId: string, reply: any) {
+    this.server.to(this.room(projectId, ticketId)).emit('reply_reacted', reply);
+  }
+
   broadcastDeleted(projectId: string, ticketId: string, replyId: string) {
     this.server.to(this.room(projectId, ticketId)).emit('reply_deleted', {
       id: replyId,

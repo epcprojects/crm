@@ -435,7 +435,7 @@ export class ThreadService {
       });
     }
 
-    this.threadGateway.broadcastUpdated(projectId, {
+    this.threadGateway.broadcastReaction(projectId, {
       id: updated.id,
       parentId: updated.parentId,
       message: updated.message,
@@ -466,7 +466,7 @@ export class ThreadService {
 
     const updated = await this.findOne(messageId);
 
-    this.threadGateway.broadcastUpdated(projectId, {
+    this.threadGateway.broadcastReaction(projectId, {
       id: updated.id,
       parentId: updated.parentId,
       message: updated.message,
