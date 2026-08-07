@@ -382,7 +382,7 @@ export class TicketRepliesService {
       });
     }
 
-    this.ticketRepliesGateway.broadcastUpdated(projectId, ticketId, updated);
+    this.ticketRepliesGateway.broadcastReacted(projectId, ticketId, updated);
     // console.debug(`after broadcast Broadcasting updated reply for ticket ${ticketId} in project ${projectId}:`, updated);
     return updated;
   }
@@ -420,7 +420,7 @@ export class TicketRepliesService {
 
     const updated = await this.findOne(replyId);
 
-    this.ticketRepliesGateway.broadcastUpdated(projectId, ticketId, updated);
+    this.ticketRepliesGateway.broadcastReacted(projectId, ticketId, updated);
     return updated;
     //
   }

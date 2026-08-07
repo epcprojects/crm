@@ -14,8 +14,9 @@ import {
   TabPanel,
   TabPanels,
 } from '@headlessui/react';
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef, useState } from 'react';
+
+import { useMutation,useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   useParams,
   usePathname,
@@ -948,6 +949,21 @@ const fullNotesById = new Map(
     appToast.success('Note deleted successfully.');
   };
 
+  const invalidateThreadQueries = useCallback(() => {
+  void queryClient.invalidateQueries({
+    queryKey: [...projectThreadQueryKey, projectId],
+  });
+
+  if (selectedThreadMessageId) {
+    void queryClient.invalidateQueries({
+      queryKey: [
+        ...projectThreadDetailQueryKey,
+        projectId,
+        selectedThreadMessageId,
+      ],
+    });
+  }
+}, [queryClient, projectId, selectedThreadMessageId]);
   useThread({
     projectId,
     token: threadSocketToken,
@@ -980,21 +996,9 @@ const fullNotesById = new Map(
         });
       }
     },
-    onUpdated: () => {
-      void queryClient.invalidateQueries({
-        queryKey: [...projectThreadQueryKey, projectId],
-      });
-
-      if (selectedThreadMessageId) {
-        void queryClient.invalidateQueries({
-          queryKey: [
-            ...projectThreadDetailQueryKey,
-            projectId,
-            selectedThreadMessageId,
-          ],
-        });
-      }
-    },
+    onUpdated: invalidateThreadQueries,
+    onReacted: invalidateThreadQueries,
+    
     onDeleted: () => {
       void queryClient.invalidateQueries({
         queryKey: [...projectThreadQueryKey, projectId],

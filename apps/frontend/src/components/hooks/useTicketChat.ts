@@ -267,18 +267,21 @@ export function useTicketChat({
           );
         };
 
-        const handleMessageUpdated = (payload: {
-          channel: ChatChannel;
-          message: {
-            messageId: string;
-            message?: string | null;
-            attachmentUrls?: string[] | null;
-            messageType?: 'text' | 'attachment';
-            attachmentName?: string | null;
-            attachmentSize?: number | null;
-            reactions?: ChatMessageReaction[] | null;
-          };
-        }) => {
+        const applyMessageUpdate = (
+          payload: {
+            channel: ChatChannel;
+            message: {
+              messageId: string;
+              message?: string | null;
+              attachmentUrls?: string[] | null;
+              messageType?: 'text' | 'attachment';
+              attachmentName?: string | null;
+              attachmentSize?: number | null;
+              reactions?: ChatMessageReaction[] | null;
+            };
+          },
+          updateTimestamp = false,
+        ) => {
           if (
             payload.channel !== channel ||
             !payload.message ||
@@ -304,13 +307,44 @@ export function useTicketChat({
                       payload.message.attachmentName ?? message.attachmentName,
                     attachmentSize:
                       payload.message.attachmentSize ?? message.attachmentSize,
-                    reactions:
-                      payload.message.reactions ?? message.reactions,
-                    updatedAt: new Date().toISOString(),
+                    reactions: payload.message.reactions ?? message.reactions,
+                    ...(updateTimestamp
+                      ? { updatedAt: new Date().toISOString() }
+                      : {}),
                   }
                 : message,
             ),
           );
+        };
+
+        const handleMessageUpdated = (payload: {
+          channel: ChatChannel;
+          message: {
+            messageId: string;
+            message?: string | null;
+            attachmentUrls?: string[] | null;
+            messageType?: 'text' | 'attachment';
+            attachmentName?: string | null;
+            attachmentSize?: number | null;
+            reactions?: ChatMessageReaction[] | null;
+          };
+        }) => {
+          applyMessageUpdate(payload, true);
+        };
+
+        const handleMessageReacted = (payload: {
+          channel: ChatChannel;
+          message: {
+            messageId: string;
+            message?: string | null;
+            attachmentUrls?: string[] | null;
+            messageType?: 'text' | 'attachment';
+            attachmentName?: string | null;
+            attachmentSize?: number | null;
+            reactions?: ChatMessageReaction[] | null;
+          };
+        }) => {
+          applyMessageUpdate(payload);
         };
 
         const handleTyping = (payload: {
@@ -348,6 +382,7 @@ export function useTicketChat({
         socket.on('messages_read', handleMessagesRead);
         socket.on('message_deleted', handleMessageDeleted);
         socket.on('message_updated', handleMessageUpdated);
+        socket.on('message_reacted', handleMessageReacted);
 
         socket.on('typing', handleTyping);
 
@@ -365,6 +400,7 @@ export function useTicketChat({
           socket.off('messages_read', handleMessagesRead);
           socket.off('message_deleted', handleMessageDeleted);
           socket.off('message_updated', handleMessageUpdated);
+          socket.off('message_reacted', handleMessageReacted);
           socket.off('typing', handleTyping);
         };
       } catch {

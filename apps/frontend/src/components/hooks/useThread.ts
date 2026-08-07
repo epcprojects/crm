@@ -16,6 +16,7 @@ type UseThreadSocketProps = {
   onCreated?: (message: any) => void;
   onReplyCreated?: (reply: any) => void;
   onUpdated?: (message: any) => void;
+  onReacted?: (reaction: any) => void;
   onDeleted?: (payload: { id: string }) => void;
   onTyping?: (payload: any) => void;
 };
@@ -27,6 +28,7 @@ export function useThread({
   onCreated,
   onReplyCreated,
   onUpdated,
+  onReacted, 
   onDeleted,
   onTyping,
 }: UseThreadSocketProps) {
@@ -59,11 +61,13 @@ export function useThread({
     };
     const handleThreadUpdated = onUpdated ?? (() => {});
     const handleThreadDeleted = onDeleted ?? (() => {});
+    const handleThreadReacted = onReacted ?? (() => {});
     const handleTyping = onTyping ?? (() => {});
 
     socket.on('thread_created', handleThreadCreated);
     socket.on('thread_reply_created', handleThreadReplyCreated);
     socket.on('thread_updated', handleThreadUpdated);
+    socket.on('thread_reacted', handleThreadReacted);
     socket.on('thread_deleted', handleThreadDeleted);
     socket.on('typing', handleTyping);
 
@@ -78,6 +82,7 @@ export function useThread({
       socket.off('thread_created', handleThreadCreated);
       socket.off('thread_reply_created', handleThreadReplyCreated);
       socket.off('thread_updated', handleThreadUpdated);
+      socket.off('thread_reacted', handleThreadReacted);
       socket.off('thread_deleted', handleThreadDeleted);
       socket.off('typing', handleTyping);
     };
@@ -86,6 +91,7 @@ export function useThread({
     onCreated,
     onDeleted,
     onReplyCreated,
+    onReacted,
     onTyping,
     onUpdated,
     projectId,

@@ -200,11 +200,10 @@ export class ChatMessagesController {
       emoji,
     );
 
-    this.gateway.broadcastMessageUpdated(pid, tid, channel, {
+    this.gateway.broadcastMessageReacted(pid, tid, channel, {
       messageId,
       ...msg,
     });
-
     return { success: true };
   }
 
@@ -224,11 +223,10 @@ export class ChatMessagesController {
       user.id,
     );
 
-    this.gateway.broadcastMessageUpdated(pid, tid, channel, {
+    this.gateway.broadcastMessageReacted(pid, tid, channel, {
       messageId,
       ...msg,
     });
-
     return { success: true };
   }
 }
