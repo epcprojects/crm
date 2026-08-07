@@ -912,7 +912,11 @@ export default function ProjectThreadPanel({
                     ))}
                   </div>
                 ) : null}
-                <div className="flex items-center gap-2">
+                <div className='flex flex-col gap-1'>
+                   <div className="mt-1 text-right text-xs text-gray-500">
+                {message.length}/{MAX_DISCUSSION_MESSAGE_LENGTH}
+              </div>
+               <div className="flex items-center gap-2">
                   <EmojiPickerButton
                     disabled={isSubmittingReply}
                     onSelectEmoji={handleEmojiSelect}
@@ -943,10 +947,10 @@ export default function ProjectThreadPanel({
                     <TelegramIcon />
                   </button>
                 </div>
+                </div>
+               
               </div>
-              <div className="mt-1 text-right text-xs text-gray-500">
-                {message.length}/{MAX_DISCUSSION_MESSAGE_LENGTH}
-              </div>
+             
             </div>
 
             <input

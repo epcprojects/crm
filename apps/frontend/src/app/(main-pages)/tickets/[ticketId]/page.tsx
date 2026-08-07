@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 import clsx from 'clsx';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -2167,6 +2168,13 @@ export default function TicketDetailPage() {
                         ? editingChatMessageId
                         : editingTicketReplyId
                     }
+                    composerPlaceholder={
+  isInternalChatActive && canViewInternalChatBtn
+    ? 'Write a message...'
+    : (ticket as any).createdByDetail?.name
+      ? `Write a reply to ${(ticket as any).createdByDetail.name}...`
+      : 'Write a reply...'
+}
                   />
                 ) : null}
               </div>
