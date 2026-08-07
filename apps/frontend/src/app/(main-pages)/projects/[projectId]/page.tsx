@@ -14,7 +14,8 @@ import {
   TabPanel,
   TabPanels,
 } from '@headlessui/react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+import { useMutation,useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   useParams,
@@ -718,6 +719,30 @@ export default function ProjectDetailPage() {
     () => projectNotesQuery.data?.items ?? [],
     [projectNotesQuery.data?.items],
   );
+  const fullNotesQueries = useQueries({
+  queries: projectNotes.map((note) => ({
+    queryKey: ['project-note-detail', projectId, note.id],
+    queryFn: async (): Promise<ProjectNoteRecord> => {
+      const response = await fetch(
+        `/api/projects/${projectId}/notes/${note.id}`,
+      );
+
+      if (!response.ok) {
+        return note;
+      }
+
+      return response.json();
+    },
+    enabled: Boolean(projectId && note.id),
+  })),
+});
+
+const fullNotesById = new Map(
+  fullNotesQueries
+    .map((query) => query.data)
+    .filter((note): note is ProjectNoteRecord => Boolean(note))
+    .map((note) => [note.id, note]),
+);
   const selectedProjectNoteSummary = useMemo(
     () =>
       projectNotes.find((note) => note.id === selectedProjectNoteId) ??
@@ -1837,7 +1862,7 @@ export default function ProjectDetailPage() {
                       //     ? 'xl:grid-cols-[minmax(0,1fr)_400px] xl:grid-rows-[minmax(0,1fr)] xl:divide-x xl:divide-gray-200'
                       //     : 'grid-cols-1'
                       // }`}
-                      className={`grid h-auto min-h-0 min-w-0 overflow-visible rounded-xl border border-gray-200 md:rounded-2xl xl:h-full xl:overflow-hidden ${
+                      className={`grid h-auto min-h-0 min-w-0 overflow-visible rounded-sm border border-gray-200 md:rounded-2xl xl:h-full xl:overflow-hidden ${
                         selectedThreadMessageId && !isMobile
                           ? 'xl:grid-cols-[minmax(0,1fr)_400px] xl:grid-rows-[minmax(0,1fr)] xl:divide-x xl:divide-gray-200'
                           : 'grid-cols-1'
@@ -2023,7 +2048,7 @@ export default function ProjectDetailPage() {
                   </TabPanel>
                 </PermissionGuard>
 
-                <TabPanel className="h-auto min-h-0 overflow-visible xl:h-full border rounded-2xl border-gray-200 xl:overflow-hidden">
+                <TabPanel className="h-auto min-h-0 overflow-visible xl:h-full border rounded-sm sm:rounded-2xl border-gray-200 xl:overflow-hidden">
                   <div className="grid h-auto min-h-0 min-w-0 xl:h-full xl:grid-cols-[340px_minmax(0,1fr)]">
                     <section className="flex min-h-96 flex-col overflow-hidden border-e border-gray-200 bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
                       <div className="border-b border-gray-200 px-3.5 py-3.5 bg-gray-50">
@@ -2085,7 +2110,7 @@ export default function ProjectDetailPage() {
                             {projectNotes.map((note) => {
                               const isActive =
                                 note.id === selectedProjectNoteSummary?.id;
-
+                                 const noteForPreview = note;
                               return (
                                 <article
                                   key={note.id}
@@ -2115,7 +2140,7 @@ export default function ProjectDetailPage() {
                                         {note.title}
                                       </h4>
                                       <p className="line-clamp-1 text-sm text-gray-600">
-                                        {getProjectNotePreview(note)}
+                                        {getProjectNotePreview(fullNotesById.get(note.id) ?? note)}
                                       </p>
                                       <div className="flex items-center gap-1 text-xs font-normal text-gray-500">
                                         <CalendarTabIcon
@@ -2630,7 +2655,7 @@ export default function ProjectDetailPage() {
                             description="Choose a note from the left sidebar to view its title and description."
                             buttonIcon={<PlusIcon />}
                             buttonLabel="Add Note"
-                            onButtonClick={handleCancelCreatingProjectNote}
+                            onButtonClick={handleStartCreatingProjectNote}
                           />
                         </div>
                       )}
@@ -2646,7 +2671,7 @@ export default function ProjectDetailPage() {
             type="button"
             onClick={() => setCreateTicketOpen(true)}
             aria-label="Create new ticket"
-            className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 flex h-10 w-10 items-center justify-center rounded-full bg-linear-to-l from-royal-blue to-crystal-blue text-white shadow-[0_10px_30px_rgb(48_79_253/0.35)] transition hover:opacity-90 active:scale-95 xl:hidden"
+            className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-l from-royal-blue to-crystal-blue text-white shadow-[0_10px_30px_rgb(48_79_253/0.35)] transition hover:opacity-90 active:scale-95 xl:hidden"
           >
             <PlusIcon fill="#FFFFFF" width="24" height="24" />
           </button>
@@ -3004,9 +3029,16 @@ function formatProjectNoteDate(note: ProjectNoteRecord) {
 }
 
 function stripProjectNoteHtml(value: string) {
+  if (!value) return '';
+
   return value
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&amp;/gi, '&')
     .replace(/<[^>]*>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
+    .replace(/<[^>]*$/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }

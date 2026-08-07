@@ -129,7 +129,7 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     header: 'Priority',
     cell: ({ row }) => (
       <span
-        className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg  border  text-white px-2 py-1 text-sm font-meidu shadow-xs"
+        className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full  border  text-white px-2 py-1 text-xs font-meidu shadow-xs"
         style={
           row.original.priorityColor
             ? {

@@ -397,6 +397,8 @@ export default function TicketRepliesPanel({
     setActiveGalleryIndex(index);
   };
 
+  
+
   return (
     <>
       <section
@@ -549,6 +551,7 @@ export default function TicketRepliesPanel({
 
                         {reply.message || reply.attachments?.length ? (
                           <div
+                            tabIndex={0}
                             className={`group/reply relative w-full rounded-xl bg-white ${
                               isCurrentUserReply
                                 ? 'rounded-tr-none'
@@ -1050,40 +1053,42 @@ export default function TicketRepliesPanel({
                 {/* <div className="text-xs text-gray-500">
                   {canAttachFile ? ALLOWED_ATTACHMENT_HELPER_TEXT : null}
                 </div> */}
-                <div className="flex items-center gap-2">
-                  <EmojiPickerButton
-                    disabled={isSubmittingReply}
-                    onSelectEmoji={handleEmojiSelect}
-                  />
-                  {canAttachFile ? (
+                <div className="flex flex-col gap-1">
+                  <div className="mt-1 text-right text-xs text-gray-500">
+                    {message.length}/{MAX_DISCUSSION_MESSAGE_LENGTH}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <EmojiPickerButton
+                      disabled={isSubmittingReply}
+                      onSelectEmoji={handleEmojiSelect}
+                    />
+                    {canAttachFile ? (
+                      <button
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isSubmittingReply}
+                        className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <PaperclipIcon />
+                      </button>
+                    ) : null}
                     <button
                       type="button"
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isSubmittingReply}
-                      className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      onClick={handleSubmit}
+                      disabled={
+                        (requireMessage
+                          ? !message.trim()
+                          : !message.trim() && !attachments.length) ||
+                        message.trim().length > MAX_DISCUSSION_MESSAGE_LENGTH ||
+                        isSubmittingReply
+                      }
+                      className="flex h-10 w-10 items-center justify-center rounded-full bg-[#10175A] text-white disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      <PaperclipIcon />
+                      <TelegramIcon />
                     </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={handleSubmit}
-                    disabled={
-                      (requireMessage
-                        ? !message.trim()
-                        : !message.trim() && !attachments.length) ||
-                      message.trim().length > MAX_DISCUSSION_MESSAGE_LENGTH ||
-                      isSubmittingReply
-                    }
-                    className="flex h-10 w-10 items-center justify-center rounded-full bg-[#10175A] text-white disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <TelegramIcon />
-                  </button>
+                  </div>
                 </div>
-              </div>
-              <div className="mt-1 text-right text-xs text-gray-500">
-                {message.length}/{MAX_DISCUSSION_MESSAGE_LENGTH}
               </div>
             </div>
           </div>
@@ -1172,7 +1177,7 @@ function ExpandableMessageText({
         return;
       }
 
-      setShouldShowToggle(overflowElement.scrollHeight > lineHeight * 2 + 1);
+      setShouldShowToggle(overflowElement.scrollHeight > lineHeight * 5 + 1);
     };
 
     updateOverflowState();
@@ -1194,7 +1199,7 @@ function ExpandableMessageText({
         ref={measureRef}
         style={EMOJI_TEXT_STYLE}
         className={`text-sm font-normal whitespace-pre-wrap break-words text-gray-900 ${
-          isExpanded ? '' : 'line-clamp-2'
+          isExpanded ? '' : 'line-clamp-5'
         }`}
       >
         {message}
@@ -1203,7 +1208,7 @@ function ExpandableMessageText({
         ref={overflowMeasureRef}
         aria-hidden="true"
         style={EMOJI_TEXT_STYLE}
-        className="pointer-events-none invisible absolute left-0 top-0 -z-10 line-clamp-none w-full whitespace-pre-wrap break-words text-sm font-normal text-gray-900"
+        className="pointer-events-none invisible absolute left-0 top-0 -z-10 h-0 overflow-hidden line-clamp-none w-full whitespace-pre-wrap break-words text-sm font-normal text-gray-900"
       >
         {message}
       </p>
