@@ -399,11 +399,11 @@ export default function ProjectThreadPanel({
           >
             {headerReply ? (
               <div className="  pb-4">
-                <article className="flex  items-start gap-3">
+                <article className="flex  items-start gap-3 max-w-[calc(100%-40px)]">
                   <span className="flex w-7 h-7 md:h-9 md:w-9 shrink-0 items-center justify-center rounded-full border border-violet-200 bg-violet-100 text-xs font-bold text-purple-700">
                     {headerReply.author.initials}
                   </span>
-                  <div className="group/reply relative flex min-w-0 flex-1  rounded-xl rounded-tl-none border border-violet-200 p-2 flex-col">
+                  <div tabIndex={0} className="group/reply relative flex min-w-0 flex-1  rounded-xl rounded-tl-none border border-violet-200 p-2 flex-col ">
                     <div className="mb-1 flex  flex-wrap items-center gap-2">
                       <span className="text-sm font-bold text-gray-900">
                         {headerReply.author.name}
@@ -538,9 +538,9 @@ export default function ProjectThreadPanel({
                         void onToggleReaction?.(headerReply, emoji)
                       }
                       currentUserId={currentUserId}
-                      align="end"
+                      align="start"
                       from="thread"
-                      className="left-auto right-3"
+                      className="left-auto right-3 "
                     />
                   </div>
                 </article>
@@ -597,7 +597,8 @@ export default function ProjectThreadPanel({
 
                         {reply.message || reply.attachments?.length ? (
                           <div
-                            className={`group/reply relative min-w-56 flex ${headerAction ? 'w-full' : editingMessageId ? 'w-full' : 'w-fit md:max-w-3/4'}   flex-col rounded-xl rounded-tl-none border border-gray-200 bg-white p-2 ${
+                          tabIndex={0}
+                            className={`group/reply relative min-w-0 sm:min-w-56  max-w-[calc(100%-40px)] flex ${headerAction ? 'w-full' : editingMessageId ? 'w-full' : 'w-fit md:max-w-3/4'}   flex-col rounded-xl rounded-tl-none border border-gray-200 bg-white p-2 ${
                               reply.message && reply.attachments?.length != 0
                                 ? 'space-y-2'
                                 : ''
@@ -911,7 +912,11 @@ export default function ProjectThreadPanel({
                     ))}
                   </div>
                 ) : null}
-                <div className="flex items-center gap-2">
+                <div className='flex flex-col gap-1'>
+                   <div className="mt-1 text-right text-xs text-gray-500">
+                {message.length}/{MAX_DISCUSSION_MESSAGE_LENGTH}
+              </div>
+               <div className="flex items-center gap-2">
                   <EmojiPickerButton
                     disabled={isSubmittingReply}
                     onSelectEmoji={handleEmojiSelect}
@@ -942,10 +947,10 @@ export default function ProjectThreadPanel({
                     <TelegramIcon />
                   </button>
                 </div>
+                </div>
+               
               </div>
-              <div className="mt-1 text-right text-xs text-gray-500">
-                {message.length}/{MAX_DISCUSSION_MESSAGE_LENGTH}
-              </div>
+             
             </div>
 
             <input
