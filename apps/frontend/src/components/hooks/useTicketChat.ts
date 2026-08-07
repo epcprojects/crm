@@ -267,6 +267,56 @@ export function useTicketChat({
           );
         };
 
+        const applyMessageUpdate = (
+          payload: {
+            channel: ChatChannel;
+            message: {
+              messageId: string;
+              message?: string | null;
+              attachmentUrls?: string[] | null;
+              messageType?: 'text' | 'attachment';
+              attachmentName?: string | null;
+              attachmentSize?: number | null;
+              reactions?: ChatMessageReaction[] | null;
+            };
+          },
+          updateTimestamp = false,
+        ) => {
+          if (
+            payload.channel !== channel ||
+            !payload.message ||
+            typeof payload.message.messageId !== 'string'
+          ) {
+            return;
+          }
+
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === payload.message.messageId
+                ? {
+                    ...message,
+                    message:
+                      typeof payload.message.message === 'string'
+                        ? payload.message.message
+                        : message.message,
+                    messageType:
+                      payload.message.messageType ?? message.messageType,
+                    attachmentUrls:
+                      payload.message.attachmentUrls ?? message.attachmentUrls,
+                    attachmentName:
+                      payload.message.attachmentName ?? message.attachmentName,
+                    attachmentSize:
+                      payload.message.attachmentSize ?? message.attachmentSize,
+                    reactions: payload.message.reactions ?? message.reactions,
+                    ...(updateTimestamp
+                      ? { updatedAt: new Date().toISOString() }
+                      : {}),
+                  }
+                : message,
+            ),
+          );
+        };
+
         const handleMessageUpdated = (payload: {
           channel: ChatChannel;
           message: {
@@ -279,39 +329,9 @@ export function useTicketChat({
             reactions?: ChatMessageReaction[] | null;
           };
         }) => {
-          if (
-            payload.channel !== channel ||
-            !payload.message ||
-            typeof payload.message.messageId !== 'string'
-          ) {
-            return;
-          }
-
-          setMessages((current) =>
-            current.map((message) =>
-              message.id === payload.message.messageId
-                ? {
-                    ...message,
-                    message:
-                      typeof payload.message.message === 'string'
-                        ? payload.message.message
-                        : message.message,
-                    messageType:
-                      payload.message.messageType ?? message.messageType,
-                    attachmentUrls:
-                      payload.message.attachmentUrls ?? message.attachmentUrls,
-                    attachmentName:
-                      payload.message.attachmentName ?? message.attachmentName,
-                    attachmentSize:
-                      payload.message.attachmentSize ?? message.attachmentSize,
-                    reactions:
-                      payload.message.reactions ?? message.reactions,
-                    updatedAt: new Date().toISOString(),
-                  }
-                : message,
-            ),
-          );
+          applyMessageUpdate(payload, true);
         };
+
         const handleMessageReacted = (payload: {
           channel: ChatChannel;
           message: {
@@ -324,38 +344,7 @@ export function useTicketChat({
             reactions?: ChatMessageReaction[] | null;
           };
         }) => {
-          if (
-            payload.channel !== channel ||
-            !payload.message ||
-            typeof payload.message.messageId !== 'string'
-          ) {
-            return;
-          }
-
-          setMessages((current) =>
-            current.map((message) =>
-              message.id === payload.message.messageId
-                ? {
-                    ...message,
-                    message:
-                      typeof payload.message.message === 'string'
-                        ? payload.message.message
-                        : message.message,
-                    messageType:
-                      payload.message.messageType ?? message.messageType,
-                    attachmentUrls:
-                      payload.message.attachmentUrls ?? message.attachmentUrls,
-                    attachmentName:
-                      payload.message.attachmentName ?? message.attachmentName,
-                    attachmentSize:
-                      payload.message.attachmentSize ?? message.attachmentSize,
-                    reactions:
-                      payload.message.reactions ?? message.reactions,
-                    // updatedAt: new Date().toISOString(),
-                  }
-                : message,
-            ),
-          );
+          applyMessageUpdate(payload);
         };
 
         const handleTyping = (payload: {
