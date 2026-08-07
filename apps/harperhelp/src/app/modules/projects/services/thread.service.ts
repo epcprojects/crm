@@ -158,7 +158,15 @@ export class ThreadService {
       throw new BadRequestException('Message or attachment is required.');
     }
 
+
     message.message = dto.message ?? message.message;
+    if (dto.mentionedUserIds !== undefined) {
+      message.mentionedUserIds =
+        await this.projectsService.filterValidMentionedUserIds(
+          projectId,
+          dto.mentionedUserIds,
+        );
+    }
     message.updatedBy = user.id;
     message.updatedAt = new Date();
 

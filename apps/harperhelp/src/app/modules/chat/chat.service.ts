@@ -97,10 +97,11 @@ export class ChatMessagesService {
     senderId: string,
     dto: SendMessageDto,
   ) {
-    const mentionedUserIds = await this.projectsService.filterValidMentionedUserIds(
-      projectId,
-      dto.mentionedUserIds ?? [],
-    );
+    const mentionedUserIds =
+      await this.projectsService.filterValidMentionedUserIds(
+        projectId,
+        dto.mentionedUserIds ?? [],
+      );
 
     const message = this.repo(channel).create({
       projectId,
@@ -167,6 +168,13 @@ export class ChatMessagesService {
       throw new ForbiddenException("Cannot edit another user's message");
     }
 
+    if (dto.mentionedUserIds !== undefined) {
+      message.mentionedUserIds =
+        await this.projectsService.filterValidMentionedUserIds(
+          message.projectId,
+          dto.mentionedUserIds,
+        );
+    }
     repository.merge(message, {
       message: dto.message,
       messageType: dto.messageType ?? message.messageType,
@@ -356,7 +364,7 @@ export class ChatMessagesService {
       },
     });
 
-        if (updated.senderId !== user.id) {
+    if (updated.senderId !== user.id) {
       await this.notificationsService.notifyProjectMembers({
         projectId,
         ticketId,
@@ -371,7 +379,6 @@ export class ChatMessagesService {
         message: emoji,
       });
     }
-
 
     const payload = {
       ...updated,

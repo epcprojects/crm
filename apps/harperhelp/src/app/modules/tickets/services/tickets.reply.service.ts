@@ -60,11 +60,11 @@ export class TicketRepliesService {
     if (!ticket) throw new NotFoundException('Ticket not found');
     await this.ensureProjectUserAccess(projectId, userId);
 
-
-    const validMentionedUserIds = await this.projectsService.filterValidMentionedUserIds(
-      projectId,
-      dto.mentionedUserIds ?? [],
-    );
+    const validMentionedUserIds =
+      await this.projectsService.filterValidMentionedUserIds(
+        projectId,
+        dto.mentionedUserIds ?? [],
+      );
 
     const reply = await this.replyRepo.save(
       this.replyRepo.create({
@@ -199,6 +199,14 @@ export class TicketRepliesService {
     }
 
     reply.message = dto.message ?? reply.message;
+
+    if (dto.mentionedUserIds !== undefined) {
+      reply.mentionedUserIds =
+        await this.projectsService.filterValidMentionedUserIds(
+          projectId,
+          dto.mentionedUserIds,
+        );
+    }
     reply.updatedBy = userId;
     reply.updatedAt = new Date();
 
