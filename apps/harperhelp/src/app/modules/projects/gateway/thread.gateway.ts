@@ -105,6 +105,10 @@ export class ThreadGateway implements OnGatewayConnection, OnGatewayDisconnect {
   broadcastUpdated(projectId: string, message: any) {
     this.server.to(this.room(projectId)).emit('thread_updated', message);
   }
+  broadcastReaction(projectId: string, reaction: any) {
+    console.debug('broadcasting reaction for project: ', projectId, ' reaction: ', reaction);
+    this.server.to(this.room(projectId)).emit('thread_reacted', reaction);
+  }
 
   broadcastDeleted(projectId: string, id: string) {
     this.server.to(this.room(projectId)).emit('thread_deleted', {

@@ -557,6 +557,11 @@ export default function TicketDetailPage() {
         queryKey: ['ticket-replies', ticketId],
       });
     },
+    onReacted: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ['ticket-replies', ticketId],
+      });
+    },
     onDeleted: () => {
       void queryClient.invalidateQueries({
         queryKey: ['ticket-replies', ticketId],

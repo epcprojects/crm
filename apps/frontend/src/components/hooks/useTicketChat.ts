@@ -312,6 +312,51 @@ export function useTicketChat({
             ),
           );
         };
+        const handleMessageReacted = (payload: {
+          channel: ChatChannel;
+          message: {
+            messageId: string;
+            message?: string | null;
+            attachmentUrls?: string[] | null;
+            messageType?: 'text' | 'attachment';
+            attachmentName?: string | null;
+            attachmentSize?: number | null;
+            reactions?: ChatMessageReaction[] | null;
+          };
+        }) => {
+          if (
+            payload.channel !== channel ||
+            !payload.message ||
+            typeof payload.message.messageId !== 'string'
+          ) {
+            return;
+          }
+
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === payload.message.messageId
+                ? {
+                    ...message,
+                    message:
+                      typeof payload.message.message === 'string'
+                        ? payload.message.message
+                        : message.message,
+                    messageType:
+                      payload.message.messageType ?? message.messageType,
+                    attachmentUrls:
+                      payload.message.attachmentUrls ?? message.attachmentUrls,
+                    attachmentName:
+                      payload.message.attachmentName ?? message.attachmentName,
+                    attachmentSize:
+                      payload.message.attachmentSize ?? message.attachmentSize,
+                    reactions:
+                      payload.message.reactions ?? message.reactions,
+                    // updatedAt: new Date().toISOString(),
+                  }
+                : message,
+            ),
+          );
+        };
 
         const handleTyping = (payload: {
           channel: ChatChannel;
@@ -348,6 +393,7 @@ export function useTicketChat({
         socket.on('messages_read', handleMessagesRead);
         socket.on('message_deleted', handleMessageDeleted);
         socket.on('message_updated', handleMessageUpdated);
+        socket.on('message_reacted', handleMessageReacted);
 
         socket.on('typing', handleTyping);
 
@@ -365,6 +411,7 @@ export function useTicketChat({
           socket.off('messages_read', handleMessagesRead);
           socket.off('message_deleted', handleMessageDeleted);
           socket.off('message_updated', handleMessageUpdated);
+          socket.off('message_reacted', handleMessageReacted);
           socket.off('typing', handleTyping);
         };
       } catch {

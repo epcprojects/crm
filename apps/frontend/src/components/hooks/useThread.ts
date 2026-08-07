@@ -64,6 +64,7 @@ export function useThread({
     socket.on('thread_created', handleThreadCreated);
     socket.on('thread_reply_created', handleThreadReplyCreated);
     socket.on('thread_updated', handleThreadUpdated);
+    socket.on('thread_reacted', handleThreadUpdated);
     socket.on('thread_deleted', handleThreadDeleted);
     socket.on('typing', handleTyping);
 
@@ -78,6 +79,7 @@ export function useThread({
       socket.off('thread_created', handleThreadCreated);
       socket.off('thread_reply_created', handleThreadReplyCreated);
       socket.off('thread_updated', handleThreadUpdated);
+      socket.off('thread_reacted', handleThreadUpdated);
       socket.off('thread_deleted', handleThreadDeleted);
       socket.off('typing', handleTyping);
     };

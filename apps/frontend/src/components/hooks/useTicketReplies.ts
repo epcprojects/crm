@@ -18,6 +18,7 @@ type Props = {
 
   onCreated?: (reply: any) => void;
   onUpdated?: (reply: any) => void;
+  onReacted?: (reply: any) => void;
   onDeleted?: (payload: { id: string }) => void;
   onTyping?: (payload: any) => void;
 };
@@ -29,6 +30,7 @@ export function useTicketReplies({
   enabled = true,
   onCreated,
   onUpdated,
+  onReacted,
   onDeleted,
   onTyping,
 }: Props) {
@@ -66,6 +68,14 @@ export function useTicketReplies({
           '';
         }),
     );
+
+    socket.on(
+      'reply_reacted',
+      onReacted ??
+        (() => {
+          '';
+        }),
+    );
     socket.on(
       'reply_deleted',
       onDeleted ??
@@ -94,6 +104,7 @@ export function useTicketReplies({
       socket.off('connect', join);
       socket.off('reply_created', onCreated);
       socket.off('reply_updated', onUpdated);
+      socket.off('reply_reacted', onReacted);
       socket.off('reply_deleted', onDeleted);
       socket.off('typing', onTyping);
     };
