@@ -21,6 +21,7 @@ import { extname } from 'path';
 import { UpdateReplyDto } from '../dto/update-ticket-reply.dto';
 import { ReactionsService } from '../../reactions/reactions.service';
 import { Project } from '../../projects/entities/project.entity';
+import { ProjectsService } from '../../projects/projects.service';
 
 @Injectable()
 export class TicketRepliesService {
@@ -29,7 +30,7 @@ export class TicketRepliesService {
     private readonly replyRepo: Repository<TicketReply>,
 
     private readonly reactionsService: ReactionsService,
-
+    private readonly projectsService: ProjectsService,
     private readonly filesService: FilesService,
     private readonly utilityService: UtilityService,
     private readonly notificationsService: NotificationsService,
@@ -58,12 +59,20 @@ export class TicketRepliesService {
       .findOne({ where: { id: ticketId } });
     if (!ticket) throw new NotFoundException('Ticket not found');
     await this.ensureProjectUserAccess(projectId, userId);
+
+
+    const validMentionedUserIds = await this.projectsService.filterValidMentionedUserIds(
+      projectId,
+      dto.mentionedUserIds ?? [],
+    );
+
     const reply = await this.replyRepo.save(
       this.replyRepo.create({
         ticketId,
         message: dto.message,
         authorId: userId,
         isInternal: dto.isInternal ?? false,
+        mentionedUserIds: validMentionedUserIds,
         createdBy: userId,
       }),
     );

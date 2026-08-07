@@ -570,4 +570,26 @@ export class ProjectsService {
       success: true,
     };
   }
+
+  async filterValidMentionedUserIds(
+    projectId: string,
+    mentionedUserIds: string[],
+  ): Promise<string[]> {
+    if (!mentionedUserIds?.length) {
+      return [];
+    }
+    const uniqueIds = [...new Set(mentionedUserIds)];
+    const users = await this.projectRepo
+      .createQueryBuilder('project')
+      .innerJoin('project.members', 'member')
+      .where('project.id = :projectId', { projectId })
+      .andWhere('member.id IN (:...userIds)', {
+        userIds: uniqueIds,
+      })
+      .andWhere('member.isInvitationAccepted = true')
+      .select('member.id', 'id')
+      .getRawMany();
+
+    return users.map(({ id }) => id);
+  }
 }

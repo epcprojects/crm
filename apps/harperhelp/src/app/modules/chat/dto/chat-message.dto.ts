@@ -23,6 +23,17 @@ export class SendMessageDto {
   @MaxLength(5000)
   message: string;
 
+  @ApiPropertyOptional({
+    description: 'Array of user IDs mentioned in the message',
+    type: [String],
+  })
+  @IsOptional()
+  @IsUUID('4', {
+    each: true,
+    message: 'Each mentioned user ID must be a valid UUID',
+  })
+  mentionedUserIds?: string[];
+
   // Populated server-side after S3 upload — not supplied raw by client
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()

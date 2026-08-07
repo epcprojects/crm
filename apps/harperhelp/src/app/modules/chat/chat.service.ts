@@ -23,6 +23,7 @@ import { UsersService } from '../users/users.service';
 import { TicketsService } from '../tickets/tickets.service';
 import { ReactionsService } from '../reactions/reactions.service';
 import { Project } from '../projects/entities/project.entity';
+import { ProjectsService } from '../projects/projects.service';
 
 export type ChatChannel = 'internal' | 'external';
 
@@ -43,6 +44,7 @@ export class ChatMessagesService {
     private readonly ticketsService: TicketsService,
     private readonly notificationsService: NotificationsService,
     private readonly reactionsService: ReactionsService,
+    private readonly projectsService: ProjectsService,
     @InjectRepository(ChatMessageInternal)
     private readonly internalRepo: Repository<ChatMessageInternal>,
 
@@ -95,6 +97,11 @@ export class ChatMessagesService {
     senderId: string,
     dto: SendMessageDto,
   ) {
+    const mentionedUserIds = await this.projectsService.filterValidMentionedUserIds(
+      projectId,
+      dto.mentionedUserIds ?? [],
+    );
+
     const message = this.repo(channel).create({
       projectId,
       ticketId,
@@ -102,6 +109,7 @@ export class ChatMessagesService {
       // receiverId: dto.receiverId,
       messageType: dto.messageType,
       message: dto.message,
+      mentionedUserIds: mentionedUserIds,
       attachmentUrls: dto.attachmentUrls ?? null,
       attachmentName: dto.attachmentName ?? null,
       attachmentSize: dto.attachmentSize ?? null,

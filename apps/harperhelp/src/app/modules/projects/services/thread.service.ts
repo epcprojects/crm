@@ -19,6 +19,7 @@ import { NotificationEntityType, NotificationType } from '@harperhelp/types';
 import { extname } from 'path';
 import { UpdateThreadMessageDto } from '../dto/update-thread-message.dto';
 import { ReactionsService } from '../../reactions/reactions.service';
+import { ProjectsService } from '../projects.service';
 
 @Injectable()
 export class ThreadService {
@@ -28,6 +29,7 @@ export class ThreadService {
 
     private readonly filesService: FilesService,
     private readonly utilityService: UtilityService,
+    private readonly projectsService: ProjectsService,
     private readonly notificationsService: NotificationsService,
     private readonly reactionsService: ReactionsService,
     private readonly threadGateway: ThreadGateway,
@@ -47,10 +49,16 @@ export class ThreadService {
       .getRepository(Project)
       .findOne({ where: { id: projectId }, relations: { members: true } });
     if (!project) throw new NotFoundException('Project not found');
+
+    const mentionedUserIds = await this.projectsService.filterValidMentionedUserIds(
+      projectId,
+      dto.mentionedUserIds ?? [],
+    );
     const message = await this.repo.save(
       this.repo.create({
         projectId,
         message: dto.message,
+        mentionedUserIds,
         authorId: user.id,
         createdBy: user.id,
         parentId: dto.parentId,
