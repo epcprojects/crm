@@ -971,6 +971,22 @@ export default function ProjectDetailPage() {
         });
       }
     },
+// added on Reacted, same as onUpdated, to invalidate queries when a reaction is added or removed
+    onReacted: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...projectThreadQueryKey, projectId],
+      });
+
+      if (selectedThreadMessageId) {
+        void queryClient.invalidateQueries({
+          queryKey: [
+            ...projectThreadDetailQueryKey,
+            projectId,
+            selectedThreadMessageId,
+          ],
+        });
+      }
+    },
     onDeleted: () => {
       void queryClient.invalidateQueries({
         queryKey: [...projectThreadQueryKey, projectId],
