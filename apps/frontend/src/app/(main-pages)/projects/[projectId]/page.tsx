@@ -1834,7 +1834,7 @@ export default function ProjectDetailPage() {
                       //     ? 'xl:grid-cols-[minmax(0,1fr)_400px] xl:grid-rows-[minmax(0,1fr)] xl:divide-x xl:divide-gray-200'
                       //     : 'grid-cols-1'
                       // }`}
-                      className={`grid h-auto min-h-0 min-w-0 overflow-visible rounded-xl border border-gray-200 md:rounded-2xl xl:h-full xl:overflow-hidden ${
+                      className={`grid h-auto min-h-0 min-w-0 overflow-visible rounded-sm border border-gray-200 md:rounded-2xl xl:h-full xl:overflow-hidden ${
                         selectedThreadMessageId && !isMobile
                           ? 'xl:grid-cols-[minmax(0,1fr)_400px] xl:grid-rows-[minmax(0,1fr)] xl:divide-x xl:divide-gray-200'
                           : 'grid-cols-1'
@@ -2020,7 +2020,7 @@ export default function ProjectDetailPage() {
                   </TabPanel>
                 </PermissionGuard>
 
-                <TabPanel className="h-auto min-h-0 overflow-visible xl:h-full border rounded-2xl border-gray-200 xl:overflow-hidden">
+                <TabPanel className="h-auto min-h-0 overflow-visible xl:h-full border rounded-sm sm:rounded-2xl border-gray-200 xl:overflow-hidden">
                   <div className="grid h-auto min-h-0 min-w-0 xl:h-full xl:grid-cols-[340px_minmax(0,1fr)]">
                     <section className="flex min-h-96 flex-col overflow-hidden border-e border-gray-200 bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
                       <div className="border-b border-gray-200 px-3.5 py-3.5 bg-gray-50">

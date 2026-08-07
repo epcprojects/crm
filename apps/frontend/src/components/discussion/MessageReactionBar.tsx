@@ -1,14 +1,26 @@
+
 'use client';
 
-import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
+import {
+  Dialog,
+  DialogBackdrop,
+  DialogPanel,
+  Popover,
+  PopoverButton,
+  PopoverPanel,
+} from '@headlessui/react';
 import EmojiPicker, { Theme, type EmojiClickData } from 'emoji-picker-react';
 import clsx from 'clsx';
 import { useMemo, useState, type CSSProperties } from 'react';
 import type { DiscussionReaction } from './types';
 import { getInitials } from '../../app/(main-pages)/dashboard/page';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { CloseIcon } from 'apps/frontend/public/icons';
 
 const PICKER_WIDTH = 320;
 const PICKER_HEIGHT = 360;
+
+const MOBILE_REACTIONS = ['👍', '❤️', '😀', '😢', '🙏', '👎', '😡'];
 
 type MessageReactionBarProps = {
   reactions: DiscussionReaction[];
@@ -34,13 +46,27 @@ export default function MessageReactionBar({
   from,
   className,
 }: MessageReactionBarProps) {
+  const [mobileEmojiSheetOpen, setMobileEmojiSheetOpen] = useState(false);
+
   const triggerPositionClass =
     align === 'end'
-      ? '-left-10! top-[calc(50%-18px)]  right-auto'
-      : '-right-10! top-[calc(50%-18px)]  left-auto';
+      ? '-left-10! top-[calc(50%-18px)] right-auto'
+      : '-right-10! top-[calc(50%-18px)] left-auto';
+
   const reactionPositionClass =
     align === 'end' || from === 'thread' ? 'right-3 left-auto' : 'left-3';
+
   const pickerAnchor = align === 'end' ? 'top end' : 'top start';
+
+ const handleOpenMobileEmojiSheet = (closePopover: () => void) => {
+  setMobileEmojiSheetOpen(true);
+  closePopover();
+};
+
+  const handleMobileEmojiSelect = (emoji: string) => {
+    onToggleReaction(emoji);
+    setMobileEmojiSheetOpen(false);
+  };
 
   return (
     <>
@@ -52,7 +78,7 @@ export default function MessageReactionBar({
               onMouseDown={(event) => event.preventDefault()}
               aria-label="Open reactions"
               className={clsx(
-                'absolute top-1/2 z-30 flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600  opacity-0 transition hover:bg-gray-50 group-hover/reply:opacity-100 group-focus-within/reply:opacity-100 data-open:opacity-100',
+                'absolute top-1/2 z-30 flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 opacity-0 transition hover:bg-gray-50 sm:group-hover/reply:opacity-100 max-sm:group-focus-within/reply:opacity-100 data-open:opacity-100',
                 triggerPositionClass,
                 open && 'opacity-100',
                 className,
@@ -69,36 +95,130 @@ export default function MessageReactionBar({
               }}
               portal
               transition
-              className="z-[7001] origin-top overflow-hidden rounded-sm  outline-none transition duration-150 data-closed:scale-95 data-closed:opacity-0"
+              className="z-[7001] origin-top overflow-hidden rounded-sm outline-none transition duration-150 data-closed:scale-95 data-closed:opacity-0"
             >
+              <div className="flex items-center gap-0.5 whitespace-nowrap rounded-full border border-gray-100 bg-white px-2 py-1.5  sm:hidden">
+                {MOBILE_REACTIONS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      onToggleReaction(emoji);
+                      close();
+                    }}
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-lg leading-none transition hover:bg-gray-100 active:scale-90"
+                    aria-label={`React with ${emoji}`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+
+                <button
+                  type="button"
+                  aria-label="More emojis"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => handleOpenMobileEmojiSheet(close)}
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-lg font-medium leading-none text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 active:scale-90"
+                >
+                  +
+                </button>
+              </div>
+
+              <div className="hidden sm:block">
+                <EmojiPicker
+                  theme={Theme.LIGHT}
+                  width={PICKER_WIDTH}
+                  height={PICKER_HEIGHT}
+                  reactionsDefaultOpen
+                  previewConfig={{ showPreview: false }}
+                  skinTonesDisabled
+                  searchPlaceholder="Search emoji"
+                  lazyLoadEmojis
+                  onReactionClick={(emojiData: EmojiClickData) => {
+                    onToggleReaction(emojiData.emoji);
+                    close();
+                  }}
+                  onEmojiClick={(emojiData: EmojiClickData) => {
+                    onToggleReaction(emojiData.emoji);
+                    close();
+                  }}
+                  style={
+                    {
+                      '--epr-emoji-size': '20px',
+                      '--epr-emoji-gap': '4px',
+                    } as CSSProperties
+                  }
+                />
+              </div>
+            </PopoverPanel>
+          </>
+        )}
+      </Popover>
+
+      <Dialog
+        open={mobileEmojiSheetOpen}
+        onClose={setMobileEmojiSheetOpen}
+        className="relative z-[8000] sm:hidden"
+      >
+        <DialogBackdrop
+          transition
+          className="fixed inset-0 bg-black/40 transition duration-200 data-closed:opacity-0"
+        />
+
+        <div className="fixed inset-0 flex items-end">
+          <DialogPanel
+            transition
+            className="w-full rounded-t-3xl bg-white px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-20px_60px_rgb(0_0_0/0.18)] transition duration-300 ease-out data-closed:translate-y-full"
+          >
+            <div
+              className="mx-auto mb-3 h-1 w-10 rounded-full bg-gray-300"
+              aria-hidden="true"
+            />
+
+            <div className="mb-3 flex items-center justify-between px-1">
+              <p className="text-base font-semibold text-gray-900">
+                Choose an emoji
+              </p>
+
+              <button
+                type="button"
+                onClick={() => setMobileEmojiSheetOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-lg text-gray-600 transition hover:bg-gray-200"
+                aria-label="Close emoji picker"
+              >
+                <CloseIcon width='14' height='14'/>
+              </button>
+            </div>
+
+            <div className="overflow-hidden rounded-sm">
               <EmojiPicker
                 theme={Theme.LIGHT}
-                width={PICKER_WIDTH}
-                height={PICKER_HEIGHT}
-                reactionsDefaultOpen
+                width="100%"
+                height={400}
+                reactionsDefaultOpen={false}
+                allowExpandReactions={false}
                 previewConfig={{ showPreview: false }}
                 skinTonesDisabled
                 searchPlaceholder="Search emoji"
                 lazyLoadEmojis
                 onReactionClick={(emojiData: EmojiClickData) => {
-                  onToggleReaction(emojiData.emoji);
-                  close();
+                  handleMobileEmojiSelect(emojiData.emoji);
                 }}
                 onEmojiClick={(emojiData: EmojiClickData) => {
-                  onToggleReaction(emojiData.emoji);
-                  close();
+                  handleMobileEmojiSelect(emojiData.emoji);
                 }}
                 style={
                   {
-                    '--epr-emoji-size': '20px',
-                    '--epr-emoji-gap': '4px',
+                    '--epr-emoji-size': '22px',
+                    '--epr-emoji-gap': '5px',
                   } as CSSProperties
                 }
               />
-            </PopoverPanel>
-          </>
-        )}
-      </Popover>
+            </div>
+          </DialogPanel>
+        </div>
+      </Dialog>
 
       {reactions.length ? (
         <SharedReactionPopover
@@ -129,6 +249,9 @@ function SharedReactionPopover({
   const [selectedEmoji, setSelectedEmoji] = useState<string>(
     reactions[0]?.emoji ?? '',
   );
+  const [mobileReactionDetailsOpen, setMobileReactionDetailsOpen] =
+    useState(false);
+
   const panelAnchor = align === 'end' ? 'top end' : 'top start';
 
   const selectedReaction = useMemo(
@@ -144,60 +267,135 @@ function SharedReactionPopover({
     [reactions, currentUserId],
   );
 
-  return (
-    <Popover as="div" className={clsx('absolute -bottom-5 z-20', className)}>
-      {({ close }) => (
-        <>
-          <div className="flex flex-wrap items-center gap-0.75 rounded-xl border border-gray-200 bg-white px-2 py-1 ">
-            {reactions.map((reaction) => (
-              <PopoverButton
-                key={reaction.emoji}
-                type="button"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => setSelectedEmoji(reaction.emoji)}
-                className={clsx(
-                  'inline-flex items-center gap-0.5 rounded-full text-[15px] font-medium transition ',
-                  // selectedReaction?.emoji === reaction.emoji &&
-                  //   'bg-violet-50 text-violet-700',
-                )}
-              >
-                <span>{reaction.emoji}</span>
-                {reaction.count > 1 ? (
-                  <span className="text-xs">{reaction.count}</span>
-                ) : null}
-              </PopoverButton>
-            ))}
-          </div>
+  const handleOpenMobileReactionDetails = (emoji: string) => {
+    setSelectedEmoji(emoji);
+    setMobileReactionDetailsOpen(true);
+  };
 
-          <PopoverPanel
-            anchor={{
-              to: panelAnchor,
-              gap: 10,
-              padding: 12,
-            }}
-            portal
+  const handleRemoveMobileReaction = (emoji: string) => {
+    onToggleReaction(emoji);
+    setMobileReactionDetailsOpen(false);
+  };
+
+  return (
+    <>
+      <Popover
+        as="div"
+        className={clsx('absolute -bottom-5 z-20', className)}
+      >
+        {({ close }) => (
+          <>
+            <div className="flex flex-wrap items-center gap-0.75 rounded-xl border border-gray-200 bg-white px-2 py-1">
+              {reactions.map((reaction) => (
+                <span key={reaction.emoji}>
+                  <button
+                    type="button"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() =>
+                      handleOpenMobileReactionDetails(reaction.emoji)
+                    }
+                    className="inline-flex items-center gap-0.5 rounded-full text-[15px] font-medium transition sm:hidden"
+                  >
+                    <span>{reaction.emoji}</span>
+
+                    {reaction.count > 1 ? (
+                      <span className="text-xs">{reaction.count}</span>
+                    ) : null}
+                  </button>
+                  <PopoverButton
+                    type="button"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => setSelectedEmoji(reaction.emoji)}
+                    className="hidden items-center gap-0.5 rounded-full text-[15px] font-medium transition sm:inline-flex"
+                  >
+                    <span>{reaction.emoji}</span>
+
+                    {reaction.count > 1 ? (
+                      <span className="text-xs">{reaction.count}</span>
+                    ) : null}
+                  </PopoverButton>
+                </span>
+              ))}
+            </div>
+            <PopoverPanel
+              anchor={{
+                to: panelAnchor,
+                gap: 10,
+                padding: 12,
+              }}
+              portal
+              transition
+              className="z-[7002] hidden w-80 origin-top rounded-2xl border border-gray-200 bg-white py-3 shadow-[0_18px_50px_rgb(0_0_0/0.16)] outline-none transition duration-150 data-closed:scale-95 data-closed:opacity-0 sm:block"
+            >
+              {selectedReaction ? (
+                <SharedReactionTray
+                  reactions={reactions}
+                  selectedEmoji={selectedReaction.emoji}
+                  allActors={allActors}
+                  onSelectEmoji={setSelectedEmoji}
+                  onRemoveReaction={(emoji) => {
+                    onToggleReaction(emoji);
+                    close();
+                  }}
+                />
+              ) : null}
+            </PopoverPanel>
+          </>
+        )}
+      </Popover>
+
+      <Dialog
+        open={mobileReactionDetailsOpen}
+        onClose={setMobileReactionDetailsOpen}
+        className="relative z-[8000] sm:hidden"
+      >
+        <DialogBackdrop
+          transition
+          className="fixed inset-0 bg-black/40 transition duration-200 data-closed:opacity-0"
+        />
+
+        <div className="fixed inset-0 flex items-end">
+          <DialogPanel
             transition
-            className="z-[7002] w-80 origin-top rounded-2xl border border-gray-200 bg-white py-3 shadow-[0_18px_50px_rgb(0_0_0/0.16)] outline-none transition duration-150 data-closed:scale-95 data-closed:opacity-0"
+            className="flex max-h-[80dvh] w-full flex-col rounded-t-3xl bg-white px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-20px_60px_rgb(0_0_0/0.18)] transition duration-300 ease-out data-closed:translate-y-full"
           >
-            {selectedReaction ? (
-              <SharedReactionTray
-                reactions={reactions}
-                selectedEmoji={selectedReaction.emoji}
-                allActors={allActors}
-                onSelectEmoji={setSelectedEmoji}
-                onRemoveReaction={(emoji) => {
-                  onToggleReaction(emoji);
-                  close();
-                }}
-              />
-            ) : null}
-          </PopoverPanel>
-        </>
-      )}
-    </Popover>
+            <div
+              className="mx-auto mb-3 h-1 w-10 shrink-0 rounded-full bg-gray-300"
+              aria-hidden="true"
+            />
+
+            <div className="mb-3 flex shrink-0 items-center justify-between px-1">
+              <p className="text-base font-semibold text-gray-900">
+                Reactions
+              </p>
+
+              <button
+                type="button"
+                onClick={() => setMobileReactionDetailsOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition hover:bg-gray-200"
+                aria-label="Close reaction details"
+              >
+                <CloseIcon width="14" height="14" />
+              </button>
+            </div>
+
+            <div className="min-h-0 overflow-y-auto">
+              {selectedReaction ? (
+                <SharedReactionTray
+                  reactions={reactions}
+                  selectedEmoji={selectedReaction.emoji}
+                  allActors={allActors}
+                  onSelectEmoji={setSelectedEmoji}
+                  onRemoveReaction={handleRemoveMobileReaction}
+                />
+              ) : null}
+            </div>
+          </DialogPanel>
+        </div>
+      </Dialog>
+    </>
   );
 }
-
 function SharedReactionTray({
   reactions,
   selectedEmoji,
@@ -214,6 +412,7 @@ function SharedReactionTray({
   const selectedReaction =
     reactions.find((reaction) => reaction.emoji === selectedEmoji) ??
     reactions[0];
+
   const totalReactions = reactions.reduce(
     (sum, reaction) => sum + Math.max(1, reaction.count),
     0,
@@ -221,30 +420,33 @@ function SharedReactionTray({
 
   return (
     <div className="flex max-h-[min(28rem,70vh)] flex-col">
-      <p className="text-sm px-3 font-semibold text-gray-900">
+      <p className="px-3 text-sm font-semibold text-gray-900">
         {totalReactions} {totalReactions === 1 ? 'reaction' : 'reactions'}
       </p>
 
-      <div className="mt-2 px-3 flex flex-wrap items-center gap-2">
+      <div className="mt-2 flex flex-wrap items-center gap-2 px-3">
         {reactions.map((reaction) => (
           <button
             key={reaction.emoji}
             type="button"
             onClick={() => onSelectEmoji(reaction.emoji)}
             className={clsx(
-              ' gap-1 rounded-full border  text-base px-1 min-w-7.5 h-7.5 flex items-center justify-center font-medium transition',
+              'flex h-7.5 min-w-7.5 items-center justify-center gap-1 rounded-full border px-1 text-base font-medium transition',
               reaction.emoji === selectedReaction.emoji
                 ? 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
                 : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50',
             )}
           >
             <span>{reaction.emoji}</span>
+
             {reaction.count > 1 ? <span>{reaction.count}</span> : null}
           </button>
         ))}
       </div>
-      <hr className="text-gray-200 mt-3" />
-      <div className="overflow-y-auto pt-2 px-2">
+
+      <hr className="mt-3 text-gray-200" />
+
+      <div className="overflow-y-auto px-2 pt-2">
         {allActors.length ? (
           allActors.map((actor, index) => (
             <button
@@ -265,18 +467,21 @@ function SharedReactionTray({
               )}
             >
               <div className="flex items-center gap-3">
-                <span className="flex h-6.5 w-6.5 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-purple-100 text-sm md:text-base font-semibold text-purple-700">
+                <span className="flex h-6.5 w-6.5 items-center justify-center rounded-full bg-purple-100 text-sm font-semibold text-purple-700 sm:h-8 sm:w-8 md:text-base">
                   {getInitials(actor.name)}
                 </span>
+
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-gray-900">
                     {actor.name}
                   </p>
+
                   {actor.isCurrentUser ? (
                     <p className="text-xs text-gray-500">Click to remove</p>
                   ) : null}
                 </div>
               </div>
+
               <span className="shrink-0 text-xl leading-none">
                 {actor.emoji}
               </span>
@@ -351,14 +556,17 @@ function EmojiSmileIcon() {
         stroke="currentColor"
         strokeWidth="1.5"
       />
+
       <path
         d="M7.08333 8.33333C7.54357 8.33333 7.91667 7.96024 7.91667 7.5C7.91667 7.03976 7.54357 6.66667 7.08333 6.66667C6.6231 6.66667 6.25 7.03976 6.25 7.5C6.25 7.96024 6.6231 8.33333 7.08333 8.33333Z"
         fill="currentColor"
       />
+
       <path
         d="M12.9167 8.33333C13.3769 8.33333 13.75 7.96024 13.75 7.5C13.75 7.03976 13.3769 6.66667 12.9167 6.66667C12.4564 6.66667 12.0833 7.03976 12.0833 7.5C12.0833 7.96024 12.4564 8.33333 12.9167 8.33333Z"
         fill="currentColor"
       />
+
       <path
         d="M6.66667 11.6667C7.40505 12.8733 8.63489 13.6667 10 13.6667C11.3651 13.6667 12.5949 12.8733 13.3333 11.6667"
         stroke="currentColor"

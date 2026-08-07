@@ -549,6 +549,7 @@ export default function TicketRepliesPanel({
 
                         {reply.message || reply.attachments?.length ? (
                           <div
+                          tabIndex={0}
                             className={`group/reply relative w-full rounded-xl bg-white ${
                               isCurrentUserReply
                                 ? 'rounded-tr-none'
@@ -1172,7 +1173,7 @@ function ExpandableMessageText({
         return;
       }
 
-      setShouldShowToggle(overflowElement.scrollHeight > lineHeight * 2 + 1);
+      setShouldShowToggle(overflowElement.scrollHeight > lineHeight * 5 + 1);
     };
 
     updateOverflowState();
@@ -1194,7 +1195,7 @@ function ExpandableMessageText({
         ref={measureRef}
         style={EMOJI_TEXT_STYLE}
         className={`text-sm font-normal whitespace-pre-wrap break-words text-gray-900 ${
-          isExpanded ? '' : 'line-clamp-2'
+          isExpanded ? '' : 'line-clamp-5'
         }`}
       >
         {message}
