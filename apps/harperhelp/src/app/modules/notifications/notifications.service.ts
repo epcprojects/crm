@@ -54,7 +54,7 @@ export class NotificationsService {
     private readonly activityLogService: ActivityLogService,
 
     // @InjectRepository(User)
-// private readonly userRepository: Repository<User>,
+    // private readonly userRepository: Repository<User>,
     @InjectRepository(Notification)
     private readonly notificationsRepo: Repository<Notification>,
     // @InjectRepository(ActivityLog)
@@ -159,7 +159,7 @@ export class NotificationsService {
       await this.queueService.publish(event);
       return;
     }
-    
+
     console.debug(`Dispatching notification event ${event.type} directly`);
 
     switch (event.type) {
@@ -170,9 +170,9 @@ export class NotificationsService {
       case EmailEventType.THREAD_MESSAGE_CREATED: // done
         return this.onThreadMessageCreated(event.payload);
       case EmailEventType.TICKET_CREATED:// done
-        return this.onTicketCreated(event.payload);  
+        return this.onTicketCreated(event.payload);
       case EmailEventType.TICKET_REPLY_POSTED:// almost done
-        return this.onTicketReplyPosted(event.payload); 
+        return this.onTicketReplyPosted(event.payload);
       case EmailEventType.TICKET_STATUS_UPDATED:
         return this.onTicketStatusUpdated(event.payload);
       case EmailEventType.TICKET_PRIORITY_UPDATED:
@@ -192,7 +192,7 @@ export class NotificationsService {
       this.appUrl,
       this.appName,
     );
-        // Internal notes: exclude the poster themselves from the notification list
+    // Internal notes: exclude the poster themselves from the notification list
     const recipients = p.members.filter(
       (r) => r.email !== p.createdBy.email,
     );
@@ -221,7 +221,7 @@ export class NotificationsService {
       this.appUrl,
       this.appName,
     );
-            // Internal notes: exclude the poster themselves from the notification list
+    // Internal notes: exclude the poster themselves from the notification list
     const recipients = p.participants.filter(
       (r) => r.email !== p.createdBy.email && r.isInvitationAccepted === true,
     );
@@ -237,7 +237,7 @@ export class NotificationsService {
       this.appUrl,
       this.appName,
     );
-            // Internal notes: exclude the poster themselves from the notification list
+    // Internal notes: exclude the poster themselves from the notification list
     const recipients = p.participants.filter(
       (r) => r.email !== p.createdBy.email && r.isInvitationAccepted === true,
     );
@@ -374,20 +374,19 @@ export class NotificationsService {
         notification,
         unreadCount,
       );
+
+      await this.activityLogService.createActivity({
+        recipientId: notification.recipientId,
+        actorId: dto.actorId,
+        projectId: dto.projectId ?? null,
+        ticketId: dto.ticketId ?? null,
+        type: dto.type,
+        title: dto.title,
+        entityType: dto.entityType,
+        entityId: dto.entityId ?? null,
+        metadata: dto.metadata ?? {},
+      });
     }
-
-    // TODO: Need to save the activity in the activity log table as well, so that it can be queried later for reporting purposes.
-
-    await this.activityLogService.createActivity({
-      actorId: dto.actorId,
-      projectId: dto.projectId ?? null,
-      ticketId: dto.ticketId ?? null,
-      type: dto.type,
-      title: dto.title,
-      entityType: dto.entityType,
-      entityId: dto.entityId ?? null,
-      metadata: dto.metadata ?? {},
-    });
   }
 
   async search(dto: SearchNotificationsDto, user) {

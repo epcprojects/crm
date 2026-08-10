@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { CreateActivityLogDto } from './dto/create-activity-log.dto';
 import { GetActivityLogsDto } from './dto/get-activity-logs.dto';
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { NotificationEntityType, NotificationType } from '@harperhelp/types';
 
 @Injectable()
 export class ActivityLogService {
@@ -15,6 +16,7 @@ export class ActivityLogService {
   async createActivity(dto: CreateActivityLogDto): Promise<ActivityLog> {
     const activity = this.activityRepo.create({
       actorId: dto.actorId,
+      recipientId: dto.recipientId,
       projectId: dto.projectId,
       ticketId: dto.ticketId,
       type: dto.type,
@@ -27,29 +29,64 @@ export class ActivityLogService {
     return await this.activityRepo.save(activity);
   }
 
-
-
-
-  async findAllActivities(query: GetActivityLogsDto) {
+  async findAllActivities(query: GetActivityLogsDto, user) {
     const { page = 1, limit = 20, search } = query;
 
     const qb = this.activityRepo
       .createQueryBuilder('activity')
       .leftJoinAndSelect('activity.actor', 'actor')
       .leftJoinAndSelect('activity.project', 'project')
-      .leftJoinAndSelect('activity.ticket', 'ticket')
-    //   .where('activity.isActive = :isActive', { isActive: true });
+      .leftJoinAndSelect('activity.ticket', 'ticket');
+
+    qb.where('activity.recipientId = :userId', {
+      userId: user.id,
+    });
+
+    qb.andWhere(
+      `
+    (
+      activity.projectId IS NULL
+
+      OR
+
+      (
+        activity.entityType = :projectEntityType
+        AND activity.type IN (:...projectAccessTypes)
+      )
+
+      OR
+
+      (
+        EXISTS (
+          SELECT 1
+          FROM user_projects_join upj
+          WHERE upj."usersId" = :userId
+            AND upj."projectsId" = activity."projectId"
+        )
+      )
+    )
+    `,
+      {
+        userId: user.id,
+        projectEntityType: NotificationEntityType.PROJECT,
+        projectAccessTypes: [
+          NotificationType.PROJECT_ASSIGNED,
+          NotificationType.PROJECT_UNASSIGNED,
+        ],
+      },
+    );
 
     if (search?.trim()) {
       qb.andWhere(
         `
-        (
-          LOWER(actor."fullName") LIKE LOWER(:search)
-          OR LOWER(project.name) LIKE LOWER(:search)
-          OR LOWER(ticket.title) LIKE LOWER(:search)
-          OR LOWER(activity.type) LIKE LOWER(:search)
-          OR LOWER(activity."entityType") LIKE LOWER(:search)
-        )
+      (
+        LOWER(actor."fullName") LIKE LOWER(:search)
+        OR LOWER(project.name) LIKE LOWER(:search)
+        OR LOWER(ticket.title) LIKE LOWER(:search)
+        OR LOWER(activity.type) LIKE LOWER(:search)
+        OR LOWER(activity."entityType") LIKE LOWER(:search)
+        OR LOWER(activity.title) LIKE LOWER(:search)
+      )
       `,
         {
           search: `%${search.trim()}%`,
@@ -67,6 +104,10 @@ export class ActivityLogService {
       if (activity.actor) {
         delete activity.actor.passwordHash;
       }
+
+      if (activity.recipient) {
+        delete activity.recipient.passwordHash;
+      }
     }
 
     return {
@@ -77,7 +118,6 @@ export class ActivityLogService {
     };
   }
 
-  
   // async findOne(id: string): Promise<ActivityLog> {}
   async findActivityById(id: string): Promise<ActivityLog> {
     const activity = await this.activityRepo
