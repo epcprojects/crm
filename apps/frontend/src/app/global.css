@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@source "../../../../node_modules/react-mentions-ts/dist";
 
 @theme inline {
   --color-background: var(--background);
@@ -1313,3 +1314,6 @@ button[aria-disabled='true'] {
   background: #667085;
 }
 
+.border-hide div div {
+  border: #ffffff ;
+}

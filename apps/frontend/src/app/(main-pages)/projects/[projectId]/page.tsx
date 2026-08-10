@@ -15,7 +15,12 @@ import {
   TabPanels,
 } from '@headlessui/react';
 
-import { useMutation,useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   useParams,
@@ -90,6 +95,7 @@ import Calendar from '../../../../components/calendar/Calendar';
 import DashboardSummaryBanner from '../../../../components/ui/DashboardSummaryBanner';
 import EmptyState from '../../../../components/EmptyState';
 import AppModal from '../../../../components/modals/AppModal';
+import { fetchProjectMembers } from '../../../../lib/project-members';
 
 const projectTabs = [
   'Tickets',
@@ -98,6 +104,16 @@ const projectTabs = [
   'Calendar',
   'Notes',
 ] as const;
+const projectTabQueryParamMap: Record<
+  (typeof projectTabs)[number],
+  string | null
+> = {
+  Tickets: null,
+  Thread: '1',
+  Files: '2',
+  Calendar: '3',
+  Notes: '4',
+};
 const PROJECT_TICKETS_STATUS_QUERY_PARAM = 'ticketStatus';
 const PROJECT_TICKETS_PRIORITY_QUERY_PARAM = 'ticketPriority';
 const PROJECT_NOTES_LIMIT = 50;
@@ -209,6 +225,11 @@ export default function ProjectDetailPage() {
     currentUserId,
     canViewThread,
   );
+  const projectMembersQuery = useQuery({
+    queryKey: ['project-members', projectId],
+    queryFn: () => fetchProjectMembers(projectId),
+    enabled: Boolean(projectId && (canPostThreadMessage || canPostThreadReply)),
+  });
 
   const projectFilesQuery = useProjectFilesQuery(projectId, canViewFiles);
   const createProjectNoteMutation = useCreateProjectNoteMutation();
@@ -330,10 +351,12 @@ export default function ProjectDetailPage() {
       message,
       attachments,
       parentId,
+      mentionedUserIds,
     }: {
       message: string;
       attachments: File[];
       parentId?: string;
+      mentionedUserIds?: string[];
     }) => {
       const formData = new FormData();
       if (message.trim()) {
@@ -343,6 +366,12 @@ export default function ProjectDetailPage() {
       if (parentId?.trim()) {
         formData.append('parentId', parentId.trim());
       }
+
+      mentionedUserIds?.forEach((mentionedUserId) => {
+        if (mentionedUserId.trim()) {
+          formData.append('mentionedUserIds', mentionedUserId.trim());
+        }
+      });
 
       attachments.forEach((attachment) => {
         formData.append('attachments', attachment);
@@ -401,10 +430,12 @@ export default function ProjectDetailPage() {
       messageId,
       message,
       parentId,
+      mentionedUserIds,
     }: {
       messageId: string;
       message: string;
       parentId?: string;
+      mentionedUserIds: string[];
     }) => {
       const formData = new FormData();
       formData.append('message', message.trim());
@@ -412,6 +443,12 @@ export default function ProjectDetailPage() {
       if (parentId?.trim()) {
         formData.append('parentId', parentId.trim());
       }
+
+      mentionedUserIds.forEach((mentionedUserId) => {
+        if (mentionedUserId.trim()) {
+          formData.append('mentionedUserIds', mentionedUserId.trim());
+        }
+      });
 
       const response = await fetch(
         `/api/projects/${projectId}/thread/${messageId}`,
@@ -720,29 +757,29 @@ export default function ProjectDetailPage() {
     [projectNotesQuery.data?.items],
   );
   const fullNotesQueries = useQueries({
-  queries: projectNotes.map((note) => ({
-    queryKey: ['project-note-detail', projectId, note.id],
-    queryFn: async (): Promise<ProjectNoteRecord> => {
-      const response = await fetch(
-        `/api/projects/${projectId}/notes/${note.id}`,
-      );
+    queries: projectNotes.map((note) => ({
+      queryKey: ['project-note-detail', projectId, note.id],
+      queryFn: async (): Promise<ProjectNoteRecord> => {
+        const response = await fetch(
+          `/api/projects/${projectId}/notes/${note.id}`,
+        );
 
-      if (!response.ok) {
-        return note;
-      }
+        if (!response.ok) {
+          return note;
+        }
 
-      return response.json();
-    },
-    enabled: Boolean(projectId && note.id),
-  })),
-});
+        return response.json();
+      },
+      enabled: Boolean(projectId && note.id),
+    })),
+  });
 
-const fullNotesById = new Map(
-  fullNotesQueries
-    .map((query) => query.data)
-    .filter((note): note is ProjectNoteRecord => Boolean(note))
-    .map((note) => [note.id, note]),
-);
+  const fullNotesById = new Map(
+    fullNotesQueries
+      .map((query) => query.data)
+      .filter((note): note is ProjectNoteRecord => Boolean(note))
+      .map((note) => [note.id, note]),
+  );
   const selectedProjectNoteSummary = useMemo(
     () =>
       projectNotes.find((note) => note.id === selectedProjectNoteId) ??
@@ -950,20 +987,20 @@ const fullNotesById = new Map(
   };
 
   const invalidateThreadQueries = useCallback(() => {
-  void queryClient.invalidateQueries({
-    queryKey: [...projectThreadQueryKey, projectId],
-  });
-
-  if (selectedThreadMessageId) {
     void queryClient.invalidateQueries({
-      queryKey: [
-        ...projectThreadDetailQueryKey,
-        projectId,
-        selectedThreadMessageId,
-      ],
+      queryKey: [...projectThreadQueryKey, projectId],
     });
-  }
-}, [queryClient, projectId, selectedThreadMessageId]);
+
+    if (selectedThreadMessageId) {
+      void queryClient.invalidateQueries({
+        queryKey: [
+          ...projectThreadDetailQueryKey,
+          projectId,
+          selectedThreadMessageId,
+        ],
+      });
+    }
+  }, [queryClient, projectId, selectedThreadMessageId]);
   useThread({
     projectId,
     token: threadSocketToken,
@@ -998,7 +1035,7 @@ const fullNotesById = new Map(
     },
     onUpdated: invalidateThreadQueries,
     onReacted: invalidateThreadQueries,
-    
+
     onDeleted: () => {
       void queryClient.invalidateQueries({
         queryKey: [...projectThreadQueryKey, projectId],
@@ -1149,23 +1186,31 @@ const fullNotesById = new Map(
   const handleSubmitReply = async ({
     message,
     attachments,
+    mentionedUserIds,
   }: {
     message: string;
     attachments: File[];
+    mentionedUserIds: string[];
   }) => {
     if (!canPostThreadMessage) {
       return;
     }
 
-    await createProjectThreadMutation.mutateAsync({ message, attachments });
+    await createProjectThreadMutation.mutateAsync({
+      message,
+      attachments,
+      mentionedUserIds,
+    });
   };
 
   const handleSubmitThreadReply = async ({
     message,
     attachments,
+    mentionedUserIds,
   }: {
     message: string;
     attachments: File[];
+    mentionedUserIds: string[];
   }) => {
     if (!canPostThreadReply || !selectedThreadMessageId) {
       return;
@@ -1175,15 +1220,18 @@ const fullNotesById = new Map(
       message,
       attachments,
       parentId: selectedThreadMessageId,
+      mentionedUserIds,
     });
   };
 
   const handleEditProjectThreadReply = async ({
     reply,
     message,
+    mentionedUserIds,
   }: {
     reply: DiscussionReply;
     message: string;
+    mentionedUserIds: string[];
   }) => {
     setEditingThreadReplyId(reply.id);
 
@@ -1191,6 +1239,7 @@ const fullNotesById = new Map(
       await updateProjectThreadMutation.mutateAsync({
         messageId: reply.id,
         message,
+        mentionedUserIds,
         parentId:
           selectedThreadMessageId && selectedThreadMessageId !== reply.id
             ? selectedThreadMessageId
@@ -1272,8 +1321,7 @@ const fullNotesById = new Map(
   ) => {
     const remove = Boolean(
       reply.reactions?.some(
-        (reaction) =>
-          reaction.emoji === emoji && reaction.reactedByCurrentUser,
+        (reaction) => reaction.emoji === emoji && reaction.reactedByCurrentUser,
       ),
     );
 
@@ -1283,12 +1331,14 @@ const fullNotesById = new Map(
       currentUserId,
     ] as const;
     const detailQueryKeys = selectedThreadMessageId
-      ? [[
-          ...projectThreadDetailQueryKey,
-          projectId,
-          selectedThreadMessageId,
-          currentUserId,
-        ]]
+      ? [
+          [
+            ...projectThreadDetailQueryKey,
+            projectId,
+            selectedThreadMessageId,
+            currentUserId,
+          ],
+        ]
       : [];
     const previousThreadReplies =
       queryClient.getQueryData<DiscussionReply[]>(threadQueryKey);
@@ -1370,11 +1420,13 @@ const fullNotesById = new Map(
     const requestedTabName =
       requestedTab === '1'
         ? 'Thread'
-        : requestedTab === '4'
-          ? 'Notes'
-          : requestedTab === '3'
-            ? 'Calendar'
-            : null;
+        : requestedTab === '2'
+          ? 'Files'
+          : requestedTab === '4'
+            ? 'Notes'
+            : requestedTab === '3'
+              ? 'Calendar'
+              : null;
 
     if (!requestedTabName) {
       return 0;
@@ -1383,6 +1435,42 @@ const fullNotesById = new Map(
     const requestedTabIndex = visibleProjectTabs.indexOf(requestedTabName);
     return requestedTabIndex >= 0 ? requestedTabIndex : 0;
   }, [searchParams, visibleProjectTabs]);
+  const handleProjectTabChange = useCallback(
+    (index: number) => {
+      const selectedTab = visibleProjectTabs[index];
+
+      if (!selectedTab) {
+        return;
+      }
+
+      const nextTabQueryValue = projectTabQueryParamMap[selectedTab];
+      const nextSearchParams = new URLSearchParams(searchParams.toString());
+      const currentTabQueryValue = searchParams.get('t');
+
+      if (nextTabQueryValue) {
+        nextSearchParams.set('t', nextTabQueryValue);
+      } else {
+        nextSearchParams.delete('t');
+      }
+
+      const nextUrl = nextSearchParams.toString()
+        ? `${pathname}?${nextSearchParams.toString()}`
+        : pathname;
+      const currentUrl = searchParams.toString()
+        ? `${pathname}?${searchParams.toString()}`
+        : pathname;
+
+      if (
+        (nextTabQueryValue ?? null) === (currentTabQueryValue ?? null) &&
+        nextUrl === currentUrl
+      ) {
+        return;
+      }
+
+      router.replace(nextUrl, { scroll: false });
+    },
+    [pathname, router, searchParams, visibleProjectTabs],
+  );
   // const projectDetailScrollRef = useRef<HTMLDivElement | null>(null);
   // const projectDetailSectionRef = useRef<HTMLDivElement | null>(null);
 
@@ -1619,6 +1707,7 @@ const fullNotesById = new Map(
             <TabGroup
               key={`${projectId}-${searchParams.get('t') ?? '0'}`}
               defaultIndex={defaultProjectTabIndex}
+              onChange={handleProjectTabChange}
               // className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden"
               className="flex h-auto min-h-0 min-w-0 flex-none flex-col gap-4 overflow-visible xl:h-full xl:flex-1 xl:overflow-hidden"
             >
@@ -1876,6 +1965,7 @@ const fullNotesById = new Map(
                           <ProjectThreadPanel
                             title="Discussion"
                             replies={projectThreadQuery.data ?? []}
+                            mentionMembers={projectMembersQuery.data ?? []}
                             emptyTitle={
                               projectThreadQuery.isLoading
                                 ? 'Loading discussion...'
@@ -1937,6 +2027,7 @@ const fullNotesById = new Map(
                           <ProjectThreadPanel
                             title="Thread"
                             subtitle=""
+                            mentionMembers={projectMembersQuery.data ?? []}
                             headerAction={
                               <button
                                 type="button"
@@ -1952,7 +2043,7 @@ const fullNotesById = new Map(
                             emptyTitle={
                               projectThreadDetailQuery.isLoading
                                 ? 'Loading thread...'
-                                : 'No Threads replies yet.'
+                                : 'No threads replies yet.'
                             }
                             emptyDescription={
                               projectThreadDetailQuery.isLoading
@@ -2110,7 +2201,7 @@ const fullNotesById = new Map(
                             {projectNotes.map((note) => {
                               const isActive =
                                 note.id === selectedProjectNoteSummary?.id;
-                                 const noteForPreview = note;
+                              const noteForPreview = note;
                               return (
                                 <article
                                   key={note.id}
@@ -2140,7 +2231,9 @@ const fullNotesById = new Map(
                                         {note.title}
                                       </h4>
                                       <p className="line-clamp-1 text-sm text-gray-600">
-                                        {getProjectNotePreview(fullNotesById.get(note.id) ?? note)}
+                                        {getProjectNotePreview(
+                                          fullNotesById.get(note.id) ?? note,
+                                        )}
                                       </p>
                                       <div className="flex items-center gap-1 text-xs font-normal text-gray-500">
                                         <CalendarTabIcon
@@ -2747,10 +2840,7 @@ function applyProjectThreadReactionUpdate(
   );
   let nextReactions = reactions.map((reaction) => ({ ...reaction }));
 
-  if (
-    currentUserReaction &&
-    (!remove || currentUserReaction.emoji !== emoji)
-  ) {
+  if (currentUserReaction && (!remove || currentUserReaction.emoji !== emoji)) {
     nextReactions = decrementProjectThreadReaction(
       nextReactions,
       currentUserReaction.emoji,
@@ -2774,7 +2864,9 @@ function incrementProjectThreadReaction(
   emoji: string,
   currentUserId?: string,
 ) {
-  const existingReaction = reactions.find((reaction) => reaction.emoji === emoji);
+  const existingReaction = reactions.find(
+    (reaction) => reaction.emoji === emoji,
+  );
 
   if (!existingReaction) {
     return [
@@ -2839,9 +2931,7 @@ function decrementProjectThreadReaction(
           reactedByCurrentUser: false,
           actors:
             reaction.actors?.filter((actor) =>
-              currentUserId
-                ? actor.id !== currentUserId
-                : !actor.isCurrentUser,
+              currentUserId ? actor.id !== currentUserId : !actor.isCurrentUser,
             ) ?? reaction.actors,
         },
       ];
@@ -2883,30 +2973,38 @@ function renderProjectTabIcon(tab: (typeof projectTabs)[number]) {
   return <CalendarTabIcon />;
 }
 
-function FilesTabIcon() {
+export function FilesTabIcon({
+  fill = 'currentColor',
+  width = '20',
+  height = '20',
+}) {
   return (
     <svg
-      width="20"
-      height="20"
+      width={width}
+      height={height}
       viewBox="0 0 20 20"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
       <path
         d="M8.12533 11.6667C8.12533 11.3215 7.8455 11.0417 7.50033 11.0417C7.15515 11.0417 6.87533 11.3215 6.87533 11.6667C6.87533 12.9323 7.90134 13.9583 9.16699 13.9583H10.8337C12.0993 13.9583 13.1253 12.9323 13.1253 11.6667C13.1253 11.3215 12.8455 11.0417 12.5003 11.0417C12.1551 11.0417 11.8753 11.3215 11.8753 11.6667C11.8753 12.242 11.409 12.7083 10.8337 12.7083H9.16699C8.5917 12.7083 8.12533 12.242 8.12533 11.6667Z"
-        fill="currentColor"
+        fill={fill}
       />
       <path
         fillRule="evenodd"
         clipRule="evenodd"
         d="M8.29033 1.04166H11.7103C12.459 1.04163 13.0834 1.04161 13.5791 1.10825C14.1022 1.17859 14.5746 1.33331 14.9541 1.71287C15.3337 2.09243 15.4884 2.56476 15.5587 3.08793C15.6141 3.49938 15.6234 3.99951 15.625 4.58586C15.6886 4.6107 15.7513 4.63866 15.8132 4.67018C16.3228 4.92984 16.7371 5.34416 16.9968 5.85377C17.1627 6.17938 17.23 6.52805 17.2615 6.9141C17.2909 7.27329 17.292 7.7122 17.292 8.24537L17.3013 8.25118C17.7518 8.53425 18.1327 8.9152 18.4158 9.36571C18.7124 9.83768 18.8394 10.3684 18.8999 10.9914C18.9587 11.5978 18.9587 12.3538 18.9587 13.3008V13.3659C18.9587 14.3128 18.9587 15.0689 18.8999 15.6753C18.8394 16.2983 18.7124 16.829 18.4158 17.3009C18.1327 17.7515 17.7518 18.1324 17.3013 18.4155C16.8293 18.712 16.2986 18.8391 15.6756 18.8995C15.0692 18.9583 14.3132 18.9583 13.3662 18.9583H6.63443C5.6875 18.9583 4.93146 18.9583 4.32502 18.8995C3.70203 18.8391 3.17135 18.712 2.69938 18.4155C2.24887 18.1324 1.86792 17.7515 1.58484 17.3009C1.28829 16.829 1.16121 16.2983 1.10079 15.6753C1.04198 15.0689 1.04198 14.3128 1.04199 13.3659V13.3008C1.04198 12.3538 1.04198 11.5978 1.10079 10.9914C1.16121 10.3684 1.28829 9.83768 1.58484 9.36571C1.86792 8.9152 2.24887 8.53425 2.69938 8.25118L2.70866 8.24537C2.70869 7.71221 2.70977 7.27329 2.73912 6.9141C2.77066 6.52805 2.83794 6.17938 3.00385 5.85377C3.26351 5.34416 3.67783 4.92984 4.18744 4.67018C4.24931 4.63866 4.31201 4.61069 4.37564 4.58586C4.37722 3.99951 4.3866 3.49937 4.44192 3.08793C4.51226 2.56476 4.66698 2.09243 5.04654 1.71287C5.4261 1.33331 5.89843 1.17859 6.42159 1.10825C6.91724 1.04161 7.54161 1.04163 8.29033 1.04166ZM14.3199 3.25449C14.3589 3.54437 14.3705 3.90537 14.3739 4.38476C14.0803 4.37498 13.744 4.37499 13.3598 4.37499H6.64081C6.25662 4.37499 5.92034 4.37498 5.62677 4.38476C5.6302 3.90537 5.6418 3.54437 5.68077 3.25449C5.73248 2.86993 5.82183 2.70535 5.93042 2.59676C6.03902 2.48816 6.2036 2.39881 6.58815 2.34711C6.99068 2.29299 7.53032 2.29166 8.33366 2.29166H11.667C12.4703 2.29166 13.01 2.29299 13.4125 2.34711C13.7971 2.39881 13.9616 2.48816 14.0702 2.59676C14.1788 2.70535 14.2682 2.86993 14.3199 3.25449ZM16.041 7.81257C16.039 7.48556 16.0332 7.22974 16.0157 7.01589C15.9905 6.70714 15.9442 6.54129 15.883 6.42125C15.7432 6.14685 15.5201 5.92376 15.2457 5.78394C15.1257 5.72278 14.9598 5.67652 14.6511 5.6513C14.335 5.62548 13.9274 5.62499 13.3337 5.62499H6.66699C6.07329 5.62499 5.6656 5.62548 5.34956 5.6513C5.04081 5.67652 4.87496 5.72278 4.75492 5.78394C4.48052 5.92376 4.25742 6.14685 4.11761 6.42125C4.05645 6.54129 4.01019 6.70714 3.98497 7.01589C3.96749 7.22974 3.96162 7.48556 3.95965 7.81257C4.07788 7.79416 4.19958 7.77929 4.32502 7.76713C4.93146 7.70831 5.68751 7.70832 6.63444 7.70832H13.3662C14.3131 7.70832 15.0692 7.70831 15.6756 7.76713C15.8011 7.77929 15.9228 7.79416 16.041 7.81257ZM3.36442 9.30958C3.60394 9.15908 3.91627 9.06263 4.44568 9.01129C4.98471 8.95901 5.6801 8.95832 6.66699 8.95832H13.3337C14.3206 8.95832 15.0159 8.95901 15.555 9.01129C16.0844 9.06263 16.3967 9.15908 16.6362 9.30958C16.9277 9.49275 17.1742 9.73924 17.3574 10.0308C17.5079 10.2703 17.6044 10.5826 17.6557 11.112C17.708 11.651 17.7087 12.3464 17.7087 13.3333C17.7087 14.3202 17.708 15.0156 17.6557 15.5546C17.6044 16.0841 17.5079 16.3964 17.3574 16.6359C17.1742 16.9274 16.9277 17.1739 16.6362 17.3571C16.3967 17.5076 16.0844 17.604 15.555 17.6554C15.0159 17.7076 14.3206 17.7083 13.3337 17.7083H6.66699C5.6801 17.7083 4.98471 17.7076 4.44568 17.6554C3.91627 17.604 3.60394 17.5076 3.36442 17.3571C3.07291 17.1739 2.82642 16.9274 2.64325 16.6359C2.49275 16.3964 2.3963 16.0841 2.34496 15.5546C2.29268 15.0156 2.29199 14.3202 2.29199 13.3333C2.29199 12.3464 2.29268 11.651 2.34496 11.112C2.3963 10.5826 2.49275 10.2703 2.64325 10.0308C2.82642 9.73924 3.07291 9.49275 3.36442 9.30958Z"
-        fill="currentColor"
+        fill={fill}
       />
     </svg>
   );
 }
 
-function CalendarTabIcon({ width = '20', height = '20' }) {
+export function CalendarTabIcon({
+  width = '20',
+  height = '20',
+  fill = 'currentColor',
+}) {
   return (
     <svg
       width={width}
@@ -2917,25 +3015,25 @@ function CalendarTabIcon({ width = '20', height = '20' }) {
     >
       <path
         d="M9.16634 10.2083C8.82116 10.2083 8.54134 10.4881 8.54134 10.8333C8.54134 11.1785 8.82116 11.4583 9.16634 11.4583H13.333C13.6782 11.4583 13.958 11.1785 13.958 10.8333C13.958 10.4881 13.6782 10.2083 13.333 10.2083H9.16634Z"
-        fill="currentColor"
+        fill={fill}
       />
       <path
         d="M6.66634 10.2083C6.32116 10.2083 6.04134 10.4881 6.04134 10.8333C6.04134 11.1785 6.32116 11.4583 6.66634 11.4583H6.67383C7.019 11.4583 7.29883 11.1785 7.29883 10.8333C7.29883 10.4881 7.019 10.2083 6.67383 10.2083H6.66634Z"
-        fill="currentColor"
+        fill={fill}
       />
       <path
         d="M6.66634 13.5417C6.32116 13.5417 6.04134 13.8215 6.04134 14.1667C6.04134 14.5118 6.32116 14.7917 6.66634 14.7917H10.833C11.1782 14.7917 11.458 14.5118 11.458 14.1667C11.458 13.8215 11.1782 13.5417 10.833 13.5417H6.66634Z"
-        fill="currentColor"
+        fill={fill}
       />
       <path
         d="M13.3255 13.5417C12.9803 13.5417 12.7005 13.8215 12.7005 14.1667C12.7005 14.5118 12.9803 14.7917 13.3255 14.7917H13.333C13.6782 14.7917 13.958 14.5118 13.958 14.1667C13.958 13.8215 13.6782 13.5417 13.333 13.5417H13.3255Z"
-        fill="currentColor"
+        fill={fill}
       />
       <path
         fillRule="evenodd"
         clipRule="evenodd"
         d="M5.62467 1.66666C5.62467 1.32148 5.34485 1.04166 4.99967 1.04166C4.6545 1.04166 4.37467 1.32148 4.37467 1.66666V2.19565C3.70404 2.38572 3.13842 2.69465 2.66763 3.20362C2.01937 3.90444 1.73122 4.78993 1.59322 5.89958C1.45799 6.98691 1.458 8.38038 1.45801 10.1584V10.675C1.458 12.4529 1.45799 13.8464 1.59322 14.9337C1.73122 16.0434 2.01937 16.9289 2.66763 17.6297C3.32229 18.3374 4.16031 18.6584 5.20908 18.8108C6.22411 18.9584 7.52096 18.9583 9.15737 18.9583H10.842C12.4784 18.9583 13.7752 18.9584 14.7903 18.8108C15.839 18.6584 16.6771 18.3374 17.3317 17.6297C17.98 16.9289 18.2681 16.0434 18.4061 14.9337C18.5414 13.8464 18.5413 12.4529 18.5413 10.6749V10.1584C18.5413 8.38039 18.5414 6.98692 18.4061 5.89958C18.2681 4.78993 17.98 3.90444 17.3317 3.20362C16.8609 2.69465 16.2953 2.38572 15.6247 2.19565V1.66666C15.6247 1.32148 15.3449 1.04166 14.9997 1.04166C14.6545 1.04166 14.3747 1.32148 14.3747 1.66666V1.97157C13.428 1.87497 12.263 1.87498 10.842 1.87499H9.15738C7.73636 1.87498 6.57139 1.87497 5.62467 1.97157V1.66666ZM3.58525 4.05243C3.80137 3.81879 4.05908 3.63991 4.39851 3.50486C4.47306 3.76664 4.71398 3.95832 4.99967 3.95832C5.34485 3.95832 5.62467 3.6785 5.62467 3.33332V3.22881C6.50885 3.12629 7.65165 3.12499 9.20801 3.12499H10.7913C12.3477 3.12499 13.4905 3.12629 14.3747 3.22881V3.33332C14.3747 3.6785 14.6545 3.95832 14.9997 3.95832C15.2854 3.95832 15.5263 3.76664 15.6008 3.50486C15.9403 3.63992 16.198 3.81879 16.4141 4.05243C16.8076 4.47788 17.0409 5.06112 17.1642 6.04166H2.83518C2.95844 5.06112 3.19171 4.47788 3.58525 4.05243ZM2.74044 7.29166C2.70847 8.08906 2.70801 9.04233 2.70801 10.2027V10.6306C2.70801 12.4625 2.70915 13.7783 2.83366 14.7795C2.95652 15.7674 3.19008 16.3537 3.58525 16.7809C3.97402 17.2012 4.49741 17.4442 5.38887 17.5738C6.30364 17.7068 7.50957 17.7083 9.20801 17.7083H10.7913C12.4898 17.7083 13.6957 17.7068 14.6105 17.5738C15.5019 17.4442 16.0253 17.2012 16.4141 16.7809C16.8093 16.3537 17.0428 15.7674 17.1657 14.7795C17.2902 13.7783 17.2913 12.4625 17.2913 10.6306V10.2027C17.2913 9.04233 17.2909 8.08906 17.2589 7.29166H2.74044Z"
-        fill="currentColor"
+        fill={fill}
       />
     </svg>
   );

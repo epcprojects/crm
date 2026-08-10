@@ -66,6 +66,7 @@ import { eventEmitter } from '../../../../src/lib/event-emitter';
 import { NotificationItem } from '@harperhelp/interfaces';
 import { NotificationEntityType } from '@harperhelp/types';
 import { getNotificationNavigationPath } from '../../../lib/notification-navigation';
+import { EmojiSmileIcon } from '../../../components/discussion/EmojiPickerButton';
 
 type TicketSummary = {
   open: number | null;
@@ -79,6 +80,7 @@ type DashboardProjectPanelTabKey = 'projects' | 'activity';
 type DashboardActivityItem = {
   id: string;
   actor: string;
+  type: string;
   action: string;
   title: string;
   target: string;
@@ -1698,7 +1700,7 @@ function DashboardActivityRow({ item }: { item: DashboardActivityItem }) {
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="text-sm leading-6 text-gray-600">
+        <p className="text-sm text-gray-600">
           {/* <span className="font-semibold text-gray-950">{item.actor}</span>{' '} */}
           {/* {item.action}{' '} */}
 
@@ -1726,6 +1728,26 @@ function ActivityEntityIcon({ item }: { item: DashboardActivityItem }) {
     return (
       <span className={iconClassName}>
         <ThreadIcon fill="#DC6803" width={18} height={18} />
+      </span>
+    );
+  }
+
+  if (item.entityType === 'internal_message') {
+    return (
+      <span className={iconClassName}>
+        <ChatIcon fill="blue" />
+      </span>
+    );
+  }
+
+  if (
+    item.type === 'thread_message_reaction' ||
+    item.type === 'ticket_reply_reaction' ||
+    item.type === 'internal_message_reaction'
+  ) {
+    return (
+      <span className={iconClassName}>
+        <EmojiSmileIcon fill="#DC6803" width={'18'} height={'18'} />
       </span>
     );
   }
@@ -2167,6 +2189,7 @@ function mapApiActivityToDashboardItem(
   return {
     id: item.id,
     actor,
+    type: item.type ?? '',
     action: getActivityActionLabel(item.type, item.entityType),
     title: item.title,
     target:

@@ -77,6 +77,7 @@ type SendMessagePayload = {
   attachmentUrls?: string[];
   attachmentName?: string;
   attachmentSize?: number;
+  mentionedUserIds?: string[];
 };
 
 export async function POST(

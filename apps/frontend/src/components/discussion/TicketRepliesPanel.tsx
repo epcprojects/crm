@@ -7,6 +7,7 @@ import {
   type ReactNode,
   type ClipboardEvent,
 } from 'react';
+import { type MentionsInputHandle } from 'react-mentions-ts';
 import {
   ALLOWED_ATTACHMENT_ACCEPT,
   validateAttachments,
@@ -25,6 +26,8 @@ import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import EmojiPickerButton from './EmojiPickerButton';
 import MessageReactionBar from './MessageReactionBar';
 import ThemeButton from '../ui/ThemeButton';
+import DiscussionMentionsInput from './DiscussionMentionsInput';
+import type { ProjectMember } from '../../lib/project-members';
 
 const EMOJI_TEXT_STYLE = {
   fontFamily:
@@ -42,12 +45,14 @@ type DiscussionPanelProps = {
   headerAction?: ReactNode;
   headerReply?: DiscussionReply | null;
   replies: DiscussionReply[];
+  mentionMembers?: ProjectMember[];
   emptyTitle?: string;
   emptyDescription?: string;
   composerPlaceholder?: string;
   onSubmitReply?: (payload: {
     message: string;
     attachments: File[];
+    mentionedUserIds: string[];
   }) => Promise<void> | void;
   isSubmittingReply?: boolean;
   canCompose?: boolean;
@@ -63,6 +68,7 @@ type DiscussionPanelProps = {
   onEditReply?: (payload: {
     reply: DiscussionReply;
     message: string;
+    mentionedUserIds: string[];
   }) => Promise<void> | void;
   onToggleReaction?: (
     reply: DiscussionReply,
@@ -87,6 +93,7 @@ export default function TicketRepliesPanel({
   headerAction,
   headerReply,
   replies,
+  mentionMembers = [],
   emptyTitle = 'No replies yet.',
   emptyDescription = 'No responses have been added to this ticket yet.',
   composerPlaceholder = 'Write a reply...',
@@ -109,6 +116,8 @@ export default function TicketRepliesPanel({
   className,
 }: DiscussionPanelProps) {
   const [message, setMessage] = useState('');
+  const [messagePlainText, setMessagePlainText] = useState('');
+  const [mentionedUserIds, setMentionedUserIds] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [attachmentError, setAttachmentError] = useState('');
   const [attachmentToDelete, setAttachmentToDelete] =
@@ -119,9 +128,15 @@ export default function TicketRepliesPanel({
   );
   const [editingMessageId, setEditingMessageId] = useState('');
   const [editingMessage, setEditingMessage] = useState('');
+  const [editingMessagePlainText, setEditingMessagePlainText] = useState('');
+  const [editingMentionedUserIds, setEditingMentionedUserIds] = useState<
+    string[]
+  >([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const editingTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const composerMentionsRef = useRef<MentionsInputHandle | null>(null);
+  const editingMentionsRef = useRef<MentionsInputHandle | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const conversationImages = getGalleryImagesFromDiscussion(
     headerReply,
@@ -145,8 +160,10 @@ export default function TicketRepliesPanel({
   }, [headerReply?.id, replies.length]);
 
   const handleSubmit = async () => {
-    const trimmedMessage = message.trim();
+    const trimmedMessage = messagePlainText.trim();
     const currentMessage = message;
+    const currentPlainText = messagePlainText;
+    const currentMentionedUserIds = mentionedUserIds;
     const currentAttachments = attachments;
 
     if (
@@ -161,6 +178,8 @@ export default function TicketRepliesPanel({
     }
 
     setMessage('');
+    setMessagePlainText('');
+    setMentionedUserIds([]);
     setAttachments([]);
     setAttachmentError('');
     if (fileInputRef.current) {
@@ -172,17 +191,24 @@ export default function TicketRepliesPanel({
       await onSubmitReply({
         message: trimmedMessage,
         attachments: currentAttachments,
+        mentionedUserIds: currentMentionedUserIds,
       });
     } catch (error) {
       setMessage(currentMessage);
+      setMessagePlainText(currentPlainText);
+      setMentionedUserIds(currentMentionedUserIds);
       setAttachments(currentAttachments);
       throw error;
     }
   };
 
   const handleComposerKeyDown = async (
-    event: React.KeyboardEvent<HTMLTextAreaElement>,
+    event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
+    if (event.defaultPrevented) {
+      return;
+    }
+
     if (event.key !== 'Enter' || event.shiftKey) {
       return;
     }
@@ -221,59 +247,25 @@ export default function TicketRepliesPanel({
   };
 
   const handleEmojiSelect = (emoji: string) => {
-    const textarea = textareaRef.current;
-
-    if (!textarea) {
-      setMessage((current) => clampDiscussionMessage(`${current}${emoji}`));
+    if (composerMentionsRef.current) {
+      composerMentionsRef.current.insertText(emoji);
       focusComposer();
       return;
     }
-
-    const selectionStart = textarea.selectionStart ?? message.length;
-    const selectionEnd = textarea.selectionEnd ?? message.length;
-    const nextMessage = clampDiscussionMessage(
-      message.slice(0, selectionStart) + emoji + message.slice(selectionEnd),
-    );
-    const nextCursorPosition = selectionStart + emoji.length;
-
-    setMessage(nextMessage);
-
-    requestAnimationFrame(() => {
-      textarea.focus();
-      textarea.setSelectionRange(nextCursorPosition, nextCursorPosition);
-    });
   };
 
   const handleEditingEmojiSelect = (emoji: string) => {
-    const textarea = editingTextareaRef.current;
-
-    if (!textarea) {
-      setEditingMessage((current) =>
-        clampDiscussionMessage(`${current}${emoji}`),
-      );
+    if (editingMentionsRef.current) {
+      editingMentionsRef.current.insertText(emoji);
       return;
     }
-
-    const selectionStart = textarea.selectionStart ?? editingMessage.length;
-    const selectionEnd = textarea.selectionEnd ?? editingMessage.length;
-    const nextMessage = clampDiscussionMessage(
-      editingMessage.slice(0, selectionStart) +
-        emoji +
-        editingMessage.slice(selectionEnd),
-    );
-    const nextCursorPosition = selectionStart + emoji.length;
-
-    setEditingMessage(nextMessage);
-
-    requestAnimationFrame(() => {
-      textarea.focus();
-      textarea.setSelectionRange(nextCursorPosition, nextCursorPosition);
-    });
   };
 
   const startEditingReply = (reply: DiscussionReply) => {
     setEditingMessageId(reply.id);
     setEditingMessage(reply.message);
+    setEditingMessagePlainText(reply.message);
+    setEditingMentionedUserIds(reply.mentionedUserIds ?? []);
 
     requestAnimationFrame(() => {
       editingTextareaRef.current?.focus();
@@ -288,10 +280,12 @@ export default function TicketRepliesPanel({
   const cancelEditingReply = () => {
     setEditingMessageId('');
     setEditingMessage('');
+    setEditingMessagePlainText('');
+    setEditingMentionedUserIds([]);
   };
 
   const handleSaveEditedReply = async (reply: DiscussionReply) => {
-    const trimmedMessage = editingMessage.trim();
+    const trimmedMessage = editingMessagePlainText.trim();
 
     if (
       !trimmedMessage ||
@@ -310,15 +304,18 @@ export default function TicketRepliesPanel({
       await onEditReply({
         reply,
         message: nextMessage,
+        mentionedUserIds: editingMentionedUserIds,
       });
     } catch (error) {
       setEditingMessageId(reply.id);
       setEditingMessage(nextMessage);
+      setEditingMessagePlainText(nextMessage);
+      setEditingMentionedUserIds(reply.mentionedUserIds ?? []);
       throw error;
     }
   };
   const handleAttachmentPaste = (
-    event: ClipboardEvent<HTMLTextAreaElement>,
+    event: ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     if (!canAttachFile || isSubmittingReply) {
       return;
@@ -396,8 +393,6 @@ export default function TicketRepliesPanel({
   const selectGalleryImage = (index: number) => {
     setActiveGalleryIndex(index);
   };
-
-  
 
   return (
     <>
@@ -562,19 +557,21 @@ export default function TicketRepliesPanel({
                                 : ''
                             }`}
                           >
-                            <MessageReactionBar
-                              reactions={reply.reactions ?? []}
-                              onToggleReaction={(emoji) =>
-                                void onToggleReaction?.(reply, emoji)
-                              }
-                              currentUserId={currentUserId}
-                              align={isCurrentUserReply ? 'end' : 'start'}
-                              className={
-                                isCurrentUserReply
-                                  ? 'left-auto right-3'
-                                  : undefined
-                              }
-                            />
+                            {!editingMessageId && (
+                              <MessageReactionBar
+                                reactions={reply.reactions ?? []}
+                                onToggleReaction={(emoji) =>
+                                  void onToggleReaction?.(reply, emoji)
+                                }
+                                currentUserId={currentUserId}
+                                align={isCurrentUserReply ? 'end' : 'start'}
+                                className={
+                                  isCurrentUserReply
+                                    ? 'left-auto right-3'
+                                    : undefined
+                                }
+                              />
+                            )}
                             <div
                               className={
                                 (onDeleteReply || onEditReply) &&
@@ -585,34 +582,53 @@ export default function TicketRepliesPanel({
                               }
                             >
                               {editingMessageId === reply.id ? (
-                                <div className="rounded-2xl border w-full border-gray-200  p-3">
-                                  <textarea
-                                    ref={editingTextareaRef}
-                                    rows={3}
-                                    value={editingMessage}
-                                    onChange={(event) =>
-                                      setEditingMessage(
-                                        clampDiscussionMessage(
-                                          event.target.value,
-                                        ),
-                                      )
-                                    }
-                                    onKeyDown={(event) => {
-                                      if (
-                                        event.key === 'Enter' &&
-                                        !event.shiftKey
-                                      ) {
-                                        event.preventDefault();
-                                        void handleSaveEditedReply(reply);
-                                      }
-                                    }}
-                                    disabled={editingReplyId === reply.id}
-                                    maxLength={MAX_DISCUSSION_MESSAGE_LENGTH}
-                                    style={EMOJI_TEXT_STYLE}
-                                    className="min-h-20 max-h-36 scrollbar-thin w-full resize-none bg-transparent px-2 py-1 text-sm text-gray-700 outline-none placeholder:text-gray-400"
-                                  />
+                                <div className="rounded-2xl border w-full border-gray-200  ">
+                                  <div className="border-hide p-1">
+                                    <DiscussionMentionsInput
+                                      value={editingMessage}
+                                      onChange={({
+                                        markupValue,
+                                        plainTextValue,
+                                        mentionedUserIds,
+                                      }) => {
+                                        setEditingMessage(markupValue);
+                                        setEditingMessagePlainText(
+                                          clampDiscussionMessage(
+                                            plainTextValue,
+                                          ),
+                                        );
+                                        setEditingMentionedUserIds(
+                                          mentionedUserIds,
+                                        );
+                                      }}
+                                      members={mentionMembers}
+                                      inputRef={editingTextareaRef}
+                                      mentionsRef={editingMentionsRef}
+                                      rows={3}
+                                      disabled={editingReplyId === reply.id}
+                                      maxLength={MAX_DISCUSSION_MESSAGE_LENGTH}
+                                      style={EMOJI_TEXT_STYLE}
+                                      inputClassName="min-h-20 max-h-36 scrollbar-thin"
+                                      onKeyDown={(event) => {
+                                        if (event.defaultPrevented) {
+                                          return;
+                                        }
 
-                                  <div className="mt-3 flex items-center justify-end gap-3">
+                                        if (
+                                          event.key === 'Enter' &&
+                                          !event.shiftKey
+                                        ) {
+                                          event.preventDefault();
+                                          void handleSaveEditedReply(reply);
+                                        }
+                                      }}
+                                    />
+                                  </div>
+                                  <div className="mt-2 text-right text-xs text-gray-500 px-3">
+                                    {editingMessage.length}/
+                                    {MAX_DISCUSSION_MESSAGE_LENGTH}
+                                  </div>
+                                  <div className=" flex items-center justify-end gap-3 pb-3 mt-1 px-3">
                                     <EmojiPickerButton
                                       disabled={editingReplyId === reply.id}
                                       onSelectEmoji={handleEditingEmojiSelect}
@@ -638,8 +654,9 @@ export default function TicketRepliesPanel({
                                           void handleSaveEditedReply(reply)
                                         }
                                         disabled={
-                                          !editingMessage.trim() ||
-                                          editingMessage.trim().length >
+                                          !editingMessagePlainText.trim() ||
+                                          editingMessagePlainText.trim()
+                                            .length >
                                             MAX_DISCUSSION_MESSAGE_LENGTH ||
                                           editingReplyId === reply.id
                                         }
@@ -673,11 +690,6 @@ export default function TicketRepliesPanel({
                                         : 'Save'}
                                     </button> */}
                                     </div>
-                                  </div>
-
-                                  <div className="mt-2 text-right text-xs text-gray-500">
-                                    {editingMessage.length}/
-                                    {MAX_DISCUSSION_MESSAGE_LENGTH}
                                   </div>
                                 </div>
                               ) : reply.message ? (
@@ -939,20 +951,29 @@ export default function TicketRepliesPanel({
 
         {canCompose ? (
           <div className="shrink-0 border-t border-gray-200  md:py-0 md:px-0">
-            <div className="  bg-white p-2 ">
-              <textarea
-                ref={textareaRef}
-                rows={2}
+            <div className="  bg-white p-2 border-hide">
+              <DiscussionMentionsInput
                 value={message}
-                onChange={(event) =>
-                  setMessage(clampDiscussionMessage(event.target.value))
-                }
-                onKeyDown={(event) => void handleComposerKeyDown(event)}
+                onChange={({
+                  markupValue,
+                  plainTextValue,
+                  mentionedUserIds: nextMentionedUserIds,
+                }) => {
+                  setMessage(markupValue);
+                  setMessagePlainText(clampDiscussionMessage(plainTextValue));
+                  setMentionedUserIds(nextMentionedUserIds);
+                }}
+                members={mentionMembers}
+                inputRef={textareaRef}
+                mentionsRef={composerMentionsRef}
+                rows={2}
                 placeholder={composerPlaceholder}
                 onPaste={handleAttachmentPaste}
                 disabled={isSubmittingReply}
                 maxLength={MAX_DISCUSSION_MESSAGE_LENGTH}
-                className="min-h-14 md:min-h-16 w-full resize-none bg-transparent px-2 py-1 text-sm text-gray-700 outline-none placeholder:text-gray-400"
+                style={EMOJI_TEXT_STYLE}
+                inputClassName="min-h-14 md:min-h-16"
+                onKeyDown={(event) => void handleComposerKeyDown(event)}
               />
 
               <input
@@ -1055,7 +1076,7 @@ export default function TicketRepliesPanel({
                 </div> */}
                 <div className="flex flex-col gap-1">
                   <div className="mt-1 text-right text-xs text-gray-500">
-                    {message.length}/{MAX_DISCUSSION_MESSAGE_LENGTH}
+                    {messagePlainText.length}/{MAX_DISCUSSION_MESSAGE_LENGTH}
                   </div>
                   <div className="flex items-center gap-2">
                     <EmojiPickerButton
@@ -1078,9 +1099,10 @@ export default function TicketRepliesPanel({
                       onClick={handleSubmit}
                       disabled={
                         (requireMessage
-                          ? !message.trim()
-                          : !message.trim() && !attachments.length) ||
-                        message.trim().length > MAX_DISCUSSION_MESSAGE_LENGTH ||
+                          ? !messagePlainText.trim()
+                          : !messagePlainText.trim() && !attachments.length) ||
+                        messagePlainText.trim().length >
+                          MAX_DISCUSSION_MESSAGE_LENGTH ||
                         isSubmittingReply
                       }
                       className="flex h-10 w-10 items-center justify-center rounded-full bg-[#10175A] text-white disabled:cursor-not-allowed disabled:opacity-60"
@@ -1202,7 +1224,7 @@ function ExpandableMessageText({
           isExpanded ? '' : 'line-clamp-5'
         }`}
       >
-        {message}
+        {renderHighlightedMentions(message)}
       </p>
       <p
         ref={overflowMeasureRef}
@@ -1225,6 +1247,23 @@ function ExpandableMessageText({
         </button>
       ) : null}
     </div>
+  );
+}
+
+function renderHighlightedMentions(message: string) {
+  const parts = message.split(/(@[A-Za-z0-9_]+)/g);
+
+  return parts.map((part, index) =>
+    /^@[A-Za-z0-9_]+$/.test(part) ? (
+      <span
+        key={`${part}-${index}`}
+        className="rounded-md bg-[#EEF2FF] px-1 py-0.5 font-medium text-[#10175A]"
+      >
+        {part}
+      </span>
+    ) : (
+      <span key={`${part}-${index}`}>{part}</span>
+    ),
   );
 }
 

@@ -33,10 +33,12 @@ import {
 import { usePermissions } from '../../../providers/PermissionProvider';
 import { useAppSelector } from '../../../Redux/store';
 import {
+  ChatIcon,
   DownloadIcon,
   EditIcon,
   EyeOpenedIcon,
   FileTypePlaceholder,
+  ProjectsIcon,
   ThreedotIcon,
   TrashIcon,
 } from '../../../../../public/icons';
@@ -58,6 +60,7 @@ import { validateAttachments } from '../../../../lib/attachments';
 import RichTextEditor from 'apps/frontend/src/components/RichTextEditor';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import ThemeButton from 'apps/frontend/src/components/ui/ThemeButton';
+import { CalendarTabIcon, FilesTabIcon } from '../../projects/[projectId]/page';
 const MAX_DESCRIPTION_LENGTH = 4000;
 type GalleryImage = {
   attachmentId: string;
@@ -73,6 +76,45 @@ type TicketAttachmentToDelete = {
   projectFileId: string;
   name: string;
 };
+
+type TicketTimelineItem = {
+  id: string;
+  title: string;
+  status: string;
+  statusClassName: string;
+  occurredAt: string;
+};
+
+const dummyTicketTimeline: TicketTimelineItem[] = [
+  {
+    id: 'ticket-closed',
+    title: 'Ticket',
+    status: 'Closed',
+    statusClassName: 'bg-gray-500 text-white',
+    occurredAt: '2026-08-08T16:35:00',
+  },
+  {
+    id: 'status-changed',
+    title: 'Status Changed',
+    status: 'Resolved',
+    statusClassName: 'bg-green-500 text-white',
+    occurredAt: '2026-08-08T11:20:00',
+  },
+  {
+    id: 'assignment-updated',
+    title: 'Assignment Updated',
+    status: 'Assigned',
+    statusClassName: 'bg-blue-500 text-white',
+    occurredAt: '2026-08-07T09:45:00',
+  },
+  {
+    id: 'ticket-created',
+    title: 'Ticket Created',
+    status: 'Open',
+    statusClassName: 'bg-red-500 text-white',
+    occurredAt: '2026-08-06T14:30:00',
+  },
+];
 
 export default function TicketDetailPage() {
   const params = useParams<{ ticketId: string }>();
@@ -98,6 +140,10 @@ export default function TicketDetailPage() {
   const canEditPriority = hasPermission('tickets.edit_priority');
   const canEditDueDate = hasPermission('tickets.edit_due_date');
   const canViewInternalChatBtn = hasPermission('tickets.internal_chat');
+  const canViewProjectDetail = hasPermission('projects.view_detail');
+  const canViewProjectThread = hasPermission('thread.view');
+  const canViewProjectFiles = hasPermission('files.view');
+  const canViewProjectCalendar = hasPermission('calendar.view_grid');
   const canEditTitleDescription = hasPermission(
     'tickets.edit_title_description',
   );
@@ -209,14 +255,22 @@ export default function TicketDetailPage() {
     mutationFn: async ({
       message,
       attachments,
+      mentionedUserIds,
     }: {
       message: string;
       attachments: File[];
+      mentionedUserIds: string[];
     }) => {
       const formData = new FormData();
       if (message.trim()) {
         formData.append('message', message.trim());
       }
+
+      mentionedUserIds.forEach((mentionedUserId) => {
+        if (mentionedUserId.trim()) {
+          formData.append('mentionedUserIds', mentionedUserId.trim());
+        }
+      });
 
       attachments.forEach((attachment) => {
         formData.append('attachments', attachment);
@@ -268,12 +322,19 @@ export default function TicketDetailPage() {
     mutationFn: async ({
       replyId,
       message,
+      mentionedUserIds,
     }: {
       replyId: string;
       message: string;
+      mentionedUserIds: string[];
     }) => {
       const formData = new FormData();
       formData.append('message', message.trim());
+      mentionedUserIds.forEach((mentionedUserId) => {
+        if (mentionedUserId.trim()) {
+          formData.append('mentionedUserIds', mentionedUserId.trim());
+        }
+      });
 
       const response = await fetch(
         `/api/tickets/${ticketId}/projects/${projectId}/reply/${replyId}`,
@@ -1217,9 +1278,11 @@ export default function TicketDetailPage() {
   const handleSubmitReply = async ({
     message,
     attachments,
+    mentionedUserIds,
   }: {
     message: string;
     attachments: File[];
+    mentionedUserIds: string[];
   }) => {
     if (!canPostReplies) {
       return;
@@ -1228,15 +1291,44 @@ export default function TicketDetailPage() {
     await createReplyMutation.mutateAsync({
       message,
       attachments,
+      mentionedUserIds,
     });
+  };
+
+  const handleOpenProjectQuickLink = (
+    tab?: 'thread' | 'files' | 'calendar',
+  ) => {
+    if (!projectId || !canViewProjectDetail) {
+      return;
+    }
+
+    const nextSearchParams = new URLSearchParams();
+
+    if (tab === 'thread') {
+      nextSearchParams.set('t', '1');
+    } else if (tab === 'files') {
+      nextSearchParams.set('t', '2');
+    } else if (tab === 'calendar') {
+      nextSearchParams.set('t', '3');
+    }
+
+    const queryString = nextSearchParams.toString();
+
+    router.push(
+      queryString
+        ? `/projects/${projectId}?${queryString}`
+        : `/projects/${projectId}`,
+    );
   };
 
   const handleEditTicketReply = async ({
     reply,
     message,
+    mentionedUserIds,
   }: {
     reply: DiscussionReply;
     message: string;
+    mentionedUserIds: string[];
   }) => {
     try {
       setEditingTicketReplyId(reply.id);
@@ -1247,6 +1339,7 @@ export default function TicketDetailPage() {
             ? {
                 ...currentReply,
                 message: message.trim(),
+                mentionedUserIds,
                 isEdited: true,
                 updatedAt: new Date().toISOString(),
               }
@@ -1257,6 +1350,7 @@ export default function TicketDetailPage() {
       await updateReplyMutation.mutateAsync({
         replyId: reply.id,
         message,
+        mentionedUserIds,
       });
     } finally {
       setEditingTicketReplyId('');
@@ -1266,11 +1360,13 @@ export default function TicketDetailPage() {
   const handleSubmitChatMessage = async ({
     message,
     attachments,
+    mentionedUserIds,
     channel,
     sendMessage,
   }: {
     message: string;
     attachments: File[];
+    mentionedUserIds: string[];
     channel: ChatChannel;
     sendMessage: (payload: {
       message: string;
@@ -1279,6 +1375,7 @@ export default function TicketDetailPage() {
       attachmentUrls?: string[];
       attachmentName?: string;
       attachmentSize?: number;
+      mentionedUserIds?: string[];
     }) => Promise<ChatMessage>;
   }) => {
     try {
@@ -1304,12 +1401,14 @@ export default function TicketDetailPage() {
               }`,
             messageType: 'attachment',
             attachmentUrls,
+            mentionedUserIds,
           });
         }
       } else if (trimmedMessage) {
         await sendMessage({
           message: trimmedMessage,
           messageType: 'text',
+          mentionedUserIds,
         });
       }
 
@@ -1451,10 +1550,12 @@ export default function TicketDetailPage() {
   const handleEditChatMessage = async ({
     reply,
     message,
+    mentionedUserIds,
     updateMessage,
   }: {
     reply: DiscussionReply;
     message: string;
+    mentionedUserIds: string[];
     updateMessage: (
       messageId: string,
       payload: {
@@ -1463,6 +1564,7 @@ export default function TicketDetailPage() {
         attachmentUrls?: string[];
         attachmentName?: string;
         attachmentSize?: number;
+        mentionedUserIds?: string[];
       },
     ) => Promise<ChatMessage>;
   }) => {
@@ -1470,6 +1572,7 @@ export default function TicketDetailPage() {
       setEditingChatMessageId(reply.id);
       await updateMessage(reply.id, {
         message: message.trim(),
+        mentionedUserIds,
       });
       appToast.success('Message updated successfully.');
     } catch (error) {
@@ -2000,6 +2103,7 @@ export default function TicketDetailPage() {
                         ? 'Internal Chat'
                         : 'Replies'
                     }
+                    mentionMembers={membersQuery.data ?? []}
                     headerAction={
                       canViewInternalChatBtn ? (
                         <label className="inline-flex items-center gap-2 sborder border-gray-200">
@@ -2140,10 +2244,11 @@ export default function TicketDetailPage() {
                     onEditReply={
                       isInternalChatActive && canViewInternalChatBtn
                         ? canEditReplies
-                          ? ({ reply, message }) =>
+                          ? ({ reply, message, mentionedUserIds }) =>
                               handleEditChatMessage({
                                 reply,
                                 message,
+                                mentionedUserIds,
                                 updateMessage: updateInternalChatMessage,
                               })
                           : undefined
@@ -2174,12 +2279,12 @@ export default function TicketDetailPage() {
                         : editingTicketReplyId
                     }
                     composerPlaceholder={
-  isInternalChatActive && canViewInternalChatBtn
-    ? 'Write a message...'
-    : (ticket as any).createdByDetail?.name
-      ? `Write a reply to ${(ticket as any).createdByDetail.name}...`
-      : 'Write a reply...'
-}
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? 'Write a message...'
+                        : (ticket as any).createdByDetail?.name
+                          ? `Write a reply to ${(ticket as any).createdByDetail.name}...`
+                          : 'Write a reply...'
+                    }
                   />
                 ) : null}
               </div>
@@ -2188,6 +2293,72 @@ export default function TicketDetailPage() {
               className="h-auto min-h-0 min-w-0 space-y-4 overflow-visible scrollbar-hide xl:col-span-3 xl:h-full xl:overflow-y-auto"
               // className="min-h-0 min-w-0 space-y-4 overflow-y-auto scrollbar-hide  xl:col-span-3 xl:h-full"
             >
+              {projectId && canViewProjectDetail ? (
+                <section className="rounded-xl border border-gray-200 bg-white">
+                  <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 md:text-base">
+                    Quick Links
+                  </h3>
+
+                  <div>
+                    <QuickLinkButton
+                      label="Go to Project"
+                      iconBg="bg-blue-500"
+                      icon={
+                        <ProjectsIcon
+                          opacity="0"
+                          fill="white"
+                          width="22"
+                          height="18"
+                        />
+                      }
+                      onClick={() => handleOpenProjectQuickLink()}
+                    />
+                    {canViewProjectThread ? (
+                      <QuickLinkButton
+                        label="Thread"
+                        iconBg="bg-purple-500"
+                        icon={<ChatIcon fill="white" width="16" height="16" />}
+                        onClick={() => handleOpenProjectQuickLink('thread')}
+                      />
+                    ) : null}
+                    {canViewProjectFiles ? (
+                      <QuickLinkButton
+                        label="Files"
+                        iconBg="bg-warning-500"
+                        icon={
+                          <FilesTabIcon fill="white" width="16" height="16" />
+                        }
+                        onClick={() => handleOpenProjectQuickLink('files')}
+                      />
+                    ) : null}
+                    {canViewProjectCalendar ? (
+                      <QuickLinkButton
+                        label="Calendar"
+                        iconBg="bg-green-500"
+                        icon={
+                          <CalendarTabIcon
+                            fill="white"
+                            width="16"
+                            height="16"
+                          />
+                        }
+                        onClick={() => handleOpenProjectQuickLink('calendar')}
+                      />
+                    ) : null}
+                  </div>
+                </section>
+              ) : null}
+
+              <section className="rounded-xl border border-gray-200 bg-white">
+                <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 md:text-base">
+                  Ticket Timeline
+                </h3>
+
+                <div className="px-4 py-4">
+                  <TicketTimeline items={dummyTicketTimeline} />
+                </div>
+              </section>
+
               {/* {!isExternalUser ? ( */}
               <section className="rounded-xl border border-gray-200 bg-white">
                 <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 md:text-base">
@@ -2482,13 +2653,15 @@ export default function TicketDetailPage() {
                       })
                   : undefined
               }
+              mentionMembers={membersQuery.data ?? []}
               requireMessage={false}
               currentUserId={currentUserId}
               onDeleteReply={handleDeleteChatMessage}
-              onEditReply={({ reply, message }) =>
+              onEditReply={({ reply, message, mentionedUserIds }) =>
                 handleEditChatMessage({
                   reply,
                   message,
+                  mentionedUserIds,
                   updateMessage: updateExternalChatMessage,
                 })
               }
@@ -2735,6 +2908,7 @@ type ApiTicketReply = {
   authorId?: string | null;
   createdBy?: string | null;
   message?: string | null;
+  mentionedUserIds?: string[] | null;
   author?: ApiTicketPerson | null;
   attachments?: ApiTicketReplyAttachment[];
   reactions?: ApiTicketReplyReaction[] | null;
@@ -2931,6 +3105,13 @@ function mapChatMessageToDiscussionReply(
   return {
     id: message.id,
     authorId: message.senderId,
+    mentionedUserIds: Array.isArray(message.mentionedUserIds)
+      ? message.mentionedUserIds.filter(
+          (mentionedUserId): mentionedUserId is string =>
+            typeof mentionedUserId === 'string' &&
+            mentionedUserId.trim().length > 0,
+        )
+      : [],
     updatedAt: message.updatedAt,
     isEdited: Boolean(
       message.updatedAt &&
@@ -3029,6 +3210,13 @@ function mapApiTicketReplyToDiscussionReply(
   return {
     id: reply.id,
     authorId,
+    mentionedUserIds: Array.isArray(reply.mentionedUserIds)
+      ? reply.mentionedUserIds.filter(
+          (mentionedUserId): mentionedUserId is string =>
+            typeof mentionedUserId === 'string' &&
+            mentionedUserId.trim().length > 0,
+        )
+      : [],
     updatedAt: reply.updatedAt,
     isEdited: Boolean(
       reply.updatedAt &&
@@ -3569,6 +3757,28 @@ function formatReplyDate(value: string) {
   }).format(date);
 }
 
+function formatTimelineDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  const [formattedDate, formattedTime] = new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+    .format(date)
+    .split(', ');
+
+  return formattedTime
+    ? `${formattedDate}  •  ${formattedTime}`
+    : formattedDate;
+}
+
 function formatBytes(sizeBytes: string | number | null | undefined) {
   const bytes = Number(sizeBytes);
 
@@ -3810,6 +4020,105 @@ function FileBadgeIcon({ extension }: { extension?: string }) {
       </span>
       <FileTypePlaceholder />
     </span>
+  );
+}
+
+function QuickLinkButton({
+  label,
+  icon,
+  iconBg,
+  onClick,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  iconBg: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-3 border-b border-gray-200 px-4 py-3 text-left transition last:border-b-0 hover:bg-gray-50"
+    >
+      <span
+        className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconBg}`}
+      >
+        {icon}
+      </span>
+      <span className="flex-1 text-sm font-semibold text-gray-900">
+        {label}
+      </span>
+      <span className="text-gray-500">
+        <ChevronRightSmallIcon />
+      </span>
+    </button>
+  );
+}
+
+function TicketTimeline({ items }: { items: TicketTimelineItem[] }) {
+  return (
+    <div className="space-y-0">
+      {items.map((item, index) => {
+        const isLastItem = index === items.length - 1;
+
+        return (
+          <div key={item.id} className="relative flex gap-2.5 pb-4 last:pb-0">
+            {!isLastItem ? (
+              <span
+                aria-hidden="true"
+                className="absolute left-3 top-6 h-[calc(100%-0.25rem)] border border-dashed border-gray-300"
+              />
+            ) : null}
+
+            <span className="relative z-10 mt-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white">
+              <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-gray-300 bg-white">
+                <span className="h-1.5 min-w-1.5 rounded-full bg-gray-300" />
+              </span>
+            </span>
+
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold text-gray-900 md:text-sm">
+                  {item.title}
+                </span>
+                <span
+                  className={clsx(
+                    'inline-flex rounded-full px-2 py-1 text-xs font-semibold leading-none',
+                    item.statusClassName,
+                  )}
+                >
+                  {item.status}
+                </span>
+              </div>
+              <p className="mt-1.5 text-xs text-gray-500">
+                {formatTimelineDate(item.occurredAt)}
+              </p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ChevronRightSmallIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 18 18"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        d="M7 4.5L11.5 9L7 13.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 

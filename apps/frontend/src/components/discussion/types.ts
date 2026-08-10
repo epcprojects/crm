@@ -3,6 +3,7 @@
 export type DiscussionReply = {
   id: string;
   authorId?: string;
+  mentionedUserIds?: string[];
   replyCount?: number;
   status?: 'sent' | 'read';
   updatedAt?: string;
