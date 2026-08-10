@@ -66,8 +66,9 @@ export class ActivityLogService {
         ],
       },
     );
+    // console.debug('activity.actor.id ' , activity.actor.id);
     // Don't show activities performed by the current user
-    qb.andWhere('activity.actorId != :userId', {
+    qb.andWhere('(activity.actorId IS NULL OR activity.actorId != :userId)', {
       userId: user.id,
     });
 
