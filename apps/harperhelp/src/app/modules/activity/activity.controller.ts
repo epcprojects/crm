@@ -33,6 +33,15 @@ export class ActivityController {
   findAll(@Query() query: GetActivityLogsDto, @GetUser() user) {
     return this.activityLogService.findAllActivities(query, user);
   }
+   
+  @Get('project/:projectId/tickets/:ticketId')
+  findTicketActivities(
+    @Param('projectId') projectId: string,
+    @Param('ticketId') ticketId: string,
+    @GetUser() user,
+  ) {
+    return this.activityLogService.findActivityByTicketId(projectId, ticketId, user);
+  }
 
   @Get(':id')
   findOne(@Param('id') id: string) {
