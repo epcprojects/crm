@@ -77,44 +77,16 @@ type TicketAttachmentToDelete = {
   name: string;
 };
 
+type TicketSidebarTabKey = 'quick-links' | 'timeline';
+
 type TicketTimelineItem = {
   id: string;
-  title: string;
+    description: string;
   status: string;
   statusClassName: string;
+  statusStyle?: React.CSSProperties;
   occurredAt: string;
 };
-
-const dummyTicketTimeline: TicketTimelineItem[] = [
-  {
-    id: 'ticket-closed',
-    title: 'Ticket',
-    status: 'Closed',
-    statusClassName: 'bg-gray-500 text-white',
-    occurredAt: '2026-08-08T16:35:00',
-  },
-  {
-    id: 'status-changed',
-    title: 'Status Changed',
-    status: 'Resolved',
-    statusClassName: 'bg-green-500 text-white',
-    occurredAt: '2026-08-08T11:20:00',
-  },
-  {
-    id: 'assignment-updated',
-    title: 'Assignment Updated',
-    status: 'Assigned',
-    statusClassName: 'bg-blue-500 text-white',
-    occurredAt: '2026-08-07T09:45:00',
-  },
-  {
-    id: 'ticket-created',
-    title: 'Ticket Created',
-    status: 'Open',
-    statusClassName: 'bg-red-500 text-white',
-    occurredAt: '2026-08-06T14:30:00',
-  },
-];
 
 export default function TicketDetailPage() {
   const params = useParams<{ ticketId: string }>();
@@ -167,6 +139,11 @@ export default function TicketDetailPage() {
     queryFn: () => fetchTicketReplies(ticketId, currentUserId),
     enabled: Boolean(ticketId && canViewReplies),
   });
+  const ticketTimelineQuery = useQuery({
+    queryKey: ['ticket-timeline', projectId, ticketId],
+    queryFn: () => fetchTicketTimeline(projectId, ticketId),
+    enabled: Boolean(projectId && ticketId && canViewTicketDetail),
+  });
   const [replySocketToken, setReplySocketToken] =
     useState<SocketTokenResponse | null>(null);
   const [liveReplies, setLiveReplies] = useState<DiscussionReply[]>([]);
@@ -213,6 +190,7 @@ export default function TicketDetailPage() {
         queryClient.invalidateQueries({
           queryKey: ['ticket-detail', projectId, ticketId],
         }),
+        invalidateTicketTimeline(),
         queryClient.invalidateQueries({
           queryKey: ['dashboard-project-tickets'],
           refetchType: 'all',
@@ -301,6 +279,7 @@ export default function TicketDetailPage() {
         queryClient.invalidateQueries({
           queryKey: ['ticket-replies', ticketId],
         }),
+        invalidateTicketTimeline(),
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'ticket-summary'],
           refetchType: 'all',
@@ -361,6 +340,7 @@ export default function TicketDetailPage() {
         queryClient.invalidateQueries({
           queryKey: ['ticket-replies', ticketId],
         }),
+        invalidateTicketTimeline(),
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'ticket-summary'],
           refetchType: 'all',
@@ -407,6 +387,7 @@ export default function TicketDetailPage() {
         queryClient.invalidateQueries({
           queryKey: ['ticket-replies', ticketId],
         }),
+        invalidateTicketTimeline(),
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'ticket-summary'],
           refetchType: 'all',
@@ -468,6 +449,14 @@ export default function TicketDetailPage() {
   });
 
   const ticket = ticketDetailQuery.data ?? fallbackTicket;
+  const ticketTimelineItems = useMemo(
+    () =>
+      mapApiTicketTimelineToItems(
+        ticketTimelineQuery.data ?? [],
+        statusListQuery.data ?? [],
+      ),
+    [statusListQuery.data, ticketTimelineQuery.data],
+  );
   const [chatDrawerChannel, setChatDrawerChannel] =
     useState<ChatChannel | null>(null);
   // const [conversationView, setConversationView] =
@@ -533,6 +522,8 @@ export default function TicketDetailPage() {
   const [selectedPriority, setSelectedPriority] = useState('');
   const [selectedAssignee, setSelectedAssignee] = useState('');
   const [selectedDueDate, setSelectedDueDate] = useState('');
+  const [ticketSidebarTab, setTicketSidebarTab] =
+    useState<TicketSidebarTabKey>('quick-links');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
@@ -687,11 +678,18 @@ export default function TicketDetailPage() {
     [ticket?.attachments],
   );
 
+  const invalidateTicketTimeline = async () => {
+    await queryClient.invalidateQueries({
+      queryKey: ['ticket-timeline', projectId, ticketId],
+    });
+  };
+
   const invalidateTicketRelated = async () => {
     await Promise.all([
       queryClient.invalidateQueries({
         queryKey: ['ticket-detail', projectId, ticketId],
       }),
+      invalidateTicketTimeline(),
       queryClient.invalidateQueries({
         queryKey: ['dashboard-project-tickets'],
         refetchType: 'all',
@@ -2295,69 +2293,123 @@ export default function TicketDetailPage() {
             >
               {projectId && canViewProjectDetail ? (
                 <section className="rounded-xl border border-gray-200 bg-white">
-                  <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 md:text-base">
-                    Quick Links
-                  </h3>
+                  <div className="border-b border-gray-200 px-3 py-3">
+                    <div className="relative grid w-full grid-cols-2 gap-1 rounded-full border border-gray-200 bg-gray-50 p-1 shadow-[inset_0_1px_3px_rgba(15,23,42,0.06)]">
+                      <div
+                        className="absolute top-1 bottom-1 left-0 rounded-full bg-white shadow-[0_0_25px_0_rgb(27_28_29/0.12)] transition-all duration-300 ease-out"
+                        style={{
+                          width: 'calc(50% - 0.375rem)',
+                          left:
+                            ticketSidebarTab === 'quick-links'
+                              ? '0.25rem'
+                              : 'calc(50% + 0.125rem)',
+                          opacity: 1,
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setTicketSidebarTab('quick-links')}
+                        className={`relative z-10 w-full rounded-full px-4 py-1.25 text-sm font-medium transition-colors duration-300 ${
+                          ticketSidebarTab === 'quick-links'
+                            ? 'text-gray-950'
+                            : 'text-gray-500 hover:text-gray-800'
+                        }`}
+                      >
+                        Quick Links
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTicketSidebarTab('timeline')}
+                        className={`relative z-10 w-full rounded-full px-4 py-1.25 text-sm font-medium transition-colors duration-300 ${
+                          ticketSidebarTab === 'timeline'
+                            ? 'text-gray-950'
+                            : 'text-gray-500 hover:text-gray-800'
+                        }`}
+                      >
+                        Ticket Timeline
+                      </button>
+                    </div>
+                  </div>
 
-                  <div>
-                    <QuickLinkButton
-                      label="Go to Project"
-                      iconBg="bg-blue-500"
-                      icon={
-                        <ProjectsIcon
-                          opacity="0"
-                          fill="white"
-                          width="22"
-                          height="18"
+                  <div className="relative">
+                    {ticketSidebarTab === 'quick-links' ? (
+                      <div>
+                        <QuickLinkButton
+                          label="Go to Project"
+                          iconBg="bg-blue-500"
+                          icon={
+                            <ProjectsIcon
+                              opacity="0"
+                              fill="white"
+                              width="22"
+                              height="18"
+                            />
+                          }
+                          onClick={() => handleOpenProjectQuickLink()}
                         />
-                      }
-                      onClick={() => handleOpenProjectQuickLink()}
-                    />
-                    {canViewProjectThread ? (
-                      <QuickLinkButton
-                        label="Thread"
-                        iconBg="bg-purple-500"
-                        icon={<ChatIcon fill="white" width="16" height="16" />}
-                        onClick={() => handleOpenProjectQuickLink('thread')}
-                      />
-                    ) : null}
-                    {canViewProjectFiles ? (
-                      <QuickLinkButton
-                        label="Files"
-                        iconBg="bg-warning-500"
-                        icon={
-                          <FilesTabIcon fill="white" width="16" height="16" />
-                        }
-                        onClick={() => handleOpenProjectQuickLink('files')}
-                      />
-                    ) : null}
-                    {canViewProjectCalendar ? (
-                      <QuickLinkButton
-                        label="Calendar"
-                        iconBg="bg-green-500"
-                        icon={
-                          <CalendarTabIcon
-                            fill="white"
-                            width="16"
-                            height="16"
+                        {canViewProjectThread ? (
+                          <QuickLinkButton
+                            label="Thread"
+                            iconBg="bg-purple-500"
+                            icon={
+                              <ChatIcon fill="white" width="16" height="16" />
+                            }
+                            onClick={() => handleOpenProjectQuickLink('thread')}
                           />
-                        }
-                        onClick={() => handleOpenProjectQuickLink('calendar')}
-                      />
-                    ) : null}
+                        ) : null}
+                        {canViewProjectFiles ? (
+                          <QuickLinkButton
+                            label="Files"
+                            iconBg="bg-warning-500"
+                            icon={
+                              <FilesTabIcon
+                                fill="white"
+                                width="16"
+                                height="16"
+                              />
+                            }
+                            onClick={() => handleOpenProjectQuickLink('files')}
+                          />
+                        ) : null}
+                        {canViewProjectCalendar ? (
+                          <QuickLinkButton
+                            label="Calendar"
+                            iconBg="bg-green-500"
+                            icon={
+                              <CalendarTabIcon
+                                fill="white"
+                                width="16"
+                                height="16"
+                              />
+                            }
+                            onClick={() =>
+                              handleOpenProjectQuickLink('calendar')
+                            }
+                          />
+                        ) : null}
+                      </div>
+                    ) : (
+                      <div className="px-4 py-4">
+                        <TicketTimeline items={ticketTimelineItems} />
+                      </div>
+                    )}
                   </div>
                 </section>
-              ) : null}
+              ) : (
+                <section className="rounded-xl border border-gray-200 bg-white">
+                  <div className="border-b border-gray-200 px-3 py-3">
+                    <div className="flex items-center rounded-full border border-gray-200 bg-gray-50 p-1 shadow-[inset_0_1px_3px_rgba(15,23,42,0.06)]">
+                      <span className="w-full rounded-full bg-white px-4 py-1.5 text-center text-sm font-medium text-gray-950 shadow-[0_0_20px_rgba(15,23,42,0.08)]">
+                        Ticket Timeline
+                      </span>
+                    </div>
+                  </div>
 
-              <section className="rounded-xl border border-gray-200 bg-white">
-                <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 md:text-base">
-                  Ticket Timeline
-                </h3>
-
-                <div className="px-4 py-4">
-                  <TicketTimeline items={dummyTicketTimeline} />
-                </div>
-              </section>
+                  <div className="px-4 py-4">
+                    <TicketTimeline items={ticketTimelineItems} />
+                  </div>
+                </section>
+              )}
 
               {/* {!isExternalUser ? ( */}
               <section className="rounded-xl border border-gray-200 bg-white">
@@ -2885,6 +2937,34 @@ async function fetchTicketReplies(ticketId: string, currentUserId: string) {
   );
 }
 
+async function fetchTicketTimeline(projectId: string, ticketId: string) {
+  const response = await fetch(
+    `/api/activity/project/${projectId}/tickets/${ticketId}`,
+    {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+    },
+  );
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiTicketTimelineActivity[]
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !Array.isArray(payload)) {
+    throw new Error(
+      !Array.isArray(payload)
+        ? payload?.message || 'Failed to fetch ticket timeline.'
+        : 'Failed to fetch ticket timeline.',
+    );
+  }
+
+  return payload;
+}
+
 type ApiProjectMember = {
   id: string;
   fullName: string;
@@ -2912,6 +2992,14 @@ type ApiTicketReply = {
   author?: ApiTicketPerson | null;
   attachments?: ApiTicketReplyAttachment[];
   reactions?: ApiTicketReplyReaction[] | null;
+};
+
+type ApiTicketTimelineActivity = {
+  id: string;
+  createdAt?: string | null;
+  actorId?: string | null;
+  type?: string | null;
+  title?: string | null;
 };
 
 type ApiTicketReplyReaction = {
@@ -3080,6 +3168,116 @@ function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
       : null,
     replies: [],
   };
+}
+
+function mapApiTicketTimelineToItems(
+  activities: ApiTicketTimelineActivity[],
+  ticketStatuses: ApiTicketStatus[],
+): TicketTimelineItem[] {
+  return activities.map((activity) => {
+    const timelineMeta = getTicketTimelineMeta(activity, ticketStatuses);
+
+    return {
+      id: activity.id,
+      description:
+        activity.title?.replace(/^"+|"+$/g, '').trim() ||
+        timelineMeta.description,
+      status: timelineMeta.status,
+      statusClassName: timelineMeta.statusClassName,
+      statusStyle: timelineMeta.statusStyle,
+      occurredAt: activity.createdAt ?? '',
+    };
+  });
+}
+
+function getTicketTimelineMeta(
+  activity: ApiTicketTimelineActivity,
+  ticketStatuses: ApiTicketStatus[],
+) {
+  const type = activity.type?.trim() ?? '';
+  const normalizedTitle = activity.title?.replace(/"/g, '').trim() ?? '';
+
+  if (type === 'ticket_assignee_changed') {
+    return {
+      status: extractValueAfterKeyword(normalizedTitle, 'assigned to') ?? 'Assigned',
+      statusClassName: 'bg-blue-500 text-white',
+      description: normalizedTitle || 'Assignment updated.',
+    };
+  }
+
+  if (type === 'ticket_priority_changed') {
+    return {
+      status: extractValueAfterKeyword(normalizedTitle, 'priority changed to') ?? 'Updated',
+      statusClassName: 'bg-yellow-500 text-white',
+      description: normalizedTitle || 'Priority changed.',
+    };
+  }
+
+  if (type === 'ticket_status_changed') {
+    const status =
+      extractValueAfterKeyword(normalizedTitle, 'status changed to') ?? 'Updated';
+    const statusColor = getTicketStatusColorFromSettings(status, ticketStatuses);
+
+    return {
+      status,
+      statusClassName: 'text-white',
+      statusStyle: statusColor ? { backgroundColor: statusColor } : undefined,
+      description: normalizedTitle || 'Status changed.',
+    };
+  }
+
+  if (type === 'ticket_created') {
+    const status = 'Open';
+    const statusColor = getTicketStatusColorFromSettings(status, ticketStatuses);
+
+    return {
+      status,
+      statusClassName: 'text-white',
+      statusStyle: statusColor ? { backgroundColor: statusColor } : undefined,
+      description: normalizedTitle || 'Ticket created.',
+    };
+  }
+
+  return {
+    status: 'Updated',
+    statusClassName: 'bg-gray-500 text-white',
+    description: normalizedTitle || 'Ticket updated.',
+  };
+}
+
+function extractValueAfterKeyword(value: string, keyword: string) {
+  const normalizedValue = value.toLowerCase();
+  const normalizedKeyword = keyword.toLowerCase();
+  const keywordIndex = normalizedValue.indexOf(normalizedKeyword);
+
+  if (keywordIndex < 0) {
+    return null;
+  }
+
+  const rawMatch = value
+    .slice(keywordIndex + keyword.length)
+    .split(' by ')[0]
+    ?.trim();
+
+  return rawMatch || null;
+}
+
+function getTicketStatusColorFromSettings(
+  statusValue: string,
+  ticketStatuses: ApiTicketStatus[],
+) {
+  const normalizedStatusValue = normalizeTicketSettingValue(statusValue);
+  const matchedStatus = ticketStatuses.find(
+    (status) =>
+      normalizeTicketSettingValue(status.key) === normalizedStatusValue ||
+      normalizeTicketSettingValue(status.label) === normalizedStatusValue,
+  );
+
+  return matchedStatus?.color?.trim() || null;
+}
+
+function normalizeTicketSettingValue(value: string) {
+  return value.replace(/[^a-z0-9]/gi, '').toLowerCase();
 }
 
 function mapChatMessageToDiscussionReply(
@@ -4056,6 +4254,17 @@ function QuickLinkButton({
 }
 
 function TicketTimeline({ items }: { items: TicketTimelineItem[] }) {
+  if (!items.length) {
+    return (
+      <EmptyState
+        imageUrl="/images/NotificationEmptyState.svg"
+        imageAlt="No timeline activity"
+        title="No Activity"
+        description="Timeline activity will appear here once updates happen on this ticket."
+      />
+    );
+  }
+
   return (
     <div className="space-y-0">
       {items.map((item, index) => {
@@ -4077,19 +4286,16 @@ function TicketTimeline({ items }: { items: TicketTimelineItem[] }) {
             </span>
 
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold text-gray-900 md:text-sm">
-                  {item.title}
-                </span>
-                <span
-                  className={clsx(
-                    'inline-flex rounded-full px-2 py-1 text-xs font-semibold leading-none',
-                    item.statusClassName,
-                  )}
-                >
-                  {item.status}
-                </span>
-              </div>
+              <span
+                className={clsx(
+                  'inline-flex rounded-full px-2 py-1 text-xs font-semibold leading-none',
+                  item.statusClassName,
+                )}
+                style={item.statusStyle}
+              >
+                {item.status}
+              </span>
+              <p className="mt-1.5 text-sm text-gray-700">{item.description}</p>
               <p className="mt-1.5 text-xs text-gray-500">
                 {formatTimelineDate(item.occurredAt)}
               </p>

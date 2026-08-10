@@ -23,6 +23,8 @@ type MentionableMember = MentionDataItem<{
   fullName?: string;
 }>;
 
+const DEFAULT_MENTION_MARKUP = '@[__display__](__id__)';
+
 type DiscussionMentionsInputProps = {
   value: string;
   onChange: (payload: {
@@ -60,6 +62,43 @@ function getSingleWordDisplayName(fullName: string) {
   const [firstWord] = fullName.trim().split(/\s+/);
 
   return firstWord || fullName.trim();
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function hydrateMentionMarkupFromMessage(
+  message: string,
+  mentionedUserIds: string[],
+  members: ProjectMember[],
+) {
+  if (!message.trim() || !mentionedUserIds.length || !members.length) {
+    return message;
+  }
+
+  const membersById = new Map(
+    members.map((member) => [member.id, getSingleWordDisplayName(member.fullName)]),
+  );
+
+  let hydratedMessage = message;
+
+  mentionedUserIds.forEach((mentionedUserId) => {
+    const displayName = membersById.get(mentionedUserId)?.trim();
+
+    if (!displayName) {
+      return;
+    }
+
+    const mentionRegex = new RegExp(`@${escapeRegExp(displayName)}\\b`);
+    const markupValue = DEFAULT_MENTION_MARKUP
+      .replace('__display__', displayName)
+      .replace('__id__', mentionedUserId);
+
+    hydratedMessage = hydratedMessage.replace(mentionRegex, markupValue);
+  });
+
+  return hydratedMessage;
 }
 
 function getMentionedUserIds(

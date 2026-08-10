@@ -108,6 +108,7 @@ type ApiDashboardActivityItem = {
   projectId?: string | null;
   ticketId?: string | null;
   actor?: {
+    id?: string | null;
     fullName?: string | null;
   } | null;
   project?: {
@@ -171,6 +172,12 @@ export default function Page() {
   const [projectPanelTab, setProjectPanelTab] =
     useState<DashboardProjectPanelTabKey>('projects');
   const activityScrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const projectPanelButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const [projectPanelIndicatorStyle, setProjectPanelIndicatorStyle] = useState({
+    width: 0,
+    transform: 'translateX(0px)',
+    opacity: 0,
+  });
   const [isExportingTickets, setIsExportingTickets] = useState(false);
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [projectToEdit, setProjectToEdit] = useState<ProjectRecord | null>(
@@ -193,11 +200,32 @@ export default function Page() {
   const selectedDashboardTab = getDashboardTabValue(
     searchParams.get(DASHBOARD_TABS_QUERY_PARAM),
   );
+  const projectPanelTabs: DashboardProjectPanelTabKey[] = [
+    'projects',
+    'activity',
+  ];
 
   const selectedProjectIds = getTicketsProjectFilterValues(
     searchParams.getAll(TICKETS_PROJECT_QUERY_PARAM),
     searchParams.get(TICKETS_PROJECT_QUERY_PARAM),
   );
+  const activeProjectPanelIndex = projectPanelTabs.findIndex(
+    (tab) => tab === projectPanelTab,
+  );
+
+  useEffect(() => {
+    const activeButton = projectPanelButtonRefs.current[activeProjectPanelIndex];
+
+    if (!activeButton) {
+      return;
+    }
+
+    setProjectPanelIndicatorStyle({
+      width: activeButton.offsetWidth,
+      transform: `translateX(${activeButton.offsetLeft}px)`,
+      opacity: 1,
+    });
+  }, [activeProjectPanelIndex]);
   const selectedProjectIdsKey = selectedProjectIds.join(',');
 
   const ticketStatusesQuery = useQuery({
@@ -669,6 +697,7 @@ export default function Page() {
     canViewUpcoming &&
     (upcomingTicketsQuery.isLoading || criticalTicketsQuery.isLoading);
   const user = useAppSelector((state) => state.auth.user);
+  const currentUserId = user?.id ?? '';
   const currentUserName = user?.fullName || 'Admin';
   const canCreateProject = hasPermission('projects.create');
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
@@ -696,8 +725,11 @@ export default function Page() {
   };
   const displayedProjects = projectsQuery.data ?? [];
   const dashboardActivityItems = useMemo(
-    () => activityQuery.data?.pages.flatMap((page) => page.items) ?? [],
-    [activityQuery.data],
+    () =>
+      (activityQuery.data?.pages.flatMap((page) => page.items) ?? []).filter(
+        (item) => item.actorId !== currentUserId,
+      ),
+    [activityQuery.data, currentUserId],
   );
   // const displayedProjects = (projectsQuery.data ?? []).slice(0, 0);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -1246,24 +1278,38 @@ export default function Page() {
             <PermissionGuard permission="dashboard.view_project_cards">
               <div className="bg-white relative shadow-[0_0_35px_0_rgb(0_0_0/0.04)] h-full flex-1 overflow-y-auto scrollbar-hide rounded-xl  flex flex-col gap-3.5 pb-4">
                 <div className="flex flex-row justify-between items-center sticky w-full  z-10 top-0 px-4 pt-4 bg-white">
-                  <div className="flex items-center rounded-full border border-gray-200 w-full bg-gray-50 p-1 shadow-[inset_0_1px_3px_rgba(15,23,42,0.06)]">
+                  <div className="relative grid w-full grid-cols-2 gap-1 rounded-full border border-gray-200 bg-gray-50 p-1 shadow-[inset_0_1px_3px_rgba(15,23,42,0.06)]">
+                    <div
+                      className="absolute top-1 bottom-1 left-0 rounded-full bg-white shadow-[0_0_25px_0_rgb(27_28_29/0.12)] transition-all duration-300 ease-out"
+                      style={{
+                        width: projectPanelIndicatorStyle.width,
+                        transform: projectPanelIndicatorStyle.transform,
+                        opacity: projectPanelIndicatorStyle.opacity,
+                      }}
+                    />
                     <button
+                      ref={(element) => {
+                        projectPanelButtonRefs.current[0] = element;
+                      }}
                       type="button"
                       onClick={() => setProjectPanelTab('projects')}
-                      className={`rounded-full px-4 py-1.5 w-full text-sm font-medium transition ${
+                      className={`relative z-10 w-full rounded-full px-4 py-1.25 text-sm font-medium transition-colors duration-300 ${
                         projectPanelTab === 'projects'
-                          ? 'bg-white text-gray-950 shadow-[0_0_20px_rgba(15,23,42,0.08)]'
+                          ? 'text-gray-950'
                           : 'text-gray-500 hover:text-gray-800'
                       }`}
                     >
                       Projects
                     </button>
                     <button
+                      ref={(element) => {
+                        projectPanelButtonRefs.current[1] = element;
+                      }}
                       type="button"
                       onClick={() => setProjectPanelTab('activity')}
-                      className={`rounded-full px-4 py-1.5 w-full text-sm font-medium transition ${
+                      className={`relative z-10 w-full rounded-full px-4 py-1.25 text-sm font-medium transition-colors duration-300 ${
                         projectPanelTab === 'activity'
-                          ? 'bg-white text-gray-950 shadow-[0_0_20px_rgba(15,23,42,0.08)]'
+                          ? 'text-gray-950'
                           : 'text-gray-500 hover:text-gray-800'
                       }`}
                     >
@@ -1272,7 +1318,7 @@ export default function Page() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-3 px-3">
+                <div className="relative grid grid-cols-1 gap-3 px-3">
                   {projectPanelTab === 'projects' ? (
                     projectsQuery.isLoading ? (
                       Array.from({ length: 3 }).map((_, index) => (
@@ -1716,7 +1762,45 @@ function DashboardActivityRow({ item }: { item: DashboardActivityItem }) {
 function ActivityEntityIcon({ item }: { item: DashboardActivityItem }) {
   const iconClassName = item.accentClassName;
 
-  if (item.entityType === 'ticket_reply') {
+  if (item.type === 'mentioned_in_ticket_reply') {
+    return (
+      <span className="text-base font-bold leading-none text-green-500">
+        @
+      </span>
+    );
+  }
+
+  if (item.type === 'mentioned_in_thread_message') {
+    return (
+      <span className="text-base font-bold leading-none text-warning-600">
+        @
+      </span>
+    );
+  }
+
+  if (item.type === 'mentioned_in_internal_message') {
+    return (
+      <span className="text-base font-bold leading-none text-blue-500">
+        @
+      </span>
+    );
+  }
+
+  if (
+    item.entityType === 'ticket_reply' &&
+    item.type === 'ticket_reply_reaction'
+  ) {
+    return (
+      <span className={iconClassName}>
+        <EmojiSmileIcon fill="#079455" />
+      </span>
+    );
+  }
+
+  if (
+    item.entityType === 'ticket_reply' &&
+    item.type !== 'ticket_reply_reaction'
+  ) {
     return (
       <span className={iconClassName}>
         <ChatIcon fill="#079455" />
@@ -1724,7 +1808,21 @@ function ActivityEntityIcon({ item }: { item: DashboardActivityItem }) {
     );
   }
 
-  if (item.entityType === 'thread_message') {
+  if (
+    item.entityType === 'thread_message' &&
+    item.type === 'thread_message_reaction'
+  ) {
+    return (
+      <span className={iconClassName}>
+        <EmojiSmileIcon fill="#DC6803" />
+      </span>
+    );
+  }
+
+  if (
+    item.entityType === 'thread_message' &&
+    item.type !== 'thread_message_reaction'
+  ) {
     return (
       <span className={iconClassName}>
         <ThreadIcon fill="#DC6803" width={18} height={18} />
@@ -1732,22 +1830,24 @@ function ActivityEntityIcon({ item }: { item: DashboardActivityItem }) {
     );
   }
 
-  if (item.entityType === 'internal_message') {
+  if (
+    item.entityType === 'internal_message' &&
+    item.type === 'internal_message_reaction'
+  ) {
     return (
       <span className={iconClassName}>
-        <ChatIcon fill="blue" />
+        <EmojiSmileIcon fill="blue" />
       </span>
     );
   }
 
   if (
-    item.type === 'thread_message_reaction' ||
-    item.type === 'ticket_reply_reaction' ||
-    item.type === 'internal_message_reaction'
+    item.entityType === 'internal_message' &&
+    item.type !== 'internal_message_reaction'
   ) {
     return (
       <span className={iconClassName}>
-        <EmojiSmileIcon fill="#DC6803" width={'18'} height={'18'} />
+        <ChatIcon fill="blue" />
       </span>
     );
   }
@@ -2189,6 +2289,7 @@ function mapApiActivityToDashboardItem(
   return {
     id: item.id,
     actor,
+    actorId: item.actor?.id ?? undefined,
     type: item.type ?? '',
     action: getActivityActionLabel(item.type, item.entityType),
     title: item.title,

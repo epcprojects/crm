@@ -41,17 +41,41 @@ export async function PUT(
     const { ticketId, projectId, replyId } = await context.params;
     const formData = await request.formData().catch(() => null);
     const messageValue = formData?.get('message');
+    const mentionedUserIdValues = formData?.getAll('mentionedUserIds') ?? [];
+    const attachments = formData?.getAll('attachments') ?? [];
     const message = typeof messageValue === 'string' ? messageValue.trim() : '';
+    const mentionedUserIds = mentionedUserIdValues
+      .filter(
+        (mentionedUserId): mentionedUserId is string =>
+          typeof mentionedUserId === 'string',
+      )
+      .map((mentionedUserId) => mentionedUserId.trim())
+      .filter((mentionedUserId) => mentionedUserId.length > 0);
+    const validAttachments = attachments.filter(
+      (attachment): attachment is File =>
+        attachment instanceof File && attachment.size > 0,
+    );
 
-    if (!message) {
+    if (!message && !validAttachments.length) {
       return NextResponse.json(
-        { message: 'Message is required.' },
+        { message: 'Message or attachment is required.' },
         { status: 400 },
       );
     }
 
     const upstreamFormData = new FormData();
-    upstreamFormData.append('message', message);
+
+    if (message) {
+      upstreamFormData.append('message', message);
+    }
+
+    mentionedUserIds.forEach((mentionedUserId) => {
+      upstreamFormData.append('mentionedUserIds', mentionedUserId);
+    });
+
+    validAttachments.forEach((attachment) => {
+      upstreamFormData.append('attachments', attachment, attachment.name);
+    });
 
     const response = await fetch(
       `${apiBaseUrl}/tickets/${ticketId}/projects/${projectId}/reply/${replyId}`,

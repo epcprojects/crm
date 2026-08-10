@@ -26,7 +26,9 @@ import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import EmojiPickerButton from './EmojiPickerButton';
 import MessageReactionBar from './MessageReactionBar';
 import ThemeButton from '../ui/ThemeButton';
-import DiscussionMentionsInput from './DiscussionMentionsInput';
+import DiscussionMentionsInput, {
+  hydrateMentionMarkupFromMessage,
+} from './DiscussionMentionsInput';
 import type { ProjectMember } from '../../lib/project-members';
 
 const EMOJI_TEXT_STYLE = {
@@ -262,8 +264,14 @@ export default function TicketRepliesPanel({
   };
 
   const startEditingReply = (reply: DiscussionReply) => {
+    const hydratedEditingMessage = hydrateMentionMarkupFromMessage(
+      reply.message,
+      reply.mentionedUserIds ?? [],
+      mentionMembers,
+    );
+
     setEditingMessageId(reply.id);
-    setEditingMessage(reply.message);
+    setEditingMessage(hydratedEditingMessage);
     setEditingMessagePlainText(reply.message);
     setEditingMentionedUserIds(reply.mentionedUserIds ?? []);
 
