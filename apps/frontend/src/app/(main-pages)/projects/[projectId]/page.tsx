@@ -15,7 +15,12 @@ import {
   TabPanels,
 } from '@headlessui/react';
 
-import { useMutation,useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   useParams,
@@ -720,29 +725,29 @@ export default function ProjectDetailPage() {
     [projectNotesQuery.data?.items],
   );
   const fullNotesQueries = useQueries({
-  queries: projectNotes.map((note) => ({
-    queryKey: ['project-note-detail', projectId, note.id],
-    queryFn: async (): Promise<ProjectNoteRecord> => {
-      const response = await fetch(
-        `/api/projects/${projectId}/notes/${note.id}`,
-      );
+    queries: projectNotes.map((note) => ({
+      queryKey: ['project-note-detail', projectId, note.id],
+      queryFn: async (): Promise<ProjectNoteRecord> => {
+        const response = await fetch(
+          `/api/projects/${projectId}/notes/${note.id}`,
+        );
 
-      if (!response.ok) {
-        return note;
-      }
+        if (!response.ok) {
+          return note;
+        }
 
-      return response.json();
-    },
-    enabled: Boolean(projectId && note.id),
-  })),
-});
+        return response.json();
+      },
+      enabled: Boolean(projectId && note.id),
+    })),
+  });
 
-const fullNotesById = new Map(
-  fullNotesQueries
-    .map((query) => query.data)
-    .filter((note): note is ProjectNoteRecord => Boolean(note))
-    .map((note) => [note.id, note]),
-);
+  const fullNotesById = new Map(
+    fullNotesQueries
+      .map((query) => query.data)
+      .filter((note): note is ProjectNoteRecord => Boolean(note))
+      .map((note) => [note.id, note]),
+  );
   const selectedProjectNoteSummary = useMemo(
     () =>
       projectNotes.find((note) => note.id === selectedProjectNoteId) ??
@@ -950,20 +955,20 @@ const fullNotesById = new Map(
   };
 
   const invalidateThreadQueries = useCallback(() => {
-  void queryClient.invalidateQueries({
-    queryKey: [...projectThreadQueryKey, projectId],
-  });
-
-  if (selectedThreadMessageId) {
     void queryClient.invalidateQueries({
-      queryKey: [
-        ...projectThreadDetailQueryKey,
-        projectId,
-        selectedThreadMessageId,
-      ],
+      queryKey: [...projectThreadQueryKey, projectId],
     });
-  }
-}, [queryClient, projectId, selectedThreadMessageId]);
+
+    if (selectedThreadMessageId) {
+      void queryClient.invalidateQueries({
+        queryKey: [
+          ...projectThreadDetailQueryKey,
+          projectId,
+          selectedThreadMessageId,
+        ],
+      });
+    }
+  }, [queryClient, projectId, selectedThreadMessageId]);
   useThread({
     projectId,
     token: threadSocketToken,
@@ -998,7 +1003,7 @@ const fullNotesById = new Map(
     },
     onUpdated: invalidateThreadQueries,
     onReacted: invalidateThreadQueries,
-    
+
     onDeleted: () => {
       void queryClient.invalidateQueries({
         queryKey: [...projectThreadQueryKey, projectId],
@@ -1272,8 +1277,7 @@ const fullNotesById = new Map(
   ) => {
     const remove = Boolean(
       reply.reactions?.some(
-        (reaction) =>
-          reaction.emoji === emoji && reaction.reactedByCurrentUser,
+        (reaction) => reaction.emoji === emoji && reaction.reactedByCurrentUser,
       ),
     );
 
@@ -1283,12 +1287,14 @@ const fullNotesById = new Map(
       currentUserId,
     ] as const;
     const detailQueryKeys = selectedThreadMessageId
-      ? [[
-          ...projectThreadDetailQueryKey,
-          projectId,
-          selectedThreadMessageId,
-          currentUserId,
-        ]]
+      ? [
+          [
+            ...projectThreadDetailQueryKey,
+            projectId,
+            selectedThreadMessageId,
+            currentUserId,
+          ],
+        ]
       : [];
     const previousThreadReplies =
       queryClient.getQueryData<DiscussionReply[]>(threadQueryKey);
@@ -2110,7 +2116,7 @@ const fullNotesById = new Map(
                             {projectNotes.map((note) => {
                               const isActive =
                                 note.id === selectedProjectNoteSummary?.id;
-                                 const noteForPreview = note;
+                              const noteForPreview = note;
                               return (
                                 <article
                                   key={note.id}
@@ -2140,7 +2146,9 @@ const fullNotesById = new Map(
                                         {note.title}
                                       </h4>
                                       <p className="line-clamp-1 text-sm text-gray-600">
-                                        {getProjectNotePreview(fullNotesById.get(note.id) ?? note)}
+                                        {getProjectNotePreview(
+                                          fullNotesById.get(note.id) ?? note,
+                                        )}
                                       </p>
                                       <div className="flex items-center gap-1 text-xs font-normal text-gray-500">
                                         <CalendarTabIcon
@@ -2229,6 +2237,8 @@ const fullNotesById = new Map(
                               onClose={handleCloseProjectNoteMobileModal}
                               isOpen={isProjectNoteMobileModalOpen}
                               scrollNeeded={true}
+                              title="Create Note"
+                               bodyPaddingClasses="flex min-h-0 flex-col"
                             >
                               <div className="border-b border-gray-200 px-4 py-4 md:px-5">
                                 <input
@@ -2242,7 +2252,7 @@ const fullNotesById = new Map(
                                 />
                               </div>
 
-                              <div className="p-4 md:p-5">
+                              <div className="p-4 flex-1 md:p-5">
                                 <RichTextEditor
                                   value={projectNoteDescriptionDraft}
                                   onChange={setProjectNoteDescriptionDraft}
@@ -2256,8 +2266,8 @@ const fullNotesById = new Map(
                                   editorClassName="text-sm font-normal text-gray-700"
                                 />
                               </div>
-                              <div className="flex items-center justify-end gap-3 px-3 md:px-5 pb-4">
-                                <div className="flex items-center gap-2">
+                              <div className="w-full  px-3 pb-4 md:flex md:justify-end md:px-5">
+                                <div className="grid w-full grid-cols-2 gap-2 md:flex md:w-auto md:items-center">
                                   <ThemeButton
                                     type="button"
                                     variant="secondary"
@@ -2266,10 +2276,12 @@ const fullNotesById = new Map(
                                     disabled={
                                       createProjectNoteMutation.isPending
                                     }
-                                    className="disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="w-full disabled:cursor-not-allowed disabled:opacity-60"
+                                    borderclassName="w-full"
                                   >
                                     Cancel
                                   </ThemeButton>
+
                                   <ThemeButton
                                     type="button"
                                     variant="primaryGradient"
@@ -2280,7 +2292,8 @@ const fullNotesById = new Map(
                                     disabled={
                                       createProjectNoteMutation.isPending
                                     }
-                                    className="disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="w-full disabled:cursor-not-allowed disabled:opacity-60"
+                                    borderclassName="w-full"
                                   >
                                     {createProjectNoteMutation.isPending
                                       ? 'Saving...'
@@ -2409,7 +2422,7 @@ const fullNotesById = new Map(
                                   </>
                                 )}
                               </div>
-                              <div className="flex items-center justify-end gap-3  px-4 md:px-5 pb-3">
+                              <div className="md:flex md:items-center md:justify-end grid grid-cols-2 w-full gap-3  px-4 md:px-5 pb-3 mt-5 md:mt-0">
                                 {isEditingProjectNote && (
                                   <>
                                     <ThemeButton
@@ -2747,10 +2760,7 @@ function applyProjectThreadReactionUpdate(
   );
   let nextReactions = reactions.map((reaction) => ({ ...reaction }));
 
-  if (
-    currentUserReaction &&
-    (!remove || currentUserReaction.emoji !== emoji)
-  ) {
+  if (currentUserReaction && (!remove || currentUserReaction.emoji !== emoji)) {
     nextReactions = decrementProjectThreadReaction(
       nextReactions,
       currentUserReaction.emoji,
@@ -2774,7 +2784,9 @@ function incrementProjectThreadReaction(
   emoji: string,
   currentUserId?: string,
 ) {
-  const existingReaction = reactions.find((reaction) => reaction.emoji === emoji);
+  const existingReaction = reactions.find(
+    (reaction) => reaction.emoji === emoji,
+  );
 
   if (!existingReaction) {
     return [
@@ -2839,9 +2851,7 @@ function decrementProjectThreadReaction(
           reactedByCurrentUser: false,
           actors:
             reaction.actors?.filter((actor) =>
-              currentUserId
-                ? actor.id !== currentUserId
-                : !actor.isCurrentUser,
+              currentUserId ? actor.id !== currentUserId : !actor.isCurrentUser,
             ) ?? reaction.actors,
         },
       ];
