@@ -7,6 +7,13 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { NotificationEntityType, NotificationType } from '@harperhelp/types';
 import { Project } from '../projects/entities/project.entity';
 
+const ticketActivityTypes = [
+  NotificationType.TICKET_STATUS_CHANGED,
+  NotificationType.TICKET_PRIORITY_CHANGED,
+  NotificationType.TICKET_ASSIGNEE_CHANGED,
+  NotificationType.TICKET_DUE_DATE_CHANGED,
+];
+
 @Injectable()
 export class ActivityLogService {
   constructor(
@@ -142,6 +149,9 @@ async findAllActivities(query: GetActivityLogsDto, user) {
       .leftJoinAndSelect('activity.ticket', 'ticket')
       .where('activity.projectId = :projectId', { projectId })
       .andWhere('activity.ticketId = :ticketId', { ticketId })
+      .andWhere('activity.type IN (:...ticketActivityTypes)', {
+        ticketActivityTypes,
+      })
       .orderBy('activity.createdAt', 'DESC')
       .getMany();
 
@@ -153,8 +163,8 @@ async findAllActivities(query: GetActivityLogsDto, user) {
       if (activity.recipient) {
         delete activity.recipient.passwordHash;
       }
-      return activities;
     }
+    return activities;
   }
 
   private async ensureProjectUserAccess(projectId: string, userId: string) {
