@@ -29,56 +29,47 @@ export class ActivityLogService {
     return await this.activityRepo.save(activity);
   }
 
-  async findAllActivities(query: GetActivityLogsDto, user) {
-    const { page = 1, limit = 20, search } = query;
+async findAllActivities(query: GetActivityLogsDto, user) {
+  const { page = 1, limit = 20, search } = query;
 
-    const qb = this.activityRepo
-      .createQueryBuilder('activity')
-      .leftJoinAndSelect('activity.actor', 'actor')
-      .leftJoinAndSelect('activity.project', 'project')
-      .leftJoinAndSelect('activity.ticket', 'ticket');
+  const qb = this.activityRepo
+    .createQueryBuilder('activity')
+    .leftJoinAndSelect('activity.actor', 'actor')
+    .leftJoinAndSelect('activity.project', 'project')
+    .leftJoinAndSelect('activity.ticket', 'ticket');
 
-    qb.where('activity.recipientId = :userId', {
-      userId: user.id,
-    });
-
-    qb.andWhere(
-      `
+  qb.where(
+    `
     (
-      activity.projectId IS NULL
-
-      OR
-
-      (
-        activity.entityType = :projectEntityType
-        AND activity.type IN (:...projectAccessTypes)
+      EXISTS (
+        SELECT 1
+        FROM user_projects_join upj
+        WHERE upj."usersId" = :userId
+          AND upj."projectsId" = activity."projectId"
       )
 
       OR
 
       (
-        EXISTS (
-          SELECT 1
-          FROM user_projects_join upj
-          WHERE upj."usersId" = :userId
-            AND upj."projectsId" = activity."projectId"
-        )
+        activity."entityType" = :projectEntityType
+        AND activity."type" IN (:...projectAccessTypes)
+        AND activity."recipientId" = :userId
       )
     )
     `,
-      {
-        userId: user.id,
-        projectEntityType: NotificationEntityType.PROJECT,
-        projectAccessTypes: [
-          NotificationType.PROJECT_ASSIGNED,
-          NotificationType.PROJECT_UNASSIGNED,
-        ],
-      },
-    );
+    {
+      userId: user.id,
+      projectEntityType: NotificationEntityType.PROJECT,
+      projectAccessTypes: [
+        NotificationType.PROJECT_ASSIGNED,
+        NotificationType.PROJECT_UNASSIGNED,
+      ],
+    },
+  );
 
-    if (search?.trim()) {
-      qb.andWhere(
-        `
+  if (search?.trim()) {
+    qb.andWhere(
+      `
       (
         LOWER(actor."fullName") LIKE LOWER(:search)
         OR LOWER(project.name) LIKE LOWER(:search)
@@ -88,35 +79,35 @@ export class ActivityLogService {
         OR LOWER(activity.title) LIKE LOWER(:search)
       )
       `,
-        {
-          search: `%${search.trim()}%`,
-        },
-      );
-    }
-
-    qb.orderBy('activity.createdAt', 'DESC')
-      .skip((page - 1) * limit)
-      .take(limit);
-
-    const [activities, total] = await qb.getManyAndCount();
-
-    for (const activity of activities) {
-      if (activity.actor) {
-        delete activity.actor.passwordHash;
-      }
-
-      if (activity.recipient) {
-        delete activity.recipient.passwordHash;
-      }
-    }
-
-    return {
-      items: activities,
-      total,
-      page,
-      limit,
-    };
+      {
+        search: `%${search.trim()}%`,
+      },
+    );
   }
+
+  qb.orderBy('activity.createdAt', 'DESC')
+    .skip((page - 1) * limit)
+    .take(limit);
+
+  const [activities, total] = await qb.getManyAndCount();
+
+  for (const activity of activities) {
+    if (activity.actor) {
+      delete activity.actor.passwordHash;
+    }
+
+    if (activity.recipient) {
+      delete activity.recipient.passwordHash;
+    }
+  }
+
+  return {
+    items: activities,
+    total,
+    page,
+    limit,
+  };
+}
 
   // async findOne(id: string): Promise<ActivityLog> {}
   async findActivityById(id: string): Promise<ActivityLog> {
