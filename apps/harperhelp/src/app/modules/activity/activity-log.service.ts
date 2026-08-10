@@ -12,6 +12,7 @@ const ticketActivityTypes = [
   NotificationType.TICKET_PRIORITY_CHANGED,
   NotificationType.TICKET_ASSIGNEE_CHANGED,
   NotificationType.TICKET_DUE_DATE_CHANGED,
+  NotificationType.TICKET_CREATED,
 ];
 
 @Injectable()
