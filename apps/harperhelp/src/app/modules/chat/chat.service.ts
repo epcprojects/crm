@@ -132,6 +132,20 @@ export class ChatMessagesService {
       // requiredClaimValue: dto.isInternal ? 'view_internal_replies' : undefined,
     });
 
+    if (mentionedUserIds.length) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId: projectId,
+        actorId: senderId,
+        type: NotificationType.MENTIONED_IN_INTERNAL_MESSAGE,
+        entityType: NotificationEntityType.INTERNAL_MESSAGE,
+        entityId: saved.id,
+        ticketId: ticketId,
+        title: `You were mentioned in an Internal Message in ticket "${ticketRefNo}" from ${fullname}`,
+        message: '',
+        explicitRecipientIds: mentionedUserIds,
+      });
+    }
+
     // Reload with sender/receiver populated for broadcast payload
     return this.repo(channel).findOne({
       where: { id: saved.id },
@@ -168,13 +182,22 @@ export class ChatMessagesService {
       throw new ForbiddenException("Cannot edit another user's message");
     }
 
+    let newlyMentionedUserIds: string[] = [];
+
     if (dto.mentionedUserIds !== undefined) {
-      message.mentionedUserIds =
-        await this.projectsService.filterValidMentionedUserIds(
-          message.projectId,
-          dto.mentionedUserIds,
-        );
+      const {
+        validMentionedUserIds,
+        newlyMentionedUserIds: newMentionedUserIds,
+      } = await this.projectsService.getMentionedUserChanges(
+        message.projectId,
+        message.mentionedUserIds ?? [],
+        dto.mentionedUserIds,
+      );
+
+      message.mentionedUserIds = validMentionedUserIds;
+      newlyMentionedUserIds = newMentionedUserIds;
     }
+
     repository.merge(message, {
       message: dto.message,
       messageType: dto.messageType ?? message.messageType,
@@ -185,6 +208,24 @@ export class ChatMessagesService {
     });
 
     const updated = await repository.save(message);
+    const fullname = await this.usersService.getFullName(requesterId);
+    const ticketRefNo = await this.ticketsService.findTicketRefNo(
+      updated.ticketId,
+    );
+
+    if (newlyMentionedUserIds.length) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId: updated.projectId,
+        actorId: updated.senderId,
+        type: NotificationType.MENTIONED_IN_INTERNAL_MESSAGE,
+        entityType: NotificationEntityType.INTERNAL_MESSAGE,
+        entityId: updated.id,
+        ticketId: updated.ticketId,
+        title: `You were mentioned in an Internal Message in ticket "${ticketRefNo}" from ${fullname}`,
+        message: '',
+        explicitRecipientIds: newlyMentionedUserIds,
+      });
+    }
 
     const updatedMessage = await repository.findOne({
       where: { id: updated.id },

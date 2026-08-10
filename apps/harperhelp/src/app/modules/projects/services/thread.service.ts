@@ -50,10 +50,11 @@ export class ThreadService {
       .findOne({ where: { id: projectId }, relations: { members: true } });
     if (!project) throw new NotFoundException('Project not found');
 
-    const mentionedUserIds = await this.projectsService.filterValidMentionedUserIds(
-      projectId,
-      dto.mentionedUserIds ?? [],
-    );
+    const mentionedUserIds =
+      await this.projectsService.filterValidMentionedUserIds(
+        projectId,
+        dto.mentionedUserIds ?? [],
+      );
     const message = await this.repo.save(
       this.repo.create({
         projectId,
@@ -127,6 +128,19 @@ export class ThreadService {
         : 'New thread message',
     });
 
+    if (mentionedUserIds.length) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId,
+        actorId: user.id,
+        type: NotificationType.MENTIONED_IN_THREAD_MESSAGE,
+        entityType: NotificationEntityType.THREAD_MESSAGE,
+        entityId: msg.id,
+        title: `You were mentioned in a thread message in project "${project.name}" by "${user.fullName}"`,
+        message: '',
+        explicitRecipientIds: mentionedUserIds,
+      });
+    }
+
     return msg;
   }
 
@@ -137,6 +151,10 @@ export class ThreadService {
     user: any,
     files?: Express.Multer.File[],
   ) {
+    const project = await this.repo.manager
+      .getRepository(Project)
+      .findOne({ where: { id: projectId }, relations: { members: true } });
+    if (!project) throw new NotFoundException('Project not found');
     const message = await this.repo.findOne({
       where: {
         id,
@@ -158,15 +176,24 @@ export class ThreadService {
       throw new BadRequestException('Message or attachment is required.');
     }
 
-
     message.message = dto.message ?? message.message;
+
+    let newlyMentionedUserIds: string[] = [];
+
     if (dto.mentionedUserIds !== undefined) {
-      message.mentionedUserIds =
-        await this.projectsService.filterValidMentionedUserIds(
-          projectId,
-          dto.mentionedUserIds,
-        );
+      const {
+        validMentionedUserIds,
+        newlyMentionedUserIds: newMentionedUserIds,
+      } = await this.projectsService.getMentionedUserChanges(
+        message.projectId,
+        message.mentionedUserIds ?? [],
+        dto.mentionedUserIds,
+      );
+
+      message.mentionedUserIds = validMentionedUserIds;
+      newlyMentionedUserIds = newMentionedUserIds;
     }
+
     message.updatedBy = user.id;
     message.updatedAt = new Date();
 
@@ -186,7 +213,18 @@ export class ThreadService {
       updatedBy: updated.updatedBy,
       attachments: updated.attachments,
     });
-
+    if (newlyMentionedUserIds.length) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId,
+        actorId: user.id,
+        type: NotificationType.MENTIONED_IN_THREAD_MESSAGE,
+        entityType: NotificationEntityType.THREAD_MESSAGE,
+        entityId: updated.id,
+        title: `You were mentioned in a thread message in project "${project?.name}" by "${user.fullName}"`,
+        message: '',
+        explicitRecipientIds: newlyMentionedUserIds,
+      });
+    }
     return updated;
   }
 

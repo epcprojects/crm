@@ -592,4 +592,29 @@ export class ProjectsService {
 
     return users.map(({ id }) => id);
   }
+
+  async getMentionedUserChanges(
+    projectId: string,
+    oldMentionedUserIds: string[],
+    newMentionedUserIds: string[],
+  ): Promise<{
+    validMentionedUserIds: string[];
+    newlyMentionedUserIds: string[];
+  }> {
+    const validMentionedUserIds = await this.filterValidMentionedUserIds(
+      projectId,
+      newMentionedUserIds,
+    );
+
+    const oldMentionedUserIdSet = new Set(oldMentionedUserIds ?? []);
+
+    const newlyMentionedUserIds = validMentionedUserIds.filter(
+      (userId) => !oldMentionedUserIdSet.has(userId),
+    );
+
+    return {
+      validMentionedUserIds,
+      newlyMentionedUserIds,
+    };
+  }
 }

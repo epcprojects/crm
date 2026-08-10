@@ -70,6 +70,9 @@ export enum NotificationType {
   MEMBER_LEFT = 'member_left',
   MEMBER_UPDATED = 'member_updated',
   INTERNAL_MESSAGE = 'internal_message',
+  MENTIONED_IN_TICKET_REPLY = 'mentioned_in_ticket_reply',
+  MENTIONED_IN_THREAD_MESSAGE = 'mentioned_in_thread_message',
+  MENTIONED_IN_INTERNAL_MESSAGE = 'mentioned_in_internal_message',
 }
 
 export enum NotificationEntityType {
