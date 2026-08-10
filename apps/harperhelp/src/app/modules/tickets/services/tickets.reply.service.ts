@@ -217,19 +217,17 @@ export class TicketRepliesService {
 
     let newlyMentionedUserIds: string[] = [];
 
-    if (dto.mentionedUserIds !== undefined) {
-      const {
-        validMentionedUserIds,
-        newlyMentionedUserIds: newMentionedUserIds,
-      } = await this.projectsService.getMentionedUserChanges(
-        projectId,
-        reply.mentionedUserIds ?? [],
-        dto.mentionedUserIds,
-      );
+    const {
+      validMentionedUserIds,
+      newlyMentionedUserIds: newMentionedUserIds,
+    } = await this.projectsService.getMentionedUserChanges(
+      projectId,
+      reply.mentionedUserIds ?? [],
+      dto.mentionedUserIds,
+    );
 
-      reply.mentionedUserIds = validMentionedUserIds;
-      newlyMentionedUserIds = newMentionedUserIds;
-    }
+    reply.mentionedUserIds = validMentionedUserIds;
+    newlyMentionedUserIds = newMentionedUserIds;
 
     reply.updatedBy = userId;
     reply.updatedAt = new Date();

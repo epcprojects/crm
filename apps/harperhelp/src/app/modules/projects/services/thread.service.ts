@@ -180,19 +180,17 @@ export class ThreadService {
 
     let newlyMentionedUserIds: string[] = [];
 
-    if (dto.mentionedUserIds !== undefined) {
-      const {
-        validMentionedUserIds,
-        newlyMentionedUserIds: newMentionedUserIds,
-      } = await this.projectsService.getMentionedUserChanges(
-        message.projectId,
-        message.mentionedUserIds ?? [],
-        dto.mentionedUserIds,
-      );
+    const {
+      validMentionedUserIds,
+      newlyMentionedUserIds: newMentionedUserIds,
+    } = await this.projectsService.getMentionedUserChanges(
+      message.projectId,
+      message.mentionedUserIds ?? [],
+      dto.mentionedUserIds,
+    );
 
-      message.mentionedUserIds = validMentionedUserIds;
-      newlyMentionedUserIds = newMentionedUserIds;
-    }
+    message.mentionedUserIds = validMentionedUserIds;
+    newlyMentionedUserIds = newMentionedUserIds;
 
     message.updatedBy = user.id;
     message.updatedAt = new Date();

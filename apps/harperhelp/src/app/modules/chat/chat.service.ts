@@ -184,19 +184,17 @@ export class ChatMessagesService {
 
     let newlyMentionedUserIds: string[] = [];
 
-    if (dto.mentionedUserIds !== undefined) {
-      const {
-        validMentionedUserIds,
-        newlyMentionedUserIds: newMentionedUserIds,
-      } = await this.projectsService.getMentionedUserChanges(
-        message.projectId,
-        message.mentionedUserIds ?? [],
-        dto.mentionedUserIds,
-      );
+    const {
+      validMentionedUserIds,
+      newlyMentionedUserIds: newMentionedUserIds,
+    } = await this.projectsService.getMentionedUserChanges(
+      message.projectId,
+      message.mentionedUserIds ?? [],
+      dto.mentionedUserIds,
+    );
 
-      message.mentionedUserIds = validMentionedUserIds;
-      newlyMentionedUserIds = newMentionedUserIds;
-    }
+    message.mentionedUserIds = validMentionedUserIds;
+    newlyMentionedUserIds = newMentionedUserIds;
 
     repository.merge(message, {
       message: dto.message,
