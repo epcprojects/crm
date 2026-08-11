@@ -13,6 +13,8 @@ import { Ticket } from '../../tickets/entities/ticket.entity';
 import { Project } from '../../projects/entities/project.entity';
 import { MessageType } from './chat-message-internal.entity';
 import { TimestampEntityWithSoftDelete } from '@harperhelp/interfaces';
+import { IsOptional, IsUUID } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
 @Entity('chat_messages_external')
 @Index(['ticketId', 'createdAt'])
@@ -44,6 +46,16 @@ export class ChatMessageExternal extends TimestampEntityWithSoftDelete {
   @Column({ type: 'text' })
   message: string;
 
+  @ApiPropertyOptional({
+    description: 'Array of user IDs mentioned in the message',
+    type: [String],
+  })
+  @IsOptional()
+  @IsUUID('4', {
+    each: true,
+    message: 'Each mentioned user ID must be a valid UUID',
+  })
+  mentionedUserIds?: string[];
   @Column({
     name: 'attachment_urls',
     type: 'text',

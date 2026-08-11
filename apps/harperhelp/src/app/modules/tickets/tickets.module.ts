@@ -25,6 +25,7 @@ import { TicketRepliesGateway } from './gateway/ticket-reply.gateway';
 import { JwtModule } from '@nestjs/jwt';
 import { UsersModule } from '../users/users.module';
 import { ReactionsModule } from '../reactions/reactions.module';
+import { ProjectsModule } from '../projects/projects.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { ReactionsModule } from '../reactions/reactions.module';
       User,
     ]),
     ReactionsModule,
+    ProjectsModule,
     NotificationsModule,
     JwtModule,
     UsersModule,

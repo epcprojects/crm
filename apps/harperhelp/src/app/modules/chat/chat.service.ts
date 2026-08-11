@@ -23,6 +23,7 @@ import { UsersService } from '../users/users.service';
 import { TicketsService } from '../tickets/tickets.service';
 import { ReactionsService } from '../reactions/reactions.service';
 import { Project } from '../projects/entities/project.entity';
+import { ProjectsService } from '../projects/projects.service';
 
 export type ChatChannel = 'internal' | 'external';
 
@@ -43,6 +44,7 @@ export class ChatMessagesService {
     private readonly ticketsService: TicketsService,
     private readonly notificationsService: NotificationsService,
     private readonly reactionsService: ReactionsService,
+    private readonly projectsService: ProjectsService,
     @InjectRepository(ChatMessageInternal)
     private readonly internalRepo: Repository<ChatMessageInternal>,
 
@@ -95,6 +97,12 @@ export class ChatMessagesService {
     senderId: string,
     dto: SendMessageDto,
   ) {
+    const mentionedUserIds =
+      await this.projectsService.filterValidMentionedUserIds(
+        projectId,
+        dto.mentionedUserIds ?? [],
+      );
+
     const message = this.repo(channel).create({
       projectId,
       ticketId,
@@ -102,6 +110,7 @@ export class ChatMessagesService {
       // receiverId: dto.receiverId,
       messageType: dto.messageType,
       message: dto.message,
+      mentionedUserIds: mentionedUserIds,
       attachmentUrls: dto.attachmentUrls ?? null,
       attachmentName: dto.attachmentName ?? null,
       attachmentSize: dto.attachmentSize ?? null,
@@ -122,6 +131,20 @@ export class ChatMessagesService {
       message: '',
       // requiredClaimValue: dto.isInternal ? 'view_internal_replies' : undefined,
     });
+
+    if (mentionedUserIds.length) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId: projectId,
+        actorId: senderId,
+        type: NotificationType.MENTIONED_IN_INTERNAL_MESSAGE,
+        entityType: NotificationEntityType.INTERNAL_MESSAGE,
+        entityId: saved.id,
+        ticketId: ticketId,
+        title: `You were mentioned in an Internal Message in ticket "${ticketRefNo}" from ${fullname}`,
+        message: '',
+        explicitRecipientIds: mentionedUserIds,
+      });
+    }
 
     // Reload with sender/receiver populated for broadcast payload
     return this.repo(channel).findOne({
@@ -159,6 +182,20 @@ export class ChatMessagesService {
       throw new ForbiddenException("Cannot edit another user's message");
     }
 
+    let newlyMentionedUserIds: string[] = [];
+
+    const {
+      validMentionedUserIds,
+      newlyMentionedUserIds: newMentionedUserIds,
+    } = await this.projectsService.getMentionedUserChanges(
+      message.projectId,
+      message.mentionedUserIds ?? [],
+      dto.mentionedUserIds,
+    );
+
+    message.mentionedUserIds = validMentionedUserIds;
+    newlyMentionedUserIds = newMentionedUserIds;
+
     repository.merge(message, {
       message: dto.message,
       messageType: dto.messageType ?? message.messageType,
@@ -169,6 +206,24 @@ export class ChatMessagesService {
     });
 
     const updated = await repository.save(message);
+    const fullname = await this.usersService.getFullName(requesterId);
+    const ticketRefNo = await this.ticketsService.findTicketRefNo(
+      updated.ticketId,
+    );
+
+    if (newlyMentionedUserIds.length) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId: updated.projectId,
+        actorId: updated.senderId,
+        type: NotificationType.MENTIONED_IN_INTERNAL_MESSAGE,
+        entityType: NotificationEntityType.INTERNAL_MESSAGE,
+        entityId: updated.id,
+        ticketId: updated.ticketId,
+        title: `You were mentioned in an Internal Message in ticket "${ticketRefNo}" from ${fullname}`,
+        message: '',
+        explicitRecipientIds: newlyMentionedUserIds,
+      });
+    }
 
     const updatedMessage = await repository.findOne({
       where: { id: updated.id },
@@ -348,7 +403,7 @@ export class ChatMessagesService {
       },
     });
 
-        if (updated.senderId !== user.id) {
+    if (updated.senderId !== user.id) {
       await this.notificationsService.notifyProjectMembers({
         projectId,
         ticketId,
@@ -363,7 +418,6 @@ export class ChatMessagesService {
         message: emoji,
       });
     }
-
 
     const payload = {
       ...updated,
