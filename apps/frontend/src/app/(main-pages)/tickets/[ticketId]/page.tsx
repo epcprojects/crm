@@ -81,7 +81,7 @@ type TicketSidebarTabKey = 'quick-links' | 'timeline';
 
 type TicketTimelineItem = {
   id: string;
-    description: string;
+  description: string;
   status: string;
   statusClassName: string;
   statusStyle?: React.CSSProperties;
@@ -2281,9 +2281,7 @@ export default function TicketDetailPage() {
                     composerPlaceholder={
                       isInternalChatActive && canViewInternalChatBtn
                         ? 'Write a message...'
-                        : (ticket as any).createdByDetail?.name
-                          ? `Write a reply to ${(ticket as any).createdByDetail.name}...`
-                          : 'Write a reply...'
+                        : 'Write a reply...'
                     }
                   />
                 ) : null}
@@ -3201,7 +3199,8 @@ function getTicketTimelineMeta(
 
   if (type === 'ticket_assignee_changed') {
     return {
-      status: extractValueAfterKeyword(normalizedTitle, 'assigned to') ?? 'Assigned',
+      status:
+        extractValueAfterKeyword(normalizedTitle, 'assigned to') ?? 'Assigned',
       statusClassName: 'bg-blue-500 text-white',
       description: normalizedTitle || 'Assignment updated.',
     };
@@ -3209,7 +3208,9 @@ function getTicketTimelineMeta(
 
   if (type === 'ticket_priority_changed') {
     return {
-      status: extractValueAfterKeyword(normalizedTitle, 'priority changed to') ?? 'Updated',
+      status:
+        extractValueAfterKeyword(normalizedTitle, 'priority changed to') ??
+        'Updated',
       statusClassName: 'bg-yellow-500 text-white',
       description: normalizedTitle || 'Priority changed.',
     };
@@ -3217,8 +3218,12 @@ function getTicketTimelineMeta(
 
   if (type === 'ticket_status_changed') {
     const status =
-      extractValueAfterKeyword(normalizedTitle, 'status changed to') ?? 'Updated';
-    const statusColor = getTicketStatusColorFromSettings(status, ticketStatuses);
+      extractValueAfterKeyword(normalizedTitle, 'status changed to') ??
+      'Updated';
+    const statusColor = getTicketStatusColorFromSettings(
+      status,
+      ticketStatuses,
+    );
 
     return {
       status,
@@ -3230,7 +3235,10 @@ function getTicketTimelineMeta(
 
   if (type === 'ticket_created') {
     const status = 'Open';
-    const statusColor = getTicketStatusColorFromSettings(status, ticketStatuses);
+    const statusColor = getTicketStatusColorFromSettings(
+      status,
+      ticketStatuses,
+    );
 
     return {
       status,
