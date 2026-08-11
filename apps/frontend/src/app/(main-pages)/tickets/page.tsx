@@ -682,19 +682,21 @@ export default function Page() {
 
   // Event listener
   useEffect(() => {
-    eventEmitter.on('notification:new', (payload: NotificationItem) => {
+    const handleNotificationNew = (payload: NotificationItem) => {
       if (payload.entityType === NotificationEntityType.TICKET) {
-        invalidateTicketRelated();
+        void invalidateTicketRelated();
       }
 
       if (payload.entityType === NotificationEntityType.PROJECT) {
-        invalideProjectsRelated();
-        invalidateTicketRelated();
+        void invalideProjectsRelated();
+        void invalidateTicketRelated();
       }
-    });
+    };
+
+    eventEmitter.on('notification:new', handleNotificationNew);
 
     return () => {
-      eventEmitter.off('notification:new');
+      eventEmitter.off('notification:new', handleNotificationNew);
     };
   }, []);
 

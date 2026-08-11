@@ -52,44 +52,38 @@ export function useTicketReplies({
       });
     };
 
-    socket.on('connect', join);
-
-    socket.on(
-      'reply_created',
+    const handleCreated =
       onCreated ??
-        (() => {
-          '';
-        }),
-    );
-    socket.on(
-      'reply_updated',
+      (() => {
+        return;
+      });
+    const handleUpdated =
       onUpdated ??
-        (() => {
-          '';
-        }),
-    );
-
-    socket.on(
-      'reply_reacted',
+      (() => {
+        return;
+      });
+    const handleReacted =
       onReacted ??
-        (() => {
-          '';
-        }),
-    );
-    socket.on(
-      'reply_deleted',
+      (() => {
+        return;
+      });
+    const handleDeleted =
       onDeleted ??
-        (() => {
-          '';
-        }),
-    );
-    socket.on(
-      'typing',
+      (() => {
+        return;
+      });
+    const handleTyping =
       onTyping ??
-        (() => {
-          '';
-        }),
-    );
+      (() => {
+        return;
+      });
+
+    socket.on('connect', join);
+    socket.on('reply_created', handleCreated);
+    socket.on('reply_updated', handleUpdated);
+    socket.on('reply_reacted', handleReacted);
+    socket.on('reply_deleted', handleDeleted);
+    socket.on('typing', handleTyping);
 
     if (socket.connected) {
       join();
@@ -102,11 +96,11 @@ export function useTicketReplies({
       });
 
       socket.off('connect', join);
-      socket.off('reply_created', onCreated);
-      socket.off('reply_updated', onUpdated);
-      socket.off('reply_reacted', onReacted);
-      socket.off('reply_deleted', onDeleted);
-      socket.off('typing', onTyping);
+      socket.off('reply_created', handleCreated);
+      socket.off('reply_updated', handleUpdated);
+      socket.off('reply_reacted', handleReacted);
+      socket.off('reply_deleted', handleDeleted);
+      socket.off('typing', handleTyping);
     };
   }, [
     enabled,

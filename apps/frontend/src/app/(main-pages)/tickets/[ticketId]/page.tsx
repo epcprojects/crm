@@ -1090,17 +1090,19 @@ export default function TicketDetailPage() {
 
   // Event listener
   useEffect(() => {
-    eventEmitter.on('notification:new', (payload: NotificationItem) => {
+    const handleNotificationNew = (payload: NotificationItem) => {
       if (
         payload.entityType === NotificationEntityType.PROJECT ||
         payload.entityType === NotificationEntityType.TICKET
       ) {
-        invalidateTicketRelated();
+        void invalidateTicketRelated();
       }
-    });
+    };
+
+    eventEmitter.on('notification:new', handleNotificationNew);
 
     return () => {
-      eventEmitter.off('notification:new');
+      eventEmitter.off('notification:new', handleNotificationNew);
     };
   }, []);
 

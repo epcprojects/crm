@@ -299,14 +299,16 @@ export default function ProjectsPage() {
 
   // Event listener
   useEffect(() => {
-    eventEmitter.on('notification:new', (payload: NotificationItem) => {
+    const handleNotificationNew = (payload: NotificationItem) => {
       if (payload.entityType === NotificationEntityType.PROJECT) {
-        invalidateProjectRelated();
+        void invalidateProjectRelated();
       }
-    });
+    };
+
+    eventEmitter.on('notification:new', handleNotificationNew);
 
     return () => {
-      eventEmitter.off('notification:new');
+      eventEmitter.off('notification:new', handleNotificationNew);
     };
   }, []);
   // const projectsPageScrollRef = useRef<HTMLDivElement | null>(null);
