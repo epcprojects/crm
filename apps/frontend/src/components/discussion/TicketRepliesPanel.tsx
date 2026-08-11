@@ -28,6 +28,8 @@ import MessageReactionBar from './MessageReactionBar';
 import ThemeButton from '../ui/ThemeButton';
 import TopLoadingBar from '../ui/TopLoadingBar';
 import DiscussionMentionsInput, {
+  getMentionedUserIdsFromMarkup,
+  getMentionedUserIdsFromPlainText,
   hydrateMentionMarkupFromMessage,
 } from './DiscussionMentionsInput';
 import type { ProjectMember } from '../../lib/project-members';
@@ -166,7 +168,7 @@ export default function TicketRepliesPanel({
     const trimmedMessage = messagePlainText.trim();
     const currentMessage = message;
     const currentPlainText = messagePlainText;
-    const currentMentionedUserIds = mentionedUserIds;
+    const currentMentionedUserIds = getMentionedUserIdsFromMarkup(message);
     const currentAttachments = attachments;
 
     if (
@@ -295,6 +297,7 @@ export default function TicketRepliesPanel({
 
   const handleSaveEditedReply = async (reply: DiscussionReply) => {
     const trimmedMessage = editingMessagePlainText.trim();
+    const nextMentionedUserIds = getMentionedUserIdsFromMarkup(editingMessage);
 
     if (
       !trimmedMessage ||
@@ -313,7 +316,7 @@ export default function TicketRepliesPanel({
       await onEditReply({
         reply,
         message: nextMessage,
-        mentionedUserIds: editingMentionedUserIds,
+        mentionedUserIds: nextMentionedUserIds,
       });
     } catch (error) {
       setEditingMessageId(reply.id);
@@ -1280,13 +1283,24 @@ function renderHighlightedMentions(
   mentionedUserIds: string[],
   mentionMembers: ProjectMember[],
 ) {
-  if (!message || !mentionedUserIds.length || !mentionMembers.length) {
-    return message;
+  if (!message || !mentionMembers.length) {
+    return renderTextWithLinks(message);
+  }
+
+  const resolvedMentionedUserIds = Array.from(
+    new Set([
+      ...mentionedUserIds,
+      ...getMentionedUserIdsFromPlainText(message, mentionMembers),
+    ]),
+  );
+
+  if (!resolvedMentionedUserIds.length) {
+    return renderTextWithLinks(message);
   }
 
   const mentionNames = Array.from(
     new Set(
-      mentionedUserIds.flatMap((mentionedUserId) => {
+      resolvedMentionedUserIds.flatMap((mentionedUserId) => {
         const member = mentionMembers.find((entry) => entry.id === mentionedUserId);
 
         if (!member?.fullName?.trim()) {
@@ -1322,14 +1336,17 @@ function renderHighlightedMentions(
 
     if (matchIndex > lastIndex) {
       nodes.push(
-        <span key={`text-${lastIndex}`}>{message.slice(lastIndex, matchIndex)}</span>,
+        ...renderTextWithLinks(
+          message.slice(lastIndex, matchIndex),
+          `text-${lastIndex}`,
+        ),
       );
     }
 
     nodes.push(
       <span
         key={`mention-${matchIndex}`}
-        className="rounded-md bg-[#EEF2FF] px-1 py-0.5 font-medium text-[#10175A]"
+        className="rounded-md bg-transparent px-1 py-0.5 font-medium text-[#3165F6]"
       >
         {matchedValue}
       </span>,
@@ -1339,10 +1356,57 @@ function renderHighlightedMentions(
   }
 
   if (lastIndex < message.length) {
-    nodes.push(<span key={`text-${lastIndex}`}>{message.slice(lastIndex)}</span>);
+    nodes.push(
+      ...renderTextWithLinks(message.slice(lastIndex), `text-${lastIndex}`),
+    );
   }
 
   return nodes.length ? nodes : message;
+}
+
+function renderTextWithLinks(text: string, keyPrefix = 'text') {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const nodes: ReactNode[] = [];
+  let lastIndex = 0;
+
+  for (const match of text.matchAll(urlRegex)) {
+    const matchIndex = match.index ?? 0;
+    const matchedValue = match[0];
+
+    if (matchIndex > lastIndex) {
+      nodes.push(
+        <span key={`${keyPrefix}-${lastIndex}`}>
+          {text.slice(lastIndex, matchIndex)}
+        </span>,
+      );
+    }
+
+    nodes.push(
+      <a
+        key={`${keyPrefix}-link-${matchIndex}`}
+        href={matchedValue}
+        target="_blank"
+        rel="noreferrer"
+        className="text-[#3165F6] underline underline-offset-2"
+      >
+        {matchedValue}
+      </a>,
+    );
+
+    lastIndex = matchIndex + matchedValue.length;
+  }
+
+  if (!nodes.length) {
+    return [<span key={`${keyPrefix}-0`}>{text}</span>];
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(
+      <span key={`${keyPrefix}-${lastIndex}`}>{text.slice(lastIndex)}</span>,
+    );
+  }
+
+  return nodes;
 }
 
 function EditPencilIcon() {

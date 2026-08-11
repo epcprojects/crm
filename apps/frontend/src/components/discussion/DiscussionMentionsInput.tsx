@@ -25,6 +25,8 @@ type MentionableMember = MentionDataItem<{
 
 const DEFAULT_MENTION_MARKUP = '@[__display__](__id__)';
 
+const MENTION_MARKUP_REGEX = /@\[[^\]]+\]\(([^)]+)\)/g;
+
 type DiscussionMentionsInputProps = {
   value: string;
   onChange: (payload: {
@@ -45,6 +47,8 @@ type DiscussionMentionsInputProps = {
   onPaste?: React.ClipboardEventHandler<HTMLInputElement | HTMLTextAreaElement>;
   style?: CSSProperties;
   inputClassName?: string;
+  useTransparentInputText?: boolean;
+  highlightMentionsInVisibleInput?: boolean;
 };
 
 function mapMembersToMentionData(
@@ -72,12 +76,74 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+export function getMentionedUserIdsFromPlainText(
+  message: string,
+  members: ProjectMember[],
+) {
+  if (!message.trim() || !members.length) {
+    return [];
+  }
+
+  const matchedUserIds = new Set<string>();
+  const normalizedMessage = message.trim();
+  const shortNameMatches = new Map<string, string[]>();
+
+  members.forEach((member) => {
+    const fullName = getMentionDisplayName(member.fullName);
+
+    if (!fullName) {
+      return;
+    }
+
+    const fullNameRegex = new RegExp(`@${escapeRegExp(fullName)}(?=\\b|$)`, 'g');
+
+    if (fullNameRegex.test(normalizedMessage)) {
+      matchedUserIds.add(member.id);
+    }
+
+    const shortName = getSingleWordDisplayName(fullName);
+
+    if (!shortName) {
+      return;
+    }
+
+    const currentMatches = shortNameMatches.get(shortName) ?? [];
+    currentMatches.push(member.id);
+    shortNameMatches.set(shortName, currentMatches);
+  });
+
+  shortNameMatches.forEach((memberIds, shortName) => {
+    if (memberIds.length !== 1) {
+      return;
+    }
+
+    const shortNameRegex = new RegExp(`@${escapeRegExp(shortName)}(?=\\b|$)`, 'g');
+
+    if (shortNameRegex.test(normalizedMessage)) {
+      matchedUserIds.add(memberIds[0]);
+    }
+  });
+
+  return Array.from(matchedUserIds);
+}
+
 export function hydrateMentionMarkupFromMessage(
   message: string,
   mentionedUserIds: string[],
   members: ProjectMember[],
 ) {
-  if (!message.trim() || !mentionedUserIds.length || !members.length) {
+  if (!message.trim() || !members.length) {
+    return message;
+  }
+
+  const resolvedMentionedUserIds = Array.from(
+    new Set([
+      ...mentionedUserIds,
+      ...getMentionedUserIdsFromPlainText(message, members),
+    ]),
+  );
+
+  if (!resolvedMentionedUserIds.length) {
     return message;
   }
 
@@ -93,7 +159,7 @@ export function hydrateMentionMarkupFromMessage(
 
   let hydratedMessage = message;
 
-  mentionedUserIds.forEach((mentionedUserId) => {
+  resolvedMentionedUserIds.forEach((mentionedUserId) => {
     const displayNames = membersById.get(mentionedUserId);
 
     if (!displayNames?.fullName) {
@@ -139,6 +205,20 @@ function getMentionedUserIds(
   );
 }
 
+export function getMentionedUserIdsFromMarkup(markupValue: string) {
+  if (!markupValue.trim()) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      Array.from(markupValue.matchAll(MENTION_MARKUP_REGEX))
+        .map((match) => String(match[1] ?? '').trim())
+        .filter((mentionId) => mentionId.length > 0),
+    ),
+  );
+}
+
 export default function DiscussionMentionsInput({
   value,
   onChange,
@@ -153,6 +233,8 @@ export default function DiscussionMentionsInput({
   onPaste,
   style,
   inputClassName,
+  useTransparentInputText = true,
+  highlightMentionsInVisibleInput = false,
 }: DiscussionMentionsInputProps) {
   const mentionData = mapMembersToMentionData(members);
   const [portalHost, setPortalHost] = useState<HTMLElement | null>(null);
@@ -190,10 +272,21 @@ export default function DiscussionMentionsInput({
       }
       classNames={{
         control: 'relative',
-        highlighter:
-          'pointer-events-none whitespace-pre-wrap break-words px-2 py-1 text-sm leading-6 text-transparent',
+        highlighter: clsx(
+          'pointer-events-none whitespace-pre-wrap break-words px-2 py-1 text-sm leading-6',
+          highlightMentionsInVisibleInput
+            ? 'relative z-10 text-transparent'
+            : 'text-gray-700',
+        ),
+        highlighterSubstring: clsx(
+          highlightMentionsInVisibleInput ? 'text-transparent' : 'text-gray-700',
+        ),
         input: clsx(
-          'w-full resize-none  bg-transparent px-2 py-1 text-sm leading-6 text-gray-700 outline-none! placeholder:text-gray-400',
+          'w-full resize-none bg-transparent px-2 py-1 text-sm leading-6 outline-none! placeholder:text-gray-400',
+          highlightMentionsInVisibleInput ? 'relative z-0' : '',
+          useTransparentInputText
+            ? 'text-transparent caret-gray-700'
+            : 'text-gray-700 caret-gray-700',
           inputClassName,
         ),
         suggestions:
@@ -210,7 +303,17 @@ export default function DiscussionMentionsInput({
         data={mentionData}
         appendSpaceOnAdd
         displayTransform={(_id, display) => `@${display}`}
-        className="rounded-md px-1 py-0.5 font-medium text-primary-light! bg-transparent!"
+        className={clsx(
+          'rounded-md px-1 py-0.5 font-medium text-[#3165F6]!',
+          highlightMentionsInVisibleInput ? 'bg-white!' : 'bg-transparent!',
+        )}
+        style={{
+          color: '#3165F6',
+          backgroundColor: highlightMentionsInVisibleInput
+            ? '#ffffff'
+            : 'transparent',
+          fontWeight: 400,
+        }}
         renderSuggestion={(entry, _search, highlightedDisplay) => (
           <div className="flex flex-col">
             <span className="text-sm font-medium text-[#10175A]">

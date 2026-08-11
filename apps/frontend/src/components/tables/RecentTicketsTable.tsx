@@ -11,11 +11,22 @@ import {
 } from '@tanstack/react-table';
 import { useState, type MouseEvent, type ReactNode } from 'react';
 import Link from 'next/link';
+import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import ThemeButton from '../ui/ThemeButton';
-import { ArrowUpRightIcon } from '../../../public/icons';
+import {
+  ArrowUpRightIcon,
+  ChatIcon,
+  ProjectsIcon,
+  ThreedotIcon,
+} from '../../../public/icons';
 import { useAppSelector } from '../../app/Redux/store';
 import EmptyState from '../EmptyState';
 import { getInitials } from '../../app/(main-pages)/dashboard/page';
+import {
+  CalendarTabIcon,
+  FilesTabIcon,
+  NotesTabIcon,
+} from '../../app/(main-pages)/projects/[projectId]/page';
 
 export type TicketStatus = string;
 export type TicketPriority = string;
@@ -62,6 +73,12 @@ export type TicketSortOrder = 'asc' | 'desc';
 export type TicketSortState = {
   sortBy: TicketSortBy;
   sortOrder: TicketSortOrder;
+};
+
+export type RecentTicketQuickLinkItem = {
+  key: 'project' | 'thread' | 'files' | 'calendar' | 'notes';
+  label: string;
+  href: string;
 };
 
 const statusStyles: Record<string, string> = {
@@ -212,6 +229,7 @@ type RecentTicketsTableProps = {
   sortState?: TicketSortState;
   onSortChange?: (sortState: TicketSortState) => void;
   onEmptyButtonClick?: () => void;
+  getQuickLinkItems?: (ticket: RecentTicket) => RecentTicketQuickLinkItem[];
   // internalScrollEnabled?: boolean;
 };
 
@@ -231,6 +249,7 @@ export default function RecentTicketsTable({
   onPaginationChange,
   sortState,
   onSortChange,
+  getQuickLinkItems,
   // internalScrollEnabled = true,
 }: RecentTicketsTableProps) {
   const userType = useAppSelector((state) => state.auth.user?.userType);
@@ -246,6 +265,7 @@ export default function RecentTicketsTable({
 
     return true;
   });
+  const shouldShowQuickLinks = Boolean(getQuickLinkItems);
 
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -400,6 +420,9 @@ export default function RecentTicketsTable({
                     )}
                   </th>
                 ))}
+                {shouldShowQuickLinks ? (
+                  <th className="sticky top-0 w-16 border-b border-[#F3F4F6] bg-[#F9FAFB] px-4 py-3 text-right text-xs font-semibold text-gray-900" />
+                ) : null}
               </tr>
             ))}
           </thead>
@@ -443,12 +466,22 @@ export default function RecentTicketsTable({
                       )}
                     </td>
                   ))}
+                  {shouldShowQuickLinks ? (
+                    <td className="px-4 py-3 text-sm">
+                      <div className="flex justify-end">
+                        <TicketQuickLinksPopover
+                          ticket={row.original}
+                          getQuickLinkItems={getQuickLinkItems}
+                        />
+                      </div>
+                    </td>
+                  ) : null}
                 </tr>
               ))
             ) : (
               <tr>
                 <td
-                  colSpan={columns.length}
+                  colSpan={columns.length + (shouldShowQuickLinks ? 1 : 0)}
                   className="px-4 py-8 text-center text-sm text-gray-500"
                 >
                   No tickets found.
@@ -786,6 +819,85 @@ function renderStatusBadge(ticket: RecentTicket) {
       {ticket.status}
     </span>
   );
+}
+
+function TicketQuickLinksPopover({
+  ticket,
+  getQuickLinkItems,
+}: {
+  ticket: RecentTicket;
+  getQuickLinkItems?: (ticket: RecentTicket) => RecentTicketQuickLinkItem[];
+}) {
+  const quickLinkItems = getQuickLinkItems?.(ticket) ?? [];
+
+  if (!quickLinkItems.length) {
+    return null;
+  }
+
+  return (
+    <Menu as="div" className="relative">
+      {({ close }) => (
+        <>
+          <MenuButton
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+            }}
+            className="flex h-6 w-6 items-center justify-center rounded-md text-gray-500 outline-none transition hover:bg-gray-100 hover:text-gray-700 data-open:bg-gray-100"
+            aria-label={`Open quick links for ${ticket.title}`}
+          >
+            <ThreedotIcon />
+          </MenuButton>
+
+          <MenuItems
+            anchor="bottom end"
+            transition
+            className="z-100 mt-1 w-44 origin-top-right rounded-lg border border-gray-200 bg-white p-1 shadow-[0_10px_30px_rgb(0_0_0/0.12)] outline-none transition duration-150 data-closed:-translate-y-1 data-closed:scale-95 data-closed:opacity-0"
+          >
+            {quickLinkItems.map((item) => (
+              <MenuItem key={item.key}>
+                <Link
+                  href={item.href}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    close();
+                  }}
+                  className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm font-medium text-gray-700 outline-none transition data-focus:bg-gray-100"
+                >
+                  <span className="flex h-4 w-4 shrink-0 items-center justify-center text-gray-900  ">
+                    {renderQuickLinkIcon(item.key)}
+                  </span>
+                  <span>{item.label}</span>
+                </Link>
+              </MenuItem>
+            ))}
+          </MenuItems>
+        </>
+      )}
+    </Menu>
+  );
+}
+
+function renderQuickLinkIcon(key: RecentTicketQuickLinkItem['key']): ReactNode {
+  if (key === 'project') {
+    return (
+      <ProjectsIcon fill="currentColor" opacity="0" width="22" height="18" />
+    );
+  }
+
+  if (key === 'thread') {
+    return <ChatIcon fill="currentColor" width="18" height="18" />;
+  }
+
+  if (key === 'files') {
+    return <FilesTabIcon fill="currentColor" width="18" height="18" />;
+  }
+
+  if (key === 'notes') {
+    return <NotesTabIcon fill="currentColor" width="18" height="18" />;
+  }
+
+  return <CalendarTabIcon fill="currentColor" width="18" height="18" />;
 }
 
 function getStatusBadgeStyle(color: string) {

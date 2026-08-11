@@ -1315,6 +1315,8 @@ export default function TicketDetailPage() {
       nextSearchParams.set('t', '2');
     } else if (tab === 'calendar') {
       nextSearchParams.set('t', '3');
+    } else if (tab === 'notes') {
+      nextSearchParams.set('t', '4');
     }
 
     const queryString = nextSearchParams.toString();
@@ -2296,6 +2298,83 @@ export default function TicketDetailPage() {
               className="h-auto min-h-0 min-w-0 space-y-4 overflow-visible scrollbar-hide xl:col-span-3 xl:h-full xl:overflow-y-auto"
               // className="min-h-0 min-w-0 space-y-4 overflow-y-auto scrollbar-hide  xl:col-span-3 xl:h-full"
             >
+              {/* {!isExternalUser ? ( */}
+              <section className="rounded-xl border border-gray-200 bg-white">
+                <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 md:text-base">
+                  Actions
+                </h3>
+
+                <div className="space-y-2 p-3 sm:p-4">
+                  <div className="grid items-center md:grid-cols-2 gap-4">
+                    <span className="text-sm text-black font-normal">
+                      Status
+                    </span>
+                    <Dropdown
+                      // label="Status"
+
+                      options={statusOptions}
+                      value={selectedStatus}
+                      disabled={
+                        updateTicketMutation.isPending || !canEditStatus
+                      }
+                      onChange={handleStatusChange}
+                      applyHeight={false}
+                    />
+                  </div>
+                  <div className="grid items-center md:grid-cols-2 gap-4">
+                    <span className="text-sm text-black font-normal">
+                      Priority
+                    </span>
+                    <Dropdown
+                      options={priorityOptions}
+                      value={selectedPriority}
+                      disabled={
+                        updateTicketMutation.isPending || !canEditPriority
+                      }
+                      onChange={handlePriorityChange}
+                      applyHeight={false}
+                    />
+                  </div>
+                  <div className="grid items-center md:grid-cols-2 gap-4">
+                    <span className="text-sm text-black font-normal">
+                      Assignee
+                    </span>
+
+                    <Dropdown
+                      options={assigneeOptions}
+                      value={selectedAssigneeId}
+                      disabled={
+                        updateTicketMutation.isPending || !canEditAssignee
+                      }
+                      onChange={handleAssigneeChange}
+                    />
+                  </div>
+                  {/* {!isExternalUser ? ( */}
+                  <section className="grid items-center md:grid-cols-2 gap-4">
+                    <span className="text-sm text-black font-normal">
+                      Due Date
+                    </span>
+                    <div className="">
+                      <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-1.5">
+                        <input
+                          type="date"
+                          value={selectedDueDate}
+                          min={minimumDueDate}
+                          disabled={
+                            updateTicketMutation.isPending || !canEditDueDate
+                          }
+                          onChange={(event) =>
+                            handleDueDateChange(event.target.value)
+                          }
+                          className="w-full bg-transparent text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:text-gray-400"
+                        />
+                      </label>
+                    </div>
+                  </section>
+                  {/* ) : null} */}
+                </div>
+              </section>
+              {/* ) : null} */}
               {projectId && canViewProjectDetail ? (
                 <section className="rounded-xl border border-gray-200 bg-white">
                   <div className=" px-3 py-3">
@@ -2429,84 +2508,6 @@ export default function TicketDetailPage() {
                   </div>
                 </section>
               )}
-
-              {/* {!isExternalUser ? ( */}
-              <section className="rounded-xl border border-gray-200 bg-white">
-                <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 md:text-base">
-                  Actions
-                </h3>
-
-                <div className="space-y-2 p-3 sm:p-4">
-                  <div className="grid items-center md:grid-cols-2 gap-4">
-                    <span className="text-sm text-black font-normal">
-                      Status
-                    </span>
-                    <Dropdown
-                      // label="Status"
-
-                      options={statusOptions}
-                      value={selectedStatus}
-                      disabled={
-                        updateTicketMutation.isPending || !canEditStatus
-                      }
-                      onChange={handleStatusChange}
-                      applyHeight={false}
-                    />
-                  </div>
-                  <div className="grid items-center md:grid-cols-2 gap-4">
-                    <span className="text-sm text-black font-normal">
-                      Priority
-                    </span>
-                    <Dropdown
-                      options={priorityOptions}
-                      value={selectedPriority}
-                      disabled={
-                        updateTicketMutation.isPending || !canEditPriority
-                      }
-                      onChange={handlePriorityChange}
-                      applyHeight={false}
-                    />
-                  </div>
-                  <div className="grid items-center md:grid-cols-2 gap-4">
-                    <span className="text-sm text-black font-normal">
-                      Assignee
-                    </span>
-
-                    <Dropdown
-                      options={assigneeOptions}
-                      value={selectedAssigneeId}
-                      disabled={
-                        updateTicketMutation.isPending || !canEditAssignee
-                      }
-                      onChange={handleAssigneeChange}
-                    />
-                  </div>
-                  {/* {!isExternalUser ? ( */}
-                  <section className="grid items-center md:grid-cols-2 gap-4">
-                    <span className="text-sm text-black font-normal">
-                      Due Date
-                    </span>
-                    <div className="">
-                      <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-1.5">
-                        <input
-                          type="date"
-                          value={selectedDueDate}
-                          min={minimumDueDate}
-                          disabled={
-                            updateTicketMutation.isPending || !canEditDueDate
-                          }
-                          onChange={(event) =>
-                            handleDueDateChange(event.target.value)
-                          }
-                          className="w-full bg-transparent text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:text-gray-400"
-                        />
-                      </label>
-                    </div>
-                  </section>
-                  {/* ) : null} */}
-                </div>
-              </section>
-              {/* ) : null} */}
 
               <section className="rounded-xl border border-gray-200 bg-white ">
                 <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 sm:px-4 md:text-base">
@@ -3991,19 +3992,41 @@ function formatTimelineDate(value: string) {
     return value;
   }
 
-  const [formattedDate, formattedTime] = new Intl.DateTimeFormat('en-US', {
+  const formattedDate = new Intl.DateTimeFormat('en-US', {
     month: 'short',
     day: '2-digit',
     year: 'numeric',
+  }).format(date);
+
+  const formattedTime = new Intl.DateTimeFormat('en-US', {
     hour: '2-digit',
     minute: '2-digit',
-  })
-    .format(date)
-    .split(', ');
+  }).format(date);
 
   return formattedTime
     ? `${formattedDate}  •  ${formattedTime}`
     : formattedDate;
+}
+
+function formatTimelineDateTime(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  const formattedDate = new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+  }).format(date);
+
+  const formattedTime = new Intl.DateTimeFormat('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+
+  return formattedTime ? `${formattedDate} • ${formattedTime}` : formattedDate;
 }
 
 function formatBytes(sizeBytes: string | number | null | undefined) {
@@ -4295,7 +4318,7 @@ function TicketTimeline({ items }: { items: TicketTimelineItem[] }) {
   }
 
   return (
-    <div className="space-y-0">
+    <div className="space-y-0 mt03">
       {items.map((item, index) => {
         const isLastItem = index === items.length - 1;
 
@@ -4314,20 +4337,20 @@ function TicketTimeline({ items }: { items: TicketTimelineItem[] }) {
               </span>
             </span>
 
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 mt-1.5 flex-1">
+              <p className="text-xs text-gray-500">
+                {formatTimelineDateTime(item.occurredAt)}
+              </p>
+              <p className="mt-1.5 text-sm text-gray-700">{item.description}</p>
               <span
                 className={clsx(
-                  'inline-flex rounded-full px-2 py-1 text-xs font-semibold leading-none',
+                  'mt-2 inline-flex rounded-full px-2 py-1 text-xs font-semibold leading-none',
                   item.statusClassName,
                 )}
                 style={item.statusStyle}
               >
                 {item.status}
               </span>
-              <p className="mt-1.5 text-sm text-gray-700">{item.description}</p>
-              <p className="mt-1.5 text-xs text-gray-500">
-                {formatTimelineDate(item.occurredAt)}
-              </p>
             </div>
           </div>
         );
