@@ -2298,7 +2298,7 @@ export default function TicketDetailPage() {
             >
               {projectId && canViewProjectDetail ? (
                 <section className="rounded-xl border border-gray-200 bg-white">
-                  <div className="border-b border-gray-200 px-3 py-3">
+                  <div className=" px-3 py-3">
                     <div className="relative grid w-full grid-cols-2 gap-1 rounded-full border border-gray-200 bg-gray-50 p-1 shadow-[inset_0_1px_3px_rgba(15,23,42,0.06)]">
                       <div
                         className="absolute top-1 bottom-1 left-0 rounded-full bg-white shadow-[0_0_25px_0_rgb(27_28_29/0.12)] transition-all duration-300 ease-out"
@@ -4265,7 +4265,7 @@ function QuickLinkButton({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 border-b border-gray-200 px-4 py-3 text-left transition last:border-b-0 hover:bg-gray-50"
+      className="flex w-full items-center gap-3 border-t border-gray-200 px-4 py-3 text-left transition last:border-b-0 hover:bg-gray-50"
     >
       <span
         className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconBg}`}
