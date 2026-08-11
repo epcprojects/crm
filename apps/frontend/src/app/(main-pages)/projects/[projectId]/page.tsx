@@ -1542,8 +1542,8 @@ export default function ProjectDetailPage() {
 
   if (!canViewProjectDetail) {
     return (
-      <div className="space-y-4 mt-8">
-        <div className="rounded-[20px] border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+      <div className="space-y-4 h-full py-8 pe-4">
+        <div className="rounded-[20px] h-full border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
           <EmptyState
             imageUrl="/images/EmptyProjectIcon.svg"
             imageAlt="Project not found"
@@ -1559,8 +1559,8 @@ export default function ProjectDetailPage() {
 
   if (!project) {
     return (
-      <div className="space-y-4 mt-8">
-        <div className="rounded-3xl border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+      <div className="space-y-4 h-full py-8 pe-4">
+        <div className="rounded-3xl h-full border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
           <EmptyState
             imageUrl="/images/EmptyProjectIcon.svg"
             imageAlt="Project not found"

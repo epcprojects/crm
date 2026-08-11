@@ -1161,7 +1161,7 @@ export default function TicketDetailPage() {
 
   if (!canViewTicketDetail) {
     return (
-      <div className="space-y-4 mt-8">
+      <div className="space-y-4 h-full py-8 pe-4">
         <div className="rounded-3xl border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
           <EmptyState
             imageUrl="/images/RecentTicketEmpty.svg"
@@ -1182,11 +1182,11 @@ export default function TicketDetailPage() {
 
   if (!ticket) {
     return (
-      <div className="space-y-4 mt-8">
-        <div className="rounded-3xl border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+      <div className="space-y-4 h-full py-8 pe-4">
+        <div className="rounded-3xl h-full border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
           <EmptyState
             imageUrl="/images/RecentTicketEmpty.svg"
-            imageAlt="Tickets detail not found"
+            imageAlt="Tickets detail not found "
             title="Tickets detail not found"
             // description="Recent tickets will appear here once they are created."
             buttonLabel="Go Back"

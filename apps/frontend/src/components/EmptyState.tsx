@@ -19,7 +19,7 @@ export default function EmptyState({
   title,
   description,
   buttonLabel,
-  buttonIcon = <PlusIcon />,
+  buttonIcon,
   onButtonClick,
 }: EmptyStateProps) {
   return (
