@@ -19,6 +19,7 @@ import { NotificationEntityType, NotificationType } from '@harperhelp/types';
 import { extname } from 'path';
 import { UpdateThreadMessageDto } from '../dto/update-thread-message.dto';
 import { ReactionsService } from '../../reactions/reactions.service';
+import { ProjectsService } from '../projects.service';
 
 @Injectable()
 export class ThreadService {
@@ -28,6 +29,7 @@ export class ThreadService {
 
     private readonly filesService: FilesService,
     private readonly utilityService: UtilityService,
+    private readonly projectsService: ProjectsService,
     private readonly notificationsService: NotificationsService,
     private readonly reactionsService: ReactionsService,
     private readonly threadGateway: ThreadGateway,
@@ -47,10 +49,17 @@ export class ThreadService {
       .getRepository(Project)
       .findOne({ where: { id: projectId }, relations: { members: true } });
     if (!project) throw new NotFoundException('Project not found');
+
+    const mentionedUserIds =
+      await this.projectsService.filterValidMentionedUserIds(
+        projectId,
+        dto.mentionedUserIds ?? [],
+      );
     const message = await this.repo.save(
       this.repo.create({
         projectId,
         message: dto.message,
+        mentionedUserIds,
         authorId: user.id,
         createdBy: user.id,
         parentId: dto.parentId,
@@ -121,6 +130,19 @@ export class ThreadService {
         : 'New thread message',
     });
 
+    if (mentionedUserIds.length) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId,
+        actorId: user.id,
+        type: NotificationType.MENTIONED_IN_THREAD_MESSAGE,
+        entityType: NotificationEntityType.THREAD_MESSAGE,
+        entityId: msg.id,
+        title: `You were mentioned in a thread message in project "${project.name}" by "${user.fullName}"`,
+        message: '',
+        explicitRecipientIds: mentionedUserIds,
+      });
+    }
+
     return msg;
   }
 
@@ -131,6 +153,10 @@ export class ThreadService {
     user: any,
     files?: Express.Multer.File[],
   ) {
+    const project = await this.repo.manager
+      .getRepository(Project)
+      .findOne({ where: { id: projectId }, relations: { members: true } });
+    if (!project) throw new NotFoundException('Project not found');
     const message = await this.repo.findOne({
       where: {
         id,
@@ -153,6 +179,21 @@ export class ThreadService {
     }
 
     message.message = dto.message ?? message.message;
+
+    let newlyMentionedUserIds: string[] = [];
+
+    const {
+      validMentionedUserIds,
+      newlyMentionedUserIds: newMentionedUserIds,
+    } = await this.projectsService.getMentionedUserChanges(
+      message.projectId,
+      message.mentionedUserIds ?? [],
+      dto.mentionedUserIds,
+    );
+
+    message.mentionedUserIds = validMentionedUserIds;
+    newlyMentionedUserIds = newMentionedUserIds;
+
     message.updatedBy = user.id;
     message.updatedAt = new Date();
 
@@ -172,7 +213,18 @@ export class ThreadService {
       updatedBy: updated.updatedBy,
       attachments: updated.attachments,
     });
-
+    if (newlyMentionedUserIds.length) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId,
+        actorId: user.id,
+        type: NotificationType.MENTIONED_IN_THREAD_MESSAGE,
+        entityType: NotificationEntityType.THREAD_MESSAGE,
+        entityId: updated.id,
+        title: `You were mentioned in a thread message in project "${project?.name}" by "${user.fullName}"`,
+        message: '',
+        explicitRecipientIds: newlyMentionedUserIds,
+      });
+    }
     return updated;
   }
 
