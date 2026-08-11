@@ -1,6 +1,7 @@
 export enum EmailEventType {
   PROJECT_CREATED = 'project.created',
   PROJECT_ASSIGNED = 'project.assigned',
+  PROJECT_UNASSIGNED = 'project.unassigned',
   THREAD_MESSAGE_CREATED = 'thread.message_created',
   TICKET_CREATED = 'ticket.created',
   TICKET_REPLY_POSTED = 'ticket.reply_posted',
@@ -8,6 +9,7 @@ export enum EmailEventType {
   TICKET_PRIORITY_UPDATED = 'ticket.priority_updated',
   TICKET_ASSIGNEE_UPDATED = 'ticket.assignee_updated',
   TICKET_ATTACHMENT_ADDED = 'ticket.attachment_added',
+
 }
 
 export interface EmailRecipient {
@@ -27,11 +29,24 @@ export interface ProjectCreatedPayload {
   members: EmailRecipient[];
 }
 
-export interface ProjectAssignedPayload
-  extends Omit<
-    ProjectCreatedPayload,
-    'projectId' | 'projectCode' | 'description'
-  > {}
+export interface ProjectAssignedPayload {
+  projectName: string;
+  projectId: string;
+  assignedTo: EmailRecipient;
+  assignedBy: EmailRecipient;
+}
+
+// export interface ProjectAssignedPayload
+//   extends Omit<
+//     ProjectCreatedPayload,
+//     'projectId' | 'projectCode' | 'description'
+//   > {}
+
+export interface ProjectUnassignedPayload {
+  projectName: string;
+  unassignedFrom: EmailRecipient;
+  unassignedBy: EmailRecipient;
+}
 
 export interface TicketCreatedPayload {
   ticketId: string;
@@ -64,6 +79,7 @@ export interface TicketStatusUpdatedPayload {
   ticketNumber: string;
   ticketTitle: string;
   projectName: string;
+  projectId: string;
   previousStatus: string;
   newStatus: string;
   updatedBy: EmailRecipient;
@@ -75,6 +91,7 @@ export interface TicketPriorityUpdatedPayload {
   ticketNumber: string;
   ticketTitle: string;
   projectName: string;
+  projectId: string;
   previousPriority: string;
   newPriority: string;
   updatedBy: EmailRecipient;
@@ -86,6 +103,7 @@ export interface TicketAssigneeUpdatedPayload {
   ticketNumber: string;
   ticketTitle: string;
   projectName: string;
+  projectId: string;
   previousAssignee?: EmailRecipient;
   newAssignee: EmailRecipient;
   updatedBy: EmailRecipient;
@@ -106,6 +124,8 @@ export interface TicketAttachmentAddedPayload {
 export interface ThreadMessageCreatedPayload {
   messageId: string;
   projectId: string;
+  projectName: string;
+  message: string;
   createdBy: EmailRecipient;
   participants: EmailRecipient[];
 }
@@ -114,6 +134,7 @@ export interface ThreadMessageCreatedPayload {
 
 export type EmailNotificationEvent =
   | { type: EmailEventType.PROJECT_CREATED; payload: ProjectCreatedPayload }
+  | { type: EmailEventType.PROJECT_UNASSIGNED; payload: ProjectUnassignedPayload }
   | { type: EmailEventType.PROJECT_ASSIGNED; payload: ProjectAssignedPayload } 
   | {type: EmailEventType.THREAD_MESSAGE_CREATED; payload: ThreadMessageCreatedPayload }
   | { type: EmailEventType.TICKET_CREATED; payload: TicketCreatedPayload }

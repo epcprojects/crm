@@ -8,6 +8,7 @@ import {
   buildTicketCreatedEmail,
   buildTicketReplyEmail,
   buildThreadMessageCreatedEmail,
+  buildProjectUnassignedEmail,
   buildProjectAssignedEmail,
 } from '../../templates/common';
 import {
@@ -63,23 +64,25 @@ async function sendMailToRecipients(
 function buildEmailForEvent(event: EmailNotificationEvent) {
   switch (event.type) {
     case EmailEventType.PROJECT_CREATED:
-      return buildProjectCreatedEmail(event.payload, appUrl, appName);
+      return buildProjectCreatedEmail(event.payload, appUrl);
     case EmailEventType.PROJECT_ASSIGNED:
-      return buildProjectAssignedEmail(event.payload, appUrl, appName);
+      return buildProjectAssignedEmail(event.payload, appUrl);
+    case EmailEventType.PROJECT_UNASSIGNED:
+      return buildProjectUnassignedEmail(event.payload, appUrl);
     case EmailEventType.THREAD_MESSAGE_CREATED:
-      return buildThreadMessageCreatedEmail(event.payload, appUrl, appName);
+      return buildThreadMessageCreatedEmail(event.payload, appUrl);
     case EmailEventType.TICKET_CREATED:
-      return buildTicketCreatedEmail(event.payload, appUrl, appName);
+      return buildTicketCreatedEmail(event.payload, appUrl);
     case EmailEventType.TICKET_REPLY_POSTED:
-      return buildTicketReplyEmail(event.payload, appUrl, appName);
+      return buildTicketReplyEmail(event.payload, appUrl);
     case EmailEventType.TICKET_STATUS_UPDATED:
-      return buildStatusUpdatedEmail(event.payload, appUrl, appName);
+      return buildStatusUpdatedEmail(event.payload, appUrl);
     case EmailEventType.TICKET_PRIORITY_UPDATED:
-      return buildPriorityUpdatedEmail(event.payload, appUrl, appName);
+      return buildPriorityUpdatedEmail(event.payload, appUrl);
     case EmailEventType.TICKET_ASSIGNEE_UPDATED:
-      return buildAssigneeUpdatedEmail(event.payload, appUrl, appName);
+      return buildAssigneeUpdatedEmail(event.payload, appUrl);
     case EmailEventType.TICKET_ATTACHMENT_ADDED:
-      return buildAttachmentAddedEmail(event.payload, appUrl, appName);
+      return buildAttachmentAddedEmail(event.payload, appUrl);
   }
 }
 
@@ -88,7 +91,9 @@ function resolveRecipients(event: EmailNotificationEvent) {
     case EmailEventType.PROJECT_CREATED:
       return event.payload.members;
     case EmailEventType.PROJECT_ASSIGNED:
-      return event.payload.members;
+      return event.payload.assignedTo ? [event.payload.assignedTo] : [];
+    case EmailEventType.PROJECT_UNASSIGNED:
+      return event.payload.unassignedFrom ? [event.payload.unassignedFrom] : [];
     case EmailEventType.TICKET_CREATED:
       return event.payload.participants;
     case EmailEventType.THREAD_MESSAGE_CREATED:

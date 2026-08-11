@@ -101,6 +101,8 @@ export class ThreadService {
       payload: {
         messageId: message.id,
         projectId,
+        projectName: project.name,
+        message: msg.message || '',
         createdBy: { name: user.fullName, email: user.email },
         participants,
       },

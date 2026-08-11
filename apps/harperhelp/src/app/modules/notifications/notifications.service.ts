@@ -18,6 +18,7 @@ import {
   TicketAttachmentAddedPayload,
   ProjectAssignedPayload,
   ThreadMessageCreatedPayload,
+  ProjectUnassignedPayload,
 } from './notifications.types';
 import {
   buildProjectCreatedEmail,
@@ -29,6 +30,7 @@ import {
   buildAttachmentAddedEmail,
   buildProjectAssignedEmail,
   buildThreadMessageCreatedEmail,
+  buildProjectUnassignedEmail,
 } from './templates/common';
 import { SqsNotificationQueueService } from './queue/sqs-notification-queue.service';
 import { DataSource, Repository } from 'typeorm';
@@ -171,6 +173,8 @@ export class NotificationsService {
         return this.onProjectCreated(event.payload); // not needed
       case EmailEventType.PROJECT_ASSIGNED:
         return this.onProjectAssigned(event.payload);
+      case EmailEventType.PROJECT_UNASSIGNED:
+        return this.onProjectUnassigned(event.payload);
       case EmailEventType.THREAD_MESSAGE_CREATED: // done
         return this.onThreadMessageCreated(event.payload);
       case EmailEventType.TICKET_CREATED: // done
@@ -194,7 +198,7 @@ export class NotificationsService {
     const { subject, html } = buildProjectCreatedEmail(
       p,
       this.appUrl,
-      this.appName,
+      // this.appName,
     );
     // Internal notes: exclude the poster themselves from the notification list
     const recipients = p.members.filter((r) => r.email !== p.createdBy.email);
@@ -206,11 +210,23 @@ export class NotificationsService {
     const { subject, html } = buildProjectAssignedEmail(
       p,
       this.appUrl,
-      this.appName,
+      // this.appName,
     );
-    const recipients = p.members.filter((r) => r.email !== p.createdBy.email);
+    const recipients = p.assignedTo ? [p.assignedTo] : [];
     // Notify all members
     await this.sendBulk(recipients, subject, html);
+  }
+
+  private async onProjectUnassigned(p: ProjectUnassignedPayload): Promise<void> {
+    const { subject, html } = buildProjectUnassignedEmail(
+      p,
+      this.appUrl,
+      // this.appName,
+    );
+    // Internal notes: exclude the poster themselves from the notification list
+    // const recipients = p.members.filter((r) => r.email !== p.createdBy.email);
+    // Notify all members
+    await this.sendBulk([p.unassignedFrom], subject, html);
   }
 
   private async onThreadMessageCreated(
@@ -219,7 +235,7 @@ export class NotificationsService {
     const { subject, html } = buildThreadMessageCreatedEmail(
       p,
       this.appUrl,
-      this.appName,
+      // this.appName,
     );
     // Internal notes: exclude the poster themselves from the notification list
     const recipients = p.participants.filter(
@@ -235,7 +251,7 @@ export class NotificationsService {
     const { subject, html } = buildTicketCreatedEmail(
       p,
       this.appUrl,
-      this.appName,
+      // this.appName,
     );
     // Internal notes: exclude the poster themselves from the notification list
     const recipients = p.participants.filter(
@@ -252,7 +268,7 @@ export class NotificationsService {
     const { subject, html } = buildTicketReplyEmail(
       p,
       this.appUrl,
-      this.appName,
+      // this.appName,
     );
     // Internal notes: exclude the poster themselves from the notification list
     const recipients = p.participants.filter(
@@ -267,7 +283,7 @@ export class NotificationsService {
     const { subject, html } = buildStatusUpdatedEmail(
       p,
       this.appUrl,
-      this.appName,
+      // this.appName,
     );
     const recipients = p.participants.filter(
       (r) => r.email !== p.updatedBy.email && r.isInvitationAccepted === true,
@@ -281,7 +297,7 @@ export class NotificationsService {
     const { subject, html } = buildPriorityUpdatedEmail(
       p,
       this.appUrl,
-      this.appName,
+      // this.appName,
     );
     const recipients = p.participants.filter(
       (r) => r.email !== p.updatedBy.email && r.isInvitationAccepted === true,
@@ -295,7 +311,7 @@ export class NotificationsService {
     const { subject, html } = buildAssigneeUpdatedEmail(
       p,
       this.appUrl,
-      this.appName,
+      // this.appName,
     );
     // Always notify new assignee even if not in participants list
     const recipientSet = new Map<string, EmailRecipient>();
@@ -312,7 +328,7 @@ export class NotificationsService {
     const { subject, html } = buildAttachmentAddedEmail(
       p,
       this.appUrl,
-      this.appName,
+      // this.appName,
     );
     const recipients = p.participants.filter(
       (r) => r.email !== p.uploadedBy.email && r.isInvitationAccepted === true,

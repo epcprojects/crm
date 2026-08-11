@@ -16,6 +16,10 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { Project } from '../projects/entities/project.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { NotificationEntityType, NotificationType } from '@harperhelp/types';
+import {
+  EmailEventType,
+  EmailRecipient,
+} from '../notifications/notifications.types';
 
 @Injectable()
 export class UsersService {
@@ -400,7 +404,23 @@ export class UsersService {
     // Send notifications based on the actual diff — not just "projectIds
     // was passed in the request". Skip entirely if the admin is editing
     // their own account (no self-notifications).
+    
+    user.updatedAt = new Date();
+
+    await this.userRepo.save(user);
     if (userId !== loggedInUser.id && dto.projectIds !== undefined) {
+      const affectedUser: EmailRecipient = {
+        name: user.fullName,
+        email: user.email,
+        isInvitationAccepted: user.isInvitationAccepted,
+      };
+
+      const updatedBy: EmailRecipient = {
+        name: loggedInUser.fullName,
+        email: loggedInUser.email,
+        isInvitationAccepted: loggedInUser.isInvitationAccepted,
+      };
+
       // Notify about newly added projects, if any.
       if (addedProjects.length > 0) {
         const addedNames = addedProjects.map((p) => p.name).join(', ');
@@ -413,8 +433,18 @@ export class UsersService {
           message: `New project${addedProjects.length === 1 ? '' : 's'}: ${addedNames}`,
           explicitRecipientIds: [userId],
         });
+        for (const project of addedProjects) {
+          await this.notificationService.dispatch({
+            type: EmailEventType.PROJECT_ASSIGNED,
+            payload: {
+              projectName: project.name,
+              projectId: project.id,
+              assignedTo: affectedUser,
+              assignedBy: updatedBy,
+            },
+          });
+        }
       }
-
       // Notify about removed projects, if any.
       if (removedProjects.length > 0) {
         const removedNames = removedProjects.map((p) => p.name).join(', ');
@@ -427,6 +457,16 @@ export class UsersService {
           message: `Removed project${removedProjects.length === 1 ? '' : 's'}: ${removedNames}`,
           explicitRecipientIds: [userId],
         });
+        for (const project of removedProjects) {
+          await this.notificationService.dispatch({
+            type: EmailEventType.PROJECT_UNASSIGNED,
+            payload: {
+              projectName: project.name,
+              unassignedFrom: affectedUser,
+              unassignedBy: updatedBy,
+            },
+          });
+        }
       }
     }
 
