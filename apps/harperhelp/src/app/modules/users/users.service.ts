@@ -212,7 +212,8 @@ export class UsersService {
 
       await this.notificationService.sendAdminInviteEmail({
         to: existing.email.toLocaleLowerCase(),
-        fullName: existing.fullName,
+        // fullName: existing.fullName,
+        fullName: currentUser.fullName,
         role: role.name,
         projectName: projectNames,
         inviteToken: existing.inviteToken,
@@ -248,7 +249,8 @@ export class UsersService {
 
     await this.notificationService.sendAdminInviteEmail({
       to: newUser.email,
-      fullName: newUser.fullName,
+      // fullName: newUser.fullName,
+      fullName: currentUser.fullName,
       role: role.name,
       projectName: projectNames,
       inviteToken: newUser.inviteToken,
