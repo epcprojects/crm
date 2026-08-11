@@ -21,6 +21,7 @@ import type { DiscussionAttachment, DiscussionReply } from './types';
 import EmojiPickerButton from './EmojiPickerButton';
 import MessageReactionBar from './MessageReactionBar';
 import ThemeButton from '../ui/ThemeButton';
+import TopLoadingBar from '../ui/TopLoadingBar';
 import DiscussionMentionsInput, {
   hydrateMentionMarkupFromMessage,
 } from './DiscussionMentionsInput';
@@ -376,6 +377,7 @@ export default function ProjectThreadPanel({
         // className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white"
         className="flex h-auto min-h-0 flex-none flex-col overflow-visible bg-white xl:h-full xl:flex-1 xl:overflow-hidden"
       >
+        <TopLoadingBar visible={isSubmittingReply} />
         <div className="flex items-center justify-between border-b border-gray-200 px-3 py-2 sm:py-3 md:px-5">
           <div className="flex items-center gap-3">
             <h3 className="text-sm md:text-base font-semibold text-gray-900">
@@ -984,8 +986,11 @@ export default function ProjectThreadPanel({
                         isSubmittingReply
                       }
                       className="flex h-10 w-10 items-center justify-center rounded-full bg-[#10175A] text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      aria-label={
+                        isSubmittingReply ? 'Sending reply' : 'Send reply'
+                      }
                     >
-                      <TelegramIcon />
+                      {isSubmittingReply ? <ButtonSpinner /> : <TelegramIcon />}
                     </button>
                   </div>
                 </div>
@@ -1573,6 +1578,12 @@ function TelegramIcon() {
         fill="white"
       />
     </svg>
+  );
+}
+
+function ButtonSpinner() {
+  return (
+    <span className="inline-flex h-4.5 w-4.5 animate-spin rounded-full border-2 border-white/35 border-t-white" />
   );
 }
 

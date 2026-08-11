@@ -149,6 +149,11 @@ export default function ProjectDetailPage() {
   const canUploadFiles = hasPermission('files.upload');
   const canDownloadFiles = hasPermission('files.download');
   const canViewCalendar = hasPermission('calendar.view_grid');
+  const canViewProjectNotesList = hasPermission('projects_notes.view_list');
+  const canViewProjectNoteDetail = hasPermission('projects_notes.view_detail');
+  const canCreateProjectNote = hasPermission('projects_notes.create');
+  const canEditProjectNote = hasPermission('projects_notes.edit');
+  const canDeleteProjectNote = hasPermission('projects_notes.delete');
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [uploadFileOpen, setUploadFileOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
@@ -242,12 +247,12 @@ export default function ProjectDetailPage() {
       limit: PROJECT_NOTES_LIMIT,
       search: notesSearchValue.trim() || undefined,
     },
-    canViewProjectDetail,
+    canViewProjectNotesList,
   );
   const projectNoteDetailQuery = useProjectNoteDetailQuery(
     projectId,
     selectedProjectNoteId,
-    canViewProjectDetail && !isCreatingProjectNote,
+    canViewProjectNoteDetail && !isCreatingProjectNote,
   );
   const projectTicketsQuery = useProjectTicketsQuery(
     projectId,
@@ -788,9 +793,9 @@ export default function ProjectDetailPage() {
     [isCreatingProjectNote, projectNotes, selectedProjectNoteId],
   );
   const selectedProjectNote =
-    !isCreatingProjectNote && projectNoteDetailQuery.data
-      ? projectNoteDetailQuery.data
-      : selectedProjectNoteSummary;
+    !canViewProjectNoteDetail || isCreatingProjectNote
+      ? null
+      : (projectNoteDetailQuery.data ?? null);
 
   useEffect(() => {
     if (!projectNotes.length) {
@@ -1412,7 +1417,7 @@ export default function ProjectDetailPage() {
     if (tab === 'Thread') return canViewThread;
     if (tab === 'Files') return canViewFiles;
     if (tab === 'Calendar') return canViewCalendar;
-    if (tab === 'Notes') return true;
+    if (tab === 'Notes') return canViewProjectNotesList;
     return false;
   });
   const defaultProjectTabIndex = useMemo(() => {
@@ -1926,6 +1931,12 @@ export default function ProjectDetailPage() {
                         onPaginationChange={setTicketsPagination}
                         totalRows={projectTicketsQuery.data?.meta.total ?? 0}
                         manualPagination
+                        getRowHref={
+                          canViewTicketDetail
+                            ? (ticket) =>
+                                `/tickets/${ticket.id}?projectId=${projectId}`
+                            : undefined
+                        }
                         onRowClick={
                           canViewTicketDetail
                             ? (ticket) =>
@@ -2139,622 +2150,702 @@ export default function ProjectDetailPage() {
                   </TabPanel>
                 </PermissionGuard>
 
-                <TabPanel className="h-auto min-h-0 overflow-visible xl:h-full border rounded-sm sm:rounded-2xl border-gray-200 xl:overflow-hidden">
-                  <div className="grid h-auto min-h-0 min-w-0 xl:h-full xl:grid-cols-[340px_minmax(0,1fr)]">
-                    <section className="flex min-h-96 flex-col overflow-hidden border-e border-gray-200 bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
-                      <div className="border-b border-gray-200 px-3.5 py-3.5 bg-gray-50">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-base font-bold text-gray-900">
-                              Notes
-                            </h3>
-                            <p className="text-xs font-medium border border-gray-200 px-1.5 py-0.5 rounded-full bg-white text-gray-600">
-                              {projectNotesQuery.data?.meta.total ?? 0} notes
-                            </p>
-                          </div>
-                          <ThemeButton
-                            type="button"
-                            variant="primaryGradient"
-                            size="sm"
-                            icon={<PlusIcon width="14" height="14" />}
-                            onClick={handleStartCreatingProjectNote}
-                          >
-                            New
-                          </ThemeButton>
-                        </div>
-
-                        <div className="mt-4 rounded-lg border border-gray-200 bg-white px-2.5 py-2">
-                          <div className="flex items-center gap-2">
-                            <span className="shrink-0">
-                              <SearchIcon fill="#374151" />
-                            </span>
-
-                            <input
-                              type="text"
-                              value={notesSearchValue}
-                              onChange={(event) =>
-                                setNotesSearchValue(event.target.value)
-                              }
-                              placeholder="Search..."
-                              className="min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="min-h-0 flex-1 scrollbar-thin overflow-y-auto bg-white">
-                        {projectNotesQuery.isLoading ? (
-                          <div className="space-y-3 p-4">
-                            {Array.from({ length: 5 }).map((_, index) => (
-                              <div
-                                key={index}
-                                className="rounded-2xl border border-gray-200 px-4 py-3"
+                <PermissionGuard permission="projects_notes.view_list">
+                  <TabPanel className="h-auto min-h-0 overflow-visible xl:h-full border rounded-sm sm:rounded-2xl border-gray-200 xl:overflow-hidden">
+                    <div className="grid h-auto min-h-0 min-w-0 xl:h-full xl:grid-cols-[340px_minmax(0,1fr)]">
+                      <section className="flex min-h-96 flex-col overflow-hidden border-e border-gray-200 bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+                        <div className="border-b border-gray-200 px-3.5 py-3.5 bg-gray-50">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-base font-bold text-gray-900">
+                                Notes
+                              </h3>
+                              <p className="text-xs font-medium border border-gray-200 px-1.5 py-0.5 rounded-full bg-white text-gray-600">
+                                {projectNotesQuery.data?.meta.total ?? 0} notes
+                              </p>
+                            </div>
+                            {canCreateProjectNote ? (
+                              <ThemeButton
+                                type="button"
+                                variant="primaryGradient"
+                                size="sm"
+                                icon={<PlusIcon width="14" height="14" />}
+                                onClick={handleStartCreatingProjectNote}
                               >
-                                <div className="h-4 w-2/3 animate-pulse rounded bg-gray-200" />
-                                <div className="mt-3 h-3 w-full animate-pulse rounded bg-gray-100" />
-                                <div className="mt-2 h-3 w-1/2 animate-pulse rounded bg-gray-100" />
-                              </div>
-                            ))}
+                                New
+                              </ThemeButton>
+                            ) : null}
                           </div>
-                        ) : projectNotes.length ? (
-                          <div>
-                            {projectNotes.map((note) => {
-                              const isActive =
-                                note.id === selectedProjectNoteSummary?.id;
-                              const noteForPreview = note;
-                              return (
-                                <article
-                                  key={note.id}
-                                  className={clsx(
-                                    'border-b px-2.5 py-3 transition last:border-b-0',
-                                    isActive
-                                      ? 'border-gray-200 bg-blue-50'
-                                      : 'border-gray-200 bg-white hover:bg-gray-50',
-                                  )}
+
+                          <div className="mt-4 rounded-lg border border-gray-200 bg-white px-2.5 py-2">
+                            <div className="flex items-center gap-2">
+                              <span className="shrink-0">
+                                <SearchIcon fill="#374151" />
+                              </span>
+
+                              <input
+                                type="text"
+                                value={notesSearchValue}
+                                onChange={(event) =>
+                                  setNotesSearchValue(event.target.value)
+                                }
+                                placeholder="Search..."
+                                className="min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="min-h-0 flex-1 scrollbar-thin overflow-y-auto bg-white">
+                          {projectNotesQuery.isLoading ? (
+                            <div className="space-y-3 p-4">
+                              {Array.from({ length: 5 }).map((_, index) => (
+                                <div
+                                  key={index}
+                                  className="rounded-2xl border border-gray-200 px-4 py-3"
                                 >
-                                  <div className="flex items-start gap-3">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        if (isMobile) {
-                                          setIsProjectNoteMobileModalOpen(true);
-                                        }
-
-                                        setIsCreatingProjectNote(false);
-                                        setIsEditingProjectNote(false);
-                                        setPendingProjectNoteEditId('');
-                                        setSelectedProjectNoteId(note.id);
-                                      }}
-                                      className="min-w-0 flex-1 text-left space-y-1"
-                                    >
-                                      <h4 className="truncate text-base font-bold text-gray-900">
-                                        {note.title}
-                                      </h4>
-                                      <p className="line-clamp-1 text-sm text-gray-600">
-                                        {getProjectNotePreview(
-                                          fullNotesById.get(note.id) ?? note,
-                                        )}
-                                      </p>
-                                      <div className="flex items-center gap-1 text-xs font-normal text-gray-500">
-                                        <CalendarTabIcon
-                                          width="14"
-                                          height="14"
-                                        />
-                                        <span>
-                                          {formatProjectNoteDate(note)}
-                                        </span>
-                                      </div>
-                                    </button>
-
-                                    <Menu as="div" className="relative">
-                                      <MenuButton
+                                  <div className="h-4 w-2/3 animate-pulse rounded bg-gray-200" />
+                                  <div className="mt-3 h-3 w-full animate-pulse rounded bg-gray-100" />
+                                  <div className="mt-2 h-3 w-1/2 animate-pulse rounded bg-gray-100" />
+                                </div>
+                              ))}
+                            </div>
+                          ) : projectNotes.length ? (
+                            <div>
+                              {projectNotes.map((note) => {
+                                const isActive =
+                                  note.id === selectedProjectNoteSummary?.id;
+                                const noteForPreview = note;
+                                return (
+                                  <article
+                                    key={note.id}
+                                    className={clsx(
+                                      'border-b px-2.5 py-3 transition last:border-b-0',
+                                      isActive
+                                        ? 'border-gray-200 bg-blue-50'
+                                        : 'border-gray-200 bg-white hover:bg-gray-50',
+                                    )}
+                                  >
+                                    <div className="flex items-start gap-3">
+                                      <button
                                         type="button"
-                                        aria-label="Note actions"
-                                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-500 outline-none transition hover:bg-white hover:text-gray-700"
-                                      >
-                                        <ThreedotIcon />
-                                      </MenuButton>
+                                        onClick={() => {
+                                          if (isMobile) {
+                                            setIsProjectNoteMobileModalOpen(
+                                              true,
+                                            );
+                                          }
 
-                                      <MenuItems
-                                        anchor="bottom end"
-                                        transition
-                                        className="z-100 mt-1 w-32 origin-top-right rounded-xl border border-gray-200 bg-white p-1.5 shadow-[0_10px_30px_rgb(0_0_0/0.12)] outline-none transition duration-150 data-closed:-translate-y-1 data-closed:scale-95 data-closed:opacity-0"
+                                          setIsCreatingProjectNote(false);
+                                          setIsEditingProjectNote(false);
+                                          setPendingProjectNoteEditId('');
+                                          setSelectedProjectNoteId(note.id);
+                                        }}
+                                        className="min-w-0 flex-1 text-left space-y-1"
                                       >
-                                        <MenuItem>
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              if (isMobile) {
-                                                setIsProjectNoteMobileModalOpen(
-                                                  true,
-                                                );
-                                              }
+                                        <h4 className="truncate text-base font-bold text-gray-900">
+                                          {note.title}
+                                        </h4>
+                                        <p className="line-clamp-1 text-sm text-gray-600">
+                                          {getProjectNotePreview(
+                                            fullNotesById.get(note.id) ?? note,
+                                          )}
+                                        </p>
+                                        <div className="flex items-center gap-1 text-xs font-normal text-gray-500">
+                                          <CalendarTabIcon
+                                            width="14"
+                                            height="14"
+                                          />
+                                          <span>
+                                            {formatProjectNoteDate(note)}
+                                          </span>
+                                        </div>
+                                      </button>
 
-                                              setIsCreatingProjectNote(false);
-                                              setSelectedProjectNoteId(note.id);
-                                              setPendingProjectNoteEditId(
-                                                note.id,
-                                              );
-                                            }}
-                                            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-medium text-gray-700 outline-none transition data-focus:bg-gray-100"
-                                          >
-                                            <EditIcon width="14" height="14" />
-                                            Edit
-                                          </button>
-                                        </MenuItem>
-                                        <MenuItem>
-                                          <button
+                                      {canEditProjectNote ||
+                                      canDeleteProjectNote ? (
+                                        <Menu as="div" className="relative">
+                                          <MenuButton
                                             type="button"
-                                            onClick={() =>
-                                              setProjectNoteToDelete(note)
-                                            }
-                                            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-medium text-red-500 outline-none transition data-focus:bg-red-50"
+                                            aria-label="Note actions"
+                                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-500 outline-none transition hover:bg-white hover:text-gray-700"
                                           >
-                                            <TrashIcon width="16" height="16" />
-                                            Delete
-                                          </button>
-                                        </MenuItem>
-                                      </MenuItems>
-                                    </Menu>
+                                            <ThreedotIcon />
+                                          </MenuButton>
+
+                                          <MenuItems
+                                            anchor="bottom end"
+                                            transition
+                                            className="z-100 mt-1 w-32 origin-top-right rounded-xl border border-gray-200 bg-white p-1.5 shadow-[0_10px_30px_rgb(0_0_0/0.12)] outline-none transition duration-150 data-closed:-translate-y-1 data-closed:scale-95 data-closed:opacity-0"
+                                          >
+                                            {canEditProjectNote ? (
+                                              <MenuItem>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    if (isMobile) {
+                                                      setIsProjectNoteMobileModalOpen(
+                                                        true,
+                                                      );
+                                                    }
+
+                                                    setIsCreatingProjectNote(
+                                                      false,
+                                                    );
+                                                    setSelectedProjectNoteId(
+                                                      note.id,
+                                                    );
+                                                    setPendingProjectNoteEditId(
+                                                      note.id,
+                                                    );
+                                                  }}
+                                                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-medium text-gray-700 outline-none transition data-focus:bg-gray-100"
+                                                >
+                                                  <EditIcon
+                                                    width="14"
+                                                    height="14"
+                                                  />
+                                                  Edit
+                                                </button>
+                                              </MenuItem>
+                                            ) : null}
+                                            {canDeleteProjectNote ? (
+                                              <MenuItem>
+                                                <button
+                                                  type="button"
+                                                  onClick={() =>
+                                                    setProjectNoteToDelete(note)
+                                                  }
+                                                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-medium text-red-500 outline-none transition data-focus:bg-red-50"
+                                                >
+                                                  <TrashIcon
+                                                    width="16"
+                                                    height="16"
+                                                  />
+                                                  Delete
+                                                </button>
+                                              </MenuItem>
+                                            ) : null}
+                                          </MenuItems>
+                                        </Menu>
+                                      ) : null}
+                                    </div>
+                                  </article>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="flex h-full items-center justify-center p-4 md:p-5">
+                              <EmptyState
+                                imageUrl="/images/noNotesIllu.svg"
+                                imageAlt="No notes yet"
+                                title="No notes yet"
+                                description="Project notes will appear here once they are available."
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </section>
+
+                      <section className="flex min-h-96 flex-col overflow-hidden  bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+                        {isCreatingProjectNote ? (
+                          <>
+                            {isMobile ? (
+                              <AppModal
+                                onClose={handleCloseProjectNoteMobileModal}
+                                isOpen={isProjectNoteMobileModalOpen}
+                                scrollNeeded={true}
+                              >
+                                <div className="border-b border-gray-200 px-4 py-4 md:px-5">
+                                  <input
+                                    type="text"
+                                    value={projectNoteTitleDraft}
+                                    onChange={(event) =>
+                                      setProjectNoteTitleDraft(
+                                        event.target.value,
+                                      )
+                                    }
+                                    className="w-full border-b border-b-gray-300 bg-transparent pb-3 text-base font-semibold text-gray-900 outline-none md:text-xl"
+                                    placeholder="Note title"
+                                  />
+                                </div>
+
+                                <div className="p-4 md:p-5">
+                                  <RichTextEditor
+                                    value={projectNoteDescriptionDraft}
+                                    onChange={setProjectNoteDescriptionDraft}
+                                    placeholder="Write your project note..."
+                                    maxLength={
+                                      MAX_PROJECT_NOTE_DESCRIPTION_LENGTH
+                                    }
+                                    disabled={
+                                      createProjectNoteMutation.isPending
+                                    }
+                                    showCharacterCount
+                                    editorHeight="h-[50dvh] min-h-[18rem]"
+                                    editorClassName="text-sm font-normal text-gray-700"
+                                  />
+                                </div>
+                                <div className="flex items-center justify-end gap-3 px-3 md:px-5 pb-4">
+                                  <div className="flex items-center gap-2">
+                                    <ThemeButton
+                                      type="button"
+                                      variant="secondary"
+                                      size="sm"
+                                      onClick={
+                                        handleCloseProjectNoteMobileModal
+                                      }
+                                      disabled={
+                                        createProjectNoteMutation.isPending
+                                      }
+                                      className="disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                      Cancel
+                                    </ThemeButton>
+                                    <ThemeButton
+                                      type="button"
+                                      variant="primaryGradient"
+                                      size="sm"
+                                      onClick={() =>
+                                        void handleCreateProjectNote()
+                                      }
+                                      disabled={
+                                        createProjectNoteMutation.isPending
+                                      }
+                                      className="disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                      {createProjectNoteMutation.isPending
+                                        ? 'Saving...'
+                                        : 'Save Note'}
+                                    </ThemeButton>
                                   </div>
-                                </article>
-                              );
-                            })}
+                                </div>
+                              </AppModal>
+                            ) : (
+                              <>
+                                <div className="border-b border-gray-200 px-4 py-4 md:px-5">
+                                  <input
+                                    type="text"
+                                    value={projectNoteTitleDraft}
+                                    onChange={(event) =>
+                                      setProjectNoteTitleDraft(
+                                        event.target.value,
+                                      )
+                                    }
+                                    className="w-full border-b border-b-gray-300 bg-transparent pb-3 text-base font-semibold text-gray-900 outline-none md:text-xl"
+                                    placeholder="Note title"
+                                  />
+                                </div>
+
+                                <div className=" flex flex-col mb-4 flex-1 overflow-y-auto p-4 md:p-5">
+                                  <RichTextEditor
+                                    value={projectNoteDescriptionDraft}
+                                    onChange={setProjectNoteDescriptionDraft}
+                                    placeholder="Write your project note..."
+                                    maxLength={
+                                      MAX_PROJECT_NOTE_DESCRIPTION_LENGTH
+                                    }
+                                    disabled={
+                                      createProjectNoteMutation.isPending
+                                    }
+                                    showCharacterCount
+                                    editorHeight="h-[20rem] xl:h-[calc(100%)] flex-1"
+                                    className="h-full"
+                                    editorClassName="text-sm font-normal text-gray-700"
+                                  />
+                                </div>
+                                <div className="flex items-center justify-end gap-3 px-3 md:px-5 pb-4">
+                                  <div className="flex items-center gap-2">
+                                    <ThemeButton
+                                      type="button"
+                                      variant="secondary"
+                                      size="sm"
+                                      onClick={handleCancelCreatingProjectNote}
+                                      disabled={
+                                        createProjectNoteMutation.isPending
+                                      }
+                                      className="disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                      Cancel
+                                    </ThemeButton>
+                                    <ThemeButton
+                                      type="button"
+                                      variant="primaryGradient"
+                                      size="sm"
+                                      onClick={() =>
+                                        void handleCreateProjectNote()
+                                      }
+                                      disabled={
+                                        createProjectNoteMutation.isPending
+                                      }
+                                      className="disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                      {createProjectNoteMutation.isPending
+                                        ? 'Saving...'
+                                        : 'Save Note'}
+                                    </ThemeButton>
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </>
+                        ) : selectedProjectNote ? (
+                          <>
+                            {isMobile ? (
+                              <AppModal
+                                onClose={handleCloseProjectNoteMobileModal}
+                                isOpen={isProjectNoteMobileModalOpen}
+                                scrollNeeded={true}
+                                bodyPaddingClasses="flex  flex-col max-h-[calc(100dvh-200px)]"
+                                title="projectNoteTitleDraft"
+                              >
+                                <div className="px-4 pt-4 md:px-5 hidden sm:block">
+                                  <input
+                                    type="text"
+                                    value={projectNoteTitleDraft}
+                                    onChange={(event) =>
+                                      setProjectNoteTitleDraft(
+                                        event.target.value,
+                                      )
+                                    }
+                                    readOnly={!isEditingProjectNote}
+                                    className={`w-full ${!isEditingProjectNote ? 'pb-0' : 'border-b border-b-gray-300 pb-2'} bg-transparent text-base font-semibold text-gray-900 outline-none md:text-xl`}
+                                    placeholder="Note title"
+                                  />
+                                  {/* <p className="mt-3 text-xs text-gray-400">
+                              {formatProjectNoteDate(selectedProjectNote)}
+                            </p> */}
+                                </div>
+                                <div
+                                  className={`${isEditingProjectNote ? 'pt-4' : ''} ps-4 md:ps-5 flex-1 max-h-[90dvh]`}
+                                >
+                                  {projectNoteDetailQuery.isLoading &&
+                                  selectedProjectNoteId ? (
+                                    <div className="space-y-4 pb-4 pt-2">
+                                      <div className="h-[50dvh] min-h-[18rem] w-full animate-pulse rounded-lg bg-gray-100" />
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <RichTextEditor
+                                        value={projectNoteDescriptionDraft}
+                                        onChange={
+                                          setProjectNoteDescriptionDraft
+                                        }
+                                        placeholder="No note description available."
+                                        readOnly={!isEditingProjectNote}
+                                        maxLength={
+                                          isEditingProjectNote
+                                            ? MAX_PROJECT_NOTE_DESCRIPTION_LENGTH
+                                            : undefined
+                                        }
+                                        showCharacterCount={
+                                          isEditingProjectNote
+                                        }
+                                        disabled={
+                                          updateProjectNoteMutation.isPending
+                                        }
+                                        className="flex-1 h-full a pe-2 md:pe-3"
+                                        editorHeight="min-h-[18rem] b border-none! h-full"
+                                        editorClassName={`text-sm c font-normal h-full text-gray-700 ${!isEditingProjectNote && 'px-0!'}`}
+                                      />
+                                    </>
+                                  )}
+                                </div>
+                                <div className="flex items-center justify-end gap-3  px-4 md:px-5 pb-3">
+                                  {isEditingProjectNote && (
+                                    <>
+                                      <ThemeButton
+                                        type="button"
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={handleCancelEditingProjectNote}
+                                        disabled={
+                                          updateProjectNoteMutation.isPending
+                                        }
+                                        className="disabled:cursor-not-allowed disabled:opacity-60"
+                                      >
+                                        Cancel
+                                      </ThemeButton>
+                                      <ThemeButton
+                                        type="button"
+                                        variant="primaryGradient"
+                                        size="sm"
+                                        onClick={() =>
+                                          void handleUpdateProjectNote()
+                                        }
+                                        disabled={
+                                          updateProjectNoteMutation.isPending
+                                        }
+                                        className="disabled:cursor-not-allowed disabled:opacity-60"
+                                      >
+                                        {updateProjectNoteMutation.isPending
+                                          ? 'Saving...'
+                                          : 'Save'}
+                                      </ThemeButton>
+                                    </>
+                                  )}
+                                  <div className="hidden items-center gap-2">
+                                    {isEditingProjectNote ? (
+                                      <>
+                                        <ThemeButton
+                                          type="button"
+                                          variant="secondary"
+                                          size="sm"
+                                          onClick={
+                                            handleCancelEditingProjectNote
+                                          }
+                                          disabled={
+                                            updateProjectNoteMutation.isPending
+                                          }
+                                          className="disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                          Cancel
+                                        </ThemeButton>
+                                        <ThemeButton
+                                          type="button"
+                                          variant="primaryGradient"
+                                          size="sm"
+                                          onClick={() =>
+                                            void handleUpdateProjectNote()
+                                          }
+                                          disabled={
+                                            updateProjectNoteMutation.isPending
+                                          }
+                                          className="disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                          {updateProjectNoteMutation.isPending
+                                            ? 'Saving...'
+                                            : 'Save'}
+                                        </ThemeButton>
+                                      </>
+                                    ) : canEditProjectNote ||
+                                      canDeleteProjectNote ? (
+                                      <>
+                                        {canEditProjectNote ? (
+                                          <ThemeButton
+                                            type="button"
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={
+                                              handleStartEditingProjectNote
+                                            }
+                                          >
+                                            Edit
+                                          </ThemeButton>
+                                        ) : null}
+                                        {canDeleteProjectNote ? (
+                                          <ThemeButton
+                                            type="button"
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={() =>
+                                              setProjectNoteToDelete(
+                                                selectedProjectNote,
+                                              )
+                                            }
+                                            className="border-red-200 text-red-600 hover:bg-red-50"
+                                          >
+                                            Delete
+                                          </ThemeButton>
+                                        ) : null}
+                                      </>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              </AppModal>
+                            ) : (
+                              <>
+                                <div className="px-4 pt-4 md:px-5">
+                                  <input
+                                    type="text"
+                                    value={projectNoteTitleDraft}
+                                    onChange={(event) =>
+                                      setProjectNoteTitleDraft(
+                                        event.target.value,
+                                      )
+                                    }
+                                    readOnly={!isEditingProjectNote}
+                                    className={`w-full ${!isEditingProjectNote ? 'pb-0' : 'border-b border-b-gray-300 pb-2'} bg-transparent text-base font-semibold text-gray-900 outline-none md:text-xl`}
+                                    placeholder="Note title"
+                                  />
+                                  {/* <p className="mt-3 text-xs text-gray-400">
+                              {formatProjectNoteDate(selectedProjectNote)}
+                            </p> */}
+                                </div>
+
+                                <div
+                                  className={` ${isEditingProjectNote && 'pt-4'} min-h-0 flex-1 overflow-y-auto px-4 md:px-5`}
+                                >
+                                  {projectNoteDetailQuery.isLoading &&
+                                  selectedProjectNoteId ? (
+                                    <div className="space-y-4 flex flex-col pb-4 pt-2 h-full">
+                                      <div className="flex-1 h-full w-full animate-pulse rounded-lg bg-gray-100" />
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <RichTextEditor
+                                        value={projectNoteDescriptionDraft}
+                                        onChange={
+                                          setProjectNoteDescriptionDraft
+                                        }
+                                        placeholder="No note description available."
+                                        readOnly={!isEditingProjectNote}
+                                        maxLength={
+                                          isEditingProjectNote
+                                            ? MAX_PROJECT_NOTE_DESCRIPTION_LENGTH
+                                            : undefined
+                                        }
+                                        showCharacterCount={
+                                          isEditingProjectNote
+                                        }
+                                        disabled={
+                                          updateProjectNoteMutation.isPending
+                                        }
+                                        editorHeight={` flex-1 ${!isEditingProjectNote ? 'border-0! h-full' : 'h-[calc(100%-32px)]'}`}
+                                        className="h-full "
+                                        editorClassName={`text-sm font-normal h-full text-gray-700 ${!isEditingProjectNote && 'px-0!'}`}
+                                      />
+                                    </>
+                                  )}
+                                </div>
+                                <div className="flex items-center justify-end gap-3  px-4 md:px-5 pb-3">
+                                  {isEditingProjectNote && (
+                                    <>
+                                      <ThemeButton
+                                        type="button"
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={handleCancelEditingProjectNote}
+                                        disabled={
+                                          updateProjectNoteMutation.isPending
+                                        }
+                                        className="disabled:cursor-not-allowed disabled:opacity-60"
+                                      >
+                                        Cancel
+                                      </ThemeButton>
+                                      <ThemeButton
+                                        type="button"
+                                        variant="primaryGradient"
+                                        size="sm"
+                                        onClick={() =>
+                                          void handleUpdateProjectNote()
+                                        }
+                                        disabled={
+                                          updateProjectNoteMutation.isPending
+                                        }
+                                        className="disabled:cursor-not-allowed disabled:opacity-60"
+                                      >
+                                        {updateProjectNoteMutation.isPending
+                                          ? 'Saving...'
+                                          : 'Save'}
+                                      </ThemeButton>
+                                    </>
+                                  )}
+                                  <div className="hidden items-center gap-2">
+                                    {isEditingProjectNote ? (
+                                      <>
+                                        <ThemeButton
+                                          type="button"
+                                          variant="secondary"
+                                          size="sm"
+                                          onClick={
+                                            handleCancelEditingProjectNote
+                                          }
+                                          disabled={
+                                            updateProjectNoteMutation.isPending
+                                          }
+                                          className="disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                          Cancel
+                                        </ThemeButton>
+                                        <ThemeButton
+                                          type="button"
+                                          variant="primaryGradient"
+                                          size="sm"
+                                          onClick={() =>
+                                            void handleUpdateProjectNote()
+                                          }
+                                          disabled={
+                                            updateProjectNoteMutation.isPending
+                                          }
+                                          className="disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                          {updateProjectNoteMutation.isPending
+                                            ? 'Saving...'
+                                            : 'Save'}
+                                        </ThemeButton>
+                                      </>
+                                    ) : canEditProjectNote ||
+                                      canDeleteProjectNote ? (
+                                      <>
+                                        {canEditProjectNote ? (
+                                          <ThemeButton
+                                            type="button"
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={
+                                              handleStartEditingProjectNote
+                                            }
+                                          >
+                                            Edit
+                                          </ThemeButton>
+                                        ) : null}
+                                        {canDeleteProjectNote ? (
+                                          <ThemeButton
+                                            type="button"
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={() =>
+                                              setProjectNoteToDelete(
+                                                selectedProjectNote,
+                                              )
+                                            }
+                                            className="border-red-200 text-red-600 hover:bg-red-50"
+                                          >
+                                            Delete
+                                          </ThemeButton>
+                                        ) : null}
+                                      </>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </>
+                        ) : canViewProjectNoteDetail ? (
+                          <div className="flex h-full items-center justify-center p-4 md:p-5">
+                            <EmptyState
+                              imageUrl="/images/noNotesIllu.svg"
+                              imageAlt="Select a note"
+                              title="Select a note"
+                              description="Choose a note from the left sidebar to view its title and description."
+                              buttonIcon={
+                                canCreateProjectNote ? <PlusIcon /> : undefined
+                              }
+                              buttonLabel={
+                                canCreateProjectNote ? 'Add Note' : undefined
+                              }
+                              onButtonClick={
+                                canCreateProjectNote
+                                  ? handleStartCreatingProjectNote
+                                  : undefined
+                              }
+                            />
                           </div>
                         ) : (
                           <div className="flex h-full items-center justify-center p-4 md:p-5">
                             <EmptyState
                               imageUrl="/images/noNotesIllu.svg"
-                              imageAlt="No notes yet"
-                              title="No notes yet"
-                              description="Project notes will appear here once they are available."
+                              imageAlt="No note detail access"
+                              title="No detail access"
+                              description="You can view the notes list, but you do not have permission to open note details."
                             />
                           </div>
                         )}
-                      </div>
-                    </section>
-
-                    <section className="flex min-h-96 flex-col overflow-hidden  bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
-                      {isCreatingProjectNote ? (
-                        <>
-                          {isMobile ? (
-                            <AppModal
-                              onClose={handleCloseProjectNoteMobileModal}
-                              isOpen={isProjectNoteMobileModalOpen}
-                              scrollNeeded={true}
-                            >
-                              <div className="border-b border-gray-200 px-4 py-4 md:px-5">
-                                <input
-                                  type="text"
-                                  value={projectNoteTitleDraft}
-                                  onChange={(event) =>
-                                    setProjectNoteTitleDraft(event.target.value)
-                                  }
-                                  className="w-full border-b border-b-gray-300 bg-transparent pb-3 text-base font-semibold text-gray-900 outline-none md:text-xl"
-                                  placeholder="Note title"
-                                />
-                              </div>
-
-                              <div className="p-4 md:p-5">
-                                <RichTextEditor
-                                  value={projectNoteDescriptionDraft}
-                                  onChange={setProjectNoteDescriptionDraft}
-                                  placeholder="Write your project note..."
-                                  maxLength={
-                                    MAX_PROJECT_NOTE_DESCRIPTION_LENGTH
-                                  }
-                                  disabled={createProjectNoteMutation.isPending}
-                                  showCharacterCount
-                                  editorHeight="h-[50dvh] min-h-[18rem]"
-                                  editorClassName="text-sm font-normal text-gray-700"
-                                />
-                              </div>
-                              <div className="flex items-center justify-end gap-3 px-3 md:px-5 pb-4">
-                                <div className="flex items-center gap-2">
-                                  <ThemeButton
-                                    type="button"
-                                    variant="secondary"
-                                    size="sm"
-                                    onClick={handleCloseProjectNoteMobileModal}
-                                    disabled={
-                                      createProjectNoteMutation.isPending
-                                    }
-                                    className="disabled:cursor-not-allowed disabled:opacity-60"
-                                  >
-                                    Cancel
-                                  </ThemeButton>
-                                  <ThemeButton
-                                    type="button"
-                                    variant="primaryGradient"
-                                    size="sm"
-                                    onClick={() =>
-                                      void handleCreateProjectNote()
-                                    }
-                                    disabled={
-                                      createProjectNoteMutation.isPending
-                                    }
-                                    className="disabled:cursor-not-allowed disabled:opacity-60"
-                                  >
-                                    {createProjectNoteMutation.isPending
-                                      ? 'Saving...'
-                                      : 'Save Note'}
-                                  </ThemeButton>
-                                </div>
-                              </div>
-                            </AppModal>
-                          ) : (
-                            <>
-                              <div className="border-b border-gray-200 px-4 py-4 md:px-5">
-                                <input
-                                  type="text"
-                                  value={projectNoteTitleDraft}
-                                  onChange={(event) =>
-                                    setProjectNoteTitleDraft(event.target.value)
-                                  }
-                                  className="w-full border-b border-b-gray-300 bg-transparent pb-3 text-base font-semibold text-gray-900 outline-none md:text-xl"
-                                  placeholder="Note title"
-                                />
-                              </div>
-
-                              <div className=" flex flex-col mb-4 flex-1 overflow-y-auto p-4 md:p-5">
-                                <RichTextEditor
-                                  value={projectNoteDescriptionDraft}
-                                  onChange={setProjectNoteDescriptionDraft}
-                                  placeholder="Write your project note..."
-                                  maxLength={
-                                    MAX_PROJECT_NOTE_DESCRIPTION_LENGTH
-                                  }
-                                  disabled={createProjectNoteMutation.isPending}
-                                  showCharacterCount
-                                  editorHeight="h-[20rem] xl:h-[calc(100%)] flex-1"
-                                  className="h-full"
-                                  editorClassName="text-sm font-normal text-gray-700"
-                                />
-                              </div>
-                              <div className="flex items-center justify-end gap-3 px-3 md:px-5 pb-4">
-                                <div className="flex items-center gap-2">
-                                  <ThemeButton
-                                    type="button"
-                                    variant="secondary"
-                                    size="sm"
-                                    onClick={handleCancelCreatingProjectNote}
-                                    disabled={
-                                      createProjectNoteMutation.isPending
-                                    }
-                                    className="disabled:cursor-not-allowed disabled:opacity-60"
-                                  >
-                                    Cancel
-                                  </ThemeButton>
-                                  <ThemeButton
-                                    type="button"
-                                    variant="primaryGradient"
-                                    size="sm"
-                                    onClick={() =>
-                                      void handleCreateProjectNote()
-                                    }
-                                    disabled={
-                                      createProjectNoteMutation.isPending
-                                    }
-                                    className="disabled:cursor-not-allowed disabled:opacity-60"
-                                  >
-                                    {createProjectNoteMutation.isPending
-                                      ? 'Saving...'
-                                      : 'Save Note'}
-                                  </ThemeButton>
-                                </div>
-                              </div>
-                            </>
-                          )}
-                        </>
-                      ) : selectedProjectNote ? (
-                        <>
-                          {isMobile ? (
-                            <AppModal
-                              onClose={handleCloseProjectNoteMobileModal}
-                              isOpen={isProjectNoteMobileModalOpen}
-                              scrollNeeded={true}
-                              bodyPaddingClasses="flex  flex-col max-h-[calc(100dvh-200px)]"
-                              title="projectNoteTitleDraft"
-                            >
-                              <div className="px-4 pt-4 md:px-5 hidden sm:block">
-                                <input
-                                  type="text"
-                                  value={projectNoteTitleDraft}
-                                  onChange={(event) =>
-                                    setProjectNoteTitleDraft(event.target.value)
-                                  }
-                                  readOnly={!isEditingProjectNote}
-                                  className={`w-full ${!isEditingProjectNote ? 'pb-0' : 'border-b border-b-gray-300 pb-2'} bg-transparent text-base font-semibold text-gray-900 outline-none md:text-xl`}
-                                  placeholder="Note title"
-                                />
-                                {/* <p className="mt-3 text-xs text-gray-400">
-                              {formatProjectNoteDate(selectedProjectNote)}
-                            </p> */}
-                              </div>
-                              <div
-                                className={`${isEditingProjectNote ? 'pt-4' : ''} ps-4 md:ps-5 flex-1 max-h-[90dvh]`}
-                              >
-                                {projectNoteDetailQuery.isLoading &&
-                                selectedProjectNoteId ? (
-                                  <div className="space-y-4 pb-4 pt-2">
-                                    <div className="h-[50dvh] min-h-[18rem] w-full animate-pulse rounded-lg bg-gray-100" />
-                                  </div>
-                                ) : (
-                                  <>
-                                    <RichTextEditor
-                                      value={projectNoteDescriptionDraft}
-                                      onChange={setProjectNoteDescriptionDraft}
-                                      placeholder="No note description available."
-                                      readOnly={!isEditingProjectNote}
-                                      maxLength={
-                                        isEditingProjectNote
-                                          ? MAX_PROJECT_NOTE_DESCRIPTION_LENGTH
-                                          : undefined
-                                      }
-                                      showCharacterCount={isEditingProjectNote}
-                                      disabled={
-                                        updateProjectNoteMutation.isPending
-                                      }
-                                      className="flex-1 h-full a pe-2 md:pe-3"
-                                      editorHeight="min-h-[18rem] b border-none! h-full"
-                                      editorClassName={`text-sm c font-normal h-full text-gray-700 ${!isEditingProjectNote && 'px-0!'}`}
-                                    />
-                                  </>
-                                )}
-                              </div>
-                              <div className="flex items-center justify-end gap-3  px-4 md:px-5 pb-3">
-                                {isEditingProjectNote && (
-                                  <>
-                                    <ThemeButton
-                                      type="button"
-                                      variant="secondary"
-                                      size="sm"
-                                      onClick={handleCancelEditingProjectNote}
-                                      disabled={
-                                        updateProjectNoteMutation.isPending
-                                      }
-                                      className="disabled:cursor-not-allowed disabled:opacity-60"
-                                    >
-                                      Cancel
-                                    </ThemeButton>
-                                    <ThemeButton
-                                      type="button"
-                                      variant="primaryGradient"
-                                      size="sm"
-                                      onClick={() =>
-                                        void handleUpdateProjectNote()
-                                      }
-                                      disabled={
-                                        updateProjectNoteMutation.isPending
-                                      }
-                                      className="disabled:cursor-not-allowed disabled:opacity-60"
-                                    >
-                                      {updateProjectNoteMutation.isPending
-                                        ? 'Saving...'
-                                        : 'Save'}
-                                    </ThemeButton>
-                                  </>
-                                )}
-                                <div className="hidden items-center gap-2">
-                                  {isEditingProjectNote ? (
-                                    <>
-                                      <ThemeButton
-                                        type="button"
-                                        variant="secondary"
-                                        size="sm"
-                                        onClick={handleCancelEditingProjectNote}
-                                        disabled={
-                                          updateProjectNoteMutation.isPending
-                                        }
-                                        className="disabled:cursor-not-allowed disabled:opacity-60"
-                                      >
-                                        Cancel
-                                      </ThemeButton>
-                                      <ThemeButton
-                                        type="button"
-                                        variant="primaryGradient"
-                                        size="sm"
-                                        onClick={() =>
-                                          void handleUpdateProjectNote()
-                                        }
-                                        disabled={
-                                          updateProjectNoteMutation.isPending
-                                        }
-                                        className="disabled:cursor-not-allowed disabled:opacity-60"
-                                      >
-                                        {updateProjectNoteMutation.isPending
-                                          ? 'Saving...'
-                                          : 'Save'}
-                                      </ThemeButton>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <ThemeButton
-                                        type="button"
-                                        variant="secondary"
-                                        size="sm"
-                                        onClick={handleStartEditingProjectNote}
-                                      >
-                                        Edit
-                                      </ThemeButton>
-                                      <ThemeButton
-                                        type="button"
-                                        variant="secondary"
-                                        size="sm"
-                                        onClick={() =>
-                                          setProjectNoteToDelete(
-                                            selectedProjectNote,
-                                          )
-                                        }
-                                        className="border-red-200 text-red-600 hover:bg-red-50"
-                                      >
-                                        Delete
-                                      </ThemeButton>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            </AppModal>
-                          ) : (
-                            <>
-                              <div className="px-4 pt-4 md:px-5">
-                                <input
-                                  type="text"
-                                  value={projectNoteTitleDraft}
-                                  onChange={(event) =>
-                                    setProjectNoteTitleDraft(event.target.value)
-                                  }
-                                  readOnly={!isEditingProjectNote}
-                                  className={`w-full ${!isEditingProjectNote ? 'pb-0' : 'border-b border-b-gray-300 pb-2'} bg-transparent text-base font-semibold text-gray-900 outline-none md:text-xl`}
-                                  placeholder="Note title"
-                                />
-                                {/* <p className="mt-3 text-xs text-gray-400">
-                              {formatProjectNoteDate(selectedProjectNote)}
-                            </p> */}
-                              </div>
-
-                              <div
-                                className={` ${isEditingProjectNote && 'pt-4'} min-h-0 flex-1 overflow-y-auto px-4 md:px-5`}
-                              >
-                                {projectNoteDetailQuery.isLoading &&
-                                selectedProjectNoteId ? (
-                                  <div className="space-y-4 flex flex-col pb-4 pt-2 h-full">
-                                    <div className="flex-1 h-full w-full animate-pulse rounded-lg bg-gray-100" />
-                                  </div>
-                                ) : (
-                                  <>
-                                    <RichTextEditor
-                                      value={projectNoteDescriptionDraft}
-                                      onChange={setProjectNoteDescriptionDraft}
-                                      placeholder="No note description available."
-                                      readOnly={!isEditingProjectNote}
-                                      maxLength={
-                                        isEditingProjectNote
-                                          ? MAX_PROJECT_NOTE_DESCRIPTION_LENGTH
-                                          : undefined
-                                      }
-                                      showCharacterCount={isEditingProjectNote}
-                                      disabled={
-                                        updateProjectNoteMutation.isPending
-                                      }
-                                      editorHeight={` flex-1 ${!isEditingProjectNote ? 'border-0! h-full' : 'h-[calc(100%-32px)]'}`}
-                                      className="h-full "
-                                      editorClassName={`text-sm font-normal h-full text-gray-700 ${!isEditingProjectNote && 'px-0!'}`}
-                                    />
-                                  </>
-                                )}
-                              </div>
-                              <div className="flex items-center justify-end gap-3  px-4 md:px-5 pb-3">
-                                {isEditingProjectNote && (
-                                  <>
-                                    <ThemeButton
-                                      type="button"
-                                      variant="secondary"
-                                      size="sm"
-                                      onClick={handleCancelEditingProjectNote}
-                                      disabled={
-                                        updateProjectNoteMutation.isPending
-                                      }
-                                      className="disabled:cursor-not-allowed disabled:opacity-60"
-                                    >
-                                      Cancel
-                                    </ThemeButton>
-                                    <ThemeButton
-                                      type="button"
-                                      variant="primaryGradient"
-                                      size="sm"
-                                      onClick={() =>
-                                        void handleUpdateProjectNote()
-                                      }
-                                      disabled={
-                                        updateProjectNoteMutation.isPending
-                                      }
-                                      className="disabled:cursor-not-allowed disabled:opacity-60"
-                                    >
-                                      {updateProjectNoteMutation.isPending
-                                        ? 'Saving...'
-                                        : 'Save'}
-                                    </ThemeButton>
-                                  </>
-                                )}
-                                <div className="hidden items-center gap-2">
-                                  {isEditingProjectNote ? (
-                                    <>
-                                      <ThemeButton
-                                        type="button"
-                                        variant="secondary"
-                                        size="sm"
-                                        onClick={handleCancelEditingProjectNote}
-                                        disabled={
-                                          updateProjectNoteMutation.isPending
-                                        }
-                                        className="disabled:cursor-not-allowed disabled:opacity-60"
-                                      >
-                                        Cancel
-                                      </ThemeButton>
-                                      <ThemeButton
-                                        type="button"
-                                        variant="primaryGradient"
-                                        size="sm"
-                                        onClick={() =>
-                                          void handleUpdateProjectNote()
-                                        }
-                                        disabled={
-                                          updateProjectNoteMutation.isPending
-                                        }
-                                        className="disabled:cursor-not-allowed disabled:opacity-60"
-                                      >
-                                        {updateProjectNoteMutation.isPending
-                                          ? 'Saving...'
-                                          : 'Save'}
-                                      </ThemeButton>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <ThemeButton
-                                        type="button"
-                                        variant="secondary"
-                                        size="sm"
-                                        onClick={handleStartEditingProjectNote}
-                                      >
-                                        Edit
-                                      </ThemeButton>
-                                      <ThemeButton
-                                        type="button"
-                                        variant="secondary"
-                                        size="sm"
-                                        onClick={() =>
-                                          setProjectNoteToDelete(
-                                            selectedProjectNote,
-                                          )
-                                        }
-                                        className="border-red-200 text-red-600 hover:bg-red-50"
-                                      >
-                                        Delete
-                                      </ThemeButton>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            </>
-                          )}
-                        </>
-                      ) : (
-                        <div className="flex h-full items-center justify-center p-4 md:p-5">
-                          <EmptyState
-                            imageUrl="/images/noNotesIllu.svg"
-                            imageAlt="Select a note"
-                            title="Select a note"
-                            description="Choose a note from the left sidebar to view its title and description."
-                            buttonIcon={<PlusIcon />}
-                            buttonLabel="Add Note"
-                            onButtonClick={handleStartCreatingProjectNote}
-                          />
-                        </div>
-                      )}
-                    </section>
-                  </div>
-                </TabPanel>
+                      </section>
+                    </div>
+                  </TabPanel>
+                </PermissionGuard>
               </TabPanels>
             </TabGroup>
           </div>
@@ -3039,55 +3130,38 @@ export function CalendarTabIcon({
   );
 }
 
-function NotesTabIcon() {
+export function NotesTabIcon({
+  width = '20',
+  height = '20',
+  fill = 'currentColor',
+}) {
   return (
     <svg
-      width="20"
-      height="20"
+      width={width}
+      height={height}
       viewBox="0 0 20 20"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
       <path
         d="M5.83337 2.5H10.3418C11.3059 2.5 11.788 2.5 12.2289 2.68062C12.6698 2.86124 13.0107 3.20212 13.6924 3.88388L15.9495 6.14098C16.6312 6.82274 16.9722 7.16362 17.1528 7.60451C17.3334 8.04541 17.3334 8.52747 17.3334 9.49159V12.5C17.3334 14.8577 17.3334 16.0366 16.6016 16.7684C15.8698 17.5 14.6909 17.5 12.3334 17.5H7.66671C5.30922 17.5 4.13043 17.5 3.39857 16.7684C2.66671 16.0366 2.66671 14.8577 2.66671 12.5V7.5C2.66671 5.14231 2.66671 3.96347 3.39857 3.23161C4.13043 2.5 5.30922 2.5 7.66671 2.5"
-        stroke="currentColor"
+        stroke={fill}
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
         d="M10.6667 2.91666V5.83332C10.6667 6.61972 10.6667 7.01297 10.9111 7.2574C11.1554 7.50182 11.5487 7.50182 12.3351 7.50182H15.2517"
-        stroke="currentColor"
+        stroke={fill}
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
         d="M6.66671 10H13.3334M6.66671 13.3333H10.8334"
-        stroke="currentColor"
+        stroke={fill}
         strokeWidth="1.5"
         strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function NoteDateIcon() {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 12 12"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className="shrink-0"
-    >
-      <path
-        d="M4 1V2.33333M8 1V2.33333M1.33334 4.16667H10.6667M2.66667 2H9.33334C10.0697 2 10.6667 2.59695 10.6667 3.33333V9.33333C10.6667 10.0697 10.0697 10.6667 9.33334 10.6667H2.66667C1.93029 10.6667 1.33334 10.0697 1.33334 9.33333V3.33333C1.33334 2.59695 1.93029 2 2.66667 2Z"
-        stroke="currentColor"
-        strokeWidth="1.1"
-        strokeLinecap="round"
-        strokeLinejoin="round"
       />
     </svg>
   );

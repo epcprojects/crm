@@ -1263,6 +1263,12 @@ export default function Page() {
                         : undefined
                     }
                     onViewAll={undefined}
+                    getRowHref={
+                      canViewTicketDetail
+                        ? (ticket) =>
+                            `/tickets/${ticket.id}?projectId=${ticket.project.id}`
+                        : undefined
+                    }
                     onRowClick={
                       canViewTicketDetail
                         ? (ticket) =>
@@ -1352,6 +1358,11 @@ export default function Page() {
                           openCount={project.openCount}
                           criticalCount={project.criticalCount}
                           colorHex={project.colorHex}
+                          href={
+                            canViewProjectDetail
+                              ? `/projects/${project.id}`
+                              : undefined
+                          }
                           onClick={
                             canViewProjectDetail
                               ? () => router.push(`/projects/${project.id}`)

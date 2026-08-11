@@ -464,6 +464,11 @@ export default function ProjectsPage() {
                           openCount={project.openCount}
                           criticalCount={project.criticalCount}
                           colorHex={project.colorHex}
+                          href={
+                            canViewProjectDetail
+                              ? `/projects/${project.id}`
+                              : undefined
+                          }
                           onClick={
                             canViewProjectDetail
                               ? () => router.push(`/projects/${project.id}`)

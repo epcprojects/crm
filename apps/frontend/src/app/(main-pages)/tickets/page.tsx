@@ -1246,6 +1246,12 @@ export default function Page() {
                       manualPagination
                       sortState={sortState}
                       onSortChange={handleSortChange}
+                      getRowHref={
+                        canViewTicketDetail
+                          ? (ticket) =>
+                              `/tickets/${ticket.id}?projectId=${ticket.project.id}`
+                          : undefined
+                      }
                       onRowClick={
                         canViewTicketDetail ? handleTicketClick : undefined
                       }

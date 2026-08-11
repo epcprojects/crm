@@ -9,7 +9,8 @@ import {
   type PaginationState,
   type ColumnDef,
 } from '@tanstack/react-table';
-import { useState, type ReactNode } from 'react';
+import { useState, type MouseEvent, type ReactNode } from 'react';
+import Link from 'next/link';
 import ThemeButton from '../ui/ThemeButton';
 import { ArrowUpRightIcon } from '../../../public/icons';
 import { useAppSelector } from '../../app/Redux/store';
@@ -136,7 +137,12 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
                 backgroundColor: row.original.priorityColor,
                 borderColor: row.original.priorityColor,
               }
-            : undefined
+            : {
+                backgroundColor: '#00000010',
+                borderColor: '#00000010',
+                color: '#00000080',
+                fontWeight: 'bolder',
+              }
         }
       >
         {/* <span
@@ -197,6 +203,7 @@ type RecentTicketsTableProps = {
   initialPageSize?: number;
   pageSizeOptions?: number[];
   onRowClick?: (ticket: RecentTicket) => void;
+  getRowHref?: (ticket: RecentTicket) => string;
   hideProjectColumn?: boolean;
   pagination?: PaginationState;
   totalRows?: number;
@@ -216,6 +223,7 @@ export default function RecentTicketsTable({
   initialPageSize = 10,
   pageSizeOptions = [10, 25, 50, 100],
   onRowClick,
+  getRowHref,
   hideProjectColumn = false,
   pagination: controlledPagination,
   totalRows: controlledTotalRows,
@@ -311,17 +319,37 @@ export default function RecentTicketsTable({
       />
     );
   }
+
+  const handlePlainRowClick = (
+    event: MouseEvent<HTMLElement>,
+    ticket: RecentTicket,
+  ) => {
+    if (
+      !onRowClick ||
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+
+    onRowClick(ticket);
+  };
+
   return (
-    <div 
-    // className="flex h-full min-h-0 flex-col  rounded-xl bg-white xl:w-full xl:border xl:border-gray-200"
-    className="flex h-auto min-h-0 flex-col overflow-visible rounded-xl bg-white xl:h-full xl:w-full xl:overflow-hidden xl:border xl:border-gray-200"
+    <div
+      // className="flex h-full min-h-0 flex-col  rounded-xl bg-white xl:w-full xl:border xl:border-gray-200"
+      className="flex h-auto min-h-0 flex-col overflow-visible rounded-xl bg-white xl:h-full xl:w-full xl:overflow-hidden xl:border xl:border-gray-200"
     >
       <div
-  //       className={`min-h-0 flex-1 space-y-3 touch-pan-y scrollbar-hide xl:hidden xl:p-3 ${
-  //   internalScrollEnabled
-  //     ? 'overflow-y-auto overscroll-contain'
-  //     : 'overflow-y-hidden overscroll-auto'
-  // }`}
+        //       className={`min-h-0 flex-1 space-y-3 touch-pan-y scrollbar-hide xl:hidden xl:p-3 ${
+        //   internalScrollEnabled
+        //     ? 'overflow-y-auto overscroll-contain'
+        //     : 'overflow-y-hidden overscroll-auto'
+        // }`}
         // className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain xl:p-3 scrollbar-hide xl:hidden"
         className="flex-none space-y-3 overflow-visible scrollbar-hide xl:hidden xl:p-3"
       >
@@ -333,9 +361,9 @@ export default function RecentTicketsTable({
                 key={row.id}
                 ticket={row.original}
                 onClick={onRowClick}
+                href={getRowHref?.(row.original)}
                 showAssignee={!isExternalUser}
               />
-          
             ))
         ) : (
           <EmptyState
@@ -381,15 +409,37 @@ export default function RecentTicketsTable({
                 <tr
                   key={row.id}
                   className={`border-b border-gray-200 last:border-0 ${
-                    onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''
+                    onRowClick || getRowHref
+                      ? 'cursor-pointer hover:bg-gray-50'
+                      : ''
                   }`}
-                  onClick={() => onRowClick?.(row.original)}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id} className="px-4 py-3 text-sm">
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
+                      {getRowHref ? (
+                        <Link
+                          href={getRowHref(row.original)}
+                          onClick={(event) =>
+                            handlePlainRowClick(event, row.original)
+                          }
+                          className="block -mx-4 -my-3 px-4 py-3"
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext(),
+                          )}
+                        </Link>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => onRowClick?.(row.original)}
+                          className="block w-full -mx-4 -my-3 px-4 py-3 text-left"
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext(),
+                          )}
+                        </button>
                       )}
                     </td>
                   ))}
@@ -572,9 +622,11 @@ export default function RecentTicketsTable({
 function TicketMobileCard({
   ticket,
   onClick,
+  href,
 }: {
   ticket: RecentTicket;
   onClick?: (ticket: RecentTicket) => void;
+  href?: string;
   showAssignee?: boolean;
 }) {
   const projectColor = ticket.project.brandColor || '#F79009';
@@ -584,14 +636,8 @@ function TicketMobileCard({
     ? getStatusBadgeStyle(ticket.statusColor)
     : undefined;
 
-  return (
-    <button
-      type="button"
-      onClick={() => onClick?.(ticket)}
-      className={`flex w-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white text-left transition ${
-        onClick ? 'hover:border-gray-300' : ''
-      }`}
-    >
+  const content = (
+    <>
       <div className="flex flex-col gap-1 bg-gray-50 p-2.5">
         <p className="line-clamp-2 text-sm font-medium text-gray-950">
           {ticket.title}
@@ -678,6 +724,46 @@ function TicketMobileCard({
           </p>
         </div>
       </div>
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        onClick={(event) => {
+          if (
+            !onClick ||
+            event.defaultPrevented ||
+            event.button !== 0 ||
+            event.metaKey ||
+            event.ctrlKey ||
+            event.shiftKey ||
+            event.altKey
+          ) {
+            return;
+          }
+
+          onClick(ticket);
+        }}
+        className={`flex w-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white text-left transition ${
+          onClick || href ? 'hover:border-gray-300' : ''
+        }`}
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => onClick?.(ticket)}
+      className={`flex w-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white text-left transition ${
+        onClick ? 'hover:border-gray-300' : ''
+      }`}
+    >
+      {content}
     </button>
   );
 }

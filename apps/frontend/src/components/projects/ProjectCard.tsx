@@ -1,3 +1,5 @@
+import Link from 'next/link';
+import type { MouseEvent, ReactNode } from 'react';
 import { EditIcon, TicketIcon2, TrashIcon } from '../../../public/icons';
 import Tooltip from '../tooltip';
 
@@ -11,6 +13,7 @@ type ProjectCardProps = {
   criticalCount: number;
   colorHex?: string;
   onClick?: () => void;
+  href?: string;
   onAddTicket?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
@@ -49,19 +52,30 @@ export default function ProjectCard({
   criticalCount,
   colorHex = '#A855F7',
   onClick,
+  href,
   onAddTicket,
   onEdit,
   onDelete,
   isDeleting = false,
 }: ProjectCardProps) {
-  return (
-    <article
-      className={`group overflow-hidden rounded-xl border border-gray-200 shadow-xs transition hover:drop-shadow md:rounded-2xl ${
-        onClick ? 'cursor-pointer' : ''
-      }`}
-      onClick={onClick}
-      data-project-id={id}
-    >
+  const handlePlainClick = (event: MouseEvent<HTMLElement>) => {
+    if (
+      !onClick ||
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+
+    onClick();
+  };
+
+  const cardContent: ReactNode = (
+    <>
       <div
         className="flex flex-wrap items-start justify-between gap-3 bg-gray-100 px-2.5 py-3.5 md:gap-4 md:px-4 md:py-4"
         style={{ backgroundColor: `${colorHex}10` }}
@@ -149,6 +163,33 @@ export default function ProjectCard({
           tone="bg-[#FECDCA]"
         />
       </div>
+    </>
+  );
+
+  const className = `group block overflow-hidden rounded-xl border border-gray-200 shadow-xs transition hover:drop-shadow md:rounded-2xl ${
+    onClick || href ? 'cursor-pointer' : ''
+  }`;
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className={className}
+        onClick={(event) => handlePlainClick(event)}
+        data-project-id={id}
+      >
+        {cardContent}
+      </Link>
+    );
+  }
+
+  return (
+    <article
+      className={className}
+      onClick={onClick}
+      data-project-id={id}
+    >
+      {cardContent}
     </article>
   );
 }

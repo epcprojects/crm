@@ -60,7 +60,11 @@ import { validateAttachments } from '../../../../lib/attachments';
 import RichTextEditor from 'apps/frontend/src/components/RichTextEditor';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import ThemeButton from 'apps/frontend/src/components/ui/ThemeButton';
-import { CalendarTabIcon, FilesTabIcon } from '../../projects/[projectId]/page';
+import {
+  CalendarTabIcon,
+  FilesTabIcon,
+  NotesTabIcon,
+} from '../../projects/[projectId]/page';
 const MAX_DESCRIPTION_LENGTH = 4000;
 type GalleryImage = {
   attachmentId: string;
@@ -116,6 +120,7 @@ export default function TicketDetailPage() {
   const canViewProjectThread = hasPermission('thread.view');
   const canViewProjectFiles = hasPermission('files.view');
   const canViewProjectCalendar = hasPermission('calendar.view_grid');
+  const canViewProjectNotes = hasPermission('projects_notes.view_list');
   const canEditTitleDescription = hasPermission(
     'tickets.edit_title_description',
   );
@@ -131,7 +136,7 @@ export default function TicketDetailPage() {
   const membersQuery = useQuery({
     queryKey: ['project-members', projectId],
     queryFn: () => fetchProjectMembers(projectId),
-    enabled: Boolean(projectId && !isExternalUser),
+    enabled: Boolean(projectId),
   });
 
   const ticketRepliesQuery = useQuery({
@@ -1296,7 +1301,7 @@ export default function TicketDetailPage() {
   };
 
   const handleOpenProjectQuickLink = (
-    tab?: 'thread' | 'files' | 'calendar',
+    tab?: 'thread' | 'files' | 'calendar' | 'notes',
   ) => {
     if (!projectId || !canViewProjectDetail) {
       return;
@@ -2385,6 +2390,20 @@ export default function TicketDetailPage() {
                             onClick={() =>
                               handleOpenProjectQuickLink('calendar')
                             }
+                          />
+                        ) : null}
+                        {canViewProjectNotes ? (
+                          <QuickLinkButton
+                            label="Notes"
+                            iconBg="bg-rose-500"
+                            icon={
+                              <NotesTabIcon
+                                fill="white"
+                                width="16"
+                                height="16"
+                              />
+                            }
+                            onClick={() => handleOpenProjectQuickLink('notes')}
                           />
                         ) : null}
                       </div>

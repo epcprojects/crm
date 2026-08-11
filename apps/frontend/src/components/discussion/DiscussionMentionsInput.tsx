@@ -52,16 +52,20 @@ function mapMembersToMentionData(
 ): MentionableMember[] {
   return members.map((member) => ({
     id: member.id,
-    display: getSingleWordDisplayName(member.fullName),
+    display: getMentionDisplayName(member.fullName),
     email: member.email ?? null,
     fullName: member.fullName,
   }));
 }
 
-function getSingleWordDisplayName(fullName: string) {
-  const [firstWord] = fullName.trim().split(/\s+/);
+function getMentionDisplayName(fullName: string) {
+  return fullName.trim();
+}
 
-  return firstWord || fullName.trim();
+function getSingleWordDisplayName(fullName: string) {
+  const [firstWord] = getMentionDisplayName(fullName).split(/\s+/);
+
+  return firstWord || getMentionDisplayName(fullName);
 }
 
 function escapeRegExp(value: string) {
@@ -78,24 +82,43 @@ export function hydrateMentionMarkupFromMessage(
   }
 
   const membersById = new Map(
-    members.map((member) => [member.id, getSingleWordDisplayName(member.fullName)]),
+    members.map((member) => [
+      member.id,
+      {
+        fullName: getMentionDisplayName(member.fullName),
+        shortName: getSingleWordDisplayName(member.fullName),
+      },
+    ]),
   );
 
   let hydratedMessage = message;
 
   mentionedUserIds.forEach((mentionedUserId) => {
-    const displayName = membersById.get(mentionedUserId)?.trim();
+    const displayNames = membersById.get(mentionedUserId);
 
-    if (!displayName) {
+    if (!displayNames?.fullName) {
       return;
     }
 
-    const mentionRegex = new RegExp(`@${escapeRegExp(displayName)}\\b`);
-    const markupValue = DEFAULT_MENTION_MARKUP
-      .replace('__display__', displayName)
-      .replace('__id__', mentionedUserId);
+    const markupValue = DEFAULT_MENTION_MARKUP.replace(
+      '__display__',
+      displayNames.fullName,
+    ).replace('__id__', mentionedUserId);
 
-    hydratedMessage = hydratedMessage.replace(mentionRegex, markupValue);
+    const fullNameRegex = new RegExp(
+      `@${escapeRegExp(displayNames.fullName)}\\b`,
+    );
+
+    if (fullNameRegex.test(hydratedMessage)) {
+      hydratedMessage = hydratedMessage.replace(fullNameRegex, markupValue);
+      return;
+    }
+
+    const shortNameRegex = new RegExp(
+      `@${escapeRegExp(displayNames.shortName)}\\b`,
+    );
+
+    hydratedMessage = hydratedMessage.replace(shortNameRegex, markupValue);
   });
 
   return hydratedMessage;
@@ -188,9 +211,10 @@ export default function DiscussionMentionsInput({
         renderSuggestion={(entry, _search, highlightedDisplay) => (
           <div className="flex flex-col">
             <span className="text-sm font-medium text-[#10175A]">
-              {highlightedDisplay as ReactNode}
+              {/* {highlightedDisplay as ReactNode} */}
+              {String(entry.fullName)}
             </span>
-            {entry.fullName && entry.fullName !== entry.display ? (
+            {/* {entry.fullName && entry.fullName !== entry.display ? (
               <span className="text-xs text-gray-500">
                 {String(entry.fullName)}
               </span>
@@ -198,7 +222,7 @@ export default function DiscussionMentionsInput({
               <span className="text-xs text-gray-500">
                 {String(entry.email)}
               </span>
-            ) : null}
+            ) : null} */}
           </div>
         )}
       />
