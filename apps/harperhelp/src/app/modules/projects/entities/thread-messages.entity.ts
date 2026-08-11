@@ -33,6 +33,12 @@ export class ThreadMessage extends BaseEntity {
   })
   message: string;
 
+    @Column('uuid', {
+    array: true,
+    default: () => "'{}'",
+  })
+  mentionedUserIds: string[];
+
   @Column({
     type: 'bigint',
     default: 0,

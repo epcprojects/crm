@@ -30,6 +30,12 @@ export class TicketReply extends BaseEntity {
     nullable: true
   })
   message: string;
+  
+    @Column('uuid', {
+    array: true,
+    default: () => "'{}'",
+  })
+  mentionedUserIds: string[];
 
   /**
    * Optional: internal notes vs public comment
@@ -39,4 +45,7 @@ export class TicketReply extends BaseEntity {
     default: false,
   })
   isInternal: boolean;
+
+
+
 }
