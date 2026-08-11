@@ -107,15 +107,18 @@ export function hydrateMentionMarkupFromMessage(
 
     const fullNameRegex = new RegExp(
       `@${escapeRegExp(displayNames.fullName)}\\b`,
+      'g',
     );
 
     if (fullNameRegex.test(hydratedMessage)) {
+      fullNameRegex.lastIndex = 0;
       hydratedMessage = hydratedMessage.replace(fullNameRegex, markupValue);
       return;
     }
 
     const shortNameRegex = new RegExp(
       `@${escapeRegExp(displayNames.shortName)}\\b`,
+      'g',
     );
 
     hydratedMessage = hydratedMessage.replace(shortNameRegex, markupValue);

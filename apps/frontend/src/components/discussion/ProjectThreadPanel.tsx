@@ -497,6 +497,8 @@ export default function ProjectThreadPanel({
                     ) : headerReply.message ? (
                       <ExpandableMessageText
                         message={headerReply.message}
+                        mentionedUserIds={headerReply.mentionedUserIds ?? []}
+                        mentionMembers={mentionMembers}
                         isEdited={headerReply.isEdited}
                       />
                     ) : null}
@@ -669,10 +671,14 @@ export default function ProjectThreadPanel({
                                     : undefined
                                 }
                               >
-                                <ExpandableMessageText
-                                  message={reply.message}
-                                  isEdited={reply.isEdited}
-                                />
+                                      <ExpandableMessageText
+                                        message={reply.message}
+                                        mentionedUserIds={
+                                          reply.mentionedUserIds ?? []
+                                        }
+                                        mentionMembers={mentionMembers}
+                                        isEdited={reply.isEdited}
+                                      />
                               </div>
                             ) : null}
 
@@ -1267,9 +1273,13 @@ function InlineEditComposer({
 
 function ExpandableMessageText({
   message,
+  mentionedUserIds = [],
+  mentionMembers = [],
   isEdited = false,
 }: {
   message: string;
+  mentionedUserIds?: string[];
+  mentionMembers?: ProjectMember[];
   isEdited?: boolean;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -1319,7 +1329,7 @@ function ExpandableMessageText({
           isExpanded ? '' : 'line-clamp-2'
         }`}
       >
-        {renderHighlightedMentions(message)}
+        {renderHighlightedMentions(message, mentionedUserIds, mentionMembers)}
       </p>
       <p
         ref={overflowMeasureRef}
@@ -1345,21 +1355,74 @@ function ExpandableMessageText({
   );
 }
 
-function renderHighlightedMentions(message: string) {
-  const parts = message.split(/(@[A-Za-z0-9_]+)/g);
+function renderHighlightedMentions(
+  message: string,
+  mentionedUserIds: string[],
+  mentionMembers: ProjectMember[],
+) {
+  if (!message || !mentionedUserIds.length || !mentionMembers.length) {
+    return message;
+  }
 
-  return parts.map((part, index) =>
-    /^@[A-Za-z0-9_]+$/.test(part) ? (
+  const mentionNames = Array.from(
+    new Set(
+      mentionedUserIds.flatMap((mentionedUserId) => {
+        const member = mentionMembers.find((entry) => entry.id === mentionedUserId);
+
+        if (!member?.fullName?.trim()) {
+          return [];
+        }
+
+        const fullName = member.fullName.trim();
+        const [firstWord] = fullName.split(/\s+/);
+
+        return [fullName, firstWord].filter(Boolean);
+      }),
+    ),
+  ).sort((left, right) => right.length - left.length);
+
+  if (!mentionNames.length) {
+    return message;
+  }
+
+  const escapedNames = mentionNames.map((name) =>
+    name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+  );
+  const mentionRegex = new RegExp(
+    `@(?:${escapedNames.join('|')})(?=\\b|$)`,
+    'g',
+  );
+
+  const nodes: ReactNode[] = [];
+  let lastIndex = 0;
+
+  for (const match of message.matchAll(mentionRegex)) {
+    const matchIndex = match.index ?? 0;
+    const matchedValue = match[0];
+
+    if (matchIndex > lastIndex) {
+      nodes.push(
+        <span key={`text-${lastIndex}`}>{message.slice(lastIndex, matchIndex)}</span>,
+      );
+    }
+
+    nodes.push(
       <span
-        key={`${part}-${index}`}
+        key={`mention-${matchIndex}`}
         className="rounded-md bg-[#EEF2FF] px-1 py-0.5 font-medium text-[#10175A]"
       >
-        {part}
-      </span>
-    ) : (
-      <span key={`${part}-${index}`}>{part}</span>
-    ),
-  );
+        {matchedValue}
+      </span>,
+    );
+
+    lastIndex = matchIndex + matchedValue.length;
+  }
+
+  if (lastIndex < message.length) {
+    nodes.push(<span key={`text-${lastIndex}`}>{message.slice(lastIndex)}</span>);
+  }
+
+  return nodes.length ? nodes : message;
 }
 
 function getGalleryImagesFromAttachments(
