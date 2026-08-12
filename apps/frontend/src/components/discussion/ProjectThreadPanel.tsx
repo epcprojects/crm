@@ -428,7 +428,7 @@ export default function ProjectThreadPanel({
                       currentUserId &&
                       headerReply.authorId === currentUserId &&
                       editingMessageId !== headerReply.id ? (
-                        <Menu as="div" className="relative">
+                        <Menu as="div" className="absolute right-1.5 top-1.5 z-10">
                           <MenuButton
                             type="button"
                             disabled={
@@ -436,7 +436,7 @@ export default function ProjectThreadPanel({
                               editingReplyId === headerReply.id
                             }
                             aria-label="Message actions"
-                            className="flex h-6 w-6 items-center justify-center rounded-md text-gray-500 outline-none transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex h-6 w-6 items-center justify-center rounded-md text-gray-500 opacity-0 outline-none transition hover:bg-gray-100 hover:text-gray-700 group-hover/reply:opacity-100 data-open:bg-gray-100 data-open:opacity-100 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <ThreedotIcon />
                           </MenuButton>
@@ -1307,7 +1307,7 @@ function ExpandableMessageText({
         return;
       }
 
-      setShouldShowToggle(overflowElement.scrollHeight > lineHeight * 2 + 1);
+      setShouldShowToggle(overflowElement.scrollHeight > lineHeight * 5 + 1);
     };
 
     updateOverflowState();
@@ -1329,7 +1329,7 @@ function ExpandableMessageText({
         ref={measureRef}
         style={EMOJI_TEXT_STYLE}
         className={`text-sm font-normal whitespace-pre-wrap break-words text-gray-900 ${
-          isExpanded ? '' : 'line-clamp-2'
+          isExpanded ? '' : 'line-clamp-5'
         }`}
       >
         {renderHighlightedMentions(message, mentionedUserIds, mentionMembers)}
@@ -1338,7 +1338,7 @@ function ExpandableMessageText({
         ref={overflowMeasureRef}
         aria-hidden="true"
         style={EMOJI_TEXT_STYLE}
-        className="pointer-events-none invisible absolute left-0 top-0 -z-10 line-clamp-none w-full whitespace-pre-wrap break-words text-sm font-normal text-gray-900"
+        className="pointer-events-none invisible absolute left-0 top-0 h-0 overflow-hidden -z-10 line-clamp-none w-full whitespace-pre-wrap break-words text-sm font-normal text-gray-900"
       >
         {message}
       </p>
