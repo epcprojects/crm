@@ -9,6 +9,7 @@ export enum EmailEventType {
   TICKET_PRIORITY_UPDATED = 'ticket.priority_updated',
   TICKET_ASSIGNEE_UPDATED = 'ticket.assignee_updated',
   TICKET_ATTACHMENT_ADDED = 'ticket.attachment_added',
+  THREAD_REPLY_CREATED = 'thread.reply_created'
 
 }
 
@@ -129,6 +130,18 @@ export interface ThreadMessageCreatedPayload {
   createdBy: EmailRecipient;
   participants: EmailRecipient[];
 }
+export interface ThreadReplyCreatedPayload {
+  messageId: string;
+  projectId: string;
+  projectName: string;
+  message: string;
+  createdBy: EmailRecipient;
+  participants: EmailRecipient[];
+  parentMessage: {
+    id: string;
+    message: string;
+  };
+}
 
 // Union event type used internally
 
@@ -137,6 +150,7 @@ export type EmailNotificationEvent =
   | { type: EmailEventType.PROJECT_UNASSIGNED; payload: ProjectUnassignedPayload }
   | { type: EmailEventType.PROJECT_ASSIGNED; payload: ProjectAssignedPayload } 
   | {type: EmailEventType.THREAD_MESSAGE_CREATED; payload: ThreadMessageCreatedPayload }
+  | { type: EmailEventType.THREAD_REPLY_CREATED; payload: ThreadReplyCreatedPayload }
   | { type: EmailEventType.TICKET_CREATED; payload: TicketCreatedPayload }
   | {
       type: EmailEventType.TICKET_REPLY_POSTED;
