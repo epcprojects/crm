@@ -87,6 +87,7 @@ type TicketTimelineItem = {
   id: string;
   description: string;
   status: string;
+  showStatusBadge: boolean;
   statusClassName: string;
   statusStyle?: React.CSSProperties;
   occurredAt: string;
@@ -3203,6 +3204,7 @@ function mapApiTicketTimelineToItems(
         activity.title?.replace(/^"+|"+$/g, '').trim() ||
         timelineMeta.description,
       status: timelineMeta.status,
+      showStatusBadge: timelineMeta.showStatusBadge,
       statusClassName: timelineMeta.statusClassName,
       statusStyle: timelineMeta.statusStyle,
       occurredAt: activity.createdAt ?? '',
@@ -3221,6 +3223,7 @@ function getTicketTimelineMeta(
     return {
       status:
         extractValueAfterKeyword(normalizedTitle, 'assigned to') ?? 'Assigned',
+      showStatusBadge: false,
       statusClassName: 'bg-blue-500 text-white',
       description: normalizedTitle || 'Assignment updated.',
     };
@@ -3231,6 +3234,7 @@ function getTicketTimelineMeta(
       status:
         extractValueAfterKeyword(normalizedTitle, 'priority changed to') ??
         'Updated',
+      showStatusBadge: true,
       statusClassName: 'bg-yellow-500 text-white',
       description: normalizedTitle || 'Priority changed.',
     };
@@ -3247,6 +3251,7 @@ function getTicketTimelineMeta(
 
     return {
       status,
+      showStatusBadge: true,
       statusClassName: 'text-white',
       statusStyle: statusColor ? { backgroundColor: statusColor } : undefined,
       description: normalizedTitle || 'Status changed.',
@@ -3262,6 +3267,7 @@ function getTicketTimelineMeta(
 
     return {
       status,
+      showStatusBadge: false,
       statusClassName: 'text-white',
       statusStyle: statusColor ? { backgroundColor: statusColor } : undefined,
       description: normalizedTitle || 'Ticket created.',
@@ -3270,6 +3276,7 @@ function getTicketTimelineMeta(
 
   return {
     status: 'Updated',
+    showStatusBadge: false,
     statusClassName: 'bg-gray-500 text-white',
     description: normalizedTitle || 'Ticket updated.',
   };
@@ -4342,15 +4349,17 @@ function TicketTimeline({ items }: { items: TicketTimelineItem[] }) {
                 {formatTimelineDateTime(item.occurredAt)}
               </p>
               <p className="mt-1.5 text-sm text-gray-700">{item.description}</p>
-              <span
-                className={clsx(
-                  'mt-2 inline-flex rounded-full px-2 py-1 text-xs font-semibold leading-none',
-                  item.statusClassName,
-                )}
-                style={item.statusStyle}
-              >
-                {item.status}
-              </span>
+              {item.showStatusBadge ? (
+                <span
+                  className={clsx(
+                    'mt-2 inline-flex rounded-full px-2 py-1 text-xs font-semibold leading-none',
+                    item.statusClassName,
+                  )}
+                  style={item.statusStyle}
+                >
+                  {item.status}
+                </span>
+              ) : null}
             </div>
           </div>
         );
