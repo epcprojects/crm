@@ -94,9 +94,17 @@ export async function POST(
 
     const formData = await request.formData().catch(() => null);
     const messageValue = formData?.get('message');
+    const mentionedUserIdValues = formData?.getAll('mentionedUserIds') ?? [];
     const attachments = formData?.getAll('attachments') ?? [];
     const message =
       typeof messageValue === 'string' ? messageValue.trim() : undefined;
+    const mentionedUserIds = mentionedUserIdValues
+      .filter(
+        (mentionedUserId): mentionedUserId is string =>
+          typeof mentionedUserId === 'string',
+      )
+      .map((mentionedUserId) => mentionedUserId.trim())
+      .filter((mentionedUserId) => mentionedUserId.length > 0);
     const validAttachments = attachments.filter(
       (attachment): attachment is File =>
         attachment instanceof File && attachment.size > 0,
@@ -114,6 +122,10 @@ export async function POST(
     if (message) {
       upstreamFormData.append('message', message);
     }
+
+    mentionedUserIds.forEach((mentionedUserId) => {
+      upstreamFormData.append('mentionedUserIds', mentionedUserId);
+    });
 
     validAttachments.forEach((attachment) => {
       upstreamFormData.append('attachments', attachment, attachment.name);

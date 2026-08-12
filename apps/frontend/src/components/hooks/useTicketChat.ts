@@ -25,6 +25,7 @@ export type ChatMessage = {
   projectId: string;
   ticketId: string;
   senderId: string;
+  mentionedUserIds?: string[] | null;
   messageType: 'text' | 'attachment';
   message: string;
   attachmentUrl?: string | null;
@@ -48,6 +49,16 @@ export type ChatMessage = {
     fullName?: string;
     avatarUrl?: string;
   } | null;
+};
+
+type SendChatMessagePayload = {
+  message: string;
+  messageType?: 'text' | 'attachment';
+  attachmentUrl?: string;
+  attachmentUrls?: string[];
+  attachmentName?: string;
+  attachmentSize?: number;
+  mentionedUserIds?: string[];
 };
 
 function isChatMessage(value: unknown): value is ChatMessage {
@@ -437,14 +448,8 @@ export function useTicketChat({
       attachmentUrls,
       attachmentName,
       attachmentSize,
-    }: {
-      message: string;
-      messageType?: 'text' | 'attachment';
-      attachmentUrl?: string;
-      attachmentUrls?: string[];
-      attachmentName?: string;
-      attachmentSize?: number;
-    }) => {
+      mentionedUserIds,
+    }: SendChatMessagePayload) => {
       const response = await fetch(
         `/api/projects/${projectId}/tickets/${ticketId}/chat/${channel}/messages`,
         {
@@ -460,6 +465,7 @@ export function useTicketChat({
             attachmentUrls,
             attachmentName,
             attachmentSize,
+            mentionedUserIds,
           }),
         },
       );
@@ -568,6 +574,7 @@ export function useTicketChat({
         attachmentUrls?: string[];
         attachmentName?: string;
         attachmentSize?: number;
+        mentionedUserIds?: string[];
       },
     ) => {
       const response = await fetch(

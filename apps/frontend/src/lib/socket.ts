@@ -7,22 +7,35 @@ export type SocketConfig = {
   accessToken: string;
 };
 
-const sockets = new Map<string, Socket>();
+type CachedSocket = {
+  socket: Socket;
+  accessToken: string;
+};
+
+const sockets = new Map<string, CachedSocket>();
 
 export function getSocket(
   namespace: string,
   config: SocketConfig,
 ): Socket {
-  const key = `${namespace}:${config.socketUrl}:${config.accessToken}`;
+  const key = `${namespace}:${config.socketUrl}`;
 
   const existing = sockets.get(key);
 
   if (existing) {
-    if (!existing.connected) {
-      existing.connect();
+    if (existing.accessToken !== config.accessToken) {
+      existing.accessToken = config.accessToken;
+      existing.socket.auth = {
+        ...existing.socket.auth,
+        token: config.accessToken,
+      };
     }
 
-    return existing;
+    if (!existing.socket.connected) {
+      existing.socket.connect();
+    }
+
+    return existing.socket;
   }
 
   const socket = io(`${config.socketUrl}/${namespace}`, {
@@ -33,15 +46,18 @@ export function getSocket(
     },
   });
 
-  sockets.set(key, socket);
+  sockets.set(key, {
+    socket,
+    accessToken: config.accessToken,
+  });
 
   return socket;
 }
 
 export function disconnectSocket(namespace: string) {
-  for (const [key, socket] of sockets.entries()) {
+  for (const [key, entry] of sockets.entries()) {
     if (key.startsWith(`${namespace}:`)) {
-      socket.disconnect();
+      entry.socket.disconnect();
       sockets.delete(key);
     }
   }

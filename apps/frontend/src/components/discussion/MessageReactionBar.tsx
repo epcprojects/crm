@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -58,10 +57,10 @@ export default function MessageReactionBar({
 
   const pickerAnchor = align === 'end' ? 'top end' : 'top start';
 
- const handleOpenMobileEmojiSheet = (closePopover: () => void) => {
-  setMobileEmojiSheetOpen(true);
-  closePopover();
-};
+  const handleOpenMobileEmojiSheet = (closePopover: () => void) => {
+    setMobileEmojiSheetOpen(true);
+    closePopover();
+  };
 
   const handleMobileEmojiSelect = (emoji: string) => {
     onToggleReaction(emoji);
@@ -187,7 +186,7 @@ export default function MessageReactionBar({
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-lg text-gray-600 transition hover:bg-gray-200"
                 aria-label="Close emoji picker"
               >
-                <CloseIcon width='14' height='14'/>
+                <CloseIcon width="14" height="14" />
               </button>
             </div>
 
@@ -279,10 +278,7 @@ function SharedReactionPopover({
 
   return (
     <>
-      <Popover
-        as="div"
-        className={clsx('absolute -bottom-5 z-20', className)}
-      >
+      <Popover as="div" className={clsx('absolute -bottom-5 z-20', className)}>
         {({ close }) => (
           <>
             <div className="flex flex-wrap items-center gap-0.75 rounded-xl border border-gray-200 bg-white px-2 py-1">
@@ -365,9 +361,7 @@ function SharedReactionPopover({
             />
 
             <div className="mb-3 flex shrink-0 items-center justify-between px-1">
-              <p className="text-base font-semibold text-gray-900">
-                Reactions
-              </p>
+              <p className="text-base font-semibold text-gray-900">Reactions</p>
 
               <button
                 type="button"

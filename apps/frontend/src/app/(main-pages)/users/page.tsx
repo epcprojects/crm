@@ -777,13 +777,13 @@ export default function Page() {
                           <PlusIcon fill="#3889FE" width="20" height="20" />
                         )
                       }
-                      onButtonClick={
-                        hasSearchOrFilters
-                          ? () => setSearchValue('')
-                          : canCreateUser
-                            ? () => setAddUserOpen(true)
-                            : undefined
-                      }
+                      // onButtonClick={
+                      //   hasSearchOrFilters
+                      //     ? () => setSearchValue('')
+                      //     : canCreateUser
+                      //       ? () => setAddUserOpen(true)
+                      //       : undefined
+                      // }
                     />
                   )}
                 </div>

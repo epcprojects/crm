@@ -89,37 +89,56 @@ export async function PUT(
     const formData = await request.formData().catch(() => null);
     const messageValue = formData?.get('message');
     const parentIdValue = formData?.get('parentId');
+    const mentionedUserIdValues = formData?.getAll('mentionedUserIds') ?? [];
+    const attachments = formData?.getAll('attachments') ?? [];
     const message =
       typeof messageValue === 'string' ? messageValue.trim() : '';
+    const mentionedUserIds = mentionedUserIdValues
+      .filter(
+        (mentionedUserId): mentionedUserId is string =>
+          typeof mentionedUserId === 'string',
+      )
+      .map((mentionedUserId) => mentionedUserId.trim())
+      .filter((mentionedUserId) => mentionedUserId.length > 0);
+    const validAttachments = attachments.filter(
+      (attachment): attachment is File =>
+        attachment instanceof File && attachment.size > 0,
+    );
 
-    if (!message) {
+    if (!message && !validAttachments.length) {
       return NextResponse.json(
-        { message: 'Message is required.' },
+        { message: 'Message or attachment is required.' },
         { status: 400 },
       );
     }
 
-    const payload: {
-      message: string;
-      parentId?: string;
-    } = {
-      message,
-    };
+    const upstreamFormData = new FormData();
+
+    if (message) {
+      upstreamFormData.append('message', message);
+    }
 
     if (typeof parentIdValue === 'string' && parentIdValue.trim()) {
-      payload.parentId = parentIdValue.trim();
+      upstreamFormData.append('parentId', parentIdValue.trim());
     }
+
+    mentionedUserIds.forEach((mentionedUserId) => {
+      upstreamFormData.append('mentionedUserIds', mentionedUserId);
+    });
+
+    validAttachments.forEach((attachment) => {
+      upstreamFormData.append('attachments', attachment, attachment.name);
+    });
 
     const response = await fetch(
       `${apiBaseUrl}/projects/${projectId}/thread/${messageId}`,
       {
         method: 'PUT',
         headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
+          Accept: '*/*',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(payload),
+        body: upstreamFormData,
         cache: 'no-store',
       },
     );

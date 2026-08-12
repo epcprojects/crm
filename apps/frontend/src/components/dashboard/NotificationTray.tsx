@@ -1,10 +1,10 @@
 'use client';
 
 import { Tab, TabGroup, TabList } from '@headlessui/react';
+import Link from 'next/link';
 import { CloseIcon, CrossIcon, SearchIcon } from '../../../public/icons';
 import EmptyState from '../EmptyState';
 import { NotificationItem } from '@harperhelp/interfaces';
-import { useRouter } from 'next/navigation';
 import { getNotificationNavigationPath } from '../../lib/notification-navigation';
 
 type NotificationTrayProps = {
@@ -219,18 +219,54 @@ function NotificationRow({
   onViewSingle?: () => void;
   onClose: () => void;
 }) {
-  const router = useRouter();
+  const href = getNotificationNavigationPath(item);
+
+  const handlePlainClick = (
+    event: React.MouseEvent<HTMLAnchorElement | HTMLElement>,
+  ) => {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+
+    onViewSingle?.();
+    onClose();
+  };
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        onClick={handlePlainClick}
+        className={`flex gap-4 border-b ${!item.isRead && 'bg-blue-50'} border-gray-200 px-3 sm:px-6 py-4.5 pb-2 transition hover:bg-gray-100 cursor-pointer`}
+      >
+        <div className="min-w-0 flex-1">
+          <p className="text-sm leading-5 text-gray-600">
+            <span className="font-semibold text-gray-900">{item.title} </span>{' '}
+          </p>
+          <p className="mt-1 text-xs  text-gray-500">
+            {' '}
+            {new Date(item.createdAt).toLocaleString()}
+          </p>
+        </div>
+
+        <div className="flex shrink-0 items-start pt-0.5">
+          {!item.isRead ? <MailUnreadIcon /> : <MailReadIcon />}
+        </div>
+      </Link>
+    );
+  }
+
   return (
     <article
       onClick={() => {
-        if (onViewSingle) {
-          onViewSingle();
-        }
-        const nextPath = getNotificationNavigationPath(item);
-
-        if (nextPath) {
-          router.push(nextPath);
-        }
+        onViewSingle?.();
         onClose();
       }}
       className={`flex gap-4 border-b ${!item.isRead && 'bg-blue-50'} border-gray-200 px-3 sm:px-6 py-4.5 pb-2 transition hover:bg-gray-100 cursor-pointer`}

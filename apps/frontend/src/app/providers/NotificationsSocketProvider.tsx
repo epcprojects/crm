@@ -44,11 +44,42 @@ export function NotificationsSocketProvider({
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const authStatus = useAppSelector((state) => state.auth.status);
   const socketRef = useRef<Socket | null>(null);
+  const notificationAudioRef = useRef<HTMLAudioElement | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [recentNotifications, setRecentNotifications] = useState<
     NotificationItem[]
   >([]);
+
+  const playNotificationSound = useCallback(() => {
+    const audio = notificationAudioRef.current;
+
+    if (!audio) {
+      return;
+    }
+
+    audio.currentTime = 0;
+    void audio.play().catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const audio = new Audio('/NotificationSound.mp3');
+    audio.preload = 'auto';
+    notificationAudioRef.current = audio;
+
+    return () => {
+      if (notificationAudioRef.current) {
+        notificationAudioRef.current.pause();
+        notificationAudioRef.current.src = '';
+      }
+
+      notificationAudioRef.current = null;
+    };
+  }, []);
 
   async function fetchSocketToken(): Promise<SocketTokenResponse> {
     const response = await fetch('/api/auth/socket-token', {
@@ -122,6 +153,7 @@ export function NotificationsSocketProvider({
             }
             setUnreadCount(payload.unreadCount);
             setRecentNotifications((prev) => [payload, ...prev].slice(0, 5));
+            playNotificationSound();
             appToast.info(getNotificationToastMessage(payload), {
               position: 'bottom-right',
               toastId: `notification:${payload.id}`,
@@ -181,7 +213,7 @@ export function NotificationsSocketProvider({
       socketRef.current?.disconnect();
       socketRef.current = null;
     };
-  }, [authStatus, isAuthenticated, router]);
+  }, [authStatus, isAuthenticated, playNotificationSound, router]);
 
   const markAsRead = useCallback(async (id: string) => {
     setRecentNotifications((prev) =>

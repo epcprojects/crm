@@ -1,10 +1,10 @@
 import React from 'react';
 
-const ChatIcon = ({ fill = '#4B5563' }) => {
+const ChatIcon = ({ fill = '#4B5563', width = '18', height = '18' }) => {
   return (
     <svg
-      width="18"
-      height="18"
+      width={width}
+      height={height}
       viewBox="0 0 18 18"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"

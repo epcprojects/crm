@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@source "../../../../node_modules/react-mentions-ts/dist";
 
 @theme inline {
   --color-background: var(--background);
@@ -1313,3 +1314,23 @@ button[aria-disabled='true'] {
   background: #667085;
 }
 
+.border-hide div div {
+  border: #ffffff ;
+}
+
+@keyframes discussion-progress {
+  0% {
+    transform: scaleX(0);
+    opacity: 0.7;
+  }
+
+  70% {
+    transform: scaleX(0.78);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}

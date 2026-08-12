@@ -1,6 +1,7 @@
 'use client';
 
 import { Tab, TabGroup, TabList } from '@headlessui/react';
+import Link from 'next/link';
 import {
   useEffect,
   useMemo,
@@ -394,14 +395,8 @@ export default function Page() {
                 <NotificationPageRow
                   key={notification.id}
                   item={notification}
-                  onClick={() => {
+                  onPlainClick={() => {
                     !notification.isRead && handleMarkAsRead(notification.id);
-                    const nextPath =
-                      getNotificationNavigationPath(notification);
-
-                    if (nextPath) {
-                      router.push(nextPath);
-                    }
                   }}
                 />
               ))
@@ -470,14 +465,56 @@ function TopFilterTab({
 
 function NotificationPageRow({
   item,
-  onClick,
+  onPlainClick,
 }: {
   item: NotificationItem;
-  onClick: () => void;
+  onPlainClick: () => void;
 }) {
+  const href = getNotificationNavigationPath(item);
+
+  const handlePlainClick = (
+    event: React.MouseEvent<HTMLAnchorElement | HTMLElement>,
+  ) => {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+
+    onPlainClick();
+  };
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        onClick={handlePlainClick}
+        className={`flex items-start gap-4 cursor-pointer border-b border-gray-200 last:border-b-0 px-3 sm:px-4 py-3 md:py-4 transition hover:bg-gray-50 ${!item.isRead && 'bg-blue-50'}`}
+      >
+        <div className="min-w-0 flex-1">
+          <p className="text-sm  text-gray-600">
+            <span className="font-semibold text-gray-900">{item.title}</span>{' '}
+          </p>
+          <p className="mt-1 text-xs text-gray-500">
+            {new Date(item.createdAt).toLocaleString()}
+          </p>
+        </div>
+
+        <div className="flex shrink-0 items-start pt-0.5">
+          {!item.isRead ? <MailUnreadIcon /> : <MailReadIcon />}
+        </div>
+      </Link>
+    );
+  }
+
   return (
     <article
-      onClick={onClick}
+      onClick={onPlainClick}
       className={`flex items-start gap-4 cursor-pointer border-b border-gray-200 last:border-b-0 px-3 sm:px-4 py-3 md:py-4 transition hover:bg-gray-50 ${!item.isRead && 'bg-blue-50'}`}
     >
       <div className="min-w-0 flex-1">

@@ -1068,6 +1068,7 @@ type ApiProjectThreadMessage = {
   projectId?: string;
   authorId?: string;
   message: string | null;
+  mentionedUserIds?: string[] | null;
   replyCount?: string | number | null;
   author?: {
     email?: string;
@@ -1382,6 +1383,13 @@ function mapApiProjectThreadMessageToReply(
   return {
     id: message.id,
     authorId: message.createdBy ?? message.authorId,
+    mentionedUserIds: Array.isArray(message.mentionedUserIds)
+      ? message.mentionedUserIds.filter(
+          (mentionedUserId): mentionedUserId is string =>
+            typeof mentionedUserId === 'string' &&
+            mentionedUserId.trim().length > 0,
+        )
+      : [],
     replyCount: normalizeReplyCount(message.replyCount),
     reactions: mapApiProjectThreadReactions(
       message.reactions ?? message.parentReactions,

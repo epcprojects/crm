@@ -95,6 +95,7 @@ import Calendar from '../../../../components/calendar/Calendar';
 import DashboardSummaryBanner from '../../../../components/ui/DashboardSummaryBanner';
 import EmptyState from '../../../../components/EmptyState';
 import AppModal from '../../../../components/modals/AppModal';
+import { fetchProjectMembers } from '../../../../lib/project-members';
 
 const projectTabs = [
   'Tickets',
@@ -103,6 +104,16 @@ const projectTabs = [
   'Calendar',
   'Notes',
 ] as const;
+const projectTabQueryParamMap: Record<
+  (typeof projectTabs)[number],
+  string | null
+> = {
+  Tickets: null,
+  Thread: '1',
+  Files: '2',
+  Calendar: '3',
+  Notes: '4',
+};
 const PROJECT_TICKETS_STATUS_QUERY_PARAM = 'ticketStatus';
 const PROJECT_TICKETS_PRIORITY_QUERY_PARAM = 'ticketPriority';
 const PROJECT_NOTES_LIMIT = 50;
@@ -138,6 +149,11 @@ export default function ProjectDetailPage() {
   const canUploadFiles = hasPermission('files.upload');
   const canDownloadFiles = hasPermission('files.download');
   const canViewCalendar = hasPermission('calendar.view_grid');
+  const canViewProjectNotesList = hasPermission('projects_notes.view_list');
+  const canViewProjectNoteDetail = hasPermission('projects_notes.view_detail');
+  const canCreateProjectNote = hasPermission('projects_notes.create');
+  const canEditProjectNote = hasPermission('projects_notes.edit');
+  const canDeleteProjectNote = hasPermission('projects_notes.delete');
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [uploadFileOpen, setUploadFileOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
@@ -214,6 +230,11 @@ export default function ProjectDetailPage() {
     currentUserId,
     canViewThread,
   );
+  const projectMembersQuery = useQuery({
+    queryKey: ['project-members', projectId],
+    queryFn: () => fetchProjectMembers(projectId),
+    enabled: Boolean(projectId && (canPostThreadMessage || canPostThreadReply)),
+  });
 
   const projectFilesQuery = useProjectFilesQuery(projectId, canViewFiles);
   const createProjectNoteMutation = useCreateProjectNoteMutation();
@@ -226,12 +247,12 @@ export default function ProjectDetailPage() {
       limit: PROJECT_NOTES_LIMIT,
       search: notesSearchValue.trim() || undefined,
     },
-    canViewProjectDetail,
+    canViewProjectNotesList,
   );
   const projectNoteDetailQuery = useProjectNoteDetailQuery(
     projectId,
     selectedProjectNoteId,
-    canViewProjectDetail && !isCreatingProjectNote,
+    canViewProjectNoteDetail && !isCreatingProjectNote,
   );
   const projectTicketsQuery = useProjectTicketsQuery(
     projectId,
@@ -335,10 +356,12 @@ export default function ProjectDetailPage() {
       message,
       attachments,
       parentId,
+      mentionedUserIds,
     }: {
       message: string;
       attachments: File[];
       parentId?: string;
+      mentionedUserIds?: string[];
     }) => {
       const formData = new FormData();
       if (message.trim()) {
@@ -348,6 +371,12 @@ export default function ProjectDetailPage() {
       if (parentId?.trim()) {
         formData.append('parentId', parentId.trim());
       }
+
+      mentionedUserIds?.forEach((mentionedUserId) => {
+        if (mentionedUserId.trim()) {
+          formData.append('mentionedUserIds', mentionedUserId.trim());
+        }
+      });
 
       attachments.forEach((attachment) => {
         formData.append('attachments', attachment);
@@ -406,10 +435,12 @@ export default function ProjectDetailPage() {
       messageId,
       message,
       parentId,
+      mentionedUserIds,
     }: {
       messageId: string;
       message: string;
       parentId?: string;
+      mentionedUserIds: string[];
     }) => {
       const formData = new FormData();
       formData.append('message', message.trim());
@@ -417,6 +448,12 @@ export default function ProjectDetailPage() {
       if (parentId?.trim()) {
         formData.append('parentId', parentId.trim());
       }
+
+      mentionedUserIds.forEach((mentionedUserId) => {
+        if (mentionedUserId.trim()) {
+          formData.append('mentionedUserIds', mentionedUserId.trim());
+        }
+      });
 
       const response = await fetch(
         `/api/projects/${projectId}/thread/${messageId}`,
@@ -756,9 +793,9 @@ export default function ProjectDetailPage() {
     [isCreatingProjectNote, projectNotes, selectedProjectNoteId],
   );
   const selectedProjectNote =
-    !isCreatingProjectNote && projectNoteDetailQuery.data
-      ? projectNoteDetailQuery.data
-      : selectedProjectNoteSummary;
+    !canViewProjectNoteDetail || isCreatingProjectNote
+      ? null
+      : (projectNoteDetailQuery.data ?? null);
 
   useEffect(() => {
     if (!projectNotes.length) {
@@ -1154,23 +1191,31 @@ export default function ProjectDetailPage() {
   const handleSubmitReply = async ({
     message,
     attachments,
+    mentionedUserIds,
   }: {
     message: string;
     attachments: File[];
+    mentionedUserIds: string[];
   }) => {
     if (!canPostThreadMessage) {
       return;
     }
 
-    await createProjectThreadMutation.mutateAsync({ message, attachments });
+    await createProjectThreadMutation.mutateAsync({
+      message,
+      attachments,
+      mentionedUserIds,
+    });
   };
 
   const handleSubmitThreadReply = async ({
     message,
     attachments,
+    mentionedUserIds,
   }: {
     message: string;
     attachments: File[];
+    mentionedUserIds: string[];
   }) => {
     if (!canPostThreadReply || !selectedThreadMessageId) {
       return;
@@ -1180,15 +1225,18 @@ export default function ProjectDetailPage() {
       message,
       attachments,
       parentId: selectedThreadMessageId,
+      mentionedUserIds,
     });
   };
 
   const handleEditProjectThreadReply = async ({
     reply,
     message,
+    mentionedUserIds,
   }: {
     reply: DiscussionReply;
     message: string;
+    mentionedUserIds: string[];
   }) => {
     setEditingThreadReplyId(reply.id);
 
@@ -1196,6 +1244,7 @@ export default function ProjectDetailPage() {
       await updateProjectThreadMutation.mutateAsync({
         messageId: reply.id,
         message,
+        mentionedUserIds,
         parentId:
           selectedThreadMessageId && selectedThreadMessageId !== reply.id
             ? selectedThreadMessageId
@@ -1368,7 +1417,7 @@ export default function ProjectDetailPage() {
     if (tab === 'Thread') return canViewThread;
     if (tab === 'Files') return canViewFiles;
     if (tab === 'Calendar') return canViewCalendar;
-    if (tab === 'Notes') return true;
+    if (tab === 'Notes') return canViewProjectNotesList;
     return false;
   });
   const defaultProjectTabIndex = useMemo(() => {
@@ -1376,11 +1425,13 @@ export default function ProjectDetailPage() {
     const requestedTabName =
       requestedTab === '1'
         ? 'Thread'
-        : requestedTab === '4'
-          ? 'Notes'
-          : requestedTab === '3'
-            ? 'Calendar'
-            : null;
+        : requestedTab === '2'
+          ? 'Files'
+          : requestedTab === '4'
+            ? 'Notes'
+            : requestedTab === '3'
+              ? 'Calendar'
+              : null;
 
     if (!requestedTabName) {
       return 0;
@@ -1389,6 +1440,42 @@ export default function ProjectDetailPage() {
     const requestedTabIndex = visibleProjectTabs.indexOf(requestedTabName);
     return requestedTabIndex >= 0 ? requestedTabIndex : 0;
   }, [searchParams, visibleProjectTabs]);
+  const handleProjectTabChange = useCallback(
+    (index: number) => {
+      const selectedTab = visibleProjectTabs[index];
+
+      if (!selectedTab) {
+        return;
+      }
+
+      const nextTabQueryValue = projectTabQueryParamMap[selectedTab];
+      const nextSearchParams = new URLSearchParams(searchParams.toString());
+      const currentTabQueryValue = searchParams.get('t');
+
+      if (nextTabQueryValue) {
+        nextSearchParams.set('t', nextTabQueryValue);
+      } else {
+        nextSearchParams.delete('t');
+      }
+
+      const nextUrl = nextSearchParams.toString()
+        ? `${pathname}?${nextSearchParams.toString()}`
+        : pathname;
+      const currentUrl = searchParams.toString()
+        ? `${pathname}?${searchParams.toString()}`
+        : pathname;
+
+      if (
+        (nextTabQueryValue ?? null) === (currentTabQueryValue ?? null) &&
+        nextUrl === currentUrl
+      ) {
+        return;
+      }
+
+      router.replace(nextUrl, { scroll: false });
+    },
+    [pathname, router, searchParams, visibleProjectTabs],
+  );
   // const projectDetailScrollRef = useRef<HTMLDivElement | null>(null);
   // const projectDetailSectionRef = useRef<HTMLDivElement | null>(null);
 
@@ -1455,8 +1542,8 @@ export default function ProjectDetailPage() {
 
   if (!canViewProjectDetail) {
     return (
-      <div className="space-y-4 mt-8">
-        <div className="rounded-[20px] border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+      <div className="space-y-4 h-full py-8 pe-4">
+        <div className="rounded-[20px] h-full border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
           <EmptyState
             imageUrl="/images/EmptyProjectIcon.svg"
             imageAlt="Project not found"
@@ -1472,8 +1559,8 @@ export default function ProjectDetailPage() {
 
   if (!project) {
     return (
-      <div className="space-y-4 mt-8">
-        <div className="rounded-3xl border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+      <div className="space-y-4 h-full py-8 pe-4">
+        <div className="rounded-3xl h-full border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
           <EmptyState
             imageUrl="/images/EmptyProjectIcon.svg"
             imageAlt="Project not found"
@@ -1625,6 +1712,7 @@ export default function ProjectDetailPage() {
             <TabGroup
               key={`${projectId}-${searchParams.get('t') ?? '0'}`}
               defaultIndex={defaultProjectTabIndex}
+              onChange={handleProjectTabChange}
               // className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden"
               className="flex h-auto min-h-0 min-w-0 flex-none flex-col gap-4 overflow-visible xl:h-full xl:flex-1 xl:overflow-hidden"
             >
@@ -1843,6 +1931,12 @@ export default function ProjectDetailPage() {
                         onPaginationChange={setTicketsPagination}
                         totalRows={projectTicketsQuery.data?.meta.total ?? 0}
                         manualPagination
+                        getRowHref={
+                          canViewTicketDetail
+                            ? (ticket) =>
+                                `/tickets/${ticket.id}?projectId=${projectId}`
+                            : undefined
+                        }
                         onRowClick={
                           canViewTicketDetail
                             ? (ticket) =>
@@ -1882,6 +1976,7 @@ export default function ProjectDetailPage() {
                           <ProjectThreadPanel
                             title="Discussion"
                             replies={projectThreadQuery.data ?? []}
+                            mentionMembers={projectMembersQuery.data ?? []}
                             emptyTitle={
                               projectThreadQuery.isLoading
                                 ? 'Loading discussion...'
@@ -1943,6 +2038,7 @@ export default function ProjectDetailPage() {
                           <ProjectThreadPanel
                             title="Thread"
                             subtitle=""
+                            mentionMembers={projectMembersQuery.data ?? []}
                             headerAction={
                               <button
                                 type="button"
@@ -1958,7 +2054,7 @@ export default function ProjectDetailPage() {
                             emptyTitle={
                               projectThreadDetailQuery.isLoading
                                 ? 'Loading thread...'
-                                : 'No Threads replies yet.'
+                                : 'No threads replies yet.'
                             }
                             emptyDescription={
                               projectThreadDetailQuery.isLoading
@@ -2054,203 +2150,227 @@ export default function ProjectDetailPage() {
                   </TabPanel>
                 </PermissionGuard>
 
-                <TabPanel className="h-auto min-h-0 overflow-visible xl:h-full border rounded-sm sm:rounded-2xl border-gray-200 xl:overflow-hidden">
-                  <div className="grid h-auto min-h-0 min-w-0 xl:h-full xl:grid-cols-[340px_minmax(0,1fr)]">
-                    <section className="flex min-h-96 flex-col overflow-hidden border-e border-gray-200 bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
-                      <div className="border-b border-gray-200 px-3.5 py-3.5 bg-gray-50">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-base font-bold text-gray-900">
-                              Notes
-                            </h3>
-                            <p className="text-xs font-medium border border-gray-200 px-1.5 py-0.5 rounded-full bg-white text-gray-600">
-                              {projectNotesQuery.data?.meta.total ?? 0} notes
-                            </p>
-                          </div>
-                          <ThemeButton
-                            type="button"
-                            variant="primaryGradient"
-                            size="sm"
-                            icon={<PlusIcon width="14" height="14" />}
-                            onClick={handleStartCreatingProjectNote}
-                          >
-                            New
-                          </ThemeButton>
-                        </div>
-
-                        <div className="mt-4 rounded-lg border border-gray-200 bg-white px-2.5 py-2">
-                          <div className="flex items-center gap-2">
-                            <span className="shrink-0">
-                              <SearchIcon fill="#374151" />
-                            </span>
-
-                            <input
-                              type="text"
-                              value={notesSearchValue}
-                              onChange={(event) =>
-                                setNotesSearchValue(event.target.value)
-                              }
-                              placeholder="Search..."
-                              className="min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="min-h-0 flex-1 scrollbar-thin overflow-y-auto bg-white">
-                        {projectNotesQuery.isLoading ? (
-                          <div className="space-y-3 p-4">
-                            {Array.from({ length: 5 }).map((_, index) => (
-                              <div
-                                key={index}
-                                className="rounded-2xl border border-gray-200 px-4 py-3"
+                <PermissionGuard permission="projects_notes.view_list">
+                  <TabPanel className="h-auto min-h-0 overflow-visible xl:h-full border rounded-sm sm:rounded-2xl border-gray-200 xl:overflow-hidden">
+                    <div className="grid h-auto min-h-0 min-w-0 xl:h-full xl:grid-cols-[340px_minmax(0,1fr)]">
+                      <section className="flex min-h-96 flex-col overflow-hidden border-e border-gray-200 bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+                        <div className="border-b border-gray-200 px-3.5 py-3.5 bg-gray-50">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-base font-bold text-gray-900">
+                                Notes
+                              </h3>
+                              <p className="text-xs font-medium border border-gray-200 px-1.5 py-0.5 rounded-full bg-white text-gray-600">
+                                {projectNotesQuery.data?.meta.total ?? 0} notes
+                              </p>
+                            </div>
+                            {canCreateProjectNote ? (
+                              <ThemeButton
+                                type="button"
+                                variant="primaryGradient"
+                                size="sm"
+                                icon={<PlusIcon width="14" height="14" />}
+                                onClick={handleStartCreatingProjectNote}
                               >
-                                <div className="h-4 w-2/3 animate-pulse rounded bg-gray-200" />
-                                <div className="mt-3 h-3 w-full animate-pulse rounded bg-gray-100" />
-                                <div className="mt-2 h-3 w-1/2 animate-pulse rounded bg-gray-100" />
-                              </div>
-                            ))}
+                                New
+                              </ThemeButton>
+                            ) : null}
                           </div>
-                        ) : projectNotes.length ? (
-                          <div>
-                            {projectNotes.map((note) => {
-                              const isActive =
-                                note.id === selectedProjectNoteSummary?.id;
-                              const noteForPreview = note;
-                              return (
-                                <article
-                                  key={note.id}
-                                  className={clsx(
-                                    'border-b px-2.5 py-3 transition last:border-b-0',
-                                    isActive
-                                      ? 'border-gray-200 bg-blue-50'
-                                      : 'border-gray-200 bg-white hover:bg-gray-50',
-                                  )}
+
+                          <div className="mt-4 rounded-lg border border-gray-200 bg-white px-2.5 py-2">
+                            <div className="flex items-center gap-2">
+                              <span className="shrink-0">
+                                <SearchIcon fill="#374151" />
+                              </span>
+
+                              <input
+                                type="text"
+                                value={notesSearchValue}
+                                onChange={(event) =>
+                                  setNotesSearchValue(event.target.value)
+                                }
+                                placeholder="Search..."
+                                className="min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="min-h-0 flex-1 scrollbar-thin overflow-y-auto bg-white">
+                          {projectNotesQuery.isLoading ? (
+                            <div className="space-y-3 p-4">
+                              {Array.from({ length: 5 }).map((_, index) => (
+                                <div
+                                  key={index}
+                                  className="rounded-2xl border border-gray-200 px-4 py-3"
                                 >
-                                  <div className="flex items-start gap-3">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        if (isMobile) {
-                                          setIsProjectNoteMobileModalOpen(true);
-                                        }
-
-                                        setIsCreatingProjectNote(false);
-                                        setIsEditingProjectNote(false);
-                                        setPendingProjectNoteEditId('');
-                                        setSelectedProjectNoteId(note.id);
-                                      }}
-                                      className="min-w-0 flex-1 text-left space-y-1"
-                                    >
-                                      <h4 className="truncate text-base font-bold text-gray-900">
-                                        {note.title}
-                                      </h4>
-                                      <p className="line-clamp-1 text-sm text-gray-600">
-                                        {getProjectNotePreview(
-                                          fullNotesById.get(note.id) ?? note,
-                                        )}
-                                      </p>
-                                      <div className="flex items-center gap-1 text-xs font-normal text-gray-500">
-                                        <CalendarTabIcon
-                                          width="14"
-                                          height="14"
-                                        />
-                                        <span>
-                                          {formatProjectNoteDate(note)}
-                                        </span>
-                                      </div>
-                                    </button>
-
-                                    <Menu as="div" className="relative">
-                                      <MenuButton
+                                  <div className="h-4 w-2/3 animate-pulse rounded bg-gray-200" />
+                                  <div className="mt-3 h-3 w-full animate-pulse rounded bg-gray-100" />
+                                  <div className="mt-2 h-3 w-1/2 animate-pulse rounded bg-gray-100" />
+                                </div>
+                              ))}
+                            </div>
+                          ) : projectNotes.length ? (
+                            <div>
+                              {projectNotes.map((note) => {
+                                const isActive =
+                                  note.id === selectedProjectNoteSummary?.id;
+                                const noteForPreview = note;
+                                return (
+                                  <article
+                                    key={note.id}
+                                    className={clsx(
+                                      'border-b px-2.5 py-3 transition last:border-b-0',
+                                      isActive
+                                        ? 'border-gray-200 bg-blue-50'
+                                        : 'border-gray-200 bg-white hover:bg-gray-50',
+                                    )}
+                                  >
+                                    <div className="flex items-start gap-3">
+                                      <button
                                         type="button"
-                                        aria-label="Note actions"
-                                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-500 outline-none transition hover:bg-white hover:text-gray-700"
+                                        onClick={() => {
+                                          if (isMobile) {
+                                            setIsProjectNoteMobileModalOpen(
+                                              true,
+                                            );
+                                          }
+
+                                          setIsCreatingProjectNote(false);
+                                          setIsEditingProjectNote(false);
+                                          setPendingProjectNoteEditId('');
+                                          setSelectedProjectNoteId(note.id);
+                                        }}
+                                        className="min-w-0 flex-1 text-left space-y-1"
                                       >
-                                        <ThreedotIcon />
-                                      </MenuButton>
+                                        <h4 className="truncate text-base font-bold text-gray-900">
+                                          {note.title}
+                                        </h4>
+                                        <p className="line-clamp-1 text-sm text-gray-600">
+                                          {getProjectNotePreview(
+                                            fullNotesById.get(note.id) ?? note,
+                                          )}
+                                        </p>
+                                        <div className="flex items-center gap-1 text-xs font-normal text-gray-500">
+                                          <CalendarTabIcon
+                                            width="14"
+                                            height="14"
+                                          />
+                                          <span>
+                                            {formatProjectNoteDate(note)}
+                                          </span>
+                                        </div>
+                                      </button>
 
-                                      <MenuItems
-                                        anchor="bottom end"
-                                        transition
-                                        className="z-100 mt-1 w-32 origin-top-right rounded-xl border border-gray-200 bg-white p-1.5 shadow-[0_10px_30px_rgb(0_0_0/0.12)] outline-none transition duration-150 data-closed:-translate-y-1 data-closed:scale-95 data-closed:opacity-0"
-                                      >
-                                        <MenuItem>
-                                          <button
+                                      {canEditProjectNote ||
+                                      canDeleteProjectNote ? (
+                                        <Menu as="div" className="relative">
+                                          <MenuButton
                                             type="button"
-                                            onClick={() => {
-                                              if (isMobile) {
-                                                setIsProjectNoteMobileModalOpen(
-                                                  true,
-                                                );
-                                              }
-
-                                              setIsCreatingProjectNote(false);
-                                              setSelectedProjectNoteId(note.id);
-                                              setPendingProjectNoteEditId(
-                                                note.id,
-                                              );
-                                            }}
-                                            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-medium text-gray-700 outline-none transition data-focus:bg-gray-100"
+                                            aria-label="Note actions"
+                                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-500 outline-none transition hover:bg-white hover:text-gray-700"
                                           >
-                                            <EditIcon width="14" height="14" />
-                                            Edit
-                                          </button>
-                                        </MenuItem>
-                                        <MenuItem>
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              setProjectNoteToDelete(note)
-                                            }
-                                            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-medium text-red-500 outline-none transition data-focus:bg-red-50"
-                                          >
-                                            <TrashIcon width="16" height="16" />
-                                            Delete
-                                          </button>
-                                        </MenuItem>
-                                      </MenuItems>
-                                    </Menu>
-                                  </div>
-                                </article>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <div className="flex h-full items-center justify-center p-4 md:p-5">
-                            <EmptyState
-                              imageUrl="/images/noNotesIllu.svg"
-                              imageAlt="No notes yet"
-                              title="No notes yet"
-                              description="Project notes will appear here once they are available."
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </section>
+                                            <ThreedotIcon />
+                                          </MenuButton>
 
-                    <section className="flex min-h-96 flex-col overflow-hidden  bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
-                      {isCreatingProjectNote ? (
-                        <>
-                          {isMobile ? (
-                            <AppModal
-                              onClose={handleCloseProjectNoteMobileModal}
-                              isOpen={isProjectNoteMobileModalOpen}
-                              scrollNeeded={true}
-                              title="Create Note"
+                                          <MenuItems
+                                            anchor="bottom end"
+                                            transition
+                                            className="z-100 mt-1 w-32 origin-top-right rounded-xl border border-gray-200 bg-white p-1.5 shadow-[0_10px_30px_rgb(0_0_0/0.12)] outline-none transition duration-150 data-closed:-translate-y-1 data-closed:scale-95 data-closed:opacity-0"
+                                          >
+                                            {canEditProjectNote ? (
+                                              <MenuItem>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    if (isMobile) {
+                                                      setIsProjectNoteMobileModalOpen(
+                                                        true,
+                                                      );
+                                                    }
+
+                                                    setIsCreatingProjectNote(
+                                                      false,
+                                                    );
+                                                    setSelectedProjectNoteId(
+                                                      note.id,
+                                                    );
+                                                    setPendingProjectNoteEditId(
+                                                      note.id,
+                                                    );
+                                                  }}
+                                                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-medium text-gray-700 outline-none transition data-focus:bg-gray-100"
+                                                >
+                                                  <EditIcon
+                                                    width="14"
+                                                    height="14"
+                                                  />
+                                                  Edit
+                                                </button>
+                                              </MenuItem>
+                                            ) : null}
+                                            {canDeleteProjectNote ? (
+                                              <MenuItem>
+                                                <button
+                                                  type="button"
+                                                  onClick={() =>
+                                                    setProjectNoteToDelete(note)
+                                                  }
+                                                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-medium text-red-500 outline-none transition data-focus:bg-red-50"
+                                                >
+                                                  <TrashIcon
+                                                    width="16"
+                                                    height="16"
+                                                  />
+                                                  Delete
+                                                </button>
+                                              </MenuItem>
+                                            ) : null}
+                                          </MenuItems>
+                                        </Menu>
+                                      ) : null}
+                                    </div>
+                                  </article>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="flex h-full items-center justify-center p-4 md:p-5">
+                              <EmptyState
+                                imageUrl="/images/noNotesIllu.svg"
+                                imageAlt="No notes yet"
+                                title="No notes yet"
+                                description="Project notes will appear here once they are available."
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </section>
+
+                      <section className="flex min-h-96 flex-col overflow-hidden  bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+                        {isCreatingProjectNote ? (
+                          <>
+                            {isMobile ? (
+                              <AppModal
+                                onClose={handleCloseProjectNoteMobileModal}
+                                isOpen={isProjectNoteMobileModalOpen}
+                                scrollNeeded={true}
+                                 title="Create Note"
                                bodyPaddingClasses="flex min-h-0 flex-col"
-                            >
-                              <div className="border-b border-gray-200 px-4 py-4 md:px-5">
-                                <input
-                                  type="text"
-                                  value={projectNoteTitleDraft}
-                                  onChange={(event) =>
-                                    setProjectNoteTitleDraft(event.target.value)
-                                  }
-                                  className="w-full border-b border-b-gray-300 bg-transparent pb-3 text-base font-semibold text-gray-900 outline-none md:text-xl"
-                                  placeholder="Note title"
-                                />
-                              </div>
+                              >
+                                <div className="border-b border-gray-200 px-4 py-4 md:px-5">
+                                  <input
+                                    type="text"
+                                    value={projectNoteTitleDraft}
+                                    onChange={(event) =>
+                                      setProjectNoteTitleDraft(
+                                        event.target.value,
+                                      )
+                                    }
+                                    className="w-full border-b border-b-gray-300 bg-transparent pb-3 text-base font-semibold text-gray-900 outline-none md:text-xl"
+                                    placeholder="Note title"
+                                  />
+                                </div>
 
                               <div className="p-4 flex-1 md:p-5">
                                 <RichTextEditor
@@ -2316,122 +2436,32 @@ export default function ProjectDetailPage() {
                                 />
                               </div>
 
-                              <div className=" flex flex-col mb-4 flex-1 overflow-y-auto p-4 md:p-5">
-                                <RichTextEditor
-                                  value={projectNoteDescriptionDraft}
-                                  onChange={setProjectNoteDescriptionDraft}
-                                  placeholder="Write your project note..."
-                                  maxLength={
-                                    MAX_PROJECT_NOTE_DESCRIPTION_LENGTH
-                                  }
-                                  disabled={createProjectNoteMutation.isPending}
-                                  showCharacterCount
-                                  editorHeight="h-[20rem] xl:h-[calc(100%)] flex-1"
-                                  className="h-full"
-                                  editorClassName="text-sm font-normal text-gray-700"
-                                />
-                              </div>
-                              <div className="flex items-center justify-end gap-3 px-3 md:px-5 pb-4">
-                                <div className="flex items-center gap-2">
-                                  <ThemeButton
-                                    type="button"
-                                    variant="secondary"
-                                    size="sm"
-                                    onClick={handleCancelCreatingProjectNote}
-                                    disabled={
-                                      createProjectNoteMutation.isPending
-                                    }
-                                    className="disabled:cursor-not-allowed disabled:opacity-60"
-                                  >
-                                    Cancel
-                                  </ThemeButton>
-                                  <ThemeButton
-                                    type="button"
-                                    variant="primaryGradient"
-                                    size="sm"
-                                    onClick={() =>
-                                      void handleCreateProjectNote()
+                                <div className=" flex flex-col mb-4 flex-1 overflow-y-auto p-4 md:p-5">
+                                  <RichTextEditor
+                                    value={projectNoteDescriptionDraft}
+                                    onChange={setProjectNoteDescriptionDraft}
+                                    placeholder="Write your project note..."
+                                    maxLength={
+                                      MAX_PROJECT_NOTE_DESCRIPTION_LENGTH
                                     }
                                     disabled={
                                       createProjectNoteMutation.isPending
                                     }
-                                    className="disabled:cursor-not-allowed disabled:opacity-60"
-                                  >
-                                    {createProjectNoteMutation.isPending
-                                      ? 'Saving...'
-                                      : 'Save Note'}
-                                  </ThemeButton>
+                                    showCharacterCount
+                                    editorHeight="h-[20rem] xl:h-[calc(100%)] flex-1"
+                                    className="h-full"
+                                    editorClassName="text-sm font-normal text-gray-700"
+                                  />
                                 </div>
-                              </div>
-                            </>
-                          )}
-                        </>
-                      ) : selectedProjectNote ? (
-                        <>
-                          {isMobile ? (
-                            <AppModal
-                              onClose={handleCloseProjectNoteMobileModal}
-                              isOpen={isProjectNoteMobileModalOpen}
-                              scrollNeeded={true}
-                              bodyPaddingClasses="flex  flex-col max-h-[calc(100dvh-200px)]"
-                              title="projectNoteTitleDraft"
-                            >
-                              <div className="px-4 pt-4 md:px-5 hidden sm:block">
-                                <input
-                                  type="text"
-                                  value={projectNoteTitleDraft}
-                                  onChange={(event) =>
-                                    setProjectNoteTitleDraft(event.target.value)
-                                  }
-                                  readOnly={!isEditingProjectNote}
-                                  className={`w-full ${!isEditingProjectNote ? 'pb-0' : 'border-b border-b-gray-300 pb-2'} bg-transparent text-base font-semibold text-gray-900 outline-none md:text-xl`}
-                                  placeholder="Note title"
-                                />
-                                {/* <p className="mt-3 text-xs text-gray-400">
-                              {formatProjectNoteDate(selectedProjectNote)}
-                            </p> */}
-                              </div>
-                              <div
-                                className={`${isEditingProjectNote ? 'pt-4' : ''} ps-4 md:ps-5 flex-1 max-h-[90dvh]`}
-                              >
-                                {projectNoteDetailQuery.isLoading &&
-                                selectedProjectNoteId ? (
-                                  <div className="space-y-4 pb-4 pt-2">
-                                    <div className="h-[50dvh] min-h-[18rem] w-full animate-pulse rounded-lg bg-gray-100" />
-                                  </div>
-                                ) : (
-                                  <>
-                                    <RichTextEditor
-                                      value={projectNoteDescriptionDraft}
-                                      onChange={setProjectNoteDescriptionDraft}
-                                      placeholder="No note description available."
-                                      readOnly={!isEditingProjectNote}
-                                      maxLength={
-                                        isEditingProjectNote
-                                          ? MAX_PROJECT_NOTE_DESCRIPTION_LENGTH
-                                          : undefined
-                                      }
-                                      showCharacterCount={isEditingProjectNote}
-                                      disabled={
-                                        updateProjectNoteMutation.isPending
-                                      }
-                                      className="flex-1 h-full a pe-2 md:pe-3"
-                                      editorHeight="min-h-[18rem] b border-none! h-full"
-                                      editorClassName={`text-sm c font-normal h-full text-gray-700 ${!isEditingProjectNote && 'px-0!'}`}
-                                    />
-                                  </>
-                                )}
-                              </div>
-                              <div className="md:flex md:items-center md:justify-end grid grid-cols-2 w-full gap-3  px-4 md:px-5 pb-3 mt-5 md:mt-0">
-                                {isEditingProjectNote && (
-                                  <>
+                                <div className="flex items-center justify-end gap-3 px-3 md:px-5 pb-4">
+                                  <div className="flex items-center gap-2">
                                     <ThemeButton
                                       type="button"
                                       variant="secondary"
                                       size="sm"
-                                      onClick={handleCancelEditingProjectNote}
+                                      onClick={handleCancelCreatingProjectNote}
                                       disabled={
-                                        updateProjectNoteMutation.isPending
+                                        createProjectNoteMutation.isPending
                                       }
                                       className="disabled:cursor-not-allowed disabled:opacity-60"
                                     >
@@ -2442,21 +2472,86 @@ export default function ProjectDetailPage() {
                                       variant="primaryGradient"
                                       size="sm"
                                       onClick={() =>
-                                        void handleUpdateProjectNote()
+                                        void handleCreateProjectNote()
                                       }
                                       disabled={
-                                        updateProjectNoteMutation.isPending
+                                        createProjectNoteMutation.isPending
                                       }
                                       className="disabled:cursor-not-allowed disabled:opacity-60"
                                     >
-                                      {updateProjectNoteMutation.isPending
+                                      {createProjectNoteMutation.isPending
                                         ? 'Saving...'
-                                        : 'Save'}
+                                        : 'Save Note'}
                                     </ThemeButton>
-                                  </>
-                                )}
-                                <div className="hidden items-center gap-2">
-                                  {isEditingProjectNote ? (
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </>
+                        ) : selectedProjectNote ? (
+                          <>
+                            {isMobile ? (
+                              <AppModal
+                                onClose={handleCloseProjectNoteMobileModal}
+                                isOpen={isProjectNoteMobileModalOpen}
+                                scrollNeeded={true}
+                                bodyPaddingClasses="flex  flex-col max-h-[calc(100dvh-200px)]"
+                                title="projectNoteTitleDraft"
+                              >
+                                <div className="px-4 pt-4 md:px-5 hidden sm:block">
+                                  <input
+                                    type="text"
+                                    value={projectNoteTitleDraft}
+                                    onChange={(event) =>
+                                      setProjectNoteTitleDraft(
+                                        event.target.value,
+                                      )
+                                    }
+                                    readOnly={!isEditingProjectNote}
+                                    className={`w-full ${!isEditingProjectNote ? 'pb-0' : 'border-b border-b-gray-300 pb-2'} bg-transparent text-base font-semibold text-gray-900 outline-none md:text-xl`}
+                                    placeholder="Note title"
+                                  />
+                                  {/* <p className="mt-3 text-xs text-gray-400">
+                              {formatProjectNoteDate(selectedProjectNote)}
+                            </p> */}
+                                </div>
+                                <div
+                                  className={`${isEditingProjectNote ? 'pt-4' : ''} ps-4 md:ps-5 flex-1 max-h-[90dvh]`}
+                                >
+                                  {projectNoteDetailQuery.isLoading &&
+                                  selectedProjectNoteId ? (
+                                    <div className="space-y-4 pb-4 pt-2">
+                                      <div className="h-[50dvh] min-h-[18rem] w-full animate-pulse rounded-lg bg-gray-100" />
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <RichTextEditor
+                                        value={projectNoteDescriptionDraft}
+                                        onChange={
+                                          setProjectNoteDescriptionDraft
+                                        }
+                                        placeholder="No note description available."
+                                        readOnly={!isEditingProjectNote}
+                                        maxLength={
+                                          isEditingProjectNote
+                                            ? MAX_PROJECT_NOTE_DESCRIPTION_LENGTH
+                                            : undefined
+                                        }
+                                        showCharacterCount={
+                                          isEditingProjectNote
+                                        }
+                                        disabled={
+                                          updateProjectNoteMutation.isPending
+                                        }
+                                        className="flex-1 h-full a pe-2 md:pe-3"
+                                        editorHeight="min-h-[18rem] b border-none! h-full"
+                                        editorClassName={`text-sm c font-normal h-full text-gray-700 ${!isEditingProjectNote && 'px-0!'}`}
+                                      />
+                                    </>
+                                  )}
+                                </div>
+                                <div className="md:flex md:items-center md:justify-end  grid grid-cols-2 w-full mt-5 md:mt-0 gap-3  px-4 md:px-5 pb-3">
+                                  {isEditingProjectNote && (
                                     <>
                                       <ThemeButton
                                         type="button"
@@ -2487,118 +2582,133 @@ export default function ProjectDetailPage() {
                                           : 'Save'}
                                       </ThemeButton>
                                     </>
-                                  ) : (
-                                    <>
-                                      <ThemeButton
-                                        type="button"
-                                        variant="secondary"
-                                        size="sm"
-                                        onClick={handleStartEditingProjectNote}
-                                      >
-                                        Edit
-                                      </ThemeButton>
-                                      <ThemeButton
-                                        type="button"
-                                        variant="secondary"
-                                        size="sm"
-                                        onClick={() =>
-                                          setProjectNoteToDelete(
-                                            selectedProjectNote,
-                                          )
-                                        }
-                                        className="border-red-200 text-red-600 hover:bg-red-50"
-                                      >
-                                        Delete
-                                      </ThemeButton>
-                                    </>
                                   )}
+                                  <div className="hidden items-center gap-2">
+                                    {isEditingProjectNote ? (
+                                      <>
+                                        <ThemeButton
+                                          type="button"
+                                          variant="secondary"
+                                          size="sm"
+                                          onClick={
+                                            handleCancelEditingProjectNote
+                                          }
+                                          disabled={
+                                            updateProjectNoteMutation.isPending
+                                          }
+                                          className="disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                          Cancel
+                                        </ThemeButton>
+                                        <ThemeButton
+                                          type="button"
+                                          variant="primaryGradient"
+                                          size="sm"
+                                          onClick={() =>
+                                            void handleUpdateProjectNote()
+                                          }
+                                          disabled={
+                                            updateProjectNoteMutation.isPending
+                                          }
+                                          className="disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                          {updateProjectNoteMutation.isPending
+                                            ? 'Saving...'
+                                            : 'Save'}
+                                        </ThemeButton>
+                                      </>
+                                    ) : canEditProjectNote ||
+                                      canDeleteProjectNote ? (
+                                      <>
+                                        {canEditProjectNote ? (
+                                          <ThemeButton
+                                            type="button"
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={
+                                              handleStartEditingProjectNote
+                                            }
+                                          >
+                                            Edit
+                                          </ThemeButton>
+                                        ) : null}
+                                        {canDeleteProjectNote ? (
+                                          <ThemeButton
+                                            type="button"
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={() =>
+                                              setProjectNoteToDelete(
+                                                selectedProjectNote,
+                                              )
+                                            }
+                                            className="border-red-200 text-red-600 hover:bg-red-50"
+                                          >
+                                            Delete
+                                          </ThemeButton>
+                                        ) : null}
+                                      </>
+                                    ) : null}
+                                  </div>
                                 </div>
-                              </div>
-                            </AppModal>
-                          ) : (
-                            <>
-                              <div className="px-4 pt-4 md:px-5">
-                                <input
-                                  type="text"
-                                  value={projectNoteTitleDraft}
-                                  onChange={(event) =>
-                                    setProjectNoteTitleDraft(event.target.value)
-                                  }
-                                  readOnly={!isEditingProjectNote}
-                                  className={`w-full ${!isEditingProjectNote ? 'pb-0' : 'border-b border-b-gray-300 pb-2'} bg-transparent text-base font-semibold text-gray-900 outline-none md:text-xl`}
-                                  placeholder="Note title"
-                                />
-                                {/* <p className="mt-3 text-xs text-gray-400">
+                              </AppModal>
+                            ) : (
+                              <>
+                                <div className="px-4 pt-4 md:px-5">
+                                  <input
+                                    type="text"
+                                    value={projectNoteTitleDraft}
+                                    onChange={(event) =>
+                                      setProjectNoteTitleDraft(
+                                        event.target.value,
+                                      )
+                                    }
+                                    readOnly={!isEditingProjectNote}
+                                    className={`w-full ${!isEditingProjectNote ? 'pb-0' : 'border-b border-b-gray-300 pb-2'} bg-transparent text-base font-semibold text-gray-900 outline-none md:text-xl`}
+                                    placeholder="Note title"
+                                  />
+                                  {/* <p className="mt-3 text-xs text-gray-400">
                               {formatProjectNoteDate(selectedProjectNote)}
                             </p> */}
-                              </div>
+                                </div>
 
-                              <div
-                                className={` ${isEditingProjectNote && 'pt-4'} min-h-0 flex-1 overflow-y-auto px-4 md:px-5`}
-                              >
-                                {projectNoteDetailQuery.isLoading &&
-                                selectedProjectNoteId ? (
-                                  <div className="space-y-4 flex flex-col pb-4 pt-2 h-full">
-                                    <div className="flex-1 h-full w-full animate-pulse rounded-lg bg-gray-100" />
-                                  </div>
-                                ) : (
-                                  <>
-                                    <RichTextEditor
-                                      value={projectNoteDescriptionDraft}
-                                      onChange={setProjectNoteDescriptionDraft}
-                                      placeholder="No note description available."
-                                      readOnly={!isEditingProjectNote}
-                                      maxLength={
-                                        isEditingProjectNote
-                                          ? MAX_PROJECT_NOTE_DESCRIPTION_LENGTH
-                                          : undefined
-                                      }
-                                      showCharacterCount={isEditingProjectNote}
-                                      disabled={
-                                        updateProjectNoteMutation.isPending
-                                      }
-                                      editorHeight={` flex-1 ${!isEditingProjectNote ? 'border-0! h-full' : 'h-[calc(100%-32px)]'}`}
-                                      className="h-full "
-                                      editorClassName={`text-sm font-normal h-full text-gray-700 ${!isEditingProjectNote && 'px-0!'}`}
-                                    />
-                                  </>
-                                )}
-                              </div>
-                              <div className="flex items-center justify-end gap-3  px-4 md:px-5 pb-3">
-                                {isEditingProjectNote && (
-                                  <>
-                                    <ThemeButton
-                                      type="button"
-                                      variant="secondary"
-                                      size="sm"
-                                      onClick={handleCancelEditingProjectNote}
-                                      disabled={
-                                        updateProjectNoteMutation.isPending
-                                      }
-                                      className="disabled:cursor-not-allowed disabled:opacity-60"
-                                    >
-                                      Cancel
-                                    </ThemeButton>
-                                    <ThemeButton
-                                      type="button"
-                                      variant="primaryGradient"
-                                      size="sm"
-                                      onClick={() =>
-                                        void handleUpdateProjectNote()
-                                      }
-                                      disabled={
-                                        updateProjectNoteMutation.isPending
-                                      }
-                                      className="disabled:cursor-not-allowed disabled:opacity-60"
-                                    >
-                                      {updateProjectNoteMutation.isPending
-                                        ? 'Saving...'
-                                        : 'Save'}
-                                    </ThemeButton>
-                                  </>
-                                )}
-                                <div className="hidden items-center gap-2">
-                                  {isEditingProjectNote ? (
+                                <div
+                                  className={` ${isEditingProjectNote && 'pt-4'} min-h-0 flex-1 overflow-y-auto px-4 md:px-5`}
+                                >
+                                  {projectNoteDetailQuery.isLoading &&
+                                  selectedProjectNoteId ? (
+                                    <div className="space-y-4 flex flex-col pb-4 pt-2 h-full">
+                                      <div className="flex-1 h-full w-full animate-pulse rounded-lg bg-gray-100" />
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <RichTextEditor
+                                        value={projectNoteDescriptionDraft}
+                                        onChange={
+                                          setProjectNoteDescriptionDraft
+                                        }
+                                        placeholder="No note description available."
+                                        readOnly={!isEditingProjectNote}
+                                        maxLength={
+                                          isEditingProjectNote
+                                            ? MAX_PROJECT_NOTE_DESCRIPTION_LENGTH
+                                            : undefined
+                                        }
+                                        showCharacterCount={
+                                          isEditingProjectNote
+                                        }
+                                        disabled={
+                                          updateProjectNoteMutation.isPending
+                                        }
+                                        editorHeight={` flex-1 ${!isEditingProjectNote ? 'border-0! h-full' : 'h-[calc(100%-32px)]'}`}
+                                        className="h-full "
+                                        editorClassName={`text-sm font-normal h-full text-gray-700 ${!isEditingProjectNote && 'px-0!'}`}
+                                      />
+                                    </>
+                                  )}
+                                </div>
+                                <div className="flex items-center justify-end gap-3  px-4 md:px-5 pb-3">
+                                  {isEditingProjectNote && (
                                     <>
                                       <ThemeButton
                                         type="button"
@@ -2629,52 +2739,112 @@ export default function ProjectDetailPage() {
                                           : 'Save'}
                                       </ThemeButton>
                                     </>
-                                  ) : (
-                                    <>
-                                      <ThemeButton
-                                        type="button"
-                                        variant="secondary"
-                                        size="sm"
-                                        onClick={handleStartEditingProjectNote}
-                                      >
-                                        Edit
-                                      </ThemeButton>
-                                      <ThemeButton
-                                        type="button"
-                                        variant="secondary"
-                                        size="sm"
-                                        onClick={() =>
-                                          setProjectNoteToDelete(
-                                            selectedProjectNote,
-                                          )
-                                        }
-                                        className="border-red-200 text-red-600 hover:bg-red-50"
-                                      >
-                                        Delete
-                                      </ThemeButton>
-                                    </>
                                   )}
+                                  <div className="hidden items-center gap-2">
+                                    {isEditingProjectNote ? (
+                                      <>
+                                        <ThemeButton
+                                          type="button"
+                                          variant="secondary"
+                                          size="sm"
+                                          onClick={
+                                            handleCancelEditingProjectNote
+                                          }
+                                          disabled={
+                                            updateProjectNoteMutation.isPending
+                                          }
+                                          className="disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                          Cancel
+                                        </ThemeButton>
+                                        <ThemeButton
+                                          type="button"
+                                          variant="primaryGradient"
+                                          size="sm"
+                                          onClick={() =>
+                                            void handleUpdateProjectNote()
+                                          }
+                                          disabled={
+                                            updateProjectNoteMutation.isPending
+                                          }
+                                          className="disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                          {updateProjectNoteMutation.isPending
+                                            ? 'Saving...'
+                                            : 'Save'}
+                                        </ThemeButton>
+                                      </>
+                                    ) : canEditProjectNote ||
+                                      canDeleteProjectNote ? (
+                                      <>
+                                        {canEditProjectNote ? (
+                                          <ThemeButton
+                                            type="button"
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={
+                                              handleStartEditingProjectNote
+                                            }
+                                          >
+                                            Edit
+                                          </ThemeButton>
+                                        ) : null}
+                                        {canDeleteProjectNote ? (
+                                          <ThemeButton
+                                            type="button"
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={() =>
+                                              setProjectNoteToDelete(
+                                                selectedProjectNote,
+                                              )
+                                            }
+                                            className="border-red-200 text-red-600 hover:bg-red-50"
+                                          >
+                                            Delete
+                                          </ThemeButton>
+                                        ) : null}
+                                      </>
+                                    ) : null}
+                                  </div>
                                 </div>
-                              </div>
-                            </>
-                          )}
-                        </>
-                      ) : (
-                        <div className="flex h-full items-center justify-center p-4 md:p-5">
-                          <EmptyState
-                            imageUrl="/images/noNotesIllu.svg"
-                            imageAlt="Select a note"
-                            title="Select a note"
-                            description="Choose a note from the left sidebar to view its title and description."
-                            buttonIcon={<PlusIcon />}
-                            buttonLabel="Add Note"
-                            onButtonClick={handleStartCreatingProjectNote}
-                          />
-                        </div>
-                      )}
-                    </section>
-                  </div>
-                </TabPanel>
+                              </>
+                            )}
+                          </>
+                        ) : canViewProjectNoteDetail ? (
+                          <div className="flex h-full items-center justify-center p-4 md:p-5">
+                            <EmptyState
+                              imageUrl="/images/noNotesIllu.svg"
+                              imageAlt="Select a note"
+                              title="Select a note"
+                              description="Choose a note from the left sidebar to view its title and description."
+                              buttonIcon={
+                                canCreateProjectNote ? <PlusIcon /> : undefined
+                              }
+                              buttonLabel={
+                                canCreateProjectNote ? 'Add Note' : undefined
+                              }
+                              onButtonClick={
+                                canCreateProjectNote
+                                  ? handleStartCreatingProjectNote
+                                  : undefined
+                              }
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex h-full items-center justify-center p-4 md:p-5">
+                            <EmptyState
+                              imageUrl="/images/noNotesIllu.svg"
+                              imageAlt="No note detail access"
+                              title="No detail access"
+                              description="You can view the notes list, but you do not have permission to open note details."
+                            />
+                          </div>
+                        )}
+                      </section>
+                    </div>
+                  </TabPanel>
+                </PermissionGuard>
               </TabPanels>
             </TabGroup>
           </div>
@@ -2893,30 +3063,38 @@ function renderProjectTabIcon(tab: (typeof projectTabs)[number]) {
   return <CalendarTabIcon />;
 }
 
-function FilesTabIcon() {
+export function FilesTabIcon({
+  fill = 'currentColor',
+  width = '20',
+  height = '20',
+}) {
   return (
     <svg
-      width="20"
-      height="20"
+      width={width}
+      height={height}
       viewBox="0 0 20 20"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
       <path
         d="M8.12533 11.6667C8.12533 11.3215 7.8455 11.0417 7.50033 11.0417C7.15515 11.0417 6.87533 11.3215 6.87533 11.6667C6.87533 12.9323 7.90134 13.9583 9.16699 13.9583H10.8337C12.0993 13.9583 13.1253 12.9323 13.1253 11.6667C13.1253 11.3215 12.8455 11.0417 12.5003 11.0417C12.1551 11.0417 11.8753 11.3215 11.8753 11.6667C11.8753 12.242 11.409 12.7083 10.8337 12.7083H9.16699C8.5917 12.7083 8.12533 12.242 8.12533 11.6667Z"
-        fill="currentColor"
+        fill={fill}
       />
       <path
         fillRule="evenodd"
         clipRule="evenodd"
         d="M8.29033 1.04166H11.7103C12.459 1.04163 13.0834 1.04161 13.5791 1.10825C14.1022 1.17859 14.5746 1.33331 14.9541 1.71287C15.3337 2.09243 15.4884 2.56476 15.5587 3.08793C15.6141 3.49938 15.6234 3.99951 15.625 4.58586C15.6886 4.6107 15.7513 4.63866 15.8132 4.67018C16.3228 4.92984 16.7371 5.34416 16.9968 5.85377C17.1627 6.17938 17.23 6.52805 17.2615 6.9141C17.2909 7.27329 17.292 7.7122 17.292 8.24537L17.3013 8.25118C17.7518 8.53425 18.1327 8.9152 18.4158 9.36571C18.7124 9.83768 18.8394 10.3684 18.8999 10.9914C18.9587 11.5978 18.9587 12.3538 18.9587 13.3008V13.3659C18.9587 14.3128 18.9587 15.0689 18.8999 15.6753C18.8394 16.2983 18.7124 16.829 18.4158 17.3009C18.1327 17.7515 17.7518 18.1324 17.3013 18.4155C16.8293 18.712 16.2986 18.8391 15.6756 18.8995C15.0692 18.9583 14.3132 18.9583 13.3662 18.9583H6.63443C5.6875 18.9583 4.93146 18.9583 4.32502 18.8995C3.70203 18.8391 3.17135 18.712 2.69938 18.4155C2.24887 18.1324 1.86792 17.7515 1.58484 17.3009C1.28829 16.829 1.16121 16.2983 1.10079 15.6753C1.04198 15.0689 1.04198 14.3128 1.04199 13.3659V13.3008C1.04198 12.3538 1.04198 11.5978 1.10079 10.9914C1.16121 10.3684 1.28829 9.83768 1.58484 9.36571C1.86792 8.9152 2.24887 8.53425 2.69938 8.25118L2.70866 8.24537C2.70869 7.71221 2.70977 7.27329 2.73912 6.9141C2.77066 6.52805 2.83794 6.17938 3.00385 5.85377C3.26351 5.34416 3.67783 4.92984 4.18744 4.67018C4.24931 4.63866 4.31201 4.61069 4.37564 4.58586C4.37722 3.99951 4.3866 3.49937 4.44192 3.08793C4.51226 2.56476 4.66698 2.09243 5.04654 1.71287C5.4261 1.33331 5.89843 1.17859 6.42159 1.10825C6.91724 1.04161 7.54161 1.04163 8.29033 1.04166ZM14.3199 3.25449C14.3589 3.54437 14.3705 3.90537 14.3739 4.38476C14.0803 4.37498 13.744 4.37499 13.3598 4.37499H6.64081C6.25662 4.37499 5.92034 4.37498 5.62677 4.38476C5.6302 3.90537 5.6418 3.54437 5.68077 3.25449C5.73248 2.86993 5.82183 2.70535 5.93042 2.59676C6.03902 2.48816 6.2036 2.39881 6.58815 2.34711C6.99068 2.29299 7.53032 2.29166 8.33366 2.29166H11.667C12.4703 2.29166 13.01 2.29299 13.4125 2.34711C13.7971 2.39881 13.9616 2.48816 14.0702 2.59676C14.1788 2.70535 14.2682 2.86993 14.3199 3.25449ZM16.041 7.81257C16.039 7.48556 16.0332 7.22974 16.0157 7.01589C15.9905 6.70714 15.9442 6.54129 15.883 6.42125C15.7432 6.14685 15.5201 5.92376 15.2457 5.78394C15.1257 5.72278 14.9598 5.67652 14.6511 5.6513C14.335 5.62548 13.9274 5.62499 13.3337 5.62499H6.66699C6.07329 5.62499 5.6656 5.62548 5.34956 5.6513C5.04081 5.67652 4.87496 5.72278 4.75492 5.78394C4.48052 5.92376 4.25742 6.14685 4.11761 6.42125C4.05645 6.54129 4.01019 6.70714 3.98497 7.01589C3.96749 7.22974 3.96162 7.48556 3.95965 7.81257C4.07788 7.79416 4.19958 7.77929 4.32502 7.76713C4.93146 7.70831 5.68751 7.70832 6.63444 7.70832H13.3662C14.3131 7.70832 15.0692 7.70831 15.6756 7.76713C15.8011 7.77929 15.9228 7.79416 16.041 7.81257ZM3.36442 9.30958C3.60394 9.15908 3.91627 9.06263 4.44568 9.01129C4.98471 8.95901 5.6801 8.95832 6.66699 8.95832H13.3337C14.3206 8.95832 15.0159 8.95901 15.555 9.01129C16.0844 9.06263 16.3967 9.15908 16.6362 9.30958C16.9277 9.49275 17.1742 9.73924 17.3574 10.0308C17.5079 10.2703 17.6044 10.5826 17.6557 11.112C17.708 11.651 17.7087 12.3464 17.7087 13.3333C17.7087 14.3202 17.708 15.0156 17.6557 15.5546C17.6044 16.0841 17.5079 16.3964 17.3574 16.6359C17.1742 16.9274 16.9277 17.1739 16.6362 17.3571C16.3967 17.5076 16.0844 17.604 15.555 17.6554C15.0159 17.7076 14.3206 17.7083 13.3337 17.7083H6.66699C5.6801 17.7083 4.98471 17.7076 4.44568 17.6554C3.91627 17.604 3.60394 17.5076 3.36442 17.3571C3.07291 17.1739 2.82642 16.9274 2.64325 16.6359C2.49275 16.3964 2.3963 16.0841 2.34496 15.5546C2.29268 15.0156 2.29199 14.3202 2.29199 13.3333C2.29199 12.3464 2.29268 11.651 2.34496 11.112C2.3963 10.5826 2.49275 10.2703 2.64325 10.0308C2.82642 9.73924 3.07291 9.49275 3.36442 9.30958Z"
-        fill="currentColor"
+        fill={fill}
       />
     </svg>
   );
 }
 
-function CalendarTabIcon({ width = '20', height = '20' }) {
+export function CalendarTabIcon({
+  width = '20',
+  height = '20',
+  fill = 'currentColor',
+}) {
   return (
     <svg
       width={width}
@@ -2927,79 +3105,62 @@ function CalendarTabIcon({ width = '20', height = '20' }) {
     >
       <path
         d="M9.16634 10.2083C8.82116 10.2083 8.54134 10.4881 8.54134 10.8333C8.54134 11.1785 8.82116 11.4583 9.16634 11.4583H13.333C13.6782 11.4583 13.958 11.1785 13.958 10.8333C13.958 10.4881 13.6782 10.2083 13.333 10.2083H9.16634Z"
-        fill="currentColor"
+        fill={fill}
       />
       <path
         d="M6.66634 10.2083C6.32116 10.2083 6.04134 10.4881 6.04134 10.8333C6.04134 11.1785 6.32116 11.4583 6.66634 11.4583H6.67383C7.019 11.4583 7.29883 11.1785 7.29883 10.8333C7.29883 10.4881 7.019 10.2083 6.67383 10.2083H6.66634Z"
-        fill="currentColor"
+        fill={fill}
       />
       <path
         d="M6.66634 13.5417C6.32116 13.5417 6.04134 13.8215 6.04134 14.1667C6.04134 14.5118 6.32116 14.7917 6.66634 14.7917H10.833C11.1782 14.7917 11.458 14.5118 11.458 14.1667C11.458 13.8215 11.1782 13.5417 10.833 13.5417H6.66634Z"
-        fill="currentColor"
+        fill={fill}
       />
       <path
         d="M13.3255 13.5417C12.9803 13.5417 12.7005 13.8215 12.7005 14.1667C12.7005 14.5118 12.9803 14.7917 13.3255 14.7917H13.333C13.6782 14.7917 13.958 14.5118 13.958 14.1667C13.958 13.8215 13.6782 13.5417 13.333 13.5417H13.3255Z"
-        fill="currentColor"
+        fill={fill}
       />
       <path
         fillRule="evenodd"
         clipRule="evenodd"
         d="M5.62467 1.66666C5.62467 1.32148 5.34485 1.04166 4.99967 1.04166C4.6545 1.04166 4.37467 1.32148 4.37467 1.66666V2.19565C3.70404 2.38572 3.13842 2.69465 2.66763 3.20362C2.01937 3.90444 1.73122 4.78993 1.59322 5.89958C1.45799 6.98691 1.458 8.38038 1.45801 10.1584V10.675C1.458 12.4529 1.45799 13.8464 1.59322 14.9337C1.73122 16.0434 2.01937 16.9289 2.66763 17.6297C3.32229 18.3374 4.16031 18.6584 5.20908 18.8108C6.22411 18.9584 7.52096 18.9583 9.15737 18.9583H10.842C12.4784 18.9583 13.7752 18.9584 14.7903 18.8108C15.839 18.6584 16.6771 18.3374 17.3317 17.6297C17.98 16.9289 18.2681 16.0434 18.4061 14.9337C18.5414 13.8464 18.5413 12.4529 18.5413 10.6749V10.1584C18.5413 8.38039 18.5414 6.98692 18.4061 5.89958C18.2681 4.78993 17.98 3.90444 17.3317 3.20362C16.8609 2.69465 16.2953 2.38572 15.6247 2.19565V1.66666C15.6247 1.32148 15.3449 1.04166 14.9997 1.04166C14.6545 1.04166 14.3747 1.32148 14.3747 1.66666V1.97157C13.428 1.87497 12.263 1.87498 10.842 1.87499H9.15738C7.73636 1.87498 6.57139 1.87497 5.62467 1.97157V1.66666ZM3.58525 4.05243C3.80137 3.81879 4.05908 3.63991 4.39851 3.50486C4.47306 3.76664 4.71398 3.95832 4.99967 3.95832C5.34485 3.95832 5.62467 3.6785 5.62467 3.33332V3.22881C6.50885 3.12629 7.65165 3.12499 9.20801 3.12499H10.7913C12.3477 3.12499 13.4905 3.12629 14.3747 3.22881V3.33332C14.3747 3.6785 14.6545 3.95832 14.9997 3.95832C15.2854 3.95832 15.5263 3.76664 15.6008 3.50486C15.9403 3.63992 16.198 3.81879 16.4141 4.05243C16.8076 4.47788 17.0409 5.06112 17.1642 6.04166H2.83518C2.95844 5.06112 3.19171 4.47788 3.58525 4.05243ZM2.74044 7.29166C2.70847 8.08906 2.70801 9.04233 2.70801 10.2027V10.6306C2.70801 12.4625 2.70915 13.7783 2.83366 14.7795C2.95652 15.7674 3.19008 16.3537 3.58525 16.7809C3.97402 17.2012 4.49741 17.4442 5.38887 17.5738C6.30364 17.7068 7.50957 17.7083 9.20801 17.7083H10.7913C12.4898 17.7083 13.6957 17.7068 14.6105 17.5738C15.5019 17.4442 16.0253 17.2012 16.4141 16.7809C16.8093 16.3537 17.0428 15.7674 17.1657 14.7795C17.2902 13.7783 17.2913 12.4625 17.2913 10.6306V10.2027C17.2913 9.04233 17.2909 8.08906 17.2589 7.29166H2.74044Z"
-        fill="currentColor"
+        fill={fill}
       />
     </svg>
   );
 }
 
-function NotesTabIcon() {
+export function NotesTabIcon({
+  width = '20',
+  height = '20',
+  fill = 'currentColor',
+}) {
   return (
     <svg
-      width="20"
-      height="20"
+      width={width}
+      height={height}
       viewBox="0 0 20 20"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
       <path
         d="M5.83337 2.5H10.3418C11.3059 2.5 11.788 2.5 12.2289 2.68062C12.6698 2.86124 13.0107 3.20212 13.6924 3.88388L15.9495 6.14098C16.6312 6.82274 16.9722 7.16362 17.1528 7.60451C17.3334 8.04541 17.3334 8.52747 17.3334 9.49159V12.5C17.3334 14.8577 17.3334 16.0366 16.6016 16.7684C15.8698 17.5 14.6909 17.5 12.3334 17.5H7.66671C5.30922 17.5 4.13043 17.5 3.39857 16.7684C2.66671 16.0366 2.66671 14.8577 2.66671 12.5V7.5C2.66671 5.14231 2.66671 3.96347 3.39857 3.23161C4.13043 2.5 5.30922 2.5 7.66671 2.5"
-        stroke="currentColor"
+        stroke={fill}
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
         d="M10.6667 2.91666V5.83332C10.6667 6.61972 10.6667 7.01297 10.9111 7.2574C11.1554 7.50182 11.5487 7.50182 12.3351 7.50182H15.2517"
-        stroke="currentColor"
+        stroke={fill}
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
         d="M6.66671 10H13.3334M6.66671 13.3333H10.8334"
-        stroke="currentColor"
+        stroke={fill}
         strokeWidth="1.5"
         strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function NoteDateIcon() {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 12 12"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className="shrink-0"
-    >
-      <path
-        d="M4 1V2.33333M8 1V2.33333M1.33334 4.16667H10.6667M2.66667 2H9.33334C10.0697 2 10.6667 2.59695 10.6667 3.33333V9.33333C10.6667 10.0697 10.0697 10.6667 9.33334 10.6667H2.66667C1.93029 10.6667 1.33334 10.0697 1.33334 9.33333V3.33333C1.33334 2.59695 1.93029 2 2.66667 2Z"
-        stroke="currentColor"
-        strokeWidth="1.1"
-        strokeLinecap="round"
-        strokeLinejoin="round"
       />
     </svg>
   );

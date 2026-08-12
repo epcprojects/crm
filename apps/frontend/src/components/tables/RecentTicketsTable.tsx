@@ -9,12 +9,24 @@ import {
   type PaginationState,
   type ColumnDef,
 } from '@tanstack/react-table';
-import { useState, type ReactNode } from 'react';
+import { useState, type MouseEvent, type ReactNode } from 'react';
+import Link from 'next/link';
+import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import ThemeButton from '../ui/ThemeButton';
-import { ArrowUpRightIcon } from '../../../public/icons';
+import {
+  ArrowUpRightIcon,
+  ChatIcon,
+  ProjectsIcon,
+  ThreedotIcon,
+} from '../../../public/icons';
 import { useAppSelector } from '../../app/Redux/store';
 import EmptyState from '../EmptyState';
 import { getInitials } from '../../app/(main-pages)/dashboard/page';
+import {
+  CalendarTabIcon,
+  FilesTabIcon,
+  NotesTabIcon,
+} from '../../app/(main-pages)/projects/[projectId]/page';
 
 export type TicketStatus = string;
 export type TicketPriority = string;
@@ -61,6 +73,12 @@ export type TicketSortOrder = 'asc' | 'desc';
 export type TicketSortState = {
   sortBy: TicketSortBy;
   sortOrder: TicketSortOrder;
+};
+
+export type RecentTicketQuickLinkItem = {
+  key: 'project' | 'thread' | 'files' | 'calendar' | 'notes';
+  label: string;
+  href: string;
 };
 
 const statusStyles: Record<string, string> = {
@@ -136,7 +154,12 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
                 backgroundColor: row.original.priorityColor,
                 borderColor: row.original.priorityColor,
               }
-            : undefined
+            : {
+                backgroundColor: '#00000010',
+                borderColor: '#00000010',
+                color: '#00000080',
+                fontWeight: 'bolder',
+              }
         }
       >
         {/* <span
@@ -197,6 +220,7 @@ type RecentTicketsTableProps = {
   initialPageSize?: number;
   pageSizeOptions?: number[];
   onRowClick?: (ticket: RecentTicket) => void;
+  getRowHref?: (ticket: RecentTicket) => string;
   hideProjectColumn?: boolean;
   pagination?: PaginationState;
   totalRows?: number;
@@ -205,6 +229,7 @@ type RecentTicketsTableProps = {
   sortState?: TicketSortState;
   onSortChange?: (sortState: TicketSortState) => void;
   onEmptyButtonClick?: () => void;
+  getQuickLinkItems?: (ticket: RecentTicket) => RecentTicketQuickLinkItem[];
   // internalScrollEnabled?: boolean;
 };
 
@@ -216,6 +241,7 @@ export default function RecentTicketsTable({
   initialPageSize = 10,
   pageSizeOptions = [10, 25, 50, 100],
   onRowClick,
+  getRowHref,
   hideProjectColumn = false,
   pagination: controlledPagination,
   totalRows: controlledTotalRows,
@@ -223,6 +249,7 @@ export default function RecentTicketsTable({
   onPaginationChange,
   sortState,
   onSortChange,
+  getQuickLinkItems,
   // internalScrollEnabled = true,
 }: RecentTicketsTableProps) {
   const userType = useAppSelector((state) => state.auth.user?.userType);
@@ -238,6 +265,7 @@ export default function RecentTicketsTable({
 
     return true;
   });
+  const shouldShowQuickLinks = Boolean(getQuickLinkItems);
 
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -311,17 +339,37 @@ export default function RecentTicketsTable({
       />
     );
   }
+
+  const handlePlainRowClick = (
+    event: MouseEvent<HTMLElement>,
+    ticket: RecentTicket,
+  ) => {
+    if (
+      !onRowClick ||
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+
+    onRowClick(ticket);
+  };
+
   return (
-    <div 
-    // className="flex h-full min-h-0 flex-col  rounded-xl bg-white xl:w-full xl:border xl:border-gray-200"
-    className="flex h-auto min-h-0 flex-col overflow-visible rounded-xl bg-white xl:h-full xl:w-full xl:overflow-hidden xl:border xl:border-gray-200"
+    <div
+      // className="flex h-full min-h-0 flex-col  rounded-xl bg-white xl:w-full xl:border xl:border-gray-200"
+      className="flex h-auto min-h-0 flex-col overflow-visible rounded-xl bg-white xl:h-full xl:w-full xl:overflow-hidden xl:border xl:border-gray-200"
     >
       <div
-  //       className={`min-h-0 flex-1 space-y-3 touch-pan-y scrollbar-hide xl:hidden xl:p-3 ${
-  //   internalScrollEnabled
-  //     ? 'overflow-y-auto overscroll-contain'
-  //     : 'overflow-y-hidden overscroll-auto'
-  // }`}
+        //       className={`min-h-0 flex-1 space-y-3 touch-pan-y scrollbar-hide xl:hidden xl:p-3 ${
+        //   internalScrollEnabled
+        //     ? 'overflow-y-auto overscroll-contain'
+        //     : 'overflow-y-hidden overscroll-auto'
+        // }`}
         // className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain xl:p-3 scrollbar-hide xl:hidden"
         className="flex-none space-y-3 overflow-visible scrollbar-hide xl:hidden xl:p-3"
       >
@@ -333,9 +381,9 @@ export default function RecentTicketsTable({
                 key={row.id}
                 ticket={row.original}
                 onClick={onRowClick}
+                href={getRowHref?.(row.original)}
                 showAssignee={!isExternalUser}
               />
-          
             ))
         ) : (
           <EmptyState
@@ -372,6 +420,9 @@ export default function RecentTicketsTable({
                     )}
                   </th>
                 ))}
+                {shouldShowQuickLinks ? (
+                  <th className="sticky top-0 w-16 border-b border-[#F3F4F6] bg-[#F9FAFB] px-4 py-3 text-right text-xs font-semibold text-gray-900" />
+                ) : null}
               </tr>
             ))}
           </thead>
@@ -381,24 +432,56 @@ export default function RecentTicketsTable({
                 <tr
                   key={row.id}
                   className={`border-b border-gray-200 last:border-0 ${
-                    onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''
+                    onRowClick || getRowHref
+                      ? 'cursor-pointer hover:bg-gray-50'
+                      : ''
                   }`}
-                  onClick={() => onRowClick?.(row.original)}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id} className="px-4 py-3 text-sm">
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
+                      {getRowHref ? (
+                        <Link
+                          href={getRowHref(row.original)}
+                          onClick={(event) =>
+                            handlePlainRowClick(event, row.original)
+                          }
+                          className="block -mx-4 -my-3 px-4 py-3"
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext(),
+                          )}
+                        </Link>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => onRowClick?.(row.original)}
+                          className="block w-full -mx-4 -my-3 px-4 py-3 text-left"
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext(),
+                          )}
+                        </button>
                       )}
                     </td>
                   ))}
+                  {shouldShowQuickLinks ? (
+                    <td className="px-4 py-3 text-sm">
+                      <div className="flex justify-end">
+                        <TicketQuickLinksPopover
+                          ticket={row.original}
+                          getQuickLinkItems={getQuickLinkItems}
+                        />
+                      </div>
+                    </td>
+                  ) : null}
                 </tr>
               ))
             ) : (
               <tr>
                 <td
-                  colSpan={columns.length}
+                  colSpan={columns.length + (shouldShowQuickLinks ? 1 : 0)}
                   className="px-4 py-8 text-center text-sm text-gray-500"
                 >
                   No tickets found.
@@ -572,9 +655,11 @@ export default function RecentTicketsTable({
 function TicketMobileCard({
   ticket,
   onClick,
+  href,
 }: {
   ticket: RecentTicket;
   onClick?: (ticket: RecentTicket) => void;
+  href?: string;
   showAssignee?: boolean;
 }) {
   const projectColor = ticket.project.brandColor || '#F79009';
@@ -584,14 +669,8 @@ function TicketMobileCard({
     ? getStatusBadgeStyle(ticket.statusColor)
     : undefined;
 
-  return (
-    <button
-      type="button"
-      onClick={() => onClick?.(ticket)}
-      className={`flex w-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white text-left transition ${
-        onClick ? 'hover:border-gray-300' : ''
-      }`}
-    >
+  const content = (
+    <>
       <div className="flex flex-col gap-1 bg-gray-50 p-2.5">
         <p className="line-clamp-2 text-sm font-medium text-gray-950">
           {ticket.title}
@@ -678,6 +757,46 @@ function TicketMobileCard({
           </p>
         </div>
       </div>
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        onClick={(event) => {
+          if (
+            !onClick ||
+            event.defaultPrevented ||
+            event.button !== 0 ||
+            event.metaKey ||
+            event.ctrlKey ||
+            event.shiftKey ||
+            event.altKey
+          ) {
+            return;
+          }
+
+          onClick(ticket);
+        }}
+        className={`flex w-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white text-left transition ${
+          onClick || href ? 'hover:border-gray-300' : ''
+        }`}
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => onClick?.(ticket)}
+      className={`flex w-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white text-left transition ${
+        onClick ? 'hover:border-gray-300' : ''
+      }`}
+    >
+      {content}
     </button>
   );
 }
@@ -700,6 +819,85 @@ function renderStatusBadge(ticket: RecentTicket) {
       {ticket.status}
     </span>
   );
+}
+
+function TicketQuickLinksPopover({
+  ticket,
+  getQuickLinkItems,
+}: {
+  ticket: RecentTicket;
+  getQuickLinkItems?: (ticket: RecentTicket) => RecentTicketQuickLinkItem[];
+}) {
+  const quickLinkItems = getQuickLinkItems?.(ticket) ?? [];
+
+  if (!quickLinkItems.length) {
+    return null;
+  }
+
+  return (
+    <Menu as="div" className="relative">
+      {({ close }) => (
+        <>
+          <MenuButton
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+            }}
+            className="flex h-6 w-6 items-center justify-center rounded-md text-gray-500 outline-none transition hover:bg-gray-100 hover:text-gray-700 data-open:bg-gray-100"
+            aria-label={`Open quick links for ${ticket.title}`}
+          >
+            <ThreedotIcon />
+          </MenuButton>
+
+          <MenuItems
+            anchor="bottom end"
+            transition
+            className="z-100 mt-1 w-44 origin-top-right rounded-lg border border-gray-200 bg-white p-1 shadow-[0_10px_30px_rgb(0_0_0/0.12)] outline-none transition duration-150 data-closed:-translate-y-1 data-closed:scale-95 data-closed:opacity-0"
+          >
+            {quickLinkItems.map((item) => (
+              <MenuItem key={item.key}>
+                <Link
+                  href={item.href}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    close();
+                  }}
+                  className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm font-medium text-gray-700 outline-none transition data-focus:bg-gray-100"
+                >
+                  <span className="flex h-4 w-4 shrink-0 items-center justify-center text-gray-900  ">
+                    {renderQuickLinkIcon(item.key)}
+                  </span>
+                  <span>{item.label}</span>
+                </Link>
+              </MenuItem>
+            ))}
+          </MenuItems>
+        </>
+      )}
+    </Menu>
+  );
+}
+
+function renderQuickLinkIcon(key: RecentTicketQuickLinkItem['key']): ReactNode {
+  if (key === 'project') {
+    return (
+      <ProjectsIcon fill="currentColor" opacity="0" width="22" height="18" />
+    );
+  }
+
+  if (key === 'thread') {
+    return <ChatIcon fill="currentColor" width="18" height="18" />;
+  }
+
+  if (key === 'files') {
+    return <FilesTabIcon fill="currentColor" width="18" height="18" />;
+  }
+
+  if (key === 'notes') {
+    return <NotesTabIcon fill="currentColor" width="18" height="18" />;
+  }
+
+  return <CalendarTabIcon fill="currentColor" width="18" height="18" />;
 }
 
 function getStatusBadgeStyle(color: string) {

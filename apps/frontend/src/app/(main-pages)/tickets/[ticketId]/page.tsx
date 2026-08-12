@@ -33,10 +33,12 @@ import {
 import { usePermissions } from '../../../providers/PermissionProvider';
 import { useAppSelector } from '../../../Redux/store';
 import {
+  ChatIcon,
   DownloadIcon,
   EditIcon,
   EyeOpenedIcon,
   FileTypePlaceholder,
+  ProjectsIcon,
   ThreedotIcon,
   TrashIcon,
 } from '../../../../../public/icons';
@@ -58,6 +60,11 @@ import { validateAttachments } from '../../../../lib/attachments';
 import RichTextEditor from 'apps/frontend/src/components/RichTextEditor';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import ThemeButton from 'apps/frontend/src/components/ui/ThemeButton';
+import {
+  CalendarTabIcon,
+  FilesTabIcon,
+  NotesTabIcon,
+} from '../../projects/[projectId]/page';
 const MAX_DESCRIPTION_LENGTH = 4000;
 type GalleryImage = {
   attachmentId: string;
@@ -72,6 +79,17 @@ type TicketAttachmentToDelete = {
   attachmentId: string;
   projectFileId: string;
   name: string;
+};
+
+type TicketSidebarTabKey = 'quick-links' | 'timeline';
+
+type TicketTimelineItem = {
+  id: string;
+  description: string;
+  status: string;
+  statusClassName: string;
+  statusStyle?: React.CSSProperties;
+  occurredAt: string;
 };
 
 export default function TicketDetailPage() {
@@ -98,6 +116,11 @@ export default function TicketDetailPage() {
   const canEditPriority = hasPermission('tickets.edit_priority');
   const canEditDueDate = hasPermission('tickets.edit_due_date');
   const canViewInternalChatBtn = hasPermission('tickets.internal_chat');
+  const canViewProjectDetail = hasPermission('projects.view_detail');
+  const canViewProjectThread = hasPermission('thread.view');
+  const canViewProjectFiles = hasPermission('files.view');
+  const canViewProjectCalendar = hasPermission('calendar.view_grid');
+  const canViewProjectNotes = hasPermission('projects_notes.view_list');
   const canEditTitleDescription = hasPermission(
     'tickets.edit_title_description',
   );
@@ -113,13 +136,18 @@ export default function TicketDetailPage() {
   const membersQuery = useQuery({
     queryKey: ['project-members', projectId],
     queryFn: () => fetchProjectMembers(projectId),
-    enabled: Boolean(projectId && !isExternalUser),
+    enabled: Boolean(projectId),
   });
 
   const ticketRepliesQuery = useQuery({
     queryKey: ['ticket-replies', ticketId],
     queryFn: () => fetchTicketReplies(ticketId, currentUserId),
     enabled: Boolean(ticketId && canViewReplies),
+  });
+  const ticketTimelineQuery = useQuery({
+    queryKey: ['ticket-timeline', projectId, ticketId],
+    queryFn: () => fetchTicketTimeline(projectId, ticketId),
+    enabled: Boolean(projectId && ticketId && canViewTicketDetail),
   });
   const [replySocketToken, setReplySocketToken] =
     useState<SocketTokenResponse | null>(null);
@@ -167,6 +195,7 @@ export default function TicketDetailPage() {
         queryClient.invalidateQueries({
           queryKey: ['ticket-detail', projectId, ticketId],
         }),
+        invalidateTicketTimeline(),
         queryClient.invalidateQueries({
           queryKey: ['dashboard-project-tickets'],
           refetchType: 'all',
@@ -209,14 +238,22 @@ export default function TicketDetailPage() {
     mutationFn: async ({
       message,
       attachments,
+      mentionedUserIds,
     }: {
       message: string;
       attachments: File[];
+      mentionedUserIds: string[];
     }) => {
       const formData = new FormData();
       if (message.trim()) {
         formData.append('message', message.trim());
       }
+
+      mentionedUserIds.forEach((mentionedUserId) => {
+        if (mentionedUserId.trim()) {
+          formData.append('mentionedUserIds', mentionedUserId.trim());
+        }
+      });
 
       attachments.forEach((attachment) => {
         formData.append('attachments', attachment);
@@ -247,6 +284,7 @@ export default function TicketDetailPage() {
         queryClient.invalidateQueries({
           queryKey: ['ticket-replies', ticketId],
         }),
+        invalidateTicketTimeline(),
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'ticket-summary'],
           refetchType: 'all',
@@ -268,12 +306,19 @@ export default function TicketDetailPage() {
     mutationFn: async ({
       replyId,
       message,
+      mentionedUserIds,
     }: {
       replyId: string;
       message: string;
+      mentionedUserIds: string[];
     }) => {
       const formData = new FormData();
       formData.append('message', message.trim());
+      mentionedUserIds.forEach((mentionedUserId) => {
+        if (mentionedUserId.trim()) {
+          formData.append('mentionedUserIds', mentionedUserId.trim());
+        }
+      });
 
       const response = await fetch(
         `/api/tickets/${ticketId}/projects/${projectId}/reply/${replyId}`,
@@ -300,6 +345,7 @@ export default function TicketDetailPage() {
         queryClient.invalidateQueries({
           queryKey: ['ticket-replies', ticketId],
         }),
+        invalidateTicketTimeline(),
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'ticket-summary'],
           refetchType: 'all',
@@ -346,6 +392,7 @@ export default function TicketDetailPage() {
         queryClient.invalidateQueries({
           queryKey: ['ticket-replies', ticketId],
         }),
+        invalidateTicketTimeline(),
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'ticket-summary'],
           refetchType: 'all',
@@ -407,6 +454,14 @@ export default function TicketDetailPage() {
   });
 
   const ticket = ticketDetailQuery.data ?? fallbackTicket;
+  const ticketTimelineItems = useMemo(
+    () =>
+      mapApiTicketTimelineToItems(
+        ticketTimelineQuery.data ?? [],
+        statusListQuery.data ?? [],
+      ),
+    [statusListQuery.data, ticketTimelineQuery.data],
+  );
   const [chatDrawerChannel, setChatDrawerChannel] =
     useState<ChatChannel | null>(null);
   // const [conversationView, setConversationView] =
@@ -472,6 +527,8 @@ export default function TicketDetailPage() {
   const [selectedPriority, setSelectedPriority] = useState('');
   const [selectedAssignee, setSelectedAssignee] = useState('');
   const [selectedDueDate, setSelectedDueDate] = useState('');
+  const [ticketSidebarTab, setTicketSidebarTab] =
+    useState<TicketSidebarTabKey>('quick-links');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
@@ -626,11 +683,18 @@ export default function TicketDetailPage() {
     [ticket?.attachments],
   );
 
+  const invalidateTicketTimeline = async () => {
+    await queryClient.invalidateQueries({
+      queryKey: ['ticket-timeline', projectId, ticketId],
+    });
+  };
+
   const invalidateTicketRelated = async () => {
     await Promise.all([
       queryClient.invalidateQueries({
         queryKey: ['ticket-detail', projectId, ticketId],
       }),
+      invalidateTicketTimeline(),
       queryClient.invalidateQueries({
         queryKey: ['dashboard-project-tickets'],
         refetchType: 'all',
@@ -1031,17 +1095,19 @@ export default function TicketDetailPage() {
 
   // Event listener
   useEffect(() => {
-    eventEmitter.on('notification:new', (payload: NotificationItem) => {
+    const handleNotificationNew = (payload: NotificationItem) => {
       if (
         payload.entityType === NotificationEntityType.PROJECT ||
         payload.entityType === NotificationEntityType.TICKET
       ) {
-        invalidateTicketRelated();
+        void invalidateTicketRelated();
       }
-    });
+    };
+
+    eventEmitter.on('notification:new', handleNotificationNew);
 
     return () => {
-      eventEmitter.off('notification:new');
+      eventEmitter.off('notification:new', handleNotificationNew);
     };
   }, []);
 
@@ -1095,7 +1161,7 @@ export default function TicketDetailPage() {
 
   if (!canViewTicketDetail) {
     return (
-      <div className="space-y-4 mt-8">
+      <div className="space-y-4 h-full py-8 pe-4">
         <div className="rounded-3xl border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
           <EmptyState
             imageUrl="/images/RecentTicketEmpty.svg"
@@ -1116,11 +1182,11 @@ export default function TicketDetailPage() {
 
   if (!ticket) {
     return (
-      <div className="space-y-4 mt-8">
-        <div className="rounded-3xl border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
+      <div className="space-y-4 h-full py-8 pe-4">
+        <div className="rounded-3xl h-full border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
           <EmptyState
             imageUrl="/images/RecentTicketEmpty.svg"
-            imageAlt="Tickets detail not found"
+            imageAlt="Tickets detail not found "
             title="Tickets detail not found"
             // description="Recent tickets will appear here once they are created."
             buttonLabel="Go Back"
@@ -1217,9 +1283,11 @@ export default function TicketDetailPage() {
   const handleSubmitReply = async ({
     message,
     attachments,
+    mentionedUserIds,
   }: {
     message: string;
     attachments: File[];
+    mentionedUserIds: string[];
   }) => {
     if (!canPostReplies) {
       return;
@@ -1228,15 +1296,46 @@ export default function TicketDetailPage() {
     await createReplyMutation.mutateAsync({
       message,
       attachments,
+      mentionedUserIds,
     });
+  };
+
+  const handleOpenProjectQuickLink = (
+    tab?: 'thread' | 'files' | 'calendar' | 'notes',
+  ) => {
+    if (!projectId || !canViewProjectDetail) {
+      return;
+    }
+
+    const nextSearchParams = new URLSearchParams();
+
+    if (tab === 'thread') {
+      nextSearchParams.set('t', '1');
+    } else if (tab === 'files') {
+      nextSearchParams.set('t', '2');
+    } else if (tab === 'calendar') {
+      nextSearchParams.set('t', '3');
+    } else if (tab === 'notes') {
+      nextSearchParams.set('t', '4');
+    }
+
+    const queryString = nextSearchParams.toString();
+
+    router.push(
+      queryString
+        ? `/projects/${projectId}?${queryString}`
+        : `/projects/${projectId}`,
+    );
   };
 
   const handleEditTicketReply = async ({
     reply,
     message,
+    mentionedUserIds,
   }: {
     reply: DiscussionReply;
     message: string;
+    mentionedUserIds: string[];
   }) => {
     try {
       setEditingTicketReplyId(reply.id);
@@ -1247,6 +1346,7 @@ export default function TicketDetailPage() {
             ? {
                 ...currentReply,
                 message: message.trim(),
+                mentionedUserIds,
                 isEdited: true,
                 updatedAt: new Date().toISOString(),
               }
@@ -1257,6 +1357,7 @@ export default function TicketDetailPage() {
       await updateReplyMutation.mutateAsync({
         replyId: reply.id,
         message,
+        mentionedUserIds,
       });
     } finally {
       setEditingTicketReplyId('');
@@ -1266,11 +1367,13 @@ export default function TicketDetailPage() {
   const handleSubmitChatMessage = async ({
     message,
     attachments,
+    mentionedUserIds,
     channel,
     sendMessage,
   }: {
     message: string;
     attachments: File[];
+    mentionedUserIds: string[];
     channel: ChatChannel;
     sendMessage: (payload: {
       message: string;
@@ -1279,6 +1382,7 @@ export default function TicketDetailPage() {
       attachmentUrls?: string[];
       attachmentName?: string;
       attachmentSize?: number;
+      mentionedUserIds?: string[];
     }) => Promise<ChatMessage>;
   }) => {
     try {
@@ -1304,12 +1408,14 @@ export default function TicketDetailPage() {
               }`,
             messageType: 'attachment',
             attachmentUrls,
+            mentionedUserIds,
           });
         }
       } else if (trimmedMessage) {
         await sendMessage({
           message: trimmedMessage,
           messageType: 'text',
+          mentionedUserIds,
         });
       }
 
@@ -1451,10 +1557,12 @@ export default function TicketDetailPage() {
   const handleEditChatMessage = async ({
     reply,
     message,
+    mentionedUserIds,
     updateMessage,
   }: {
     reply: DiscussionReply;
     message: string;
+    mentionedUserIds: string[];
     updateMessage: (
       messageId: string,
       payload: {
@@ -1463,6 +1571,7 @@ export default function TicketDetailPage() {
         attachmentUrls?: string[];
         attachmentName?: string;
         attachmentSize?: number;
+        mentionedUserIds?: string[];
       },
     ) => Promise<ChatMessage>;
   }) => {
@@ -1470,6 +1579,7 @@ export default function TicketDetailPage() {
       setEditingChatMessageId(reply.id);
       await updateMessage(reply.id, {
         message: message.trim(),
+        mentionedUserIds,
       });
       appToast.success('Message updated successfully.');
     } catch (error) {
@@ -2000,6 +2110,7 @@ export default function TicketDetailPage() {
                         ? 'Internal Chat'
                         : 'Replies'
                     }
+                    mentionMembers={membersQuery.data ?? []}
                     headerAction={
                       canViewInternalChatBtn ? (
                         <label className="inline-flex items-center gap-2 sborder border-gray-200">
@@ -2140,10 +2251,11 @@ export default function TicketDetailPage() {
                     onEditReply={
                       isInternalChatActive && canViewInternalChatBtn
                         ? canEditReplies
-                          ? ({ reply, message }) =>
+                          ? ({ reply, message, mentionedUserIds }) =>
                               handleEditChatMessage({
                                 reply,
                                 message,
+                                mentionedUserIds,
                                 updateMessage: updateInternalChatMessage,
                               })
                           : undefined
@@ -2174,12 +2286,10 @@ export default function TicketDetailPage() {
                         : editingTicketReplyId
                     }
                     composerPlaceholder={
-  isInternalChatActive && canViewInternalChatBtn
-    ? 'Write a message...'
-    : (ticket as any).createdByDetail?.name
-      ? `Write a reply to ${(ticket as any).createdByDetail.name}...`
-      : 'Write a reply...'
-}
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? 'Write a message...'
+                        : 'Write a reply...'
+                    }
                   />
                 ) : null}
               </div>
@@ -2265,6 +2375,139 @@ export default function TicketDetailPage() {
                 </div>
               </section>
               {/* ) : null} */}
+              {projectId && canViewProjectDetail ? (
+                <section className="rounded-xl border border-gray-200 bg-white">
+                  <div className=" px-3 py-3">
+                    <div className="relative grid w-full grid-cols-2 gap-1 rounded-full border border-gray-200 bg-gray-50 p-1 shadow-[inset_0_1px_3px_rgba(15,23,42,0.06)]">
+                      <div
+                        className="absolute top-1 bottom-1 left-0 rounded-full bg-white shadow-[0_0_25px_0_rgb(27_28_29/0.12)] transition-all duration-300 ease-out"
+                        style={{
+                          width: 'calc(50% - 0.375rem)',
+                          left:
+                            ticketSidebarTab === 'quick-links'
+                              ? '0.25rem'
+                              : 'calc(50% + 0.125rem)',
+                          opacity: 1,
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setTicketSidebarTab('quick-links')}
+                        className={`relative z-10 w-full rounded-full px-4 py-1.25 text-sm font-medium transition-colors duration-300 ${
+                          ticketSidebarTab === 'quick-links'
+                            ? 'text-gray-950'
+                            : 'text-gray-500 hover:text-gray-800'
+                        }`}
+                      >
+                        Quick Links
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTicketSidebarTab('timeline')}
+                        className={`relative z-10 w-full rounded-full px-4 py-1.25 text-sm font-medium transition-colors duration-300 ${
+                          ticketSidebarTab === 'timeline'
+                            ? 'text-gray-950'
+                            : 'text-gray-500 hover:text-gray-800'
+                        }`}
+                      >
+                        Ticket Timeline
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="relative">
+                    {ticketSidebarTab === 'quick-links' ? (
+                      <div>
+                        <QuickLinkButton
+                          label="Go to Project"
+                          iconBg="bg-blue-500"
+                          icon={
+                            <ProjectsIcon
+                              opacity="0"
+                              fill="white"
+                              width="22"
+                              height="18"
+                            />
+                          }
+                          onClick={() => handleOpenProjectQuickLink()}
+                        />
+                        {canViewProjectThread ? (
+                          <QuickLinkButton
+                            label="Thread"
+                            iconBg="bg-purple-500"
+                            icon={
+                              <ChatIcon fill="white" width="16" height="16" />
+                            }
+                            onClick={() => handleOpenProjectQuickLink('thread')}
+                          />
+                        ) : null}
+                        {canViewProjectFiles ? (
+                          <QuickLinkButton
+                            label="Files"
+                            iconBg="bg-warning-500"
+                            icon={
+                              <FilesTabIcon
+                                fill="white"
+                                width="16"
+                                height="16"
+                              />
+                            }
+                            onClick={() => handleOpenProjectQuickLink('files')}
+                          />
+                        ) : null}
+                        {canViewProjectCalendar ? (
+                          <QuickLinkButton
+                            label="Calendar"
+                            iconBg="bg-green-500"
+                            icon={
+                              <CalendarTabIcon
+                                fill="white"
+                                width="16"
+                                height="16"
+                              />
+                            }
+                            onClick={() =>
+                              handleOpenProjectQuickLink('calendar')
+                            }
+                          />
+                        ) : null}
+                        {canViewProjectNotes ? (
+                          <QuickLinkButton
+                            label="Notes"
+                            iconBg="bg-rose-500"
+                            icon={
+                              <NotesTabIcon
+                                fill="white"
+                                width="16"
+                                height="16"
+                              />
+                            }
+                            onClick={() => handleOpenProjectQuickLink('notes')}
+                          />
+                        ) : null}
+                      </div>
+                    ) : (
+                      <div className="px-4 py-4">
+                        <TicketTimeline items={ticketTimelineItems} />
+                      </div>
+                    )}
+                  </div>
+                </section>
+              ) : (
+                <section className="rounded-xl border border-gray-200 bg-white">
+                  <div className="border-b border-gray-200 px-3 py-3">
+                    <div className="flex items-center rounded-full border border-gray-200 bg-gray-50 p-1 shadow-[inset_0_1px_3px_rgba(15,23,42,0.06)]">
+                      <span className="w-full rounded-full bg-white px-4 py-1.5 text-center text-sm font-medium text-gray-950 shadow-[0_0_20px_rgba(15,23,42,0.08)]">
+                        Ticket Timeline
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="px-4 py-4">
+                    <TicketTimeline items={ticketTimelineItems} />
+                  </div>
+                </section>
+              )}
 
               <section className="rounded-xl border border-gray-200 bg-white ">
                 <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 sm:px-4 md:text-base">
@@ -2482,13 +2725,15 @@ export default function TicketDetailPage() {
                       })
                   : undefined
               }
+              mentionMembers={membersQuery.data ?? []}
               requireMessage={false}
               currentUserId={currentUserId}
               onDeleteReply={handleDeleteChatMessage}
-              onEditReply={({ reply, message }) =>
+              onEditReply={({ reply, message, mentionedUserIds }) =>
                 handleEditChatMessage({
                   reply,
                   message,
+                  mentionedUserIds,
                   updateMessage: updateExternalChatMessage,
                 })
               }
@@ -2712,6 +2957,34 @@ async function fetchTicketReplies(ticketId: string, currentUserId: string) {
   );
 }
 
+async function fetchTicketTimeline(projectId: string, ticketId: string) {
+  const response = await fetch(
+    `/api/activity/project/${projectId}/tickets/${ticketId}`,
+    {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+    },
+  );
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiTicketTimelineActivity[]
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !Array.isArray(payload)) {
+    throw new Error(
+      !Array.isArray(payload)
+        ? payload?.message || 'Failed to fetch ticket timeline.'
+        : 'Failed to fetch ticket timeline.',
+    );
+  }
+
+  return payload;
+}
+
 type ApiProjectMember = {
   id: string;
   fullName: string;
@@ -2735,9 +3008,18 @@ type ApiTicketReply = {
   authorId?: string | null;
   createdBy?: string | null;
   message?: string | null;
+  mentionedUserIds?: string[] | null;
   author?: ApiTicketPerson | null;
   attachments?: ApiTicketReplyAttachment[];
   reactions?: ApiTicketReplyReaction[] | null;
+};
+
+type ApiTicketTimelineActivity = {
+  id: string;
+  createdAt?: string | null;
+  actorId?: string | null;
+  type?: string | null;
+  title?: string | null;
 };
 
 type ApiTicketReplyReaction = {
@@ -2908,6 +3190,126 @@ function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
   };
 }
 
+function mapApiTicketTimelineToItems(
+  activities: ApiTicketTimelineActivity[],
+  ticketStatuses: ApiTicketStatus[],
+): TicketTimelineItem[] {
+  return activities.map((activity) => {
+    const timelineMeta = getTicketTimelineMeta(activity, ticketStatuses);
+
+    return {
+      id: activity.id,
+      description:
+        activity.title?.replace(/^"+|"+$/g, '').trim() ||
+        timelineMeta.description,
+      status: timelineMeta.status,
+      statusClassName: timelineMeta.statusClassName,
+      statusStyle: timelineMeta.statusStyle,
+      occurredAt: activity.createdAt ?? '',
+    };
+  });
+}
+
+function getTicketTimelineMeta(
+  activity: ApiTicketTimelineActivity,
+  ticketStatuses: ApiTicketStatus[],
+) {
+  const type = activity.type?.trim() ?? '';
+  const normalizedTitle = activity.title?.replace(/"/g, '').trim() ?? '';
+
+  if (type === 'ticket_assignee_changed') {
+    return {
+      status:
+        extractValueAfterKeyword(normalizedTitle, 'assigned to') ?? 'Assigned',
+      statusClassName: 'bg-blue-500 text-white',
+      description: normalizedTitle || 'Assignment updated.',
+    };
+  }
+
+  if (type === 'ticket_priority_changed') {
+    return {
+      status:
+        extractValueAfterKeyword(normalizedTitle, 'priority changed to') ??
+        'Updated',
+      statusClassName: 'bg-yellow-500 text-white',
+      description: normalizedTitle || 'Priority changed.',
+    };
+  }
+
+  if (type === 'ticket_status_changed') {
+    const status =
+      extractValueAfterKeyword(normalizedTitle, 'status changed to') ??
+      'Updated';
+    const statusColor = getTicketStatusColorFromSettings(
+      status,
+      ticketStatuses,
+    );
+
+    return {
+      status,
+      statusClassName: 'text-white',
+      statusStyle: statusColor ? { backgroundColor: statusColor } : undefined,
+      description: normalizedTitle || 'Status changed.',
+    };
+  }
+
+  if (type === 'ticket_created') {
+    const status = 'Open';
+    const statusColor = getTicketStatusColorFromSettings(
+      status,
+      ticketStatuses,
+    );
+
+    return {
+      status,
+      statusClassName: 'text-white',
+      statusStyle: statusColor ? { backgroundColor: statusColor } : undefined,
+      description: normalizedTitle || 'Ticket created.',
+    };
+  }
+
+  return {
+    status: 'Updated',
+    statusClassName: 'bg-gray-500 text-white',
+    description: normalizedTitle || 'Ticket updated.',
+  };
+}
+
+function extractValueAfterKeyword(value: string, keyword: string) {
+  const normalizedValue = value.toLowerCase();
+  const normalizedKeyword = keyword.toLowerCase();
+  const keywordIndex = normalizedValue.indexOf(normalizedKeyword);
+
+  if (keywordIndex < 0) {
+    return null;
+  }
+
+  const rawMatch = value
+    .slice(keywordIndex + keyword.length)
+    .split(' by ')[0]
+    ?.trim();
+
+  return rawMatch || null;
+}
+
+function getTicketStatusColorFromSettings(
+  statusValue: string,
+  ticketStatuses: ApiTicketStatus[],
+) {
+  const normalizedStatusValue = normalizeTicketSettingValue(statusValue);
+  const matchedStatus = ticketStatuses.find(
+    (status) =>
+      normalizeTicketSettingValue(status.key) === normalizedStatusValue ||
+      normalizeTicketSettingValue(status.label) === normalizedStatusValue,
+  );
+
+  return matchedStatus?.color?.trim() || null;
+}
+
+function normalizeTicketSettingValue(value: string) {
+  return value.replace(/[^a-z0-9]/gi, '').toLowerCase();
+}
+
 function mapChatMessageToDiscussionReply(
   message: ChatMessage,
   currentUserId: string,
@@ -2931,6 +3333,13 @@ function mapChatMessageToDiscussionReply(
   return {
     id: message.id,
     authorId: message.senderId,
+    mentionedUserIds: Array.isArray(message.mentionedUserIds)
+      ? message.mentionedUserIds.filter(
+          (mentionedUserId): mentionedUserId is string =>
+            typeof mentionedUserId === 'string' &&
+            mentionedUserId.trim().length > 0,
+        )
+      : [],
     updatedAt: message.updatedAt,
     isEdited: Boolean(
       message.updatedAt &&
@@ -3029,6 +3438,13 @@ function mapApiTicketReplyToDiscussionReply(
   return {
     id: reply.id,
     authorId,
+    mentionedUserIds: Array.isArray(reply.mentionedUserIds)
+      ? reply.mentionedUserIds.filter(
+          (mentionedUserId): mentionedUserId is string =>
+            typeof mentionedUserId === 'string' &&
+            mentionedUserId.trim().length > 0,
+        )
+      : [],
     updatedAt: reply.updatedAt,
     isEdited: Boolean(
       reply.updatedAt &&
@@ -3569,6 +3985,50 @@ function formatReplyDate(value: string) {
   }).format(date);
 }
 
+function formatTimelineDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  const formattedDate = new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+  }).format(date);
+
+  const formattedTime = new Intl.DateTimeFormat('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+
+  return formattedTime
+    ? `${formattedDate}  •  ${formattedTime}`
+    : formattedDate;
+}
+
+function formatTimelineDateTime(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  const formattedDate = new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+  }).format(date);
+
+  const formattedTime = new Intl.DateTimeFormat('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+
+  return formattedTime ? `${formattedDate} • ${formattedTime}` : formattedDate;
+}
+
 function formatBytes(sizeBytes: string | number | null | undefined) {
   const bytes = Number(sizeBytes);
 
@@ -3810,6 +4270,113 @@ function FileBadgeIcon({ extension }: { extension?: string }) {
       </span>
       <FileTypePlaceholder />
     </span>
+  );
+}
+
+function QuickLinkButton({
+  label,
+  icon,
+  iconBg,
+  onClick,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  iconBg: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-3 border-t border-gray-200 px-4 py-3 text-left transition last:border-b-0 hover:bg-gray-50"
+    >
+      <span
+        className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconBg}`}
+      >
+        {icon}
+      </span>
+      <span className="flex-1 text-sm font-semibold text-gray-900">
+        {label}
+      </span>
+      <span className="text-gray-500">
+        <ChevronRightSmallIcon />
+      </span>
+    </button>
+  );
+}
+
+function TicketTimeline({ items }: { items: TicketTimelineItem[] }) {
+  if (!items.length) {
+    return (
+      <EmptyState
+        imageUrl="/images/NotificationEmptyState.svg"
+        imageAlt="No timeline activity"
+        title="No Activity"
+        description="Timeline activity will appear here once updates happen on this ticket."
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-0 mt03">
+      {items.map((item, index) => {
+        const isLastItem = index === items.length - 1;
+
+        return (
+          <div key={item.id} className="relative flex gap-2.5 pb-4 last:pb-0">
+            {!isLastItem ? (
+              <span
+                aria-hidden="true"
+                className="absolute left-3 top-6 h-[calc(100%-0.25rem)] border border-dashed border-gray-300"
+              />
+            ) : null}
+
+            <span className="relative z-10 mt-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white">
+              <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-gray-300 bg-white">
+                <span className="h-1.5 min-w-1.5 rounded-full bg-gray-300" />
+              </span>
+            </span>
+
+            <div className="min-w-0 mt-1.5 flex-1">
+              <p className="text-xs text-gray-500">
+                {formatTimelineDateTime(item.occurredAt)}
+              </p>
+              <p className="mt-1.5 text-sm text-gray-700">{item.description}</p>
+              <span
+                className={clsx(
+                  'mt-2 inline-flex rounded-full px-2 py-1 text-xs font-semibold leading-none',
+                  item.statusClassName,
+                )}
+                style={item.statusStyle}
+              >
+                {item.status}
+              </span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ChevronRightSmallIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 18 18"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        d="M7 4.5L11.5 9L7 13.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 

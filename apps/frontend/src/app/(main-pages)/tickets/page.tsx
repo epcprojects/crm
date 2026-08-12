@@ -12,6 +12,7 @@ import { createTicketProjectOptions } from '../../../components/modals/create-ti
 import RecentTicketsTable, {
   type TicketSortState,
   type RecentTicket,
+  type RecentTicketQuickLinkItem,
 } from '../../../components/tables/RecentTicketsTable';
 import TicketsKanbanView from '../../../components/tickets/TicketsKanbanView';
 import { appToast } from '../../../components/toast/AppToast';
@@ -78,6 +79,11 @@ export default function Page() {
   const canFilterTickets = hasPermission('tickets.filter');
   const canViewTicketDetail = hasPermission('tickets.view_detail');
   const canEditTicketStatus = hasPermission('tickets.edit_status');
+  const canViewProjectDetail = hasPermission('projects.view_detail');
+  const canViewProjectThread = hasPermission('thread.view');
+  const canViewProjectFiles = hasPermission('files.view');
+  const canViewProjectCalendar = hasPermission('calendar.view_grid');
+  const canViewProjectNotes = hasPermission('projects_notes.view_list');
   const viewMode = getTicketsViewMode(
     searchParams.get(TICKETS_VIEW_QUERY_PARAM),
   );
@@ -206,6 +212,67 @@ export default function Page() {
   const sortedTickets = useMemo(
     () => sortTicketsLocally(ticketsQuery.data?.items ?? [], sortState),
     [sortState, ticketsQuery.data?.items],
+  );
+  const ticketQuickLinkItems = useMemo(
+    () =>
+      canViewProjectDetail
+        ? (ticket: RecentTicket): RecentTicketQuickLinkItem[] => {
+            const projectId = ticket.project.id;
+
+            if (!projectId) {
+              return [];
+            }
+
+            const items: RecentTicketQuickLinkItem[] = [
+              {
+                key: 'project',
+                label: 'Go to Project',
+                href: `/projects/${projectId}`,
+              },
+            ];
+
+            if (canViewProjectThread) {
+              items.push({
+                key: 'thread',
+                label: 'Thread',
+                href: `/projects/${projectId}?t=1`,
+              });
+            }
+
+            if (canViewProjectFiles) {
+              items.push({
+                key: 'files',
+                label: 'Files',
+                href: `/projects/${projectId}?t=2`,
+              });
+            }
+
+            if (canViewProjectCalendar) {
+              items.push({
+                key: 'calendar',
+                label: 'Calendar',
+                href: `/projects/${projectId}?t=3`,
+              });
+            }
+
+            if (canViewProjectNotes) {
+              items.push({
+                key: 'notes',
+                label: 'Notes',
+                href: `/projects/${projectId}?t=4`,
+              });
+            }
+
+            return items;
+          }
+        : undefined,
+    [
+      canViewProjectCalendar,
+      canViewProjectDetail,
+      canViewProjectFiles,
+      canViewProjectNotes,
+      canViewProjectThread,
+    ],
   );
   const statusMetadataByKey = useMemo(
     () =>
@@ -682,19 +749,21 @@ export default function Page() {
 
   // Event listener
   useEffect(() => {
-    eventEmitter.on('notification:new', (payload: NotificationItem) => {
+    const handleNotificationNew = (payload: NotificationItem) => {
       if (payload.entityType === NotificationEntityType.TICKET) {
-        invalidateTicketRelated();
+        void invalidateTicketRelated();
       }
 
       if (payload.entityType === NotificationEntityType.PROJECT) {
-        invalideProjectsRelated();
-        invalidateTicketRelated();
+        void invalideProjectsRelated();
+        void invalidateTicketRelated();
       }
-    });
+    };
+
+    eventEmitter.on('notification:new', handleNotificationNew);
 
     return () => {
-      eventEmitter.off('notification:new');
+      eventEmitter.off('notification:new', handleNotificationNew);
     };
   }, []);
 
@@ -1244,6 +1313,13 @@ export default function Page() {
                       manualPagination
                       sortState={sortState}
                       onSortChange={handleSortChange}
+                      getRowHref={
+                        canViewTicketDetail
+                          ? (ticket) =>
+                              `/tickets/${ticket.id}?projectId=${ticket.project.id}`
+                          : undefined
+                      }
+                      getQuickLinkItems={ticketQuickLinkItems}
                       onRowClick={
                         canViewTicketDetail ? handleTicketClick : undefined
                       }
