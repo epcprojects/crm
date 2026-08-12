@@ -169,9 +169,7 @@ export class TicketsService {
         `Dispatching ticket.created notification for ticket ${saved.id} to ${participants.length} participants`,
       );
 
-      console.debug(
-  JSON.stringify(participants, null, 2)
-);
+      console.debug(JSON.stringify(participants, null, 2));
 
       await this.notificationsService.dispatch({
         type: EmailEventType.TICKET_CREATED,
@@ -187,11 +185,15 @@ export class TicketsService {
           createdBy: {
             name: ticket.reporter?.fullName || '',
             email: ticket.reporter?.email || '',
-            isInvitationAccepted: ticket.reporter?.isInvitationAccepted ?? false,
- 
+            isInvitationAccepted:
+              ticket.reporter?.isInvitationAccepted ?? false,
           },
           assignee: ticket.assignee
-            ? { name: ticket.assignee.fullName, email: ticket.assignee.email, isInvitationAccepted: ticket.assignee.isInvitationAccepted, }
+            ? {
+                name: ticket.assignee.fullName,
+                email: ticket.assignee.email,
+                isInvitationAccepted: ticket.assignee.isInvitationAccepted,
+              }
             : undefined,
           participants,
         },
@@ -306,7 +308,7 @@ export class TicketsService {
         });
       }
     }
-    
+
     if (query.priorityKey) {
       qb.andWhere('t.priorityKey = :priorityKey', {
         priorityKey: query.priorityKey,
@@ -650,7 +652,25 @@ export class TicketsService {
     //   where: { id: projectId },
     // });
     // if (!project) throw new NotFoundException('Project not found');
-    const ticket = await this.findEntity(projectId, ticketId);
+    const ticket = await this.ticketRepo.findOne({
+      where: {
+        id: ticketId,
+        projectId,
+      },
+      relations: {
+        project: {
+          members: true,
+        },
+        reporter: true,
+        assignee: true,
+        status: true,
+        priority: true,
+      },
+    });
+
+    if (!ticket) {
+      throw new NotFoundException('Ticket not found');
+    }
     const oldTicket = { ...ticket };
     const oldStatus = ticket.status;
     const oldPriority = ticket.priority;
@@ -683,6 +703,108 @@ export class TicketsService {
       (id): id is string => !!id && id !== userId,
     );
     const fullname = await this.usersService.getFullName(userId);
+    await this.ticketRepo.save(ticket);
+    // Re-fetch updated ticket with all relations required by email notifications
+    const updatedTicket = await this.ticketRepo.findOne({
+      where: {
+        id: ticket.id,
+        projectId,
+      },
+      relations: {
+        project: {
+          members: true,
+        },
+        reporter: true,
+        assignee: true,
+        status: true,
+        priority: true,
+      },
+    });
+
+    if (!updatedTicket) {
+      throw new NotFoundException('Ticket not found');
+    }
+    const updatedBy = await this.userRepo.findOne({
+      where: { id: userId },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        isInvitationAccepted: true,
+      },
+    });
+
+    if (!updatedBy) {
+      throw new NotFoundException('Updated-by user not found');
+    }
+    const members = (updatedTicket.project?.members || [])
+      .filter((m) => m.id !== userId)
+      .map((m) => ({
+        name: m.fullName,
+        email: m.email,
+        isInvitationAccepted: m.isInvitationAccepted,
+      }));
+    const participantsMap = new Map<
+      string,
+      { name: string; email: string; isInvitationAccepted?: boolean }
+    >();
+    for (const m of members) participantsMap.set(m.email, m);
+    if (updatedTicket.reporter && updatedTicket?.reporter?.id !== userId)
+      participantsMap.set(updatedTicket.reporter.email, {
+        name: updatedTicket.reporter.fullName,
+        email: updatedTicket.reporter.email,
+        isInvitationAccepted: updatedTicket.reporter.isInvitationAccepted,
+      });
+    if (updatedTicket.assignee && updatedTicket?.assignee?.id !== userId)
+      participantsMap.set(updatedTicket.assignee.email, {
+        name: updatedTicket.assignee.fullName,
+        email: updatedTicket.assignee.email,
+        isInvitationAccepted: updatedTicket.assignee.isInvitationAccepted, // Include the isInvitationAccepted property
+      });
+
+    const participants = Array.from(participantsMap.values());
+    // const participantsMap = new Map<
+    //   string,
+    //   {
+    //     name: string;
+    //     email: string;
+    //     isInvitationAccepted?: boolean;
+    //   }
+    // >();
+
+    // for (const member of updatedTicket.project?.members ?? []) {
+    //   if (member.id !== userId) {
+    //     participantsMap.set(member.email, {
+    //       name: member.fullName,
+    //       email: member.email,
+    //       isInvitationAccepted: member.isInvitationAccepted,
+    //     });
+    //   }
+    // }
+
+    // if (updatedTicket.reporter && updatedTicket.reporter.id !== userId) {
+    //   participantsMap.set(updatedTicket.reporter.email, {
+    //     name: updatedTicket.reporter.fullName,
+    //     email: updatedTicket.reporter.email,
+    //     isInvitationAccepted: updatedTicket.reporter.isInvitationAccepted,
+    //   });
+    // }
+
+    // if (updatedTicket.assignee && updatedTicket.assignee.id !== userId) {
+    //   participantsMap.set(updatedTicket.assignee.email, {
+    //     name: updatedTicket.assignee.fullName,
+    //     email: updatedTicket.assignee.email,
+    //     isInvitationAccepted: updatedTicket.assignee.isInvitationAccepted,
+    //   });
+    // }
+
+    // const participants = Array.from(participantsMap.values());
+
+    const updatedByRecipient = {
+      name: updatedBy.fullName,
+      email: updatedBy.email,
+      isInvitationAccepted: updatedBy.isInvitationAccepted,
+    };
     // STATUS CHANGED
     if (dto.statusKey && oldStatus && dto.statusKey !== oldStatus.key) {
       await this.notificationsService.notifyProjectMembers({
@@ -695,6 +817,20 @@ export class TicketsService {
         title: `"Ticket: "${ticket.ticketRefNo}" status changed to ${ticket.status.label} by ${fullname}`,
         message: `${oldStatus.label} to ${dto.statusKey}`,
         explicitRecipientIds: [...new Set(recipients)],
+      });
+      await this.notificationsService.dispatch({
+        type: EmailEventType.TICKET_STATUS_UPDATED,
+        payload: {
+          ticketId: updatedTicket.id,
+          ticketNumber: updatedTicket.ticketRefNo,
+          ticketTitle: updatedTicket.title,
+          projectName: updatedTicket.project.name,
+          projectId: updatedTicket.projectId,
+          previousStatus: oldStatus.label,
+          newStatus: updatedTicket.status.label,
+          updatedBy: updatedByRecipient,
+          participants,
+        },
       });
     }
 
@@ -711,6 +847,20 @@ export class TicketsService {
         message: `${oldPriority.label} to ${dto.priorityKey}`,
         explicitRecipientIds: [...new Set(recipients)],
       });
+      await this.notificationsService.dispatch({
+        type: EmailEventType.TICKET_PRIORITY_UPDATED,
+        payload: {
+          ticketId: updatedTicket.id,
+          ticketNumber: updatedTicket.ticketRefNo,
+          ticketTitle: updatedTicket.title,
+          projectName: updatedTicket.project.name,
+          projectId: updatedTicket.projectId,
+          previousPriority: oldPriority.label,
+          newPriority: updatedTicket.priority.label,
+          updatedBy: updatedByRecipient,
+          participants,
+        },
+      });
     }
 
     // PERSON ASSIGNED
@@ -718,6 +868,7 @@ export class TicketsService {
       dto.assigneeId !== undefined &&
       dto.assigneeId !== oldTicket.assigneeId
     ) {
+      const newAssignee = updatedTicket.assignee;
       const user = await this.userRepo.findOne({
         where: { id: dto.assigneeId },
         select: { id: true, fullName: true },
@@ -737,6 +888,38 @@ export class TicketsService {
           : `Ticket: "${ticket.ticketRefNo}" is now unassigned`,
         explicitRecipientIds: [...new Set(recipients)],
       });
+      // Email only when assigning to someone.
+      // No email is dispatched for unassignment because
+      // TicketAssigneeUpdatedPayload.newAssignee is required.
+      if (newAssignee) {
+        await this.notificationsService.dispatch({
+          type: EmailEventType.TICKET_ASSIGNEE_UPDATED,
+          payload: {
+            ticketId: updatedTicket.id,
+            ticketNumber: updatedTicket.ticketRefNo,
+            ticketTitle: updatedTicket.title,
+            projectName: updatedTicket.project.name,
+            projectId: updatedTicket.projectId,
+
+            previousAssignee: oldTicket.assignee
+              ? {
+                  name: oldTicket.assignee.fullName,
+                  email: oldTicket.assignee.email,
+                  isInvitationAccepted: oldTicket.assignee.isInvitationAccepted,
+                }
+              : undefined,
+
+            newAssignee: {
+              name: newAssignee.fullName,
+              email: newAssignee.email,
+              isInvitationAccepted: newAssignee.isInvitationAccepted,
+            },
+
+            updatedBy: updatedByRecipient,
+            participants,
+          },
+        });
+      }
     }
 
     if (
@@ -769,7 +952,7 @@ export class TicketsService {
       });
     }
 
-    return this.ticketRepo.save(ticket);
+    return updatedTicket;
   }
 
   async findTicketRefNo(ticketId: string) {
@@ -878,47 +1061,47 @@ export class TicketsService {
           today: today.toISOString(),
           upperBound: upperBound.toISOString(),
         },
-      )
+      );
 
-      qb.select([
-        't.id',
-        't.title',
-        't.createdAt',
-        't.ticketRefNo',
-        't.dueDate',
+    qb.select([
+      't.id',
+      't.title',
+      't.createdAt',
+      't.ticketRefNo',
+      't.dueDate',
 
-        'p.id',
-        'p.name',
-        'p.brandColor',
+      'p.id',
+      'p.name',
+      'p.brandColor',
 
-        's.key',
-        's.label',
-        's.color',
+      's.key',
+      's.label',
+      's.color',
 
-        'pr.key',
-        'pr.label',
-        'pr.color',
-      ]);
+      'pr.key',
+      'pr.label',
+      'pr.color',
+    ]);
 
-      qb.orderBy('t.createdAt', 'DESC')
+    qb.orderBy('t.createdAt', 'DESC')
       .skip((query.page - 1) * query.limit)
       .take(query.limit);
 
-      const [items, total] = await qb.getManyAndCount();
+    const [items, total] = await qb.getManyAndCount();
 
-      return {
-        items,
-        meta: {
-          page: query.page,
-          limit: query.limit,
-          total,
-          totalPages: Math.ceil(total / query.limit),
-          hasNext: query.page * query.limit < total,
-          hasPrevious: query.page > 1,
-        },
-      };
-    }
-      // .getMany();
+    return {
+      items,
+      meta: {
+        page: query.page,
+        limit: query.limit,
+        total,
+        totalPages: Math.ceil(total / query.limit),
+        hasNext: query.page * query.limit < total,
+        hasPrevious: query.page > 1,
+      },
+    };
+  }
+  // .getMany();
 
   // ---------------- ATTACHMENTS ----------------
   async handleAttachments(

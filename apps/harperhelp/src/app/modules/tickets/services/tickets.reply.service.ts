@@ -21,6 +21,7 @@ import { extname } from 'path';
 import { UpdateReplyDto } from '../dto/update-ticket-reply.dto';
 import { ReactionsService } from '../../reactions/reactions.service';
 import { Project } from '../../projects/entities/project.entity';
+import { ProjectsService } from '../../projects/projects.service';
 
 @Injectable()
 export class TicketRepliesService {
@@ -29,7 +30,7 @@ export class TicketRepliesService {
     private readonly replyRepo: Repository<TicketReply>,
 
     private readonly reactionsService: ReactionsService,
-
+    private readonly projectsService: ProjectsService,
     private readonly filesService: FilesService,
     private readonly utilityService: UtilityService,
     private readonly notificationsService: NotificationsService,
@@ -58,12 +59,20 @@ export class TicketRepliesService {
       .findOne({ where: { id: ticketId } });
     if (!ticket) throw new NotFoundException('Ticket not found');
     await this.ensureProjectUserAccess(projectId, userId);
+
+    const validMentionedUserIds =
+      await this.projectsService.filterValidMentionedUserIds(
+        projectId,
+        dto.mentionedUserIds ?? [],
+      );
+
     const reply = await this.replyRepo.save(
       this.replyRepo.create({
         ticketId,
         message: dto.message,
         authorId: userId,
         isInternal: dto.isInternal ?? false,
+        mentionedUserIds: validMentionedUserIds,
         createdBy: userId,
       }),
     );
@@ -145,6 +154,7 @@ export class TicketRepliesService {
 
     this.ticketRepliesGateway.broadcastReply(projectId, ticketId, createdReply);
     const fullname = await this.usersService.getFullName(userId);
+
     await this.notificationsService.notifyProjectMembers({
       projectId: ticket.projectId,
       actorId: userId,
@@ -157,6 +167,20 @@ export class TicketRepliesService {
       requiredClaimValue: dto.isInternal ? 'view_internal_replies' : undefined,
     });
 
+    // Notify mentioned users
+    if (validMentionedUserIds?.length) {
+      await this.notificationsService.notifyProjectMembers({
+        projectId: ticket.projectId,
+        actorId: userId,
+        type: NotificationType.MENTIONED_IN_TICKET_REPLY,
+        entityType: NotificationEntityType.TICKET_REPLY,
+        entityId: reply.id,
+        ticketId: ticket.id,
+        title: `You were mentioned in a reply in ticket: "${ticket.ticketRefNo}" by ${fullname}`,
+        message: '',
+        explicitRecipientIds: validMentionedUserIds,
+      });
+    }
     return createdReply;
   }
 
@@ -190,10 +214,36 @@ export class TicketRepliesService {
     }
 
     reply.message = dto.message ?? reply.message;
+
+    let newlyMentionedUserIds: string[] = [];
+
+    const {
+      validMentionedUserIds,
+      newlyMentionedUserIds: newMentionedUserIds,
+    } = await this.projectsService.getMentionedUserChanges(
+      projectId,
+      reply.mentionedUserIds ?? [],
+      dto.mentionedUserIds,
+    );
+
+    reply.mentionedUserIds = validMentionedUserIds;
+    newlyMentionedUserIds = newMentionedUserIds;
+
     reply.updatedBy = userId;
     reply.updatedAt = new Date();
 
     await this.replyRepo.save(reply);
+
+    const ticket = await this.replyRepo.manager.getRepository(Ticket).findOne({
+      where: {
+        id: ticketId,
+        projectId,
+      },
+    });
+
+    if (!ticket) {
+      throw new NotFoundException('Ticket not found');
+    }
 
     // Upload newly attached files
     if (files?.length) {
@@ -208,6 +258,21 @@ export class TicketRepliesService {
       updatedReply,
     );
 
+    if (newlyMentionedUserIds.length) {
+      const fullname = await this.usersService.getFullName(userId);
+
+      await this.notificationsService.notifyProjectMembers({
+        projectId,
+        actorId: userId,
+        type: NotificationType.MENTIONED_IN_TICKET_REPLY,
+        entityType: NotificationEntityType.TICKET_REPLY,
+        entityId: reply.id,
+        ticketId: ticket.id,
+        title: `You were mentioned in a reply in ticket: "${ticket.ticketRefNo}" by ${fullname}`,
+        message: '',
+        explicitRecipientIds: newlyMentionedUserIds,
+      });
+    }
     return updatedReply;
   }
 

@@ -71,6 +71,12 @@ export class ChatMessageInternal extends TimestampEntityWithSoftDelete {
   @Column({ name: 'is_deleted', default: false })
   isDeleted: boolean;
 
+  @Column('uuid', {
+    array: true,
+    default: () => "'{}'",
+  })
+  mentionedUserIds: string[];
+
   // @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })
   // deletedAt: Date | null;
 

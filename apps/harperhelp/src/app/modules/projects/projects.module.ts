@@ -35,6 +35,6 @@ import { ReactionsModule } from '../reactions/reactions.module';
     ThreadGateway,
     WsJwtGuard,
   ],
-  exports: [ThreadGateway],
+  exports: [ThreadGateway, ProjectsService],
 })
 export class ProjectsModule {}
