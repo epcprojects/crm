@@ -59,4 +59,11 @@ export class ActivityLog extends TimestampedEntityWithSoftDelete {
 
   @Column({ type: 'jsonb', default: {} })
   metadata: Record<string, unknown>;
+
+  @Column({ nullable: true })
+recipientId: string | null;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'recipientId' })
+  recipient: User;
 }

@@ -2355,6 +2355,8 @@ export default function ProjectDetailPage() {
                                 onClose={handleCloseProjectNoteMobileModal}
                                 isOpen={isProjectNoteMobileModalOpen}
                                 scrollNeeded={true}
+                                 title="Create Note"
+                               bodyPaddingClasses="flex min-h-0 flex-col"
                               >
                                 <div className="border-b border-gray-200 px-4 py-4 md:px-5">
                                   <input
@@ -2370,72 +2372,69 @@ export default function ProjectDetailPage() {
                                   />
                                 </div>
 
-                                <div className="p-4 md:p-5">
-                                  <RichTextEditor
-                                    value={projectNoteDescriptionDraft}
-                                    onChange={setProjectNoteDescriptionDraft}
-                                    placeholder="Write your project note..."
-                                    maxLength={
-                                      MAX_PROJECT_NOTE_DESCRIPTION_LENGTH
+                              <div className="p-4 flex-1 md:p-5">
+                                <RichTextEditor
+                                  value={projectNoteDescriptionDraft}
+                                  onChange={setProjectNoteDescriptionDraft}
+                                  placeholder="Write your project note..."
+                                  maxLength={
+                                    MAX_PROJECT_NOTE_DESCRIPTION_LENGTH
+                                  }
+                                  disabled={createProjectNoteMutation.isPending}
+                                  showCharacterCount
+                                  editorHeight="h-[50dvh] min-h-[18rem]"
+                                  editorClassName="text-sm font-normal text-gray-700"
+                                />
+                              </div>
+                              <div className="w-full  px-3 pb-4 md:flex md:justify-end md:px-5">
+                                <div className="grid w-full grid-cols-2 gap-2 md:flex md:w-auto md:items-center">
+                                  <ThemeButton
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={handleCloseProjectNoteMobileModal}
+                                    disabled={
+                                      createProjectNoteMutation.isPending
+                                    }
+                                    className="w-full disabled:cursor-not-allowed disabled:opacity-60"
+                                    borderclassName="w-full"
+                                  >
+                                    Cancel
+                                  </ThemeButton>
+
+                                  <ThemeButton
+                                    type="button"
+                                    variant="primaryGradient"
+                                    size="sm"
+                                    onClick={() =>
+                                      void handleCreateProjectNote()
                                     }
                                     disabled={
                                       createProjectNoteMutation.isPending
                                     }
-                                    showCharacterCount
-                                    editorHeight="h-[50dvh] min-h-[18rem]"
-                                    editorClassName="text-sm font-normal text-gray-700"
-                                  />
+                                    className="w-full disabled:cursor-not-allowed disabled:opacity-60"
+                                    borderclassName="w-full"
+                                  >
+                                    {createProjectNoteMutation.isPending
+                                      ? 'Saving...'
+                                      : 'Save Note'}
+                                  </ThemeButton>
                                 </div>
-                                <div className="flex items-center justify-end gap-3 px-3 md:px-5 pb-4">
-                                  <div className="flex items-center gap-2">
-                                    <ThemeButton
-                                      type="button"
-                                      variant="secondary"
-                                      size="sm"
-                                      onClick={
-                                        handleCloseProjectNoteMobileModal
-                                      }
-                                      disabled={
-                                        createProjectNoteMutation.isPending
-                                      }
-                                      className="disabled:cursor-not-allowed disabled:opacity-60"
-                                    >
-                                      Cancel
-                                    </ThemeButton>
-                                    <ThemeButton
-                                      type="button"
-                                      variant="primaryGradient"
-                                      size="sm"
-                                      onClick={() =>
-                                        void handleCreateProjectNote()
-                                      }
-                                      disabled={
-                                        createProjectNoteMutation.isPending
-                                      }
-                                      className="disabled:cursor-not-allowed disabled:opacity-60"
-                                    >
-                                      {createProjectNoteMutation.isPending
-                                        ? 'Saving...'
-                                        : 'Save Note'}
-                                    </ThemeButton>
-                                  </div>
-                                </div>
-                              </AppModal>
-                            ) : (
-                              <>
-                                <div className="border-b border-gray-200 px-4 py-4 md:px-5">
-                                  <input
-                                    type="text"
-                                    value={projectNoteTitleDraft}
-                                    onChange={(event) =>
-                                      setProjectNoteTitleDraft(
-                                        event.target.value,
-                                      )
-                                    }
-                                    className="w-full border-b border-b-gray-300 bg-transparent pb-3 text-base font-semibold text-gray-900 outline-none md:text-xl"
-                                    placeholder="Note title"
-                                  />
-                                </div>
+                              </div>
+                            </AppModal>
+                          ) : (
+                            <>
+                              <div className="border-b border-gray-200 px-4 py-4 md:px-5">
+                                <input
+                                  type="text"
+                                  value={projectNoteTitleDraft}
+                                  onChange={(event) =>
+                                    setProjectNoteTitleDraft(event.target.value)
+                                  }
+                                  className="w-full border-b border-b-gray-300 bg-transparent pb-3 text-base font-semibold text-gray-900 outline-none md:text-xl"
+                                  placeholder="Note title"
+                                />
+                              </div>
 
                                 <div className=" flex flex-col mb-4 flex-1 overflow-y-auto p-4 md:p-5">
                                   <RichTextEditor
@@ -2551,7 +2550,7 @@ export default function ProjectDetailPage() {
                                     </>
                                   )}
                                 </div>
-                                <div className="flex items-center justify-end gap-3  px-4 md:px-5 pb-3">
+                                <div className="md:flex md:items-center md:justify-end  grid grid-cols-2 w-full mt-5 md:mt-0 gap-3  px-4 md:px-5 pb-3">
                                   {isEditingProjectNote && (
                                     <>
                                       <ThemeButton

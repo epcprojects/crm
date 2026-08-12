@@ -5,6 +5,7 @@ import {
 
 export class CreateActivityLogDto {
   actorId: string | null;
+  recipientId: string;
 
   projectId: string |null;
 

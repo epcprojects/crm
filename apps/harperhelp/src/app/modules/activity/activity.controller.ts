@@ -14,6 +14,7 @@ import { CreateActivityLogDto } from './dto/create-activity-log.dto';
 import { GetActivityLogsDto } from './dto/get-activity-logs.dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { ApiBearerAuth } from '@nestjs/swagger';
+import { GetUser } from '../../../common/decorators/get-user.decorator';
 
 @Controller('activity')
 @ApiBearerAuth('JWT-auth')
@@ -29,8 +30,8 @@ export class ActivityController {
   }
 
   @Get()
-  findAll(@Query() query: GetActivityLogsDto) {
-    return this.activityLogService.findAllActivities(query);
+  findAll(@Query() query: GetActivityLogsDto, @GetUser() user) {
+    return this.activityLogService.findAllActivities(query, user);
   }
 
   @Get(':id')
