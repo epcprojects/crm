@@ -104,32 +104,66 @@ export class ThreadService {
         isInvitationAccepted: m.isInvitationAccepted, // Include the isInviteAccepted property
       }));
 
-    // Call notification service to send email notifications to participants of the thread
-    await this.notificationsService.dispatch({
-      type: EmailEventType.THREAD_MESSAGE_CREATED,
-      payload: {
-        messageId: message.id,
+    const createdByRecipient = { name: user.fullName, email: user.email };
+    const truncatedMessage = message.message
+      ? message.message.slice(0, 140)
+      : 'New thread message';
+
+    if (dto.parentId) {
+      // Fetch parent so the reply email can show what's being replied to
+      const parent = await this.repo.findOne({
+        where: { id: dto.parentId },
+        select: { id: true, message: true },
+      });
+
+      await this.notificationsService.dispatch({
+        type: EmailEventType.THREAD_REPLY_CREATED,
+        payload: {
+          messageId: message.id,
+          projectId,
+          projectName: project.name,
+          message: msg.message || '',
+          createdBy: createdByRecipient,
+          participants,
+          parentMessage: {
+            id: parent?.id ?? dto.parentId,
+            message: parent?.message ?? '',
+          },
+        },
+      });
+
+      await this.notificationsService.notifyProjectMembers({
         projectId,
-        projectName: project.name,
-        message: msg.message || '',
-        createdBy: { name: user.fullName, email: user.email },
-        participants,
-      },
-    });
+        actorId: user.id,
+        type: NotificationType.THREAD_REPLY,
+        entityType: NotificationEntityType.THREAD_MESSAGE,
+        entityId: msg.id,
+        title: `New reply in project: "${project.name}" by "${user.fullName}"`,
+        message: truncatedMessage,
+      });
+    } else {
+      await this.notificationsService.dispatch({
+        type: EmailEventType.THREAD_MESSAGE_CREATED,
+        payload: {
+          messageId: message.id,
+          projectId,
+          projectName: project.name,
+          message: msg.message || '',
+          createdBy: createdByRecipient,
+          participants,
+        },
+      });
 
-    await this.notificationsService.notifyProjectMembers({
-      projectId,
-      actorId: user.id,
-      type: NotificationType.THREAD_REPLY,
-      entityType: NotificationEntityType.THREAD_MESSAGE,
-      entityId: msg.id,
-      title: `New thread in project: "${project.name}" by "${user.fullName}"`,
-      // message: message.message.slice(0, 140),
-      message: message.message
-        ? message.message.slice(0, 140)
-        : 'New thread message',
-    });
-
+      await this.notificationsService.notifyProjectMembers({
+        projectId,
+        actorId: user.id,
+        type: NotificationType.THREAD_CREATED,
+        entityType: NotificationEntityType.THREAD_MESSAGE,
+        entityId: msg.id,
+        title: `New thread in project: "${project.name}" by "${user.fullName}"`,
+        message: truncatedMessage,
+      });
+    }
     if (mentionedUserIds.length) {
       await this.notificationsService.notifyProjectMembers({
         projectId,

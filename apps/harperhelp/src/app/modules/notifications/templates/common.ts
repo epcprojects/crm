@@ -9,6 +9,7 @@ import {
   ProjectAssignedPayload,
   ThreadMessageCreatedPayload,
   ProjectUnassignedPayload,
+  ThreadReplyCreatedPayload,
 } from '../notifications.types';
 
 const PRIORITY_COLOR: Record<string, string> = {
@@ -333,20 +334,36 @@ const PRIORITY_LABEL: Record<string, string> = {
 
 const DEFAULT_COLOR_HEX = '#667085'; // gray — used when a status/priority value isn't recognized
 
-function pillColorsFromHex(hex: string): { border: string; bg: string; text: string } {
+function pillColorsFromHex(hex: string): {
+  border: string;
+  bg: string;
+  text: string;
+} {
   return {
     border: `${hex}4D`, // ~30% opacity
-    bg: `${hex}1F`,     // ~12% opacity
-    text: hex,          // full opacity
+    bg: `${hex}1F`, // ~12% opacity
+    text: hex, // full opacity
   };
 }
 
-function getStatusPillColors(status: string): { border: string; bg: string; text: string } {
-  return pillColorsFromHex(STATUS_COLOR_HEX[normalizeKey(status)] ?? DEFAULT_COLOR_HEX);
+function getStatusPillColors(status: string): {
+  border: string;
+  bg: string;
+  text: string;
+} {
+  return pillColorsFromHex(
+    STATUS_COLOR_HEX[normalizeKey(status)] ?? DEFAULT_COLOR_HEX,
+  );
 }
 
-function getPriorityPillColors(priority: string): { border: string; bg: string; text: string } {
-  return pillColorsFromHex(PRIORITY_COLOR_HEX[normalizeKey(priority)] ?? DEFAULT_COLOR_HEX);
+function getPriorityPillColors(priority: string): {
+  border: string;
+  bg: string;
+  text: string;
+} {
+  return pillColorsFromHex(
+    PRIORITY_COLOR_HEX[normalizeKey(priority)] ?? DEFAULT_COLOR_HEX,
+  );
 }
 
 function getStatusLabel(status: string): string {
@@ -356,7 +373,6 @@ function getStatusLabel(status: string): string {
 function getPriorityLabel(priority: string): string {
   return PRIORITY_LABEL[normalizeKey(priority)] ?? priority;
 }
-
 
 function formatStatusLabel(status: string): string {
   return status
@@ -405,6 +421,10 @@ function escapeHtml(value: unknown): string {
 }
 
 function truncate(value: string, max = MAX_ROW_VALUE_LEN): string {
+  if (!value) return '';
+  return value.length > max ? `${value.slice(0, max)}…` : value;
+}
+function truncateSubject(value: string, max = 80): string {
   if (!value) return '';
   return value.length > max ? `${value.slice(0, max)}…` : value;
 }
@@ -557,7 +577,7 @@ function dataRowHtml(row: DataRow, isFirst: boolean): string {
             </td>
         </tr>
     </table>`;
-    } else if (row.dot) {
+  } else if (row.dot) {
     valueCell = `
     <table role="presentation" cellpadding="0" cellspacing="0" border="0"
         style="border:1px solid #E5E7EB;border-radius:6px;border-collapse:separate;background-color:#FFFFFF;">
@@ -581,7 +601,9 @@ function dataRowHtml(row: DataRow, isFirst: boolean): string {
     valueCell = escapeHtml(truncate(row.value));
   }
 
-  const valueCellPadding = row.compound ? '0 16px 16px 16px' : `${topPad} 16px 16px 16px`;
+  const valueCellPadding = row.compound
+    ? '0 16px 16px 16px'
+    : `${topPad} 16px 16px 16px`;
 
   return `
                                                                                                                             <tr>
@@ -1032,7 +1054,10 @@ export function buildProjectCreatedEmail(
     { label: 'Project', value: `${p.projectCode} - ${p.projectName}` },
     { label: 'Created by', value: p.createdBy.name },
     // ...(p.description ? [{ label: 'Description', value: p.description }] : []),
-    { label: 'Team', value: `${p.members.length} member${p.members.length === 1 ? '' : 's'}` },
+    {
+      label: 'Team',
+      value: `${p.members.length} member${p.members.length === 1 ? '' : 's'}`,
+    },
   ];
 
   const html = renderNotificationEmail({
@@ -1047,7 +1072,7 @@ export function buildProjectCreatedEmail(
   });
 
   return {
-    subject: `[${p.projectCode}] Project "${p.projectName}" has been created`,
+    subject: `[${p.projectCode}] Project "${truncateSubject(p.projectName)}" has been created`,
     html,
   };
 }
@@ -1059,13 +1084,25 @@ export function buildTicketCreatedEmail(
   const rows: DataRow[] = [
     { label: 'Ticket', value: `${p.ticketNumber} - ${p.title}` },
     { label: 'Project', value: p.projectName },
-    { label: 'Status', value: p.status, badgeColor: STATUS_COLOR[p.status.toLowerCase()] ?? '#6B7280' },
+    {
+      label: 'Status',
+      value: p.status,
+      badgeColor: STATUS_COLOR[p.status.toLowerCase()] ?? '#6B7280',
+    },
     ...(p.priority
-      ? [{ label: 'Priority', value: p.priority, badgeColor: PRIORITY_COLOR[p.priority.toLowerCase()] ?? '#6B7280' }]
+      ? [
+          {
+            label: 'Priority',
+            value: p.priority,
+            badgeColor: PRIORITY_COLOR[p.priority.toLowerCase()] ?? '#6B7280',
+          },
+        ]
       : []),
     { label: 'Created by', value: p.createdBy.name },
     // ...(p.assignee ? [{ label: 'Assigned to', value: p.assignee.name }] : []),
-    // ...(p.description ? [{ label: 'Description', value: p.description }] : []),
+    ...(p.description
+      ? [{ label: 'Description', value: htmlToText(p.description) }]
+      : []),
   ];
 
   const html = renderNotificationEmail({
@@ -1080,7 +1117,7 @@ export function buildTicketCreatedEmail(
   });
 
   return {
-    subject: `[${p.ticketNumber}] New ticket: ${p.title}`,
+    subject: `[${p.ticketNumber}] New ticket: ${truncateSubject(p.title)}`,
     html,
   };
 }
@@ -1093,7 +1130,7 @@ export function buildStatusUpdatedEmail(
     { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
     { label: 'Project', value: p.projectName },
     { label: 'Updated by', value: p.updatedBy.name },
-{
+    {
       label: 'Update',
       value: '',
       compound: {
@@ -1129,7 +1166,7 @@ export function buildPriorityUpdatedEmail(
     { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
     { label: 'Project', value: p.projectName },
     { label: 'Updated by', value: p.updatedBy.name },
-{
+    {
       label: 'Update',
       value: '',
       compound: {
@@ -1164,6 +1201,7 @@ export function buildAssigneeUpdatedEmail(
   const rows: DataRow[] = [
     { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
     { label: 'Project', value: p.projectName },
+    { label: 'assigned to', value: p.newAssignee.name },
     // ...(p.priority
     //   ? [{
     //       label: 'Priority',
@@ -1245,7 +1283,7 @@ export function buildProjectAssignedEmail(
   });
 
   return {
-    subject: `Project "${p.projectName}" has been assigned to you`,
+    subject: `Project "${truncateSubject(p.projectName)}" has been assigned to you`,
     html,
   };
 }
@@ -1272,11 +1310,10 @@ export function buildProjectUnassignedEmail(
   });
 
   return {
-    subject: `Project "${p.projectName}" has been unassigned from you`,
+    subject: `Project "${truncateSubject(p.projectName)}" has been unassigned from you`,
     html,
   };
 }
-
 
 export function buildThreadMessageCreatedEmail(
   p: ThreadMessageCreatedPayload,
@@ -1294,13 +1331,73 @@ export function buildThreadMessageCreatedEmail(
     title: 'New Thread Message',
     subheading: `${p.createdBy.name} posted a new message in ${p.projectName}.`,
     rows,
-    buttonText: 'View Message',
+    buttonText: 'View Thread',
     buttonUrl: `${appUrl}/projects/${p.projectId}?t=1`,
     showReplyCallout: false,
   });
 
   return {
-    subject: `New thread message in ${p.projectName}`,
+    subject: `New thread message in ${truncateSubject(p.projectName)}`,
     html,
   };
+}
+
+export function buildThreadReplyCreatedEmail(
+  p: ThreadReplyCreatedPayload,
+  appUrl: string,
+): { subject: string; html: string } {
+  const rows: DataRow[] = [
+    { label: 'Project', value: p.projectName },
+    { label: 'Thread Message', value: p.parentMessage.message },
+    { label: 'Posted by', value: p.createdBy.name },
+    { label: 'Reply Posted', value: p.message },
+  ];
+
+  const html = renderNotificationEmail({
+    appUrl,
+    iconFileName: 'ThreadMessageIcon.png',
+    title: 'New Thread Reply',
+    subheading: `${p.createdBy.name} posted a new reply in ${p.projectName}.`,
+    rows,
+    buttonText: 'View Thread Reply',
+    buttonUrl: `${appUrl}/projects/${p.projectId}?t=1`,
+    showReplyCallout: false,
+  });
+
+  return {
+    subject: `New thread reply in ${truncateSubject(p.projectName)}`,
+    html,
+  };
+}
+
+function htmlToText(html: string): string {
+  if (!html) return '';
+
+  let text = html
+    // block-level tags → line breaks before stripping
+    .replace(/<\/(p|div|h[1-6]|blockquote|section|article)>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '• ')
+    // strip all remaining tags
+    .replace(/<[^>]*>/g, '');
+
+  // decode common HTML entities
+  text = text
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'");
+
+  // trim each line, collapse 3+ blank lines down to a max of one blank line
+  text = text
+    .split('\n')
+    .map((line) => line.trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n');
+
+  return text.trim();
 }

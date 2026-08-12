@@ -703,6 +703,23 @@ export class TicketsService {
       (id): id is string => !!id && id !== userId,
     );
     const fullname = await this.usersService.getFullName(userId);
+    if (
+      dto.assigneeId !== undefined &&
+      dto.assigneeId !== oldTicket.assigneeId
+    ) {
+      if (dto.assigneeId) {
+        const newAssigneeEntity = await this.userRepo.findOne({
+          where: { id: dto.assigneeId },
+        });
+        if (!newAssigneeEntity)
+          throw new NotFoundException('Assignee not found');
+        ticket.assignee = newAssigneeEntity;
+        ticket.assigneeId = dto.assigneeId;
+      } else {
+        ticket.assignee = null;
+        ticket.assigneeId = null;
+      }
+    }
     await this.ticketRepo.save(ticket);
     // Re-fetch updated ticket with all relations required by email notifications
     const updatedTicket = await this.ticketRepo.findOne({
@@ -922,9 +939,8 @@ export class TicketsService {
       }
     }
 
-    if (
-      oldTicket.title !== dto.title &&
-      oldTicket.description === dto.description
+    if (dto.title !== undefined && 
+      oldTicket.title !== dto.title
     ) {
       await this.notificationsService.notifyProjectMembers({
         projectId: ticket.projectId,

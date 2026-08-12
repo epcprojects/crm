@@ -19,6 +19,7 @@ import {
   ProjectAssignedPayload,
   ThreadMessageCreatedPayload,
   ProjectUnassignedPayload,
+  ThreadReplyCreatedPayload,
 } from './notifications.types';
 import {
   buildProjectCreatedEmail,
@@ -31,6 +32,7 @@ import {
   buildProjectAssignedEmail,
   buildThreadMessageCreatedEmail,
   buildProjectUnassignedEmail,
+  buildThreadReplyCreatedEmail,
 } from './templates/common';
 import { SqsNotificationQueueService } from './queue/sqs-notification-queue.service';
 import { DataSource, Repository } from 'typeorm';
@@ -177,6 +179,8 @@ export class NotificationsService {
         return this.onProjectUnassigned(event.payload);
       case EmailEventType.THREAD_MESSAGE_CREATED: // done
         return this.onThreadMessageCreated(event.payload);
+      case EmailEventType.THREAD_REPLY_CREATED: // done
+        return this.onThreadReplyCreated(event.payload);
       case EmailEventType.TICKET_CREATED: // done
         return this.onTicketCreated(event.payload);
       case EmailEventType.TICKET_REPLY_POSTED: // almost done
@@ -233,6 +237,23 @@ export class NotificationsService {
     p: ThreadMessageCreatedPayload,
   ): Promise<void> {
     const { subject, html } = buildThreadMessageCreatedEmail(
+      p,
+      this.appUrl,
+      // this.appName,
+    );
+    // Internal notes: exclude the poster themselves from the notification list
+    const recipients = p.participants.filter(
+      (r) => r.email !== p.createdBy.email && r.isInvitationAccepted === true,
+    );
+    // Notify all members
+    await this.sendBulk(recipients, subject, html);
+    // Notify all participants
+    // await this.sendBulk(p.participants, subject, html);
+  }
+  private async onThreadReplyCreated(
+    p: ThreadReplyCreatedPayload,
+  ): Promise<void> {
+    const { subject, html } = buildThreadReplyCreatedEmail(
       p,
       this.appUrl,
       // this.appName,
