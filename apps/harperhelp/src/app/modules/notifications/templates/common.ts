@@ -625,7 +625,7 @@ export function renderNotificationEmail(
     internalNote = false,
   } = params;
 
-  const logoUrl = iconUrl(appUrl, 'HarperLogoIcon.svg');
+  const logoUrl = iconUrl(appUrl, 'HarperLogo.png');
   const bannerIconUrl = iconUrl(appUrl, iconFileName);
   const notificationIconUrl = iconUrl(appUrl, 'EmailNotificationIcon.png');
 

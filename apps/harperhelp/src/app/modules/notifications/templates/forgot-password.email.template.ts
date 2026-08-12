@@ -327,7 +327,7 @@ export function forgotPasswordTemplate({
                         "
                     >
                         <img
-                            src="${appUrl}/images/Banners/HarperLogoIcon.svg"
+                            src="${appUrl}/images/Banners/HarperLogo.png"
                             width="30"
                             alt=""
                             style="
