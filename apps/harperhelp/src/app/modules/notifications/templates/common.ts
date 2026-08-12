@@ -1062,7 +1062,7 @@ export function buildProjectCreatedEmail(
 
   const html = renderNotificationEmail({
     appUrl,
-    iconFileName: 'ProjectCreatedIcon.png',
+    iconFileName: 'ProjectAssignedIcon.png',
     title: 'New Project Created',
     subheading: `${p.createdBy.name} created a new project you're part of.`,
     rows,
