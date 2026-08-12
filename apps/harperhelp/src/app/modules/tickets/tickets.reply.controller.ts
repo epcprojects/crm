@@ -12,6 +12,7 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { CreateReplyDto } from './dto/create-reply.dto';
@@ -21,6 +22,7 @@ import {
   ApiBody,
   ApiConsumes,
   ApiOperation,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { GetUser } from '../../../common/decorators/get-user.decorator';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
@@ -36,10 +38,23 @@ export class TicketRepliesController {
 
   @Get('replies')
   @ApiOperation({
-    description: 'Returns all replies of a ticket.',
+    description: 'Returns all replies of a ticket. now using Pagination',
   })
-  findAll(@Param('ticketId', ParseUUIDPipe) ticketId: string) {
-    return this.service.findByTicket(ticketId);
+  @ApiQuery({name: 'limit',required: false,type: String,description: 'Page size (default 30, max 100)',})
+  @ApiQuery({name: 'cursorCreatedAt',required: false, type: String, description: 'createdAt of the oldest reply from the previous page',})
+  @ApiQuery({name: 'cursorId',required: false,type: String,description: 'id of the oldest reply from the previous page', })
+  findAll(
+    @Param('ticketId', ParseUUIDPipe) ticketId: string,
+    @Query('limit') limit?: string,
+    @Query('cursorCreatedAt') cursorCreatedAt?: string,
+    @Query('cursorId') cursorId?: string,
+  ) {
+    const cursor =
+      cursorCreatedAt && cursorId
+        ? { createdAt: new Date(cursorCreatedAt), id: cursorId }
+        : undefined;
+    const parsedLimit = limit ? Math.min(parseInt(limit, 10), 100) : 30;
+    return this.service.findByTicket(ticketId, parsedLimit, cursor);
   }
 
   @Post('projects/:pid')
@@ -132,17 +147,17 @@ export class TicketRepliesController {
     description: 'Adds or updates a reaction on a ticket reply.',
   })
   @ApiBody({
-  schema: {
-    type: 'object',
-    properties: {
-      emoji: {
-        type: 'string',
-        example: '❤️',
+    schema: {
+      type: 'object',
+      properties: {
+        emoji: {
+          type: 'string',
+          example: '❤️',
+        },
       },
+      required: ['emoji'],
     },
-    required: ['emoji'],
-  },
-})
+  })
   addReaction(
     @Param('pid', ParseUUIDPipe) pid: string,
     @Param('ticketId', ParseUUIDPipe) ticketId: string,

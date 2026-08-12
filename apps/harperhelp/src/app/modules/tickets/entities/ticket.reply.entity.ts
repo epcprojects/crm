@@ -6,6 +6,7 @@ import { User } from '../../users/entities/user.entity';
 
 @Entity('ticket_replies')
 @Index(['ticketId'])
+@Index(['ticketId', 'createdAt', 'id'])
 export class TicketReply extends BaseEntity {
   @Column('uuid')
   ticketId: string;
