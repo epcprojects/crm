@@ -546,8 +546,7 @@ export default function TicketDetailPage() {
     useState<TicketSidebarTabKey>('quick-links');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
-  const [isEditContentModalOpen, setIsEditContentModalOpen] =
-  useState(false);
+  const [isEditContentModalOpen, setIsEditContentModalOpen] = useState(false);
 
   const [isDescriptionModalOpen, setIsDescriptionModalOpen] = useState(false);
   // const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
@@ -1459,23 +1458,21 @@ export default function TicketDetailPage() {
     }
   };
 
-const handleStartEditingContent = () => {
-  if (!canEditTitleDescription) {
-    return;
-  }
+  const handleStartEditingContent = () => {
+    if (!canEditTitleDescription) {
+      return;
+    }
 
-  setTitleDraft(ticket.title);
-  setDescriptionDraft(ticket.description ?? '');
-  setIsEditContentModalOpen(true);
+    setTitleDraft(ticket.title);
+    setDescriptionDraft(ticket.description ?? '');
+    setIsEditContentModalOpen(true);
+  };
 
-
-};
-
-const handleCancelEditingContent = () => {
-  setTitleDraft(ticket.title);
-  setDescriptionDraft(ticket.description ?? '');
-  setIsEditContentModalOpen(false);
-};
+  const handleCancelEditingContent = () => {
+    setTitleDraft(ticket.title);
+    setDescriptionDraft(ticket.description ?? '');
+    setIsEditContentModalOpen(false);
+  };
 
   const handleSaveTicketContent = async () => {
     if (!canEditTitleDescription) {
@@ -1945,7 +1942,7 @@ const handleCancelEditingContent = () => {
               <section className="rounded-xl border border-gray-200 bg-white p-3  md:p-5">
                 <div className=" relative">
                   <div className="mb-2 flex absolute top-0 inset-e-0 items-start justify-end">
-                   {canEditTitleDescription ? (
+                    {canEditTitleDescription ? (
                       <button
                         type="button"
                         onClick={handleStartEditingContent}
@@ -2016,10 +2013,10 @@ const handleCancelEditingContent = () => {
                     </div>
                   )} */}
                   <div className="block w-full text-left">
-  <h2 className="pr-10 text-base font-semibold leading-8 text-gray-900 md:text-xl">
-    {ticket.title}
-  </h2>
-</div>
+                    <h2 className="pr-10 text-base font-semibold leading-8 text-gray-900 md:text-xl">
+                      {ticket.title}
+                    </h2>
+                  </div>
 
                   {/* {isEditingDescription ? (
                     <div className="mt-4">
@@ -2085,32 +2082,30 @@ const handleCancelEditingContent = () => {
                     </div>
                   )} */}
                   <div className="mt-2 max-h-52 w-full overflow-y-auto text-left tiny-scrollbar">
-  {hasDescriptionContent ? (
-    <>
-      <div
-        ref={descriptionContentRef}
-        className="rich-text-content line-clamp-2 text-sm text-gray-700"
-        dangerouslySetInnerHTML={{
-          __html: sanitizedDescription,
-        }}
-      />
+                    {hasDescriptionContent ? (
+                      <>
+                        <div
+                          ref={descriptionContentRef}
+                          className="rich-text-content line-clamp-2 text-sm text-gray-700"
+                          dangerouslySetInnerHTML={{
+                            __html: sanitizedDescription,
+                          }}
+                        />
 
-      {shouldShowDescriptionToggle ? (
-        <button
-          type="button"
-          onClick={() => setIsDescriptionModalOpen(true)}
-          className="mt-1 inline-flex cursor-pointer text-sm font-medium text-[#8A38F5]"
-        >
-          ... read more
-        </button>
-      ) : null}
-    </>
-  ) : (
-    <p className="text-sm text-gray-700">
-      Add description
-    </p>
-  )}
-</div>
+                        {shouldShowDescriptionToggle ? (
+                          <button
+                            type="button"
+                            onClick={() => setIsDescriptionModalOpen(true)}
+                            className="mt-1 inline-flex cursor-pointer text-sm font-medium text-[#8A38F5]"
+                          >
+                            ... read more
+                          </button>
+                        ) : null}
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-700">Add description</p>
+                    )}
+                  </div>
                 </div>
               </section>
               <div
@@ -2759,69 +2754,63 @@ const handleCancelEditingContent = () => {
           </div>
         </div>
       </AppModal>
-   
-   <AppModal
-  isOpen={isEditContentModalOpen}
-  onClose={handleCancelEditingContent}
-  onCancel={handleCancelEditingContent}
-  onConfirm={() => void handleSaveTicketContent()}
-  title="Edit Ticket"
-  size="large"
-  showFooter
-  confirmLabel={
-    updateTicketMutation.isPending ? 'Updating...' : 'Update'
-  }
-  cancelLabel="Discard"
-  confimBtnDisable={
-    updateTicketMutation.isPending || !titleDraft.trim()
-  }
-  disableCloseButton={updateTicketMutation.isPending}
-  outSideClickClose={!updateTicketMutation.isPending}
-  scrollNeeded={false}
-  bodyPaddingClasses="flex min-h-0 flex-1 overflow-hidden p-0!"
->
-  <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
-    <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-hidden p-4 md:p-5">
-      <div className="shrink-0">
-        <label
-          htmlFor="edit-ticket-title"
-          className="mb-1.5 block text-sm font-normal text-gray-800 md:text-base"
-        >
-          Title
-        </label>
 
-        <input
-          id="edit-ticket-title"
-          type="text"
-          value={titleDraft}
-          autoFocus
-          disabled={updateTicketMutation.isPending}
-          onChange={(event) =>
-            setTitleDraft(event.target.value)
-          }
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') {
-              handleCancelEditingContent();
-            }
-          }}
-          placeholder="Enter ticket title"
-          className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 outline-none placeholder:text-gray-300 focus:border-gray-400 md:text-base"
-        />
-      </div>
-      <div className="flex min-h-0 flex-1 flex-col">
-        <label className="mb-1.5 block shrink-0 text-sm font-normal text-gray-800 md:text-base">
-          Description
-        </label>
+      <AppModal
+        isOpen={isEditContentModalOpen}
+        onClose={handleCancelEditingContent}
+        onCancel={handleCancelEditingContent}
+        onConfirm={() => void handleSaveTicketContent()}
+        title="Edit Ticket"
+        size="large"
+        showFooter
+        confirmLabel={updateTicketMutation.isPending ? 'Updating...' : 'Update'}
+        cancelLabel="Discard"
+        confimBtnDisable={updateTicketMutation.isPending || !titleDraft.trim()}
+        disableCloseButton={updateTicketMutation.isPending}
+        outSideClickClose={!updateTicketMutation.isPending}
+        scrollNeeded={false}
+        bodyPaddingClasses="flex min-h-0 flex-1 overflow-hidden p-0!"
+      >
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
+          <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-hidden p-4 md:p-5">
+            <div className="shrink-0">
+              <label
+                htmlFor="edit-ticket-title"
+                className="mb-1.5 block text-sm font-normal text-gray-800 md:text-base"
+              >
+                Title
+              </label>
 
-        <RichTextEditor
-          value={descriptionDraft}
-          onChange={setDescriptionDraft}
-          placeholder="Describe the issue in detail..."
-          maxLength={MAX_DESCRIPTION_LENGTH}
-          disabled={updateTicketMutation.isPending}
-          showCharacterCount
-          editorClassName="text-sm font-normal text-gray-700"
-          className="
+              <input
+                id="edit-ticket-title"
+                type="text"
+                value={titleDraft}
+                autoFocus
+                disabled={updateTicketMutation.isPending}
+                onChange={(event) => setTitleDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') {
+                    handleCancelEditingContent();
+                  }
+                }}
+                placeholder="Enter ticket title"
+                className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 outline-none placeholder:text-gray-300 focus:border-gray-400 md:text-base"
+              />
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col">
+              <label className="mb-1.5 block shrink-0 text-sm font-normal text-gray-800 md:text-base">
+                Description
+              </label>
+
+              <RichTextEditor
+                value={descriptionDraft}
+                onChange={setDescriptionDraft}
+                placeholder="Describe the issue in detail..."
+                maxLength={MAX_DESCRIPTION_LENGTH}
+                disabled={updateTicketMutation.isPending}
+                showCharacterCount
+                editorClassName="text-sm font-normal text-gray-700"
+                className="
             flex min-h-0 flex-1 flex-col
             [&_.rich-text-editor]:min-h-0
             [&_.rich-text-editor]:flex-1
@@ -2830,11 +2819,11 @@ const handleCancelEditingContent = () => {
             [&_.rich-text-scroll-area]:shrink
             [&_.rich-text-scroll-area]:overflow-y-auto
           "
-        />
-      </div>
-    </div>
-  </div>
-</AppModal>
+              />
+            </div>
+          </div>
+        </div>
+      </AppModal>
       <ConfirmActionModal
         isOpen={Boolean(chatMessagePendingDelete)}
         onClose={() => {
