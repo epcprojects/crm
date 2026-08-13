@@ -245,37 +245,31 @@ export default function TicketDetailPage() {
       attachments: File[];
       mentionedUserIds: string[];
     }) => {
-      const formData = new FormData();
-      if (message.trim()) {
-        formData.append('message', message.trim());
-      }
-
-      mentionedUserIds.forEach((mentionedUserId) => {
-        if (mentionedUserId.trim()) {
-          formData.append('mentionedUserIds', mentionedUserId.trim());
-        }
-      });
-
-      attachments.forEach((attachment) => {
-        formData.append('attachments', attachment);
-      });
+      const uploadedAttachments = attachments.length
+        ? await uploadReplyAttachments(attachments)
+        : [];
 
       const response = await fetch(
         `/api/tickets/${ticketId}/replies?projectId=${encodeURIComponent(projectId)}`,
         {
           method: 'POST',
-          body: formData,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: message.trim(),
+            mentionedUserIds,
+            attachments: uploadedAttachments,
+          }),
         },
       );
 
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        const message =
+        const errorMessage =
           Array.isArray(data?.message) && data.message.length
             ? data.message.join(', ')
             : data?.message || 'Failed to create reply.';
-        throw new Error(message);
+        throw new Error(errorMessage);
       }
 
       return data;
@@ -3630,6 +3624,59 @@ type UploadedProjectFile = {
   mimeType?: string | null;
 };
 
+type UploadedFileDto = {
+  storageKey: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+};
+
+async function uploadFileDirectly(file: File): Promise<UploadedFileDto> {
+  const key = `tickets/replies/${crypto.randomUUID()}/${file.name}`;
+
+  const presignParams = new URLSearchParams({
+    key,
+    action: 'upload',
+    contentType: file.type || 'application/octet-stream',
+  });
+
+  const presignRes = await fetch(
+    `/api/utility/presigned-url?${presignParams.toString()}`,
+    { method: 'GET' },
+  );
+
+  const presignData = await presignRes.json().catch(() => null);
+
+  if (!presignRes.ok || !presignData?.url) {
+    throw new Error(
+      presignData?.message || `Failed to get upload URL for ${file.name}.`,
+    );
+  }
+
+  const putRes = await fetch(presignData.url, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    body: file,
+  });
+
+  if (!putRes.ok) {
+    throw new Error(`Failed to upload ${file.name} to storage.`);
+  }
+
+  return {
+    storageKey: key,
+    originalName: file.name,
+    mimeType: file.type || 'application/octet-stream',
+    sizeBytes: file.size,
+  };
+}
+
+async function uploadReplyAttachments(
+  files: File[],
+): Promise<UploadedFileDto[]> {
+  return Promise.all(files.map(uploadFileDirectly));
+}
+
 async function uploadChatAttachments(
   projectId: string,
   attachments: File[],
@@ -3926,31 +3973,6 @@ async function fetchUnreadIndicator(
   return false;
 }
 
-function getIncomingChatToastMessage(
-  channel: ChatChannel,
-  message: ChatMessage,
-) {
-  const senderName =
-    message.sender?.fullName?.trim() ||
-    message.sender?.name?.trim() ||
-    'Someone';
-  const messagePreview = message.message.trim();
-
-  if (message.messageType === 'attachment' && !messagePreview) {
-    return `New message in: ${senderName} sent an attachment.`;
-  }
-
-  if (message.messageType === 'attachment') {
-    return `New message: ${senderName} sent ${messagePreview}.`;
-  }
-
-  if (!messagePreview) {
-    return `New message in from ${senderName}.`;
-  }
-
-  return `New message from ${senderName}: ${messagePreview}`;
-}
-
 function toDateInputValue(value: string) {
   if (!value) {
     return '';
@@ -3990,29 +4012,6 @@ function formatReplyDate(value: string) {
     hour: 'numeric',
     minute: '2-digit',
   }).format(date);
-}
-
-function formatTimelineDate(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  const formattedDate = new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: '2-digit',
-    year: 'numeric',
-  }).format(date);
-
-  const formattedTime = new Intl.DateTimeFormat('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
-
-  return formattedTime
-    ? `${formattedDate}  •  ${formattedTime}`
-    : formattedDate;
 }
 
 function formatTimelineDateTime(value: string) {
