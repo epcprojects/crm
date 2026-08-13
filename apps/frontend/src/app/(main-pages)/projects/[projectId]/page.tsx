@@ -47,7 +47,10 @@ import ProjectFilesPanel, {
 } from '../../../../components/projects/ProjectFilesPanel';
 import RichTextEditor from '../../../../components/RichTextEditor';
 import { createTicketProjectOptions } from '../../../../components/modals/create-ticket-modal.data';
-import RecentTicketsTable from '../../../../components/tables/RecentTicketsTable';
+import RecentTicketsTable, {
+  type RecentTicket,
+} from '../../../../components/tables/RecentTicketsTable';
+import TicketsKanbanView from '../../../../components/tickets/TicketsKanbanView';
 import { appToast } from '../../../../components/toast/AppToast';
 import {
   EditIcon,
@@ -96,6 +99,8 @@ import DashboardSummaryBanner from '../../../../components/ui/DashboardSummaryBa
 import EmptyState from '../../../../components/EmptyState';
 import AppModal from '../../../../components/modals/AppModal';
 import { fetchProjectMembers } from '../../../../lib/project-members';
+import { RecentTicketsTableSkeleton } from '../../dashboard/page';
+import { KanbanViewIcon, TableViewIcon } from '../../tickets/page';
 
 const projectTabs = [
   'Tickets',
@@ -116,12 +121,23 @@ const projectTabQueryParamMap: Record<
 };
 const PROJECT_TICKETS_STATUS_QUERY_PARAM = 'ticketStatus';
 const PROJECT_TICKETS_PRIORITY_QUERY_PARAM = 'ticketPriority';
+const PROJECT_TICKETS_PAGE_SIZE_QUERY_PARAM = 'size';
+const PROJECT_TICKETS_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+const PROJECT_TICKETS_VIEW_QUERY_PARAM = 'ticketView';
 const PROJECT_NOTES_LIMIT = 50;
 const MAX_PROJECT_NOTE_DESCRIPTION_LENGTH = 4000;
 
 type SocketTokenResponse = {
   accessToken: string;
   socketUrl: string;
+};
+type ProjectTicketsCacheData = {
+  items: RecentTicket[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+  };
 };
 
 export default function ProjectDetailPage() {
@@ -154,6 +170,7 @@ export default function ProjectDetailPage() {
   const canCreateProjectNote = hasPermission('projects_notes.create');
   const canEditProjectNote = hasPermission('projects_notes.edit');
   const canDeleteProjectNote = hasPermission('projects_notes.delete');
+  const canEditTicketStatus = hasPermission('tickets.edit_status');
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [uploadFileOpen, setUploadFileOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
@@ -181,10 +198,39 @@ export default function ProjectDetailPage() {
     useState<ProjectNoteRecord | null>(null);
   const [threadSocketToken, setThreadSocketToken] =
     useState<SocketTokenResponse | null>(null);
-  const [ticketsPagination, setTicketsPagination] = useState({
-    pageIndex: 0,
-    pageSize: 10,
+  const [ticketsPagination, setTicketsPagination] = useState(() => {
+    const requestedPageSize = Number(
+      searchParams.get(PROJECT_TICKETS_PAGE_SIZE_QUERY_PARAM),
+    );
+
+    return {
+      pageIndex: 0,
+      pageSize: PROJECT_TICKETS_PAGE_SIZE_OPTIONS.includes(requestedPageSize)
+        ? requestedPageSize
+        : 10,
+    };
   });
+  const handleProjectTicketsPaginationChange = (
+    nextPagination: typeof ticketsPagination,
+  ) => {
+    setTicketsPagination(nextPagination);
+
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+
+    nextSearchParams.set(
+      PROJECT_TICKETS_PAGE_SIZE_QUERY_PARAM,
+      String(nextPagination.pageSize),
+    );
+
+    const nextQueryString = nextSearchParams.toString();
+
+    router.replace(
+      nextQueryString ? `${pathname}?${nextQueryString}` : pathname,
+      {
+        scroll: false,
+      },
+    );
+  };
   const projectId = String(params?.projectId ?? '');
   const selectedStatus = getDashboardStatusFilterValue(
     searchParams.get(PROJECT_TICKETS_STATUS_QUERY_PARAM),
@@ -192,6 +238,10 @@ export default function ProjectDetailPage() {
   const selectedPriority = getProjectTicketFilterValue(
     searchParams.get(PROJECT_TICKETS_PRIORITY_QUERY_PARAM),
   );
+  const projectTicketsViewMode =
+    searchParams.get(PROJECT_TICKETS_VIEW_QUERY_PARAM) === 'kanban'
+      ? 'kanban'
+      : 'table';
   const hasShownError = useRef(false);
   const queryClient = useQueryClient();
   const updateProjectThreadReplyCount = (
@@ -257,8 +307,12 @@ export default function ProjectDetailPage() {
   const projectTicketsQuery = useProjectTicketsQuery(
     projectId,
     {
-      page: ticketsPagination.pageIndex + 1,
-      limit: ticketsPagination.pageSize,
+      page:
+        projectTicketsViewMode === 'kanban'
+          ? 1
+          : ticketsPagination.pageIndex + 1,
+      limit:
+        projectTicketsViewMode === 'kanban' ? 100 : ticketsPagination.pageSize,
       search: searchValue.trim() || undefined,
       statusKey: selectedStatus === 'all' ? undefined : selectedStatus,
       priorityKey: selectedPriority === 'all' ? undefined : selectedPriority,
@@ -335,7 +389,312 @@ export default function ProjectDetailPage() {
     ],
     [ticketStatusesQuery.data],
   );
+  const kanbanStatusOptions = useMemo(
+    () =>
+      (ticketStatusesQuery.data ?? []).map((status) => ({
+        id: status.id,
+        label: status.label,
+        value: status.key,
+        color: status.color,
+      })),
+    [ticketStatusesQuery.data],
+  );
+  const statusMetadataByKey = useMemo(
+  () =>
+    new Map(
+      (ticketStatusesQuery.data ?? []).map((status) => [
+        status.key,
+        {
+          label: status.label,
+          color: status.color,
+        },
+      ]),
+    ),
+  [ticketStatusesQuery.data],
+);
+const moveProjectTicketMutation = useMutation({
+  mutationFn: async ({
+    ticket,
+    statusKey,
+  }: {
+    ticket: RecentTicket;
+    statusKey: string;
+  }) => {
+    const response = await fetch(
+      `/api/projects/${projectId}/tickets/${ticket.id}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          statusKey,
+        }),
+      },
+    );
 
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      const message =
+        Array.isArray(data?.message) && data.message.length
+          ? data.message.join(', ')
+          : data?.message || 'Failed to update ticket status.';
+
+      throw new Error(message);
+    }
+
+    return {
+      ticket,
+      statusKey,
+    };
+  },
+
+  onMutate: async ({ ticket, statusKey }) => {
+    const projectTicketsKey = [
+      ...projectTicketsQueryKey,
+      projectId,
+    ];
+
+    const nextStatus = statusMetadataByKey.get(statusKey);
+
+    await queryClient.cancelQueries({
+      queryKey: projectTicketsKey,
+    });
+
+    const previousQueries =
+      queryClient.getQueriesData<ProjectTicketsCacheData>({
+        queryKey: projectTicketsKey,
+      });
+
+    queryClient.setQueriesData<ProjectTicketsCacheData>(
+      {
+        queryKey: projectTicketsKey,
+      },
+      (current) => {
+        if (!current) {
+          return current;
+        }
+
+        return {
+          ...current,
+          items: current.items.map((currentTicket) =>
+            currentTicket.id === ticket.id
+              ? {
+                  ...currentTicket,
+                  status:
+                    nextStatus?.label ?? currentTicket.status,
+                  statusColor:
+                    nextStatus?.color ??
+                    currentTicket.statusColor,
+                }
+              : currentTicket,
+          ),
+        };
+      },
+    );
+
+    return {
+      previousQueries,
+    };
+  },
+
+  onError: (error, _variables, context) => {
+    context?.previousQueries.forEach(([queryKey, data]) => {
+      queryClient.setQueryData(queryKey, data);
+    });
+
+    appToast.error(
+      error instanceof Error
+        ? error.message
+        : 'Failed to update ticket status.',
+    );
+  },
+
+  onSuccess: () => {
+    appToast.success('Ticket status updated successfully.');
+  },
+
+  onSettled: async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: [...projectTicketsQueryKey, projectId],
+      }),
+
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard-project-tickets'],
+        refetchType: 'all',
+      }),
+
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'recent-tickets'],
+        refetchType: 'all',
+      }),
+
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'upcoming'],
+        refetchType: 'all',
+      }),
+
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'critical-tickets'],
+        refetchType: 'all',
+      }),
+
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard', 'ticket-summary'],
+        refetchType: 'all',
+      }),
+    ]);
+  },
+});
+const handleMoveProjectTicket = async (
+  ticket: RecentTicket,
+  nextStatusKey: string,
+) => {
+  if (
+    !canEditTicketStatus ||
+    moveProjectTicketMutation.isPending
+  ) {
+    return;
+  }
+
+  const nextStatus = statusMetadataByKey.get(nextStatusKey);
+
+  if (!nextStatus || ticket.status === nextStatus.label) {
+    return;
+  }
+
+  await moveProjectTicketMutation.mutateAsync({
+    ticket,
+    statusKey: nextStatusKey,
+  });
+};
+const reorderProjectStatusMutation = useMutation({
+  mutationFn: async ({
+    statusId,
+    newIndex,
+  }: {
+    statusId: string;
+    newIndex: number;
+  }) => {
+    const response = await fetch('/api/ticket-statuses/reorder', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        statusId,
+        newIndex,
+      }),
+    });
+
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      throw new Error(
+        data?.message ||
+          'Failed to reorder ticket statuses.',
+      );
+    }
+
+    return {
+      statusId,
+      newIndex,
+    };
+  },
+
+  onMutate: async ({ statusId, newIndex }) => {
+    await queryClient.cancelQueries({
+      queryKey: ['ticket-statuses'],
+    });
+
+    const previousStatuses =
+      queryClient.getQueryData<ApiTicketSetting[]>([
+        'ticket-statuses',
+      ]);
+
+    queryClient.setQueryData<ApiTicketSetting[]>(
+      ['ticket-statuses'],
+      (current) => {
+        if (!current) {
+          return current;
+        }
+
+        const draggedIndex = current.findIndex(
+          (status) => status.id === statusId,
+        );
+
+        if (draggedIndex === -1) {
+          return current;
+        }
+
+        const nextOrder = [...current];
+        const [draggedStatus] = nextOrder.splice(
+          draggedIndex,
+          1,
+        );
+
+        if (!draggedStatus) {
+          return current;
+        }
+
+        nextOrder.splice(newIndex, 0, draggedStatus);
+
+        return nextOrder;
+      },
+    );
+
+    return {
+      previousStatuses,
+    };
+  },
+
+  onError: (error, _variables, context) => {
+    if (context?.previousStatuses) {
+      queryClient.setQueryData(
+        ['ticket-statuses'],
+        context.previousStatuses,
+      );
+    }
+
+    appToast.error(
+      error instanceof Error
+        ? error.message
+        : 'Failed to reorder ticket statuses.',
+    );
+  },
+
+  onSuccess: () => {
+    appToast.success(
+      'Ticket statuses reordered successfully.',
+    );
+  },
+
+  onSettled: async () => {
+    await queryClient.invalidateQueries({
+      queryKey: ['ticket-statuses'],
+    });
+  },
+});
+const handleReorderProjectStatusColumn = (
+  statusId: string,
+  newIndex: number,
+) => {
+  if (
+    !canFilterTickets ||
+    reorderProjectStatusMutation.isPending
+  ) {
+    return;
+  }
+
+  reorderProjectStatusMutation.mutate({
+    statusId,
+    newIndex,
+  });
+};
   const priorityFilterOptions = useMemo(
     () => [
       {
@@ -634,6 +993,31 @@ export default function ProjectDetailPage() {
     router.push(nextQueryString ? `${pathname}?${nextQueryString}` : pathname, {
       scroll: false,
     });
+  };
+  const handleProjectTicketsViewChange = (nextViewMode: 'table' | 'kanban') => {
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+
+    if (nextViewMode === 'table') {
+      nextSearchParams.delete(PROJECT_TICKETS_VIEW_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(PROJECT_TICKETS_VIEW_QUERY_PARAM, nextViewMode);
+
+      nextSearchParams.delete(PROJECT_TICKETS_STATUS_QUERY_PARAM);
+    }
+
+    setTicketsPagination((current) => ({
+      ...current,
+      pageIndex: 0,
+    }));
+
+    const nextQueryString = nextSearchParams.toString();
+
+    router.replace(
+      nextQueryString ? `${pathname}?${nextQueryString}` : pathname,
+      {
+        scroll: false,
+      },
+    );
   };
 
   const hasActiveProjectTicketFilters =
@@ -1846,36 +2230,69 @@ export default function ProjectDetailPage() {
                               )}
                             </Popover>
                           </div>
-
-                          <div className="flex items-center gap-3">
-                            {/* Desktop inline filters */}
-                            <div className="hidden w-38 xl:block">
-                              <Dropdown
-                                options={statusFilterOptions}
-                                value={selectedStatus}
-                                onChange={(value) =>
-                                  updateProjectTicketFilters({
-                                    status: value,
-                                  })
+                          <div className="flex flex-row items-center gap-3">
+                            <div className="hidden items-center rounded-lg border border-gray-200 bg-white xl:flex">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleProjectTicketsViewChange('table')
                                 }
-                                placeholder="All Status"
-                              />
-                            </div>
+                                className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
+                                  projectTicketsViewMode === 'table'
+                                    ? 'bg-linear-[271deg] from-aztec-purple to-cyan-blue text-white shadow-sm'
+                                    : 'text-gray-500 hover:bg-gray-50'
+                                }`}
+                                aria-label="Table view"
+                              >
+                                <TableViewIcon />
+                              </button>
 
-                            <div className="hidden w-38 xl:block">
-                              <Dropdown
-                                options={priorityFilterOptions}
-                                value={selectedPriority}
-                                onChange={(value) =>
-                                  updateProjectTicketFilters({
-                                    priority: value,
-                                  })
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleProjectTicketsViewChange('kanban')
                                 }
-                                placeholder="All Priority"
-                              />
+                                className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
+                                  projectTicketsViewMode === 'kanban'
+                                    ? 'bg-linear-[271deg] from-aztec-purple to-cyan-blue text-white shadow-sm'
+                                    : 'text-gray-500 hover:bg-gray-50'
+                                }`}
+                                aria-label="Kanban view"
+                              >
+                                <KanbanViewIcon />
+                              </button>
                             </div>
+                            <div className="flex items-center gap-3">
+                              {/* Desktop inline filters */}
+                              {projectTicketsViewMode === 'table' ? (
+                                <div className="hidden w-45 xl:block">
+                                  <Dropdown
+                                    options={statusFilterOptions}
+                                    value={selectedStatus}
+                                    onChange={(value) =>
+                                      updateProjectTicketFilters({
+                                        status: value,
+                                      })
+                                    }
+                                    placeholder="All Status"
+                                  />
+                                </div>
+                              ) : null}
 
-                            {/* <button
+                              <div className="hidden w-45 xl:flex gap-3">
+                                <Dropdown
+                                  options={priorityFilterOptions}
+                                  value={selectedPriority}
+                                  onChange={(value) =>
+                                    updateProjectTicketFilters({
+                                      priority: value,
+                                    })
+                                  }
+                                  placeholder="All Priority"
+                                />
+                              </div>
+
+                              {/* <button
                               type="button"
                               onClick={clearProjectTicketFilters}
                               disabled={!hasActiveProjectTicketFilters}
@@ -1883,27 +2300,28 @@ export default function ProjectDetailPage() {
                             >
                               Clear Filters
                             </button> */}
-                            <ThemeButton
-                              type="button"
-                              variant="secondary"
-                              size="md"
-                              onClick={clearProjectTicketFilters}
-                              disabled={!hasActiveProjectTicketFilters}
-                              className="hidden h-10 shrink-0 disabled:cursor-not-allowed disabled:opacity-50 xl:inline-flex"
-                            >
-                              Clear Filters
-                            </ThemeButton>
-
-                            {canCreateTicket ? (
                               <ThemeButton
-                                className="shrink-0 rounded-full hidden xl:flex"
-                                variant="primaryGradient"
-                                icon={<PlusIcon width="20" height="20" />}
-                                onClick={() => setCreateTicketOpen(true)}
+                                type="button"
+                                variant="secondary"
+                                size="md"
+                                onClick={clearProjectTicketFilters}
+                                disabled={!hasActiveProjectTicketFilters}
+                                className="hidden h-10 shrink-0 disabled:cursor-not-allowed disabled:opacity-50 xl:inline-flex"
                               >
-                                New Ticket
+                                Clear Filters
                               </ThemeButton>
-                            ) : null}
+
+                              {canCreateTicket ? (
+                                <ThemeButton
+                                  className="shrink-0 rounded-full hidden xl:flex"
+                                  variant="primaryGradient"
+                                  icon={<PlusIcon width="20" height="20" />}
+                                  onClick={() => setCreateTicketOpen(true)}
+                                >
+                                  New Ticket
+                                </ThemeButton>
+                              ) : null}
+                            </div>
                           </div>
                         </>
                       ) : canCreateTicket ? (
@@ -1923,30 +2341,61 @@ export default function ProjectDetailPage() {
                       // className="min-h-0 min-w-0 flex-1 overflow-hidden"
                       className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden"
                     >
-                      <RecentTicketsTable
-                        tickets={projectTickets}
-                        enablePagination
-                        pageSizeOptions={[10, 25, 50, 100]}
-                        pagination={ticketsPagination}
-                        onPaginationChange={setTicketsPagination}
-                        totalRows={projectTicketsQuery.data?.meta.total ?? 0}
-                        manualPagination
-                        getRowHref={
-                          canViewTicketDetail
-                            ? (ticket) =>
-                                `/tickets/${ticket.id}?projectId=${projectId}`
-                            : undefined
-                        }
-                        onRowClick={
-                          canViewTicketDetail
-                            ? (ticket) =>
-                                router.push(
-                                  `/tickets/${ticket.id}?projectId=${projectId}`,
-                                )
-                            : undefined
-                        }
-                        hideProjectColumn
-                      />
+                      {projectTicketsQuery.isLoading ? (
+                        <RecentTicketsTableSkeleton />
+                      ) : projectTicketsViewMode === 'kanban' ? (
+                        <TicketsKanbanView
+                          tickets={projectTickets}
+                          statusOptions={kanbanStatusOptions}
+                          onTicketClick={
+                            canViewTicketDetail
+                              ? (ticket) =>
+                                  router.push(
+                                    `/tickets/${ticket.id}?projectId=${projectId}`,
+                                  )
+                              : undefined
+                          }
+                          onMoveTicket={(ticket, nextStatusKey) => {
+                            void handleMoveProjectTicket(ticket, nextStatusKey);
+                          }}
+                          onReorderColumn={handleReorderProjectStatusColumn}
+                          canDragTickets={canEditTicketStatus}
+                          canDragColumns={canFilterTickets}
+                          movingTicketId={
+                            moveProjectTicketMutation.isPending
+                              ? (moveProjectTicketMutation.variables?.ticket
+                                  .id ?? null)
+                              : null
+                          }
+                        />
+                      ) : (
+                        <RecentTicketsTable
+                          tickets={projectTickets}
+                          enablePagination
+                          pageSizeOptions={[10, 25, 50, 100]}
+                          pagination={ticketsPagination}
+                          onPaginationChange={
+                            handleProjectTicketsPaginationChange
+                          }
+                          totalRows={projectTicketsQuery.data?.meta.total ?? 0}
+                          manualPagination
+                          getRowHref={
+                            canViewTicketDetail
+                              ? (ticket) =>
+                                  `/tickets/${ticket.id}?projectId=${projectId}`
+                              : undefined
+                          }
+                          onRowClick={
+                            canViewTicketDetail
+                              ? (ticket) =>
+                                  router.push(
+                                    `/tickets/${ticket.id}?projectId=${projectId}`,
+                                  )
+                              : undefined
+                          }
+                          hideProjectColumn
+                        />
+                      )}
                     </div>
                   </TabPanel>
                 </PermissionGuard>
@@ -2355,8 +2804,8 @@ export default function ProjectDetailPage() {
                                 onClose={handleCloseProjectNoteMobileModal}
                                 isOpen={isProjectNoteMobileModalOpen}
                                 scrollNeeded={true}
-                                 title="Create Note"
-                               bodyPaddingClasses="flex min-h-0 flex-col"
+                                title="Create Note"
+                                bodyPaddingClasses="flex min-h-0 flex-col"
                               >
                                 <div className="border-b border-gray-200 px-4 py-4 md:px-5">
                                   <input
@@ -2372,69 +2821,75 @@ export default function ProjectDetailPage() {
                                   />
                                 </div>
 
-                              <div className="p-4 flex-1 md:p-5">
-                                <RichTextEditor
-                                  value={projectNoteDescriptionDraft}
-                                  onChange={setProjectNoteDescriptionDraft}
-                                  placeholder="Write your project note..."
-                                  maxLength={
-                                    MAX_PROJECT_NOTE_DESCRIPTION_LENGTH
-                                  }
-                                  disabled={createProjectNoteMutation.isPending}
-                                  showCharacterCount
-                                  editorHeight="h-[50dvh] min-h-[18rem]"
-                                  editorClassName="text-sm font-normal text-gray-700"
-                                />
-                              </div>
-                              <div className="w-full  px-3 pb-4 md:flex md:justify-end md:px-5">
-                                <div className="grid w-full grid-cols-2 gap-2 md:flex md:w-auto md:items-center">
-                                  <ThemeButton
-                                    type="button"
-                                    variant="secondary"
-                                    size="sm"
-                                    onClick={handleCloseProjectNoteMobileModal}
-                                    disabled={
-                                      createProjectNoteMutation.isPending
-                                    }
-                                    className="w-full disabled:cursor-not-allowed disabled:opacity-60"
-                                    borderclassName="w-full"
-                                  >
-                                    Cancel
-                                  </ThemeButton>
-
-                                  <ThemeButton
-                                    type="button"
-                                    variant="primaryGradient"
-                                    size="sm"
-                                    onClick={() =>
-                                      void handleCreateProjectNote()
+                                <div className="p-4 flex-1 md:p-5">
+                                  <RichTextEditor
+                                    value={projectNoteDescriptionDraft}
+                                    onChange={setProjectNoteDescriptionDraft}
+                                    placeholder="Write your project note..."
+                                    maxLength={
+                                      MAX_PROJECT_NOTE_DESCRIPTION_LENGTH
                                     }
                                     disabled={
                                       createProjectNoteMutation.isPending
                                     }
-                                    className="w-full disabled:cursor-not-allowed disabled:opacity-60"
-                                    borderclassName="w-full"
-                                  >
-                                    {createProjectNoteMutation.isPending
-                                      ? 'Saving...'
-                                      : 'Save Note'}
-                                  </ThemeButton>
+                                    showCharacterCount
+                                    editorHeight="h-[50dvh] min-h-[18rem]"
+                                    editorClassName="text-sm font-normal text-gray-700"
+                                  />
                                 </div>
-                              </div>
-                            </AppModal>
-                          ) : (
-                            <>
-                              <div className="border-b border-gray-200 px-4 py-4 md:px-5">
-                                <input
-                                  type="text"
-                                  value={projectNoteTitleDraft}
-                                  onChange={(event) =>
-                                    setProjectNoteTitleDraft(event.target.value)
-                                  }
-                                  className="w-full border-b border-b-gray-300 bg-transparent pb-3 text-base font-semibold text-gray-900 outline-none md:text-xl"
-                                  placeholder="Note title"
-                                />
-                              </div>
+                                <div className="w-full  px-3 pb-4 md:flex md:justify-end md:px-5">
+                                  <div className="grid w-full grid-cols-2 gap-2 md:flex md:w-auto md:items-center">
+                                    <ThemeButton
+                                      type="button"
+                                      variant="secondary"
+                                      size="sm"
+                                      onClick={
+                                        handleCloseProjectNoteMobileModal
+                                      }
+                                      disabled={
+                                        createProjectNoteMutation.isPending
+                                      }
+                                      className="w-full disabled:cursor-not-allowed disabled:opacity-60"
+                                      borderclassName="w-full"
+                                    >
+                                      Cancel
+                                    </ThemeButton>
+
+                                    <ThemeButton
+                                      type="button"
+                                      variant="primaryGradient"
+                                      size="sm"
+                                      onClick={() =>
+                                        void handleCreateProjectNote()
+                                      }
+                                      disabled={
+                                        createProjectNoteMutation.isPending
+                                      }
+                                      className="w-full disabled:cursor-not-allowed disabled:opacity-60"
+                                      borderclassName="w-full"
+                                    >
+                                      {createProjectNoteMutation.isPending
+                                        ? 'Saving...'
+                                        : 'Save Note'}
+                                    </ThemeButton>
+                                  </div>
+                                </div>
+                              </AppModal>
+                            ) : (
+                              <>
+                                <div className="border-b border-gray-200 px-4 py-4 md:px-5">
+                                  <input
+                                    type="text"
+                                    value={projectNoteTitleDraft}
+                                    onChange={(event) =>
+                                      setProjectNoteTitleDraft(
+                                        event.target.value,
+                                      )
+                                    }
+                                    className="w-full border-b border-b-gray-300 bg-transparent pb-3 text-base font-semibold text-gray-900 outline-none md:text-xl"
+                                    placeholder="Note title"
+                                  />
+                                </div>
 
                                 <div className=" flex flex-col mb-4 flex-1 overflow-y-auto p-4 md:p-5">
                                   <RichTextEditor

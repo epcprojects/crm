@@ -54,6 +54,8 @@ const TICKETS_STATUS_QUERY_PARAM = 'status';
 const TICKETS_PRIORITY_QUERY_PARAM = 'priority';
 const TICKETS_PROJECT_QUERY_PARAM = 'project';
 const DEFAULT_TICKETS_STATUS_FILTER = 'Active';
+const TICKETS_PAGE_SIZE_QUERY_PARAM = 'size';
+const ALLOWED_TICKETS_PAGE_SIZES = [10, 25, 50, 100];
 
 export default function Page() {
   const router = useRouter();
@@ -65,10 +67,32 @@ export default function Page() {
   const [isExportingTickets, setIsExportingTickets] = useState(false);
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
-  const [pagination, setPagination] = useState<PaginationState>({
+  const [pagination, setPagination] = useState<PaginationState>(() => {
+  const requestedPageSize = Number(
+    searchParams.get(TICKETS_PAGE_SIZE_QUERY_PARAM),
+  );
+
+  return {
     pageIndex: 0,
-    pageSize: 10,
+    pageSize: ALLOWED_TICKETS_PAGE_SIZES.includes(requestedPageSize)
+      ? requestedPageSize
+      : 10,
+  };
+});
+const handlePaginationChange = (nextPagination: PaginationState) => {
+  setPagination(nextPagination);
+
+  const params = new URLSearchParams(searchParams.toString());
+
+  params.set(
+    TICKETS_PAGE_SIZE_QUERY_PARAM,
+    String(nextPagination.pageSize),
+  );
+
+  router.replace(`${pathname}?${params.toString()}`, {
+    scroll: false,
   });
+};
   const [sortState, setSortState] = useState<TicketSortState>({
     sortBy: 'createdAt',
     sortOrder: 'desc',
@@ -849,6 +873,9 @@ export default function Page() {
   //     window.removeEventListener('resize', updatePinnedState);
   //   };
   // }, []);
+
+
+  
   return (
     <>
       <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 py-4">
@@ -1105,7 +1132,7 @@ export default function Page() {
                           </button>
                         </div>
 
-                        <div className="w-full hidden 2xl:block 2xl:w-44">
+                        <div className="w-full hidden 2xl:block 2xl:w-45">
                           <Dropdown
                             options={projectFilterOptions}
                             isMulti
@@ -1120,7 +1147,7 @@ export default function Page() {
                         </div>
 
                         {viewMode === 'table' && (
-                          <div className="w-full hidden 2xl:block 2xl:w-38">
+                          <div className="w-full hidden 2xl:block 2xl:w-45">
                             <Dropdown
                               options={statusFilterOptions}
                               value={selectedStatus}
@@ -1135,7 +1162,7 @@ export default function Page() {
                           </div>
                         )}
 
-                        <div className="w-full hidden 2xl:block 2xl:w-38">
+                        <div className="w-full  gap-3 hidden 2xl:flex 2xl:w-45">
                           <Dropdown
                             options={priorityFilterOptions}
                             value={selectedPriority}
@@ -1308,7 +1335,7 @@ export default function Page() {
                       pageSizeOptions={[10, 25, 50, 100]}
                       pagination={pagination}
                       // internalScrollEnabled={isTicketsSectionPinned}
-                      onPaginationChange={setPagination}
+                      onPaginationChange={handlePaginationChange}
                       totalRows={ticketsQuery.data?.meta.total ?? 0}
                       manualPagination
                       sortState={sortState}
@@ -1766,7 +1793,7 @@ function formatTicketDate(value: string) {
   }).format(date);
 }
 
-function TableViewIcon() {
+export function TableViewIcon() {
   return (
     <svg
       width="18"
@@ -1811,7 +1838,7 @@ function slugify(value: string) {
     .replace(/^_+|_+$/g, '');
 }
 
-function KanbanViewIcon() {
+export function KanbanViewIcon() {
   return (
     <svg
       width="18"

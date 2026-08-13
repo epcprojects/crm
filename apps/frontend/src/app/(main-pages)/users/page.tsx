@@ -641,7 +641,7 @@ export default function Page() {
                     </Popover>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="w-full hidden xl:block xl:w-44">
+                    <div className="w-full hidden xl:block xl:w-45">
                       <Dropdown
                         options={invitationFilterOptions}
                         value={selectedInvitationStatus}
@@ -657,7 +657,7 @@ export default function Page() {
                       />
                     </div>
 
-                    <div className="w-full hidden xl:block xl:w-38">
+                    <div className="w-full hidden xl:block xl:w-45">
                       <Dropdown
                         options={roleFilterOptions}
                         value={selectedRoleId}
@@ -669,7 +669,7 @@ export default function Page() {
                       />
                     </div>
 
-                    <div className="w-full hidden xl:block xl:w-38">
+                    <div className="w-full hidden xl:block xl:w-45">
                       <Dropdown
                         options={projectFilterOptions}
                         isMulti

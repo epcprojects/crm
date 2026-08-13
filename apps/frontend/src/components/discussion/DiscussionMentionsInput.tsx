@@ -259,7 +259,7 @@ export default function DiscussionMentionsInput({
       style={style}
       a11ySuggestionsListLabel="Project members"
       suggestionsPlacement="auto"
-      anchorMode="left"
+      anchorMode='caret'
       suggestionsPortalHost={portalHost}
       onKeyDown={onKeyDown}
       onPaste={onPaste}
@@ -290,9 +290,9 @@ export default function DiscussionMentionsInput({
           inputClassName,
         ),
         suggestions:
-          'z-[9999] overflow-hidden max-w-50 rounded-lg border border-slate-200 hover:bg-white! bg-white shadow-xl',
+          'z-[9999] overflow-hidden rounded-lg border border-slate-200 hover:bg-white! max-w-50 shadow-xl',
         suggestionsList:
-          'max-h-60 w-full overflow-y-auto py-1  divide-y-0! px-1',
+          'max-h-60 w-full overflow-y-auto py-1 divide-y-0!  px-1',
         suggestionItem:
           'cursor-pointer px-3 py-2 text-left transition hover:!bg-gray-100 rounded-lg!',
         suggestionItemFocused: '!bg-gray-100 !text-gray-900',

@@ -271,6 +271,8 @@ export default function RecentTicketsTable({
     pageIndex: 0,
     pageSize: initialPageSize,
   });
+  const TICKETS_PAGE_SIZE_QUERY_PARAM = 'pageSize';
+const ALLOWED_TICKETS_PAGE_SIZES = [10, 25, 50, 100];
   const activePagination = controlledPagination ?? pagination;
   const totalRows = controlledTotalRows ?? tickets.length;
   const pageCount = Math.max(
