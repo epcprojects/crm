@@ -107,6 +107,7 @@ export default function ProjectCard({
               type="button"
               onClick={(event) => {
                 event.stopPropagation();
+                event.preventDefault();
                 onAddTicket();
               }}
               className="flex shrink-0 items-center justify-center gap-1 rounded-full border border-white/70 bg-white/90 py-0.5 ps-0.5 pe-2.5 text-xs text-primary-dark shadow-sm transition hover:bg-white md:text-sm"
@@ -125,6 +126,7 @@ export default function ProjectCard({
                 type="button"
                 onClick={(event) => {
                   event.stopPropagation();
+                  event.preventDefault();
                   onEdit();
                 }}
                 className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-full border border-white/70 bg-white/90 text-xs text-primary-dark shadow-sm transition hover:bg-white md:text-sm"
@@ -142,6 +144,7 @@ export default function ProjectCard({
                 disabled={isDeleting}
                 onClick={(event) => {
                   event.stopPropagation();
+                  event.preventDefault();
                   onDelete();
                 }}
                 className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-full border border-white/70 bg-white/90 text-xs text-primary-dark shadow-sm transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
@@ -326,11 +329,7 @@ export default function ProjectCard({
   }
 
   return (
-    <article
-      className={className}
-      onClick={onClick}
-      data-project-id={id}
-    >
+    <article className={className} onClick={onClick} data-project-id={id}>
       {cardContent}
     </article>
   );

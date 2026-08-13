@@ -493,12 +493,17 @@ function NotificationPageRow({
     return (
       <Link
         href={href}
-        onClick={handlePlainClick}
+        onClick={(e) => {
+          handlePlainClick(e);
+          onPlainClick?.();
+        }}
         className={`flex items-start gap-4 cursor-pointer border-b border-gray-200 last:border-b-0 px-3 sm:px-4 py-3 md:py-4 transition hover:bg-gray-50 ${!item.isRead && 'bg-blue-50'}`}
       >
         <div className="min-w-0 flex-1">
           <p className="text-sm  text-gray-600">
-            <span className="font-semibold text-gray-900">{item.title}</span>{' '}
+            <span className="font-semibold text-gray-900">
+              {item.title}
+            </span>{' '}
           </p>
           <p className="mt-1 text-xs text-gray-500">
             {new Date(item.createdAt).toLocaleString()}
