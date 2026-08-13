@@ -400,301 +400,277 @@ export default function ProjectDetailPage() {
     [ticketStatusesQuery.data],
   );
   const statusMetadataByKey = useMemo(
-  () =>
-    new Map(
-      (ticketStatusesQuery.data ?? []).map((status) => [
-        status.key,
+    () =>
+      new Map(
+        (ticketStatusesQuery.data ?? []).map((status) => [
+          status.key,
+          {
+            label: status.label,
+            color: status.color,
+          },
+        ]),
+      ),
+    [ticketStatusesQuery.data],
+  );
+  const moveProjectTicketMutation = useMutation({
+    mutationFn: async ({
+      ticket,
+      statusKey,
+    }: {
+      ticket: RecentTicket;
+      statusKey: string;
+    }) => {
+      const response = await fetch(
+        `/api/projects/${projectId}/tickets/${ticket.id}`,
         {
-          label: status.label,
-          color: status.color,
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({
+            statusKey,
+          }),
         },
-      ]),
-    ),
-  [ticketStatusesQuery.data],
-);
-const moveProjectTicketMutation = useMutation({
-  mutationFn: async ({
-    ticket,
-    statusKey,
-  }: {
-    ticket: RecentTicket;
-    statusKey: string;
-  }) => {
-    const response = await fetch(
-      `/api/projects/${projectId}/tickets/${ticket.id}`,
-      {
+      );
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message =
+          Array.isArray(data?.message) && data.message.length
+            ? data.message.join(', ')
+            : data?.message || 'Failed to update ticket status.';
+
+        throw new Error(message);
+      }
+
+      return {
+        ticket,
+        statusKey,
+      };
+    },
+
+    onMutate: async ({ ticket, statusKey }) => {
+      const projectTicketsKey = [...projectTicketsQueryKey, projectId];
+
+      const nextStatus = statusMetadataByKey.get(statusKey);
+
+      await queryClient.cancelQueries({
+        queryKey: projectTicketsKey,
+      });
+
+      const previousQueries =
+        queryClient.getQueriesData<ProjectTicketsCacheData>({
+          queryKey: projectTicketsKey,
+        });
+
+      queryClient.setQueriesData<ProjectTicketsCacheData>(
+        {
+          queryKey: projectTicketsKey,
+        },
+        (current) => {
+          if (!current) {
+            return current;
+          }
+
+          return {
+            ...current,
+            items: current.items.map((currentTicket) =>
+              currentTicket.id === ticket.id
+                ? {
+                    ...currentTicket,
+                    status: nextStatus?.label ?? currentTicket.status,
+                    statusColor: nextStatus?.color ?? currentTicket.statusColor,
+                  }
+                : currentTicket,
+            ),
+          };
+        },
+      );
+
+      return {
+        previousQueries,
+      };
+    },
+
+    onError: (error, _variables, context) => {
+      context?.previousQueries.forEach(([queryKey, data]) => {
+        queryClient.setQueryData(queryKey, data);
+      });
+
+      appToast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to update ticket status.',
+      );
+    },
+
+    onSuccess: () => {
+      appToast.success('Ticket status updated successfully.');
+    },
+
+    onSettled: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: [...projectTicketsQueryKey, projectId],
+        }),
+
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard-project-tickets'],
+          refetchType: 'all',
+        }),
+
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'recent-tickets'],
+          refetchType: 'all',
+        }),
+
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'upcoming'],
+          refetchType: 'all',
+        }),
+
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'critical-tickets'],
+          refetchType: 'all',
+        }),
+
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard', 'ticket-summary'],
+          refetchType: 'all',
+        }),
+      ]);
+    },
+  });
+  const handleMoveProjectTicket = async (
+    ticket: RecentTicket,
+    nextStatusKey: string,
+  ) => {
+    if (!canEditTicketStatus || moveProjectTicketMutation.isPending) {
+      return;
+    }
+
+    const nextStatus = statusMetadataByKey.get(nextStatusKey);
+
+    if (!nextStatus || ticket.status === nextStatus.label) {
+      return;
+    }
+
+    await moveProjectTicketMutation.mutateAsync({
+      ticket,
+      statusKey: nextStatusKey,
+    });
+  };
+  const reorderProjectStatusMutation = useMutation({
+    mutationFn: async ({
+      statusId,
+      newIndex,
+    }: {
+      statusId: string;
+      newIndex: number;
+    }) => {
+      const response = await fetch('/api/ticket-statuses/reorder', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
         body: JSON.stringify({
-          statusKey,
+          statusId,
+          newIndex,
         }),
-      },
-    );
-
-    const data = await response.json().catch(() => null);
-
-    if (!response.ok) {
-      const message =
-        Array.isArray(data?.message) && data.message.length
-          ? data.message.join(', ')
-          : data?.message || 'Failed to update ticket status.';
-
-      throw new Error(message);
-    }
-
-    return {
-      ticket,
-      statusKey,
-    };
-  },
-
-  onMutate: async ({ ticket, statusKey }) => {
-    const projectTicketsKey = [
-      ...projectTicketsQueryKey,
-      projectId,
-    ];
-
-    const nextStatus = statusMetadataByKey.get(statusKey);
-
-    await queryClient.cancelQueries({
-      queryKey: projectTicketsKey,
-    });
-
-    const previousQueries =
-      queryClient.getQueriesData<ProjectTicketsCacheData>({
-        queryKey: projectTicketsKey,
       });
 
-    queryClient.setQueriesData<ProjectTicketsCacheData>(
-      {
-        queryKey: projectTicketsKey,
-      },
-      (current) => {
-        if (!current) {
-          return current;
-        }
+      const data = await response.json().catch(() => null);
 
-        return {
-          ...current,
-          items: current.items.map((currentTicket) =>
-            currentTicket.id === ticket.id
-              ? {
-                  ...currentTicket,
-                  status:
-                    nextStatus?.label ?? currentTicket.status,
-                  statusColor:
-                    nextStatus?.color ??
-                    currentTicket.statusColor,
-                }
-              : currentTicket,
-          ),
-        };
-      },
-    );
+      if (!response.ok) {
+        throw new Error(data?.message || 'Failed to reorder ticket statuses.');
+      }
 
-    return {
-      previousQueries,
-    };
-  },
-
-  onError: (error, _variables, context) => {
-    context?.previousQueries.forEach(([queryKey, data]) => {
-      queryClient.setQueryData(queryKey, data);
-    });
-
-    appToast.error(
-      error instanceof Error
-        ? error.message
-        : 'Failed to update ticket status.',
-    );
-  },
-
-  onSuccess: () => {
-    appToast.success('Ticket status updated successfully.');
-  },
-
-  onSettled: async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: [...projectTicketsQueryKey, projectId],
-      }),
-
-      queryClient.invalidateQueries({
-        queryKey: ['dashboard-project-tickets'],
-        refetchType: 'all',
-      }),
-
-      queryClient.invalidateQueries({
-        queryKey: ['dashboard', 'recent-tickets'],
-        refetchType: 'all',
-      }),
-
-      queryClient.invalidateQueries({
-        queryKey: ['dashboard', 'upcoming'],
-        refetchType: 'all',
-      }),
-
-      queryClient.invalidateQueries({
-        queryKey: ['dashboard', 'critical-tickets'],
-        refetchType: 'all',
-      }),
-
-      queryClient.invalidateQueries({
-        queryKey: ['dashboard', 'ticket-summary'],
-        refetchType: 'all',
-      }),
-    ]);
-  },
-});
-const handleMoveProjectTicket = async (
-  ticket: RecentTicket,
-  nextStatusKey: string,
-) => {
-  if (
-    !canEditTicketStatus ||
-    moveProjectTicketMutation.isPending
-  ) {
-    return;
-  }
-
-  const nextStatus = statusMetadataByKey.get(nextStatusKey);
-
-  if (!nextStatus || ticket.status === nextStatus.label) {
-    return;
-  }
-
-  await moveProjectTicketMutation.mutateAsync({
-    ticket,
-    statusKey: nextStatusKey,
-  });
-};
-const reorderProjectStatusMutation = useMutation({
-  mutationFn: async ({
-    statusId,
-    newIndex,
-  }: {
-    statusId: string;
-    newIndex: number;
-  }) => {
-    const response = await fetch('/api/ticket-statuses/reorder', {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({
+      return {
         statusId,
         newIndex,
-      }),
-    });
+      };
+    },
 
-    const data = await response.json().catch(() => null);
+    onMutate: async ({ statusId, newIndex }) => {
+      await queryClient.cancelQueries({
+        queryKey: ['ticket-statuses'],
+      });
 
-    if (!response.ok) {
-      throw new Error(
-        data?.message ||
-          'Failed to reorder ticket statuses.',
-      );
-    }
-
-    return {
-      statusId,
-      newIndex,
-    };
-  },
-
-  onMutate: async ({ statusId, newIndex }) => {
-    await queryClient.cancelQueries({
-      queryKey: ['ticket-statuses'],
-    });
-
-    const previousStatuses =
-      queryClient.getQueryData<ApiTicketSetting[]>([
+      const previousStatuses = queryClient.getQueryData<ApiTicketSetting[]>([
         'ticket-statuses',
       ]);
 
-    queryClient.setQueryData<ApiTicketSetting[]>(
-      ['ticket-statuses'],
-      (current) => {
-        if (!current) {
-          return current;
-        }
-
-        const draggedIndex = current.findIndex(
-          (status) => status.id === statusId,
-        );
-
-        if (draggedIndex === -1) {
-          return current;
-        }
-
-        const nextOrder = [...current];
-        const [draggedStatus] = nextOrder.splice(
-          draggedIndex,
-          1,
-        );
-
-        if (!draggedStatus) {
-          return current;
-        }
-
-        nextOrder.splice(newIndex, 0, draggedStatus);
-
-        return nextOrder;
-      },
-    );
-
-    return {
-      previousStatuses,
-    };
-  },
-
-  onError: (error, _variables, context) => {
-    if (context?.previousStatuses) {
-      queryClient.setQueryData(
+      queryClient.setQueryData<ApiTicketSetting[]>(
         ['ticket-statuses'],
-        context.previousStatuses,
+        (current) => {
+          if (!current) {
+            return current;
+          }
+
+          const draggedIndex = current.findIndex(
+            (status) => status.id === statusId,
+          );
+
+          if (draggedIndex === -1) {
+            return current;
+          }
+
+          const nextOrder = [...current];
+          const [draggedStatus] = nextOrder.splice(draggedIndex, 1);
+
+          if (!draggedStatus) {
+            return current;
+          }
+
+          nextOrder.splice(newIndex, 0, draggedStatus);
+
+          return nextOrder;
+        },
       );
+
+      return {
+        previousStatuses,
+      };
+    },
+
+    onError: (error, _variables, context) => {
+      if (context?.previousStatuses) {
+        queryClient.setQueryData(['ticket-statuses'], context.previousStatuses);
+      }
+
+      appToast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to reorder ticket statuses.',
+      );
+    },
+
+    onSuccess: () => {
+      appToast.success('Ticket statuses reordered successfully.');
+    },
+
+    onSettled: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ['ticket-statuses'],
+      });
+    },
+  });
+  const handleReorderProjectStatusColumn = (
+    statusId: string,
+    newIndex: number,
+  ) => {
+    if (!canFilterTickets || reorderProjectStatusMutation.isPending) {
+      return;
     }
 
-    appToast.error(
-      error instanceof Error
-        ? error.message
-        : 'Failed to reorder ticket statuses.',
-    );
-  },
-
-  onSuccess: () => {
-    appToast.success(
-      'Ticket statuses reordered successfully.',
-    );
-  },
-
-  onSettled: async () => {
-    await queryClient.invalidateQueries({
-      queryKey: ['ticket-statuses'],
+    reorderProjectStatusMutation.mutate({
+      statusId,
+      newIndex,
     });
-  },
-});
-const handleReorderProjectStatusColumn = (
-  statusId: string,
-  newIndex: number,
-) => {
-  if (
-    !canFilterTickets ||
-    reorderProjectStatusMutation.isPending
-  ) {
-    return;
-  }
-
-  reorderProjectStatusMutation.mutate({
-    statusId,
-    newIndex,
-  });
-};
+  };
   const priorityFilterOptions = useMemo(
     () => [
       {
@@ -3304,7 +3280,7 @@ const handleReorderProjectStatusColumn = (
             </TabGroup>
           </div>
         </div>
-        {canCreateTicket ? (
+        {/* {canCreateTicket ? (
           <button
             type="button"
             onClick={() => setCreateTicketOpen(true)}
@@ -3313,7 +3289,7 @@ const handleReorderProjectStatusColumn = (
           >
             <PlusIcon fill="#FFFFFF" width="24" height="24" />
           </button>
-        ) : null}
+        ) : null} */}
       </div>
 
       <CreateTicketModal
