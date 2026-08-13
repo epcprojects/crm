@@ -65,6 +65,8 @@ import {
   FilesTabIcon,
   NotesTabIcon,
 } from '../../projects/[projectId]/page';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import TicketDescriptionModal from 'apps/frontend/src/components/modals/TicketDescriptionModal';
 const MAX_DESCRIPTION_LENGTH = 4000;
 type GalleryImage = {
   attachmentId: string;
@@ -103,6 +105,18 @@ export default function TicketDetailPage() {
   const projectId = searchParams.get('projectId') ?? '';
 
   const currentUserId = useAppSelector((state) => state.auth.user?.id ?? '');
+  const currentUser = useAppSelector((state) => state.auth.user);
+
+  const currentUserName = currentUser?.fullName?.trim() || 'User';
+
+  const currentUserInitials =
+    currentUserName
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part.charAt(0))
+      .join('')
+      .toUpperCase() || 'U';
   const userType = useAppSelector((state) => state.auth.user?.userType);
   const isExternalUser = userType === 'EXTERNAL';
   const { hasPermission } = usePermissions();
@@ -532,7 +546,11 @@ export default function TicketDetailPage() {
     useState<TicketSidebarTabKey>('quick-links');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
-  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [isEditContentModalOpen, setIsEditContentModalOpen] = useState(false);
+
+  const [isDescriptionModalOpen, setIsDescriptionModalOpen] = useState(false);
+  // const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+
   const [shouldShowDescriptionToggle, setShouldShowDescriptionToggle] =
     useState(false);
   // const [descriptionPreviewText, setDescriptionPreviewText] = useState('');
@@ -780,7 +798,7 @@ export default function TicketDetailPage() {
     setSelectedDueDate(toDateInputValue(ticket.dueDateValue ?? ''));
     setTitleDraft(ticket.title);
     setDescriptionDraft(ticket.description ?? '');
-    setIsDescriptionExpanded(false);
+    // setIsDescriptionExpanded(false);
   }, [ticket]);
 
   // useEffect(() => {
@@ -855,7 +873,7 @@ export default function TicketDetailPage() {
   // }, [ticket?.description]);
 
   useEffect(() => {
-    setIsDescriptionExpanded(false);
+    // setIsDescriptionExpanded(false);
   }, [sanitizedDescription]);
 
   useEffect(() => {
@@ -867,9 +885,9 @@ export default function TicketDetailPage() {
     }
 
     const measureOverflow = () => {
-      if (isDescriptionExpanded) {
-        return;
-      }
+      // if (isDescriptionExpanded) {
+      //   return;
+      // }
 
       setShouldShowDescriptionToggle(
         descriptionElement.scrollHeight > descriptionElement.clientHeight + 1,
@@ -891,7 +909,7 @@ export default function TicketDetailPage() {
   }, [
     sanitizedDescription,
     hasDescriptionContent,
-    isDescriptionExpanded,
+    // isDescriptionExpanded,
     isEditingDescription,
   ]);
 
@@ -1447,17 +1465,13 @@ export default function TicketDetailPage() {
 
     setTitleDraft(ticket.title);
     setDescriptionDraft(ticket.description ?? '');
-    setIsDescriptionExpanded(false);
-    setIsEditingTitle(true);
-    setIsEditingDescription(true);
+    setIsEditContentModalOpen(true);
   };
 
   const handleCancelEditingContent = () => {
     setTitleDraft(ticket.title);
     setDescriptionDraft(ticket.description ?? '');
-    setIsDescriptionExpanded(false);
-    setIsEditingTitle(false);
-    setIsEditingDescription(false);
+    setIsEditContentModalOpen(false);
   };
 
   const handleSaveTicketContent = async () => {
@@ -1475,9 +1489,11 @@ export default function TicketDetailPage() {
     }
 
     if (nextTitle === ticket.title && nextDescription === currentDescription) {
-      setIsDescriptionExpanded(false);
-      setIsEditingTitle(false);
-      setIsEditingDescription(false);
+      // setIsDescriptionExpanded(false);
+      setIsEditContentModalOpen(false);
+
+      // setIsEditingTitle(false);
+      // setIsEditingDescription(false);
       return;
     }
 
@@ -1492,9 +1508,10 @@ export default function TicketDetailPage() {
       }),
     );
 
-    setIsDescriptionExpanded(false);
-    setIsEditingTitle(false);
-    setIsEditingDescription(false);
+    // setIsDescriptionExpanded(false);
+    // setIsEditingTitle(false);
+    // setIsEditingDescription(false);
+    setIsEditContentModalOpen(false);
   };
 
   const handleDeleteChatMessage = (reply: { id: string; message: string }) => {
@@ -1925,9 +1942,7 @@ export default function TicketDetailPage() {
               <section className="rounded-xl border border-gray-200 bg-white p-3  md:p-5">
                 <div className=" relative">
                   <div className="mb-2 flex absolute top-0 inset-e-0 items-start justify-end">
-                    {canEditTitleDescription &&
-                    !isEditingTitle &&
-                    !isEditingDescription ? (
+                    {canEditTitleDescription ? (
                       <button
                         type="button"
                         onClick={handleStartEditingContent}
@@ -1969,7 +1984,7 @@ export default function TicketDetailPage() {
                       </button>
                     ) : null} */}
                   </div>
-                  {isEditingTitle ? (
+                  {/* {isEditingTitle ? (
                     <div className="mr-10">
                       <input
                         type="text"
@@ -1996,34 +2011,14 @@ export default function TicketDetailPage() {
                         {ticket.title}
                       </h2>
                     </div>
-                  )}
+                  )} */}
+                  <div className="block w-full text-left">
+                    <h2 className="pr-10 text-base font-semibold leading-8 text-gray-900 md:text-xl">
+                      {ticket.title}
+                    </h2>
+                  </div>
 
-                  {isEditingDescription ? (
-                    // <div className="mt-4">
-                    //   <textarea
-                    //     value={descriptionDraft}
-                    //     autoFocus
-                    //     rows={5}
-                    //     disabled={updateTicketMutation.isPending}
-                    //     onChange={(event) =>
-                    //       setDescriptionDraft(event.target.value)
-                    //     }
-                    //     onKeyDown={(event) => {
-                    //       if (
-                    //         (event.ctrlKey || event.metaKey) &&
-                    //         event.key === 'Enter'
-                    //       ) {
-                    //         event.preventDefault();
-                    //         void handleSaveTicketContent();
-                    //       }
-
-                    //       if (event.key === 'Escape') {
-                    //         handleCancelEditingContent();
-                    //       }
-                    //     }}
-                    //     className="w-full rounded-lg border scrollbar-hide border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none"
-                    //   />
-                    // </div>
+                  {/* {isEditingDescription ? (
                     <div className="mt-4">
                       <RichTextEditor
                         value={descriptionDraft}
@@ -2065,10 +2060,7 @@ export default function TicketDetailPage() {
                         <>
                           <div
                             ref={descriptionContentRef}
-                            className={clsx(
-                              'rich-text-content text-sm text-gray-700',
-                              !isDescriptionExpanded && 'line-clamp-2',
-                            )}
+                            className="rich-text-content line-clamp-2 text-sm text-gray-700"
                             dangerouslySetInnerHTML={{
                               __html: sanitizedDescription,
                             }}
@@ -2077,19 +2069,10 @@ export default function TicketDetailPage() {
                           {shouldShowDescriptionToggle ? (
                             <button
                               type="button"
+                              onClick={() => setIsDescriptionModalOpen(true)}
                               className="mt-1 inline-flex cursor-pointer text-sm font-medium text-[#8A38F5]"
-                              onClick={(event) => {
-                                event.preventDefault();
-                                event.stopPropagation();
-
-                                setIsDescriptionExpanded(
-                                  (previous) => !previous,
-                                );
-                              }}
                             >
-                              {isDescriptionExpanded
-                                ? 'read less'
-                                : '... read more'}
+                              ... read more
                             </button>
                           ) : null}
                         </>
@@ -2097,7 +2080,32 @@ export default function TicketDetailPage() {
                         <p className="text-sm text-gray-700">Add description</p>
                       )}
                     </div>
-                  )}
+                  )} */}
+                  <div className="mt-2 max-h-52 w-full overflow-y-auto text-left tiny-scrollbar">
+                    {hasDescriptionContent ? (
+                      <>
+                        <div
+                          ref={descriptionContentRef}
+                          className="rich-text-content line-clamp-2 text-sm text-gray-700"
+                          dangerouslySetInnerHTML={{
+                            __html: sanitizedDescription,
+                          }}
+                        />
+
+                        {shouldShowDescriptionToggle ? (
+                          <button
+                            type="button"
+                            onClick={() => setIsDescriptionModalOpen(true)}
+                            className="mt-1 inline-flex cursor-pointer text-sm font-medium text-[#8A38F5]"
+                          >
+                            ... read more
+                          </button>
+                        ) : null}
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-700">Add description</p>
+                    )}
+                  </div>
                 </div>
               </section>
               <div
@@ -2288,8 +2296,10 @@ export default function TicketDetailPage() {
                     }
                     composerPlaceholder={
                       isInternalChatActive && canViewInternalChatBtn
-                        ? 'Write a message...'
-                        : 'Write a reply...'
+                        ? 'Write a message, press @ to mention'
+                        : ticket.createdByDetail?.name
+                          ? `Write to ${ticket.createdByDetail.name}, press @ to mention`
+                          : 'Write a reply, press @ to mention'
                     }
                   />
                 ) : null}
@@ -2745,6 +2755,75 @@ export default function TicketDetailPage() {
         </div>
       </AppModal>
 
+      <AppModal
+        isOpen={isEditContentModalOpen}
+        onClose={handleCancelEditingContent}
+        onCancel={handleCancelEditingContent}
+        onConfirm={() => void handleSaveTicketContent()}
+        title="Edit Ticket"
+        size="large"
+        showFooter
+        confirmLabel={updateTicketMutation.isPending ? 'Updating...' : 'Update'}
+        cancelLabel="Discard"
+        confimBtnDisable={updateTicketMutation.isPending || !titleDraft.trim()}
+        disableCloseButton={updateTicketMutation.isPending}
+        outSideClickClose={!updateTicketMutation.isPending}
+        scrollNeeded={false}
+        bodyPaddingClasses="flex min-h-0 flex-1 overflow-hidden p-0!"
+      >
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
+          <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-hidden p-4 md:p-5">
+            <div className="shrink-0">
+              <label
+                htmlFor="edit-ticket-title"
+                className="mb-1.5 block text-sm font-normal text-gray-800 md:text-base"
+              >
+                Title
+              </label>
+
+              <input
+                id="edit-ticket-title"
+                type="text"
+                value={titleDraft}
+                autoFocus
+                disabled={updateTicketMutation.isPending}
+                onChange={(event) => setTitleDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') {
+                    handleCancelEditingContent();
+                  }
+                }}
+                placeholder="Enter ticket title"
+                className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 outline-none placeholder:text-gray-300 focus:border-gray-400 md:text-base"
+              />
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col">
+              <label className="mb-1.5 block shrink-0 text-sm font-normal text-gray-800 md:text-base">
+                Description
+              </label>
+
+              <RichTextEditor
+                value={descriptionDraft}
+                onChange={setDescriptionDraft}
+                placeholder="Describe the issue in detail..."
+                maxLength={MAX_DESCRIPTION_LENGTH}
+                disabled={updateTicketMutation.isPending}
+                showCharacterCount
+                editorClassName="text-sm font-normal text-gray-700"
+                className="
+            flex min-h-0 flex-1 flex-col
+            [&_.rich-text-editor]:min-h-0
+            [&_.rich-text-editor]:flex-1
+            [&_.rich-text-scroll-area]:min-h-0
+            [&_.rich-text-scroll-area]:flex-1
+            [&_.rich-text-scroll-area]:shrink
+            [&_.rich-text-scroll-area]:overflow-y-auto
+          "
+              />
+            </div>
+          </div>
+        </div>
+      </AppModal>
       <ConfirmActionModal
         isOpen={Boolean(chatMessagePendingDelete)}
         onClose={() => {
@@ -2765,6 +2844,165 @@ export default function TicketDetailPage() {
         variant="danger"
         isSubmitting={Boolean(deletingChatMessageId)}
         onConfirm={handleConfirmDeleteChatMessage}
+      />
+      <TicketDescriptionModal
+        isOpen={isDescriptionModalOpen}
+        onClose={() => setIsDescriptionModalOpen(false)}
+        Username={currentUser?.fullName ?? 'User'}
+        title={ticket.title}
+        descriptionHtml={sanitizedDescription}
+        headerUser={
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#6719FC] text-sm font-medium text-white">
+            {currentUserInitials}
+          </span>
+        }
+        headerAction={
+          canViewInternalChatBtn ? (
+            <label className="inline-flex items-center gap-2 border-gray-200">
+              {hasUnreadInternalChat && !isInternalChatActive ? (
+                <span className="h-2.5 w-2.5 animate-pulse rounded-full border border-white bg-green-500" />
+              ) : null}
+
+              <span className="text-xs font-medium text-gray-600">
+                Internal Chat
+              </span>
+
+              <button
+                type="button"
+                role="switch"
+                aria-checked={isInternalChatActive}
+                aria-label="Toggle internal chat"
+                onClick={() => {
+                  const nextIsInternalChat = !isInternalChatActive;
+
+                  updateInternalChatParam(nextIsInternalChat);
+
+                  if (nextIsInternalChat) {
+                    setHasUnreadInternalChat(false);
+                  }
+                }}
+                className={`relative inline-flex h-6 w-10 items-center rounded-full transition ${
+                  isInternalChatActive ? 'bg-[#3B82F6]' : 'bg-gray-300'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                    isInternalChatActive ? 'translate-x-5' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </label>
+          ) : null
+        }
+        repliesPanel={
+          canViewReplies || canViewInternalChatBtn ? (
+            <TicketRepliesPanel
+              className="rounded-none!"
+              hideHeader
+              mentionMembers={membersQuery.data ?? []}
+              showBorderTop={false}
+              replies={
+                isInternalChatActive && canViewInternalChatBtn
+                  ? internalChatMessages.map((message) =>
+                      mapChatMessageToDiscussionReply(message, currentUserId),
+                    )
+                  : canViewReplies
+                    ? liveReplies
+                    : []
+              }
+              emptyTitle={
+                isInternalChatActive && canViewInternalChatBtn
+                  ? internalChatLoading
+                    ? 'Loading internal chat...'
+                    : 'No messages yet.'
+                  : ticketRepliesQuery.isLoading
+                    ? 'Loading replies...'
+                    : 'No replies yet.'
+              }
+              emptyDescription={
+                isInternalChatActive && canViewInternalChatBtn
+                  ? internalChatLoading
+                    ? 'Fetching internal chat history.'
+                    : 'Start the internal conversation on this ticket.'
+                  : ticketRepliesQuery.isLoading
+                    ? 'Fetching ticket replies.'
+                    : 'No responses have been added to this ticket yet.'
+              }
+              canCompose={canPostReplies}
+              canAttachFile={canAttachReplyFiles}
+              isSubmittingReply={
+                isInternalChatActive && canViewInternalChatBtn
+                  ? isSendingChatMessage
+                  : createReplyMutation.isPending
+              }
+              onSubmitReply={
+                isInternalChatActive && canViewInternalChatBtn
+                  ? canPostReplies
+                    ? (payload) =>
+                        handleSubmitChatMessage({
+                          ...payload,
+                          channel: 'internal',
+                          sendMessage: sendInternalChatMessage,
+                        })
+                    : undefined
+                  : canPostReplies
+                    ? handleSubmitReply
+                    : undefined
+              }
+              requireMessage={false}
+              currentUserId={currentUserId}
+              onDeleteReply={
+                isInternalChatActive && canViewInternalChatBtn
+                  ? canDeleteReplies
+                    ? handleDeleteChatMessage
+                    : undefined
+                  : canDeleteReplies
+                    ? handleDeleteTicketReply
+                    : undefined
+              }
+              onEditReply={
+                isInternalChatActive && canViewInternalChatBtn
+                  ? canEditReplies
+                    ? ({ reply, message, mentionedUserIds }) =>
+                        handleEditChatMessage({
+                          reply,
+                          message,
+                          mentionedUserIds,
+                          updateMessage: updateInternalChatMessage,
+                        })
+                    : undefined
+                  : canEditReplies
+                    ? handleEditTicketReply
+                    : undefined
+              }
+              onToggleReaction={
+                isInternalChatActive && canViewInternalChatBtn
+                  ? (reply, emoji) =>
+                      handleToggleChatMessageReaction(reply, emoji, 'internal')
+                  : !isInternalChatActive && canViewReplies
+                    ? handleToggleTicketReplyReaction
+                    : undefined
+              }
+              deletingReplyId={
+                isInternalChatActive && canViewInternalChatBtn
+                  ? deletingChatMessageId
+                  : deletingTicketReplyId
+              }
+              editingReplyId={
+                isInternalChatActive && canViewInternalChatBtn
+                  ? editingChatMessageId
+                  : editingTicketReplyId
+              }
+              composerPlaceholder={
+                isInternalChatActive && canViewInternalChatBtn
+                  ? 'Write a message, press @ to mention'
+                  : ticket.createdByDetail?.name
+                    ? `Write to ${ticket.createdByDetail.name}, press @ to mention`
+                    : 'Write a reply, press @ to mention'
+              }
+            />
+          ) : null
+        }
       />
       <ConfirmActionModal
         isOpen={Boolean(attachmentToDelete)}

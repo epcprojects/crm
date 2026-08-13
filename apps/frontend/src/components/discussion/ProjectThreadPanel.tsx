@@ -1,6 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { type MentionsInputHandle } from 'react-mentions-ts';
 import {
@@ -374,11 +380,74 @@ export default function ProjectThreadPanel({
     setActiveGalleryIndex(index);
   };
 
+  const [composerHeight, setComposerHeight] = useState(32);
+  const [isComposerOverflowing, setIsComposerOverflowing] = useState(false);
+
+  const composerOverflowStartedRef = useRef(false);
+  const composerOverflowTimerRef = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+
+    if (!textarea) return;
+
+    const minimumHeight = 32;
+    const maximumHeight = 128;
+    const transitionDuration = 200;
+
+    textarea.style.height = 'auto';
+    const contentHeight = textarea.scrollHeight;
+    textarea.style.height = '';
+
+    const nextHeight = Math.min(
+      Math.max(contentHeight, minimumHeight),
+      maximumHeight,
+    );
+
+    const hasExceededMaximumHeight = contentHeight > maximumHeight + 1;
+
+    setComposerHeight(nextHeight);
+
+    if (hasExceededMaximumHeight) {
+      if (!composerOverflowStartedRef.current) {
+        composerOverflowStartedRef.current = true;
+
+        composerOverflowTimerRef.current = window.setTimeout(() => {
+          setIsComposerOverflowing(true);
+          composerOverflowTimerRef.current = null;
+
+          requestAnimationFrame(() => {
+            textarea.scrollTop = textarea.scrollHeight;
+          });
+        }, transitionDuration);
+      } else if (isComposerOverflowing) {
+        requestAnimationFrame(() => {
+          textarea.scrollTop = textarea.scrollHeight;
+        });
+      }
+
+      return;
+    }
+
+    composerOverflowStartedRef.current = false;
+    setIsComposerOverflowing(false);
+
+    if (composerOverflowTimerRef.current !== null) {
+      window.clearTimeout(composerOverflowTimerRef.current);
+      composerOverflowTimerRef.current = null;
+    }
+  }, [message, isComposerOverflowing]);
+  useEffect(() => {
+    return () => {
+      if (composerOverflowTimerRef.current !== null) {
+        window.clearTimeout(composerOverflowTimerRef.current);
+      }
+    };
+  }, []);
   return (
     <>
       <section
         // className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white"
-        className="flex h-auto min-h-0 flex-none flex-col overflow-visible bg-white xl:h-full xl:flex-1 xl:overflow-hidden"
+        className="flex h-[calc(100dvh-132px)] min-h-0 flex-none flex-col overflow-visible bg-white xl:h-full xl:flex-1 xl:overflow-hidden"
       >
         <TopLoadingBar visible={isSubmittingReply} />
         <div className="flex items-center justify-between border-b border-gray-200 px-3 py-2 sm:py-3 md:px-5">
@@ -428,7 +497,10 @@ export default function ProjectThreadPanel({
                       currentUserId &&
                       headerReply.authorId === currentUserId &&
                       editingMessageId !== headerReply.id ? (
-                        <Menu as="div" className="absolute right-1.5 top-1.5 z-10">
+                        <Menu
+                          as="div"
+                          className="absolute right-1.5 top-1.5 z-10"
+                        >
                           <MenuButton
                             type="button"
                             disabled={
@@ -674,14 +746,14 @@ export default function ProjectThreadPanel({
                                     : undefined
                                 }
                               >
-                                      <ExpandableMessageText
-                                        message={reply.message}
-                                        mentionedUserIds={
-                                          reply.mentionedUserIds ?? []
-                                        }
-                                        mentionMembers={mentionMembers}
-                                        isEdited={reply.isEdited}
-                                      />
+                                <ExpandableMessageText
+                                  message={reply.message}
+                                  mentionedUserIds={
+                                    reply.mentionedUserIds ?? []
+                                  }
+                                  mentionMembers={mentionMembers}
+                                  isEdited={reply.isEdited}
+                                />
                               </div>
                             ) : null}
 
@@ -911,12 +983,21 @@ export default function ProjectThreadPanel({
                 members={mentionMembers}
                 inputRef={textareaRef}
                 mentionsRef={composerMentionsRef}
-                rows={2}
+                rows={1}
                 placeholder={composerPlaceholder}
                 disabled={isSubmittingReply}
                 maxLength={MAX_DISCUSSION_MESSAGE_LENGTH}
-                style={EMOJI_TEXT_STYLE}
-                inputClassName="min-h-14"
+                style={
+                  {
+                    ...EMOJI_TEXT_STYLE,
+                    '--composer-height': `${composerHeight}px`,
+                  } as React.CSSProperties
+                }
+                inputClassName={`h-[var(--composer-height)] min-h-8 max-h-32 resize-none transition-[height] duration-200 ease-out ${
+                  isComposerOverflowing
+                    ? 'overflow-y-auto scrollbar-thin'
+                    : 'overflow-y-hidden'
+                }`}
                 onKeyDown={(event) => void handleComposerKeyDown(event)}
               />
 
@@ -978,9 +1059,9 @@ export default function ProjectThreadPanel({
                         onMouseDown={(event) => event.preventDefault()}
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isSubmittingReply}
-                        className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="flex h-8 w-8 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        <PaperclipIcon />
+                        <PaperclipIcon width='20' height='20'/>
                       </button>
                     ) : null}
                     <button
@@ -994,7 +1075,7 @@ export default function ProjectThreadPanel({
                           MAX_DISCUSSION_MESSAGE_LENGTH ||
                         isSubmittingReply
                       }
-                      className="flex h-10 w-10 items-center justify-center rounded-full bg-[#10175A] text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#10175A] text-white disabled:cursor-not-allowed disabled:opacity-60"
                       aria-label={
                         isSubmittingReply ? 'Sending reply' : 'Send reply'
                       }
@@ -1381,7 +1462,9 @@ function renderHighlightedMentions(
   const mentionNames = Array.from(
     new Set(
       resolvedMentionedUserIds.flatMap((mentionedUserId) => {
-        const member = mentionMembers.find((entry) => entry.id === mentionedUserId);
+        const member = mentionMembers.find(
+          (entry) => entry.id === mentionedUserId,
+        );
 
         if (!member?.fullName?.trim()) {
           return [];
@@ -1672,11 +1755,11 @@ function LocalAttachmentPreview({ file }: { file: File }) {
 //   );
 // }
 
-function PaperclipIcon() {
+function PaperclipIcon( {width="24",height="24"}) {
   return (
     <svg
-      width="24"
-      height="24"
+      width={width}
+      height={height}
       viewBox="0 0 24 24"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
