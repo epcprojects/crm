@@ -79,7 +79,7 @@ button[aria-disabled='true'] {
 }
 
 .tiny-scrollbar {
-  scrollbar-width: thin; /* Firefox */
+  scrollbar-width: thin !important; /* Firefox */
 }
 
 .tiny-scrollbar::-webkit-scrollbar {
@@ -94,6 +94,46 @@ button[aria-disabled='true'] {
 .tiny-scrollbar::-webkit-scrollbar-thumb {
   background: #d1d5db;
   border-radius: 999px;
+}
+
+.discussion-mentions-suggestions {
+  background: #fff;
+}
+
+.discussion-mentions-suggestions .tiny-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #98a2b3 transparent;
+  scrollbar-gutter: stable;
+}
+
+.discussion-mentions-suggestions .tiny-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.discussion-mentions-suggestions .tiny-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.discussion-mentions-suggestions .tiny-scrollbar::-webkit-scrollbar-thumb {
+  background: #98a2b3;
+  border-radius: 999px;
+}
+
+.discussion-mentions-suggestions .tiny-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #667085;
+}
+
+@media (max-width: 767px) {
+  .discussion-mentions-mobile-panel {
+    left: 0 !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: calc(100% + 10px) !important;
+    width: min(100%, 100vw - 2rem) !important;
+    margin: 0 !important;
+    border-radius: 22px !important;
+    overflow: hidden !important;
+  }
 }
 
 .fc .fc-scrollgrid,
