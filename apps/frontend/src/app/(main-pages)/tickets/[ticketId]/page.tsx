@@ -1789,7 +1789,7 @@ export default function TicketDetailPage() {
   };
 
   return (
-    <div className="relative z-100 h-full xl:h-dvh overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0">
+    <div className="relative z-100 h-full xl:h-dvh overflow-hidden py-4 xl:py-5 xl:pr-5 px-3 xl:px-0 pt-2 pb-0">
       <div
         className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
         // className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden  xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
@@ -2316,7 +2316,7 @@ export default function TicketDetailPage() {
                 </h3>
 
                 <div className="space-y-2 p-3 sm:p-4">
-                  <div className="grid items-center md:grid-cols-2 gap-4">
+                  <div className="grid items-center grid-cols-[60px_minmax(0,1fr)] 2xl:grid-cols-2 gap-2 2xl:gap-4">
                     <span className="text-sm text-black font-normal">
                       Status
                     </span>
@@ -2332,7 +2332,7 @@ export default function TicketDetailPage() {
                       applyHeight={false}
                     />
                   </div>
-                  <div className="grid items-center md:grid-cols-2 gap-4">
+                  <div className="grid items-center grid-cols-[60px_minmax(0,1fr)] 2xl:grid-cols-2 gap-2 2xl:gap-4">
                     <span className="text-sm text-black font-normal">
                       Priority
                     </span>
@@ -2346,7 +2346,7 @@ export default function TicketDetailPage() {
                       applyHeight={false}
                     />
                   </div>
-                  <div className="grid items-center md:grid-cols-2 gap-4">
+                  <div className="grid items-center grid-cols-[60px_minmax(0,1fr)] 2xl:grid-cols-2 gap-2 2xl:gap-4">
                     <span className="text-sm text-black font-normal">
                       Assignee
                     </span>
@@ -2361,12 +2361,13 @@ export default function TicketDetailPage() {
                     />
                   </div>
                   {/* {!isExternalUser ? ( */}
-                  <section className="grid items-center md:grid-cols-2 gap-4">
-                    <span className="text-sm text-black font-normal">
+                  <section className="grid w-full grid-cols-[60px_minmax(0,1fr)] items-center gap-2 2xl:grid-cols-2 2xl:gap-4">
+                    <span className="whitespace-nowrap text-sm font-normal text-black">
                       Due Date
                     </span>
-                    <div className="">
-                      <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-1.5">
+
+                    <div className="min-w-0 xl:w-[calc(100%+0.5rem)] 2xl:w-full">
+                      <label className="flex w-full min-w-0 items-center justify-between rounded-lg border border-gray-200 px-3 py-1.5">
                         <input
                           type="date"
                           value={selectedDueDate}
@@ -2377,7 +2378,7 @@ export default function TicketDetailPage() {
                           onChange={(event) =>
                             handleDueDateChange(event.target.value)
                           }
-                          className="w-full bg-transparent text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:text-gray-400"
+                          className="w-full min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:text-gray-400"
                         />
                       </label>
                     </div>
@@ -2660,7 +2661,7 @@ export default function TicketDetailPage() {
 
               {!isExternalUser ? (
                 <section className="rounded-xl border border-gray-200 overflow-hidden bg-white">
-                  <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 sm:px-4 md:text-base">
+                  <h3 className="border-b border-gray-200 px-3 py-2 md:py-3 text-sm font-semibold text-gray-900 sm:px-4 md:text-base">
                     People
                   </h3>
 
@@ -4533,7 +4534,7 @@ function QuickLinkButton({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 border-t border-gray-200 px-4 py-3 text-left transition last:border-b-0 hover:bg-gray-50"
+      className="flex w-full items-center gap-3 border-t border-gray-200 px-3 md:px-4 py-3 text-left transition last:border-b-0 hover:bg-gray-50"
     >
       <span
         className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconBg}`}

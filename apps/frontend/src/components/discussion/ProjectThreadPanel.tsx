@@ -1045,7 +1045,7 @@ export default function ProjectThreadPanel({
                   </div>
                 ) : null}
                 <div className="flex flex-col gap-1">
-                  <div className="mt-1 text-right text-xs text-gray-500">
+                  <div className="mt-1 text-right text-xs text-gray-500 md:block hidden">
                     {messagePlainText.length}/{MAX_DISCUSSION_MESSAGE_LENGTH}
                   </div>
                   <div className="flex items-center gap-2">

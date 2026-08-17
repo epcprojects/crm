@@ -68,31 +68,28 @@ export default function Page() {
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [pagination, setPagination] = useState<PaginationState>(() => {
-  const requestedPageSize = Number(
-    searchParams.get(TICKETS_PAGE_SIZE_QUERY_PARAM),
-  );
+    const requestedPageSize = Number(
+      searchParams.get(TICKETS_PAGE_SIZE_QUERY_PARAM),
+    );
 
-  return {
-    pageIndex: 0,
-    pageSize: ALLOWED_TICKETS_PAGE_SIZES.includes(requestedPageSize)
-      ? requestedPageSize
-      : 10,
-  };
-});
-const handlePaginationChange = (nextPagination: PaginationState) => {
-  setPagination(nextPagination);
-
-  const params = new URLSearchParams(searchParams.toString());
-
-  params.set(
-    TICKETS_PAGE_SIZE_QUERY_PARAM,
-    String(nextPagination.pageSize),
-  );
-
-  router.replace(`${pathname}?${params.toString()}`, {
-    scroll: false,
+    return {
+      pageIndex: 0,
+      pageSize: ALLOWED_TICKETS_PAGE_SIZES.includes(requestedPageSize)
+        ? requestedPageSize
+        : 10,
+    };
   });
-};
+  const handlePaginationChange = (nextPagination: PaginationState) => {
+    setPagination(nextPagination);
+
+    const params = new URLSearchParams(searchParams.toString());
+
+    params.set(TICKETS_PAGE_SIZE_QUERY_PARAM, String(nextPagination.pageSize));
+
+    router.replace(`${pathname}?${params.toString()}`, {
+      scroll: false,
+    });
+  };
   const [sortState, setSortState] = useState<TicketSortState>({
     sortBy: 'createdAt',
     sortOrder: 'desc',
@@ -874,8 +871,6 @@ const handlePaginationChange = (nextPagination: PaginationState) => {
   //   };
   // }, []);
 
-
-  
   return (
     <>
       <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 py-4">
@@ -912,7 +907,7 @@ const handlePaginationChange = (nextPagination: PaginationState) => {
                 <div className="flex flex-col gap-3 rounded-xl md:flex-row justify-end items-end">
                   {canFilterTickets ? (
                     <div className="flex w-full md:flex-row flex-col gap-2 justify-between">
-                      <div className="flex flex-row justify-between w-fit gap-3">
+                      <div className="flex flex-row justify-between w-full sm:w-fit gap-3">
                         <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 md:max-w-100 md:min-w-80">
                           <div className="flex items-center gap-2">
                             <span className="shrink-0">
