@@ -720,7 +720,7 @@ function TicketMobileCard({
 
           <div className="flex max-w-full flex-row items-center gap-1.25 rounded-full border border-gray-100 bg-white py-0.5 pr-2 pl-0.5">
             <span
-              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-medium"
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-medium leading-none"
               style={{
                 backgroundColor: `${projectColor}20`,
                 color: projectColor,
@@ -738,7 +738,7 @@ function TicketMobileCard({
           <p className="text-[10px] text-gray-500">Created by</p>
 
           <div className="flex min-w-0 flex-row items-center gap-1.25 py-0.5">
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] font-medium text-gray-900">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] leading-none font-medium text-gray-900">
               {reporterInitials}
             </span>
 

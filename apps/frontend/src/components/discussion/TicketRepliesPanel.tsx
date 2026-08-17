@@ -83,7 +83,7 @@ type DiscussionPanelProps = {
   editingReplyId?: string;
   hideHeader?: boolean;
   className?: string;
-  showBorderTop? : boolean;
+  showBorderTop?: boolean;
 };
 
 type GalleryImage = {
@@ -408,73 +408,77 @@ export default function TicketRepliesPanel({
   const selectGalleryImage = (index: number) => {
     setActiveGalleryIndex(index);
   };
-const [composerHeight, setComposerHeight] = useState(32);
-const [isComposerOverflowing, setIsComposerOverflowing] = useState(false);
-const composerOverflowStartedRef = useRef(false);
-const composerOverflowTimerRef = useRef<number | null>(null);
-useLayoutEffect(() => {
-  const textarea = textareaRef.current;
+  const [composerHeight, setComposerHeight] = useState(32);
+  const [isComposerOverflowing, setIsComposerOverflowing] = useState(false);
+  const composerOverflowStartedRef = useRef(false);
+  const composerOverflowTimerRef = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
 
-  if (!textarea) return;
+    if (!textarea) return;
 
-  const minimumHeight = 32;
-  const maximumHeight = 128;
-  const transitionDuration = 200;
+    const minimumHeight = 32;
+    const maximumHeight = 128;
+    const transitionDuration = 200;
 
-  textarea.style.height = 'auto';
-  const contentHeight = textarea.scrollHeight;
-  textarea.style.height = '';
+    textarea.style.height = 'auto';
+    const contentHeight = textarea.scrollHeight;
+    textarea.style.height = '';
 
-  const nextHeight = Math.min(
-    Math.max(contentHeight, minimumHeight),
-    maximumHeight,
-  );
+    const nextHeight = Math.min(
+      Math.max(contentHeight, minimumHeight),
+      maximumHeight,
+    );
 
-  const hasExceededMaximumHeight = contentHeight > maximumHeight + 1;
+    const hasExceededMaximumHeight = contentHeight > maximumHeight + 1;
 
-  setComposerHeight(nextHeight);
+    setComposerHeight(nextHeight);
 
-  if (hasExceededMaximumHeight) {
-    if (!composerOverflowStartedRef.current) {
-      composerOverflowStartedRef.current = true;
+    if (hasExceededMaximumHeight) {
+      if (!composerOverflowStartedRef.current) {
+        composerOverflowStartedRef.current = true;
 
-      composerOverflowTimerRef.current = window.setTimeout(() => {
-        setIsComposerOverflowing(true);
-        composerOverflowTimerRef.current = null;
+        composerOverflowTimerRef.current = window.setTimeout(() => {
+          setIsComposerOverflowing(true);
+          composerOverflowTimerRef.current = null;
 
+          requestAnimationFrame(() => {
+            textarea.scrollTop = textarea.scrollHeight;
+          });
+        }, transitionDuration);
+      } else if (isComposerOverflowing) {
         requestAnimationFrame(() => {
           textarea.scrollTop = textarea.scrollHeight;
         });
-      }, transitionDuration);
-    } else if (isComposerOverflowing) {
-      requestAnimationFrame(() => {
-        textarea.scrollTop = textarea.scrollHeight;
-      });
+      }
+
+      return;
     }
+    composerOverflowStartedRef.current = false;
+    setIsComposerOverflowing(false);
 
-    return;
-  }
-  composerOverflowStartedRef.current = false;
-  setIsComposerOverflowing(false);
-
-  if (composerOverflowTimerRef.current !== null) {
-    window.clearTimeout(composerOverflowTimerRef.current);
-    composerOverflowTimerRef.current = null;
-  }
-}, [message, isComposerOverflowing]);
-useEffect(() => {
-  return () => {
     if (composerOverflowTimerRef.current !== null) {
       window.clearTimeout(composerOverflowTimerRef.current);
+      composerOverflowTimerRef.current = null;
     }
-  };
-}, []);
+  }, [message, isComposerOverflowing]);
+  useEffect(() => {
+    return () => {
+      if (composerOverflowTimerRef.current !== null) {
+        window.clearTimeout(composerOverflowTimerRef.current);
+      }
+    };
+  }, []);
 
   return (
     <>
       <section
         // className={`flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl  border border-gray-200 bg-white ${className}`}
-        className={`flex xl:h-auto xl:min-h-0 h-full min-h-[calc(100dvh-132px)] flex-none flex-col overflow-visible rounded-xl ${showBorderTop?"border border-gray-200" :"border-t-0 border border-gray-200"} bg-white xl:h-full xl:flex-1 xl:overflow-hidden ${className}`}
+        className={`flex h-[calc(100dvh-132px)] min-h-0 flex-none flex-col overflow-hidden rounded-xl ${
+  showBorderTop
+    ? 'border border-gray-200'
+    : 'border-t-0 border border-gray-200'
+} bg-white xl:h-full xl:flex-1 ${className}`}
       >
         <TopLoadingBar visible={isSubmittingReply} />
         {!hideHeader && (
@@ -774,14 +778,14 @@ useEffect(() => {
                                   </div>
                                 </div>
                               ) : reply.message ? (
-                                      <ExpandableMessageText
-                                        message={reply.message}
-                                        mentionedUserIds={
-                                          reply.mentionedUserIds ?? []
-                                        }
-                                        mentionMembers={mentionMembers}
-                                        isEdited={reply.isEdited}
-                                      />
+                                <ExpandableMessageText
+                                  message={reply.message}
+                                  mentionedUserIds={
+                                    reply.mentionedUserIds ?? []
+                                  }
+                                  mentionMembers={mentionMembers}
+                                  isEdited={reply.isEdited}
+                                />
                               ) : null}
 
                               {reply.attachments?.length ? (
@@ -1056,17 +1060,17 @@ useEffect(() => {
                 onPaste={handleAttachmentPaste}
                 disabled={isSubmittingReply}
                 maxLength={MAX_DISCUSSION_MESSAGE_LENGTH}
-               style={
-    {
-      ...EMOJI_TEXT_STYLE,
-      '--composer-height': `${composerHeight}px`,
-    } as React.CSSProperties
-  }
- inputClassName={`h-[var(--composer-height)] min-h-8 max-h-32 resize-none transition-[height] duration-200 ease-out ${
-  isComposerOverflowing
-    ? 'overflow-y-auto scrollbar-thin'
-    : 'overflow-y-hidden'
-}`}
+                style={
+                  {
+                    ...EMOJI_TEXT_STYLE,
+                    '--composer-height': `${composerHeight}px`,
+                  } as React.CSSProperties
+                }
+                inputClassName={`h-[var(--composer-height)] min-h-8 max-h-32 resize-none transition-[height] duration-200 ease-out ${
+                  isComposerOverflowing
+                    ? 'overflow-y-auto scrollbar-thin'
+                    : 'overflow-y-hidden'
+                }`}
                 onKeyDown={(event) => void handleComposerKeyDown(event)}
               />
 
@@ -1169,7 +1173,7 @@ useEffect(() => {
                   {canAttachFile ? ALLOWED_ATTACHMENT_HELPER_TEXT : null}
                 </div> */}
                 <div className="flex flex-col gap-1">
-                  <div className="mt-1 text-right text-xs text-gray-500">
+                  <div className="mt-1 text-right text-xs text-gray-500 md:block hidden">
                     {messagePlainText.length}/{MAX_DISCUSSION_MESSAGE_LENGTH}
                   </div>
                   <div className="flex items-center gap-2">
@@ -1185,7 +1189,7 @@ useEffect(() => {
                         disabled={isSubmittingReply}
                         className="flex h-8 w-8 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        <PaperclipIcon width='20' height='20' />
+                        <PaperclipIcon width="20" height="20" />
                       </button>
                     ) : null}
                     <button
@@ -1374,7 +1378,9 @@ function renderHighlightedMentions(
   const mentionNames = Array.from(
     new Set(
       resolvedMentionedUserIds.flatMap((mentionedUserId) => {
-        const member = mentionMembers.find((entry) => entry.id === mentionedUserId);
+        const member = mentionMembers.find(
+          (entry) => entry.id === mentionedUserId,
+        );
 
         if (!member?.fullName?.trim()) {
           return [];
@@ -1728,7 +1734,7 @@ function AttachmentTrashIcon() {
   );
 }
 
-function PaperclipIcon({width="24",height="24"}) {
+function PaperclipIcon({ width = '24', height = '24' }) {
   return (
     <svg
       width={width}
