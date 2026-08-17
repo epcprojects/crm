@@ -6,7 +6,6 @@ import {
   useState,
   type CSSProperties,
   type KeyboardEvent,
-  type ReactNode,
   type RefObject,
 } from 'react';
 import {
@@ -95,7 +94,10 @@ export function getMentionedUserIdsFromPlainText(
       return;
     }
 
-    const fullNameRegex = new RegExp(`@${escapeRegExp(fullName)}(?=\\b|$)`, 'g');
+    const fullNameRegex = new RegExp(
+      `@${escapeRegExp(fullName)}(?=\\b|$)`,
+      'g',
+    );
 
     if (fullNameRegex.test(normalizedMessage)) {
       matchedUserIds.add(member.id);
@@ -117,7 +119,10 @@ export function getMentionedUserIdsFromPlainText(
       return;
     }
 
-    const shortNameRegex = new RegExp(`@${escapeRegExp(shortName)}(?=\\b|$)`, 'g');
+    const shortNameRegex = new RegExp(
+      `@${escapeRegExp(shortName)}(?=\\b|$)`,
+      'g',
+    );
 
     if (shortNameRegex.test(normalizedMessage)) {
       matchedUserIds.add(memberIds[0]);
@@ -238,9 +243,31 @@ export default function DiscussionMentionsInput({
 }: DiscussionMentionsInputProps) {
   const mentionData = mapMembersToMentionData(members);
   const [portalHost, setPortalHost] = useState<HTMLElement | null>(null);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
 
   useEffect(() => {
     setPortalHost(document.body);
+
+    const mediaQuery = window.matchMedia('(max-width: 767px)');
+    const syncViewport = () => {
+      setIsMobileViewport(mediaQuery.matches);
+    };
+
+    syncViewport();
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', syncViewport);
+
+      return () => {
+        mediaQuery.removeEventListener('change', syncViewport);
+      };
+    }
+
+    mediaQuery.addListener(syncViewport);
+
+    return () => {
+      mediaQuery.removeListener(syncViewport);
+    };
   }, []);
 
   return (
@@ -258,9 +285,9 @@ export default function DiscussionMentionsInput({
       maxLength={maxLength}
       style={style}
       a11ySuggestionsListLabel="Project members"
-      suggestionsPlacement="auto"
-      anchorMode='caret'
-      suggestionsPortalHost={portalHost}
+      suggestionsPlacement={isMobileViewport ? 'above' : 'auto'}
+      anchorMode={isMobileViewport ? 'left' : 'caret'}
+      suggestionsPortalHost={isMobileViewport ? null : portalHost}
       onKeyDown={onKeyDown}
       onPaste={onPaste}
       onMentionsChange={({ value: nextValue, plainTextValue, mentions }) =>
@@ -279,7 +306,9 @@ export default function DiscussionMentionsInput({
             : 'text-gray-700',
         ),
         highlighterSubstring: clsx(
-          highlightMentionsInVisibleInput ? 'text-transparent' : 'text-gray-700',
+          highlightMentionsInVisibleInput
+            ? 'text-transparent'
+            : 'text-gray-700',
         ),
         input: clsx(
           'w-full resize-none bg-transparent px-2 py-1 text-sm leading-6 outline-none! placeholder:text-gray-400',
@@ -289,10 +318,18 @@ export default function DiscussionMentionsInput({
             : 'text-gray-700 caret-gray-700',
           inputClassName,
         ),
-        suggestions:
-          'z-[9999] overflow-hidden rounded-lg border border-slate-200 hover:bg-white! max-w-50 shadow-xl',
-        suggestionsList:
-          'max-h-60 w-full overflow-y-auto py-1 divide-y-0!  px-1',
+        suggestions: clsx(
+          'discussion-mentions-suggestions z-[9999] overflow-hidden border border-slate-200 bg-white shadow-xl',
+          isMobileViewport
+            ? 'discussion-mentions-mobile-panel w-full max-w-none rounded-lg! md:rounded-2xl! border-gray-200! shadow-[0_18px_50px_rgb(0_0_0/0.16)]!'
+            : 'max-w-50 rounded-lg',
+        ),
+        suggestionsList: clsx(
+          'tiny-scrollbar w-full overflow-y-auto divide-y-0! px-1',
+          isMobileViewport
+            ? 'max-h-[min(12rem,42vh)] pt-1 pb-2'
+            : 'max-h-40 py-1',
+        ),
         suggestionItem:
           'cursor-pointer px-3 py-2 text-left transition hover:!bg-gray-100 rounded-lg!',
         suggestionItemFocused: '!bg-gray-100 !text-gray-900',
@@ -314,10 +351,9 @@ export default function DiscussionMentionsInput({
             : 'transparent',
           fontWeight: 400,
         }}
-        renderSuggestion={(entry, _search, highlightedDisplay) => (
+        renderSuggestion={(entry) => (
           <div className="flex flex-col">
             <span className="text-sm font-medium text-[#10175A]">
-              {/* {highlightedDisplay as ReactNode} */}
               {String(entry.fullName)}
             </span>
             {/* {entry.fullName && entry.fullName !== entry.display ? (
