@@ -327,8 +327,8 @@ export default function DiscussionMentionsInput({
         suggestionsList: clsx(
           'tiny-scrollbar w-full overflow-y-auto divide-y-0! px-1',
           isMobileViewport
-            ? 'max-h-[min(18rem,42vh)] pt-4 pb-2'
-            : 'max-h-60 py-1',
+            ? 'max-h-[min(12rem,42vh)] pt-1 pb-2'
+            : 'max-h-40 py-1',
         ),
         suggestionItem:
           'cursor-pointer px-3 py-2 text-left transition hover:!bg-gray-100 rounded-lg!',
