@@ -1,4 +1,4 @@
-export const MAX_TOTAL_ATTACHMENT_SIZE_BYTES = 3 * 1024 * 1024;
+export const MAX_TOTAL_ATTACHMENT_SIZE_BYTES = 15 * 1024 * 1024;
 
 export const ALLOWED_ATTACHMENT_EXTENSIONS = [
   '.jpg',

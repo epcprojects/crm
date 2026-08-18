@@ -43,41 +43,15 @@ export class ThreadController {
   }
 
   @Post()
-  @UseGuards(FileSizeGuard)
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        message: {
-          type: 'string',
-        },
-        parentId: {
-          type: 'uuid',
-          nullable: true,
-        },
-        attachments: {
-          type: 'array',
-          items: {
-            type: 'string',
-            format: 'binary',
-          },
-        },
-      },
-      required: ['message'],
-    },
-  })
-  @UseInterceptors(FilesInterceptor('attachments'))
   @ApiOperation({
     description: 'Create a thread message for a project.',
   })
   create(
     @Param('pid', ParseUUIDPipe) pid: string,
     @Body() dto: CreateThreadMessageDto,
-    @UploadedFiles() files: Express.Multer.File[],
     @GetUser() user,
   ) {
-    return this.service.create(pid, dto, user, files);
+    return this.service.create(pid, dto, user, dto.attachments);
   }
 
   @Get(':messageId')
@@ -92,31 +66,6 @@ export class ThreadController {
   }
 
   @Put(':messageId')
-  @UseGuards(FileSizeGuard)
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        message: {
-          type: 'string',
-        },
-        parentId: {
-          type: 'uuid',
-          nullable: true,
-        },
-        attachments: {
-          type: 'array',
-          items: {
-            type: 'string',
-            format: 'binary',
-          },
-        },
-      },
-      required: ['message'],
-    },
-  })
-  @UseInterceptors(FilesInterceptor('attachments'))
   @ApiOperation({
     description: 'Updates thread message.',
   })
@@ -124,10 +73,9 @@ export class ThreadController {
     @Param('pid', ParseUUIDPipe) pid: string,
     @Param('messageId', ParseUUIDPipe) messageId: string,
     @Body() dto: UpdateThreadMessageDto,
-    @UploadedFiles() files: Express.Multer.File[],
     @GetUser() user,
   ) {
-    return this.service.update(messageId, pid, dto, user, files);
+    return this.service.update(messageId, pid, dto, user, dto.attachments);
   }
 
   @Delete(':messageId')
