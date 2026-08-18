@@ -243,32 +243,49 @@ export class ChatMessagesService {
   // Fetch history (cursor-based pagination)
 
   async getMessages(
-    projectId: string,
-    channel: ChatChannel,
-    ticketId: string,
-    query: GetMessagesQueryDto,
-  ) {
-    const where: any = { ticketId, isDeleted: false };
+  projectId: string,
+  channel: ChatChannel,
+  ticketId: string,
+  query: GetMessagesQueryDto,
+) {
+  const limit = query.limit ? Math.min(query.limit, 100) : 30;
 
-    if (query.before) {
-      where.createdAt = LessThan(new Date(query.before));
-    }
+  const qb = this.repo(channel)
+    .createQueryBuilder('msg')
+    .leftJoinAndSelect('msg.sender', 'sender')
+    .where('msg.ticketId = :ticketId', { ticketId })
+    .andWhere('msg.isDeleted = false')
+    .andWhere('msg.deletedAt IS NULL')
+    .orderBy('msg.createdAt', 'DESC')
+    .addOrderBy('msg.id', 'DESC')
+    .take(limit + 1);
 
-    const messages = await this.repo(channel).find({
-      where,
-      relations: {
-        sender: true,
-      },
-      order: { createdAt: 'ASC' },
-      ...(query.limit ? { take: query.limit } : {}),
-    });
-    return Promise.all(
-      messages.map(async (msg) => ({
-        ...msg,
-        reactions: await this.reactionsService.getInternalChatReactions(msg.id),
-      })),
+  if (query.before && query.beforeId) {
+    qb.andWhere(
+      '(msg.createdAt < :cCreatedAt OR (msg.createdAt = :cCreatedAt AND msg.id < :cId))',
+      { cCreatedAt: new Date(query.before), cId: query.beforeId },
     );
   }
+
+  const rows = await qb.getMany();
+  const hasMore = rows.length > limit;
+  const page = hasMore ? rows.slice(0, limit) : rows;
+
+  const enriched = await Promise.all(
+    page.map(async (msg) => ({
+      ...msg,
+      reactions: await this.reactionsService.getInternalChatReactions(msg.id),
+    })),
+  );
+
+  const last = page[page.length - 1];
+
+  return {
+    messages: enriched,
+    nextCursor: hasMore ? { createdAt: last.createdAt, id: last.id } : null,
+    hasMore,
+  };
+}
 
   // - Mark read
   async markRead(

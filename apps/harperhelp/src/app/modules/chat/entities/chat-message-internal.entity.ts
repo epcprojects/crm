@@ -21,6 +21,7 @@ export enum MessageType {
 @Entity('chat_messages_internal')
 @Index(['ticketId', 'createdAt'])
 @Index(['projectId', 'createdAt'])
+@Index(['ticketId', 'createdAt', 'id'])
 export class ChatMessageInternal extends TimestampEntityWithSoftDelete {
   // @PrimaryGeneratedColumn('uuid')
   // id: string;
