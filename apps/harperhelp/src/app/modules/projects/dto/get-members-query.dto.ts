@@ -42,9 +42,9 @@ export class GetMembersQueryDto {
     value === undefined ? undefined : Array.isArray(value) ? value : [value],
   )
   @IsArray()
-  @IsUUID('4', { each: true })
+  @IsUUID('loose', { each: true })
   projectIds?: string[];
-  
+
   @ApiPropertyOptional({
     description: 'Filter users assigned to a specific role.',
     format: 'uuid',

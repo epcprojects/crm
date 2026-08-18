@@ -13,21 +13,21 @@ export class CreateReplyDto {
   @IsBoolean()
   isInternal?: boolean;
 
-@ApiPropertyOptional({
-  description: 'Array of user IDs mentioned in the message',
-  type: [String],
-})
-@IsOptional()
-@Transform(({ value }) => {
-  if (value === undefined || value === null || value === '') {
-    return undefined;
-  }
+  @ApiPropertyOptional({
+    description: 'Array of user IDs mentioned in the message',
+    type: [String],
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') {
+      return undefined;
+    }
 
-  return Array.isArray(value) ? value : [value];
-})
-@IsUUID('4', {
-  each: true,
-  message: 'Each mentioned user ID must be a valid UUID',
-})
-mentionedUserIds?: string[];
+    return Array.isArray(value) ? value : [value];
+  })
+  @IsUUID('loose', {
+    each: true,
+    message: 'Each mentioned user ID must be a valid UUID',
+  })
+  mentionedUserIds?: string[];
 }

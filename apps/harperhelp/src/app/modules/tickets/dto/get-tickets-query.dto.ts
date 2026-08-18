@@ -1,6 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsOptional, IsString, IsUUID, Min, Max, IsArray } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min,
+  Max,
+  IsArray,
+} from 'class-validator';
 
 export class GetTicketsQueryDto {
   @ApiPropertyOptional()
@@ -29,7 +36,7 @@ export class GetTicketsQueryDto {
     value === undefined ? undefined : Array.isArray(value) ? value : [value],
   )
   @IsArray()
-  @IsUUID('4', { each: true })
+  @IsUUID('loose', { each: true })
   projectIds?: string[];
 
   @ApiProperty()
