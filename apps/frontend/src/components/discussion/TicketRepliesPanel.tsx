@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
   type ClipboardEvent,
+  useLayoutEffect,
 } from 'react';
 import { type MentionsInputHandle } from 'react-mentions-ts';
 import {
@@ -82,6 +83,7 @@ type DiscussionPanelProps = {
   editingReplyId?: string;
   hideHeader?: boolean;
   className?: string;
+  showBorderTop?: boolean;
 };
 
 type GalleryImage = {
@@ -119,6 +121,7 @@ export default function TicketRepliesPanel({
   editingReplyId,
   hideHeader = false,
   className,
+  showBorderTop,
 }: DiscussionPanelProps) {
   const [message, setMessage] = useState('');
   const [messagePlainText, setMessagePlainText] = useState('');
@@ -405,12 +408,77 @@ export default function TicketRepliesPanel({
   const selectGalleryImage = (index: number) => {
     setActiveGalleryIndex(index);
   };
+  const [composerHeight, setComposerHeight] = useState(32);
+  const [isComposerOverflowing, setIsComposerOverflowing] = useState(false);
+  const composerOverflowStartedRef = useRef(false);
+  const composerOverflowTimerRef = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+
+    if (!textarea) return;
+
+    const minimumHeight = 32;
+    const maximumHeight = 128;
+    const transitionDuration = 200;
+
+    textarea.style.height = 'auto';
+    const contentHeight = textarea.scrollHeight;
+    textarea.style.height = '';
+
+    const nextHeight = Math.min(
+      Math.max(contentHeight, minimumHeight),
+      maximumHeight,
+    );
+
+    const hasExceededMaximumHeight = contentHeight > maximumHeight + 1;
+
+    setComposerHeight(nextHeight);
+
+    if (hasExceededMaximumHeight) {
+      if (!composerOverflowStartedRef.current) {
+        composerOverflowStartedRef.current = true;
+
+        composerOverflowTimerRef.current = window.setTimeout(() => {
+          setIsComposerOverflowing(true);
+          composerOverflowTimerRef.current = null;
+
+          requestAnimationFrame(() => {
+            textarea.scrollTop = textarea.scrollHeight;
+          });
+        }, transitionDuration);
+      } else if (isComposerOverflowing) {
+        requestAnimationFrame(() => {
+          textarea.scrollTop = textarea.scrollHeight;
+        });
+      }
+
+      return;
+    }
+    composerOverflowStartedRef.current = false;
+    setIsComposerOverflowing(false);
+
+    if (composerOverflowTimerRef.current !== null) {
+      window.clearTimeout(composerOverflowTimerRef.current);
+      composerOverflowTimerRef.current = null;
+    }
+  }, [message, isComposerOverflowing]);
+  useEffect(() => {
+    return () => {
+      if (composerOverflowTimerRef.current !== null) {
+        window.clearTimeout(composerOverflowTimerRef.current);
+      }
+    };
+  }, []);
 
   return (
     <>
       <section
         // className={`flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl  border border-gray-200 bg-white ${className}`}
-        className={`flex h-auto min-h-0 flex-none flex-col overflow-visible rounded-xl border border-gray-200 bg-white xl:h-full xl:flex-1 xl:overflow-hidden ${className}`}
+        className={`flex h-[calc(100dvh-132px)] min-h-0 flex-none flex-col overflow-hidden rounded-xl ${
+  showBorderTop
+    ? 'border border-gray-200'
+    : 'border-t-0 border border-gray-200'
+} bg-white xl:h-full xl:flex-1 ${className}`}
       >
         <TopLoadingBar visible={isSubmittingReply} />
         {!hideHeader && (
@@ -432,7 +500,7 @@ export default function TicketRepliesPanel({
         <div
           ref={scrollContainerRef}
           // className="min-h-0 flex-1 overflow-y-auto scrollbar-hide px-3 py-5 md:px-5"
-          className="min-h-0 flex-none overflow-visible px-3 py-5 scrollbar-hide md:px-5 xl:flex-1 xl:overflow-y-auto"
+          className="min-h-0 flex-1 overflow-y-auto px-3 py-5 scrollbar-hide md:px-5"
         >
           <div
             className={`flex min-h-full flex-col ${replies.length > 0 ? 'justify-end' : 'justify-center'}`}
@@ -710,14 +778,14 @@ export default function TicketRepliesPanel({
                                   </div>
                                 </div>
                               ) : reply.message ? (
-                                      <ExpandableMessageText
-                                        message={reply.message}
-                                        mentionedUserIds={
-                                          reply.mentionedUserIds ?? []
-                                        }
-                                        mentionMembers={mentionMembers}
-                                        isEdited={reply.isEdited}
-                                      />
+                                <ExpandableMessageText
+                                  message={reply.message}
+                                  mentionedUserIds={
+                                    reply.mentionedUserIds ?? []
+                                  }
+                                  mentionMembers={mentionMembers}
+                                  isEdited={reply.isEdited}
+                                />
                               ) : null}
 
                               {reply.attachments?.length ? (
@@ -987,13 +1055,22 @@ export default function TicketRepliesPanel({
                 members={mentionMembers}
                 inputRef={textareaRef}
                 mentionsRef={composerMentionsRef}
-                rows={2}
+                rows={1}
                 placeholder={composerPlaceholder}
                 onPaste={handleAttachmentPaste}
                 disabled={isSubmittingReply}
                 maxLength={MAX_DISCUSSION_MESSAGE_LENGTH}
-                style={EMOJI_TEXT_STYLE}
-                inputClassName="min-h-14 md:min-h-16"
+                style={
+                  {
+                    ...EMOJI_TEXT_STYLE,
+                    '--composer-height': `${composerHeight}px`,
+                  } as React.CSSProperties
+                }
+                inputClassName={`h-[var(--composer-height)] min-h-8 max-h-32 resize-none transition-[height] duration-200 ease-out ${
+                  isComposerOverflowing
+                    ? 'overflow-y-auto scrollbar-thin'
+                    : 'overflow-y-hidden'
+                }`}
                 onKeyDown={(event) => void handleComposerKeyDown(event)}
               />
 
@@ -1096,7 +1173,7 @@ export default function TicketRepliesPanel({
                   {canAttachFile ? ALLOWED_ATTACHMENT_HELPER_TEXT : null}
                 </div> */}
                 <div className="flex flex-col gap-1">
-                  <div className="mt-1 text-right text-xs text-gray-500">
+                  <div className="mt-1 text-right text-xs text-gray-500 md:block hidden">
                     {messagePlainText.length}/{MAX_DISCUSSION_MESSAGE_LENGTH}
                   </div>
                   <div className="flex items-center gap-2">
@@ -1110,9 +1187,9 @@ export default function TicketRepliesPanel({
                         onMouseDown={(event) => event.preventDefault()}
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isSubmittingReply}
-                        className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="flex h-8 w-8 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        <PaperclipIcon />
+                        <PaperclipIcon width="20" height="20" />
                       </button>
                     ) : null}
                     <button
@@ -1126,7 +1203,7 @@ export default function TicketRepliesPanel({
                           MAX_DISCUSSION_MESSAGE_LENGTH ||
                         isSubmittingReply
                       }
-                      className="flex h-10 w-10 items-center justify-center rounded-full bg-[#10175A] text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#10175A] text-white disabled:cursor-not-allowed disabled:opacity-60"
                       aria-label={
                         isSubmittingReply ? 'Sending reply' : 'Send reply'
                       }
@@ -1301,7 +1378,9 @@ function renderHighlightedMentions(
   const mentionNames = Array.from(
     new Set(
       resolvedMentionedUserIds.flatMap((mentionedUserId) => {
-        const member = mentionMembers.find((entry) => entry.id === mentionedUserId);
+        const member = mentionMembers.find(
+          (entry) => entry.id === mentionedUserId,
+        );
 
         if (!member?.fullName?.trim()) {
           return [];
@@ -1409,7 +1488,7 @@ function renderTextWithLinks(text: string, keyPrefix = 'text') {
   return nodes;
 }
 
-function EditPencilIcon() {
+export function EditPencilIcon() {
   return (
     <svg
       width="16"
@@ -1655,11 +1734,11 @@ function AttachmentTrashIcon() {
   );
 }
 
-function PaperclipIcon() {
+function PaperclipIcon({ width = '24', height = '24' }) {
   return (
     <svg
-      width="24"
-      height="24"
+      width={width}
+      height={height}
       viewBox="0 0 24 24"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"

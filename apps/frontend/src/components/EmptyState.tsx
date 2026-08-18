@@ -1,7 +1,9 @@
+"use client"
 import Image from 'next/image';
 import type { ReactNode } from 'react';
 import ThemeButton from './ui/ThemeButton';
 import { PlusIcon } from '../../public/icons';
+import { useIsMobile } from './hooks/useIsMobile';
 
 type EmptyStateProps = {
   imageUrl?: string;
@@ -22,16 +24,17 @@ export default function EmptyState({
   buttonIcon,
   onButtonClick,
 }: EmptyStateProps) {
+  const isMobile = useIsMobile();
   return (
-    <div className="flex flex-col flex-1 h-full justify-center items-center gap-3 py-4 text-center">
+    <div className="flex flex-col flex-1 h-full justify-center items-center gap-1.5 md:gap-3 py-2 md:py-4 text-center">
       {imageUrl ? (
-        <Image src={imageUrl} width={110} height={110} alt={imageAlt} />
+        <Image src={imageUrl} width={isMobile?70:110} height={isMobile?70:110} alt={imageAlt} />
       ) : null}
 
       {title || description ? (
         <div className="flex flex-col items-center gap-1">
           {title ? (
-            <p className="text-lg font-medium text-gray-800">{title}</p>
+            <p className="text-base md:text-lg font-medium text-gray-800">{title}</p>
           ) : null}
 
           {description ? (
