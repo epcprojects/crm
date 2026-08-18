@@ -223,7 +223,38 @@ export function getMentionedUserIdsFromMarkup(markupValue: string) {
     ),
   );
 }
+const avatarColorClasses = [
+  'bg-red-100 text-red-700',
+  'bg-orange-100 text-orange-700',
+  'bg-amber-100 text-amber-700',
+  'bg-green-100 text-green-700',
+  'bg-emerald-100 text-emerald-700',
+  'bg-teal-100 text-teal-700',
+  'bg-cyan-100 text-cyan-700',
+  'bg-blue-100 text-blue-700',
+  'bg-indigo-100 text-indigo-700',
+  'bg-violet-100 text-violet-700',
+  'bg-purple-100 text-purple-700',
+  'bg-pink-100 text-pink-700',
+  'bg-rose-100 text-rose-700',
+] as const;
 
+function getAvatarColorClasses(value: string) {
+  const normalizedValue = value.trim().toLowerCase();
+
+  let hash = 0;
+
+  for (let index = 0; index < normalizedValue.length; index += 1) {
+    hash =
+      normalizedValue.charCodeAt(index) +
+      ((hash << 5) - hash);
+  }
+
+  const colorIndex =
+    Math.abs(hash) % avatarColorClasses.length;
+
+  return avatarColorClasses[colorIndex];
+}
 export default function DiscussionMentionsInput({
   value,
   onChange,
@@ -328,7 +359,7 @@ export default function DiscussionMentionsInput({
           'tiny-scrollbar w-full overflow-y-auto divide-y-0! px-1',
           isMobileViewport
             ? 'max-h-[min(12rem,42vh)] pt-1 pb-2'
-            : 'max-h-40 py-1',
+            : 'max-h-50 py-1',
         ),
         suggestionItem:
           'cursor-pointer px-3 py-2 text-left transition hover:!bg-gray-100 rounded-lg!',
@@ -351,22 +382,36 @@ export default function DiscussionMentionsInput({
             : 'transparent',
           fontWeight: 400,
         }}
-        renderSuggestion={(entry) => (
-          <div className="flex flex-col">
-            <span className="text-sm font-medium text-[#10175A]">
-              {String(entry.fullName)}
-            </span>
-            {/* {entry.fullName && entry.fullName !== entry.display ? (
-              <span className="text-xs text-gray-500">
-                {String(entry.fullName)}
-              </span>
-            ) : entry.email ? (
-              <span className="text-xs text-gray-500">
-                {String(entry.email)}
-              </span>
-            ) : null} */}
-          </div>
-        )}
+        renderSuggestion={(entry) => {
+  const fullName = String(
+    entry.fullName ?? entry.display ?? '',
+  ).trim();
+
+  const initials =
+    fullName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join('')
+      .toUpperCase() || 'U';
+
+  const avatarColors = getAvatarColorClasses(fullName);
+
+  return (
+    <div className="flex items-center gap-2">
+      <span
+        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${avatarColors}`}
+      >
+        {initials}
+      </span>
+
+      <span className="min-w-0 truncate text-sm font-medium text-[#10175A]">
+        {fullName}
+      </span>
+    </div>
+  );
+}}
       />
     </MentionsInput>
   );
