@@ -42,10 +42,28 @@ import { NotifyProjectMembersDto } from './dto/create-notification.dto';
 import { Notification } from './entities/notification.entity';
 import { ActivityLogService } from '../activity/activity-log.service';
 import { SearchNotificationsDto } from './dto/search-notification.dto';
+import { NotificationEntityType, NotificationType } from '@harperhelp/types';
 import {
-  NotificationEntityType,
-  NotificationType,
-} from '@harperhelp/types';
+  CATEGORY_TO_ENTITY_TYPES,
+  ENTITY_TYPE_TO_CATEGORY,
+  NotificationCategory,
+} from './enum/notification-category.enum';
+
+interface CursorPage<T> {
+  items: T[];
+  nextCursor: string | null;
+}
+
+function encodeCursor(createdAt: Date, id: string): string {
+  return Buffer.from(`${createdAt.toISOString()}_${id}`).toString('base64');
+}
+
+function decodeCursor(cursor: string): { createdAt: string; id: string } {
+  const [createdAt, id] = Buffer.from(cursor, 'base64')
+    .toString('utf8')
+    .split('_');
+  return { createdAt, id };
+}
 
 @Injectable()
 export class NotificationsService {
@@ -221,7 +239,9 @@ export class NotificationsService {
     await this.sendBulk(recipients, subject, html);
   }
 
-  private async onProjectUnassigned(p: ProjectUnassignedPayload): Promise<void> {
+  private async onProjectUnassigned(
+    p: ProjectUnassignedPayload,
+  ): Promise<void> {
     const { subject, html } = buildProjectUnassignedEmail(
       p,
       this.appUrl,
@@ -643,5 +663,109 @@ export class NotificationsService {
       result.push(arr.slice(i, i + size));
     }
     return result;
+  }
+
+  async findCategorized(
+    userId: string,
+    dto: {
+      category?: NotificationCategory;
+      cursor?: string;
+      limit?: number;
+      unreadOnly?: boolean;
+    },
+  ) {
+    const limit = dto.limit ?? 5;
+    const unreadOnly = dto.unreadOnly ?? false;
+
+    if (dto.category) {
+      const page = await this.fetchCategoryPage(
+        userId,
+        dto.category,
+        limit,
+        dto.cursor,
+        unreadOnly,
+      );
+      return { category: dto.category, ...page };
+    }
+
+    const categories = Object.values(NotificationCategory);
+    const entries = await Promise.all(
+      categories.map(
+        async (cat) =>
+          [
+            cat,
+            await this.fetchCategoryPage(userId, cat, 5, undefined, unreadOnly),
+          ] as const,
+      ),
+    );
+    return Object.fromEntries(entries);
+  }
+
+  private async fetchCategoryPage(
+    userId: string,
+    category: NotificationCategory,
+    limit: number,
+    cursor?: string,
+    unreadOnly?: boolean,
+  ): Promise<CursorPage<any>> {
+    const entityTypes = CATEGORY_TO_ENTITY_TYPES[category];
+
+    const qb = this.notificationsRepo
+      .createQueryBuilder('n')
+      .where('n."recipientId" = :userId', { userId })
+      .andWhere('n."isActive" = true')
+      .andWhere('n."entityType" IN (:...entityTypes)', { entityTypes })
+      .orderBy('n."createdAt"', 'DESC')
+      .addOrderBy('n.id', 'DESC')
+      .take(limit + 1);
+
+    if (unreadOnly) {
+      qb.andWhere('n."isRead" = false');
+    }
+
+    if (cursor) {
+      const { createdAt, id } = decodeCursor(cursor);
+      qb.andWhere(
+        '(n."createdAt" < :cCreatedAt OR (n."createdAt" = :cCreatedAt AND n.id < :cId))',
+        { cCreatedAt: createdAt, cId: id },
+      );
+    }
+
+    const rows = await qb.getMany();
+    const hasMore = rows.length > limit;
+    const items = rows.slice(0, limit);
+    const last = items[items.length - 1];
+
+    return {
+      items,
+      nextCursor:
+        hasMore && last ? encodeCursor(last.createdAt, last.id) : null,
+    };
+  }
+  /** Grouped, unpaginated — independent of whatever page the list is scrolled to. */
+  async getUnreadCountsByCategory(
+    userId: string,
+  ): Promise<Record<NotificationCategory, number>> {
+    const rows = await this.notificationsRepo
+      .createQueryBuilder('n')
+      .select('n."entityType"', 'entityType')
+      .addSelect('COUNT(*)', 'count')
+      .where('n."recipientId" = :userId', { userId })
+      .andWhere('n."isActive" = true')
+      .andWhere('n."isRead" = false')
+      .groupBy('n."entityType"')
+      .getRawMany<{ entityType: NotificationEntityType; count: string }>();
+
+    const counts = Object.values(NotificationCategory).reduce(
+      (acc, cat) => ({ ...acc, [cat]: 0 }),
+      {} as Record<NotificationCategory, number>,
+    );
+
+    for (const row of rows) {
+      const category = ENTITY_TYPE_TO_CATEGORY[row.entityType];
+      counts[category] += parseInt(row.count, 10);
+    }
+
+    return counts;
   }
 }
