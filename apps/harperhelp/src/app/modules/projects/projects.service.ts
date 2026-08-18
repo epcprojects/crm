@@ -300,31 +300,24 @@ export class ProjectsService {
   }
 
   async findProjectMembers(projectId: string, user) {
-    return this.projectRepo
-      .createQueryBuilder('project')
-      .innerJoin('project.members', 'member')
-      .where('project.id = :projectId', { projectId })
-      .andWhere('member.isInvitationAccepted = true')
-      .andWhere('member.userType = :userType', { userType: UserType.INTERNAL })
-      .andWhere((qb) => {
-        const subQuery = qb
-          .subQuery()
-          .select('1')
-          .from(UserRole, 'ur')
-          .innerJoin('ur.role', 'r')
-          .where('ur.userId = member.id')
-          .andWhere('r.id = :superAdminId')
-          .getQuery();
+    return (
+      this.projectRepo
+        .createQueryBuilder('project')
+        .innerJoin('project.members', 'member')
+        .where('project.id = :projectId', { projectId })
+        .andWhere('member.isInvitationAccepted = true')
+        .andWhere('member.deletedAt IS NULL')
+        .andWhere('member.id != :excludedUserId', {
+          excludedUserId: '00000000-0000-0000-0000-000000000002',
+        })
 
-        return `NOT EXISTS ${subQuery}`;
-      })
-      .setParameter('superAdminId', '00000000-0000-0000-0000-000000000001')
-      .select([
-        'member.id AS id',
-        'member.fullName AS "fullName"',
-        'member.isInvitationAccepted AS "isInvitationAccepted"',
-      ])
-      .getRawMany();
+        .select([
+          'member.id AS id',
+          'member.fullName AS "fullName"',
+          'member.isInvitationAccepted AS "isInvitationAccepted"',
+        ])
+        .getRawMany()
+    );
   }
 
   async findMembersWithProjects(query: GetMembersQueryDto) {

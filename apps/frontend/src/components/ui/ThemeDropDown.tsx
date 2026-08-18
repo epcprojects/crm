@@ -164,7 +164,7 @@ const Dropdown = ({
         <MenuButton
           disabled={disabled}
           id={selectedOption?.label || placeholder}
-          className={`flex w-full items-center justify-between gap-2 text-gray-900 outline-none placeholder:font-normal placeholder:text-gray-400 focus:ring-0
+          className={`flex w-full min-w-[180px] items-center justify-between gap-2 text-gray-900 outline-none placeholder:font-normal placeholder:text-gray-400 focus:ring-0
             ${
               variant === 'input'
                 ? 'h-10 rounded-none border-0 border-b bg-transparent px-0 py-1.5 text-sm font-medium'

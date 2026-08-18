@@ -43,6 +43,8 @@ interface AppModalProps {
   centerFooter?: boolean;
   showHeader?: boolean;
   roundedCustom?: boolean;
+  headerAction?: React.ReactNode;
+  fullScreen?: boolean;
 }
 
 const sizeClasses = {
@@ -80,6 +82,8 @@ const AppModal: React.FC<AppModalProps> = ({
   disableCloseButton = false,
   hideCrossButton = false,
   centerFooter = false,
+  headerAction,
+   fullScreen = false,
 }) => {
   useBodyScrollLock(isOpen);
   const isMobile = useIsMobile();
@@ -95,15 +99,17 @@ const AppModal: React.FC<AppModalProps> = ({
       ? 'md:w-[800px]'
       : 'md:w-[600px]';
 
-  const modalClasses =
-    position === ModalPosition.RIGHT
-      ? `${baseModalClasses} w-full ${rightModalWidth}  md:rounded-xl overflow-hidden`
-      : `${baseModalClasses} sm:h-fit relative w-full sm:max-h-[90dvh]   md:m-auto container md:mx-4 ${sizeClasses[size]}`;
+  const modalClasses = fullScreen
+  ? `${baseModalClasses} container  p-5 mx-auto`
+  : position === ModalPosition.RIGHT
+    ? `${baseModalClasses} w-full ${rightModalWidth} md:rounded-xl overflow-hidden`
+    : `${baseModalClasses} sm:h-fit relative w-full sm:max-h-[90dvh] md:m-auto container md:mx-4 ${sizeClasses[size]}`;
 
-  const wrapperClasses =
-    position === ModalPosition.RIGHT
-      ? `${baseWrapperClasses} justify-end items-stretch p-0 md:p-5`
-      : `${baseWrapperClasses} min-h-dvh top-0 items-end md:items-center justify-center`;
+ const wrapperClasses = fullScreen
+  ? `${baseWrapperClasses} items-stretch justify-stretch p-0`
+  : position === ModalPosition.RIGHT
+    ? `${baseWrapperClasses} justify-end items-stretch p-0 md:p-5`
+    : `${baseWrapperClasses} min-h-dvh top-0 items-end md:items-center justify-center`;
 
   return (
     <Portal>
@@ -119,6 +125,7 @@ const AppModal: React.FC<AppModalProps> = ({
           {showHeader && (
             <div className="px-4 py-3 bg-white flex sm:rounded-t-xl items-center justify-between border-b border-gray-200">
               <div className="flex items-center gap-3">
+                {icon}
                 <div>
                   <h2
                     className={`text-base md:text-xl text-black font-semibold`}
@@ -132,29 +139,31 @@ const AppModal: React.FC<AppModalProps> = ({
                   )}
                 </div>
               </div>
-
-              {!hideCrossButton && (
-                <button
-                  type="button"
-                  onMouseDown={
-                    disableCloseButton
-                      ? undefined
-                      : (event) => {
-                          event.stopPropagation();
-                          onClose();
-                        }
-                  }
-                  onClick={disableCloseButton ? undefined : onClose}
-                  disabled={disableCloseButton}
-                  className={`w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-full ${
-                    disableCloseButton
-                      ? 'cursor-not-allowed opacity-50'
-                      : 'cursor-pointer'
-                  }`}
-                >
-                  <CloseIcon />
-                </button>
-              )}
+              <div className="flex items-center gap-4">
+                {headerAction}
+                {!hideCrossButton && (
+                  <button
+                    type="button"
+                    onMouseDown={
+                      disableCloseButton
+                        ? undefined
+                        : (event) => {
+                            event.stopPropagation();
+                            onClose();
+                          }
+                    }
+                    onClick={disableCloseButton ? undefined : onClose}
+                    disabled={disableCloseButton}
+                    className={`w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-full ${
+                      disableCloseButton
+                        ? 'cursor-not-allowed opacity-50'
+                        : 'cursor-pointer'
+                    }`}
+                  >
+                    <CloseIcon />
+                  </button>
+                )}
+              </div>
             </div>
           )}
 

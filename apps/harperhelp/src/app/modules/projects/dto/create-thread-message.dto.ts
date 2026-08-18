@@ -25,7 +25,7 @@ export class CreateThreadMessageDto {
 
     return Array.isArray(value) ? value : [value];
   })
-  @IsUUID('4', {
+  @IsUUID('loose', {
     each: true,
     message: 'Each mentioned user ID must be a valid UUID',
   })

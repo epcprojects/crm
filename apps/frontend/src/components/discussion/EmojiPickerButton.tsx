@@ -116,7 +116,7 @@ export default function EmojiPickerButton({
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => setIsOpen((current) => !current)}
         disabled={disabled}
-        className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex h-8 w-8 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
         aria-label="Open emoji picker"
         aria-expanded={isOpen}
       >

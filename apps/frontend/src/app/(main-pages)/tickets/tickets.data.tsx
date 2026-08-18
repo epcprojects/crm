@@ -37,6 +37,10 @@ export type TicketDetailRecord = RecentTicket & {
   attachments: TicketAttachment[];
   reporter: TicketPerson;
   assigneeDetail: TicketPerson | null;
+  createdByDetail: {
+    name: string;
+    initials: string;
+  } | null;
   replies: TicketReply[];
 };
 

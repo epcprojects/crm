@@ -243,12 +243,17 @@ function NotificationRow({
     return (
       <Link
         href={href}
-        onClick={handlePlainClick}
+        onClick={(e) => {
+          handlePlainClick(e);
+          onViewSingle?.();
+        }}
         className={`flex gap-4 border-b ${!item.isRead && 'bg-blue-50'} border-gray-200 px-3 sm:px-6 py-4.5 pb-2 transition hover:bg-gray-100 cursor-pointer`}
       >
         <div className="min-w-0 flex-1">
           <p className="text-sm leading-5 text-gray-600">
-            <span className="font-semibold text-gray-900">{item.title} </span>{' '}
+            <span className="font-semibold text-gray-900">
+              {item.title}{' '}
+            </span>{' '}
           </p>
           <p className="mt-1 text-xs  text-gray-500">
             {' '}
