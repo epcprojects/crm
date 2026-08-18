@@ -88,6 +88,7 @@ import {
   useProjectThreadQuery,
   useUpdateProjectNoteMutation,
   useUploadProjectFilesMutation,
+  projectFilesQueryKey,
 } from '../projects.queries';
 import {
   PermissionGuard,
@@ -735,27 +736,69 @@ export default function ProjectDetailPage() {
       return data;
     },
     onSuccess: async (_data, variables) => {
-      if (variables.parentId) {
-        updateProjectThreadReplyCount(
-          variables.parentId,
-          (currentCount) => currentCount + 1,
-        );
-      }
+  if (variables.parentId) {
+    updateProjectThreadReplyCount(
+      variables.parentId,
+      (currentCount) => currentCount + 1,
+    );
+  }
 
-      await queryClient.invalidateQueries({
-        queryKey: [...projectThreadQueryKey, projectId],
-      });
-      if (variables.parentId) {
-        await queryClient.invalidateQueries({
-          queryKey: [
-            ...projectThreadDetailQueryKey,
-            projectId,
-            variables.parentId,
-          ],
-        });
-      }
-      appToast.success('Reply posted successfully.');
-    },
+  const invalidations: Promise<unknown>[] = [
+    queryClient.invalidateQueries({
+      queryKey: [...projectThreadQueryKey, projectId],
+    }),
+  ];
+
+  if (variables.parentId) {
+    invalidations.push(
+      queryClient.invalidateQueries({
+        queryKey: [
+          ...projectThreadDetailQueryKey,
+          projectId,
+          variables.parentId,
+        ],
+      }),
+    );
+  }
+
+  if (variables.attachments.length > 0) {
+    invalidations.push(
+      queryClient.invalidateQueries({
+        queryKey: [...projectFilesQueryKey, projectId],
+      }),
+    );
+  }
+
+  await Promise.all(invalidations);
+
+  appToast.success(
+    variables.parentId
+      ? 'Reply posted successfully.'
+      : 'Thread posted successfully.',
+  );
+},
+    // onSuccess: async (_data, variables) => {
+    //   if (variables.parentId) {
+    //     updateProjectThreadReplyCount(
+    //       variables.parentId,
+    //       (currentCount) => currentCount + 1,
+    //     );
+    //   }
+
+    //   await queryClient.invalidateQueries({
+    //     queryKey: [...projectThreadQueryKey, projectId],
+    //   });
+    //   if (variables.parentId) {
+    //     await queryClient.invalidateQueries({
+    //       queryKey: [
+    //         ...projectThreadDetailQueryKey,
+    //         projectId,
+    //         variables.parentId,
+    //       ],
+    //     });
+    //   }
+    //   appToast.success('Reply posted successfully.');
+    // },
     onError: (error) => {
       appToast.error(
         error instanceof Error
