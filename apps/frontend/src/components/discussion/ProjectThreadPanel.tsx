@@ -1002,14 +1002,14 @@ export default function ProjectThreadPanel({
               />
 
               <div
-                className={` flex items-center ${attachments.length === 0 ? 'justify-end' : 'justify-between'} gap-2`}
+                className={` flex items-end ${attachments.length === 0 ? 'justify-end' : 'justify-between'} gap-2`}
               >
                 {attachments.length ? (
-                  <div className="mt-3 grid max-h-52 min-h-0 grid-cols-1 gap-2 overflow-y-auto overscroll-contain pr-1 scrollbar-hide sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="mt-3 flex flex-wrap max-h-52 min-h-0  gap-2 overflow-y-auto overscroll-contain pr-1 scrollbar-hide ">
                     {attachments.map((attachment) => (
                       <div
                         key={`${attachment.name}-${attachment.size}-${attachment.lastModified}`}
-                        className="flex min-w-0 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 py-0.5 pr-2 pl-0.5"
+                        className="flex min-w-0 w-full max-w-65 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 py-0.5 pr-2 pl-0.5"
                       >
                         <LocalAttachmentPreview file={attachment} />
                         <div className="min-w-0 flex-1">
