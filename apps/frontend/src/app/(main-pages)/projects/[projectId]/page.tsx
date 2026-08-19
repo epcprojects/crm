@@ -16,6 +16,7 @@ import {
 } from '@headlessui/react';
 
 import {
+  InfiniteData,
   useMutation,
   useQueries,
   useQuery,
@@ -75,7 +76,9 @@ import {
   projectTicketsQueryKey,
   projectThreadQueryKey,
   projectThreadDetailQueryKey,
+  type ProjectThreadPage,
   type ProjectNoteRecord,
+  flattenProjectThreadPages,
   useCreateProjectNoteMutation,
   useDeleteProjectNoteMutation,
   useDeleteProjectFileMutation,
@@ -85,8 +88,8 @@ import {
   useProjectNoteDetailQuery,
   useProjectNotesQuery,
   useProjectThreadDetailQuery,
+  useProjectThreadInfiniteQuery,
   useProjectTicketsQuery,
-  useProjectThreadQuery,
   useUpdateProjectNoteMutation,
   useUploadProjectFilesMutation,
   projectFilesQueryKey,
@@ -250,18 +253,27 @@ export default function ProjectDetailPage() {
     threadId: string,
     updateCount: (currentCount: number) => number,
   ) => {
-    queryClient.setQueryData<DiscussionReply[]>(
+    queryClient.setQueryData<InfiniteData<ProjectThreadPage>>(
       [...projectThreadQueryKey, projectId, currentUserId],
       (currentReplies) =>
-        Array.isArray(currentReplies)
-          ? currentReplies.map((reply) =>
-              reply.id === threadId
-                ? {
-                    ...reply,
-                    replyCount: Math.max(0, updateCount(reply.replyCount ?? 0)),
-                  }
-                : reply,
-            )
+        currentReplies
+          ? {
+              ...currentReplies,
+              pages: currentReplies.pages.map((page) => ({
+                ...page,
+                threads: page.threads.map((reply) =>
+                  reply.id === threadId
+                    ? {
+                        ...reply,
+                        replyCount: Math.max(
+                          0,
+                          updateCount(reply.replyCount ?? 0),
+                        ),
+                      }
+                    : reply,
+                ),
+              })),
+            }
           : currentReplies,
     );
   };
@@ -271,7 +283,7 @@ export default function ProjectDetailPage() {
   );
   const shouldRedirectToNotFound =
     projectDetailQuery.isError && isNotFoundError(projectDetailQuery.error);
-  const projectThreadQuery = useProjectThreadQuery(
+  const projectThreadQuery = useProjectThreadInfiniteQuery(
     projectId,
     currentUserId,
     canViewThread,
@@ -966,6 +978,11 @@ export default function ProjectDetailPage() {
     setSearchValue('');
   }, [projectId]);
 
+  const projectThreadReplies = useMemo(
+    () => flattenProjectThreadPages(projectThreadQuery.data?.pages),
+    [projectThreadQuery.data?.pages],
+  );
+
   useEffect(() => {
     if (!canViewThread || !projectId) {
       setThreadSocketToken(null);
@@ -1143,11 +1160,11 @@ export default function ProjectDetailPage() {
     }
 
     return (
-      projectThreadQuery.data?.find(
+      projectThreadReplies.find(
         (reply) => reply.id === selectedThreadMessageId,
       ) ?? null
     );
-  }, [projectThreadQuery.data, selectedThreadMessageId]);
+  }, [projectThreadReplies, selectedThreadMessageId]);
 
   const selectedThreadHeader = useMemo(() => {
     if (!selectedThreadMessageId) {
@@ -1757,7 +1774,7 @@ export default function ProjectDetailPage() {
         ]
       : [];
     const previousThreadReplies =
-      queryClient.getQueryData<DiscussionReply[]>(threadQueryKey);
+      queryClient.getQueryData<InfiniteData<ProjectThreadPage>>(threadQueryKey);
     const previousThreadDetails = detailQueryKeys.map((queryKey) => ({
       queryKey,
       data: queryClient.getQueryData<{
@@ -1766,21 +1783,27 @@ export default function ProjectDetailPage() {
       }>(queryKey),
     }));
 
-    queryClient.setQueryData<DiscussionReply[]>(threadQueryKey, (current) =>
-      Array.isArray(current)
-        ? current.map((threadReply) =>
-            threadReply.id === reply.id
-              ? {
-                  ...threadReply,
-                  reactions: applyProjectThreadReactionUpdate(
-                    threadReply.reactions ?? [],
-                    emoji,
-                    remove,
-                    currentUserId,
-                  ),
-                }
-              : threadReply,
-          )
+    queryClient.setQueryData<InfiniteData<ProjectThreadPage>>(threadQueryKey, (current) =>
+      current
+        ? {
+            ...current,
+            pages: current.pages.map((page) => ({
+              ...page,
+              threads: page.threads.map((threadReply) =>
+                threadReply.id === reply.id
+                  ? {
+                      ...threadReply,
+                      reactions: applyProjectThreadReactionUpdate(
+                        threadReply.reactions ?? [],
+                        emoji,
+                        remove,
+                        currentUserId,
+                      ),
+                    }
+                  : threadReply,
+              ),
+            })),
+          }
         : current,
     );
 
@@ -1998,7 +2021,7 @@ export default function ProjectDetailPage() {
       ? [
           {
             title: 'Thread Posts',
-            count: projectThreadQuery.data?.length ?? 0,
+            count: projectThreadReplies.length,
             color: '#7A5AF8',
           },
         ]
@@ -2451,7 +2474,18 @@ export default function ProjectDetailPage() {
                         >
                           <ProjectThreadPanel
                             title="Discussion"
-                            replies={projectThreadQuery.data ?? []}
+                            replies={projectThreadReplies}
+                            hasMoreReplies={Boolean(projectThreadQuery.hasNextPage)}
+                            isLoadingMoreReplies={
+                              projectThreadQuery.isFetchingNextPage
+                            }
+                            onLoadMoreReplies={
+                              projectThreadQuery.hasNextPage
+                                ? async () => {
+                                    await projectThreadQuery.fetchNextPage();
+                                  }
+                                : undefined
+                            }
                             mentionMembers={projectMembersQuery.data ?? []}
                             emptyTitle={
                               projectThreadQuery.isLoading

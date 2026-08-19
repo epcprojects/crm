@@ -61,6 +61,28 @@ type SendChatMessagePayload = {
   mentionedUserIds?: string[];
 };
 
+type ChatMessagesCursor = {
+  createdAt: string;
+  id: string;
+};
+
+type ChatMessagesPage = {
+  messages: ChatMessage[];
+  cursor: ChatMessagesCursor | null;
+  hasMore: boolean;
+  message?: string;
+};
+
+type ChatMessagesResponse = {
+  messages?: ChatMessage[];
+  cursor?: {
+    createdAt?: string | null;
+    id?: string | null;
+  } | null;
+  hasMore?: boolean | null;
+  message?: string;
+};
+
 function isChatMessage(value: unknown): value is ChatMessage {
   return Boolean(
     value &&
@@ -120,9 +142,22 @@ async function fetchMessages(
   projectId: string,
   ticketId: string,
   channel: ChatChannel,
-): Promise<ChatMessage[]> {
+  cursor: ChatMessagesCursor | null,
+): Promise<ChatMessagesPage> {
+  const searchParams = new URLSearchParams({
+    limit: '30',
+  });
+
+  if (cursor?.createdAt) {
+    searchParams.set('cursorCreatedAt', cursor.createdAt);
+  }
+
+  if (cursor?.id) {
+    searchParams.set('cursorId', cursor.id);
+  }
+
   const response = await fetch(
-    `/api/projects/${projectId}/tickets/${ticketId}/chat/${channel}/messages`,
+    `/api/projects/${projectId}/tickets/${ticketId}/chat/${channel}/messages?${searchParams.toString()}`,
     {
       method: 'GET',
       headers: {
@@ -133,19 +168,79 @@ async function fetchMessages(
   );
 
   const payload = (await response.json().catch(() => null)) as
+    | ChatMessagesResponse
     | ChatMessage[]
     | { message?: string }
     | null;
 
-  if (!response.ok || !Array.isArray(payload)) {
+  const normalizedPayload = normalizeChatMessagesResponse(payload);
+
+  if (!response.ok || !normalizedPayload) {
     throw new Error(
-      !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch chat messages.'
-        : 'Failed to fetch chat messages.',
+      normalizedPayload?.message || 'Failed to fetch chat messages.',
     );
   }
 
-  return payload;
+  return normalizedPayload;
+}
+
+function normalizeChatMessagesResponse(
+  payload: ChatMessagesResponse | ChatMessage[] | { message?: string } | null,
+): ChatMessagesPage | null {
+  if (Array.isArray(payload)) {
+    return {
+      messages: payload,
+      cursor: null,
+      hasMore: false,
+    };
+  }
+
+  if (!isChatMessagesResponse(payload)) {
+    return payload && 'message' in payload
+      ? {
+          message: payload.message || 'Failed to fetch chat messages.',
+          messages: [],
+          cursor: null,
+          hasMore: false,
+        }
+      : null;
+  }
+
+  return {
+    messages: payload.messages,
+    cursor:
+      payload.cursor?.id && payload.cursor?.createdAt
+        ? {
+            id: payload.cursor.id,
+            createdAt: payload.cursor.createdAt,
+          }
+        : null,
+    hasMore: Boolean(payload.hasMore),
+  };
+}
+
+function isChatMessagesResponse(
+  payload: ChatMessagesResponse | ChatMessage[] | { message?: string } | null,
+): payload is ChatMessagesResponse & { messages: ChatMessage[] } {
+  return Boolean(
+    payload &&
+      typeof payload === 'object' &&
+      !Array.isArray(payload) &&
+      Array.isArray((payload as ChatMessagesResponse).messages),
+  );
+}
+
+function normalizeIncomingMessages(messages: ChatMessage[]) {
+  const messagesById = new Map<string, ChatMessage>();
+
+  messages
+    .slice()
+    .reverse()
+    .forEach((message) => {
+      messagesById.set(message.id, message);
+    });
+
+  return Array.from(messagesById.values());
 }
 
 export function useTicketChat({
@@ -157,7 +252,10 @@ export function useTicketChat({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
+  const [cursor, setCursor] = useState<ChatMessagesCursor | null>(null);
+  const [hasMore, setHasMore] = useState(false);
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
@@ -175,8 +273,8 @@ export function useTicketChat({
       setLoading(true);
 
       try {
-        const [initialMessages, socketToken] = await Promise.all([
-          fetchMessages(projectId, ticketId, channel),
+        const [initialPage, socketToken] = await Promise.all([
+          fetchMessages(projectId, ticketId, channel, null),
           fetchSocketToken(),
         ]);
 
@@ -184,7 +282,9 @@ export function useTicketChat({
           return;
         }
 
-        setMessages(initialMessages);
+        setMessages(normalizeIncomingMessages(initialPage.messages));
+        setCursor(initialPage.cursor);
+        setHasMore(initialPage.hasMore);
         const socket = getSocket('chat', socketToken);
         socketRef.current = socket;
 
@@ -433,6 +533,9 @@ export function useTicketChat({
       isDisposed = true;
       setConnected(false);
       setTypingUsers([]);
+      setCursor(null);
+      setHasMore(false);
+      setLoadingMore(false);
 
       if (cleanup) {
         cleanup();
@@ -712,10 +815,44 @@ export function useTicketChat({
     [channel, projectId, ticketId],
   );
 
+  const loadOlderMessages = useCallback(async () => {
+    if (!hasMore || loadingMore) {
+      return;
+    }
+
+    setLoadingMore(true);
+
+    try {
+      const nextPage = await fetchMessages(
+        projectId,
+        ticketId,
+        channel,
+        cursor,
+      );
+
+      setMessages((current) => {
+        const nextMessages = normalizeIncomingMessages(nextPage.messages);
+        const messagesById = new Map<string, ChatMessage>();
+
+        [...nextMessages, ...current].forEach((message) => {
+          messagesById.set(message.id, message);
+        });
+
+        return Array.from(messagesById.values());
+      });
+      setCursor(nextPage.cursor);
+      setHasMore(nextPage.hasMore);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [channel, cursor, hasMore, loadingMore, projectId, ticketId]);
+
   return {
     messages,
     connected,
     loading,
+    loadingMore,
+    hasMore,
     typingUsers,
     sendMessage,
     markRead,
@@ -723,5 +860,6 @@ export function useTicketChat({
     updateMessage,
     toggleReaction,
     setTyping,
+    loadOlderMessages,
   };
 }

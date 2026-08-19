@@ -12,7 +12,7 @@ function getApiBaseUrl() {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ ticketId: string }> },
 ) {
   try {
@@ -33,8 +33,29 @@ export async function GET(
     }
 
     const { ticketId } = await context.params;
+    const searchParams = new URL(request.url).searchParams;
+    const upstreamSearchParams = new URLSearchParams();
+    const limit = searchParams.get('limit')?.trim();
+    const cursorCreatedAt = searchParams.get('cursorCreatedAt')?.trim();
+    const cursorId = searchParams.get('cursorId')?.trim();
 
-    const response = await fetch(`${apiBaseUrl}/tickets/${ticketId}/replies`, {
+    if (limit) {
+      upstreamSearchParams.set('limit', limit);
+    }
+
+    if (cursorCreatedAt) {
+      upstreamSearchParams.set('cursorCreatedAt', cursorCreatedAt);
+    }
+
+    if (cursorId) {
+      upstreamSearchParams.set('cursorId', cursorId);
+    }
+
+    const upstreamUrl = `${apiBaseUrl}/tickets/${ticketId}/replies${
+      upstreamSearchParams.size ? `?${upstreamSearchParams.toString()}` : ''
+    }`;
+
+    const response = await fetch(upstreamUrl, {
       method: 'GET',
       headers: {
         Accept: 'application/json',
@@ -52,7 +73,18 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(Array.isArray(data) ? data : [], { status: 200 });
+    if (Array.isArray(data)) {
+      return NextResponse.json(
+        {
+          messages: data,
+          cursor: null,
+          hasMore: false,
+        },
+        { status: 200 },
+      );
+    }
+
+    return NextResponse.json(data, { status: 200 });
   } catch {
     return NextResponse.json(
       { message: 'Something went wrong while fetching the ticket replies.' },

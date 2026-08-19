@@ -1,7 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 import clsx from 'clsx';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   useParams,
@@ -71,6 +76,8 @@ import {
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import TicketDescriptionModal from 'apps/frontend/src/components/modals/TicketDescriptionModal';
 const MAX_DESCRIPTION_LENGTH = 4000;
+const TICKET_REPLIES_PAGE_SIZE = 30;
+
 type GalleryImage = {
   attachmentId: string;
   storageKey?: string;
@@ -157,9 +164,17 @@ export default function TicketDetailPage() {
     enabled: Boolean(projectId),
   });
 
-  const ticketRepliesQuery = useQuery({
-    queryKey: ['ticket-replies', ticketId],
-    queryFn: () => fetchTicketReplies(ticketId, currentUserId),
+  const ticketRepliesQuery = useInfiniteQuery({
+    queryKey: ['ticket-replies', ticketId, currentUserId],
+    initialPageParam: null as TicketRepliesCursor | null,
+    queryFn: ({ pageParam }) =>
+      fetchTicketReplies(
+        ticketId,
+        currentUserId,
+        pageParam as TicketRepliesCursor | null,
+      ),
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore && lastPage.cursor ? lastPage.cursor : undefined,
     enabled: Boolean(ticketId && canViewReplies),
   });
   const ticketTimelineQuery = useQuery({
@@ -504,11 +519,14 @@ export default function TicketDetailPage() {
   const {
     messages: internalChatMessages,
     loading: internalChatLoading,
+    loadingMore: internalChatLoadingMore,
+    hasMore: internalChatHasMore,
     sendMessage: sendInternalChatMessage,
     markRead: markInternalChatRead,
     deleteMessage: deleteInternalChatMessage,
     updateMessage: updateInternalChatMessage,
     toggleReaction: toggleInternalChatReaction,
+    loadOlderMessages: loadOlderInternalChatMessages,
   } = useTicketChat({
     projectId: isInternalChatActive ? projectId : '',
     ticketId: isInternalChatActive ? ticketId : '',
@@ -518,11 +536,14 @@ export default function TicketDetailPage() {
   const {
     messages: externalChatMessages,
     loading: externalChatLoading,
+    loadingMore: externalChatLoadingMore,
+    hasMore: externalChatHasMore,
     sendMessage: sendExternalChatMessage,
     markRead: markExternalChatRead,
     deleteMessage: deleteExternalChatMessage,
     updateMessage: updateExternalChatMessage,
     toggleReaction: toggleExternalChatReaction,
+    loadOlderMessages: loadOlderExternalChatMessages,
   } = useTicketChat({
     projectId:
       isChatDrawerOpen && chatDrawerChannel === 'external' ? projectId : '',
@@ -613,8 +634,14 @@ export default function TicketDetailPage() {
       return;
     }
 
-    setLiveReplies(ticketRepliesQuery.data ?? ticket?.replies ?? []);
-  }, [canViewReplies, ticket?.replies, ticketRepliesQuery.data]);
+    const pagedReplies = flattenTicketRepliesPages(
+      ticketRepliesQuery.data?.pages,
+    );
+
+    setLiveReplies(
+      ticketRepliesQuery.data ? pagedReplies : (ticket?.replies ?? []),
+    );
+  }, [canViewReplies, ticket?.replies, ticketRepliesQuery.data?.pages]);
 
   useTicketReplies({
     projectId,
@@ -1407,7 +1434,11 @@ export default function TicketDetailPage() {
       const trimmedMessage = message.trim();
 
       if (attachments.length) {
-        const uploadedFiles = await uploadChatAttachments(attachments, ticketId, channel);
+        const uploadedFiles = await uploadChatAttachments(
+          attachments,
+          ticketId,
+          channel,
+        );
         const attachmentUrls = uploadedFiles
           .map((file) => buildAttachmentUrl(file.storageKey))
           .filter((url) => Boolean(url));
@@ -2197,6 +2228,29 @@ export default function TicketDetailPage() {
                           ? liveReplies
                           : []
                     }
+                    hasMoreReplies={
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? internalChatHasMore
+                        : canViewReplies
+                          ? Boolean(ticketRepliesQuery.hasNextPage)
+                          : false
+                    }
+                    isLoadingMoreReplies={
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? internalChatLoadingMore
+                        : canViewReplies
+                          ? ticketRepliesQuery.isFetchingNextPage
+                          : false
+                    }
+                    onLoadMoreReplies={
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? loadOlderInternalChatMessages
+                        : canViewReplies && ticketRepliesQuery.hasNextPage
+                          ? async () => {
+                              await ticketRepliesQuery.fetchNextPage();
+                            }
+                          : undefined
+                    }
                     emptyTitle={
                       isInternalChatActive && canViewInternalChatBtn
                         ? internalChatLoading
@@ -2905,6 +2959,29 @@ export default function TicketDetailPage() {
                     ? liveReplies
                     : []
               }
+              hasMoreReplies={
+                isInternalChatActive && canViewInternalChatBtn
+                  ? internalChatHasMore
+                  : canViewReplies
+                    ? Boolean(ticketRepliesQuery.hasNextPage)
+                    : false
+              }
+              isLoadingMoreReplies={
+                isInternalChatActive && canViewInternalChatBtn
+                  ? internalChatLoadingMore
+                  : canViewReplies
+                    ? ticketRepliesQuery.isFetchingNextPage
+                    : false
+              }
+              onLoadMoreReplies={
+                isInternalChatActive && canViewInternalChatBtn
+                  ? loadOlderInternalChatMessages
+                  : canViewReplies && ticketRepliesQuery.hasNextPage
+                    ? async () => {
+                        await ticketRepliesQuery.fetchNextPage();
+                      }
+                    : undefined
+              }
               emptyTitle={
                 isInternalChatActive && canViewInternalChatBtn
                   ? internalChatLoading
@@ -3164,31 +3241,135 @@ async function fetchTicketPriorities() {
     .sort((first, second) => first.sortOrder - second.sortOrder);
 }
 
-async function fetchTicketReplies(ticketId: string, currentUserId: string) {
-  const response = await fetch(`/api/tickets/${ticketId}/replies`, {
-    method: 'GET',
-    headers: {
-      Accept: 'application/json',
-    },
-    cache: 'no-store',
+async function fetchTicketReplies(
+  ticketId: string,
+  currentUserId: string,
+  cursor: TicketRepliesCursor | null,
+) {
+  const searchParams = new URLSearchParams({
+    limit: String(TICKET_REPLIES_PAGE_SIZE),
   });
 
+  if (cursor?.createdAt) {
+    searchParams.set('cursorCreatedAt', cursor.createdAt);
+  }
+
+  if (cursor?.id) {
+    searchParams.set('cursorId', cursor.id);
+  }
+
+  const response = await fetch(
+    `/api/tickets/${ticketId}/replies?${searchParams.toString()}`,
+    {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+    },
+  );
+
   const payload = (await response.json().catch(() => null)) as
+    | ApiTicketRepliesResponse
     | ApiTicketReply[]
     | { message?: string }
     | null;
 
-  if (!response.ok || !Array.isArray(payload)) {
+  const normalizedPayload = normalizeTicketRepliesResponse(
+    payload,
+    currentUserId,
+  );
+
+  if (!response.ok || !normalizedPayload) {
     throw new Error(
-      !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket replies.'
-        : 'Failed to fetch ticket replies.',
+      normalizedPayload?.message || 'Failed to fetch ticket replies.',
     );
   }
 
-  return payload.map((reply) =>
-    mapApiTicketReplyToDiscussionReply(reply, currentUserId),
+  return normalizedPayload;
+}
+
+function normalizeTicketRepliesResponse(
+  payload:
+    | ApiTicketRepliesResponse
+    | ApiTicketReply[]
+    | { message?: string }
+    | null,
+  currentUserId: string,
+): TicketRepliesPage | null {
+  if (Array.isArray(payload)) {
+    return {
+      messages: payload.map((reply) =>
+        mapApiTicketReplyToDiscussionReply(reply, currentUserId),
+      ),
+      cursor: null,
+      hasMore: false,
+    };
+  }
+
+  if (!isApiTicketRepliesResponse(payload)) {
+    return payload && 'message' in payload
+      ? {
+          message: payload.message || 'Failed to fetch ticket replies.',
+          messages: [],
+          cursor: null,
+          hasMore: false,
+        }
+      : null;
+  }
+
+  return {
+    messages: payload.replies.map((reply: ApiTicketReply) =>
+      mapApiTicketReplyToDiscussionReply(reply, currentUserId),
+    ),
+    cursor:
+      payload.cursor?.id && payload.cursor?.createdAt
+        ? {
+            id: payload.cursor.id,
+            createdAt: payload.cursor.createdAt,
+          }
+        : null,
+    hasMore: Boolean(payload.hasMore),
+  };
+}
+
+function isApiTicketRepliesResponse(
+  payload:
+    | ApiTicketRepliesResponse
+    | ApiTicketReply[]
+    | { message?: string }
+    | null,
+): payload is ApiTicketRepliesResponse & { replies: ApiTicketReply[] } {
+  return Boolean(
+    payload &&
+      typeof payload === 'object' &&
+      !Array.isArray(payload) &&
+      Array.isArray((payload as ApiTicketRepliesResponse).replies),
   );
+}
+
+function flattenTicketRepliesPages(
+  pages: TicketRepliesPage[] | undefined,
+): DiscussionReply[] {
+  if (!pages?.length) {
+    return [];
+  }
+
+  const repliesById = new Map<string, DiscussionReply>();
+
+  pages
+    .slice()
+    .reverse()
+    .forEach((page) => {
+      page.messages
+        .slice()
+        .reverse()
+        .forEach((reply) => {
+          repliesById.set(reply.id, reply);
+        });
+    });
+
+  return Array.from(repliesById.values());
 }
 
 async function fetchTicketTimeline(projectId: string, ticketId: string) {
@@ -3224,6 +3405,28 @@ type ApiProjectMember = {
   fullName: string;
 };
 
+type TicketRepliesCursor = {
+  createdAt: string;
+  id: string;
+};
+
+type TicketRepliesPage = {
+  messages: DiscussionReply[];
+  cursor: TicketRepliesCursor | null;
+  hasMore: boolean;
+  message?: string;
+};
+
+type ApiTicketRepliesResponse = {
+  replies?: ApiTicketReply[];
+  cursor?: {
+    createdAt?: string | null;
+    id?: string | null;
+  } | null;
+  hasMore?: boolean | null;
+  message?: string;
+};
+
 type ApiTicketStatus = {
   id: string;
   key: string;
@@ -3246,6 +3449,7 @@ type ApiTicketReply = {
   author?: ApiTicketPerson | null;
   attachments?: ApiTicketReplyAttachment[];
   reactions?: ApiTicketReplyReaction[] | null;
+  replyCount?: number | string | null;
 };
 
 type ApiTicketTimelineActivity = {
@@ -3699,6 +3903,7 @@ function mapApiTicketReplyToDiscussionReply(
     },
     createdAt: formatReplyDate(reply.createdAt ?? reply.updatedAt ?? ''),
     message: reply.message?.trim() || '',
+    replyCount: toNumber(reply.replyCount),
     reactions: mapApiTicketReplyReactions(reply.reactions, currentUserId),
     attachments: Array.isArray(reply.attachments)
       ? reply.attachments.map(mapApiTicketReplyAttachment)
@@ -3869,7 +4074,9 @@ async function uploadChatAttachments(
   channel: ChatChannel,
 ) {
   const keyPrefix =
-    channel === 'internal' ? `tickets/${ticketId}/internal-msg` : `tickets/${ticketId}/external-msg`;
+    channel === 'internal'
+      ? `tickets/${ticketId}/internal-msg`
+      : `tickets/${ticketId}/external-msg`;
 
   return uploadFilesDirectly(attachments, keyPrefix);
 }
