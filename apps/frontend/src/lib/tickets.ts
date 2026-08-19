@@ -1,3 +1,5 @@
+import { uploadFilesDirectly } from './attachments';
+
 export type CreateTicketPayload = {
   projectId: string;
   title: string;
@@ -10,36 +12,43 @@ export type CreateTicketPayload = {
 };
 
 export async function createTicket(payload: CreateTicketPayload) {
-  const formData = new FormData();
+  const validAttachments = (payload.attachments ?? []).filter(
+    (attachment) => attachment.size > 0,
+  );
 
-  formData.append('title', payload.title);
-  formData.append('statusKey', payload.statusKey);
+  const uploadedAttachments = validAttachments.length
+    ? await uploadFilesDirectly(validAttachments, 'tickets/creation')
+    : [];
+
+  const body: Record<string, unknown> = {
+    title: payload.title,
+    statusKey: payload.statusKey,
+  };
 
   if (payload.description?.trim()) {
-    formData.append('description', payload.description.trim());
+    body.description = payload.description.trim();
   }
 
   if (payload.priorityKey?.trim()) {
-    formData.append('priorityKey', payload.priorityKey.trim());
+    body.priorityKey = payload.priorityKey.trim();
   }
 
   if (payload.assigneeId?.trim()) {
-    formData.append('assigneeId', payload.assigneeId.trim());
+    body.assigneeId = payload.assigneeId.trim();
   }
 
   if (payload.dueDate?.trim()) {
-    formData.append('dueDate', payload.dueDate.trim());
+    body.dueDate = payload.dueDate.trim();
   }
 
-  payload.attachments?.forEach((attachment) => {
-    if (attachment.size > 0) {
-      formData.append('attachments', attachment, attachment.name);
-    }
-  });
+  if (uploadedAttachments.length) {
+    body.attachments = uploadedAttachments;
+  }
 
   const response = await fetch(`/api/projects/${payload.projectId}/tickets`, {
     method: 'POST',
-    body: formData,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
   });
 
   const data = await response.json().catch(() => null);

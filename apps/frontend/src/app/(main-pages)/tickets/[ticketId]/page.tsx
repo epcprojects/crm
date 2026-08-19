@@ -55,7 +55,10 @@ import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { NotificationItem } from '@harperhelp/interfaces';
 import { NotificationEntityType } from '@harperhelp/types';
 import { eventEmitter } from '../../../../lib/event-emitter';
-import { validateAttachments } from '../../../../lib/attachments';
+import {
+  validateAttachments,
+  uploadFilesDirectly,
+} from '../../../../lib/attachments';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import RichTextEditor from 'apps/frontend/src/components/RichTextEditor';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -260,7 +263,7 @@ export default function TicketDetailPage() {
       mentionedUserIds: string[];
     }) => {
       const uploadedAttachments = attachments.length
-        ? await uploadReplyAttachments(attachments)
+        ? await uploadFilesDirectly(attachments, 'tickets/replies')
         : [];
 
       const response = await fetch(
@@ -1404,10 +1407,7 @@ export default function TicketDetailPage() {
       const trimmedMessage = message.trim();
 
       if (attachments.length) {
-        const uploadedFiles = await uploadChatAttachments(
-          projectId,
-          attachments,
-        );
+        const uploadedFiles = await uploadChatAttachments(attachments, channel);
         const attachmentUrls = uploadedFiles
           .map((file) => buildAttachmentUrl(file.storageKey))
           .filter((url) => Boolean(url));
@@ -3863,136 +3863,14 @@ type UploadedProjectFile = {
   mimeType?: string | null;
 };
 
-type UploadedFileDto = {
-  storageKey: string;
-  originalName: string;
-  mimeType: string;
-  sizeBytes: number;
-};
-
-async function uploadFileDirectly(file: File): Promise<UploadedFileDto> {
-  const key = `tickets/replies/${crypto.randomUUID()}/${file.name}`;
-
-  const presignParams = new URLSearchParams({
-    key,
-    action: 'upload',
-    contentType: file.type || 'application/octet-stream',
-  });
-
-  const presignRes = await fetch(
-    `/api/utility/presigned-url?${presignParams.toString()}`,
-    { method: 'GET' },
-  );
-
-  const presignData = await presignRes.json().catch(() => null);
-
-  if (!presignRes.ok || !presignData?.url) {
-    throw new Error(
-      presignData?.message || `Failed to get upload URL for ${file.name}.`,
-    );
-  }
-
-  const putRes = await fetch(presignData.url, {
-    method: 'PUT',
-    headers: { 'Content-Type': file.type || 'application/octet-stream' },
-    body: file,
-  });
-
-  if (!putRes.ok) {
-    throw new Error(`Failed to upload ${file.name} to storage.`);
-  }
-
-  return {
-    storageKey: key,
-    originalName: file.name,
-    mimeType: file.type || 'application/octet-stream',
-    sizeBytes: file.size,
-  };
-}
-
-async function uploadReplyAttachments(
-  files: File[],
-): Promise<UploadedFileDto[]> {
-  return Promise.all(files.map(uploadFileDirectly));
-}
-
 async function uploadChatAttachments(
-  projectId: string,
   attachments: File[],
-): Promise<UploadedProjectFile[]> {
-  const validationError = validateAttachments(attachments);
+  channel: ChatChannel,
+) {
+  const keyPrefix =
+    channel === 'internal' ? 'tickets/internal-msg' : 'tickets/external-msg';
 
-  if (validationError) {
-    throw new Error(validationError);
-  }
-
-  const formData = new FormData();
-
-  attachments.forEach((file) => {
-    formData.append('files', file, file.name);
-  });
-
-  const response = await fetch(`/api/projects/${projectId}/files`, {
-    method: 'POST',
-    body: formData,
-  });
-
-  const payload = (await response.json().catch(() => null)) as
-    | UploadedProjectFile[]
-    | {
-        message?: string;
-        data?: UploadedProjectFile[];
-        items?: UploadedProjectFile[];
-      }
-    | null;
-
-  if (!response.ok) {
-    throw new Error(
-      payload && !Array.isArray(payload)
-        ? payload.message || 'Failed to upload chat attachments.'
-        : 'Failed to upload chat attachments.',
-    );
-  }
-
-  const uploadedFiles = Array.isArray(payload)
-    ? payload
-    : Array.isArray(payload?.data)
-      ? payload.data
-      : Array.isArray(payload?.items)
-        ? payload.items
-        : [];
-
-  if (!uploadedFiles.length) {
-    return [];
-  }
-
-  const expectedFileKeys = attachments.map((file) =>
-    buildUploadedFileMatchKey({
-      name: file.name,
-      sizeBytes: file.size,
-    }),
-  );
-  const remainingKeys = [...expectedFileKeys];
-  const matchedFiles = uploadedFiles.filter((file) => {
-    const fileKey = buildUploadedFileMatchKey({
-      name: file.originalName ?? file.name ?? '',
-      sizeBytes: file.sizeBytes,
-    });
-    const matchingIndex = remainingKeys.indexOf(fileKey);
-
-    if (matchingIndex === -1) {
-      return false;
-    }
-
-    remainingKeys.splice(matchingIndex, 1);
-    return true;
-  });
-
-  if (matchedFiles.length) {
-    return matchedFiles;
-  }
-
-  return uploadedFiles.slice(-attachments.length);
+  return uploadFilesDirectly(attachments, keyPrefix);
 }
 
 function extractFileNameFromUrl(url: string) {

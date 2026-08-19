@@ -35,6 +35,7 @@ import CreateTicketModal, {
 import UploadFileModal, {
   type UploadFileFormValues,
 } from '../../../../components/modals/UploadFileModal';
+import { uploadFilesDirectly } from '../../../../lib/attachments';
 import ConfirmActionModal from '../../../../components/modals/ConfirmActionModal';
 import ProjectThreadPanel from '../../../../components/discussion/ProjectThreadPanel';
 import type {
@@ -698,28 +699,35 @@ export default function ProjectDetailPage() {
       parentId?: string;
       mentionedUserIds?: string[];
     }) => {
-      const formData = new FormData();
-      if (message.trim()) {
-        formData.append('message', message.trim());
-      }
+      // const formData = new FormData();
+      const uploadedAttachments = attachments.length
+        ? await uploadFilesDirectly(attachments, 'projects/threads')
+        : [];
+      // if (message.trim()) {
+      //   formData.append('message', message.trim());
+      // }
 
-      if (parentId?.trim()) {
-        formData.append('parentId', parentId.trim());
-      }
+      // if (parentId?.trim()) {
+      //   formData.append('parentId', parentId.trim());
+      // }
 
-      mentionedUserIds?.forEach((mentionedUserId) => {
-        if (mentionedUserId.trim()) {
-          formData.append('mentionedUserIds', mentionedUserId.trim());
-        }
-      });
-
-      attachments.forEach((attachment) => {
-        formData.append('attachments', attachment);
-      });
+      // mentionedUserIds?.forEach((mentionedUserId) => {
+      //   if (mentionedUserId.trim()) {
+      //     formData.append('mentionedUserIds', mentionedUserId.trim());
+      //   }
+      // });
 
       const response = await fetch(`/api/projects/${projectId}/thread`, {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: message.trim(),
+          parentId: parentId?.trim(),
+          mentionedUserIds,
+          attachments: uploadedAttachments,
+        }),
       });
 
       const data = await response.json().catch(() => null);

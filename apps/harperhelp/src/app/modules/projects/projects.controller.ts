@@ -29,6 +29,7 @@ import { ProjectsFilesService } from './services/project-files.service';
 import { GetProjectsQueryDto } from './dto/get-projects-query.dto';
 import { GetMembersQueryDto } from './dto/get-members-query.dto';
 import { UploadedFileDto } from '../files/dto/uploaded-file.dto';
+import { UploadProjectFileDto } from './dto/upload-project-file.dto';
 
 @Controller('projects')
 @ApiBearerAuth('JWT-auth')
@@ -146,12 +147,12 @@ export class ProjectsController {
   })
   async uploadFiles(
     @Param('projectId', ParseUUIDPipe) projectId: string,
-    @Body() files: UploadedFileDto[],
+    @Body() dto: UploadProjectFileDto,
     @GetUser() user,
   ) {
     return this.projectsFilesService.uploadProjectFiles(
       projectId,
-      files,
+      dto.attachments,
       user.id,
     );
   }

@@ -24,6 +24,7 @@ import type {
   TicketPriority,
   TicketStatus,
 } from '../../../components/tables/RecentTicketsTable';
+import { uploadFilesDirectly } from '../../../lib/attachments';
 
 export const projectsQueryKey = ['projects'];
 export const projectNamesQueryKey = ['project-names'];
@@ -1322,15 +1323,15 @@ async function uploadProjectFiles({
   projectId: string;
   values: UploadFileFormValues;
 }) {
-  const formData = new FormData();
-
-  values.attachments.forEach((file) => {
-    formData.append('files', file);
-  });
+  const uploadedAttachments = await uploadFilesDirectly(
+    values.attachments,
+    'projects/files',
+  );
 
   const response = await fetch(`/api/projects/${projectId}/files`, {
     method: 'POST',
-    body: formData,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ attachments: uploadedAttachments }),
   });
 
   const payload = await response.json().catch(() => null);
