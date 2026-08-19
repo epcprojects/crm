@@ -260,10 +260,10 @@ export class ChatMessagesService {
     .addOrderBy('msg.id', 'DESC')
     .take(limit + 1);
 
-  if (query.before && query.beforeId) {
+  if (query.cursorCreatedAt && query.cursorId) {
     qb.andWhere(
       '(msg.createdAt < :cCreatedAt OR (msg.createdAt = :cCreatedAt AND msg.id < :cId))',
-      { cCreatedAt: new Date(query.before), cId: query.beforeId },
+      { cCreatedAt: new Date(query.cursorCreatedAt), cId: query.cursorId },
     );
   }
 
@@ -282,7 +282,7 @@ export class ChatMessagesService {
 
   return {
     messages: enriched,
-    nextCursor: hasMore ? { createdAt: last.createdAt, id: last.id } : null,
+    cursor: hasMore ? { createdAt: last.createdAt, id: last.id } : null,
     hasMore,
   };
 }

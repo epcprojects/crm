@@ -362,8 +362,8 @@ export class ThreadService {
     const last = page[page.length - 1];
 
     return {
-      messages: enriched,
-      nextCursor: hasMore ? { createdAt: last.createdAt, id: last.id } : null,
+      threads: enriched,
+      cursor: hasMore ? { createdAt: last.createdAt, id: last.id } : null,
       hasMore,
     };
   }

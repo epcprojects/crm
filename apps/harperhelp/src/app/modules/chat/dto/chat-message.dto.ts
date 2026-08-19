@@ -10,7 +10,7 @@ import {
 } from 'class-validator';
 import { MessageType } from '../entities/chat-message-internal.entity';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 export class SendMessageDto {
   @ApiPropertyOptional()
@@ -68,21 +68,19 @@ export class MarkReadDto {
 export class GetMessagesQueryDto {
   @ApiPropertyOptional()
   @IsOptional()
+   @Type(() => Number)
   @IsNumber()
   limit?: number;
 
-  // cursor-based pagination — pass createdAt of oldest loaded message
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'createdAt of the oldest loaded message (cursor)' })
   @IsOptional()
   @IsString()
-  before?: string;
+  cursorCreatedAt?: string;
 
-  @ApiPropertyOptional({
-    description: 'id of the oldest loaded message (cursor tiebreaker)',
-  })
+  @ApiPropertyOptional({ description: 'id of the oldest loaded message (cursor tiebreaker)' })
   @IsOptional()
   @IsString()
-  beforeId?: string;
+  cursorId?: string;
 }
 
 export class MessageResponseDto {

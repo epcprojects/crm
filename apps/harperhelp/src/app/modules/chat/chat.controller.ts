@@ -23,7 +23,7 @@ import {
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { GetUser } from '../../../common/decorators/get-user.decorator';
 import { UserType } from '@harperhelp/types';
-import { ApiBearerAuth, ApiBody, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { UpdateChatDto } from './dto/update-chat.dto';
 import { pid } from 'process';
 
@@ -42,20 +42,18 @@ export class ChatMessagesController {
   // Fetch paginated message history for a channel on a ticket
 
   @Get('messages')
+  @ApiQuery({ name: 'limit', required: false, type: String })
+  @ApiQuery({ name: 'cursorCreatedAt', required: false, type: String })
+  @ApiQuery({ name: 'cursorId', required: false, type: String })
   async getMessages(
     @Param('projectId', ParseUUIDPipe) projectId: string,
-    @Param('channel') channel: ChatChannel,
+    @Param('channel') channel: string,
     @Param('ticketId', ParseUUIDPipe) ticketId: string,
     @Query() query: GetMessagesQueryDto,
     @GetUser() user,
   ) {
-    // this.service.assertAccess(user.role, channel);
-
-    // if (user.userType === UserType.EXTERNAL) {
-    //   await this.service.assertExternalTicketAccess(user.id, ticketId);
-    // }
-
-    return this.service.getMessages(projectId, channel, ticketId, query);
+    const channel_ = channel as ChatChannel;
+    return this.service.getMessages(projectId, channel_, ticketId, query);
   }
 
   // Send a message — persists to DB then broadcasts via socket
@@ -144,18 +142,18 @@ export class ChatMessagesController {
     @Body() dto: UpdateChatDto,
     @GetUser() user,
   ) {
-    const { projectId, ticketId, ...msg } = await this.service.update(channel, messageId, user.id, dto);
+    const { projectId, ticketId, ...msg } = await this.service.update(
+      channel,
+      messageId,
+      user.id,
+      dto,
+    );
 
     // broadcast updated message
-    this.gateway.broadcastMessageUpdated(
-      projectId,
-      ticketId,
-      channel,
-      {
-        messageId,
-        ...msg,
-      },
-    );
+    this.gateway.broadcastMessageUpdated(projectId, ticketId, channel, {
+      messageId,
+      ...msg,
+    });
 
     return { success: true };
   }
@@ -191,7 +189,11 @@ export class ChatMessagesController {
     @Body() { emoji }: { emoji: string },
     @GetUser() user,
   ) {
-    const {projectId:pid, ticketId:tid, ...msg} = await this.service.addReaction(
+    const {
+      projectId: pid,
+      ticketId: tid,
+      ...msg
+    } = await this.service.addReaction(
       projectId,
       ticketId,
       channel,
@@ -215,7 +217,11 @@ export class ChatMessagesController {
     @Param('messageId', ParseUUIDPipe) messageId: string,
     @GetUser() user,
   ) {
-    const {projectId:pid, ticketId:tid, ...msg} = await this.service.removeReaction(
+    const {
+      projectId: pid,
+      ticketId: tid,
+      ...msg
+    } = await this.service.removeReaction(
       projectId,
       ticketId,
       channel,
