@@ -1081,46 +1081,54 @@ export default function ProjectThreadPanel({
               <div
                 className={` flex items-end ${attachments.length === 0 ? 'justify-end' : 'justify-between'} gap-2`}
               >
-                {attachments.length ? (
-                  <div className="mt-3 flex flex-wrap max-h-52 min-h-0  gap-2 overflow-y-auto overscroll-contain pr-1 scrollbar-hide ">
-                    {attachments.map((attachment) => (
-                      <div
-                        key={`${attachment.name}-${attachment.size}-${attachment.lastModified}`}
-                        className="flex min-w-0 w-full max-w-65 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 py-0.5 pr-2 pl-0.5"
-                      >
-                        <LocalAttachmentPreview file={attachment} />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-gray-700">
-                            {attachment.name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {formatAttachmentSize(attachment.size)}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const nextAttachments = attachments.filter(
-                              (file) => file !== attachment,
-                            );
-                            setAttachments(nextAttachments);
-                            if (
-                              !nextAttachments.length &&
-                              fileInputRef.current
-                            ) {
-                              fileInputRef.current.value = '';
-                            }
-                            focusComposer();
-                          }}
-                          disabled={isSubmittingReply}
-                          className="text-xs font-medium text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                <div className="flex w-full flex-col gap-1">
+                  {attachments.length ? (
+                    <div className="mt-3 flex flex-wrap max-h-52 min-h-0  gap-2 overflow-y-auto overscroll-contain pr-1 scrollbar-hide ">
+                      {attachments.map((attachment) => (
+                        <div
+                          key={`${attachment.name}-${attachment.size}-${attachment.lastModified}`}
+                          className="flex min-w-0 w-full max-w-65 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 py-0.5 pr-2 pl-0.5"
                         >
-                          <TrashIcon width="16" height="16" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
+                          <LocalAttachmentPreview file={attachment} />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-gray-700">
+                              {attachment.name}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {formatAttachmentSize(attachment.size)}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const nextAttachments = attachments.filter(
+                                (file) => file !== attachment,
+                              );
+                              setAttachments(nextAttachments);
+                              if (
+                                !nextAttachments.length &&
+                                fileInputRef.current
+                              ) {
+                                fileInputRef.current.value = '';
+                              }
+                              focusComposer();
+                            }}
+                            disabled={isSubmittingReply}
+                            className="text-xs font-medium text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <TrashIcon width="16" height="16" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {attachmentError ? (
+                    <p className="mt-2 text-xs text-red-600">
+                      {attachmentError}
+                    </p>
+                  ) : null}
+                </div>
                 <div className="flex flex-col gap-1">
                   <div className="mt-1 text-right text-xs text-gray-500 md:block hidden">
                     {messagePlainText.length}/{MAX_DISCUSSION_MESSAGE_LENGTH}
@@ -1138,7 +1146,7 @@ export default function ProjectThreadPanel({
                         disabled={isSubmittingReply}
                         className="flex h-8 w-8 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        <PaperclipIcon width='20' height='20'/>
+                        <PaperclipIcon width="20" height="20" />
                       </button>
                     ) : null}
                     <button
@@ -1211,10 +1219,6 @@ export default function ProjectThreadPanel({
                 ))}
               </div>
             ) : null} */}
-
-            {attachmentError ? (
-              <p className="mt-2 text-xs text-red-600">{attachmentError}</p>
-            ) : null}
 
             {/* <div className="mt-3 flex items-center justify-end gap-2">
               {canAttachFile ? (
@@ -1832,7 +1836,7 @@ function LocalAttachmentPreview({ file }: { file: File }) {
 //   );
 // }
 
-function PaperclipIcon( {width="24",height="24"}) {
+function PaperclipIcon({ width = '24', height = '24' }) {
   return (
     <svg
       width={width}
