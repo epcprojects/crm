@@ -278,43 +278,88 @@ export class TicketRepliesService {
   }
 
   // TODO: optimize N+1 issue
-  async findByTicket(ticketId: string) {
+  async findByTicket(
+    ticketId: string,
+    limit = 30,
+    cursor?: { createdAt: Date; id: string },
+  ) {
     const ticket = await this.replyRepo.manager
       .getRepository(Ticket)
       .findOne({ where: { id: ticketId } });
     if (!ticket) throw new NotFoundException('Ticket not found');
 
-    const replies = await this.replyRepo.find({
-      where: { ticketId },
-      order: { createdAt: 'ASC' },
-      relations: {
-        author: true,
-      },
-    });
+    const qb = this.replyRepo
+      .createQueryBuilder('reply')
+      .leftJoinAndSelect('reply.author', 'author')
+      .where('reply.ticketId = :ticketId', { ticketId })
+      .andWhere('reply.deletedAt IS NULL')
+      .orderBy('reply.createdAt', 'DESC')
+      .addOrderBy('reply.id', 'DESC')
+      .take(limit + 1); // Fetch one extra to check if there's a next page
 
-    return Promise.all(
-      replies.map(async (reply) => {
-        if (reply.author) {
-          delete reply.author.passwordHash;
-        }
-        // delete reply.author['passwordHash'];
+    if (cursor) {
+      qb.andWhere(
+        '(reply.createdAt < :cursorCreatedAt OR (reply.createdAt = :cursorCreatedAt AND reply.id < :cursorId))',
+        { cursorCreatedAt: cursor.createdAt, cursorId: cursor.id },
+      );
+    }
+    const replies = await qb.getMany();
+
+    const hasMore = replies.length > limit;
+    const page = hasMore ? replies.slice(0, limit) : replies;
+
+    const enriched = await Promise.all(
+      page.map(async (reply) => {
+        if (reply.author) delete reply.author.passwordHash;
 
         const [attachments, reactions] = await Promise.all([
           this.filesService.findBySource(FileSource.TICKET_REPLY, reply.id),
           this.reactionsService.getTicketReplyReactions(reply.id),
         ]);
 
-        return {
-          ...reply,
-          attachments,
-          reactions,
-          // attachments: await this.filesService.findBySource(
-          //   FileSource.TICKET_REPLY,
-          //   reply.id,
-          // ),
-        };
+        return { ...reply, attachments, reactions };
       }),
     );
+
+    const last = page[page.length - 1];
+
+    return {
+      replies: enriched,
+      hasMore,
+      cursor: last ? { createdAt: last.createdAt, id: last.id } : undefined,
+    };
+
+    // const replies = await this.replyRepo.find({
+    //   where: { ticketId },
+    //   order: { createdAt: 'ASC' },
+    //   relations: {
+    //     author: true,
+    //   },
+    // });
+
+    // return Promise.all(
+    //   replies.map(async (reply) => {
+    //     if (reply.author) {
+    //       delete reply.author.passwordHash;
+    //     }
+    //     // delete reply.author['passwordHash'];
+
+    //     const [attachments, reactions] = await Promise.all([
+    //       this.filesService.findBySource(FileSource.TICKET_REPLY, reply.id),
+    //       this.reactionsService.getTicketReplyReactions(reply.id),
+    //     ]);
+
+    //     return {
+    //       ...reply,
+    //       attachments,
+    //       reactions,
+    //       // attachments: await this.filesService.findBySource(
+    //       //   FileSource.TICKET_REPLY,
+    //       //   reply.id,
+    //       // ),
+    //     };
+    //   }),
+    // );
   }
 
   async findOne(id: string) {

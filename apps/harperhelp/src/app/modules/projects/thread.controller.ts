@@ -27,6 +27,8 @@ import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { FileSizeGuard } from '../../../common/guards/file-size.guard';
 import { UpdateThreadMessageDto } from './dto/update-thread-message.dto';
+import { ApiQuery } from '@nestjs/swagger';
+import { Query } from '@nestjs/common';
 
 @Controller('projects/:pid/thread')
 @ApiBearerAuth('JWT-auth')
@@ -38,8 +40,24 @@ export class ThreadController {
   @ApiOperation({
     description: 'Find all thread messages related to a project.',
   })
-  findAll(@Param('pid', ParseUUIDPipe) pid: string) {
-    return this.service.findAll(pid);
+  @ApiQuery({ name: 'limit', required: false, type: String })
+  @ApiQuery({ name: 'cursorCreatedAt', required: false, type: String })
+  @ApiQuery({ name: 'cursorId', required: false, type: String })
+  findAll(
+    @Param('pid', ParseUUIDPipe) pid: string,
+    @Query('limit') limit?: string,
+    @Query('cursorCreatedAt') cursorCreatedAt?: string,
+    @Query('cursorId') cursorId?: string,
+  ) {
+    const cursor =
+      cursorCreatedAt && cursorId
+        ? { createdAt: new Date(cursorCreatedAt), id: cursorId }
+        : undefined;
+    return this.service.findAll(
+      pid,
+      limit ? Math.min(parseInt(limit, 10), 100) : 30,
+      cursor,
+    );
   }
 
   @Post()
