@@ -20,6 +20,7 @@ import { extname } from 'path';
 import { UpdateThreadMessageDto } from '../dto/update-thread-message.dto';
 import { ReactionsService } from '../../reactions/reactions.service';
 import { ProjectsService } from '../projects.service';
+import { UploadedFileDto } from '../../files/dto/uploaded-file.dto';
 
 @Injectable()
 export class ThreadService {
@@ -39,7 +40,7 @@ export class ThreadService {
     projectId: string,
     dto: CreateThreadMessageDto,
     user: any,
-    files?: Express.Multer.File[],
+    files?: UploadedFileDto[],
   ) {
     if (!dto.message && !files.length) {
       throw new BadRequestException('Atleast one message is required.');
@@ -185,7 +186,7 @@ export class ThreadService {
     projectId: string,
     dto: UpdateThreadMessageDto,
     user: any,
-    files?: Express.Multer.File[],
+    files?: UploadedFileDto[],
   ) {
     const project = await this.repo.manager
       .getRepository(Project)
@@ -471,26 +472,22 @@ export class ThreadService {
   private async uploadAttachments(
     messageId: string,
     projectId: string,
-    files: Express.Multer.File[],
+    files: UploadedFileDto[],
     userId: string,
   ) {
     for (const file of files) {
-      const key = `projects/${projectId}/thread/${messageId}/${Date.now()}-${file.originalname}`;
-
-      await this.utilityService.uploadFile(file, key);
-
-      const rawExt = extname(file.originalname); // e.g. '.DOCX' or ''
+      const rawExt = extname(file.originalName); // e.g. '.DOCX' or ''
       const extension = rawExt ? rawExt.slice(1).toLowerCase() : 'unknown';
 
       await this.filesService.create({
         projectId,
         uploadedBy: userId,
-        originalName: file.originalname,
-        storageKey: key,
-        sizeBytes: file.size,
+        originalName: file.originalName,
+        storageKey: file.storageKey,
+        sizeBytes: file.sizeBytes,
         // extension: file.mimetype.split('/')[1],
         extension: extension,
-        mimeType: file.mimetype,
+        mimeType: file.mimeType,
         source: FileSource.THREAD,
         sourceId: messageId,
       });

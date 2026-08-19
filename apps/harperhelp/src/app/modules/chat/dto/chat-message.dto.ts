@@ -36,7 +36,7 @@ export class SendMessageDto {
 
     return Array.isArray(value) ? value : [value];
   })
-  @IsUUID('4', {
+  @IsUUID('loose', {
     each: true,
     message: 'Each mentioned user ID must be a valid UUID',
   })
@@ -61,7 +61,7 @@ export class SendMessageDto {
 }
 
 export class MarkReadDto {
-  @IsUUID('4', { each: true })
+  @IsUUID('loose', { each: true })
   messageIds: string[];
 }
 

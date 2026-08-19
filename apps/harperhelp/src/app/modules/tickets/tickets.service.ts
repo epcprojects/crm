@@ -27,6 +27,7 @@ import { TicketPriority } from './entities/ticket.priority.entity';
 import { UsersService } from '../users/users.service';
 import { extname } from 'path';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
+import { UploadedFileDto } from '../files/dto/uploaded-file.dto';
 
 @Injectable()
 export class TicketsService {
@@ -58,7 +59,7 @@ export class TicketsService {
     projectId: string,
     dto: CreateTicketDto,
     userId: string,
-    files?: Express.Multer.File[],
+    files?: UploadedFileDto[],
   ) {
     const project = await this.projectRepo.findOne({
       where: { id: projectId },
@@ -1123,26 +1124,26 @@ export class TicketsService {
   async handleAttachments(
     ticketId: string,
     projectId: string,
-    files: Express.Multer.File[],
+    files: UploadedFileDto[],
     userId: string,
   ) {
     for (const file of files) {
-      const key = `projects/${projectId}/tickets/${ticketId}/${Date.now()}-${file.originalname}`;
+      // const key = `projects/${projectId}/tickets/${ticketId}/${Date.now()}-${file.originalname}`;
 
-      await this.utilityService.uploadFile(file, key);
+      // await this.utilityService.uploadFile(file, key);
 
-      const rawExt = extname(file.originalname); // e.g. '.DOCX' or ''
+      const rawExt = extname(file.originalName); // e.g. '.DOCX' or ''
       const extension = rawExt ? rawExt.slice(1).toLowerCase() : 'unknown';
 
       await this.filesService.create({
         projectId,
         uploadedBy: userId,
-        originalName: file.originalname,
-        storageKey: key,
-        sizeBytes: file.size,
+        originalName: file.originalName,
+        storageKey: file.storageKey,
+        sizeBytes: file.sizeBytes,
         // extension: file.mimetype.split('/')[1],
         extension: extension,
-        mimeType: file.mimetype,
+        mimeType: file.mimeType,
         source: FileSource.TICKET,
         sourceId: ticketId,
         status: FileStatus.ACTIVE,

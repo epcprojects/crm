@@ -55,7 +55,10 @@ import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { NotificationItem } from '@harperhelp/interfaces';
 import { NotificationEntityType } from '@harperhelp/types';
 import { eventEmitter } from '../../../../lib/event-emitter';
-import { validateAttachments } from '../../../../lib/attachments';
+import {
+  validateAttachments,
+  uploadFilesDirectly,
+} from '../../../../lib/attachments';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import RichTextEditor from 'apps/frontend/src/components/RichTextEditor';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -259,37 +262,31 @@ export default function TicketDetailPage() {
       attachments: File[];
       mentionedUserIds: string[];
     }) => {
-      const formData = new FormData();
-      if (message.trim()) {
-        formData.append('message', message.trim());
-      }
-
-      mentionedUserIds.forEach((mentionedUserId) => {
-        if (mentionedUserId.trim()) {
-          formData.append('mentionedUserIds', mentionedUserId.trim());
-        }
-      });
-
-      attachments.forEach((attachment) => {
-        formData.append('attachments', attachment);
-      });
+      const uploadedAttachments = attachments.length
+        ? await uploadFilesDirectly(attachments, 'tickets/replies')
+        : [];
 
       const response = await fetch(
         `/api/tickets/${ticketId}/replies?projectId=${encodeURIComponent(projectId)}`,
         {
           method: 'POST',
-          body: formData,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: message.trim(),
+            mentionedUserIds,
+            attachments: uploadedAttachments,
+          }),
         },
       );
 
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        const message =
+        const errorMessage =
           Array.isArray(data?.message) && data.message.length
             ? data.message.join(', ')
             : data?.message || 'Failed to create reply.';
-        throw new Error(message);
+        throw new Error(errorMessage);
       }
 
       return data;
@@ -1410,10 +1407,7 @@ export default function TicketDetailPage() {
       const trimmedMessage = message.trim();
 
       if (attachments.length) {
-        const uploadedFiles = await uploadChatAttachments(
-          projectId,
-          attachments,
-        );
+        const uploadedFiles = await uploadChatAttachments(attachments, ticketId, channel);
         const attachmentUrls = uploadedFiles
           .map((file) => buildAttachmentUrl(file.storageKey))
           .filter((url) => Boolean(url));
@@ -3870,82 +3864,14 @@ type UploadedProjectFile = {
 };
 
 async function uploadChatAttachments(
-  projectId: string,
   attachments: File[],
-): Promise<UploadedProjectFile[]> {
-  const validationError = validateAttachments(attachments);
+  ticketId: string,
+  channel: ChatChannel,
+) {
+  const keyPrefix =
+    channel === 'internal' ? `tickets/${ticketId}/internal-msg` : `tickets/${ticketId}/external-msg`;
 
-  if (validationError) {
-    throw new Error(validationError);
-  }
-
-  const formData = new FormData();
-
-  attachments.forEach((file) => {
-    formData.append('files', file, file.name);
-  });
-
-  const response = await fetch(`/api/projects/${projectId}/files`, {
-    method: 'POST',
-    body: formData,
-  });
-
-  const payload = (await response.json().catch(() => null)) as
-    | UploadedProjectFile[]
-    | {
-        message?: string;
-        data?: UploadedProjectFile[];
-        items?: UploadedProjectFile[];
-      }
-    | null;
-
-  if (!response.ok) {
-    throw new Error(
-      payload && !Array.isArray(payload)
-        ? payload.message || 'Failed to upload chat attachments.'
-        : 'Failed to upload chat attachments.',
-    );
-  }
-
-  const uploadedFiles = Array.isArray(payload)
-    ? payload
-    : Array.isArray(payload?.data)
-      ? payload.data
-      : Array.isArray(payload?.items)
-        ? payload.items
-        : [];
-
-  if (!uploadedFiles.length) {
-    return [];
-  }
-
-  const expectedFileKeys = attachments.map((file) =>
-    buildUploadedFileMatchKey({
-      name: file.name,
-      sizeBytes: file.size,
-    }),
-  );
-  const remainingKeys = [...expectedFileKeys];
-  const matchedFiles = uploadedFiles.filter((file) => {
-    const fileKey = buildUploadedFileMatchKey({
-      name: file.originalName ?? file.name ?? '',
-      sizeBytes: file.sizeBytes,
-    });
-    const matchingIndex = remainingKeys.indexOf(fileKey);
-
-    if (matchingIndex === -1) {
-      return false;
-    }
-
-    remainingKeys.splice(matchingIndex, 1);
-    return true;
-  });
-
-  if (matchedFiles.length) {
-    return matchedFiles;
-  }
-
-  return uploadedFiles.slice(-attachments.length);
+  return uploadFilesDirectly(attachments, keyPrefix);
 }
 
 function extractFileNameFromUrl(url: string) {
@@ -4165,31 +4091,6 @@ async function fetchUnreadIndicator(
   return false;
 }
 
-function getIncomingChatToastMessage(
-  channel: ChatChannel,
-  message: ChatMessage,
-) {
-  const senderName =
-    message.sender?.fullName?.trim() ||
-    message.sender?.name?.trim() ||
-    'Someone';
-  const messagePreview = message.message.trim();
-
-  if (message.messageType === 'attachment' && !messagePreview) {
-    return `New message in: ${senderName} sent an attachment.`;
-  }
-
-  if (message.messageType === 'attachment') {
-    return `New message: ${senderName} sent ${messagePreview}.`;
-  }
-
-  if (!messagePreview) {
-    return `New message in from ${senderName}.`;
-  }
-
-  return `New message from ${senderName}: ${messagePreview}`;
-}
-
 function toDateInputValue(value: string) {
   if (!value) {
     return '';
@@ -4229,29 +4130,6 @@ function formatReplyDate(value: string) {
     hour: 'numeric',
     minute: '2-digit',
   }).format(date);
-}
-
-function formatTimelineDate(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  const formattedDate = new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: '2-digit',
-    year: 'numeric',
-  }).format(date);
-
-  const formattedTime = new Intl.DateTimeFormat('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
-
-  return formattedTime
-    ? `${formattedDate}  •  ${formattedTime}`
-    : formattedDate;
 }
 
 function formatTimelineDateTime(value: string) {

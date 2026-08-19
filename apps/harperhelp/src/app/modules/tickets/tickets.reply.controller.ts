@@ -29,6 +29,7 @@ import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { FileSizeGuard } from '../../../common/guards/file-size.guard';
 import { UpdateReplyDto } from './dto/update-ticket-reply.dto';
+import { UploadedFileDto } from '../files/dto/uploaded-file.dto';
 
 @Controller('tickets/:ticketId')
 @ApiBearerAuth('JWT-auth')
@@ -58,27 +59,27 @@ export class TicketRepliesController {
   }
 
   @Post('projects/:pid')
-  @UseGuards(FileSizeGuard)
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        message: {
-          type: 'string',
-        },
-        attachments: {
-          type: 'array',
-          items: {
-            type: 'string',
-            format: 'binary',
-          },
-        },
-      },
-      required: ['message'],
-    },
-  })
-  @UseInterceptors(FilesInterceptor('attachments'))
+  // @UseGuards(FileSizeGuard)
+  // @ApiConsumes('multipart/form-data')
+  // @ApiBody({
+  //   schema: {
+  //     type: 'object',
+  //     properties: {
+  //       message: {
+  //         type: 'string',
+  //       },
+  //       attachments: {
+  //         type: 'array',
+  //         items: {
+  //           type: 'string',
+  //           format: 'binary',
+  //         },
+  //       },
+  //     },
+  //     required: ['message'],
+  //   },
+  // })
+  // @UseInterceptors(FilesInterceptor('attachments'))
   @ApiOperation({
     description: 'Creates a reply for a ticket. it also accepts attachments.',
   })
@@ -86,34 +87,34 @@ export class TicketRepliesController {
     @Param('pid', ParseUUIDPipe) pid: string,
     @Param('ticketId', ParseUUIDPipe) ticketId: string,
     @Body() dto: CreateReplyDto,
-    @UploadedFiles() files: Express.Multer.File[],
+    // @UploadedFiles() files: UploadedFileDto[],
     @GetUser() user,
   ) {
-    return this.service.create(pid, ticketId, dto, user.id, files);
+    return this.service.create(pid, ticketId, dto, user.id, dto.attachments);
   }
 
   @Put('projects/:pid/reply/:replyId')
-  @UseGuards(FileSizeGuard)
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        message: {
-          type: 'string',
-        },
-        attachments: {
-          type: 'array',
-          items: {
-            type: 'string',
-            format: 'binary',
-          },
-        },
-      },
-      required: ['message'],
-    },
-  })
-  @UseInterceptors(FilesInterceptor('attachments'))
+  // @UseGuards(FileSizeGuard)
+  // @ApiConsumes('multipart/form-data')
+  // @ApiBody({
+  //   schema: {
+  //     type: 'object',
+  //     properties: {
+  //       message: {
+  //         type: 'string',
+  //       },
+  //       attachments: {
+  //         type: 'array',
+  //         items: {
+  //           type: 'string',
+  //           format: 'binary',
+  //         },
+  //       },
+  //     },
+  //     required: ['message'],
+  //   },
+  // })
+  // @UseInterceptors(FilesInterceptor('attachments'))
   @ApiOperation({
     description: 'Updates a reply for a ticket',
   })
@@ -122,10 +123,10 @@ export class TicketRepliesController {
     @Param('ticketId', ParseUUIDPipe) ticketId: string,
     @Param('replyId', ParseUUIDPipe) replyId: string,
     @Body() dto: UpdateReplyDto,
-    @UploadedFiles() files: Express.Multer.File[],
+    // @UploadedFiles() files: UploadedFileDto[],
     @GetUser() user,
   ) {
-    return this.service.update(pid, ticketId, replyId, dto, user.id, files);
+    return this.service.update(pid, ticketId, replyId, dto, user.id, dto.attachments);
   }
 
   @Delete('projects/:pid/reply/:replyId')

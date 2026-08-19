@@ -51,11 +51,12 @@ export class ChatMessageExternal extends TimestampEntityWithSoftDelete {
     type: [String],
   })
   @IsOptional()
-  @IsUUID('4', {
+  @IsUUID('loose', {
     each: true,
     message: 'Each mentioned user ID must be a valid UUID',
   })
   mentionedUserIds?: string[];
+
   @Column({
     name: 'attachment_urls',
     type: 'text',

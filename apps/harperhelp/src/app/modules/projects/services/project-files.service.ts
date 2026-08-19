@@ -3,9 +3,9 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FilesService } from '../../files/files.service';
-import { UtilityService } from '../../utility/utility.service';
 import { Project } from '../entities/project.entity';
 import { extname } from 'path';
+import { UploadedFileDto } from '../../files/dto/uploaded-file.dto';
 
 @Injectable()
 export class ProjectsFilesService {
@@ -14,12 +14,11 @@ export class ProjectsFilesService {
     private readonly projectRepo: Repository<Project>,
 
     private readonly filesService: FilesService,
-    private readonly utilityService: UtilityService,
   ) {}
 
   async uploadProjectFiles(
     projectId: string,
-    files: Express.Multer.File[],
+    files: UploadedFileDto[],
     userId: string,
   ) {
     const project = await this.projectRepo.findOne({
@@ -31,23 +30,18 @@ export class ProjectsFilesService {
     }
 
     for (const file of files) {
-      const key = `projects/${projectId}/files/${Date.now()}-${file.originalname}`;
-
-      await this.utilityService.uploadFile(file, key);
-      
-      const rawExt = extname(file.originalname); // e.g. '.DOCX' or ''
+      const rawExt = extname(file.originalName); // e.g. '.DOCX' or ''
       const extension = rawExt ? rawExt.slice(1).toLowerCase() : 'unknown';
-
 
       await this.filesService.create({
         projectId,
         uploadedBy: userId,
-        originalName: file.originalname,
-        storageKey: key,
-        sizeBytes: file.size,
+        originalName: file.originalName,
+        storageKey: file.storageKey,
+        sizeBytes: file.sizeBytes,
         // extension: file.mimetype.split('/')[1],
         extension: extension,
-        mimeType: file.mimetype,
+        mimeType: file.mimeType,
 
         source: FileSource.PROJECT,
         sourceId: projectId,

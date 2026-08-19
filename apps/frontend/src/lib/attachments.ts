@@ -1,4 +1,4 @@
-export const MAX_TOTAL_ATTACHMENT_SIZE_BYTES = 3 * 1024 * 1024;
+export const MAX_TOTAL_ATTACHMENT_SIZE_BYTES = 15 * 1024 * 1024;
 
 export const ALLOWED_ATTACHMENT_EXTENSIONS = [
   '.jpg',
@@ -30,7 +30,7 @@ export const ALLOWED_ATTACHMENT_HELPER_TEXT =
 export const ALLOWED_ATTACHMENT_ERROR_TEXT = `Allowed file types: ${ALLOWED_ATTACHMENT_EXTENSIONS.join(', ')}`;
 
 export const MAX_ATTACHMENT_SIZE_ERROR_TEXT =
-  'Total attachment size must be 3 MB or less.';
+  'Total attachment size must be 15 MB or less.';
 
 export function isAllowedAttachmentFile(file: File) {
   const lowerCaseName = file.name.toLowerCase();
@@ -52,4 +52,67 @@ export function validateAttachments(files: File[]) {
   }
 
   return '';
+}
+
+export type UploadedFileDto = {
+  storageKey: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+};
+
+async function uploadFileDirectly(
+  file: File,
+  keyPrefix: string,
+): Promise<UploadedFileDto> {
+  const key = `${keyPrefix}/${crypto.randomUUID()}/${Date.now()}-${file.name}`;
+
+  const presignParams = new URLSearchParams({
+    key,
+    action: 'upload',
+    contentType: file.type || 'application/octet-stream',
+  });
+
+  const presignRes = await fetch(
+    `/api/utility/presigned-url?${presignParams.toString()}`,
+    { method: 'GET' },
+  );
+
+  const presignData = await presignRes.json().catch(() => null);
+
+  if (!presignRes.ok || !presignData?.url) {
+    throw new Error(
+      presignData?.message || `Failed to get upload URL for ${file.name}.`,
+    );
+  }
+
+  const putRes = await fetch(presignData.url, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    body: file,
+  });
+
+  if (!putRes.ok) {
+    throw new Error(`Failed to upload ${file.name} to storage.`);
+  }
+
+  return {
+    storageKey: key,
+    originalName: file.name,
+    mimeType: file.type || 'application/octet-stream',
+    sizeBytes: file.size,
+  };
+}
+
+export async function uploadFilesDirectly(
+  files: File[],
+  keyPrefix: string,
+): Promise<UploadedFileDto[]> {
+  const validationError = validateAttachments(files);
+
+  if (validationError) {
+    throw new Error(validationError);
+  }
+
+  return Promise.all(files.map((file) => uploadFileDirectly(file, keyPrefix)));
 }
