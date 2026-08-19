@@ -47,13 +47,13 @@ export class ChatMessagesController {
   @ApiQuery({ name: 'cursorId', required: false, type: String })
   async getMessages(
     @Param('projectId', ParseUUIDPipe) projectId: string,
-    @Param('channel') channel: string,
+    @Param('channel') channel: ChatChannel,
     @Param('ticketId', ParseUUIDPipe) ticketId: string,
     @Query() query: GetMessagesQueryDto,
     @GetUser() user,
   ) {
-    const channel_ = channel as ChatChannel;
-    return this.service.getMessages(projectId, channel_, ticketId, query);
+  
+    return this.service.getMessages(projectId, channel, ticketId, query);
   }
 
   // Send a message — persists to DB then broadcasts via socket
