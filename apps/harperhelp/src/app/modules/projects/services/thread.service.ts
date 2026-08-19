@@ -305,39 +305,49 @@ export class ThreadService {
   }
 
   // TODO: optimize N+1 issue
-  async findAll(projectId: string) {
+  async findAll(
+    projectId: string,
+    limit = 30,
+    cursor?: { createdAt: Date; id: string },
+  ) {
     const project = await this.repo.manager
       .getRepository(Project)
       .findOne({ where: { id: projectId }, relations: { members: true } });
     if (!project) throw new NotFoundException('Project not found');
-    const messages = await this.repo.find({
-      where: {
-        projectId,
-        parentId: IsNull(), // only top-level threads
-      },
-      order: {
-        createdAt: 'ASC',
-      },
-      relations: {
-        author: true,
-      },
-      select: {
-        id: true,
-        message: true,
-        replyCount: true,
-        createdAt: true,
-        createdBy: true,
-        updatedAt: true,
-        updatedBy: true,
-        author: {
-          fullName: true,
-          email: true,
-        },
-      },
-    });
 
-    return Promise.all(
-      messages.map(async (message) => ({
+    const qb = this.repo
+      .createQueryBuilder('msg')
+      .leftJoin('msg.author', 'author')
+      .select([
+        'msg.id',
+        'msg.message',
+        'msg.replyCount',
+        'msg.createdAt',
+        'msg.createdBy',
+        'msg.updatedAt',
+        'msg.updatedBy',
+      ])
+      .addSelect(['author.fullName', 'author.email'])
+      .where('msg.projectId = :projectId', { projectId })
+      .andWhere('msg.parentId IS NULL')
+      .andWhere('msg.deletedAt IS NULL')
+      .orderBy('msg.createdAt', 'DESC')
+      .addOrderBy('msg.id', 'DESC')
+      .take(limit + 1);
+
+    if (cursor) {
+      qb.andWhere(
+        '(msg.createdAt < :cCreatedAt OR (msg.createdAt = :cCreatedAt AND msg.id < :cId))',
+        { cCreatedAt: cursor.createdAt, cId: cursor.id },
+      );
+    }
+
+    const rows = await qb.getMany();
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+
+    const enriched = await Promise.all(
+      page.map(async (message) => ({
         ...message,
         attachments: await this.filesService.findBySource(
           FileSource.THREAD,
@@ -348,6 +358,14 @@ export class ThreadService {
         ),
       })),
     );
+
+    const last = page[page.length - 1];
+
+    return {
+      threads: enriched,
+      cursor: hasMore ? { createdAt: last.createdAt, id: last.id } : null,
+      hasMore,
+    };
   }
 
   async findOne(id: string, members: boolean = false) {
