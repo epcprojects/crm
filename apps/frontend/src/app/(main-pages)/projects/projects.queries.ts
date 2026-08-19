@@ -34,7 +34,7 @@ export const projectTicketsQueryKey = ['project-tickets'];
 export const projectFilesQueryKey = ['project-files'];
 export const projectNotesQueryKey = ['project-notes'];
 export const projectNoteDetailQueryKey = ['project-note-detail'];
-const PROJECT_THREAD_PAGE_SIZE = 8;
+const PROJECT_THREAD_PAGE_SIZE = 30;
 
 type ProjectThreadDetail = {
   header: DiscussionReply | null;
