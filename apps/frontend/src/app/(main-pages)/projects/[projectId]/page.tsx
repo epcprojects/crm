@@ -701,7 +701,7 @@ export default function ProjectDetailPage() {
     }) => {
       // const formData = new FormData();
       const uploadedAttachments = attachments.length
-        ? await uploadFilesDirectly(attachments, 'projects/threads')
+        ? await uploadFilesDirectly(attachments, `projects/${projectId}/threads`)
         : [];
       // if (message.trim()) {
       //   formData.append('message', message.trim());

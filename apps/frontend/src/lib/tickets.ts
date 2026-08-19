@@ -17,7 +17,7 @@ export async function createTicket(payload: CreateTicketPayload) {
   );
 
   const uploadedAttachments = validAttachments.length
-    ? await uploadFilesDirectly(validAttachments, 'tickets/creation')
+    ? await uploadFilesDirectly(validAttachments, `projects/${payload.projectId}/tickets/creation`)
     : [];
 
   const body: Record<string, unknown> = {

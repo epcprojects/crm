@@ -1325,7 +1325,7 @@ async function uploadProjectFiles({
 }) {
   const uploadedAttachments = await uploadFilesDirectly(
     values.attachments,
-    'projects/files',
+    `projects/${projectId}/files`,
   );
 
   const response = await fetch(`/api/projects/${projectId}/files`, {

@@ -1407,7 +1407,7 @@ export default function TicketDetailPage() {
       const trimmedMessage = message.trim();
 
       if (attachments.length) {
-        const uploadedFiles = await uploadChatAttachments(attachments, channel);
+        const uploadedFiles = await uploadChatAttachments(attachments, ticketId, channel);
         const attachmentUrls = uploadedFiles
           .map((file) => buildAttachmentUrl(file.storageKey))
           .filter((url) => Boolean(url));
@@ -3865,10 +3865,11 @@ type UploadedProjectFile = {
 
 async function uploadChatAttachments(
   attachments: File[],
+  ticketId: string,
   channel: ChatChannel,
 ) {
   const keyPrefix =
-    channel === 'internal' ? 'tickets/internal-msg' : 'tickets/external-msg';
+    channel === 'internal' ? `tickets/${ticketId}/internal-msg` : `tickets/${ticketId}/external-msg`;
 
   return uploadFilesDirectly(attachments, keyPrefix);
 }
