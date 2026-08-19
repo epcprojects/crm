@@ -81,7 +81,9 @@ type DiscussionPanelProps = {
   editingReplyId?: string;
   onDeleteAttachment?: (attachment: DiscussionAttachment) => void;
   deletingAttachmentId?: string;
-  // internalScrollEnabled?: boolean;
+  hasMoreReplies?: boolean;
+  isLoadingMoreReplies?: boolean;
+  onLoadMoreReplies?: () => Promise<void> | void;
 };
 
 type GalleryImage = {
@@ -117,7 +119,9 @@ export default function ProjectThreadPanel({
   editingReplyId,
   onDeleteAttachment,
   deletingAttachmentId,
-  // internalScrollEnabled = true,
+  hasMoreReplies = false,
+  isLoadingMoreReplies = false,
+  onLoadMoreReplies,
 }: DiscussionPanelProps) {
   const [message, setMessage] = useState('');
   const [messagePlainText, setMessagePlainText] = useState('');
@@ -145,6 +149,13 @@ export default function ProjectThreadPanel({
   const composerMentionsRef = useRef<MentionsInputHandle | null>(null);
   const editingMentionsRef = useRef<MentionsInputHandle | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const previousHeaderReplyIdRef = useRef<string | undefined>(undefined);
+  const previousLastReplyIdRef = useRef<string | undefined>(undefined);
+  const previousRepliesLengthRef = useRef(0);
+  const pendingPrependRestoreRef = useRef<{
+    previousScrollHeight: number;
+  } | null>(null);
+  const loadMoreInFlightRef = useRef(false);
   const conversationImages = getGalleryImagesFromDiscussion(
     headerReply,
     replies,
@@ -163,8 +174,64 @@ export default function ProjectThreadPanel({
       return;
     }
 
-    container.scrollTop = container.scrollHeight;
-  }, [headerReply?.id, replies.length]);
+    if (pendingPrependRestoreRef.current) {
+      const { previousScrollHeight } = pendingPrependRestoreRef.current;
+      const scrollDelta = container.scrollHeight - previousScrollHeight;
+
+      container.scrollTop = Math.max(0, scrollDelta);
+      pendingPrependRestoreRef.current = null;
+      previousRepliesLengthRef.current = replies.length;
+      previousHeaderReplyIdRef.current = headerReply?.id;
+      previousLastReplyIdRef.current = replies.at(-1)?.id;
+      return;
+    }
+
+    const previousHeaderReplyId = previousHeaderReplyIdRef.current;
+    const previousLastReplyId = previousLastReplyIdRef.current;
+    const nextLastReplyId = replies.at(-1)?.id;
+    const shouldScrollToBottom =
+      previousHeaderReplyId !== headerReply?.id ||
+      previousLastReplyId !== nextLastReplyId ||
+      (previousRepliesLengthRef.current === 0 && replies.length > 0);
+
+    if (shouldScrollToBottom) {
+      container.scrollTop = container.scrollHeight;
+    }
+
+    previousRepliesLengthRef.current = replies.length;
+    previousHeaderReplyIdRef.current = headerReply?.id;
+    previousLastReplyIdRef.current = nextLastReplyId;
+  }, [headerReply?.id, replies]);
+
+  useEffect(() => {
+    if (!isLoadingMoreReplies) {
+      loadMoreInFlightRef.current = false;
+    }
+  }, [isLoadingMoreReplies]);
+
+  const handleScroll = () => {
+    const container = scrollContainerRef.current;
+
+    if (
+      !container ||
+      !hasMoreReplies ||
+      isLoadingMoreReplies ||
+      !onLoadMoreReplies ||
+      loadMoreInFlightRef.current ||
+      container.scrollTop > 80
+    ) {
+      return;
+    }
+
+    pendingPrependRestoreRef.current = {
+      previousScrollHeight: container.scrollHeight,
+    };
+    loadMoreInFlightRef.current = true;
+    void Promise.resolve(onLoadMoreReplies()).catch(() => {
+      pendingPrependRestoreRef.current = null;
+      loadMoreInFlightRef.current = false;
+    });
+  };
 
   const handleSubmit = async () => {
     const trimmedMessage = messagePlainText.trim();
@@ -466,6 +533,7 @@ export default function ProjectThreadPanel({
 
         <div
           ref={scrollContainerRef}
+          onScroll={handleScroll}
           // className={`min-h-0 flex-1 touch-pan-y px-3 py-5 scrollbar-hide md:px-5 ${
           //   internalScrollEnabled
           //     ? 'overflow-y-auto overscroll-auto'
@@ -476,6 +544,15 @@ export default function ProjectThreadPanel({
           <div
             className={`flex min-h-full flex-col ${replies.length > 0 && headerReply ? 'justify-between' : replies.length > 0 && !headerReply ? 'justify-end' : 'justify-center'}`}
           >
+            {hasMoreReplies || isLoadingMoreReplies ? (
+              <div className="mb-4 flex justify-center">
+                <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-500">
+                  {isLoadingMoreReplies
+                    ? 'Loading older threads...'
+                    : 'Scroll up to load older threads'}
+                </span>
+              </div>
+            ) : null}
             {headerReply ? (
               <div className="  pb-4">
                 <article className="flex  items-start gap-3 max-w-[calc(100%-40px)]">
