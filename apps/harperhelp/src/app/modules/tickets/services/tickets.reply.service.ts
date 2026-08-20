@@ -125,6 +125,10 @@ export class TicketRepliesService {
 
       const participants = Array.from(participantsMap.values());
 
+      const attachments = await this.utilityService.getEmailAttachmentLinks(
+        files ?? []
+      );
+
       await this.notificationsService.dispatch({
         type: EmailEventType.TICKET_REPLY_POSTED,
         payload: {
@@ -145,6 +149,7 @@ export class TicketRepliesService {
             email: '',
           },
           participants,
+          attachments,
         },
       });
     } catch (err) {

@@ -10,6 +10,7 @@ import {
   ThreadMessageCreatedPayload,
   ProjectUnassignedPayload,
   ThreadReplyCreatedPayload,
+  EmailAttachmentLink,
 } from '../notifications.types';
 
 const PRIORITY_COLOR: Record<string, string> = {
@@ -406,6 +407,7 @@ interface NotificationEmailParams {
   buttonUrl: string;
   showReplyCallout?: boolean;
   internalNote?: boolean; // default false
+  attachments?: EmailAttachmentLink[]; // optional list of attachments to show in the email
 }
 
 // ---------- helpers ----------
@@ -630,6 +632,43 @@ function dataRowHtml(row: DataRow, isFirst: boolean): string {
                                                                                                                             </tr>`;
 }
 
+// --------- attachments Button ---------------------------
+function attachmentRowHtml(att: EmailAttachmentLink): string {
+  return `
+    <tr>
+        <td width="70%" align="left" valign="middle"
+            style="padding:12px 16px;font-family:'Nunito', Arial, sans-serif;font-size:14px;line-height:120%;color:#111827;">
+            <span style="display:block;font-weight:500;">${escapeHtml(att.filename)}</span>
+            <span style="display:block;padding-top:2px;font-size:12px;font-weight:400;color:#6B7280;">${escapeHtml(att.sizeLabel)}</span>
+        </td>
+        <td width="30%" align="right" valign="middle" style="padding:12px 16px;">
+            <a href="${escapeHtml(att.url)}" target="_blank"
+                style="display:inline-block;padding:6px 14px;border:1px solid #E5E7EB;border-radius:6px;
+                       font-family:'Nunito', Arial, sans-serif;font-size:13px;font-weight:600;
+                       color:#374151;text-decoration:none !important;white-space:nowrap;">
+                View or Download
+            </a>
+        </td>
+    </tr>`;
+}
+
+function attachmentsBlockHtml(attachments: EmailAttachmentLink[]): string {
+  if (!attachments?.length) return '';
+
+  const rowsHtml = attachments.map(attachmentRowHtml).join('');
+
+  return `
+    <tr>
+        <td align="center" style="padding:0px 24px 20px 24px;">
+            <table role="presentation" width="100%" align="center" cellpadding="0" cellspacing="0" border="0"
+                style="width:100%;max-width:552px;border:1px solid #E5E7EB;border-radius:12px;border-collapse:separate;background-color:#FFFFFF;">
+                <tbody>
+${rowsHtml}
+                </tbody>
+            </table>
+        </td>
+    </tr>`;
+}
 // ---------- full notification body (exact nesting preserved) ----------
 
 export function renderNotificationEmail(
@@ -645,6 +684,7 @@ export function renderNotificationEmail(
     buttonUrl,
     showReplyCallout = false,
     internalNote = false,
+    attachments = [],
   } = params;
 
   const logoUrl = iconUrl(appUrl, 'HarperLogo.png');
@@ -652,6 +692,7 @@ export function renderNotificationEmail(
   const notificationIconUrl = iconUrl(appUrl, 'EmailNotificationIcon.png');
 
   const internalNoteHtml = internalNote ? internalNoteBannerHtml() : '';
+  const attachmentsHtml = attachmentsBlockHtml(attachments);
 
   const rowsHtml = rows.map((r, i) => dataRowHtml(r, i === 0)).join('');
 
@@ -668,11 +709,11 @@ export function renderNotificationEmail(
                                                                                                                         border="0"
                                                                                                                         bgcolor="#FAF5FF"
                                                                                                                         style="
-                width:100%;
-                background-color:#FAF5FF;
-                border-radius:8px;
-                border-collapse:separate;
-            ">
+                                                                                                                                  width:100%;
+                                                                                                                                  background-color:#FAF5FF;
+                                                                                                                                  border-radius:8px;
+                                                                                                                                  border-collapse:separate;
+                                                                                                                              ">
                                                                                                                         <tr>
                                                                                                                             <td width="40"
                                                                                                                                 align="center"
@@ -700,26 +741,7 @@ export function renderNotificationEmail(
                         font-family:'Nunito', Arial, sans-serif;
                         color:#111827;
                     ">
-                                                                                                                                <span
-                                                                                                                                    style="
-                            display:block;
-                            padding-bottom:4px;
-                            font-family:'Nunito', Arial, sans-serif;
-                            font-size:14px;
-                            line-height:14px;
-                            font-weight:600;
-                            color:#111827;
-                        ">
-                                                                                                                                    Reply
-                                                                                                                                    directly
-                                                                                                                                    to
-                                                                                                                                    this
-                                                                                                                                    email
-                                                                                                                                    to
-                                                                                                                                    add
-                                                                                                                                    a
-                                                                                                                                    comment.
-                                                                                                                                </span>
+                                                                                                                                
 
                                                                                                                                 <span
                                                                                                                                     style="
@@ -730,14 +752,8 @@ export function renderNotificationEmail(
                             font-weight:400;
                             color:#374151;
                         ">
-                                                                                                                                    Your
-                                                                                                                                    reply
-                                                                                                                                    will
-                                                                                                                                    be
-                                                                                                                                    added
-                                                                                                                                    to
-                                                                                                                                    the
-                                                                                                                                    ticket.
+                                                                                                                                    Open this ticket in HarperHelpDesk to view the complete discussion and latest updates.
+
                                                                                                                                 </span>
                                                                                                                             </td>
                                                                                                                         </tr>
@@ -894,6 +910,7 @@ ${rowsHtml}
 
                                                                                                                 </td>
                                                                                                             </tr>
+                                                                                                            ${attachmentsHtml}
 ${internalNoteHtml}
                                                                                                             <tr>
                                                                                                                 <td align="center"
@@ -1035,6 +1052,7 @@ export function buildTicketReplyEmail(
     buttonText: 'View Ticket',
     buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}`,
     showReplyCallout: !p.isInternal, // "reply by email" doesn't make sense for internal-only notes
+    attachments: p.attachments, // NEW
     internalNote: p.isInternal,
   });
 
@@ -1069,6 +1087,7 @@ export function buildProjectCreatedEmail(
     buttonText: 'View Project',
     buttonUrl: `${appUrl}/projects`,
     showReplyCallout: false,
+    attachments: p.attachments, // NEW
   });
 
   return {
@@ -1114,6 +1133,7 @@ export function buildTicketCreatedEmail(
     buttonText: 'View Ticket',
     buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}`,
     showReplyCallout: false,
+    attachments: p.attachments, // NEW
   });
 
   return {
@@ -1252,6 +1272,7 @@ export function buildAttachmentAddedEmail(
     rows,
     buttonText: 'View Attachment',
     buttonUrl: `${appUrl}/tickets/${p.ticketId}`,
+    attachments: p.attachments, // NEW
     showReplyCallout: false,
   });
 
@@ -1334,6 +1355,7 @@ export function buildThreadMessageCreatedEmail(
     buttonText: 'View Thread',
     buttonUrl: `${appUrl}/projects/${p.projectId}?t=1`,
     showReplyCallout: false,
+    attachments: p.attachments, // NEW
   });
 
   return {
@@ -1362,6 +1384,7 @@ export function buildThreadReplyCreatedEmail(
     buttonText: 'View Thread Reply',
     buttonUrl: `${appUrl}/projects/${p.projectId}?t=1`,
     showReplyCallout: false,
+    attachments: p.attachments, // NEW
   });
 
   return {

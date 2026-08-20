@@ -8,8 +8,11 @@ import {
   ListObjectsV2CommandOutput,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { EmailAttachmentLink, formatFileSize } from '../notifications/notifications.types';
+import { UploadedFileDto } from '../files/dto/uploaded-file.dto';
 
 type PresignedUrlAction = 'upload' | 'download';
+
 
 interface PresignedUrlOptions {
   key: string;
@@ -22,6 +25,7 @@ interface PresignedUrlOptions {
 export class UtilityService {
   private s3Client: S3Client;
   private bucketName = process.env.AWS_S3_BUCKET;
+  private readonly EMAIL_ATTACHMENT_LINK_EXPIRY_SECONDS = 604800; // 7 days — max safe expiry for now
 
   constructor() {
     this.s3Client = new S3Client({
@@ -163,4 +167,33 @@ export class UtilityService {
       throw new BadRequestException('Failed to list objects from S3.');
     }
   }
+
+  
+  /**
+ * Single seam for turning a stored file into a clickable email link.
+ * Currently backed by S3 presigned URLs — swap the implementation here
+ * (CloudFront signed URL, tokenized redirect route, etc.) without touching callers.
+ */
+async getEmailAttachmentLink(file: UploadedFileDto): Promise<EmailAttachmentLink> {
+  const url = await this.getPresignedUrl(
+    file.storageKey,
+    this.EMAIL_ATTACHMENT_LINK_EXPIRY_SECONDS,
+  );
+
+  return {
+    filename: file.originalName,
+    url,
+    sizeLabel: formatFileSize(file.sizeBytes),
+  };
+}
+
+/**
+ * Batch version — resolves multiple files in parallel.
+ */
+async getEmailAttachmentLinks(
+  files: UploadedFileDto[],
+): Promise<EmailAttachmentLink[]> {
+  if (!files?.length) return [];
+  return Promise.all(files.map((f) => this.getEmailAttachmentLink(f)));
+}
 }
