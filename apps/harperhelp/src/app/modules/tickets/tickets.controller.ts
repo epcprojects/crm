@@ -144,14 +144,13 @@ View ranges:
   @ApiOperation({
     summary: 'Create a ticket.',
   })
-  @UseInterceptors(FilesInterceptor('attachments'))
   create(
     @Param('pid', ParseUUIDPipe) pid: string,
     @Body() dto: CreateTicketDto,
-    @UploadedFiles() files: Express.Multer.File[],
+    // @UploadedFiles() files: Express.Multer.File[],
     @GetUser() user,
   ) {
-    return this.ticketsService.createTicket(pid, dto, user.id, files);
+    return this.ticketsService.createTicket(pid, dto, user.id, dto.attachments);
   }
 
   // ---------------- DETAIL ----------------

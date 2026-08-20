@@ -99,23 +99,24 @@ export async function POST(
     }
 
     const { projectId } = await context.params;
-    const formData = await request.formData().catch(() => null);
+    const body = await request.json().catch(() => null);
 
-    if (!formData) {
+    if (!body) {
       return NextResponse.json(
         { message: 'Invalid ticket payload.' },
         { status: 400 },
       );
     }
 
-    const upstreamFormData = new FormData();
-    const title = formData.get('title');
-    const description = formData.get('description');
-    const statusKey = formData.get('statusKey');
-    const priorityKey = formData.get('priorityKey');
-    const assigneeId = formData.get('assigneeId');
-    const dueDate = formData.get('dueDate');
-    const attachments = formData.getAll('attachments');
+
+    const title = body.title;
+    const description = body.description;
+    const statusKey = body.statusKey;
+    const priorityKey = body.priorityKey;
+    const assigneeId = body.assigneeId;
+    const dueDate = body.dueDate;
+    const attachments = Array.isArray(body.attachments) ? body.attachments : [];
+
 
     if (typeof title !== 'string' || !title.trim()) {
       return NextResponse.json(
@@ -123,42 +124,48 @@ export async function POST(
         { status: 400 },
       );
     }
+ if (typeof title !== 'string' || !title.trim()) {
+      return NextResponse.json(
+        { message: 'Title is required.' },
+        { status: 400 },
+      );
+    }
 
-    upstreamFormData.append('title', title.trim());
+    const upstreamBody: Record<string, unknown> = {
+      title: title.trim(),
+    };
 
     if (typeof description === 'string' && description.trim()) {
-      upstreamFormData.append('description', description.trim());
+      upstreamBody.description = description.trim();
     }
 
     if (typeof statusKey === 'string' && statusKey.trim()) {
-      upstreamFormData.append('statusKey', statusKey.trim());
+      upstreamBody.statusKey = statusKey.trim();
     }
 
     if (typeof priorityKey === 'string' && priorityKey.trim()) {
-      upstreamFormData.append('priorityKey', priorityKey.trim());
+      upstreamBody.priorityKey = priorityKey.trim();
     }
 
     if (typeof assigneeId === 'string' && assigneeId.trim()) {
-      upstreamFormData.append('assigneeId', assigneeId.trim());
+      upstreamBody.assigneeId = assigneeId.trim();
     }
 
     if (typeof dueDate === 'string' && dueDate.trim()) {
-      upstreamFormData.append('dueDate', dueDate.trim());
+      upstreamBody.dueDate = dueDate.trim();
     }
 
-    attachments.forEach((attachment) => {
-      if (attachment instanceof File && attachment.size > 0) {
-        upstreamFormData.append('attachments', attachment, attachment.name);
-      }
-    });
-
+    if (attachments.length) {
+      upstreamBody.attachments = attachments;
+    }
     const response = await fetch(`${apiBaseUrl}/projects/${projectId}/tickets`, {
       method: 'POST',
       headers: {
-        Accept: '*/*',
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      body: upstreamFormData,
+      body: JSON.stringify(upstreamBody),
       cache: 'no-store',
     });
 

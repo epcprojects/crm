@@ -1,6 +1,13 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUUID } from 'class-validator';
-import { Transform } from 'class-transformer';
+import {
+  IsArray,
+  IsOptional,
+  IsString,
+  IsUUID,
+  ValidateNested,
+} from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { UploadedFileDto } from '../../files/dto/uploaded-file.dto';
 
 export class CreateThreadMessageDto {
   @ApiPropertyOptional()
@@ -25,9 +32,19 @@ export class CreateThreadMessageDto {
 
     return Array.isArray(value) ? value : [value];
   })
-  @IsUUID('4', {
+  @IsUUID('loose', {
     each: true,
     message: 'Each mentioned user ID must be a valid UUID',
   })
   mentionedUserIds?: string[];
+
+  @ApiPropertyOptional({
+    description: 'Metadata for files already uploaded directly to S3',
+    type: [UploadedFileDto],
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => UploadedFileDto)
+  attachments?: UploadedFileDto[];
 }

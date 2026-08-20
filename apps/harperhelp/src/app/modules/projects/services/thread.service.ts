@@ -20,6 +20,7 @@ import { extname } from 'path';
 import { UpdateThreadMessageDto } from '../dto/update-thread-message.dto';
 import { ReactionsService } from '../../reactions/reactions.service';
 import { ProjectsService } from '../projects.service';
+import { UploadedFileDto } from '../../files/dto/uploaded-file.dto';
 
 @Injectable()
 export class ThreadService {
@@ -39,7 +40,7 @@ export class ThreadService {
     projectId: string,
     dto: CreateThreadMessageDto,
     user: any,
-    files?: Express.Multer.File[],
+    files?: UploadedFileDto[],
   ) {
     if (!dto.message && !files.length) {
       throw new BadRequestException('Atleast one message is required.');
@@ -185,7 +186,7 @@ export class ThreadService {
     projectId: string,
     dto: UpdateThreadMessageDto,
     user: any,
-    files?: Express.Multer.File[],
+    files?: UploadedFileDto[],
   ) {
     const project = await this.repo.manager
       .getRepository(Project)
@@ -304,39 +305,49 @@ export class ThreadService {
   }
 
   // TODO: optimize N+1 issue
-  async findAll(projectId: string) {
+  async findAll(
+    projectId: string,
+    limit = 30,
+    cursor?: { createdAt: Date; id: string },
+  ) {
     const project = await this.repo.manager
       .getRepository(Project)
       .findOne({ where: { id: projectId }, relations: { members: true } });
     if (!project) throw new NotFoundException('Project not found');
-    const messages = await this.repo.find({
-      where: {
-        projectId,
-        parentId: IsNull(), // only top-level threads
-      },
-      order: {
-        createdAt: 'ASC',
-      },
-      relations: {
-        author: true,
-      },
-      select: {
-        id: true,
-        message: true,
-        replyCount: true,
-        createdAt: true,
-        createdBy: true,
-        updatedAt: true,
-        updatedBy: true,
-        author: {
-          fullName: true,
-          email: true,
-        },
-      },
-    });
 
-    return Promise.all(
-      messages.map(async (message) => ({
+    const qb = this.repo
+      .createQueryBuilder('msg')
+      .leftJoin('msg.author', 'author')
+      .select([
+        'msg.id',
+        'msg.message',
+        'msg.replyCount',
+        'msg.createdAt',
+        'msg.createdBy',
+        'msg.updatedAt',
+        'msg.updatedBy',
+      ])
+      .addSelect(['author.fullName', 'author.email'])
+      .where('msg.projectId = :projectId', { projectId })
+      .andWhere('msg.parentId IS NULL')
+      .andWhere('msg.deletedAt IS NULL')
+      .orderBy('msg.createdAt', 'DESC')
+      .addOrderBy('msg.id', 'DESC')
+      .take(limit + 1);
+
+    if (cursor) {
+      qb.andWhere(
+        '(msg.createdAt < :cCreatedAt OR (msg.createdAt = :cCreatedAt AND msg.id < :cId))',
+        { cCreatedAt: cursor.createdAt, cId: cursor.id },
+      );
+    }
+
+    const rows = await qb.getMany();
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+
+    const enriched = await Promise.all(
+      page.map(async (message) => ({
         ...message,
         attachments: await this.filesService.findBySource(
           FileSource.THREAD,
@@ -347,6 +358,14 @@ export class ThreadService {
         ),
       })),
     );
+
+    const last = page[page.length - 1];
+
+    return {
+      threads: enriched,
+      cursor: hasMore ? { createdAt: last.createdAt, id: last.id } : null,
+      hasMore,
+    };
   }
 
   async findOne(id: string, members: boolean = false) {
@@ -453,26 +472,22 @@ export class ThreadService {
   private async uploadAttachments(
     messageId: string,
     projectId: string,
-    files: Express.Multer.File[],
+    files: UploadedFileDto[],
     userId: string,
   ) {
     for (const file of files) {
-      const key = `projects/${projectId}/thread/${messageId}/${Date.now()}-${file.originalname}`;
-
-      await this.utilityService.uploadFile(file, key);
-
-      const rawExt = extname(file.originalname); // e.g. '.DOCX' or ''
+      const rawExt = extname(file.originalName); // e.g. '.DOCX' or ''
       const extension = rawExt ? rawExt.slice(1).toLowerCase() : 'unknown';
 
       await this.filesService.create({
         projectId,
         uploadedBy: userId,
-        originalName: file.originalname,
-        storageKey: key,
-        sizeBytes: file.size,
+        originalName: file.originalName,
+        storageKey: file.storageKey,
+        sizeBytes: file.sizeBytes,
         // extension: file.mimetype.split('/')[1],
         extension: extension,
-        mimeType: file.mimetype,
+        mimeType: file.mimeType,
         source: FileSource.THREAD,
         sourceId: messageId,
       });
