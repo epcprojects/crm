@@ -15,8 +15,10 @@ export enum EmailEventType {
 
 export interface EmailAttachmentLink {
   filename: string;
-  url: string;
-  sizeLabel: string; // e.g. "2.4 MB" — formatted before reaching the template
+  extension: string;   // lowercase, no dot — e.g. "pdf", "png"
+  viewUrl: string;      // opens/previews in browser
+  downloadUrl: string;  // forces Save-As
+  sizeLabel: string;    // '' if unknown — renderer skips the size line
 }
 
 export interface EmailRecipient {

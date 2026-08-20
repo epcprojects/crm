@@ -8,11 +8,13 @@ import {
   ListObjectsV2CommandOutput,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { EmailAttachmentLink, formatFileSize } from '../notifications/notifications.types';
+import {
+  EmailAttachmentLink,
+  formatFileSize,
+} from '../notifications/notifications.types';
 import { UploadedFileDto } from '../files/dto/uploaded-file.dto';
 
 type PresignedUrlAction = 'upload' | 'download';
-
 
 interface PresignedUrlOptions {
   key: string;
@@ -168,32 +170,57 @@ export class UtilityService {
     }
   }
 
-  
   /**
- * Single seam for turning a stored file into a clickable email link.
- * Currently backed by S3 presigned URLs — swap the implementation here
- * (CloudFront signed URL, tokenized redirect route, etc.) without touching callers.
- */
-async getEmailAttachmentLink(file: UploadedFileDto): Promise<EmailAttachmentLink> {
-  const url = await this.getPresignedUrl(
-    file.storageKey,
-    this.EMAIL_ATTACHMENT_LINK_EXPIRY_SECONDS,
-  );
+   * Single seam for turning a stored file into a clickable email link.
+   * Currently backed by S3 presigned URLs — swap the implementation here
+   * (CloudFront signed URL, tokenized redirect route, etc.) without touching callers.
+   */
+  async getEmailAttachmentLink(
+    file: UploadedFileDto,
+  ): Promise<EmailAttachmentLink> {
+    const extension = (file.originalName.split('.').pop() ?? '').toLowerCase();
 
-  return {
-    filename: file.originalName,
-    url,
-    sizeLabel: formatFileSize(file.sizeBytes),
-  };
-}
+    const [viewUrl, downloadUrl] = await Promise.all([
+      this.getPresignedUrl(
+        file.storageKey,
+        this.EMAIL_ATTACHMENT_LINK_EXPIRY_SECONDS,
+      ),
+      this.getPresignedDownloadUrl(
+        file.storageKey,
+        file.originalName,
+        this.EMAIL_ATTACHMENT_LINK_EXPIRY_SECONDS,
+      ),
+    ]);
 
-/**
- * Batch version — resolves multiple files in parallel.
- */
-async getEmailAttachmentLinks(
-  files: UploadedFileDto[],
-): Promise<EmailAttachmentLink[]> {
-  if (!files?.length) return [];
-  return Promise.all(files.map((f) => this.getEmailAttachmentLink(f)));
-}
+    return {
+      filename: file.originalName,
+      extension,
+      viewUrl,
+      downloadUrl,
+      sizeLabel: formatFileSize(file.sizeBytes),
+    };
+  }
+
+  async getEmailAttachmentLinks(
+    files: UploadedFileDto[],
+  ): Promise<EmailAttachmentLink[]> {
+    if (!files?.length) return [];
+    return Promise.all(files.map((f) => this.getEmailAttachmentLink(f)));
+  }
+
+  // NEW — forces Content-Disposition: attachment so it always downloads, never previews
+  private async getPresignedDownloadUrl(
+    key: string,
+    filename: string,
+    expiresInSeconds: number,
+  ): Promise<string> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+      ResponseContentDisposition: `attachment; filename="${filename.replace(/"/g, '')}"`,
+    });
+    return getSignedUrl(this.s3Client, command, {
+      expiresIn: expiresInSeconds,
+    });
+  }
 }

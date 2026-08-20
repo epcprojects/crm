@@ -28,9 +28,43 @@ const STATUS_COLOR: Record<string, string> = {
   on_hold: '#F59E0B',
 };
 
+const EXTENSION_ICON_MAP: Record<string, string> = {
+  jpg: 'JpgIcon',
+  jpeg: 'JpgIcon',
+  png: 'PngIcon',
+  svg: 'SvgIcon',
+  webp: 'WebpIcon',
+  doc: 'DocIcon',
+  docx: 'DocxIcon',
+  xls: 'XlsIcon',
+  xlsx: 'XlsxIcon',
+  csv: 'CsvIcon',
+  pdf: 'PdfIcon',
+  txt: 'TxtIcon',
+  mp4: 'Mp4Icon',
+  mp3: 'Mp3Icon',
+  mov: 'MovIcon',
+  fig: 'FigIcon',
+  html: 'HtmlIcon',
+  zip: 'ZipIcon',
+};
+const DEFAULT_ICON = 'TxtIcon';
+
+const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'svg', 'webp']);
+
+function isPreviewableImage(extension: string): boolean {
+  return IMAGE_EXTENSIONS.has(extension.toLowerCase());
+}
+
+function getIconFileName(extension: string): string {
+  const key = extension.toLowerCase();
+  return `${EXTENSION_ICON_MAP[key] ?? DEFAULT_ICON}.png`;
+}
+
 const FONT = "'Nunito', Arial, sans-serif";
 const MAX_ROW_VALUE_LEN = 200;
 const ICON_PATH = '/images/Banners/'; // fixed — builders pass only the filename
+const ATTACHMENT_ICON_PATH = '/images/attachmentsIcons/'; // fixed — builders pass only the filename
 
 // PASTE YOUR COPIED <style>...</style> INNER CONTENT HERE (just the CSS rules,
 // not the <style> tags themselves — those are added by shell() below).
@@ -431,8 +465,17 @@ function truncateSubject(value: string, max = 80): string {
   return value.length > max ? `${value.slice(0, max)}…` : value;
 }
 
+function truncateFileName(value: string, max = 50): string {
+  if (!value) return '';
+  return value.length > max ? `${value.slice(0, max)}…` : value;
+}
+
 function iconUrl(appUrl: string, fileName: string): string {
   return `${appUrl}${ICON_PATH}${fileName}`;
+}
+
+function attachmentIconUrl(appUrl: string, fileName: string): string {
+  return `${appUrl}${ATTACHMENT_ICON_PATH}${fileName}`;
 }
 
 // ---------- shell (exact structure from your file) ----------
@@ -633,43 +676,171 @@ function dataRowHtml(row: DataRow, isFirst: boolean): string {
 }
 
 // --------- attachments Button ---------------------------
-function attachmentRowHtml(att: EmailAttachmentLink): string {
-  return `
-    <tr>
-        <td width="70%" align="left" valign="middle"
-            style="padding:12px 16px;font-family:'Nunito', Arial, sans-serif;font-size:14px;line-height:120%;color:#111827;">
-            <span style="display:block;font-weight:500;">${escapeHtml(att.filename)}</span>
-            <span style="display:block;padding-top:2px;font-size:12px;font-weight:400;color:#6B7280;">${escapeHtml(att.sizeLabel)}</span>
-        </td>
-        <td width="30%" align="right" valign="middle" style="padding:12px 16px;">
-            <a href="${escapeHtml(att.url)}" target="_blank"
-                style="display:inline-block;padding:6px 14px;border:1px solid #E5E7EB;border-radius:6px;
-                       font-family:'Nunito', Arial, sans-serif;font-size:13px;font-weight:600;
-                       color:#374151;text-decoration:none !important;white-space:nowrap;">
-                View or Download
-            </a>
-        </td>
-    </tr>`;
-}
 
-function attachmentsBlockHtml(attachments: EmailAttachmentLink[]): string {
+function attachmentsBlockHtml(
+  appUrl: string,
+  attachments?: EmailAttachmentLink[],
+): string {
   if (!attachments?.length) return '';
 
-  const rowsHtml = attachments.map(attachmentRowHtml).join('');
+  const inner =
+    attachments.length === 1
+      ? singleAttachmentHtml(appUrl, attachments[0])
+      : multiAttachmentsHtml(appUrl, attachments);
 
   return `
     <tr>
-        <td align="center" style="padding:0px 24px 20px 24px;">
-            <table role="presentation" width="100%" align="center" cellpadding="0" cellspacing="0" border="0"
-                style="width:100%;max-width:552px;border:1px solid #E5E7EB;border-radius:12px;border-collapse:separate;background-color:#FFFFFF;">
-                <tbody>
-${rowsHtml}
-                </tbody>
-            </table>
+        <td align="center" style="padding:8px 24px 16px 24px;">
+${inner}
         </td>
     </tr>`;
 }
 // ---------- full notification body (exact nesting preserved) ----------
+
+function singleAttachmentHtml(
+  appUrl: string,
+  att: EmailAttachmentLink,
+): string {
+  const isImage = isPreviewableImage(att.extension);
+  const iconUrlStr = attachmentIconUrl(appUrl, getIconFileName(att.extension));
+  const downloadIconUrlStr = attachmentIconUrl(appUrl, 'NewDownloadIcon.png');
+
+  const topSection = isImage
+    ? `
+    <tr>
+        <td style="padding:0;line-height:0;font-size:0;">
+            <a href="${escapeHtml(att.viewUrl)}" target="_blank" style="display:block;text-decoration:none;">
+                <img src="${escapeHtml(att.viewUrl)}" width="250" height="200" alt="Attachment preview"
+                    style="display:block;width:250px;height:200px;max-height:200px;max-width:100%;margin:0;border:0;outline:none;text-decoration:none;">
+            </a>
+        </td>
+    </tr>`
+    : `
+    <tr>
+        <td align="center" valign="middle" style="padding:34px 16px 36px 16px;line-height:0;font-size:0;">
+            <a href="${escapeHtml(att.viewUrl)}" target="_blank" style="display:inline-block;text-decoration:none;">
+                <img src="${iconUrlStr}" width="40" alt="${escapeHtml(att.extension)} file"
+                    style="display:block;width:40px;max-width:40px;height:auto;margin:0 auto;border:0;outline:none;text-decoration:none;">
+            </a>
+        </td>
+    </tr>`;
+
+  const nameAlign = isImage ? 'left' : 'center';
+  const smallIconCell = isImage
+    ? `
+        <td width="32" align="center" valign="middle" style="width:32px;padding:8px 0 8px 3px;line-height:0;font-size:0;">
+            <img src="${iconUrlStr}" width="24" height="24" alt="${escapeHtml(att.extension)}"
+                style="display:block;width:24px;height:24px;border:0;outline:none;">
+        </td>`
+    : '';
+
+  const sizeSpan = att.sizeLabel
+    ? `<span style="display:block;padding-top:2px;color:#6B7280;font-family:'Nunito', Arial, sans-serif;font-size:10px;line-height:16px;font-weight:400;">${escapeHtml(att.sizeLabel)}</span>`
+    : '';
+
+  return `
+<table role="presentation" width="250" align="center" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF"
+    style="width:250px;max-width:250px;background-color:#FFFFFF;border:1px solid #E5E7EB;border-radius:8px;border-collapse:separate;">
+    <tbody>
+${topSection}
+        <tr>
+            <td align="left" bgcolor="#F9FAFB" style="padding:8px 10px;background-color:#F9FAFB;border-radius:0 0 8px 8px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;table-layout:fixed;border-collapse:collapse;">
+                    <tr>
+${smallIconCell}
+                        <td align="${nameAlign}" valign="middle" width="154"
+                            style="width:154px;max-width:154px;overflow:hidden;font-family:'Nunito', Arial, sans-serif;">
+                            <a href="${escapeHtml(att.viewUrl)}" target="_blank"
+                                style="display:block;width:154px;max-width:154px;overflow:hidden;color:#111827;font-family:'Nunito', Arial, sans-serif;font-size:12px;line-height:18px;font-weight:500;white-space:nowrap;text-overflow:ellipsis;text-decoration:none;text-align:${nameAlign};">
+                                ${escapeHtml(truncateFileName(att.filename, 26))}
+                            </a>
+                            ${sizeSpan}
+                        </td>
+                        <td width="24" style="width:24px;padding:0;line-height:0;font-size:0;">
+                            <a href="${escapeHtml(att.downloadUrl)}" target="_blank" style="display:block;width:24px;height:24px;text-decoration:none;">
+                                <img src="${downloadIconUrlStr}" width="16" height="16" alt="Download"
+                                    style="display:block;width:16px;height:16px;border:0;outline:none;">
+                            </a>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </tbody>
+</table>`;
+}
+
+function multiAttachmentCellHtml(
+  appUrl: string,
+  att: EmailAttachmentLink,
+): string {
+  const isImage = isPreviewableImage(att.extension);
+  const iconSrc = isImage
+    ? att.viewUrl
+    : attachmentIconUrl(appUrl, getIconFileName(att.extension));
+  const downloadIconUrlStr = attachmentIconUrl(appUrl, 'NewDownloadIcon.png');
+  const sizeSpan = att.sizeLabel
+    ? `<span style="display:block;padding-top:2px;color:#6B7280;font-family:'Nunito', Arial, sans-serif;font-size:10px;line-height:14px;font-weight:400;">${escapeHtml(att.sizeLabel)}</span>`
+    : '';
+
+  return `
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F9FAFB"
+    style="width:100%;table-layout:fixed;background-color:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;border-collapse:separate;">
+    <tr>
+        <td width="32" align="center" valign="middle" style="width:32px;padding:8px 0 8px 3px;line-height:0;font-size:0;">
+            <img src="${iconSrc}" width="24" height="24" alt="${escapeHtml(att.extension)}"
+                style="display:block;width:24px;height:24px;border:0;outline:none;">
+        </td>
+        <td align="left" valign="middle" width="100%"
+            style="width:100%;min-width:0;max-width:0;padding:5px 4px 5px 0;overflow:hidden;font-family:'Nunito', Arial, sans-serif;">
+            <a href="${escapeHtml(att.viewUrl)}" target="_blank"
+                style="display:block;width:100%;max-width:100%;overflow:hidden;color:#111827;font-family:'Nunito', Arial, sans-serif;font-size:12px;line-height:12px;font-weight:400;white-space:nowrap;text-overflow:ellipsis;text-decoration:none;">
+                ${escapeHtml(truncateFileName(att.filename, 26))}
+            </a>
+            ${sizeSpan}
+        </td>
+        <td width="20" align="center" valign="middle" style="width:20px;padding:0 5px 0 0;line-height:0;font-size:0;">
+            <a href="${escapeHtml(att.downloadUrl)}" target="_blank" style="display:block;width:24px;height:24px;text-decoration:none;">
+                <img src="${downloadIconUrlStr}" width="16" height="16" alt="Download" style="display:block;width:16px;height:16px;margin:4px auto;border:0;outline:none;">
+            </a>
+        </td>
+    </tr>
+</table>`;
+}
+
+function multiAttachmentsHtml(
+  appUrl: string,
+  attachments: EmailAttachmentLink[],
+): string {
+  const rows: string[] = [];
+
+  for (let i = 0; i < attachments.length; i += 2) {
+    const left = attachments[i];
+    const right = attachments[i + 1];
+
+    const rightCellHtml = right
+      ? `
+        <td width="12" style="width:12px;font-size:0;line-height:0;padding-bottom:8px;">&nbsp;</td>
+        <td width="50%" valign="top" style="padding-bottom:8px;">
+            ${multiAttachmentCellHtml(appUrl, right)}
+        </td>`
+      : `
+        <td width="12" style="width:12px;font-size:0;line-height:0;padding-bottom:8px;">&nbsp;</td>
+        <td width="50%" style="padding-bottom:8px;">&nbsp;</td>`;
+
+    rows.push(`
+    <tr>
+        <td width="50%" valign="top" style="padding-bottom:8px;">
+            ${multiAttachmentCellHtml(appUrl, left)}
+        </td>${rightCellHtml}
+    </tr>`);
+  }
+
+  return `
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;table-layout:fixed;border-collapse:collapse;">
+${rows.join('')}
+</table>`;
+}
 
 export function renderNotificationEmail(
   params: NotificationEmailParams,
@@ -692,7 +863,7 @@ export function renderNotificationEmail(
   const notificationIconUrl = iconUrl(appUrl, 'EmailNotificationIcon.png');
 
   const internalNoteHtml = internalNote ? internalNoteBannerHtml() : '';
-  const attachmentsHtml = attachmentsBlockHtml(attachments);
+  const attachmentsHtml = attachmentsBlockHtml(appUrl, attachments);
 
   const rowsHtml = rows.map((r, i) => dataRowHtml(r, i === 0)).join('');
 
@@ -910,7 +1081,7 @@ ${rowsHtml}
 
                                                                                                                 </td>
                                                                                                             </tr>
-                                                                                                            ${attachmentsHtml}
+                                                                                                           
 ${internalNoteHtml}
                                                                                                             <tr>
                                                                                                                 <td align="center"
@@ -966,7 +1137,7 @@ ${internalNoteHtml}
                                                                                                                 </td>
                                                                                                             </tr>
 ${replyCalloutHtml}
-
+ ${attachmentsHtml}
                                                                                                         </tbody>
                                                                                                     </table>
                                                                                                 </td>
