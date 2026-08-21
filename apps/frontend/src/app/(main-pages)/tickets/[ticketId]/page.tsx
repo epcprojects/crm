@@ -339,19 +339,20 @@ export default function TicketDetailPage() {
       message: string;
       mentionedUserIds: string[];
     }) => {
-      const formData = new FormData();
-      formData.append('message', message.trim());
-      mentionedUserIds.forEach((mentionedUserId) => {
-        if (mentionedUserId.trim()) {
-          formData.append('mentionedUserIds', mentionedUserId.trim());
-        }
-      });
-
       const response = await fetch(
         `/api/tickets/${ticketId}/projects/${projectId}/reply/${replyId}`,
         {
           method: 'PUT',
-          body: formData,
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({
+            message: message.trim(),
+            mentionedUserIds: mentionedUserIds
+              .map((mentionedUserId) => mentionedUserId.trim())
+              .filter((mentionedUserId) => mentionedUserId.length > 0),
+          }),
         },
       );
 

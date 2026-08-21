@@ -86,59 +86,59 @@ export async function PUT(
     }
 
     const { projectId, messageId } = await context.params;
-    const formData = await request.formData().catch(() => null);
-    const messageValue = formData?.get('message');
-    const parentIdValue = formData?.get('parentId');
-    const mentionedUserIdValues = formData?.getAll('mentionedUserIds') ?? [];
-    const attachments = formData?.getAll('attachments') ?? [];
+    const body = await request.json().catch(() => null);
     const message =
-      typeof messageValue === 'string' ? messageValue.trim() : '';
-    const mentionedUserIds = mentionedUserIdValues
-      .filter(
-        (mentionedUserId): mentionedUserId is string =>
-          typeof mentionedUserId === 'string',
-      )
-      .map((mentionedUserId) => mentionedUserId.trim())
-      .filter((mentionedUserId) => mentionedUserId.length > 0);
-    const validAttachments = attachments.filter(
-      (attachment): attachment is File =>
-        attachment instanceof File && attachment.size > 0,
-    );
+      typeof body?.message === 'string' ? body.message.trim() : undefined;
+    const parentId =
+      typeof body?.parentId === 'string' ? body.parentId.trim() : undefined;
+    const mentionedUserIds = Array.isArray(body?.mentionedUserIds)
+      ? body.mentionedUserIds
+          .filter(
+            (mentionedUserId: unknown): mentionedUserId is string =>
+              typeof mentionedUserId === 'string',
+          )
+          .map((mentionedUserId: string) => mentionedUserId.trim())
+          .filter((mentionedUserId: string) => mentionedUserId.length > 0)
+      : [];
+    const attachments = Array.isArray(body?.attachments)
+      ? body.attachments
+      : [];
 
-    if (!message && !validAttachments.length) {
+    if (!message && !attachments.length) {
       return NextResponse.json(
         { message: 'Message or attachment is required.' },
         { status: 400 },
       );
     }
 
-    const upstreamFormData = new FormData();
+    const upstreamBody: Record<string, unknown> = {};
 
     if (message) {
-      upstreamFormData.append('message', message);
+      upstreamBody.message = message;
     }
 
-    if (typeof parentIdValue === 'string' && parentIdValue.trim()) {
-      upstreamFormData.append('parentId', parentIdValue.trim());
+    if (parentId) {
+      upstreamBody.parentId = parentId;
     }
 
-    mentionedUserIds.forEach((mentionedUserId) => {
-      upstreamFormData.append('mentionedUserIds', mentionedUserId);
-    });
+    if (mentionedUserIds.length) {
+      upstreamBody.mentionedUserIds = mentionedUserIds;
+    }
 
-    validAttachments.forEach((attachment) => {
-      upstreamFormData.append('attachments', attachment, attachment.name);
-    });
+    if (attachments.length) {
+      upstreamBody.attachments = attachments;
+    }
 
     const response = await fetch(
       `${apiBaseUrl}/projects/${projectId}/thread/${messageId}`,
       {
         method: 'PUT',
         headers: {
-          Accept: '*/*',
+          Accept: 'application/json',
           Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-        body: upstreamFormData,
+        body: JSON.stringify(upstreamBody),
         cache: 'no-store',
       },
     );
