@@ -323,14 +323,10 @@ function NotificationGroupSection({
   ) => void;
   onViewSingle: (value: string) => void;
 }) {
-  const canFillAvailableSpace = group.items.length > 0;
-
   return (
     <Accordion.Item
       value={group.category}
-      className={`flex shrink-0 flex-col bg-white data-[state=open]:min-h-[20rem] ${
-        canFillAvailableSpace ? 'data-[state=open]:flex-1' : ''
-      }`}
+      className="flex shrink-0 flex-col bg-white data-[state=open]:min-h-[20rem] data-[state=open]:flex-1"
     >
       <Accordion.Header>
         <Accordion.Trigger className="group flex w-full items-center justify-between gap-3 border-b border-transparent px-4 py-3 text-left transition hover:bg-gray-50 data-[state=open]:border-gray-200 data-[state=open]:bg-gray-100">
@@ -354,14 +350,10 @@ function NotificationGroupSection({
         </Accordion.Trigger>
       </Accordion.Header>
 
-      <Accordion.Content
-        className={`min-h-0 overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down ${
-          canFillAvailableSpace ? 'data-[state=open]:flex-1' : ''
-        }`}
-      >
+      <Accordion.Content className="min-h-0 overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:flex-1 data-[state=open]:animate-accordion-down">
         {group.items.length ? (
           <div
-            className="tiny-scrollbar max-h-full min-h-[20rem] overflow-y-auto border-t border-gray-100"
+            className="tiny-scrollbar h-full min-h-[20rem] overflow-y-auto border-t border-gray-100"
             onScroll={(event) => {
               const element = event.currentTarget;
               const nearBottom =
@@ -388,7 +380,7 @@ function NotificationGroupSection({
             ) : null}
           </div>
         ) : (
-          <div className="border-t border-gray-100 px-4 py-5 text-sm text-gray-400">
+          <div className="flex min-h-[20rem] border-t border-gray-100 px-4 py-5 text-sm text-gray-400">
             <EmptyState
               title={`No ${group.label} found`}
               imageAlt=""
@@ -556,6 +548,7 @@ function NotificationGroupIcon({
 function ChevronAccordionIcon() {
   return (
     <svg
+      className="transition-transform duration-200 group-data-[state=open]:rotate-180"
       width="20"
       height="20"
       viewBox="0 0 20 20"
