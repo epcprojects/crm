@@ -11,7 +11,7 @@ function getApiBaseUrl() {
   return baseUrl.replace(/\/docs\/?$/, '');
 }
 
-export async function GET() {
+export async function PUT(request: Request) {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('access_token')?.value;
@@ -29,35 +29,31 @@ export async function GET() {
       );
     }
 
-    const response = await fetch(
-      `${apiBaseUrl}/notifications/unread-count-by-category`,
-      {
-      method: 'GET',
+    const body = await request.json();
+
+    const response = await fetch(`${apiBaseUrl}/users/myself`, {
+      method: 'PUT',
       headers: {
+        'Content-Type': 'application/json',
         Accept: 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      cache: 'no-store',
-      },
-    );
+      body: JSON.stringify(body),
+    });
 
     const data = await response.json().catch(() => null);
 
     if (!response.ok) {
       return NextResponse.json(
-        {
-          message: data?.message || 'Failed to fetch unread count.',
-        },
+        { message: data?.message || 'Failed to update profile.' },
         { status: response.status },
       );
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(data, { status: response.status });
   } catch {
     return NextResponse.json(
-      {
-        message: 'Something went wrong while fetching unread count.',
-      },
+      { message: 'Something went wrong while updating the profile.' },
       { status: 500 },
     );
   }

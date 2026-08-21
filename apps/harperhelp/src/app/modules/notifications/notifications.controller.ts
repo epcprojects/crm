@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Patch,
@@ -33,11 +34,37 @@ export class NotificationsController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('unreadOnly') unreadOnly?: string,
+    @Query('grouped') grouped?: string,
+    @Query('category') category?: string,
+    @Query('offset') offset?: string,
   ) {
+    const parsedLimit = limit ? parseInt(limit, 10) : 20;
+    const parsedUnreadOnly = unreadOnly === 'true';
+
+    if (category) {
+      if (!this.notificationsService.isSupportedCategory(category)) {
+        throw new BadRequestException('Unsupported notification category.');
+      }
+
+      return this.notificationsService.findCategoryForUser(req.user.id, {
+        category,
+        limit: parsedLimit,
+        offset: offset ? parseInt(offset, 10) : 0,
+        unreadOnly: parsedUnreadOnly,
+      });
+    }
+
+    if (grouped === 'true') {
+      return this.notificationsService.findGroupedForUser(req.user.id, {
+        limitPerGroup: parsedLimit,
+        unreadOnly: parsedUnreadOnly,
+      });
+    }
+
     return this.notificationsService.findForUser(req.user.id, {
       page: page ? parseInt(page, 10) : 1,
-      limit: limit ? parseInt(limit, 10) : 20,
-      unreadOnly: unreadOnly === 'true',
+      limit: parsedLimit,
+      unreadOnly: parsedUnreadOnly,
     });
   }
 

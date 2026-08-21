@@ -30,13 +30,21 @@ export async function GET(request: Request) {
     }
 
     const requestUrl = new URL(request.url);
-    const upstreamUrl = new URL(`${apiBaseUrl}/notifications`);
-
     const page = requestUrl.searchParams.get('page');
     const limit = requestUrl.searchParams.get('limit');
     const unreadOnly = requestUrl.searchParams.get('unreadOnly');
+    const grouped = requestUrl.searchParams.get('grouped');
+    const category = requestUrl.searchParams.get('category');
+    const cursor = requestUrl.searchParams.get('cursor');
 
-    if (page) {
+    const useCategorizedEndpoint = grouped === 'true' || Boolean(category);
+    const upstreamUrl = new URL(
+      useCategorizedEndpoint
+        ? `${apiBaseUrl}/notifications/categorized`
+        : `${apiBaseUrl}/notifications`,
+    );
+
+    if (page && !useCategorizedEndpoint) {
       upstreamUrl.searchParams.set('page', page);
     }
 
@@ -46,6 +54,14 @@ export async function GET(request: Request) {
 
     if (unreadOnly) {
       upstreamUrl.searchParams.set('unreadOnly', unreadOnly);
+    }
+
+    if (category) {
+      upstreamUrl.searchParams.set('category', category);
+    }
+
+    if (cursor) {
+      upstreamUrl.searchParams.set('cursor', cursor);
     }
 
     const response = await fetch(upstreamUrl.toString(), {
