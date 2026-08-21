@@ -46,7 +46,9 @@ import { NotificationEntityType, NotificationType } from '@harperhelp/types';
 import {
   CATEGORY_TO_ENTITY_TYPES,
   ENTITY_TYPE_TO_CATEGORY,
+  MENTION_TYPES,
   NotificationCategory,
+  resolveCategory,
 } from './enum/notification-category.enum';
 
 interface CursorPage<T> {
@@ -715,7 +717,6 @@ export class NotificationsService {
     );
     return Object.fromEntries(entries);
   }
-
   private async fetchCategoryPage(
     userId: string,
     category: NotificationCategory,
@@ -723,16 +724,26 @@ export class NotificationsService {
     cursor?: string,
     unreadOnly?: boolean,
   ): Promise<CursorPage<any>> {
-    const entityTypes = CATEGORY_TO_ENTITY_TYPES[category];
-
     const qb = this.notificationsRepo
       .createQueryBuilder('n')
       .where('n."recipientId" = :userId', { userId })
       .andWhere('n."isActive" = true')
-      .andWhere('n."entityType" IN (:...entityTypes)', { entityTypes })
       .orderBy('n."createdAt"', 'DESC')
       .addOrderBy('n.id', 'DESC')
       .take(limit + 1);
+
+    if (category === NotificationCategory.MENTIONS) {
+      qb.andWhere('n."type" IN (:...mentionTypes)', {
+        mentionTypes: MENTION_TYPES,
+      });
+    } else {
+      const entityTypes = CATEGORY_TO_ENTITY_TYPES[category];
+      qb.andWhere('n."entityType" IN (:...entityTypes)', { entityTypes });
+      // exclude mentions so they don't also show up under ticket_replies/threads/internal_messages
+      qb.andWhere('n."type" NOT IN (:...mentionTypes)', {
+        mentionTypes: MENTION_TYPES,
+      });
+    }
 
     if (unreadOnly) {
       qb.andWhere('n."isRead" = false');
@@ -754,10 +765,10 @@ export class NotificationsService {
     return {
       items,
       hasMore,
-      cursor:
-        hasMore && last ? encodeCursor(last.createdAt, last.id) : null,
+      cursor: hasMore && last ? encodeCursor(last.createdAt, last.id) : null,
     };
   }
+
   /** Grouped, unpaginated — independent of whatever page the list is scrolled to. */
   async getUnreadCountsByCategory(
     userId: string,
@@ -765,12 +776,18 @@ export class NotificationsService {
     const rows = await this.notificationsRepo
       .createQueryBuilder('n')
       .select('n."entityType"', 'entityType')
+      .addSelect('n."type"', 'type')
       .addSelect('COUNT(*)', 'count')
       .where('n."recipientId" = :userId', { userId })
       .andWhere('n."isActive" = true')
       .andWhere('n."isRead" = false')
       .groupBy('n."entityType"')
-      .getRawMany<{ entityType: NotificationEntityType; count: string }>();
+      .addGroupBy('n."type"')
+      .getRawMany<{
+        entityType: NotificationEntityType;
+        type: NotificationType;
+        count: string;
+      }>();
 
     const counts = Object.values(NotificationCategory).reduce(
       (acc, cat) => ({ ...acc, [cat]: 0 }),
@@ -778,7 +795,7 @@ export class NotificationsService {
     );
 
     for (const row of rows) {
-      const category = ENTITY_TYPE_TO_CATEGORY[row.entityType];
+      const category = resolveCategory(row.entityType, row.type);
       counts[category] += parseInt(row.count, 10);
     }
 
