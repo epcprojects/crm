@@ -110,6 +110,8 @@ export class ThreadService {
       ? message.message.slice(0, 140)
       : 'New thread message';
 
+    const attachments = await this.utilityService.getEmailAttachmentLinks(files ?? []);
+
     if (dto.parentId) {
       // Fetch parent so the reply email can show what's being replied to
       const parent = await this.repo.findOne({
@@ -130,6 +132,7 @@ export class ThreadService {
             id: parent?.id ?? dto.parentId,
             message: parent?.message ?? '',
           },
+          attachments,
         },
       });
 
@@ -152,6 +155,7 @@ export class ThreadService {
           message: msg.message || '',
           createdBy: createdByRecipient,
           participants,
+          attachments,
         },
       });
 
