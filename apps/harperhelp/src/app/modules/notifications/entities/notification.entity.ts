@@ -17,6 +17,10 @@ import { NotificationEntityType, NotificationType } from '@harperhelp/types';
 @Entity('notifications')
 @Index(['recipientId', 'createdAt'])
 @Index(['recipientId', 'isRead'])
+@Index(['recipientId', 'isActive', 'entityType', 'createdAt', 'id']) // categorized feed pagination
+@Index(['recipientId', 'entityType', 'createdAt', 'id'], {
+  where: '"isActive" = true AND "isRead" = false',
+})
 export class Notification {
   @PrimaryGeneratedColumn('uuid')
   id: string;

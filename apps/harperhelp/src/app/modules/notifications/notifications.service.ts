@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import sgMail from '@sendgrid/mail';
 import { adminInviteTemplate } from './templates/invite.email.template';
@@ -58,11 +58,25 @@ function encodeCursor(createdAt: Date, id: string): string {
   return Buffer.from(`${createdAt.toISOString()}_${id}`).toString('base64');
 }
 
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function decodeCursor(cursor: string): { createdAt: string; id: string } {
-  const [createdAt, id] = Buffer.from(cursor, 'base64')
-    .toString('utf8')
-    .split('_');
-  return { createdAt, id };
+  try {
+    const decoded = Buffer.from(cursor, 'base64').toString('utf8');
+    const [createdAt, id] = decoded.split('_');
+
+    if (!createdAt || !id || isNaN(Date.parse(createdAt))) {
+      throw new Error('malformed cursor');
+    }
+    if (!UUID_REGEX.test(id)) {
+      throw new Error('malformed cursor id');
+    }
+
+    return { createdAt, id };
+  } catch {
+    throw new BadRequestException('Invalid or corrupted cursor');
+  }
 }
 
 @Injectable()
