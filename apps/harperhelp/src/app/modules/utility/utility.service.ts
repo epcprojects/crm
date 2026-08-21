@@ -187,8 +187,8 @@ export class UtilityService {
     return {
       filename: file.originalName,
       extension,
-      viewUrl: url,
-      downloadUrl: url, // same for now — separate behavior deferred
+      viewUrl: 'https://google.com', // placeholder for now — separate behavior deferred
+      downloadUrl: 'https://google.com', // same for now — separate behavior deferred
       sizeLabel: formatFileSize(file.sizeBytes),
     };
   }

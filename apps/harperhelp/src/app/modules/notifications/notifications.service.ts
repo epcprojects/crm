@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import sgMail from '@sendgrid/mail';
 import { adminInviteTemplate } from './templates/invite.email.template';
@@ -42,10 +42,45 @@ import { NotifyProjectMembersDto } from './dto/create-notification.dto';
 import { Notification } from './entities/notification.entity';
 import { ActivityLogService } from '../activity/activity-log.service';
 import { SearchNotificationsDto } from './dto/search-notification.dto';
+import { NotificationEntityType, NotificationType } from '@harperhelp/types';
 import {
-  NotificationEntityType,
-  NotificationType,
-} from '@harperhelp/types';
+  CATEGORY_TO_ENTITY_TYPES,
+  ENTITY_TYPE_TO_CATEGORY,
+  MENTION_TYPES,
+  NotificationCategory,
+  resolveCategory,
+} from './enum/notification-category.enum';
+
+interface CursorPage<T> {
+  items: T[];
+  hasMore: boolean;
+  cursor: string | null;
+}
+
+function encodeCursor(createdAt: Date, id: string): string {
+  return Buffer.from(`${createdAt.toISOString()}_${id}`).toString('base64');
+}
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function decodeCursor(cursor: string): { createdAt: string; id: string } {
+  try {
+    const decoded = Buffer.from(cursor, 'base64').toString('utf8');
+    const [createdAt, id] = decoded.split('_');
+
+    if (!createdAt || !id || isNaN(Date.parse(createdAt))) {
+      throw new Error('malformed cursor');
+    }
+    if (!UUID_REGEX.test(id)) {
+      throw new Error('malformed cursor id');
+    }
+
+    return { createdAt, id };
+  } catch {
+    throw new BadRequestException('Invalid or corrupted cursor');
+  }
+}
 
 const NOTIFICATION_GROUPS = [
   {
@@ -246,7 +281,9 @@ export class NotificationsService {
     await this.sendBulk(recipients, subject, html);
   }
 
-  private async onProjectUnassigned(p: ProjectUnassignedPayload): Promise<void> {
+  private async onProjectUnassigned(
+    p: ProjectUnassignedPayload,
+  ): Promise<void> {
     const { subject, html } = buildProjectUnassignedEmail(
       p,
       this.appUrl,
@@ -843,5 +880,135 @@ export class NotificationsService {
       result.push(arr.slice(i, i + size));
     }
     return result;
+  }
+
+  async findCategorized(
+    userId: string,
+    dto: {
+      category?: NotificationCategory;
+      cursor?: string;
+      limit?: number;
+      unreadOnly?: boolean;
+    },
+  ) {
+    const limit = dto.limit ?? 5;
+    const unreadOnly = dto.unreadOnly ?? false;
+
+    if (dto.category) {
+      const page = await this.fetchCategoryPage(
+        userId,
+        dto.category,
+        limit,
+        dto.cursor,
+        unreadOnly,
+      );
+      return { category: dto.category, ...page };
+    }
+
+    const categories = Object.values(NotificationCategory);
+    const entries = await Promise.all(
+      categories.map(
+        async (cat) =>
+          [
+            cat,
+            await this.fetchCategoryPage(userId, cat, 5, undefined, unreadOnly),
+          ] as const,
+      ),
+    );
+    return Object.fromEntries(entries);
+  }
+  private async fetchCategoryPage(
+    userId: string,
+    category: NotificationCategory,
+    limit: number,
+    cursor?: string,
+    unreadOnly?: boolean,
+  ): Promise<CursorPage<any>> {
+    const qb = this.notificationsRepo
+      .createQueryBuilder('n')
+      .where('n."recipientId" = :userId', { userId })
+      .andWhere('n."isActive" = true')
+      .orderBy('n."createdAt"', 'DESC')
+      .addOrderBy('n.id', 'DESC')
+      .take(limit + 1);
+
+    if (category === NotificationCategory.MENTIONS) {
+      qb.andWhere('n."type" IN (:...mentionTypes)', {
+        mentionTypes: MENTION_TYPES,
+      });
+    } else {
+      const entityTypes = CATEGORY_TO_ENTITY_TYPES[category];
+      qb.andWhere('n."entityType" IN (:...entityTypes)', { entityTypes });
+      // exclude mentions so they don't also show up under ticket_replies/threads/internal_messages
+      qb.andWhere('n."type" NOT IN (:...mentionTypes)', {
+        mentionTypes: MENTION_TYPES,
+      });
+    }
+
+    if (unreadOnly) {
+      qb.andWhere('n."isRead" = false');
+    }
+
+    if (cursor) {
+      const { createdAt, id } = decodeCursor(cursor);
+      qb.andWhere(
+        '(n."createdAt" < :cCreatedAt OR (n."createdAt" = :cCreatedAt AND n.id < :cId))',
+        { cCreatedAt: createdAt, cId: id },
+      );
+    }
+
+    const rows = await qb.getMany();
+    const hasMore = rows.length > limit;
+    const items = rows.slice(0, limit);
+    const last = items[items.length - 1];
+
+    return {
+      items,
+      hasMore,
+      cursor: hasMore && last ? encodeCursor(last.createdAt, last.id) : null,
+    };
+  }
+
+  /** Grouped, unpaginated — independent of whatever page the list is scrolled to. */
+  async getUnreadCountsByCategory(userId: string): Promise<{
+    totalCount: number;
+    totalUnreadCount: number;
+    categoryUnreadCounts: Record<NotificationCategory, number>;
+  }> {
+    const rows = await this.notificationsRepo
+      .createQueryBuilder('n')
+      .select('n."entityType"', 'entityType')
+      .addSelect('n."type"', 'type')
+      .addSelect('COUNT(*)', 'total')
+      .addSelect('COUNT(*) FILTER (WHERE n."isRead" = false)', 'unread')
+      .where('n."recipientId" = :userId', { userId })
+      .andWhere('n."isActive" = true')
+      .groupBy('n."entityType"')
+      .addGroupBy('n."type"')
+      .getRawMany<{
+        entityType: NotificationEntityType;
+        type: NotificationType;
+        total: string;
+        unread: string;
+      }>();
+
+    const categoryUnreadCounts = Object.values(NotificationCategory).reduce(
+      (acc, cat) => ({ ...acc, [cat]: 0 }),
+      {} as Record<NotificationCategory, number>,
+    );
+    let totalCount = 0;
+    let totalUnreadCount = 0;
+
+    for (const row of rows) {
+      const category = resolveCategory(row.entityType, row.type);
+      const total = parseInt(row.total, 10);
+      const unread = parseInt(row.unread, 10);
+
+      categoryUnreadCounts[category] += unread;
+      totalCount += total;
+      totalUnreadCount += unread;
+    }
+
+    return { totalCount, totalUnreadCount, categoryUnreadCounts };
   }
 }

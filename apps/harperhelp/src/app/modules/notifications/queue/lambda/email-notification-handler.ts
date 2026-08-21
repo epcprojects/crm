@@ -89,6 +89,18 @@ function buildEmailForEvent(event: EmailNotificationEvent) {
   }
 }
 
+function filterAcceptedRecipients(
+  recipients: Array<{
+    email: string;
+    name: string;
+    isInvitationAccepted?: boolean;
+  }>,
+) {
+  return recipients.filter(
+    (recipient) => recipient.isInvitationAccepted === true,
+  );
+}
+
 function resolveRecipients(event: EmailNotificationEvent) {
   switch (event.type) {
     case EmailEventType.PROJECT_CREATED:
@@ -145,8 +157,10 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
       console.log('parsed:', parsed);
       const { subject, html } = buildEmailForEvent(parsed);
       console.log('HTML:', html, 'Subject:', subject);
-      const recipients = resolveRecipients(parsed);
-      console.log('Recipients:', recipients);
+      const resolvedRecipients = resolveRecipients(parsed);
+      console.log('Recipients:', resolvedRecipients);
+      const recipients = filterAcceptedRecipients(resolvedRecipients);
+      console.log('Filtered Recipients:', recipients);
       await sendMailToRecipients(recipients, subject, html);
     } catch (error) {
       batchItemFailures.push({ itemIdentifier: record.messageId });
