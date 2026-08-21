@@ -770,35 +770,45 @@ export class NotificationsService {
   }
 
   /** Grouped, unpaginated — independent of whatever page the list is scrolled to. */
-  async getUnreadCountsByCategory(
-    userId: string,
-  ): Promise<Record<NotificationCategory, number>> {
+  async getUnreadCountsByCategory(userId: string): Promise<{
+    totalCount: number;
+    totalUnreadCount: number;
+    categoryUnreadCounts: Record<NotificationCategory, number>;
+  }> {
     const rows = await this.notificationsRepo
       .createQueryBuilder('n')
       .select('n."entityType"', 'entityType')
       .addSelect('n."type"', 'type')
-      .addSelect('COUNT(*)', 'count')
+      .addSelect('COUNT(*)', 'total')
+      .addSelect('COUNT(*) FILTER (WHERE n."isRead" = false)', 'unread')
       .where('n."recipientId" = :userId', { userId })
       .andWhere('n."isActive" = true')
-      .andWhere('n."isRead" = false')
       .groupBy('n."entityType"')
       .addGroupBy('n."type"')
       .getRawMany<{
         entityType: NotificationEntityType;
         type: NotificationType;
-        count: string;
+        total: string;
+        unread: string;
       }>();
 
-    const counts = Object.values(NotificationCategory).reduce(
+    const categoryUnreadCounts = Object.values(NotificationCategory).reduce(
       (acc, cat) => ({ ...acc, [cat]: 0 }),
       {} as Record<NotificationCategory, number>,
     );
+    let totalCount = 0;
+    let totalUnreadCount = 0;
 
     for (const row of rows) {
       const category = resolveCategory(row.entityType, row.type);
-      counts[category] += parseInt(row.count, 10);
+      const total = parseInt(row.total, 10);
+      const unread = parseInt(row.unread, 10);
+
+      categoryUnreadCounts[category] += unread;
+      totalCount += total;
+      totalUnreadCount += unread;
     }
 
-    return counts;
+    return { totalCount, totalUnreadCount, categoryUnreadCounts };
   }
 }
