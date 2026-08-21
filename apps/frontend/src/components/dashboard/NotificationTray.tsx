@@ -342,6 +342,7 @@ function NotificationGroupSection({
 }) {
   const itemRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const contentInnerRef = useRef<HTMLDivElement | null>(null);
   const [shouldFillSpace, setShouldFillSpace] = useState(false);
 
   useEffect(() => {
@@ -353,9 +354,10 @@ function NotificationGroupSection({
     const measure = () => {
       const itemElement = itemRef.current;
       const contentElement = contentRef.current;
+      const contentInnerElement = contentInnerRef.current;
       const parentElement = itemElement?.parentElement;
 
-      if (!itemElement || !contentElement || !parentElement) {
+      if (!itemElement || !contentElement || !contentInnerElement || !parentElement) {
         setShouldFillSpace(false);
         return;
       }
@@ -366,7 +368,10 @@ function NotificationGroupSection({
       const headerElement =
         itemElement.querySelector<HTMLElement>('[data-notification-header]');
       const headerHeight = headerElement?.getBoundingClientRect().height ?? 0;
-      const naturalContentHeight = Math.max(contentElement.scrollHeight, 320);
+      const naturalContentHeight = Math.max(
+        contentInnerElement.getBoundingClientRect().height,
+        320,
+      );
 
       setShouldFillSpace(naturalContentHeight + headerHeight > availableHeight);
     };
@@ -422,8 +427,8 @@ function NotificationGroupSection({
         {group.items.length ? (
           <div
             ref={contentRef}
-            className={`tiny-scrollbar min-h-[20rem] overflow-y-auto border-t border-gray-100 ${
-              shouldFillSpace ? 'h-full' : 'max-h-full'
+            className={`tiny-scrollbar overflow-y-auto border-t border-gray-100 ${
+              shouldFillSpace ? 'h-full min-h-[20rem]' : 'min-h-[20rem]'
             }`}
             onScroll={(event) => {
               const element = event.currentTarget;
@@ -436,19 +441,21 @@ function NotificationGroupSection({
               }
             }}
           >
-            {group.items.map((item) => (
-              <NotificationRow
-                key={item.id}
-                item={item}
-                onClose={onClose}
-                onViewSingle={() => onViewSingle(item.id)}
-              />
-            ))}
-            {group.isLoadingMore ? (
-              <div className="px-4 py-3 text-center text-xs font-medium text-gray-400">
-                Loading more...
-              </div>
-            ) : null}
+            <div ref={contentInnerRef}>
+              {group.items.map((item) => (
+                <NotificationRow
+                  key={item.id}
+                  item={item}
+                  onClose={onClose}
+                  onViewSingle={() => onViewSingle(item.id)}
+                />
+              ))}
+              {group.isLoadingMore ? (
+                <div className="px-4 py-3 text-center text-xs font-medium text-gray-400">
+                  Loading more...
+                </div>
+              ) : null}
+            </div>
           </div>
         ) : (
           <div className="border-t border-gray-100 px-4 py-5 text-sm text-gray-400">
