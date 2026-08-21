@@ -87,14 +87,11 @@ export default function NotificationTray({
       return;
     }
 
-    if (
-      openGroup &&
-      groupedItems.some((group) => group.category === openGroup)
-    ) {
+    if (groupedItems.some((group) => group.category === openGroup)) {
       return;
     }
 
-    setOpenGroup(groupedItems.find((group) => group.items.length > 0)?.category);
+    setOpenGroup(undefined);
   }, [groupedItems, hasSearch, openGroup]);
 
   return (
