@@ -160,19 +160,21 @@ export default function NotificationTray({
         </TabGroup>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
+      <div className="min-h-0 flex-1 overflow-hidden">
         {isLoading ? (
           <NotificationTraySkeleton />
         ) : hasSearch ? (
           searchItems.length ? (
-            searchItems.map((item) => (
-              <NotificationRow
-                onViewSingle={() => onViewSingle(item.id)}
-                key={item.id}
-                item={item}
-                onClose={onClose}
-              />
-            ))
+            <div className="tiny-scrollbar h-full overflow-y-auto">
+              {searchItems.map((item) => (
+                <NotificationRow
+                  onViewSingle={() => onViewSingle(item.id)}
+                  key={item.id}
+                  item={item}
+                  onClose={onClose}
+                />
+              ))}
+            </div>
           ) : (
             <EmptyNotificationsState />
           )
@@ -184,7 +186,7 @@ export default function NotificationTray({
               groupedItems.filter((group) => group.items.length > 0).at(0)
                 ?.category
             }
-            className="divide-y divide-gray-200"
+            className="flex h-full min-h-0 flex-col divide-y divide-gray-200 overflow-hidden"
           >
             {groupedItems.map((group) => (
               <NotificationGroupSection
@@ -321,8 +323,15 @@ function NotificationGroupSection({
   ) => void;
   onViewSingle: (value: string) => void;
 }) {
+  const canFillAvailableSpace = group.items.length > 0;
+
   return (
-    <Accordion.Item value={group.category} className="bg-white">
+    <Accordion.Item
+      value={group.category}
+      className={`flex shrink-0 flex-col bg-white data-[state=open]:min-h-[20rem] ${
+        canFillAvailableSpace ? 'data-[state=open]:flex-1' : ''
+      }`}
+    >
       <Accordion.Header>
         <Accordion.Trigger className="group flex w-full items-center justify-between gap-3 border-b border-transparent px-4 py-3 text-left transition hover:bg-gray-50 data-[state=open]:border-gray-200 data-[state=open]:bg-gray-100">
           <div className="flex min-w-0 items-center gap-3">
@@ -345,10 +354,14 @@ function NotificationGroupSection({
         </Accordion.Trigger>
       </Accordion.Header>
 
-      <Accordion.Content className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+      <Accordion.Content
+        className={`min-h-0 overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down ${
+          canFillAvailableSpace ? 'data-[state=open]:flex-1' : ''
+        }`}
+      >
         {group.items.length ? (
           <div
-            className="max-h-80 overflow-y-auto border-t border-gray-100 scrollbar-thin"
+            className="tiny-scrollbar max-h-full min-h-[20rem] overflow-y-auto border-t border-gray-100"
             onScroll={(event) => {
               const element = event.currentTarget;
               const nearBottom =
@@ -533,7 +546,7 @@ function NotificationGroupIcon({
 
   return (
     <span
-      className={`flex h-9 w-9 items-center justify-center rounded-full ${tone.bg}`}
+      className={`flex h-9 w-9 shadow items-center justify-center rounded-full ${tone.bg}`}
     >
       {tone.icon}
     </span>
