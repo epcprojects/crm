@@ -396,7 +396,7 @@ function NotificationGroupSection({
     <Accordion.Item
       ref={itemRef}
       value={group.category}
-      className={`flex shrink-0 flex-col bg-white data-[state=open]:min-h-[20rem] ${
+      className={`flex shrink-0 flex-col bg-white  ${
         shouldFillSpace ? '' : ''
       }`}
     >
@@ -433,8 +433,8 @@ function NotificationGroupSection({
         {group.items.length ? (
           <div
             ref={contentRef}
-            className={`tiny-scrollbar overflow-y-auto  border-t border-gray-100 ${
-              shouldFillSpace ? 'h-full min-h-[20rem]' : 'min-h-[20rem]'
+            className={`tiny-scrollbar overflow-y-auto max-h-100 border-t border-gray-100 ${
+              shouldFillSpace ? 'h-full ' : ''
             }`}
             onScroll={(event) => {
               const element = event.currentTarget;
