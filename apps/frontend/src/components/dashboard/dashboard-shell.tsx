@@ -53,7 +53,7 @@ import { useNotificationsSocket } from '../../app/providers/NotificationsSocketP
 import EmptyState from '../EmptyState';
 
 const PAGE_SIZE = 20;
-const INITIAL_GROUP_PAGE_SIZE = 10;
+const INITIAL_GROUP_PAGE_SIZE = 20;
 
 type NavItem = {
   href: string;

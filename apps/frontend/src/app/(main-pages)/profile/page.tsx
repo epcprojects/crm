@@ -88,9 +88,9 @@ export default function ProfilePage() {
         <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <div className="shrink-0">
             <DashboardSummaryBanner
-              imageSrc="/images/RolesIconImage.svg"
-              imageAlt="Roles"
-              title="Roles"
+              imageSrc="/images/ProfileBanner.svg"
+              imageAlt="Profile"
+              title="Profile"
               stats={[]}
             />
           </div>
@@ -108,7 +108,7 @@ export default function ProfilePage() {
                 autoComplete="name"
               />
 
-              <ProfileField
+              {/* <ProfileField
                 label="Email Address"
                 value={account.email}
                 name="email"
@@ -120,7 +120,7 @@ export default function ProfilePage() {
                 value={formatRoleLabel(primaryRole)}
                 name="role"
                 disabled
-              />
+              /> */}
               <div className="flex justify-end pt-1">
                 <ThemeButton
                   disabled={isSaving}
