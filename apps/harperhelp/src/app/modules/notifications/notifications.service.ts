@@ -911,7 +911,7 @@ export class NotificationsService {
         async (cat) =>
           [
             cat,
-            await this.fetchCategoryPage(userId, cat, 5, undefined, unreadOnly),
+            await this.fetchCategoryPage(userId, cat, limit, undefined, unreadOnly),
           ] as const,
       ),
     );
