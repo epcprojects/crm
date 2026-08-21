@@ -51,7 +51,8 @@ import {
 
 interface CursorPage<T> {
   items: T[];
-  nextCursor: string | null;
+  hasMore: boolean;
+  cursor: string | null;
 }
 
 function encodeCursor(createdAt: Date, id: string): string {
@@ -752,7 +753,8 @@ export class NotificationsService {
 
     return {
       items,
-      nextCursor:
+      hasMore,
+      cursor:
         hasMore && last ? encodeCursor(last.createdAt, last.id) : null,
     };
   }
