@@ -28,6 +28,7 @@ export class UtilityService {
   private s3Client: S3Client;
   private bucketName = process.env.AWS_S3_BUCKET;
   private readonly EMAIL_ATTACHMENT_LINK_EXPIRY_SECONDS = 604800; // 7 days — max safe expiry for now
+  private cloudFrontDomain = process.env.AWS_CLOUDFRONT_URL;
 
   constructor() {
     this.s3Client = new S3Client({
@@ -179,24 +180,15 @@ export class UtilityService {
     file: UploadedFileDto,
   ): Promise<EmailAttachmentLink> {
     const extension = (file.originalName.split('.').pop() ?? '').toLowerCase();
-
-    const [viewUrl, downloadUrl] = await Promise.all([
-      this.getPresignedUrl(
-        file.storageKey,
-        this.EMAIL_ATTACHMENT_LINK_EXPIRY_SECONDS,
-      ),
-      this.getPresignedDownloadUrl(
-        file.storageKey,
-        file.originalName,
-        this.EMAIL_ATTACHMENT_LINK_EXPIRY_SECONDS,
-      ),
-    ]);
-
+    const url = this.getCloudFrontUrl(file.storageKey);
+    const downloadUrl = `${url}?response-content-disposition=${encodeURIComponent(
+      `attachment; filename="${file.originalName.replace(/"/g, '')}"`,
+    )}`;
     return {
       filename: file.originalName,
       extension,
-      viewUrl,
-      downloadUrl,
+      viewUrl: url,
+      downloadUrl: url, // same for now — separate behavior deferred
       sizeLabel: formatFileSize(file.sizeBytes),
     };
   }
@@ -222,5 +214,19 @@ export class UtilityService {
     return getSignedUrl(this.s3Client, command, {
       expiresIn: expiresInSeconds,
     });
+  }
+
+  private getCloudFrontUrl(storageKey: string): string {
+    if (!this.cloudFrontDomain) {
+      throw new Error('CLOUDFRONT_ASSETS_DOMAIN is not configured');
+    }
+    // Normalize: strip protocol if present, then rebuild consistently
+    const domain = this.cloudFrontDomain
+      .replace(/^https?:\/\//, '')
+      .replace(/\/$/, ''); // also strip trailing slash if present
+
+    const key = storageKey.replace(/^\//, ''); // strip leading slash if present, avoid double /
+    // storageKey should NOT have a leading slash already (matches your existing key format)
+    return `https://${domain}/${key}`;
   }
 }
