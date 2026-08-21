@@ -75,8 +75,8 @@ export default function NotificationTray({
 }: NotificationTrayProps) {
   const selectedIndex = activeFilter === 'unread' ? 1 : 0;
   const hasSearch = searchValue.trim().length > 0;
-  const [openGroup, setOpenGroup] = useState<string | undefined>(() =>
-    groupedItems.find((group) => group.items.length > 0)?.category,
+  const [openGroup, setOpenGroup] = useState<string | undefined>(
+    () => groupedItems.find((group) => group.items.length > 0)?.category,
   );
   const hasGroupedNotifications = groupedItems.some(
     (group) => group.count > 0 || group.items.length > 0,
@@ -357,7 +357,12 @@ function NotificationGroupSection({
       const contentInnerElement = contentInnerRef.current;
       const parentElement = itemElement?.parentElement;
 
-      if (!itemElement || !contentElement || !contentInnerElement || !parentElement) {
+      if (
+        !itemElement ||
+        !contentElement ||
+        !contentInnerElement ||
+        !parentElement
+      ) {
         setShouldFillSpace(false);
         return;
       }
@@ -365,8 +370,9 @@ function NotificationGroupSection({
       const availableHeight =
         parentElement.getBoundingClientRect().bottom -
         itemElement.getBoundingClientRect().top;
-      const headerElement =
-        itemElement.querySelector<HTMLElement>('[data-notification-header]');
+      const headerElement = itemElement.querySelector<HTMLElement>(
+        '[data-notification-header]',
+      );
       const headerHeight = headerElement?.getBoundingClientRect().height ?? 0;
       const naturalContentHeight = Math.max(
         contentInnerElement.getBoundingClientRect().height,
@@ -391,7 +397,7 @@ function NotificationGroupSection({
       ref={itemRef}
       value={group.category}
       className={`flex shrink-0 flex-col bg-white data-[state=open]:min-h-[20rem] ${
-        shouldFillSpace ? 'data-[state=open]:flex-1' : ''
+        shouldFillSpace ? '' : ''
       }`}
     >
       <Accordion.Header>
@@ -420,14 +426,14 @@ function NotificationGroupSection({
       </Accordion.Header>
 
       <Accordion.Content
-        className={`min-h-0 overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down ${
-          shouldFillSpace ? 'data-[state=open]:flex-1' : ''
+        className={`overflow-hidden max-h-100 data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down ${
+          shouldFillSpace ? '' : ''
         }`}
       >
         {group.items.length ? (
           <div
             ref={contentRef}
-            className={`tiny-scrollbar overflow-y-auto border-t border-gray-100 ${
+            className={`tiny-scrollbar overflow-y-auto  border-t border-gray-100 ${
               shouldFillSpace ? 'h-full min-h-[20rem]' : 'min-h-[20rem]'
             }`}
             onScroll={(event) => {
