@@ -29,14 +29,17 @@ export async function GET() {
       );
     }
 
-    const response = await fetch(`${apiBaseUrl}/notifications/unread-count`, {
+    const response = await fetch(
+      `${apiBaseUrl}/notifications/unread-count-by-category`,
+      {
       method: 'GET',
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${token}`,
       },
       cache: 'no-store',
-    });
+      },
+    );
 
     const data = await response.json().catch(() => null);
 

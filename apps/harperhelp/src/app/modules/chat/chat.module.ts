@@ -13,6 +13,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { TicketsModule } from '../tickets/tickets.module';
 import { ReactionsModule } from '../reactions/reactions.module';
 import { ProjectsModule } from '../projects/projects.module';
+import { UtilityModule } from '../utility/utility.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { ProjectsModule } from '../projects/projects.module';
     TicketsModule,
     ReactionsModule,
     ProjectsModule,
+    UtilityModule,
   ],
   controllers: [ChatMessagesController],
   providers: [ChatMessagesService, ChatMessagesGateway, WsJwtGuard],

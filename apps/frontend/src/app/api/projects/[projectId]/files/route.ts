@@ -83,15 +83,18 @@ export async function POST(
     }
 
     const { projectId } = await context.params;
-    const formData = await request.formData();
+    const body = await request.json().catch(() => null);
+    const attachments = Array.isArray(body?.attachments) ? body.attachments : [];
 
     const response = await fetch(`${apiBaseUrl}/projects/${projectId}/files`, {
       method: 'POST',
       headers: {
         Accept: 'application/json',
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      body: formData,
+      body: JSON.stringify({ attachments }),
+      cache: 'no-store',
     });
 
     const data = await response.json().catch(() => null);

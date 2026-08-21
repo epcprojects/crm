@@ -12,7 +12,7 @@ function getApiBaseUrl() {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ projectId: string }> },
 ) {
   try {
@@ -33,8 +33,29 @@ export async function GET(
     }
 
     const { projectId } = await context.params;
+    const searchParams = new URL(request.url).searchParams;
+    const upstreamSearchParams = new URLSearchParams();
+    const limit = searchParams.get('limit')?.trim();
+    const cursorCreatedAt = searchParams.get('cursorCreatedAt')?.trim();
+    const cursorId = searchParams.get('cursorId')?.trim();
 
-    const response = await fetch(`${apiBaseUrl}/projects/${projectId}/thread`, {
+    if (limit) {
+      upstreamSearchParams.set('limit', limit);
+    }
+
+    if (cursorCreatedAt) {
+      upstreamSearchParams.set('cursorCreatedAt', cursorCreatedAt);
+    }
+
+    if (cursorId) {
+      upstreamSearchParams.set('cursorId', cursorId);
+    }
+
+    const upstreamUrl = `${apiBaseUrl}/projects/${projectId}/thread${
+      upstreamSearchParams.size ? `?${upstreamSearchParams.toString()}` : ''
+    }`;
+
+    const response = await fetch(upstreamUrl, {
       method: 'GET',
       headers: {
         Accept: 'application/json',
@@ -52,7 +73,18 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(Array.isArray(data) ? data : [], { status: 200 });
+    if (Array.isArray(data)) {
+      return NextResponse.json(
+        {
+          threads: data,
+          cursor: null,
+          hasMore: false,
+        },
+        { status: 200 },
+      );
+    }
+
+    return NextResponse.json(data, { status: 200 });
   } catch {
     return NextResponse.json(
       { message: 'Something went wrong while fetching the project thread.' },
@@ -83,59 +115,55 @@ export async function POST(
     }
 
     const { projectId } = await context.params;
-    const formData = await request.formData().catch(() => null);
-    const messageValue = formData?.get('message');
-    const parentIdValue = formData?.get('parentId');
-    const mentionedUserIdValues = formData?.getAll('mentionedUserIds') ?? [];
-    const attachments = formData?.getAll('attachments') ?? [];
-    const message =
-      typeof messageValue === 'string' ? messageValue.trim() : undefined;
-    const parentId =
-      typeof parentIdValue === 'string' ? parentIdValue.trim() : undefined;
-    const mentionedUserIds = mentionedUserIdValues
-      .filter(
-        (mentionedUserId): mentionedUserId is string =>
-          typeof mentionedUserId === 'string',
-      )
-      .map((mentionedUserId) => mentionedUserId.trim())
-      .filter((mentionedUserId) => mentionedUserId.length > 0);
-    const validAttachments = attachments.filter(
-      (attachment): attachment is File =>
-        attachment instanceof File && attachment.size > 0,
-    );
 
-    if (!message && !validAttachments.length) {
+    const body = await request.json().catch(() => null);
+    const message =
+      typeof body?.message === 'string' ? body.message.trim() : undefined;
+    const parentId =
+      typeof body?.parentId === 'string' ? body.parentId.trim() : undefined;
+    const mentionedUserIds = Array.isArray(body?.mentionedUserIds)
+      ? body.mentionedUserIds
+          .filter((id: unknown): id is string => typeof id === 'string')
+          .map((id: string) => id.trim())
+          .filter((id: string) => id.length > 0)
+      : [];
+    const attachments = Array.isArray(body?.attachments)
+      ? body.attachments
+      : [];
+
+    if (!message && !attachments.length) {
       return NextResponse.json(
         { message: 'Message or attachment is required.' },
         { status: 400 },
       );
     }
 
-    const upstreamFormData = new FormData();
+    const upstreamBody: Record<string, unknown> = {};
 
     if (message) {
-      upstreamFormData.append('message', message);
+      upstreamBody.message = message;
     }
 
     if (parentId) {
-      upstreamFormData.append('parentId', parentId);
+      upstreamBody.parentId = parentId;
     }
 
-    mentionedUserIds.forEach((mentionedUserId) => {
-      upstreamFormData.append('mentionedUserIds', mentionedUserId);
-    });
+    if (mentionedUserIds.length) {
+      upstreamBody.mentionedUserIds = mentionedUserIds;
+    }
 
-    validAttachments.forEach((attachment) => {
-      upstreamFormData.append('attachments', attachment, attachment.name);
-    });
+    if (attachments.length) {
+      upstreamBody.attachments = attachments;
+    }
 
     const response = await fetch(`${apiBaseUrl}/projects/${projectId}/thread`, {
       method: 'POST',
       headers: {
-        Accept: '*/*',
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      body: upstreamFormData,
+      body: JSON.stringify(upstreamBody),
       cache: 'no-store',
     });
 
@@ -143,7 +171,9 @@ export async function POST(
 
     if (!response.ok) {
       return NextResponse.json(
-        { message: data?.message || 'Failed to create project thread message.' },
+        {
+          message: data?.message || 'Failed to create project thread message.',
+        },
         { status: response.status },
       );
     }
@@ -151,7 +181,10 @@ export async function POST(
     return NextResponse.json(data, { status: response.status });
   } catch {
     return NextResponse.json(
-      { message: 'Something went wrong while creating the project thread message.' },
+      {
+        message:
+          'Something went wrong while creating the project thread message.',
+      },
       { status: 500 },
     );
   }

@@ -81,7 +81,9 @@ type DiscussionPanelProps = {
   editingReplyId?: string;
   onDeleteAttachment?: (attachment: DiscussionAttachment) => void;
   deletingAttachmentId?: string;
-  // internalScrollEnabled?: boolean;
+  hasMoreReplies?: boolean;
+  isLoadingMoreReplies?: boolean;
+  onLoadMoreReplies?: () => Promise<void> | void;
 };
 
 type GalleryImage = {
@@ -117,7 +119,9 @@ export default function ProjectThreadPanel({
   editingReplyId,
   onDeleteAttachment,
   deletingAttachmentId,
-  // internalScrollEnabled = true,
+  hasMoreReplies = false,
+  isLoadingMoreReplies = false,
+  onLoadMoreReplies,
 }: DiscussionPanelProps) {
   const [message, setMessage] = useState('');
   const [messagePlainText, setMessagePlainText] = useState('');
@@ -145,6 +149,13 @@ export default function ProjectThreadPanel({
   const composerMentionsRef = useRef<MentionsInputHandle | null>(null);
   const editingMentionsRef = useRef<MentionsInputHandle | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const previousHeaderReplyIdRef = useRef<string | undefined>(undefined);
+  const previousLastReplyIdRef = useRef<string | undefined>(undefined);
+  const previousRepliesLengthRef = useRef(0);
+  const pendingPrependRestoreRef = useRef<{
+    previousScrollHeight: number;
+  } | null>(null);
+  const loadMoreInFlightRef = useRef(false);
   const conversationImages = getGalleryImagesFromDiscussion(
     headerReply,
     replies,
@@ -163,8 +174,64 @@ export default function ProjectThreadPanel({
       return;
     }
 
-    container.scrollTop = container.scrollHeight;
-  }, [headerReply?.id, replies.length]);
+    if (pendingPrependRestoreRef.current) {
+      const { previousScrollHeight } = pendingPrependRestoreRef.current;
+      const scrollDelta = container.scrollHeight - previousScrollHeight;
+
+      container.scrollTop = Math.max(0, scrollDelta);
+      pendingPrependRestoreRef.current = null;
+      previousRepliesLengthRef.current = replies.length;
+      previousHeaderReplyIdRef.current = headerReply?.id;
+      previousLastReplyIdRef.current = replies.at(-1)?.id;
+      return;
+    }
+
+    const previousHeaderReplyId = previousHeaderReplyIdRef.current;
+    const previousLastReplyId = previousLastReplyIdRef.current;
+    const nextLastReplyId = replies.at(-1)?.id;
+    const shouldScrollToBottom =
+      previousHeaderReplyId !== headerReply?.id ||
+      previousLastReplyId !== nextLastReplyId ||
+      (previousRepliesLengthRef.current === 0 && replies.length > 0);
+
+    if (shouldScrollToBottom) {
+      container.scrollTop = container.scrollHeight;
+    }
+
+    previousRepliesLengthRef.current = replies.length;
+    previousHeaderReplyIdRef.current = headerReply?.id;
+    previousLastReplyIdRef.current = nextLastReplyId;
+  }, [headerReply?.id, replies]);
+
+  useEffect(() => {
+    if (!isLoadingMoreReplies) {
+      loadMoreInFlightRef.current = false;
+    }
+  }, [isLoadingMoreReplies]);
+
+  const handleScroll = () => {
+    const container = scrollContainerRef.current;
+
+    if (
+      !container ||
+      !hasMoreReplies ||
+      isLoadingMoreReplies ||
+      !onLoadMoreReplies ||
+      loadMoreInFlightRef.current ||
+      container.scrollTop > 80
+    ) {
+      return;
+    }
+
+    pendingPrependRestoreRef.current = {
+      previousScrollHeight: container.scrollHeight,
+    };
+    loadMoreInFlightRef.current = true;
+    void Promise.resolve(onLoadMoreReplies()).catch(() => {
+      pendingPrependRestoreRef.current = null;
+      loadMoreInFlightRef.current = false;
+    });
+  };
 
   const handleSubmit = async () => {
     const trimmedMessage = messagePlainText.trim();
@@ -466,6 +533,7 @@ export default function ProjectThreadPanel({
 
         <div
           ref={scrollContainerRef}
+          onScroll={handleScroll}
           // className={`min-h-0 flex-1 touch-pan-y px-3 py-5 scrollbar-hide md:px-5 ${
           //   internalScrollEnabled
           //     ? 'overflow-y-auto overscroll-auto'
@@ -476,6 +544,15 @@ export default function ProjectThreadPanel({
           <div
             className={`flex min-h-full flex-col ${replies.length > 0 && headerReply ? 'justify-between' : replies.length > 0 && !headerReply ? 'justify-end' : 'justify-center'}`}
           >
+            {hasMoreReplies || isLoadingMoreReplies ? (
+              <div className="mb-4 flex justify-center">
+                <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-500">
+                  {isLoadingMoreReplies
+                    ? 'Loading older threads...'
+                    : 'Scroll up to load older threads'}
+                </span>
+              </div>
+            ) : null}
             {headerReply ? (
               <div className="  pb-4">
                 <article className="flex  items-start gap-3 max-w-[calc(100%-40px)]">
@@ -1004,46 +1081,54 @@ export default function ProjectThreadPanel({
               <div
                 className={` flex items-end ${attachments.length === 0 ? 'justify-end' : 'justify-between'} gap-2`}
               >
-                {attachments.length ? (
-                  <div className="mt-3 flex flex-wrap max-h-52 min-h-0  gap-2 overflow-y-auto overscroll-contain pr-1 scrollbar-hide ">
-                    {attachments.map((attachment) => (
-                      <div
-                        key={`${attachment.name}-${attachment.size}-${attachment.lastModified}`}
-                        className="flex min-w-0 w-full max-w-65 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 py-0.5 pr-2 pl-0.5"
-                      >
-                        <LocalAttachmentPreview file={attachment} />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-gray-700">
-                            {attachment.name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {formatAttachmentSize(attachment.size)}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const nextAttachments = attachments.filter(
-                              (file) => file !== attachment,
-                            );
-                            setAttachments(nextAttachments);
-                            if (
-                              !nextAttachments.length &&
-                              fileInputRef.current
-                            ) {
-                              fileInputRef.current.value = '';
-                            }
-                            focusComposer();
-                          }}
-                          disabled={isSubmittingReply}
-                          className="text-xs font-medium text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                <div className="flex w-full flex-col gap-1">
+                  {attachments.length ? (
+                    <div className="mt-3 flex flex-wrap max-h-52 min-h-0  gap-2 overflow-y-auto overscroll-contain pr-1 scrollbar-hide ">
+                      {attachments.map((attachment) => (
+                        <div
+                          key={`${attachment.name}-${attachment.size}-${attachment.lastModified}`}
+                          className="flex min-w-0 w-full max-w-65 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 py-0.5 pr-2 pl-0.5"
                         >
-                          <TrashIcon width="16" height="16" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
+                          <LocalAttachmentPreview file={attachment} />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-gray-700">
+                              {attachment.name}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {formatAttachmentSize(attachment.size)}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const nextAttachments = attachments.filter(
+                                (file) => file !== attachment,
+                              );
+                              setAttachments(nextAttachments);
+                              if (
+                                !nextAttachments.length &&
+                                fileInputRef.current
+                              ) {
+                                fileInputRef.current.value = '';
+                              }
+                              focusComposer();
+                            }}
+                            disabled={isSubmittingReply}
+                            className="text-xs font-medium text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <TrashIcon width="16" height="16" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {attachmentError ? (
+                    <p className="mt-2 text-xs text-red-600">
+                      {attachmentError}
+                    </p>
+                  ) : null}
+                </div>
                 <div className="flex flex-col gap-1">
                   <div className="mt-1 text-right text-xs text-gray-500 md:block hidden">
                     {messagePlainText.length}/{MAX_DISCUSSION_MESSAGE_LENGTH}
@@ -1061,7 +1146,7 @@ export default function ProjectThreadPanel({
                         disabled={isSubmittingReply}
                         className="flex h-8 w-8 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        <PaperclipIcon width='20' height='20'/>
+                        <PaperclipIcon width="20" height="20" />
                       </button>
                     ) : null}
                     <button
@@ -1134,10 +1219,6 @@ export default function ProjectThreadPanel({
                 ))}
               </div>
             ) : null} */}
-
-            {attachmentError ? (
-              <p className="mt-2 text-xs text-red-600">{attachmentError}</p>
-            ) : null}
 
             {/* <div className="mt-3 flex items-center justify-end gap-2">
               {canAttachFile ? (
@@ -1755,7 +1836,7 @@ function LocalAttachmentPreview({ file }: { file: File }) {
 //   );
 // }
 
-function PaperclipIcon( {width="24",height="24"}) {
+function PaperclipIcon({ width = '24', height = '24' }) {
   return (
     <svg
       width={width}

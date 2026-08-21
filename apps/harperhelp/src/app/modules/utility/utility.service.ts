@@ -8,6 +8,11 @@ import {
   ListObjectsV2CommandOutput,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import {
+  EmailAttachmentLink,
+  formatFileSize,
+} from '../notifications/notifications.types';
+import { UploadedFileDto } from '../files/dto/uploaded-file.dto';
 
 type PresignedUrlAction = 'upload' | 'download';
 
@@ -22,6 +27,8 @@ interface PresignedUrlOptions {
 export class UtilityService {
   private s3Client: S3Client;
   private bucketName = process.env.AWS_S3_BUCKET;
+  private readonly EMAIL_ATTACHMENT_LINK_EXPIRY_SECONDS = 604800; // 7 days — max safe expiry for now
+  private cloudFrontDomain = process.env.AWS_CLOUDFRONT_URL;
 
   constructor() {
     this.s3Client = new S3Client({
@@ -162,5 +169,64 @@ export class UtilityService {
       console.error('Error listing objects from S3:', error);
       throw new BadRequestException('Failed to list objects from S3.');
     }
+  }
+
+  /**
+   * Single seam for turning a stored file into a clickable email link.
+   * Currently backed by S3 presigned URLs — swap the implementation here
+   * (CloudFront signed URL, tokenized redirect route, etc.) without touching callers.
+   */
+  async getEmailAttachmentLink(
+    file: UploadedFileDto,
+  ): Promise<EmailAttachmentLink> {
+    const extension = (file.originalName.split('.').pop() ?? '').toLowerCase();
+    const url = this.getCloudFrontUrl(file.storageKey);
+    const downloadUrl = `${url}?response-content-disposition=${encodeURIComponent(
+      `attachment; filename="${file.originalName.replace(/"/g, '')}"`,
+    )}`;
+    return {
+      filename: file.originalName,
+      extension,
+      viewUrl: 'https://google.com', // placeholder for now — separate behavior deferred
+      downloadUrl: 'https://google.com', // same for now — separate behavior deferred
+      sizeLabel: formatFileSize(file.sizeBytes),
+    };
+  }
+
+  async getEmailAttachmentLinks(
+    files: UploadedFileDto[],
+  ): Promise<EmailAttachmentLink[]> {
+    if (!files?.length) return [];
+    return Promise.all(files.map((f) => this.getEmailAttachmentLink(f)));
+  }
+
+  // NEW — forces Content-Disposition: attachment so it always downloads, never previews
+  private async getPresignedDownloadUrl(
+    key: string,
+    filename: string,
+    expiresInSeconds: number,
+  ): Promise<string> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+      ResponseContentDisposition: `attachment; filename="${filename.replace(/"/g, '')}"`,
+    });
+    return getSignedUrl(this.s3Client, command, {
+      expiresIn: expiresInSeconds,
+    });
+  }
+
+  private getCloudFrontUrl(storageKey: string): string {
+    if (!this.cloudFrontDomain) {
+      throw new Error('CLOUDFRONT_ASSETS_DOMAIN is not configured');
+    }
+    // Normalize: strip protocol if present, then rebuild consistently
+    const domain = this.cloudFrontDomain
+      .replace(/^https?:\/\//, '')
+      .replace(/\/$/, ''); // also strip trailing slash if present
+
+    const key = storageKey.replace(/^\//, ''); // strip leading slash if present, avoid double /
+    // storageKey should NOT have a leading slash already (matches your existing key format)
+    return `https://${domain}/${key}`;
   }
 }

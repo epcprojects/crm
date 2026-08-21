@@ -7,8 +7,6 @@ import {
   Param,
   Delete,
   UseGuards,
-  UseInterceptors,
-  UploadedFiles,
   Query,
   ParseUUIDPipe,
 } from '@nestjs/common';
@@ -17,8 +15,6 @@ import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import {
   ApiBearerAuth,
-  ApiBody,
-  ApiConsumes,
   ApiOperation,
   ApiParam,
   ApiResponse,
@@ -27,14 +23,13 @@ import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 // import { Roles } from '../../../common/decorators/roles.decorator';
 // import { SystemRoles } from '@harperhelp/types';
-import { FilesInterceptor } from '@nestjs/platform-express';
 import { GetUser } from '../../../common/decorators/get-user.decorator';
 import { ProjectsFilesService } from './services/project-files.service';
-import { User } from '../users/entities/user.entity';
 // import { Authorize } from '../../../common/guards/authorize.guard';
 import { GetProjectsQueryDto } from './dto/get-projects-query.dto';
 import { GetMembersQueryDto } from './dto/get-members-query.dto';
-import { FileSizeGuard } from '../../../common/guards/file-size.guard';
+import { UploadedFileDto } from '../files/dto/uploaded-file.dto';
+import { UploadProjectFileDto } from './dto/upload-project-file.dto';
 
 @Controller('projects')
 @ApiBearerAuth('JWT-auth')
@@ -137,29 +132,14 @@ export class ProjectsController {
 
   // ---------------- UPLOAD FILES ----------------
   @Post(':projectId/files')
-  @UseGuards(FileSizeGuard)
-  @UseInterceptors(FilesInterceptor('files'))
-  @ApiOperation({ summary: 'Upload files to a project' })
-  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary:
+      'Upload files to a project. Files must be uploaded using presigned url first and details should be send.',
+  })
   @ApiParam({
     name: 'projectId',
     description: 'Project ID',
     type: String,
-  })
-  @ApiBody({
-    description: 'Project file upload',
-    schema: {
-      type: 'object',
-      properties: {
-        files: {
-          type: 'array',
-          items: {
-            type: 'string',
-            format: 'binary',
-          },
-        },
-      },
-    },
   })
   @ApiResponse({
     status: 201,
@@ -167,12 +147,12 @@ export class ProjectsController {
   })
   async uploadFiles(
     @Param('projectId', ParseUUIDPipe) projectId: string,
-    @UploadedFiles() files: Express.Multer.File[],
+    @Body() dto: UploadProjectFileDto,
     @GetUser() user,
   ) {
     return this.projectsFilesService.uploadProjectFiles(
       projectId,
-      files,
+      dto.attachments,
       user.id,
     );
   }

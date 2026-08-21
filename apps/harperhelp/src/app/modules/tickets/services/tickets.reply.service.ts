@@ -22,6 +22,7 @@ import { UpdateReplyDto } from '../dto/update-ticket-reply.dto';
 import { ReactionsService } from '../../reactions/reactions.service';
 import { Project } from '../../projects/entities/project.entity';
 import { ProjectsService } from '../../projects/projects.service';
+import { UploadedFileDto } from '../../files/dto/uploaded-file.dto';
 
 @Injectable()
 export class TicketRepliesService {
@@ -43,9 +44,9 @@ export class TicketRepliesService {
     ticketId: string,
     dto: CreateReplyDto,
     userId: string,
-    files?: Express.Multer.File[],
+    files?: UploadedFileDto[],
   ) {
-    if (!dto.message && !files.length) {
+    if (!dto.message && !files?.length) {
       throw new BadRequestException(
         'Atleast one message is required to send a reply.',
       );
@@ -124,6 +125,10 @@ export class TicketRepliesService {
 
       const participants = Array.from(participantsMap.values());
 
+      const attachments = await this.utilityService.getEmailAttachmentLinks(
+        files ?? []
+      );
+
       await this.notificationsService.dispatch({
         type: EmailEventType.TICKET_REPLY_POSTED,
         payload: {
@@ -144,6 +149,7 @@ export class TicketRepliesService {
             email: '',
           },
           participants,
+          attachments,
         },
       });
     } catch (err) {
@@ -190,7 +196,7 @@ export class TicketRepliesService {
     replyId: string,
     dto: UpdateReplyDto,
     userId: string,
-    files?: Express.Multer.File[],
+    files?: UploadedFileDto[],
   ) {
     await this.ensureProjectUserAccess(projectId, userId);
 
@@ -277,43 +283,88 @@ export class TicketRepliesService {
   }
 
   // TODO: optimize N+1 issue
-  async findByTicket(ticketId: string) {
+  async findByTicket(
+    ticketId: string,
+    limit = 30,
+    cursor?: { createdAt: Date; id: string },
+  ) {
     const ticket = await this.replyRepo.manager
       .getRepository(Ticket)
       .findOne({ where: { id: ticketId } });
     if (!ticket) throw new NotFoundException('Ticket not found');
 
-    const replies = await this.replyRepo.find({
-      where: { ticketId },
-      order: { createdAt: 'ASC' },
-      relations: {
-        author: true,
-      },
-    });
+    const qb = this.replyRepo
+      .createQueryBuilder('reply')
+      .leftJoinAndSelect('reply.author', 'author')
+      .where('reply.ticketId = :ticketId', { ticketId })
+      .andWhere('reply.deletedAt IS NULL')
+      .orderBy('reply.createdAt', 'DESC')
+      .addOrderBy('reply.id', 'DESC')
+      .take(limit + 1); // Fetch one extra to check if there's a next page
 
-    return Promise.all(
-      replies.map(async (reply) => {
-        if (reply.author) {
-          delete reply.author.passwordHash;
-        }
-        // delete reply.author['passwordHash'];
+    if (cursor) {
+      qb.andWhere(
+        '(reply.createdAt < :cursorCreatedAt OR (reply.createdAt = :cursorCreatedAt AND reply.id < :cursorId))',
+        { cursorCreatedAt: cursor.createdAt, cursorId: cursor.id },
+      );
+    }
+    const replies = await qb.getMany();
+
+    const hasMore = replies.length > limit;
+    const page = hasMore ? replies.slice(0, limit) : replies;
+
+    const enriched = await Promise.all(
+      page.map(async (reply) => {
+        if (reply.author) delete reply.author.passwordHash;
 
         const [attachments, reactions] = await Promise.all([
           this.filesService.findBySource(FileSource.TICKET_REPLY, reply.id),
           this.reactionsService.getTicketReplyReactions(reply.id),
         ]);
 
-        return {
-          ...reply,
-          attachments,
-          reactions,
-          // attachments: await this.filesService.findBySource(
-          //   FileSource.TICKET_REPLY,
-          //   reply.id,
-          // ),
-        };
+        return { ...reply, attachments, reactions };
       }),
     );
+
+    const last = page[page.length - 1];
+
+    return {
+      replies: enriched,
+      hasMore,
+      cursor: last ? { createdAt: last.createdAt, id: last.id } : undefined,
+    };
+
+    // const replies = await this.replyRepo.find({
+    //   where: { ticketId },
+    //   order: { createdAt: 'ASC' },
+    //   relations: {
+    //     author: true,
+    //   },
+    // });
+
+    // return Promise.all(
+    //   replies.map(async (reply) => {
+    //     if (reply.author) {
+    //       delete reply.author.passwordHash;
+    //     }
+    //     // delete reply.author['passwordHash'];
+
+    //     const [attachments, reactions] = await Promise.all([
+    //       this.filesService.findBySource(FileSource.TICKET_REPLY, reply.id),
+    //       this.reactionsService.getTicketReplyReactions(reply.id),
+    //     ]);
+
+    //     return {
+    //       ...reply,
+    //       attachments,
+    //       reactions,
+    //       // attachments: await this.filesService.findBySource(
+    //       //   FileSource.TICKET_REPLY,
+    //       //   reply.id,
+    //       // ),
+    //     };
+    //   }),
+    // );
   }
 
   async findOne(id: string) {
@@ -337,27 +388,27 @@ export class TicketRepliesService {
 
   async uploadAttachments(
     replyId: string,
-    files: Express.Multer.File[],
+    files: UploadedFileDto[],
     userId: string,
     projectId: string,
   ) {
     for (const file of files) {
-      const key = `tickets/replies/${replyId}/${Date.now()}-${file.originalname}`;
+      // const key = `tickets/replies/${replyId}/${Date.now()}-${file.originalName}`;
 
-      await this.utilityService.uploadFile(file, key);
+      // await this.utilityService.uploadFile(file, key);
 
-      const rawExt = extname(file.originalname); // e.g. '.DOCX' or ''
+      const rawExt = extname(file.originalName); // e.g. '.DOCX' or ''
       const extension = rawExt ? rawExt.slice(1).toLowerCase() : 'unknown';
 
       await this.filesService.create({
         projectId,
         uploadedBy: userId,
-        originalName: file.originalname,
-        storageKey: key,
-        sizeBytes: file.size,
+        originalName: file.originalName,
+        storageKey: file.storageKey,
+        sizeBytes: file.sizeBytes,
         // extension: file.mimetype.split('/')[1],
         extension: extension,
-        mimeType: file.mimetype,
+        mimeType: file.mimeType,
         source: FileSource.TICKET_REPLY,
         sourceId: replyId,
       });

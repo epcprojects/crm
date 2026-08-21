@@ -5,6 +5,8 @@ import { BaseEntity } from '@harperhelp/interfaces';
 
 @Entity('thread_messages')
 @Index(['projectId'])
+@Index(['projectId', 'parentId', 'createdAt', 'id'])
+@Index(['parentId', 'createdAt', 'id'])
 export class ThreadMessage extends BaseEntity {
   @Column('uuid')
   projectId: string;

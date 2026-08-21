@@ -24,6 +24,7 @@ import type {
   TicketPriority,
   TicketStatus,
 } from '../../../components/tables/RecentTicketsTable';
+import { uploadFilesDirectly } from '../../../lib/attachments';
 
 export const projectsQueryKey = ['projects'];
 export const projectNamesQueryKey = ['project-names'];
@@ -33,10 +34,23 @@ export const projectTicketsQueryKey = ['project-tickets'];
 export const projectFilesQueryKey = ['project-files'];
 export const projectNotesQueryKey = ['project-notes'];
 export const projectNoteDetailQueryKey = ['project-note-detail'];
+const PROJECT_THREAD_PAGE_SIZE = 30;
 
 type ProjectThreadDetail = {
   header: DiscussionReply | null;
   replies: DiscussionReply[];
+};
+
+export type ProjectThreadCursor = {
+  createdAt: string;
+  id: string;
+};
+
+export type ProjectThreadPage = {
+  threads: DiscussionReply[];
+  cursor: ProjectThreadCursor | null;
+  hasMore: boolean;
+  message?: string;
 };
 
 type ProjectsQueryOptions = {
@@ -206,6 +220,26 @@ export function useProjectThreadQuery(
   });
 }
 
+export function useProjectThreadInfiniteQuery(
+  projectId: string,
+  currentUserId = '',
+  enabled = true,
+) {
+  return useInfiniteQuery({
+    queryKey: [...projectThreadQueryKey, projectId, currentUserId],
+    initialPageParam: null as ProjectThreadCursor | null,
+    queryFn: ({ pageParam }) =>
+      fetchProjectThreadPage(
+        projectId,
+        currentUserId,
+        pageParam as ProjectThreadCursor | null,
+      ),
+    enabled: Boolean(projectId && enabled),
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore && lastPage.cursor ? lastPage.cursor : undefined,
+  });
+}
+
 export function useProjectThreadDetailQuery(
   projectId: string,
   messageId: string,
@@ -213,8 +247,14 @@ export function useProjectThreadDetailQuery(
   enabled = true,
 ) {
   return useQuery({
-    queryKey: [...projectThreadDetailQueryKey, projectId, messageId, currentUserId],
-    queryFn: () => fetchProjectThreadDetail(projectId, messageId, currentUserId),
+    queryKey: [
+      ...projectThreadDetailQueryKey,
+      projectId,
+      messageId,
+      currentUserId,
+    ],
+    queryFn: () =>
+      fetchProjectThreadDetail(projectId, messageId, currentUserId),
     enabled: Boolean(projectId && messageId && enabled),
   });
 }
@@ -360,7 +400,11 @@ export function useUpdateProjectNoteMutation() {
           queryKey: [...projectNotesQueryKey, variables.projectId],
         }),
         queryClient.invalidateQueries({
-          queryKey: [...projectNoteDetailQueryKey, variables.projectId, variables.noteId],
+          queryKey: [
+            ...projectNoteDetailQueryKey,
+            variables.projectId,
+            variables.noteId,
+          ],
         }),
       ]);
     },
@@ -402,7 +446,11 @@ export function useDeleteProjectNoteMutation() {
           queryKey: [...projectNotesQueryKey, variables.projectId],
         }),
         queryClient.removeQueries({
-          queryKey: [...projectNoteDetailQueryKey, variables.projectId, variables.noteId],
+          queryKey: [
+            ...projectNoteDetailQueryKey,
+            variables.projectId,
+            variables.noteId,
+          ],
         }),
       ]);
     },
@@ -775,19 +823,19 @@ async function createProjectNote({
     title,
     description:
       payload && typeof payload === 'object' && 'description' in payload
-        ? payload.description?.trim() ?? ''
-        : values.description?.trim() ?? '',
+        ? (payload.description?.trim() ?? '')
+        : (values.description?.trim() ?? ''),
     createdAt:
       payload && typeof payload === 'object' && 'createdAt' in payload
-        ? payload.createdAt ?? null
+        ? (payload.createdAt ?? null)
         : null,
     updatedAt:
       payload && typeof payload === 'object' && 'updatedAt' in payload
-        ? payload.updatedAt ?? null
+        ? (payload.updatedAt ?? null)
         : null,
     isActive:
       payload && typeof payload === 'object' && 'isActive' in payload
-        ? payload.isActive ?? true
+        ? (payload.isActive ?? true)
         : true,
   };
 }
@@ -840,19 +888,19 @@ async function fetchProjectNoteDetail(
     title,
     description:
       payload && typeof payload === 'object' && 'description' in payload
-        ? payload.description?.trim() ?? ''
+        ? (payload.description?.trim() ?? '')
         : '',
     createdAt:
       payload && typeof payload === 'object' && 'createdAt' in payload
-        ? payload.createdAt ?? null
+        ? (payload.createdAt ?? null)
         : null,
     updatedAt:
       payload && typeof payload === 'object' && 'updatedAt' in payload
-        ? payload.updatedAt ?? null
+        ? (payload.updatedAt ?? null)
         : null,
     isActive:
       payload && typeof payload === 'object' && 'isActive' in payload
-        ? payload.isActive ?? true
+        ? (payload.isActive ?? true)
         : true,
   };
 }
@@ -917,19 +965,19 @@ async function updateProjectNote({
     title,
     description:
       payload && typeof payload === 'object' && 'description' in payload
-        ? payload.description?.trim() ?? ''
-        : values.description?.trim() ?? '',
+        ? (payload.description?.trim() ?? '')
+        : (values.description?.trim() ?? ''),
     createdAt:
       payload && typeof payload === 'object' && 'createdAt' in payload
-        ? payload.createdAt ?? null
+        ? (payload.createdAt ?? null)
         : null,
     updatedAt:
       payload && typeof payload === 'object' && 'updatedAt' in payload
-        ? payload.updatedAt ?? null
+        ? (payload.updatedAt ?? null)
         : null,
     isActive:
       payload && typeof payload === 'object' && 'isActive' in payload
-        ? payload.isActive ?? true
+        ? (payload.isActive ?? true)
         : true,
   };
 }
@@ -1081,6 +1129,16 @@ type ApiProjectThreadMessage = {
   replies?: ApiProjectThreadMessage[];
 };
 
+type ApiProjectThreadResponse = {
+  threads?: ApiProjectThreadMessage[];
+  cursor?: {
+    createdAt?: string | null;
+    id?: string | null;
+  } | null;
+  hasMore?: boolean | null;
+  message?: string;
+};
+
 type ApiProjectThreadReactionActor = {
   id?: string | null;
   fullName?: string | null;
@@ -1184,30 +1242,124 @@ type ApiProjectTicketsResponse = {
 };
 
 async function fetchProjectThread(projectId: string, currentUserId: string) {
-  const response = await fetch(`/api/projects/${projectId}/thread`, {
-    method: 'GET',
-    headers: {
-      Accept: 'application/json',
-    },
-    cache: 'no-store',
+  const page = await fetchProjectThreadPage(projectId, currentUserId, null);
+  return page.threads;
+}
+
+async function fetchProjectThreadPage(
+  projectId: string,
+  currentUserId: string,
+  cursor: ProjectThreadCursor | null,
+): Promise<ProjectThreadPage> {
+  const searchParams = new URLSearchParams({
+    limit: String(PROJECT_THREAD_PAGE_SIZE),
   });
 
+  if (cursor?.createdAt) {
+    searchParams.set('cursorCreatedAt', cursor.createdAt);
+  }
+
+  if (cursor?.id) {
+    searchParams.set('cursorId', cursor.id);
+  }
+
+  const response = await fetch(
+    `/api/projects/${projectId}/thread?${searchParams.toString()}`,
+    {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+    },
+  );
+
   const payload = (await response.json().catch(() => null)) as
+    | ApiProjectThreadResponse
     | ApiProjectThreadMessage[]
     | { message?: string }
     | null;
 
-  if (!response.ok || !Array.isArray(payload)) {
+  const normalizedPayload = normalizeProjectThreadResponse(
+    payload,
+    currentUserId,
+  );
+
+  if (!response.ok || !normalizedPayload) {
     throw new Error(
-      !Array.isArray(payload)
-        ? payload?.message
-        : 'Failed to fetch project thread.',
+      normalizedPayload?.message || 'Failed to fetch project thread.',
     );
   }
 
-  return payload.map((message) =>
-    mapApiProjectThreadMessageToReply(message, currentUserId),
-  );
+  return normalizedPayload;
+}
+
+function normalizeProjectThreadResponse(
+  payload:
+    | ApiProjectThreadResponse
+    | ApiProjectThreadMessage[]
+    | { message?: string }
+    | null,
+  currentUserId: string,
+): ProjectThreadPage | null {
+  if (Array.isArray(payload)) {
+    return {
+      threads: payload.map((message) =>
+        mapApiProjectThreadMessageToReply(message, currentUserId),
+      ),
+      cursor: null,
+      hasMore: false,
+    };
+  }
+
+  if (!isApiProjectThreadResponse(payload)) {
+    return payload && 'message' in payload
+      ? {
+          message: payload.message || 'Failed to fetch project thread.',
+          threads: [],
+          cursor: null,
+          hasMore: false,
+        }
+      : null;
+  }
+
+  return {
+    threads: payload.threads.map((message) =>
+      mapApiProjectThreadMessageToReply(message, currentUserId),
+    ),
+    cursor:
+      payload.cursor?.id && payload.cursor?.createdAt
+        ? {
+            id: payload.cursor.id,
+            createdAt: payload.cursor.createdAt,
+          }
+        : null,
+    hasMore: Boolean(payload.hasMore),
+  };
+}
+
+export function flattenProjectThreadPages(
+  pages: ProjectThreadPage[] | undefined,
+): DiscussionReply[] {
+  if (!pages?.length) {
+    return [];
+  }
+
+  const repliesById = new Map<string, DiscussionReply>();
+
+  pages
+    .slice()
+    .reverse()
+    .forEach((page) => {
+      page.threads
+        .slice()
+        .reverse()
+        .forEach((thread) => {
+          repliesById.set(thread.id, thread);
+        });
+    });
+
+  return Array.from(repliesById.values());
 }
 
 async function fetchProjectThreadDetail(
@@ -1322,15 +1474,15 @@ async function uploadProjectFiles({
   projectId: string;
   values: UploadFileFormValues;
 }) {
-  const formData = new FormData();
-
-  values.attachments.forEach((file) => {
-    formData.append('files', file);
-  });
+  const uploadedAttachments = await uploadFilesDirectly(
+    values.attachments,
+    `projects/${projectId}/files`,
+  );
 
   const response = await fetch(`/api/projects/${projectId}/files`, {
     method: 'POST',
-    body: formData,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ attachments: uploadedAttachments }),
   });
 
   const payload = await response.json().catch(() => null);
@@ -1413,6 +1565,23 @@ function mapApiProjectThreadMessageToReply(
   };
 }
 
+function isApiProjectThreadResponse(
+  payload:
+    | ApiProjectThreadResponse
+    | ApiProjectThreadMessage[]
+    | { message?: string }
+    | null,
+): payload is ApiProjectThreadResponse & {
+  threads: ApiProjectThreadMessage[];
+} {
+  return Boolean(
+    payload &&
+      typeof payload === 'object' &&
+      !Array.isArray(payload) &&
+      Array.isArray((payload as ApiProjectThreadResponse).threads),
+  );
+}
+
 function mapApiProjectThreadReactions(
   reactions: ApiProjectThreadReaction[] | null | undefined,
   currentUserId = '',
@@ -1446,8 +1615,7 @@ function mapApiProjectThreadReactions(
         actors: Array.isArray(reaction.actors)
           ? reaction.actors.map((actor) => ({
               id: actor.id?.trim() || undefined,
-              name:
-                actor.fullName?.trim() || actor.name?.trim() || undefined,
+              name: actor.fullName?.trim() || actor.name?.trim() || undefined,
               isCurrentUser: actor.id?.trim() === currentUserId,
             }))
           : undefined,
@@ -1462,8 +1630,8 @@ function normalizeProjectThreadDetail(
   currentUserId: string,
 ): ProjectThreadDetail {
   const normalizedMessages = extractThreadMessages(payload);
-  const mappedReplies = normalizedMessages.map(
-    (message) => mapApiProjectThreadMessageToReply(message, currentUserId),
+  const mappedReplies = normalizedMessages.map((message) =>
+    mapApiProjectThreadMessageToReply(message, currentUserId),
   );
   const header =
     mappedReplies.find((reply) => reply.id === messageId) ??
@@ -1579,7 +1747,8 @@ function mapApiProjectTicketToRecentTicket(
     date: formatTicketDate(ticket.createdAt),
     dueDate: formatTicketDate(
       (ticket.dueDate ?? ticket.createdAt).split('T')[0] ??
-        (ticket.dueDate ?? ticket.createdAt),
+        ticket.dueDate ??
+        ticket.createdAt,
     ),
     sortDate: ticket.dueDate ?? ticket.createdAt,
     reporter: {

@@ -27,6 +27,8 @@ import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { FileSizeGuard } from '../../../common/guards/file-size.guard';
 import { UpdateThreadMessageDto } from './dto/update-thread-message.dto';
+import { ApiQuery } from '@nestjs/swagger';
+import { Query } from '@nestjs/common';
 
 @Controller('projects/:pid/thread')
 @ApiBearerAuth('JWT-auth')
@@ -38,46 +40,36 @@ export class ThreadController {
   @ApiOperation({
     description: 'Find all thread messages related to a project.',
   })
-  findAll(@Param('pid', ParseUUIDPipe) pid: string) {
-    return this.service.findAll(pid);
+  @ApiQuery({ name: 'limit', required: false, type: String })
+  @ApiQuery({ name: 'cursorCreatedAt', required: false, type: String })
+  @ApiQuery({ name: 'cursorId', required: false, type: String })
+  findAll(
+    @Param('pid', ParseUUIDPipe) pid: string,
+    @Query('limit') limit?: string,
+    @Query('cursorCreatedAt') cursorCreatedAt?: string,
+    @Query('cursorId') cursorId?: string,
+  ) {
+    const cursor =
+      cursorCreatedAt && cursorId
+        ? { createdAt: new Date(cursorCreatedAt), id: cursorId }
+        : undefined;
+    return this.service.findAll(
+      pid,
+      limit ? Math.min(parseInt(limit, 10), 100) : 30,
+      cursor,
+    );
   }
 
   @Post()
-  @UseGuards(FileSizeGuard)
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        message: {
-          type: 'string',
-        },
-        parentId: {
-          type: 'uuid',
-          nullable: true,
-        },
-        attachments: {
-          type: 'array',
-          items: {
-            type: 'string',
-            format: 'binary',
-          },
-        },
-      },
-      required: ['message'],
-    },
-  })
-  @UseInterceptors(FilesInterceptor('attachments'))
   @ApiOperation({
     description: 'Create a thread message for a project.',
   })
   create(
     @Param('pid', ParseUUIDPipe) pid: string,
     @Body() dto: CreateThreadMessageDto,
-    @UploadedFiles() files: Express.Multer.File[],
     @GetUser() user,
   ) {
-    return this.service.create(pid, dto, user, files);
+    return this.service.create(pid, dto, user, dto.attachments);
   }
 
   @Get(':messageId')
@@ -92,31 +84,6 @@ export class ThreadController {
   }
 
   @Put(':messageId')
-  @UseGuards(FileSizeGuard)
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        message: {
-          type: 'string',
-        },
-        parentId: {
-          type: 'uuid',
-          nullable: true,
-        },
-        attachments: {
-          type: 'array',
-          items: {
-            type: 'string',
-            format: 'binary',
-          },
-        },
-      },
-      required: ['message'],
-    },
-  })
-  @UseInterceptors(FilesInterceptor('attachments'))
   @ApiOperation({
     description: 'Updates thread message.',
   })
@@ -124,10 +91,9 @@ export class ThreadController {
     @Param('pid', ParseUUIDPipe) pid: string,
     @Param('messageId', ParseUUIDPipe) messageId: string,
     @Body() dto: UpdateThreadMessageDto,
-    @UploadedFiles() files: Express.Multer.File[],
     @GetUser() user,
   ) {
-    return this.service.update(messageId, pid, dto, user, files);
+    return this.service.update(messageId, pid, dto, user, dto.attachments);
   }
 
   @Delete(':messageId')

@@ -1,20 +1,55 @@
 'use client';
 
+import * as Accordion from '@radix-ui/react-accordion';
 import { Tab, TabGroup, TabList } from '@headlessui/react';
 import Link from 'next/link';
-import { CloseIcon, CrossIcon, SearchIcon } from '../../../public/icons';
+import {
+  ChatIcon,
+  CloseIcon,
+  CrossIcon,
+  ProjectsIcon,
+  SearchIcon,
+  ThreadIcon,
+  TicketIcon2,
+} from '../../../public/icons';
 import EmptyState from '../EmptyState';
 import { NotificationItem } from '@harperhelp/interfaces';
 import { getNotificationNavigationPath } from '../../lib/notification-navigation';
 
+export type NotificationGroupCategory =
+  | 'projects'
+  | 'threads'
+  | 'tickets'
+  | 'ticket_replies'
+  | 'internal_messages'
+  | 'mentions'
+  | 'members'
+  | 'events';
+
+export type NotificationGroup = {
+  category: NotificationGroupCategory;
+  label: string;
+  count: number;
+  items: NotificationItem[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  isLoadingMore?: boolean;
+};
+
 type NotificationTrayProps = {
   activeFilter: 'all' | 'unread';
-  items: NotificationItem[];
+  groupedItems: NotificationGroup[];
+  isLoading: boolean;
   onChangeFilter: (filter: 'all' | 'unread') => void;
   onChangeSearch: (value: string) => void;
   onClose: () => void;
+  onLoadMoreGroup: (
+    category: NotificationGroupCategory,
+    cursor: string | null,
+  ) => void;
   onMarkAllAsRead: () => void;
   onViewAll: () => void;
+  searchItems: NotificationItem[];
   searchValue: string;
   totalCount: number;
   unreadCount: number;
@@ -23,18 +58,25 @@ type NotificationTrayProps = {
 
 export default function NotificationTray({
   activeFilter,
-  items,
+  groupedItems,
+  isLoading,
   onChangeFilter,
   onChangeSearch,
   onClose,
+  onLoadMoreGroup,
   onMarkAllAsRead,
   onViewAll,
+  searchItems,
   searchValue,
   totalCount,
   unreadCount,
   onViewSingle,
 }: NotificationTrayProps) {
   const selectedIndex = activeFilter === 'unread' ? 1 : 0;
+  const hasSearch = searchValue.trim().length > 0;
+  const hasGroupedNotifications = groupedItems.some(
+    (group) => group.count > 0 || group.items.length > 0,
+  );
 
   return (
     <section className="pointer-events-auto flex h-full w-full sm:w-95 flex-col overflow-hidden border border-white/70 bg-white shadow-xl">
@@ -78,7 +120,7 @@ export default function NotificationTray({
               type="text"
               value={searchValue}
               onChange={(event) => onChangeSearch(event.target.value)}
-              placeholder="Search..."
+              placeholder="Search projects, messages, or tickets"
               className="min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400"
             />
 
@@ -118,25 +160,46 @@ export default function NotificationTray({
         </TabGroup>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
-        {items.length ? (
-          items.map((item) => (
-            <NotificationRow
-              onViewSingle={() => onViewSingle(item.id)}
-              key={item.id}
-              item={item}
-              onClose={onClose}
-            />
-          ))
+      <div className="min-h-0 flex-1 overflow-hidden">
+        {isLoading ? (
+          <NotificationTraySkeleton />
+        ) : hasSearch ? (
+          searchItems.length ? (
+            <div className="tiny-scrollbar h-full overflow-y-auto">
+              {searchItems.map((item) => (
+                <NotificationRow
+                  onViewSingle={() => onViewSingle(item.id)}
+                  key={item.id}
+                  item={item}
+                  onClose={onClose}
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyNotificationsState />
+          )
+        ) : hasGroupedNotifications ? (
+          <Accordion.Root
+            type="single"
+            collapsible
+            defaultValue={
+              groupedItems.filter((group) => group.items.length > 0).at(0)
+                ?.category
+            }
+            className="flex h-full min-h-0 flex-col divide-y divide-gray-200 overflow-hidden"
+          >
+            {groupedItems.map((group) => (
+              <NotificationGroupSection
+                key={group.category}
+                group={group}
+                onClose={onClose}
+                onLoadMoreGroup={onLoadMoreGroup}
+                onViewSingle={onViewSingle}
+              />
+            ))}
+          </Accordion.Root>
         ) : (
-          <div className="flex h-full items-center justify-center px-6 py-10 text-center text-sm text-gray-500">
-            <EmptyState
-              title="No notifications found"
-              description="You're all caught up!"
-              imageAlt=""
-              imageUrl="/images/NotificationEmptyState.svg"
-            />
-          </div>
+          <EmptyNotificationsState />
         )}
       </div>
 
@@ -150,6 +213,40 @@ export default function NotificationTray({
         </button>
       </div>
     </section>
+  );
+}
+
+function EmptyNotificationsState() {
+  return (
+    <div className="flex h-full items-center justify-center px-6 py-10 text-center text-sm text-gray-500">
+      <EmptyState
+        title="No notifications found"
+        description="You're all caught up!"
+        imageAlt=""
+        imageUrl="/images/NotificationEmptyState.svg"
+      />
+    </div>
+  );
+}
+
+function NotificationTraySkeleton() {
+  return (
+    <div className="space-y-3 px-4 py-4">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div
+          key={`notification-group-skeleton-${index}`}
+          className="rounded-xl border border-gray-100 bg-gray-50/70 p-4"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="h-10 w-10 animate-pulse rounded-full bg-gray-200" />
+              <span className="h-4 w-28 animate-pulse rounded-full bg-gray-200" />
+            </div>
+            <span className="h-4 w-4 animate-pulse rounded-full bg-gray-200" />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -203,10 +300,104 @@ function NotificationTab({
       } focus:outline-none`}
     >
       <span>{label}</span>
-      <span className="rounded-full border border-gray-200 bg-white px-1.5 py-0.5 text-xs md:ext-sm leading-none text-gray-500">
-        {count}
-      </span>
+      {count && (
+        <span className="rounded-full border border-gray-200 bg-white px-1.5 py-0.5 text-xs md:ext-sm leading-none text-gray-500">
+          {count}
+        </span>
+      )}
     </Tab>
+  );
+}
+
+function NotificationGroupSection({
+  group,
+  onClose,
+  onLoadMoreGroup,
+  onViewSingle,
+}: {
+  group: NotificationGroup;
+  onClose: () => void;
+  onLoadMoreGroup: (
+    category: NotificationGroupCategory,
+    cursor: string | null,
+  ) => void;
+  onViewSingle: (value: string) => void;
+}) {
+  const canFillAvailableSpace = group.items.length > 0;
+
+  return (
+    <Accordion.Item
+      value={group.category}
+      className={`flex shrink-0 flex-col bg-white data-[state=open]:min-h-[20rem] ${
+        canFillAvailableSpace ? 'data-[state=open]:flex-1' : ''
+      }`}
+    >
+      <Accordion.Header>
+        <Accordion.Trigger className="group flex w-full items-center justify-between gap-3 border-b border-transparent px-4 py-3 text-left transition hover:bg-gray-50 data-[state=open]:border-gray-200 data-[state=open]:bg-gray-100">
+          <div className="flex min-w-0 items-center gap-3">
+            <NotificationGroupIcon category={group.category} />
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="truncate text-base font-medium text-gray-900">
+                {group.label}
+              </span>
+              <span className="rounded-full border border-gray-200 bg-white px-2 py-0.5 text-xs font-medium text-gray-500">
+                {group.count}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {group.count > 0 ? (
+              <span className="h-1.75 w-1.75 rounded-full bg-[#3165F6]" />
+            ) : null}
+            <ChevronAccordionIcon />
+          </div>
+        </Accordion.Trigger>
+      </Accordion.Header>
+
+      <Accordion.Content
+        className={`min-h-0 overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down ${
+          canFillAvailableSpace ? 'data-[state=open]:flex-1' : ''
+        }`}
+      >
+        {group.items.length ? (
+          <div
+            className="tiny-scrollbar max-h-full min-h-[20rem] overflow-y-auto border-t border-gray-100"
+            onScroll={(event) => {
+              const element = event.currentTarget;
+              const nearBottom =
+                element.scrollTop + element.clientHeight >=
+                element.scrollHeight - 48;
+
+              if (nearBottom && group.hasMore && !group.isLoadingMore) {
+                onLoadMoreGroup(group.category, group.nextCursor);
+              }
+            }}
+          >
+            {group.items.map((item) => (
+              <NotificationRow
+                key={item.id}
+                item={item}
+                onClose={onClose}
+                onViewSingle={() => onViewSingle(item.id)}
+              />
+            ))}
+            {group.isLoadingMore ? (
+              <div className="px-4 py-3 text-center text-xs font-medium text-gray-400">
+                Loading more...
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <div className="border-t border-gray-100 px-4 py-5 text-sm text-gray-400">
+            <EmptyState
+              title={`No ${group.label} found`}
+              imageAlt=""
+              imageUrl="/images/NotificationEmptyState.svg"
+            />
+          </div>
+        )}
+      </Accordion.Content>
+    </Accordion.Item>
   );
 }
 
@@ -220,6 +411,7 @@ function NotificationRow({
   onClose: () => void;
 }) {
   const href = getNotificationNavigationPath(item);
+  const timestamp = formatNotificationTime(item.createdAt);
 
   const handlePlainClick = (
     event: React.MouseEvent<HTMLAnchorElement | HTMLElement>,
@@ -250,15 +442,15 @@ function NotificationRow({
         className={`flex gap-4 border-b ${!item.isRead && 'bg-blue-50'} border-gray-200 px-3 sm:px-6 py-4.5 pb-2 transition hover:bg-gray-100 cursor-pointer`}
       >
         <div className="min-w-0 flex-1">
-          <p className="text-sm leading-5 text-gray-600">
-            <span className="font-semibold text-gray-900">
-              {item.title}{' '}
-            </span>{' '}
+          <p className="text-sm  text-gray-600">
+            <span className="font-semibold text-gray-900">{item.title}</span>
           </p>
-          <p className="mt-1 text-xs  text-gray-500">
-            {' '}
-            {new Date(item.createdAt).toLocaleString()}
-          </p>
+          {item.message ? (
+            <p className="mt-1 line-clamp-2 text-sm  text-gray-500">
+              {item.message}
+            </p>
+          ) : null}
+          <p className="mt-1 text-xs text-gray-500">{timestamp}</p>
         </div>
 
         <div className="flex shrink-0 items-start pt-0.5">
@@ -276,33 +468,242 @@ function NotificationRow({
       }}
       className={`flex gap-4 border-b ${!item.isRead && 'bg-blue-50'} border-gray-200 px-3 sm:px-6 py-4.5 pb-2 transition hover:bg-gray-100 cursor-pointer`}
     >
-      {/* <div
-        className={`flex h-9 w-9 drop-shadow shrink-0 items-center justify-center rounded-full bg-white text-xs font-semibold ${item.actorTone}`}
-      >
-        {item.actorInitials}
-      </div> */}
-
       <div className="min-w-0 flex-1">
-        <p className="text-sm leading-5 text-gray-600">
-          <span className="font-semibold text-gray-900">{item.title} </span>{' '}
-          {/* {item.message} */}
+        <p className="text-sm  text-gray-600">
+          <span className="font-semibold text-gray-900">{item.title}</span>
         </p>
-        <p className="mt-1 text-xs  text-gray-500">
-          {' '}
-          {new Date(item.createdAt).toLocaleString()}
-        </p>
+        {item.message ? (
+          <p className="mt-1 line-clamp-2 text-sm  text-gray-500">
+            {item.message}
+          </p>
+        ) : null}
+        <p className="mt-1 text-xs text-gray-500">{timestamp}</p>
       </div>
 
       <div className="flex shrink-0 items-start pt-0.5">
-        {/* {item.kind === 'message' ? (
-          <NotificationMailIcon highlighted={item.unread} />
-        ) : (
-          <NotificationUpdateIcon highlighted={item.unread} />
-        )} */}
         {!item.isRead ? <MailUnreadIcon /> : <MailReadIcon />}
       </div>
     </article>
   );
+}
+
+function NotificationGroupIcon({
+  category,
+}: {
+  category: NotificationGroupCategory;
+}) {
+  const tones: Record<
+    NotificationGroupCategory,
+    { bg: string; stroke: string; icon: React.ReactNode }
+  > = {
+    projects: {
+      bg: 'bg-[#DDFCEA]',
+      stroke: '#6DDC9A',
+      icon: <ProjectsIcon opacity="0" fill="#079455" width="18" height="18" />,
+    },
+    threads: {
+      bg: 'bg-[#DDEEFF]',
+      stroke: '#8BC3FF',
+      icon: <ThreadIcon fill="#1570EF" />,
+    },
+    tickets: {
+      bg: 'bg-[#FFE6E4]',
+      stroke: '#FFAEA8',
+      icon: <TicketIcon2 fill="#D92D20" />,
+    },
+    ticket_replies: {
+      bg: 'bg-[#FFF0CC]',
+      stroke: '#F7D37A',
+      icon: <TicketRepliesGroupGlyph />,
+    },
+    internal_messages: {
+      bg: 'bg-[#FEE4E2]',
+      stroke: '#FDA29B',
+      icon: <ChatIcon fill="#D92D20" />,
+    },
+    mentions: {
+      bg: 'bg-[#EEF4FF]',
+      stroke: '#B2CCFF',
+      icon: (
+        <span className="text-base font-bold leading-none text-blue-500">
+          @
+        </span>
+      ),
+    },
+    members: {
+      bg: 'bg-[#ECFDF3]',
+      stroke: '#ABEFC6',
+      icon: <MembersGroupGlyph />,
+    },
+    events: {
+      bg: 'bg-[#ECEBFF]',
+      stroke: '#C7C2FF',
+      icon: <EventsGroupGlyph />,
+    },
+  };
+
+  const tone = tones[category];
+
+  return (
+    <span
+      className={`flex h-9 w-9 shadow items-center justify-center rounded-full ${tone.bg}`}
+    >
+      {tone.icon}
+    </span>
+  );
+}
+
+function ChevronAccordionIcon() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M14.4969 12.8706C14.3953 12.7361 14.0921 12.3347 13.9115 12.1032C13.5497 11.6397 13.0555 11.0238 12.5223 10.4097C11.9864 9.79256 11.4235 9.19148 10.9234 8.74961C10.6727 8.52805 10.4524 8.35969 10.2706 8.25011C10.0996 8.14704 9.99866 8.12561 9.99866 8.12561C9.99866 8.12561 9.90064 8.14705 9.72969 8.2501C9.54792 8.35968 9.32763 8.52804 9.07687 8.74961C8.57678 9.19148 8.01386 9.79256 7.47799 10.4098C6.94482 11.0238 6.45056 11.6398 6.08883 12.1033C5.90822 12.3347 5.60539 12.7356 5.50382 12.8701C5.29912 13.148 4.90745 13.2079 4.62952 13.0032C4.35158 12.7986 4.29221 12.4073 4.4969 12.1294L4.49847 12.1273C4.60497 11.9863 4.9191 11.5704 5.10339 11.3342C5.47329 10.8602 5.98198 10.2262 6.53411 9.59024C7.08354 8.95743 7.68827 8.30851 8.2492 7.81288C8.52895 7.5657 8.81253 7.34344 9.08433 7.17958C9.33898 7.02607 9.66139 6.875 10.0002 6.875C10.3389 6.875 10.6613 7.02607 10.916 7.17959C11.1878 7.34344 11.4713 7.5657 11.7511 7.81288C12.312 8.30851 12.9167 8.95742 13.4662 9.59023C14.0183 10.2261 14.527 10.8602 14.8969 11.3342C15.0813 11.5705 15.3955 11.9865 15.5018 12.1272L15.5031 12.1289C15.7078 12.4069 15.6487 12.7985 15.3708 13.0032C15.0929 13.2079 14.7016 13.1485 14.4969 12.8706Z"
+        fill="#374151"
+      />
+    </svg>
+  );
+}
+
+function TicketRepliesGroupGlyph() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 18 18"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M6.86323 14.4368C6.25048 14.4368 5.79451 13.9523 5.24476 13.3688C5.08126 13.1948 4.89526 12.9976 4.68226 12.7838L3.20775 11.3048C2.22675 10.3201 1.6875 9.77858 1.6875 8.99183C1.6875 8.20508 2.22675 7.66432 3.20625 6.68107L3.20775 6.67957L4.68226 5.20059C4.84426 5.03784 4.99126 4.88632 5.12626 4.74832C5.92126 3.93082 6.49578 3.3406 7.32078 3.6316C8.22228 3.94885 8.24322 5.13306 8.20422 5.97831C8.27847 5.97681 8.35201 5.97535 8.42476 5.97385C9.29851 5.9551 10.203 5.93559 11.091 6.10209C12.9412 6.45009 14.3272 7.36957 15.2107 8.83582C15.942 10.0486 16.3125 11.6168 16.3125 13.4963C16.3125 13.7063 16.1955 13.8991 16.008 13.9958C15.8213 14.0926 15.5963 14.0768 15.4245 13.9553L15.1912 13.7896C14.2492 13.1191 13.3598 12.4853 12.315 12.2003C11.2283 11.9026 9.99526 11.9401 8.80276 11.9761C8.60476 11.9821 8.40376 11.9881 8.20276 11.9926C8.24251 12.8386 8.22597 14.0348 7.31997 14.3536C7.15722 14.4113 7.00573 14.4376 6.86323 14.4376V14.4368ZM4.00426 7.47385L4.00276 7.47535C3.26026 8.22085 2.81177 8.67083 2.81177 8.99183C2.81177 9.31283 3.25949 9.76358 4.00199 10.5091L5.478 11.9896C5.703 12.2153 5.89424 12.4186 6.06299 12.5978C6.65549 13.2271 6.79874 13.3411 6.94124 13.2938C7.01624 13.2278 7.12948 12.9466 7.06648 11.8178C7.05823 11.6708 7.05147 11.5433 7.05147 11.4368C7.05147 11.1263 7.30346 10.8743 7.61397 10.8743C7.98972 10.8743 8.36849 10.8631 8.76899 10.8511C10.044 10.8128 11.3625 10.7731 12.6113 11.1151C13.5548 11.3723 14.3685 11.8538 15.1365 12.3773C14.859 9.42384 13.4317 7.68682 10.8825 7.20757C10.1092 7.06207 9.26472 7.08083 8.44797 7.09808C8.17422 7.10408 7.89147 7.11009 7.61397 7.11009C7.30346 7.11009 7.05147 6.85809 7.05147 6.54759C7.05147 6.44184 7.05823 6.31433 7.06648 6.16658C7.12873 5.03858 7.01624 4.75732 6.94124 4.69057C6.79199 4.64782 6.39224 5.05809 5.93174 5.53209C5.79374 5.67384 5.64375 5.82833 5.478 5.99483L4.00349 7.47385H4.00426Z"
+        fill="#DC6803"
+      />
+    </svg>
+  );
+}
+
+function InternalMessagesGroupGlyph() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 18 18"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M4.5 4.5H13.5C14.3284 4.5 15 5.17157 15 6V12C15 12.8284 14.3284 13.5 13.5 13.5H7.06066C6.66283 13.5 6.28131 13.658 6 13.9393L4.5 15.4393V4.5ZM6.75 7.5C6.33579 7.5 6 7.83579 6 8.25C6 8.66421 6.33579 9 6.75 9H11.25C11.6642 9 12 8.66421 12 8.25C12 7.83579 11.6642 7.5 11.25 7.5H6.75ZM6.75 10.5C6.33579 10.5 6 10.8358 6 11.25C6 11.6642 6.33579 12 6.75 12H9.75C10.1642 12 10.5 11.6642 10.5 11.25C10.5 10.8358 10.1642 10.5 9.75 10.5H6.75Z"
+        fill="#D92D20"
+      />
+    </svg>
+  );
+}
+
+function MentionsGroupGlyph() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 18 18"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M11.875 5.625C11.875 6.79961 10.9246 7.75 9.75 7.75C8.57539 7.75 7.625 6.79961 7.625 5.625C7.625 4.45039 8.57539 3.5 9.75 3.5C10.9246 3.5 11.875 4.45039 11.875 5.625Z"
+        fill="#3165F6"
+      />
+      <path
+        d="M3.375 9C3.375 5.8934 5.8934 3.375 9 3.375C12.1066 3.375 14.625 5.8934 14.625 9V9.65625C14.625 10.0522 14.3034 10.375 13.9062 10.375C13.5091 10.375 13.1875 10.0522 13.1875 9.65625V9C13.1875 6.68782 11.3122 4.8125 9 4.8125C6.68782 4.8125 4.8125 6.68782 4.8125 9C4.8125 11.3122 6.68782 13.1875 9 13.1875C9.92608 13.1875 10.7822 12.8866 11.4752 12.3779C11.7947 12.1432 12.2441 12.2118 12.4788 12.5312C12.7134 12.8507 12.6449 13.3001 12.3254 13.5348C11.3944 14.2183 10.2411 14.625 9 14.625C5.8934 14.625 3.375 12.1066 3.375 9Z"
+        fill="#3165F6"
+      />
+      <path
+        d="M12.4062 9.65625C12.4062 8.66599 13.2097 7.8625 14.2 7.8625C15.1903 7.8625 15.9937 8.66599 15.9937 9.65625V12.0938C15.9937 12.4903 15.6722 12.8125 15.275 12.8125C14.8778 12.8125 14.5562 12.4903 14.5562 12.0938V9.65625C14.5562 9.45967 14.3966 9.3 14.2 9.3C14.0034 9.3 13.8437 9.45967 13.8437 9.65625V10.125C13.8437 10.5215 13.5222 10.8438 13.125 10.8438C12.7278 10.8438 12.4062 10.5215 12.4062 10.125V9.65625Z"
+        fill="#3165F6"
+      />
+    </svg>
+  );
+}
+
+function MembersGroupGlyph() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 18 18"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M9 9C10.2426 9 11.25 7.99264 11.25 6.75C11.25 5.50736 10.2426 4.5 9 4.5C7.75736 4.5 6.75 5.50736 6.75 6.75C6.75 7.99264 7.75736 9 9 9Z"
+        fill="#12B76A"
+      />
+      <path
+        d="M4.875 13.5C4.875 11.636 6.62104 10.125 9 10.125C11.379 10.125 13.125 11.636 13.125 13.5C13.125 13.9142 12.7892 14.25 12.375 14.25H5.625C5.21079 14.25 4.875 13.9142 4.875 13.5Z"
+        fill="#12B76A"
+      />
+      <path
+        d="M12.9375 5.25C12.9375 4.83579 13.2733 4.5 13.6875 4.5C14.9296 4.5 15.9375 5.50786 15.9375 6.75C15.9375 7.16421 15.6017 7.5 15.1875 7.5C14.7733 7.5 14.4375 7.16421 14.4375 6.75C14.4375 6.33655 14.101 6 13.6875 6C13.2733 6 12.9375 5.66421 12.9375 5.25Z"
+        fill="#12B76A"
+      />
+    </svg>
+  );
+}
+
+function EventsGroupGlyph() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 18 18"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M5.25 3.75C5.66421 3.75 6 4.08579 6 4.5V5.25H12V4.5C12 4.08579 12.3358 3.75 12.75 3.75C13.1642 3.75 13.5 4.08579 13.5 4.5V5.25H14.25C15.0784 5.25 15.75 5.92157 15.75 6.75V12.75C15.75 13.5784 15.0784 14.25 14.25 14.25H3.75C2.92157 14.25 2.25 13.5784 2.25 12.75V6.75C2.25 5.92157 2.92157 5.25 3.75 5.25H4.5V4.5C4.5 4.08579 4.83579 3.75 5.25 3.75ZM3.75 7.5V12.75H14.25V7.5H3.75ZM6 9.375C6 8.96079 6.33579 8.625 6.75 8.625H9C9.41421 8.625 9.75 8.96079 9.75 9.375C9.75 9.78921 9.41421 10.125 9 10.125H6.75C6.33579 10.125 6 9.78921 6 9.375Z"
+        fill="#7A5AF8"
+      />
+    </svg>
+  );
+}
+
+function formatNotificationTime(createdAt: string) {
+  const createdTime = new Date(createdAt).getTime();
+
+  if (Number.isNaN(createdTime)) {
+    return '';
+  }
+
+  const diffInMinutes = Math.max(
+    0,
+    Math.floor((Date.now() - createdTime) / (1000 * 60)),
+  );
+
+  if (diffInMinutes < 1) {
+    return 'Just now';
+  }
+
+  if (diffInMinutes < 60) {
+    return `${diffInMinutes}m ago`;
+  }
+
+  const diffInHours = Math.floor(diffInMinutes / 60);
+
+  if (diffInHours < 24) {
+    return `${diffInHours}h ago`;
+  }
+
+  const diffInDays = Math.floor(diffInHours / 24);
+
+  if (diffInDays < 7) {
+    return `${diffInDays}d ago`;
+  }
+
+  return new Date(createdAt).toLocaleDateString();
 }
 
 function MailUnreadIcon() {

@@ -20,6 +20,7 @@ import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { GetUser } from '../../../common/decorators/get-user.decorator';
 // import { SystemRoles } from '@harperhelp/types';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateMyNameDto } from './dto/update-my-name.dto';
 
 @Controller('users')
 @ApiBearerAuth('JWT-auth')
@@ -44,6 +45,14 @@ export class UsersController {
     return this.usersService.inviteToProject(dto, currentUser);
   }
 
+  @Put('myself')
+  @ApiOperation({
+    summary: 'Update my name',
+  })
+  updateMyName(@Body() dto: UpdateMyNameDto, @GetUser() user) {
+    return this.usersService.updateMyName(user.id, dto.fullName);
+  }
+  
   @Put(':id')
   updateUser(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateUserDto, @GetUser() user){
     return this.usersService.updateUser(id, dto, user);

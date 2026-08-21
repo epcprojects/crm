@@ -495,4 +495,22 @@ export class UsersService {
 
     return { success: true };
   }
+
+  async updateMyName(userId: string, fullName: string) {
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User not found`);
+    }
+
+    user.fullName = fullName;
+    user.normalizedFullName = fullName.toUpperCase();
+    user.updatedAt = new Date();
+    user.updatedBy = userId;
+    await this.userRepo.save(user);
+
+    return this.findById(userId);
+  }
 }

@@ -1,7 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 import clsx from 'clsx';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   useParams,
@@ -55,7 +60,10 @@ import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { NotificationItem } from '@harperhelp/interfaces';
 import { NotificationEntityType } from '@harperhelp/types';
 import { eventEmitter } from '../../../../lib/event-emitter';
-import { validateAttachments } from '../../../../lib/attachments';
+import {
+  validateAttachments,
+  uploadFilesDirectly,
+} from '../../../../lib/attachments';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import RichTextEditor from 'apps/frontend/src/components/RichTextEditor';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -68,6 +76,8 @@ import {
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import TicketDescriptionModal from 'apps/frontend/src/components/modals/TicketDescriptionModal';
 const MAX_DESCRIPTION_LENGTH = 4000;
+const TICKET_REPLIES_PAGE_SIZE = 30;
+
 type GalleryImage = {
   attachmentId: string;
   storageKey?: string;
@@ -154,9 +164,17 @@ export default function TicketDetailPage() {
     enabled: Boolean(projectId),
   });
 
-  const ticketRepliesQuery = useQuery({
-    queryKey: ['ticket-replies', ticketId],
-    queryFn: () => fetchTicketReplies(ticketId, currentUserId),
+  const ticketRepliesQuery = useInfiniteQuery({
+    queryKey: ['ticket-replies', ticketId, currentUserId],
+    initialPageParam: null as TicketRepliesCursor | null,
+    queryFn: ({ pageParam }) =>
+      fetchTicketReplies(
+        ticketId,
+        currentUserId,
+        pageParam as TicketRepliesCursor | null,
+      ),
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore && lastPage.cursor ? lastPage.cursor : undefined,
     enabled: Boolean(ticketId && canViewReplies),
   });
   const ticketTimelineQuery = useQuery({
@@ -259,37 +277,31 @@ export default function TicketDetailPage() {
       attachments: File[];
       mentionedUserIds: string[];
     }) => {
-      const formData = new FormData();
-      if (message.trim()) {
-        formData.append('message', message.trim());
-      }
-
-      mentionedUserIds.forEach((mentionedUserId) => {
-        if (mentionedUserId.trim()) {
-          formData.append('mentionedUserIds', mentionedUserId.trim());
-        }
-      });
-
-      attachments.forEach((attachment) => {
-        formData.append('attachments', attachment);
-      });
+      const uploadedAttachments = attachments.length
+        ? await uploadFilesDirectly(attachments, 'tickets/replies')
+        : [];
 
       const response = await fetch(
         `/api/tickets/${ticketId}/replies?projectId=${encodeURIComponent(projectId)}`,
         {
           method: 'POST',
-          body: formData,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: message.trim(),
+            mentionedUserIds,
+            attachments: uploadedAttachments,
+          }),
         },
       );
 
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        const message =
+        const errorMessage =
           Array.isArray(data?.message) && data.message.length
             ? data.message.join(', ')
             : data?.message || 'Failed to create reply.';
-        throw new Error(message);
+        throw new Error(errorMessage);
       }
 
       return data;
@@ -507,11 +519,14 @@ export default function TicketDetailPage() {
   const {
     messages: internalChatMessages,
     loading: internalChatLoading,
+    loadingMore: internalChatLoadingMore,
+    hasMore: internalChatHasMore,
     sendMessage: sendInternalChatMessage,
     markRead: markInternalChatRead,
     deleteMessage: deleteInternalChatMessage,
     updateMessage: updateInternalChatMessage,
     toggleReaction: toggleInternalChatReaction,
+    loadOlderMessages: loadOlderInternalChatMessages,
   } = useTicketChat({
     projectId: isInternalChatActive ? projectId : '',
     ticketId: isInternalChatActive ? ticketId : '',
@@ -521,11 +536,14 @@ export default function TicketDetailPage() {
   const {
     messages: externalChatMessages,
     loading: externalChatLoading,
+    loadingMore: externalChatLoadingMore,
+    hasMore: externalChatHasMore,
     sendMessage: sendExternalChatMessage,
     markRead: markExternalChatRead,
     deleteMessage: deleteExternalChatMessage,
     updateMessage: updateExternalChatMessage,
     toggleReaction: toggleExternalChatReaction,
+    loadOlderMessages: loadOlderExternalChatMessages,
   } = useTicketChat({
     projectId:
       isChatDrawerOpen && chatDrawerChannel === 'external' ? projectId : '',
@@ -616,8 +634,14 @@ export default function TicketDetailPage() {
       return;
     }
 
-    setLiveReplies(ticketRepliesQuery.data ?? ticket?.replies ?? []);
-  }, [canViewReplies, ticket?.replies, ticketRepliesQuery.data]);
+    const pagedReplies = flattenTicketRepliesPages(
+      ticketRepliesQuery.data?.pages,
+    );
+
+    setLiveReplies(
+      ticketRepliesQuery.data ? pagedReplies : (ticket?.replies ?? []),
+    );
+  }, [canViewReplies, ticket?.replies, ticketRepliesQuery.data?.pages]);
 
   useTicketReplies({
     projectId,
@@ -1411,8 +1435,9 @@ export default function TicketDetailPage() {
 
       if (attachments.length) {
         const uploadedFiles = await uploadChatAttachments(
-          projectId,
           attachments,
+          ticketId,
+          channel,
         );
         const attachmentUrls = uploadedFiles
           .map((file) => buildAttachmentUrl(file.storageKey))
@@ -2203,6 +2228,29 @@ export default function TicketDetailPage() {
                           ? liveReplies
                           : []
                     }
+                    hasMoreReplies={
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? internalChatHasMore
+                        : canViewReplies
+                          ? Boolean(ticketRepliesQuery.hasNextPage)
+                          : false
+                    }
+                    isLoadingMoreReplies={
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? internalChatLoadingMore
+                        : canViewReplies
+                          ? ticketRepliesQuery.isFetchingNextPage
+                          : false
+                    }
+                    onLoadMoreReplies={
+                      isInternalChatActive && canViewInternalChatBtn
+                        ? loadOlderInternalChatMessages
+                        : canViewReplies && ticketRepliesQuery.hasNextPage
+                          ? async () => {
+                              await ticketRepliesQuery.fetchNextPage();
+                            }
+                          : undefined
+                    }
                     emptyTitle={
                       isInternalChatActive && canViewInternalChatBtn
                         ? internalChatLoading
@@ -2911,6 +2959,29 @@ export default function TicketDetailPage() {
                     ? liveReplies
                     : []
               }
+              hasMoreReplies={
+                isInternalChatActive && canViewInternalChatBtn
+                  ? internalChatHasMore
+                  : canViewReplies
+                    ? Boolean(ticketRepliesQuery.hasNextPage)
+                    : false
+              }
+              isLoadingMoreReplies={
+                isInternalChatActive && canViewInternalChatBtn
+                  ? internalChatLoadingMore
+                  : canViewReplies
+                    ? ticketRepliesQuery.isFetchingNextPage
+                    : false
+              }
+              onLoadMoreReplies={
+                isInternalChatActive && canViewInternalChatBtn
+                  ? loadOlderInternalChatMessages
+                  : canViewReplies && ticketRepliesQuery.hasNextPage
+                    ? async () => {
+                        await ticketRepliesQuery.fetchNextPage();
+                      }
+                    : undefined
+              }
               emptyTitle={
                 isInternalChatActive && canViewInternalChatBtn
                   ? internalChatLoading
@@ -3170,31 +3241,135 @@ async function fetchTicketPriorities() {
     .sort((first, second) => first.sortOrder - second.sortOrder);
 }
 
-async function fetchTicketReplies(ticketId: string, currentUserId: string) {
-  const response = await fetch(`/api/tickets/${ticketId}/replies`, {
-    method: 'GET',
-    headers: {
-      Accept: 'application/json',
-    },
-    cache: 'no-store',
+async function fetchTicketReplies(
+  ticketId: string,
+  currentUserId: string,
+  cursor: TicketRepliesCursor | null,
+) {
+  const searchParams = new URLSearchParams({
+    limit: String(TICKET_REPLIES_PAGE_SIZE),
   });
 
+  if (cursor?.createdAt) {
+    searchParams.set('cursorCreatedAt', cursor.createdAt);
+  }
+
+  if (cursor?.id) {
+    searchParams.set('cursorId', cursor.id);
+  }
+
+  const response = await fetch(
+    `/api/tickets/${ticketId}/replies?${searchParams.toString()}`,
+    {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+    },
+  );
+
   const payload = (await response.json().catch(() => null)) as
+    | ApiTicketRepliesResponse
     | ApiTicketReply[]
     | { message?: string }
     | null;
 
-  if (!response.ok || !Array.isArray(payload)) {
+  const normalizedPayload = normalizeTicketRepliesResponse(
+    payload,
+    currentUserId,
+  );
+
+  if (!response.ok || !normalizedPayload) {
     throw new Error(
-      !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket replies.'
-        : 'Failed to fetch ticket replies.',
+      normalizedPayload?.message || 'Failed to fetch ticket replies.',
     );
   }
 
-  return payload.map((reply) =>
-    mapApiTicketReplyToDiscussionReply(reply, currentUserId),
+  return normalizedPayload;
+}
+
+function normalizeTicketRepliesResponse(
+  payload:
+    | ApiTicketRepliesResponse
+    | ApiTicketReply[]
+    | { message?: string }
+    | null,
+  currentUserId: string,
+): TicketRepliesPage | null {
+  if (Array.isArray(payload)) {
+    return {
+      messages: payload.map((reply) =>
+        mapApiTicketReplyToDiscussionReply(reply, currentUserId),
+      ),
+      cursor: null,
+      hasMore: false,
+    };
+  }
+
+  if (!isApiTicketRepliesResponse(payload)) {
+    return payload && 'message' in payload
+      ? {
+          message: payload.message || 'Failed to fetch ticket replies.',
+          messages: [],
+          cursor: null,
+          hasMore: false,
+        }
+      : null;
+  }
+
+  return {
+    messages: payload.replies.map((reply: ApiTicketReply) =>
+      mapApiTicketReplyToDiscussionReply(reply, currentUserId),
+    ),
+    cursor:
+      payload.cursor?.id && payload.cursor?.createdAt
+        ? {
+            id: payload.cursor.id,
+            createdAt: payload.cursor.createdAt,
+          }
+        : null,
+    hasMore: Boolean(payload.hasMore),
+  };
+}
+
+function isApiTicketRepliesResponse(
+  payload:
+    | ApiTicketRepliesResponse
+    | ApiTicketReply[]
+    | { message?: string }
+    | null,
+): payload is ApiTicketRepliesResponse & { replies: ApiTicketReply[] } {
+  return Boolean(
+    payload &&
+      typeof payload === 'object' &&
+      !Array.isArray(payload) &&
+      Array.isArray((payload as ApiTicketRepliesResponse).replies),
   );
+}
+
+function flattenTicketRepliesPages(
+  pages: TicketRepliesPage[] | undefined,
+): DiscussionReply[] {
+  if (!pages?.length) {
+    return [];
+  }
+
+  const repliesById = new Map<string, DiscussionReply>();
+
+  pages
+    .slice()
+    .reverse()
+    .forEach((page) => {
+      page.messages
+        .slice()
+        .reverse()
+        .forEach((reply) => {
+          repliesById.set(reply.id, reply);
+        });
+    });
+
+  return Array.from(repliesById.values());
 }
 
 async function fetchTicketTimeline(projectId: string, ticketId: string) {
@@ -3230,6 +3405,28 @@ type ApiProjectMember = {
   fullName: string;
 };
 
+type TicketRepliesCursor = {
+  createdAt: string;
+  id: string;
+};
+
+type TicketRepliesPage = {
+  messages: DiscussionReply[];
+  cursor: TicketRepliesCursor | null;
+  hasMore: boolean;
+  message?: string;
+};
+
+type ApiTicketRepliesResponse = {
+  replies?: ApiTicketReply[];
+  cursor?: {
+    createdAt?: string | null;
+    id?: string | null;
+  } | null;
+  hasMore?: boolean | null;
+  message?: string;
+};
+
 type ApiTicketStatus = {
   id: string;
   key: string;
@@ -3252,6 +3449,7 @@ type ApiTicketReply = {
   author?: ApiTicketPerson | null;
   attachments?: ApiTicketReplyAttachment[];
   reactions?: ApiTicketReplyReaction[] | null;
+  replyCount?: number | string | null;
 };
 
 type ApiTicketTimelineActivity = {
@@ -3705,6 +3903,7 @@ function mapApiTicketReplyToDiscussionReply(
     },
     createdAt: formatReplyDate(reply.createdAt ?? reply.updatedAt ?? ''),
     message: reply.message?.trim() || '',
+    replyCount: toNumber(reply.replyCount),
     reactions: mapApiTicketReplyReactions(reply.reactions, currentUserId),
     attachments: Array.isArray(reply.attachments)
       ? reply.attachments.map(mapApiTicketReplyAttachment)
@@ -3870,82 +4069,16 @@ type UploadedProjectFile = {
 };
 
 async function uploadChatAttachments(
-  projectId: string,
   attachments: File[],
-): Promise<UploadedProjectFile[]> {
-  const validationError = validateAttachments(attachments);
+  ticketId: string,
+  channel: ChatChannel,
+) {
+  const keyPrefix =
+    channel === 'internal'
+      ? `tickets/${ticketId}/internal-msg`
+      : `tickets/${ticketId}/external-msg`;
 
-  if (validationError) {
-    throw new Error(validationError);
-  }
-
-  const formData = new FormData();
-
-  attachments.forEach((file) => {
-    formData.append('files', file, file.name);
-  });
-
-  const response = await fetch(`/api/projects/${projectId}/files`, {
-    method: 'POST',
-    body: formData,
-  });
-
-  const payload = (await response.json().catch(() => null)) as
-    | UploadedProjectFile[]
-    | {
-        message?: string;
-        data?: UploadedProjectFile[];
-        items?: UploadedProjectFile[];
-      }
-    | null;
-
-  if (!response.ok) {
-    throw new Error(
-      payload && !Array.isArray(payload)
-        ? payload.message || 'Failed to upload chat attachments.'
-        : 'Failed to upload chat attachments.',
-    );
-  }
-
-  const uploadedFiles = Array.isArray(payload)
-    ? payload
-    : Array.isArray(payload?.data)
-      ? payload.data
-      : Array.isArray(payload?.items)
-        ? payload.items
-        : [];
-
-  if (!uploadedFiles.length) {
-    return [];
-  }
-
-  const expectedFileKeys = attachments.map((file) =>
-    buildUploadedFileMatchKey({
-      name: file.name,
-      sizeBytes: file.size,
-    }),
-  );
-  const remainingKeys = [...expectedFileKeys];
-  const matchedFiles = uploadedFiles.filter((file) => {
-    const fileKey = buildUploadedFileMatchKey({
-      name: file.originalName ?? file.name ?? '',
-      sizeBytes: file.sizeBytes,
-    });
-    const matchingIndex = remainingKeys.indexOf(fileKey);
-
-    if (matchingIndex === -1) {
-      return false;
-    }
-
-    remainingKeys.splice(matchingIndex, 1);
-    return true;
-  });
-
-  if (matchedFiles.length) {
-    return matchedFiles;
-  }
-
-  return uploadedFiles.slice(-attachments.length);
+  return uploadFilesDirectly(attachments, keyPrefix);
 }
 
 function extractFileNameFromUrl(url: string) {
@@ -3988,38 +4121,44 @@ function getAttachmentExtension(value?: string | null) {
   return lastSegment.toLowerCase();
 }
 
+// function buildAttachmentUrl(storageKey?: string | null) {
+//   if (!storageKey) {
+//     return '';
+//   }
+
+//   if (/^https?:\/\//i.test(storageKey)) {
+//     return storageKey;
+//   }
+
+//   const cloudfrontUrl = process.env.NEXT_PUBLIC_CLOUDFRONT_URL?.trim() ?? '';
+//   const normalizedBaseUrl = cloudfrontUrl.replace(/\/+$/, '');
+//   const normalizedStorageKey = storageKey.replace(/^\/+/, '');
+//   const encodedStorageKey = normalizedStorageKey
+//     .split('/')
+//     .filter(Boolean)
+//     .map((segment) => encodeURIComponent(segment))
+//     .join('/');
+
+//   if (normalizedBaseUrl && encodedStorageKey) {
+//     return `${normalizedBaseUrl}/${encodedStorageKey}`;
+//   }
+
+//   if (typeof window !== 'undefined' && normalizedStorageKey) {
+//     const searchParams = new URLSearchParams({
+//       storageKey: normalizedStorageKey,
+//       fileName: extractFileNameFromUrl(normalizedStorageKey) || 'attachment',
+//     });
+
+//     return `${window.location.origin}/api/projects/files/download?${searchParams.toString()}`;
+//   }
+
+//   return '';
+// }
 function buildAttachmentUrl(storageKey?: string | null) {
   if (!storageKey) {
     return '';
   }
-
-  if (/^https?:\/\//i.test(storageKey)) {
-    return storageKey;
-  }
-
-  const cloudfrontUrl = process.env.NEXT_PUBLIC_CLOUDFRONT_URL?.trim() ?? '';
-  const normalizedBaseUrl = cloudfrontUrl.replace(/\/+$/, '');
-  const normalizedStorageKey = storageKey.replace(/^\/+/, '');
-  const encodedStorageKey = normalizedStorageKey
-    .split('/')
-    .filter(Boolean)
-    .map((segment) => encodeURIComponent(segment))
-    .join('/');
-
-  if (normalizedBaseUrl && encodedStorageKey) {
-    return `${normalizedBaseUrl}/${encodedStorageKey}`;
-  }
-
-  if (typeof window !== 'undefined' && normalizedStorageKey) {
-    const searchParams = new URLSearchParams({
-      storageKey: normalizedStorageKey,
-      fileName: extractFileNameFromUrl(normalizedStorageKey) || 'attachment',
-    });
-
-    return `${window.location.origin}/api/projects/files/download?${searchParams.toString()}`;
-  }
-
-  return '';
+  return storageKey;
 }
 
 function toNumber(value: string | number | null | undefined) {
@@ -4165,31 +4304,6 @@ async function fetchUnreadIndicator(
   return false;
 }
 
-function getIncomingChatToastMessage(
-  channel: ChatChannel,
-  message: ChatMessage,
-) {
-  const senderName =
-    message.sender?.fullName?.trim() ||
-    message.sender?.name?.trim() ||
-    'Someone';
-  const messagePreview = message.message.trim();
-
-  if (message.messageType === 'attachment' && !messagePreview) {
-    return `New message in: ${senderName} sent an attachment.`;
-  }
-
-  if (message.messageType === 'attachment') {
-    return `New message: ${senderName} sent ${messagePreview}.`;
-  }
-
-  if (!messagePreview) {
-    return `New message in from ${senderName}.`;
-  }
-
-  return `New message from ${senderName}: ${messagePreview}`;
-}
-
 function toDateInputValue(value: string) {
   if (!value) {
     return '';
@@ -4229,29 +4343,6 @@ function formatReplyDate(value: string) {
     hour: 'numeric',
     minute: '2-digit',
   }).format(date);
-}
-
-function formatTimelineDate(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  const formattedDate = new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: '2-digit',
-    year: 'numeric',
-  }).format(date);
-
-  const formattedTime = new Intl.DateTimeFormat('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
-
-  return formattedTime
-    ? `${formattedDate}  •  ${formattedTime}`
-    : formattedDate;
 }
 
 function formatTimelineDateTime(value: string) {

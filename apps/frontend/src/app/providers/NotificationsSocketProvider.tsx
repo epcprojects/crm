@@ -107,6 +107,22 @@ export function NotificationsSocketProvider({
     return payload;
   }
 
+  const markAsRead = useCallback(async (id: string) => {
+    setRecentNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
+    );
+
+    setUnreadCount((c) => Math.max(0, c - 1));
+
+    try {
+      await fetch(`/api/notifications/${id}/read`, {
+        method: 'PATCH',
+      });
+    } catch {
+      // Ignore failures when marking a single notification as read.
+    }
+  }, []);
+
   useEffect(() => {
     if (authStatus === 'loading') {
       return;
@@ -157,8 +173,10 @@ export function NotificationsSocketProvider({
             appToast.info(getNotificationToastMessage(payload), {
               position: 'bottom-right',
               toastId: `notification:${payload.id}`,
-              onClick: () => {
+              onClick: async () => {
                 const nextPath = getNotificationNavigationPath(payload);
+
+                await markAsRead(payload.id);
 
                 if (nextPath) {
                   router.push(nextPath);
@@ -214,22 +232,6 @@ export function NotificationsSocketProvider({
       socketRef.current = null;
     };
   }, [authStatus, isAuthenticated, playNotificationSound, router]);
-
-  const markAsRead = useCallback(async (id: string) => {
-    setRecentNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
-    );
-
-    setUnreadCount((c) => Math.max(0, c - 1));
-
-    try {
-      await fetch(`/api/notifications/${id}/read`, {
-        method: 'PATCH',
-      });
-    } catch {
-      // Ignore failures when marking a single notification as read.
-    }
-  }, []);
 
   const markAllAsRead = useCallback(async () => {
     setUnreadCount(0);

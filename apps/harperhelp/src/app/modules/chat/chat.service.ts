@@ -12,6 +12,7 @@ import { ChatMessageExternal } from './entities/chat-message-external.entity';
 import { SendMessageDto, GetMessagesQueryDto } from './dto/chat-message.dto';
 import { Ticket } from '../tickets/entities/ticket.entity';
 import {
+  FileSource,
   NotificationEntityType,
   NotificationType,
   UserType,
@@ -24,6 +25,8 @@ import { TicketsService } from '../tickets/tickets.service';
 import { ReactionsService } from '../reactions/reactions.service';
 import { Project } from '../projects/entities/project.entity';
 import { ProjectsService } from '../projects/projects.service';
+import { EmailAttachmentLink, EmailEventType } from '../notifications/notifications.types';
+import { UtilityService } from '../utility/utility.service';
 
 export type ChatChannel = 'internal' | 'external';
 
@@ -45,6 +48,7 @@ export class ChatMessagesService {
     private readonly notificationsService: NotificationsService,
     private readonly reactionsService: ReactionsService,
     private readonly projectsService: ProjectsService,
+    private readonly utilityService: UtilityService,
     @InjectRepository(ChatMessageInternal)
     private readonly internalRepo: Repository<ChatMessageInternal>,
 
@@ -119,6 +123,88 @@ export class ChatMessagesService {
     const saved = await this.repo(channel).save(message);
     const fullname = await this.usersService.getFullName(senderId);
     const ticketRefNo = await this.ticketsService.findTicketRefNo(ticketId);
+    // Dispatch reply notification (non-blocking)
+    try {
+      const ticket = await this.internalRepo.manager
+        .getRepository(Ticket)
+        .findOne({
+          where: { id: ticketId },
+          relations: {
+            reporter: true,
+            assignee: true,
+            project: {
+              members: true,
+            },
+          },
+        });
+
+      const members = (ticket.project?.members || [])
+        .filter((m) => m.id !== senderId && m.userType !== UserType.EXTERNAL)
+        .map((m) => ({
+          name: m.fullName,
+          email: m.email,
+          isInvitationAccepted: m.isInvitationAccepted,
+        }));
+
+      const participantsMap = new Map<
+        string,
+        { name: string; email: string; isInvitationAccepted?: boolean }
+      >();
+      for (const m of members) participantsMap.set(m.email, m);
+      if (ticket.reporter && ticket?.reporter?.id !== senderId)
+        participantsMap.set(ticket.reporter.email, {
+          name: ticket.reporter.fullName,
+          email: ticket.reporter.email,
+          isInvitationAccepted: ticket.reporter.isInvitationAccepted,
+        });
+      if (ticket.assignee && ticket?.assignee?.id !== senderId)
+        participantsMap.set(ticket.assignee.email, {
+          name: ticket.assignee.fullName,
+          email: ticket.assignee.email,
+          isInvitationAccepted: ticket.assignee.isInvitationAccepted, // Include the isInvitationAccepted property
+        });
+
+      const participants = Array.from(participantsMap.values());
+      const attachments: EmailAttachmentLink[] = dto.attachmentUrls?.length
+        ? await this.utilityService.getEmailAttachmentLinks(
+            dto.attachmentUrls.map((storageKey, index) => ({
+              storageKey,
+              originalName: extractFilenameFromStorageKey(storageKey),
+              mimeType: 'application/octet-stream',
+              // Only the first file has a real size (schema limitation) —
+              // rest get 0, which formatFileSize should render as empty/omitted
+              sizeBytes: 0,
+            })),
+          )
+        : [];
+
+      console.debug('members for internal message notification:', participants);
+      await this.notificationsService.dispatch({
+        type: EmailEventType.TICKET_REPLY_POSTED,
+        payload: {
+          projectId: ticket?.project?.id,
+          ticketId: ticketId,
+          ticketNumber: ticket.ticketRefNo,
+          ticketTitle: ticket.title,
+          projectName: ticket.project?.name || '',
+          replyContent: dto.message,
+          isInternal: true,
+          postedBy: {
+            name:
+              (
+                await this.internalRepo.manager
+                  .getRepository('users')
+                  .findOne({ where: { id: senderId } })
+              )?.fullName || '',
+            email: '',
+          },
+          participants,
+          attachments,
+        },
+      });
+    } catch (err) {
+      // ignore
+    }
 
     await this.notificationsService.notifyProjectMembers({
       projectId: projectId,
@@ -248,26 +334,43 @@ export class ChatMessagesService {
     ticketId: string,
     query: GetMessagesQueryDto,
   ) {
-    const where: any = { ticketId, isDeleted: false };
+    const limit = query.limit ? Math.min(query.limit, 100) : 30;
 
-    if (query.before) {
-      where.createdAt = LessThan(new Date(query.before));
+    const qb = this.repo(channel)
+      .createQueryBuilder('msg')
+      .leftJoinAndSelect('msg.sender', 'sender')
+      .where('msg.ticketId = :ticketId', { ticketId })
+      .andWhere('msg.isDeleted = false')
+      .andWhere('msg.deletedAt IS NULL')
+      .orderBy('msg.createdAt', 'DESC')
+      .addOrderBy('msg.id', 'DESC')
+      .take(limit + 1);
+
+    if (query.cursorCreatedAt && query.cursorId) {
+      qb.andWhere(
+        '(msg.createdAt < :cCreatedAt OR (msg.createdAt = :cCreatedAt AND msg.id < :cId))',
+        { cCreatedAt: new Date(query.cursorCreatedAt), cId: query.cursorId },
+      );
     }
 
-    const messages = await this.repo(channel).find({
-      where,
-      relations: {
-        sender: true,
-      },
-      order: { createdAt: 'ASC' },
-      ...(query.limit ? { take: query.limit } : {}),
-    });
-    return Promise.all(
-      messages.map(async (msg) => ({
+    const rows = await qb.getMany();
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+
+    const enriched = await Promise.all(
+      page.map(async (msg) => ({
         ...msg,
         reactions: await this.reactionsService.getInternalChatReactions(msg.id),
       })),
     );
+
+    const last = page[page.length - 1];
+
+    return {
+      messages: enriched,
+      cursor: hasMore ? { createdAt: last.createdAt, id: last.id } : null,
+      hasMore,
+    };
   }
 
   // - Mark read
@@ -497,4 +600,9 @@ export class ChatMessagesService {
       throw new ForbiddenException('You do not have access to this project.');
     }
   }
+}
+
+function extractFilenameFromStorageKey(storageKey: string): string {
+  const lastSegment = storageKey.split('/').pop() ?? storageKey;
+  return lastSegment.replace(/^\d+-/, '');
 }

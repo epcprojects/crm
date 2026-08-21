@@ -13,6 +13,14 @@ export enum EmailEventType {
 
 }
 
+export interface EmailAttachmentLink {
+  filename: string;
+  extension: string;   // lowercase, no dot — e.g. "pdf", "png"
+  viewUrl: string;      // opens/previews in browser
+  downloadUrl: string;  // forces Save-As
+  sizeLabel: string;    // '' if unknown — renderer skips the size line
+}
+
 export interface EmailRecipient {
   email: string;
   name: string;
@@ -28,6 +36,7 @@ export interface ProjectCreatedPayload {
   description?: string;
   createdBy: EmailRecipient;
   members: EmailRecipient[];
+  attachments?: EmailAttachmentLink[];
 }
 
 export interface ProjectAssignedPayload {
@@ -61,6 +70,7 @@ export interface TicketCreatedPayload {
   createdBy: EmailRecipient;
   assignee?: EmailRecipient;
   participants: EmailRecipient[];
+  attachments?: EmailAttachmentLink[];
 }
 
 export interface TicketReplyPostedPayload {
@@ -73,6 +83,7 @@ export interface TicketReplyPostedPayload {
   isInternal: boolean; // internal PM<->Dev vs external PM<->Client
   postedBy: EmailRecipient;
   participants: EmailRecipient[];
+  attachments?: EmailAttachmentLink[]; // optional list of attachments to show in the email
 }
 
 export interface TicketStatusUpdatedPayload {
@@ -120,6 +131,7 @@ export interface TicketAttachmentAddedPayload {
   fileSize: string; // human-readable e.g. "2.4 MB"
   uploadedBy: EmailRecipient;
   participants: EmailRecipient[];
+  attachments?: EmailAttachmentLink[];
 }
 
 export interface ThreadMessageCreatedPayload {
@@ -129,6 +141,7 @@ export interface ThreadMessageCreatedPayload {
   message: string;
   createdBy: EmailRecipient;
   participants: EmailRecipient[];
+  attachments?: EmailAttachmentLink[];
 }
 export interface ThreadReplyCreatedPayload {
   messageId: string;
@@ -141,9 +154,17 @@ export interface ThreadReplyCreatedPayload {
     id: string;
     message: string;
   };
+  attachments?: EmailAttachmentLink[];
 }
 
 // Union event type used internally
+
+export function formatFileSize(bytes: number): string {
+  if (!bytes) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export type EmailNotificationEvent =
   | { type: EmailEventType.PROJECT_CREATED; payload: ProjectCreatedPayload }
