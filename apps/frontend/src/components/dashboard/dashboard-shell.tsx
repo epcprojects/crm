@@ -21,6 +21,7 @@ import {
   UserGroup,
   SettingsIcon,
   RolesIcon,
+  ProfileIcon,
 } from '../../../public/icons/index';
 import { logoutThunk } from '../../app/Redux/slices/auth/authThunks';
 import {
@@ -37,8 +38,11 @@ import { Images } from '../../app/ui/images';
 import ChangePasswordModal, {
   type ChangePasswordFormValues,
 } from '../modals/ChangePasswordModal';
-import NotificationTray, { NotificationBellIcon } from './NotificationTray';
-import { mockNotifications } from './notification-data';
+import NotificationTray, {
+  NotificationBellIcon,
+  type NotificationGroup,
+  type NotificationGroupCategory,
+} from './NotificationTray';
 import Portal from '../modals/portal';
 import { appToast } from '../toast/AppToast';
 import ThemeButton from '../ui/ThemeButton';
@@ -49,6 +53,7 @@ import { useNotificationsSocket } from '../../app/providers/NotificationsSocketP
 import EmptyState from '../EmptyState';
 
 const PAGE_SIZE = 20;
+const INITIAL_GROUP_PAGE_SIZE = 10;
 
 type NavItem = {
   href: string;
@@ -79,6 +84,24 @@ type DashboardHeaderActionContextValue = {
   setHeaderActionOverride: (action: (() => void) | null) => void;
   setHeaderCountOverride: (count: number | null) => void;
 };
+
+type NotificationCategoryCounts = Record<NotificationGroupCategory, number>;
+
+type NotificationCountSummary = {
+  totalCount: number;
+  totalUnreadCount: number;
+  categoryUnreadCounts: NotificationCategoryCounts;
+};
+
+type CategorizedNotificationBucket = {
+  items: NotificationItem[];
+  hasMore: boolean;
+  cursor: string | null;
+};
+
+type CategorizedNotificationResponse = Partial<
+  Record<NotificationGroupCategory, CategorizedNotificationBucket>
+>;
 
 const DashboardHeaderActionContext =
   createContext<DashboardHeaderActionContextValue | null>(null);
@@ -200,11 +223,38 @@ const pageHeaderConfigs: PageHeaderConfig[] = [
     title: 'Settings',
     subtitle: 'Manage ticket statuses and priority levels.',
   },
+  {
+    href: '/profile',
+    title: 'Profile',
+    subtitle: 'Manage your personal account details.',
+  },
 ];
 
 const fallbackAccount = {
   name: 'Admin',
   email: 'admin@gmail.com',
+};
+
+const notificationCategoryLabels: Record<NotificationGroupCategory, string> = {
+  mentions: 'Mentions',
+  projects: 'Projects',
+  threads: 'Threads',
+  tickets: 'Tickets',
+  ticket_replies: 'Ticket Replies',
+  internal_messages: 'Internal Messages',
+  members: 'Members',
+  events: 'Events',
+};
+
+const emptyNotificationCategoryCounts: NotificationCategoryCounts = {
+  projects: 0,
+  threads: 0,
+  tickets: 0,
+  ticket_replies: 0,
+  internal_messages: 0,
+  mentions: 0,
+  members: 0,
+  events: 0,
 };
 
 function getProjectInitials(name: string) {
@@ -266,10 +316,13 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const [notificationFilter, setNotificationFilter] = useState<
     'all' | 'unread'
   >('all');
-  const [items, setItems] = useState<NotificationItem[]>([]);
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
+  const [searchItems, setSearchItems] = useState<NotificationItem[]>([]);
+  const [groupedItems, setGroupedItems] = useState<NotificationGroup[]>([]);
+  const [categoryUnreadCounts, setCategoryUnreadCounts] =
+    useState<NotificationCategoryCounts>(emptyNotificationCategoryCounts);
   const [allNotificationCount, setAllNotificationCount] = useState(0);
+  const [totalUnreadNotificationCount, setTotalUnreadNotificationCount] =
+    useState(0);
   const [searchAllCount, setSearchAllCount] = useState(0);
   const [searchUnreadCount, setSearchUnreadCount] = useState(0);
   const [unreadOnly, setUnreadOnly] = useState(false);
@@ -455,6 +508,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     setChangePasswordOpen(true);
   };
 
+  const handleOpenProfile = () => {
+    void router.push('/profile');
+  };
+
   const handleHeaderAction = () => {
     headerActionOverride?.() ?? currentHeader.action?.onClick();
   };
@@ -489,6 +546,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     pathname?.startsWith('/dashboard') ||
     pathname?.startsWith('/notifications') ||
     pathname?.startsWith('/settings') ||
+    pathname?.startsWith('/profile') ||
     pathname?.startsWith('/users') ||
     pathname?.startsWith('/roles') ||
     pathname?.startsWith('/page-not-found') ||
@@ -504,11 +562,43 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const isMobile = useIsMobile();
   const hasNotificationSearch = notificationSearchValue.trim().length > 0;
 
+  const loadCategoryUnreadCounts = useCallback(async () => {
+    const response = await fetch('/api/notifications/unread-count', {
+      cache: 'no-store',
+      credentials: 'include',
+    });
+    const payload = (await response.json().catch(() => null)) as
+      | {
+          totalCount?: number;
+          totalUnreadCount?: number;
+          categoryUnreadCounts?: Partial<
+            Record<NotificationGroupCategory, number>
+          >;
+          message?: string;
+        }
+      | { message?: string }
+      | null;
+
+    if (!response.ok) {
+      throw new Error(
+        payload && 'message' in payload
+          ? payload.message || 'Failed to fetch unread notification counts.'
+          : 'Failed to fetch unread notification counts.',
+      );
+    }
+
+    const normalizedSummary = normalizeNotificationCountSummary(payload);
+    setCategoryUnreadCounts(normalizedSummary.categoryUnreadCounts);
+    setAllNotificationCount(normalizedSummary.totalCount);
+    setTotalUnreadNotificationCount(normalizedSummary.totalUnreadCount);
+    return normalizedSummary;
+  }, []);
+
   const load = useCallback(
-    async (p: number, unreadOnlyFlag: boolean, searchTerm: string) => {
+    async (unreadOnlyFlag: boolean, searchTerm: string) => {
       if (!isAuthenticated) {
-        setItems([]);
-        setTotal(0);
+        setSearchItems([]);
+        setGroupedItems([]);
         setNotificationLoading(false);
         return;
       }
@@ -521,7 +611,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         const searchParams = new URLSearchParams({
           query: normalizedSearch,
           limit: String(PAGE_SIZE),
-          offset: String((p - 1) * PAGE_SIZE),
+          offset: '0',
         });
 
         const res = await fetch(`/api/notifications/search?${searchParams}`, {
@@ -534,46 +624,49 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           : data;
         const unreadItemsCount = data.filter((item) => !item.isRead).length;
 
-        setItems(nextItems);
-        setTotal((p - 1) * PAGE_SIZE + nextItems.length);
+        setSearchItems(nextItems);
+        setGroupedItems([]);
         setSearchAllCount(data.length);
         setSearchUnreadCount(unreadItemsCount);
         setNotificationLoading(false);
         return;
       }
 
-      const res = await fetch(
-        `/api/notifications?page=${p}&limit=${PAGE_SIZE}&unreadOnly=${unreadOnlyFlag}`,
-        {
+      const groupedSearchParams = new URLSearchParams({
+        grouped: 'true',
+        limit: String(INITIAL_GROUP_PAGE_SIZE),
+        unreadOnly: String(unreadOnlyFlag),
+      });
+      const [categorizedResponse, countSummary] = await Promise.all([
+        fetch(`/api/notifications?${groupedSearchParams}`, {
           cache: 'no-store',
           credentials: 'include',
-        },
+        }).then((response) => response.json()),
+        loadCategoryUnreadCounts(),
+      ]);
+      const nextGroupedItems = mapCategorizedResponseToGroups(
+        categorizedResponse,
+        countSummary.categoryUnreadCounts,
       );
-      const data = await res.json();
-      setItems(data.items);
-      setTotal(data.total);
-      if (!unreadOnlyFlag) {
-        setAllNotificationCount(data.total);
-      }
+      setSearchItems([]);
+      setGroupedItems(nextGroupedItems);
+      setAllNotificationCount(countSummary.totalCount);
+      setTotalUnreadNotificationCount(countSummary.totalUnreadCount);
       setNotificationLoading(false);
     },
-    [isAuthenticated],
+    [isAuthenticated, loadCategoryUnreadCounts],
   );
 
   useEffect(() => {
-    setPage(1);
-  }, [notificationSearchValue, unreadOnly]);
-
-  useEffect(() => {
     if (!isAuthenticated) {
-      setItems([]);
-      setTotal(0);
+      setSearchItems([]);
+      setGroupedItems([]);
       setNotificationLoading(false);
       return;
     }
 
-    load(page, unreadOnly, notificationSearchValue);
-  }, [isAuthenticated, page, unreadOnly, load, notificationSearchValue]);
+    load(unreadOnly, notificationSearchValue);
+  }, [isAuthenticated, unreadOnly, load, notificationSearchValue]);
 
   useEffect(() => {
     if (!isAuthenticated || hasNotificationSearch) {
@@ -581,31 +674,151 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     }
 
     if (recentNotifications?.length > 0) {
-      setItems((prev) => mergeNotificationsById(recentNotifications, prev));
+      void load(unreadOnly, '');
     }
-  }, [hasNotificationSearch, isAuthenticated, recentNotifications]);
+  }, [
+    hasNotificationSearch,
+    isAuthenticated,
+    load,
+    recentNotifications,
+    unreadOnly,
+  ]);
+
+  async function handleLoadMoreGroup(
+    category: NotificationGroupCategory,
+    cursor: string | null,
+  ) {
+    if (!cursor) {
+      return;
+    }
+
+    setGroupedItems((currentGroups) =>
+      currentGroups.map((group) =>
+        group.category === category ? { ...group, isLoadingMore: true } : group,
+      ),
+    );
+
+    try {
+      const searchParams = new URLSearchParams({
+        category,
+        limit: String(INITIAL_GROUP_PAGE_SIZE),
+        unreadOnly: String(unreadOnly),
+      });
+      searchParams.set('cursor', cursor);
+      const response = await fetch(`/api/notifications?${searchParams}`, {
+        cache: 'no-store',
+        credentials: 'include',
+      });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(
+          payload?.message || 'Failed to load more notifications.',
+        );
+      }
+
+      setGroupedItems((currentGroups) =>
+        currentGroups.map((group) => {
+          if (group.category !== category) {
+            return group;
+          }
+
+          return {
+            ...group,
+            items: appendNotificationsById(
+              group.items,
+              extractCategorizedBucketItems(payload, category),
+            ),
+            nextCursor: extractCategorizedBucketCursor(payload, category),
+            hasMore: extractCategorizedBucketHasMore(payload, category),
+            isLoadingMore: false,
+          };
+        }),
+      );
+    } catch (error) {
+      setGroupedItems((currentGroups) =>
+        currentGroups.map((group) =>
+          group.category === category
+            ? { ...group, isLoadingMore: false }
+            : group,
+        ),
+      );
+      appToast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to load more notifications.',
+      );
+    }
+  }
 
   async function handleMarkAsRead(id: string) {
-    setItems((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
+    setSearchItems((prev) =>
+      unreadOnly
+        ? prev.filter((n) => n.id !== id)
+        : prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
+    );
+    setGroupedItems((prev) =>
+      prev.map((group) => {
+        const containsUnreadTarget = group.items.some(
+          (item) => item.id === id && !item.isRead,
+        );
+
+        if (!containsUnreadTarget) {
+          return {
+            ...group,
+            items: unreadOnly
+              ? group.items.filter((item) => item.id !== id)
+              : group.items.map((item) =>
+                  item.id === id ? { ...item, isRead: true } : item,
+                ),
+          };
+        }
+
+        return {
+          ...group,
+          count: Math.max(0, group.count - 1),
+          items: unreadOnly
+            ? group.items.filter((item) => item.id !== id)
+            : group.items.map((item) =>
+                item.id === id ? { ...item, isRead: true } : item,
+              ),
+        };
+      }),
     );
     await fetch(`/api/notifications/${id}/read`, {
       method: 'PATCH',
     });
+    await loadCategoryUnreadCounts().catch(() => undefined);
   }
 
   async function handleMarkAllAsRead() {
-    setItems((prev) => prev?.map((n) => ({ ...n, isRead: true })));
+    setSearchItems((prev) =>
+      unreadOnly
+        ? []
+        : prev.map((notification) => ({ ...notification, isRead: true })),
+    );
+    setGroupedItems((prev) =>
+      prev.map((group) => ({
+        ...group,
+        count: 0,
+        items: unreadOnly
+          ? []
+          : group.items.map((notification) => ({
+              ...notification,
+              isRead: true,
+            })),
+        hasMore: unreadOnly ? false : group.hasMore,
+        nextCursor: unreadOnly ? null : group.nextCursor,
+      })),
+    );
     syncMarkAllAsRead();
+    setCategoryUnreadCounts(emptyNotificationCategoryCounts);
+    setTotalUnreadNotificationCount(0);
   }
 
-  const visibleUnreadNotificationsCount = useMemo(
-    () => items.filter((notification) => !notification.isRead).length,
-    [items],
-  );
   const unreadNotificationsCount = hasNotificationSearch
     ? searchUnreadCount
-    : socketUnreadCount;
+    : totalUnreadNotificationCount || socketUnreadCount;
   const totalNotificationsCount = hasNotificationSearch
     ? searchAllCount
     : allNotificationCount;
@@ -729,6 +942,36 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                       <MenuItem>
                         <button
                           className="flex w-full items-center gap-2 sm:gap-3 rounded-lg px-3 py-2 text-left text-sm md:text-base font-medium text-black transition data-focus:bg-gray-50"
+                          onClick={handleOpenProfile}
+                          type="button"
+                        >
+                          <svg
+                            width={isMobile ? '20' : '24'}
+                            height={isMobile ? '20' : '24'}
+                            viewBox="0 0 18 18"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              clipRule="evenodd"
+                              d="M9 0.9375C6.82538 0.9375 5.0625 2.70038 5.0625 4.875C5.0625 7.04962 6.82538 8.8125 9 8.8125C11.1746 8.8125 12.9375 7.04962 12.9375 4.875C12.9375 2.70038 11.1746 0.9375 9 0.9375ZM6.1875 4.875C6.1875 3.3217 7.4467 2.0625 9 2.0625C10.5533 2.0625 11.8125 3.3217 11.8125 4.875C11.8125 6.4283 10.5533 7.6875 9 7.6875C7.4467 7.6875 6.1875 6.4283 6.1875 4.875Z"
+                              fill="#111827"
+                            />
+                            <path
+                              fillRule="evenodd"
+                              clipRule="evenodd"
+                              d="M13.6716 11.3094C13.5497 11.2406 13.4419 11.1798 13.3547 11.1279C10.6892 9.54071 7.31107 9.54071 4.64553 11.1279C4.5583 11.1798 4.45054 11.2406 4.32854 11.3094C3.79393 11.6111 2.9858 12.067 2.43217 12.6089C2.08592 12.9478 1.75693 13.3944 1.69712 13.9416C1.63352 14.5235 1.88736 15.0695 2.39663 15.5547C3.27521 16.3917 4.32955 17.0625 5.69328 17.0625H12.307C13.6707 17.0625 14.725 16.3917 15.6036 15.5547C16.1129 15.0695 16.3667 14.5235 16.3031 13.9416C16.2433 13.3944 15.9143 12.9478 15.5681 12.6089C15.0145 12.067 14.2062 11.611 13.6716 11.3094ZM5.2211 12.0945C7.53198 10.7185 10.4683 10.7185 12.7792 12.0945C12.9051 12.1695 13.0431 12.2477 13.1876 12.3297C13.722 12.6329 14.3461 12.987 14.7812 13.4128C15.0512 13.6772 15.1664 13.8953 15.1848 14.0638C15.1994 14.1976 15.1656 14.4182 14.8276 14.7402C14.0507 15.4803 13.2613 15.9375 12.307 15.9375H5.69328C4.73895 15.9375 3.94952 15.4803 3.17263 14.7402C2.83466 14.4182 2.80084 14.1976 2.81546 14.0638C2.83388 13.8953 2.94901 13.6772 3.21911 13.4128C3.65417 12.987 4.27819 12.633 4.81265 12.3298C4.95715 12.2478 5.0952 12.1695 5.2211 12.0945Z"
+                              fill="#111827"
+                            />
+                          </svg>
+                          Profile
+                        </button>
+                      </MenuItem>
+
+                      <MenuItem>
+                        <button
+                          className="flex w-full items-center gap-2 sm:gap-3 rounded-lg px-3 py-2 text-left text-sm md:text-base font-medium text-black transition data-focus:bg-gray-50"
                           onClick={handleChangePassword}
                           type="button"
                         >
@@ -774,13 +1017,15 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                 >
                   <NotificationTray
                     activeFilter={notificationFilter}
-                    items={items}
+                    groupedItems={groupedItems}
+                    isLoading={loading}
                     onChangeFilter={(value) => {
                       setNotificationFilter(value === 'all' ? 'all' : 'unread');
                       setUnreadOnly(value === 'all' ? false : true);
                     }}
                     onChangeSearch={setNotificationSearchValue}
                     onClose={() => setIsNotificationTrayOpen(false)}
+                    onLoadMoreGroup={handleLoadMoreGroup}
                     onMarkAllAsRead={() => {
                       handleMarkAllAsRead();
                       setNotificationFilter('all');
@@ -790,6 +1035,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                       void router.push('/notifications');
                     }}
                     onViewSingle={handleMarkAsRead}
+                    searchItems={searchItems}
                     searchValue={notificationSearchValue}
                     totalCount={totalNotificationsCount}
                     unreadCount={unreadNotificationsCount}
@@ -814,6 +1060,20 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                   anchor="bottom end"
                   className="z-300 mt-3 w-52 origin-top-right rounded-xl bg-white p-1 ring-1 ring-gray-200 focus:outline-none sm:w-66"
                 >
+                  <MenuItem>
+                    <button
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-black transition data-focus:bg-gray-50 sm:gap-3 md:text-base"
+                      onClick={handleOpenProfile}
+                      type="button"
+                    >
+                      <ProfileMenuIcon
+                        height={isMobile ? '20' : '24'}
+                        width={isMobile ? '20' : '24'}
+                      />
+                      Profile
+                    </button>
+                  </MenuItem>
+
                   <MenuItem>
                     <button
                       className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-black transition data-focus:bg-gray-50 sm:gap-3 md:text-base"
@@ -988,6 +1248,16 @@ function NoAccessPage() {
   );
 }
 
+function ProfileMenuIcon({ width = '24', height = '24' }) {
+  return (
+    <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-slate-50">
+      <span style={{ height, width }}>
+        <ProfileIcon />
+      </span>
+    </span>
+  );
+}
+
 function LogoutMenuIcon({ width = '24', height = '24' }) {
   return (
     <svg
@@ -1053,63 +1323,136 @@ function mergeNotificationsById(
   });
 }
 
-// function RolesIcon({
-//   fill = 'currentColor',
-//   opacity = '0.4',
-// }: {
-//   fill?: string;
-//   opacity?: string;
-// }) {
-//   return (
-//     <svg
-//       width="26"
-//       height="26"
-//       viewBox="0 0 26 26"
-//       fill="none"
-//       xmlns="http://www.w3.org/2000/svg"
-//     >
-//       <g opacity={opacity}>
-//         <path
-//           d="M9.20822 9.20833C9.20822 10.7041 7.99566 11.9167 6.49989 11.9167C5.00412 11.9167 3.79155 10.7041 3.79155 9.20833C3.79155 7.71256 5.00412 6.5 6.49989 6.5C7.99566 6.5 9.20822 7.71256 9.20822 9.20833Z"
-//           fill={fill}
-//         />
-//         <path
-//           d="M22.2082 9.20833C22.2082 10.7041 20.9957 11.9167 19.4999 11.9167C18.0041 11.9167 16.7916 10.7041 16.7916 9.20833C16.7916 7.71256 18.0041 6.5 19.4999 6.5C20.9957 6.5 22.2082 7.71256 22.2082 9.20833Z"
-//           fill={fill}
-//         />
-//         <path
-//           d="M8.38015 16.5955C8.5194 16.5137 8.64725 16.4385 8.75734 16.3705C11.3531 14.7654 14.6467 14.7654 17.2424 16.3705C17.3525 16.4385 17.4804 16.5137 17.6196 16.5955C18.8805 17.3364 21.0758 18.6264 19.484 20.2014C18.6205 21.0557 17.6587 21.6667 16.4496 21.6667H9.55015C8.34103 21.6667 7.37931 21.0557 6.51581 20.2014C4.92393 18.6264 7.1193 17.3364 8.38015 16.5955Z"
-//           fill={fill}
-//         />
-//       </g>
-//       <path
-//         fillRule="evenodd"
-//         clipRule="evenodd"
-//         d="M8.39572 8.12501C8.39572 5.5822 10.4571 3.52084 12.9999 3.52084C15.5427 3.52084 17.6041 5.5822 17.6041 8.12501C17.6041 10.6678 15.5427 12.7292 12.9999 12.7292C10.4571 12.7292 8.39572 10.6678 8.39572 8.12501ZM12.9999 5.14584C11.3545 5.14584 10.0207 6.47966 10.0207 8.12501C10.0207 9.77036 11.3545 11.1042 12.9999 11.1042C14.6452 11.1042 15.9791 9.77036 15.9791 8.12501C15.9791 6.47966 14.6452 5.14584 12.9999 5.14584Z"
-//         fill={fill}
-//       />
-//       <path
-//         fillRule="evenodd"
-//         clipRule="evenodd"
-//         d="M8.33019 15.6794C11.1878 13.9124 14.8123 13.9124 17.6699 15.6794C17.7541 15.7315 17.8608 15.7939 17.9834 15.8656C18.5383 16.1904 19.4194 16.7059 20.0205 17.317C20.3981 17.7007 20.7747 18.2239 20.8433 18.8762C20.9168 19.574 20.6206 20.22 20.0556 20.779C19.1221 21.7025 17.9659 22.4792 16.4498 22.4792H9.55031C8.03423 22.4792 6.87795 21.7025 5.94453 20.779C5.3795 20.22 5.08331 19.574 5.15677 18.8762C5.22542 18.2239 5.60199 17.7007 5.97956 17.317C6.5807 16.7059 7.46165 16.1904 8.01661 15.8657C8.13922 15.7939 8.24593 15.7315 8.33019 15.6794ZM16.8153 17.0615C14.4814 15.6184 11.5187 15.6184 9.18481 17.0615C9.04472 17.1481 8.89451 17.2367 8.73952 17.3281C8.18499 17.6551 7.56935 18.0181 7.13795 18.4566C6.87254 18.7264 6.78579 18.9233 6.77284 19.0463C6.76468 19.1238 6.76859 19.3084 7.08741 19.6238C7.88099 20.4089 8.64816 20.8542 9.55031 20.8542H16.4498C17.3519 20.8542 18.1191 20.4089 18.9127 19.6238C19.2315 19.3084 19.2354 19.1238 19.2273 19.0463C19.2143 18.9233 19.1275 18.7264 18.8621 18.4566C18.4307 18.0181 17.8152 17.6551 17.2606 17.3281C17.1056 17.2367 16.9554 17.1482 16.8153 17.0615Z"
-//         fill={fill}
-//       />
-//       <path
-//         d="M2.43743 9.20834C2.43743 7.26384 4.01376 5.68751 5.95826 5.68751C6.407 5.68751 6.77076 6.05128 6.77076 6.50001C6.77076 6.94874 6.407 7.31251 5.95826 7.31251C4.91122 7.31251 4.06243 8.1613 4.06243 9.20834C4.06243 10.2554 4.91122 11.1042 5.95826 11.1042C6.407 11.1042 6.77076 11.4679 6.77076 11.9167C6.77076 12.3654 6.407 12.7292 5.95826 12.7292C4.01376 12.7292 2.43743 11.1528 2.43743 9.20834Z"
-//         fill={fill}
-//       />
-//       <path
-//         d="M5.34339 13.2741C5.7903 13.2337 6.18536 13.5632 6.22579 14.0101C6.26622 14.457 5.93671 14.8521 5.4898 14.8925C4.79614 14.9553 4.09775 15.2232 3.45819 15.7157C3.35514 15.7951 3.24818 15.8737 3.14031 15.953C2.77241 16.2234 2.3939 16.5016 2.12389 16.8434C1.96358 17.0463 1.90629 17.1988 1.89719 17.3065C1.89025 17.3886 1.90195 17.5331 2.08847 17.7629C2.62514 18.4241 3.06192 18.6875 3.49472 18.6875C3.94345 18.6875 4.30722 19.0513 4.30722 19.5C4.30722 19.9487 3.94345 20.3125 3.49472 20.3125C2.30403 20.3125 1.4495 19.5542 0.826745 18.7869C0.419891 18.2857 0.230117 17.7357 0.277965 17.1697C0.323652 16.6291 0.577411 16.1796 0.848767 15.8361C1.27345 15.2985 1.90351 14.8401 2.27259 14.5716C2.35031 14.5151 2.41653 14.4669 2.46674 14.4282C3.33806 13.7573 4.32665 13.3661 5.34339 13.2741Z"
-//         fill={fill}
-//       />
-//       <path
-//         d="M18.6874 6.50001C18.6874 6.05128 19.0512 5.68751 19.4999 5.68751C21.4444 5.68751 23.0207 7.26384 23.0207 9.20834C23.0207 11.1528 21.4444 12.7292 19.4999 12.7292C19.0512 12.7292 18.6874 12.3654 18.6874 11.9167C18.6874 11.4679 19.0512 11.1042 19.4999 11.1042C20.5469 11.1042 21.3957 10.2554 21.3957 9.20834C21.3957 8.1613 20.5469 7.31251 19.4999 7.31251C19.0512 7.31251 18.6874 6.94874 18.6874 6.50001Z"
-//         fill={fill}
-//       />
-//       <path
-//         d="M19.774 14.0101C19.8145 13.5632 20.2095 13.2337 20.6564 13.2741C21.6732 13.3661 22.6618 13.7573 23.5331 14.4282C23.5833 14.4669 23.6494 14.515 23.7271 14.5715C24.0962 14.84 24.7264 15.2985 25.151 15.8361C25.4224 16.1796 25.6762 16.6291 25.7219 17.1697C25.7697 17.7357 25.5799 18.2857 25.1731 18.7869C24.5503 19.5542 23.6958 20.3125 22.5051 20.3125C22.0564 20.3125 21.6926 19.9487 21.6926 19.5C21.6926 19.0513 22.0564 18.6875 22.5051 18.6875C22.9379 18.6875 23.3747 18.4241 23.9113 17.7629C24.0979 17.5331 24.1096 17.3886 24.1026 17.3065C24.0935 17.1988 24.0362 17.0463 23.8759 16.8434C23.6059 16.5016 23.2274 16.2234 22.8595 15.953C22.7517 15.8737 22.6447 15.7951 22.5416 15.7157C21.9021 15.2232 21.2037 14.9553 20.51 14.8925C20.0631 14.8521 19.7336 14.457 19.774 14.0101Z"
-//         fill={fill}
-//       />
-//     </svg>
-//   );
-// }
+function appendNotificationsById(
+  existing: NotificationItem[],
+  incoming: NotificationItem[],
+) {
+  const merged = [...existing, ...incoming];
+  const seen = new Set<string>();
+
+  return merged.filter((notification) => {
+    if (seen.has(notification.id)) {
+      return false;
+    }
+
+    seen.add(notification.id);
+    return true;
+  });
+}
+
+function mapCategorizedResponseToGroups(
+  payload: unknown,
+  categoryCounts: NotificationCategoryCounts,
+): NotificationGroup[] {
+  const normalizedPayload = isCategorizedNotificationResponse(payload)
+    ? payload
+    : {};
+
+  return (
+    Object.keys(notificationCategoryLabels) as NotificationGroupCategory[]
+  )
+    .slice(0, 6)
+    .map((category) => {
+      const bucket = normalizedPayload[category];
+
+      return {
+        category,
+        label: notificationCategoryLabels[category],
+        count: categoryCounts[category] ?? 0,
+        items: Array.isArray(bucket?.items) ? bucket.items : [],
+        nextCursor: typeof bucket?.cursor === 'string' ? bucket.cursor : null,
+        hasMore: Boolean(bucket?.hasMore),
+      };
+    });
+}
+
+function isCategorizedNotificationResponse(
+  value: unknown,
+): value is CategorizedNotificationResponse {
+  return Boolean(value && typeof value === 'object');
+}
+
+function extractCategorizedBucket(
+  payload: unknown,
+  category: NotificationGroupCategory,
+): CategorizedNotificationBucket | null {
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+
+  if (category in (payload as Record<string, unknown>)) {
+    const bucket = (payload as Record<string, unknown>)[category];
+
+    if (bucket && typeof bucket === 'object') {
+      return bucket as CategorizedNotificationBucket;
+    }
+  }
+
+  if (
+    'items' in (payload as Record<string, unknown>) ||
+    'hasMore' in (payload as Record<string, unknown>) ||
+    'cursor' in (payload as Record<string, unknown>)
+  ) {
+    return payload as CategorizedNotificationBucket;
+  }
+
+  return null;
+}
+
+function extractCategorizedBucketItems(
+  payload: unknown,
+  category: NotificationGroupCategory,
+) {
+  const bucket = extractCategorizedBucket(payload, category);
+  return Array.isArray(bucket?.items) ? bucket.items : [];
+}
+
+function extractCategorizedBucketCursor(
+  payload: unknown,
+  category: NotificationGroupCategory,
+) {
+  const bucket = extractCategorizedBucket(payload, category);
+  return typeof bucket?.cursor === 'string' ? bucket.cursor : null;
+}
+
+function extractCategorizedBucketHasMore(
+  payload: unknown,
+  category: NotificationGroupCategory,
+) {
+  const bucket = extractCategorizedBucket(payload, category);
+  return Boolean(bucket?.hasMore);
+}
+
+function normalizeNotificationCountSummary(
+  payload: {
+    totalCount?: number;
+    totalUnreadCount?: number;
+    categoryUnreadCounts?: Partial<Record<NotificationGroupCategory, number>>;
+    message?: string;
+  } | null,
+): NotificationCountSummary {
+  const source =
+    payload && typeof payload === 'object'
+      ? (payload as Record<string, unknown>)
+      : {};
+  const categorySource =
+    source.categoryUnreadCounts &&
+    typeof source.categoryUnreadCounts === 'object'
+      ? (source.categoryUnreadCounts as Record<string, unknown>)
+      : {};
+
+  return {
+    totalCount: Number(source.totalCount ?? 0),
+    totalUnreadCount: Number(source.totalUnreadCount ?? 0),
+    categoryUnreadCounts: {
+      projects: Number(categorySource.projects ?? 0),
+      threads: Number(categorySource.threads ?? 0),
+      tickets: Number(categorySource.tickets ?? 0),
+      ticket_replies: Number(categorySource.ticket_replies ?? 0),
+      internal_messages: Number(categorySource.internal_messages ?? 0),
+      mentions: Number(categorySource.mentions ?? 0),
+      members: Number(categorySource.members ?? 0),
+      events: Number(categorySource.events ?? 0),
+    },
+  };
+}

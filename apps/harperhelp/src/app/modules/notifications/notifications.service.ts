@@ -35,7 +35,7 @@ import {
   buildThreadReplyCreatedEmail,
 } from './templates/common';
 import { SqsNotificationQueueService } from './queue/sqs-notification-queue.service';
-import { DataSource, Repository } from 'typeorm';
+import { Brackets, DataSource, Repository, SelectQueryBuilder } from 'typeorm';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { NotificationsGateway } from './gateway/notifications.gateway';
 import { NotifyProjectMembersDto } from './dto/create-notification.dto';
@@ -46,6 +46,27 @@ import {
   NotificationEntityType,
   NotificationType,
 } from '@harperhelp/types';
+
+const NOTIFICATION_GROUPS = [
+  {
+    category: 'projects',
+    label: 'Projects',
+  },
+  {
+    category: 'threads',
+    label: 'Threads',
+  },
+  {
+    category: 'tickets',
+    label: 'Tickets',
+  },
+  {
+    category: 'ticket_replies',
+    label: 'Ticket Replies',
+  },
+] as const;
+
+type NotificationGroupCategory = (typeof NOTIFICATION_GROUPS)[number]['category'];
 
 @Injectable()
 export class NotificationsService {
@@ -81,6 +102,10 @@ export class NotificationsService {
     this.queueUrl = this.configService.get<string>(
       'aws.sqs.notificationQueueUrl',
     );
+  }
+
+  isSupportedCategory(category: string): category is NotificationGroupCategory {
+    return NOTIFICATION_GROUPS.some((group) => group.category === category);
   }
 
   private async sendEmail(msg: sgMail.MailDataRequired) {
@@ -563,6 +588,70 @@ export class NotificationsService {
     return { items, total, page, limit };
   }
 
+  async findGroupedForUser(
+    userId: string,
+    {
+      limitPerGroup = 5,
+      unreadOnly = false,
+    }: { limitPerGroup?: number; unreadOnly?: boolean },
+  ) {
+    const groups = await Promise.all(
+      NOTIFICATION_GROUPS.map(async (group) => {
+        const query = this.applyNotificationCategoryFilter(
+          this.buildUserNotificationQuery(userId, unreadOnly),
+          group.category,
+        );
+        const [items, total] = await query.take(limitPerGroup).getManyAndCount();
+
+        return {
+          category: group.category,
+          label: group.label,
+          count: total,
+          items,
+          nextOffset: items.length,
+          hasMore: items.length < total,
+        };
+      }),
+    );
+
+    return {
+      groups,
+      total: groups.reduce((sum, group) => sum + group.count, 0),
+      limitPerGroup,
+    };
+  }
+
+  async findCategoryForUser(
+    userId: string,
+    {
+      category,
+      limit = 5,
+      offset = 0,
+      unreadOnly = false,
+    }: {
+      category: NotificationGroupCategory;
+      limit?: number;
+      offset?: number;
+      unreadOnly?: boolean;
+    },
+  ) {
+    const group = NOTIFICATION_GROUPS.find((item) => item.category === category);
+    const query = this.applyNotificationCategoryFilter(
+      this.buildUserNotificationQuery(userId, unreadOnly),
+      category,
+    );
+    const [items, total] = await query.skip(offset).take(limit).getManyAndCount();
+
+    return {
+      category,
+      label: group?.label ?? category,
+      count: total,
+      items,
+      nextOffset: offset + items.length,
+      hasMore: offset + items.length < total,
+    };
+  }
+
   async findTopForUser(userId: string, limit = 5): Promise<Notification[]> {
     return this.notificationsRepo.find({
       where: { recipientId: userId, isActive: true },
@@ -592,6 +681,117 @@ export class NotificationsService {
       { isRead: true, readAt: new Date() },
     );
     this.gateway.emitUnreadCount(userId, 0);
+  }
+
+  private buildUserNotificationQuery(userId: string, unreadOnly: boolean) {
+    const qb = this.notificationsRepo
+      .createQueryBuilder('n')
+      .where('n."recipientId" = :userId', { userId })
+      .andWhere('n."isActive" = true')
+      .orderBy('n."createdAt"', 'DESC');
+
+    if (unreadOnly) {
+      qb.andWhere('n."isRead" = false');
+    }
+
+    return qb;
+  }
+
+  private applyNotificationCategoryFilter(
+    qb: SelectQueryBuilder<Notification>,
+    category: NotificationGroupCategory,
+  ) {
+    switch (category) {
+      case 'projects':
+        qb.andWhere(
+          new Brackets((subQuery) => {
+            subQuery
+              .where('n."entityType" = :projectEntityType', {
+                projectEntityType: NotificationEntityType.PROJECT,
+              })
+              .orWhere('n."type" IN (:...projectTypes)', {
+                projectTypes: [
+                  NotificationType.PROJECT_ASSIGNED,
+                  NotificationType.PROJECT_UNASSIGNED,
+                  NotificationType.PROJECT_UPDATED,
+                  NotificationType.PROJECT_DELETED,
+                  NotificationType.EVENT_CREATED,
+                  NotificationType.EVENT_UPDATED,
+                  NotificationType.EVENT_DELETED,
+                  NotificationType.MEMBER_JOINED,
+                  NotificationType.MEMBER_LEFT,
+                  NotificationType.MEMBER_UPDATED,
+                ],
+              });
+          }),
+        );
+        break;
+      case 'threads':
+        qb.andWhere(
+          new Brackets((subQuery) => {
+            subQuery
+              .where('n."entityType" = :threadEntityType', {
+                threadEntityType: NotificationEntityType.THREAD_MESSAGE,
+              })
+              .orWhere('n."type" IN (:...threadTypes)', {
+                threadTypes: [
+                  NotificationType.THREAD_CREATED,
+                  NotificationType.THREAD_REPLY,
+                  NotificationType.THREAD_MESSAGE_REACTION,
+                  NotificationType.MENTIONED_IN_THREAD_MESSAGE,
+                ],
+              });
+          }),
+        );
+        break;
+      case 'tickets':
+        qb.andWhere(
+          new Brackets((subQuery) => {
+            subQuery
+              .where('n."entityType" = :ticketEntityType', {
+                ticketEntityType: NotificationEntityType.TICKET,
+              })
+              .orWhere('n."type" IN (:...ticketTypes)', {
+                ticketTypes: [
+                  NotificationType.TICKET_CREATED,
+                  NotificationType.TICKET_STATUS_CHANGED,
+                  NotificationType.TICKET_PRIORITY_CHANGED,
+                  NotificationType.TICKET_ASSIGNEE_CHANGED,
+                  NotificationType.TICKET_TITLE_CHANGED,
+                  NotificationType.TICKET_DESCRIPTION_CHANGED,
+                  NotificationType.TICKET_DUE_DATE_CHANGED,
+                  NotificationType.TICKET_DELETED,
+                ],
+              });
+          }),
+        );
+        break;
+      case 'ticket_replies':
+        qb.andWhere(
+          new Brackets((subQuery) => {
+            subQuery
+              .where('n."entityType" = :ticketReplyEntityType', {
+                ticketReplyEntityType: NotificationEntityType.TICKET_REPLY,
+              })
+              .orWhere('n."entityType" = :internalMessageEntityType', {
+                internalMessageEntityType: NotificationEntityType.INTERNAL_MESSAGE,
+              })
+              .orWhere('n."type" IN (:...ticketReplyTypes)', {
+                ticketReplyTypes: [
+                  NotificationType.TICKET_REPLY,
+                  NotificationType.TICKET_REPLY_REACTION,
+                  NotificationType.MENTIONED_IN_TICKET_REPLY,
+                  NotificationType.INTERNAL_MESSAGE,
+                  NotificationType.INTERNAL_MESSAGE_REACTION,
+                  NotificationType.MENTIONED_IN_INTERNAL_MESSAGE,
+                ],
+              });
+          }),
+        );
+        break;
+    }
+
+    return qb;
   }
 
   // SendGrid send helpers
