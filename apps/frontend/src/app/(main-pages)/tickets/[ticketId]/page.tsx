@@ -4121,38 +4121,44 @@ function getAttachmentExtension(value?: string | null) {
   return lastSegment.toLowerCase();
 }
 
+// function buildAttachmentUrl(storageKey?: string | null) {
+//   if (!storageKey) {
+//     return '';
+//   }
+
+//   if (/^https?:\/\//i.test(storageKey)) {
+//     return storageKey;
+//   }
+
+//   const cloudfrontUrl = process.env.NEXT_PUBLIC_CLOUDFRONT_URL?.trim() ?? '';
+//   const normalizedBaseUrl = cloudfrontUrl.replace(/\/+$/, '');
+//   const normalizedStorageKey = storageKey.replace(/^\/+/, '');
+//   const encodedStorageKey = normalizedStorageKey
+//     .split('/')
+//     .filter(Boolean)
+//     .map((segment) => encodeURIComponent(segment))
+//     .join('/');
+
+//   if (normalizedBaseUrl && encodedStorageKey) {
+//     return `${normalizedBaseUrl}/${encodedStorageKey}`;
+//   }
+
+//   if (typeof window !== 'undefined' && normalizedStorageKey) {
+//     const searchParams = new URLSearchParams({
+//       storageKey: normalizedStorageKey,
+//       fileName: extractFileNameFromUrl(normalizedStorageKey) || 'attachment',
+//     });
+
+//     return `${window.location.origin}/api/projects/files/download?${searchParams.toString()}`;
+//   }
+
+//   return '';
+// }
 function buildAttachmentUrl(storageKey?: string | null) {
   if (!storageKey) {
     return '';
   }
-
-  if (/^https?:\/\//i.test(storageKey)) {
-    return storageKey;
-  }
-
-  const cloudfrontUrl = process.env.NEXT_PUBLIC_CLOUDFRONT_URL?.trim() ?? '';
-  const normalizedBaseUrl = cloudfrontUrl.replace(/\/+$/, '');
-  const normalizedStorageKey = storageKey.replace(/^\/+/, '');
-  const encodedStorageKey = normalizedStorageKey
-    .split('/')
-    .filter(Boolean)
-    .map((segment) => encodeURIComponent(segment))
-    .join('/');
-
-  if (normalizedBaseUrl && encodedStorageKey) {
-    return `${normalizedBaseUrl}/${encodedStorageKey}`;
-  }
-
-  if (typeof window !== 'undefined' && normalizedStorageKey) {
-    const searchParams = new URLSearchParams({
-      storageKey: normalizedStorageKey,
-      fileName: extractFileNameFromUrl(normalizedStorageKey) || 'attachment',
-    });
-
-    return `${window.location.origin}/api/projects/files/download?${searchParams.toString()}`;
-  }
-
-  return '';
+  return storageKey;
 }
 
 function toNumber(value: string | number | null | undefined) {
