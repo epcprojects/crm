@@ -1,3 +1,5 @@
+
+import { EmailNotificationEntityType } from '@harperhelp/types';
 export enum EmailEventType {
   PROJECT_CREATED = 'project.created',
   PROJECT_ASSIGNED = 'project.assigned',
@@ -12,6 +14,106 @@ export enum EmailEventType {
   THREAD_REPLY_CREATED = 'thread.reply_created'
 
 }
+export const EMAIL_NOTIFICATION_ENTITY_TYPE_MAP: Record<
+  EmailEventType,
+  EmailNotificationEntityType
+> = {
+  [EmailEventType.PROJECT_CREATED]:
+    EmailNotificationEntityType.PROJECT,
+
+  [EmailEventType.PROJECT_ASSIGNED]:
+    EmailNotificationEntityType.PROJECT,
+
+  [EmailEventType.PROJECT_UNASSIGNED]:
+    EmailNotificationEntityType.PROJECT,
+
+  [EmailEventType.THREAD_MESSAGE_CREATED]:
+    EmailNotificationEntityType.THREAD,
+
+  [EmailEventType.THREAD_REPLY_CREATED]:
+    EmailNotificationEntityType.THREAD,
+
+  [EmailEventType.TICKET_CREATED]:
+    EmailNotificationEntityType.TICKET,
+
+  [EmailEventType.TICKET_REPLY_POSTED]:
+    EmailNotificationEntityType.TICKET,
+
+  [EmailEventType.TICKET_STATUS_UPDATED]:
+    EmailNotificationEntityType.TICKET,
+
+  [EmailEventType.TICKET_PRIORITY_UPDATED]:
+    EmailNotificationEntityType.TICKET,
+
+  [EmailEventType.TICKET_ASSIGNEE_UPDATED]:
+    EmailNotificationEntityType.TICKET,
+
+  [EmailEventType.TICKET_ATTACHMENT_ADDED]:
+    EmailNotificationEntityType.TICKET,
+};
+
+export function getEmailNotificationEntityType(
+  eventType: EmailEventType,
+): EmailNotificationEntityType {
+  return EMAIL_NOTIFICATION_ENTITY_TYPE_MAP[eventType];
+}
+
+export const EMAIL_NOTIFICATION_METADATA : Record<EmailEventType, { entityType: EmailNotificationEntityType; label: string }> = {
+  [EmailEventType.PROJECT_CREATED]: {
+    entityType: EmailNotificationEntityType.PROJECT,
+    label: 'Project created',
+  },
+
+  [EmailEventType.PROJECT_ASSIGNED]: {
+    entityType: EmailNotificationEntityType.PROJECT,
+    label: 'Project assigned',
+  },
+
+  [EmailEventType.PROJECT_UNASSIGNED]: {
+    entityType: EmailNotificationEntityType.PROJECT,
+    label: 'Project unassigned',
+  },
+
+  [EmailEventType.THREAD_MESSAGE_CREATED]: {
+    entityType: EmailNotificationEntityType.THREAD,
+    label: 'New thread message',
+  },
+
+  [EmailEventType.THREAD_REPLY_CREATED]: {
+    entityType: EmailNotificationEntityType.THREAD,
+    label: 'Thread reply',
+  },
+
+  [EmailEventType.TICKET_CREATED]: {
+    entityType: EmailNotificationEntityType.TICKET,
+    label: 'Ticket created',
+  },
+
+  [EmailEventType.TICKET_REPLY_POSTED]: {
+    entityType: EmailNotificationEntityType.TICKET,
+    label: 'Ticket reply posted',
+  },
+
+  [EmailEventType.TICKET_STATUS_UPDATED]: {
+    entityType: EmailNotificationEntityType.TICKET,
+    label: 'Ticket status updated',
+  },
+
+  [EmailEventType.TICKET_PRIORITY_UPDATED]: {
+    entityType: EmailNotificationEntityType.TICKET,
+    label: 'Ticket priority updated',
+  },
+
+  [EmailEventType.TICKET_ASSIGNEE_UPDATED]: {
+    entityType: EmailNotificationEntityType.TICKET,
+    label: 'Ticket assignee updated',
+  },
+
+  [EmailEventType.TICKET_ATTACHMENT_ADDED]: {
+    entityType: EmailNotificationEntityType.TICKET,
+    label: 'Ticket attachment added',
+  },
+} as const;
 
 // export interface EmailAttachmentLink {
 //   filename: string;

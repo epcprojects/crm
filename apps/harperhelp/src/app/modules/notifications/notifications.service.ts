@@ -20,6 +20,7 @@ import {
   ThreadMessageCreatedPayload,
   ProjectUnassignedPayload,
   ThreadReplyCreatedPayload,
+  getEmailNotificationEntityType,
 } from './notifications.types';
 import {
   buildProjectCreatedEmail,
@@ -42,7 +43,11 @@ import { NotifyProjectMembersDto } from './dto/create-notification.dto';
 import { Notification } from './entities/notification.entity';
 import { ActivityLogService } from '../activity/activity-log.service';
 import { SearchNotificationsDto } from './dto/search-notification.dto';
-import { NotificationEntityType, NotificationType } from '@harperhelp/types';
+import {
+  EmailNotificationEntityType,
+  NotificationEntityType,
+  NotificationType,
+} from '@harperhelp/types';
 import {
   CATEGORY_TO_ENTITY_TYPES,
   ENTITY_TYPE_TO_CATEGORY,
@@ -50,6 +55,7 @@ import {
   NotificationCategory,
   resolveCategory,
 } from './enum/notification-category.enum';
+import { EmailNotificationPreference } from './entities/email-notification-preference.entity';
 
 interface CursorPage<T> {
   items: T[];
@@ -101,7 +107,8 @@ const NOTIFICATION_GROUPS = [
   },
 ] as const;
 
-type NotificationGroupCategory = (typeof NOTIFICATION_GROUPS)[number]['category'];
+type NotificationGroupCategory =
+  (typeof NOTIFICATION_GROUPS)[number]['category'];
 
 @Injectable()
 export class NotificationsService {
@@ -117,6 +124,8 @@ export class NotificationsService {
     private readonly queueService: SqsNotificationQueueService,
     private readonly activityLogService: ActivityLogService,
 
+    @InjectRepository(EmailNotificationPreference)
+    private readonly emailNotificationPreferenceRepo: Repository<EmailNotificationPreference>,
     // @InjectRepository(User)
     // private readonly userRepository: Repository<User>,
     @InjectRepository(Notification)
@@ -638,7 +647,9 @@ export class NotificationsService {
           this.buildUserNotificationQuery(userId, unreadOnly),
           group.category,
         );
-        const [items, total] = await query.take(limitPerGroup).getManyAndCount();
+        const [items, total] = await query
+          .take(limitPerGroup)
+          .getManyAndCount();
 
         return {
           category: group.category,
@@ -672,12 +683,17 @@ export class NotificationsService {
       unreadOnly?: boolean;
     },
   ) {
-    const group = NOTIFICATION_GROUPS.find((item) => item.category === category);
+    const group = NOTIFICATION_GROUPS.find(
+      (item) => item.category === category,
+    );
     const query = this.applyNotificationCategoryFilter(
       this.buildUserNotificationQuery(userId, unreadOnly),
       category,
     );
-    const [items, total] = await query.skip(offset).take(limit).getManyAndCount();
+    const [items, total] = await query
+      .skip(offset)
+      .take(limit)
+      .getManyAndCount();
 
     return {
       category,
@@ -811,7 +827,8 @@ export class NotificationsService {
                 ticketReplyEntityType: NotificationEntityType.TICKET_REPLY,
               })
               .orWhere('n."entityType" = :internalMessageEntityType', {
-                internalMessageEntityType: NotificationEntityType.INTERNAL_MESSAGE,
+                internalMessageEntityType:
+                  NotificationEntityType.INTERNAL_MESSAGE,
               })
               .orWhere('n."type" IN (:...ticketReplyTypes)', {
                 ticketReplyTypes: [
@@ -1010,5 +1027,30 @@ export class NotificationsService {
     }
 
     return { totalCount, totalUnreadCount, categoryUnreadCounts };
+  }
+
+  async ensureEmailNotificationPreferences(userId: string): Promise<void> {
+    const existing = await this.emailNotificationPreferenceRepo.find({
+      where: { userId },
+    });
+
+    const existingTypes = new Set(
+      existing.map((preference) => preference.notificationType),
+    );
+
+    const missingPreferences = Object.values(EmailEventType)
+      .filter((notificationType) => !existingTypes.has(notificationType))
+      .map((notificationType) =>
+        this.emailNotificationPreferenceRepo.create({
+          userId,
+          entityType: getEmailNotificationEntityType(notificationType),
+          notificationType,
+          enabled: true,
+        }),
+      );
+
+    if (missingPreferences.length > 0) {
+      await this.emailNotificationPreferenceRepo.save(missingPreferences);
+    }
   }
 }

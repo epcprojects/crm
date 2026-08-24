@@ -85,4 +85,10 @@ export enum NotificationEntityType {
   INTERNAL_MESSAGE = 'internal_message',
 }
 
+export enum EmailNotificationEntityType {
+  PROJECT = 'project',
+  THREAD = 'thread',
+  TICKET = 'ticket',
+}
+
 export * from './tickets.types';

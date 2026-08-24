@@ -20,6 +20,7 @@ import {
   EmailEventType,
   EmailRecipient,
 } from '../notifications/notifications.types';
+import { EmailNotificationPreference } from '../notifications/entities/email-notification-preference.entity';
 
 @Injectable()
 export class UsersService {
@@ -245,6 +246,8 @@ export class UsersService {
         userType: dto.userType,
       }),
     );
+    await this.notificationService.ensureEmailNotificationPreferences(newUser.id);
+
 
     await this.userRoleRepo.save({
       userId: newUser.id,
