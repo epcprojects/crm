@@ -103,9 +103,14 @@ export class ThreadService {
         name: m.fullName,
         email: m.email,
         isInvitationAccepted: m.isInvitationAccepted, // Include the isInviteAccepted property
+        userId: m.id,
       }));
 
-    const createdByRecipient = { name: user.fullName, email: user.email };
+    const createdByRecipient = {
+      userId: user.id,
+      name: user.fullName,
+      email: user.email,
+    };
     const truncatedMessage = message.message
       ? message.message.slice(0, 140)
       : 'New thread message';
@@ -113,6 +118,11 @@ export class ThreadService {
     // const attachments = await this.utilityService.getEmailAttachmentLinks(files ?? []);
 
     if (dto.parentId) {
+      const filteredParticipants =
+        await this.notificationsService.filterEmailRecipients(
+          participants,
+          EmailEventType.THREAD_REPLY_CREATED,
+        );
       // Fetch parent so the reply email can show what's being replied to
       const parent = await this.repo.findOne({
         where: { id: dto.parentId },
@@ -127,7 +137,7 @@ export class ThreadService {
           projectName: project.name,
           message: msg.message || '',
           createdBy: createdByRecipient,
-          participants,
+          participants: filteredParticipants,
           parentMessage: {
             id: parent?.id ?? dto.parentId,
             message: parent?.message ?? '',
@@ -146,6 +156,11 @@ export class ThreadService {
         message: truncatedMessage,
       });
     } else {
+          const filteredParticipants =
+      await this.notificationsService.filterEmailRecipients(
+        participants,
+        EmailEventType.THREAD_MESSAGE_CREATED,
+      );
       await this.notificationsService.dispatch({
         type: EmailEventType.THREAD_MESSAGE_CREATED,
         payload: {
@@ -154,7 +169,7 @@ export class ThreadService {
           projectName: project.name,
           message: msg.message || '',
           createdBy: createdByRecipient,
-          participants,
+          participants: filteredParticipants,
           // attachments,
         },
       });

@@ -7,6 +7,7 @@ import {
   Query,
   UseGuards,
   Req,
+  Body,
 } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
@@ -20,6 +21,7 @@ import { SearchNotificationsDto } from './dto/search-notification.dto';
 import { GetUser } from '../../../common/decorators/get-user.decorator';
 import { FindCategorizedNotificationsDto } from './dto/find-categorized-notifications.dto';
 import { NotificationCategory } from './enum/notification-category.enum';
+import { UpdateEmailPreferenceDto } from './dto/update-email-preference.dto';
 
 @Controller('notifications')
 @ApiBearerAuth('JWT-auth')
@@ -210,5 +212,23 @@ export class NotificationsController {
   })
   async unreadCountByCategory(@GetUser() user) {
     return this.notificationsService.getUnreadCountsByCategory(user.id);
+  }
+
+  @Get('email-preferences')
+  async getEmailPreferences(@GetUser() currentUser: any) {
+    return this.notificationsService.getEmailPreferences(currentUser.id);
+  }
+
+  @Patch('email-preferences/:notificationType')
+  async updateEmailPreference(
+    @Param('notificationType') notificationType: string,
+    @Body() dto: UpdateEmailPreferenceDto,
+    @GetUser() currentUser: any,
+  ) {
+    return this.notificationsService.updateEmailPreference(
+      currentUser.id,
+      notificationType,
+      dto.enabled,
+    );
   }
 }

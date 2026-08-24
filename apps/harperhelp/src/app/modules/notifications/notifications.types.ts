@@ -124,6 +124,7 @@ export const EMAIL_NOTIFICATION_METADATA : Record<EmailEventType, { entityType: 
 // }
 
 export interface EmailRecipient {
+  userId: string;
   email: string;
   name: string;
   isInvitationAccepted?: boolean; // optional property to indicate if the invite is accepted

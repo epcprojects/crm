@@ -37,7 +37,7 @@ export class UsersService {
     @InjectRepository(Project)
     private readonly projectRepo: Repository<Project>,
 
-    private readonly notificationService: NotificationsService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async getMyself(currentUser: any) {
@@ -215,7 +215,7 @@ export class UsersService {
       //   // log later if needed
       // }
 
-      await this.notificationService.sendAdminInviteEmail({
+      await this.notificationsService.sendAdminInviteEmail({
         to: existing.email.toLocaleLowerCase(),
         // fullName: existing.fullName,
         fullName: currentUser.fullName,
@@ -246,7 +246,7 @@ export class UsersService {
         userType: dto.userType,
       }),
     );
-    await this.notificationService.ensureEmailNotificationPreferences(newUser.id);
+    await this.notificationsService.ensureEmailNotificationPreferences(newUser.id);
 
 
     await this.userRoleRepo.save({
@@ -254,7 +254,7 @@ export class UsersService {
       roleId: role.id,
     });
 
-    await this.notificationService.sendAdminInviteEmail({
+    await this.notificationsService.sendAdminInviteEmail({
       to: newUser.email,
       // fullName: newUser.fullName,
       fullName: currentUser.fullName,
@@ -413,12 +413,19 @@ export class UsersService {
     await this.userRepo.save(user);
     if (userId !== loggedInUser.id && dto.projectIds !== undefined) {
       const affectedUser: EmailRecipient = {
+        userId: user.id,
         name: user.fullName,
         email: user.email,
         isInvitationAccepted: user.isInvitationAccepted,
       };
 
+      const filtered = await this.notificationsService.filterEmailRecipients(
+        [affectedUser],
+        EmailEventType.PROJECT_ASSIGNED,
+      );
+
       const updatedBy: EmailRecipient = {
+        userId: loggedInUser.id,
         name: loggedInUser.fullName,
         email: loggedInUser.email,
         isInvitationAccepted: loggedInUser.isInvitationAccepted,
@@ -428,7 +435,7 @@ export class UsersService {
       if (addedProjects.length > 0) {
         const addedNames = addedProjects.map((p) => p.name).join(', ');
 
-        await this.notificationService.notifyProjectMembers({
+        await this.notificationsService.notifyProjectMembers({
           actorId: loggedInUser.id,
           type: NotificationType.PROJECT_ASSIGNED,
           entityType: NotificationEntityType.PROJECT,
@@ -437,12 +444,12 @@ export class UsersService {
           explicitRecipientIds: [userId],
         });
         for (const project of addedProjects) {
-          await this.notificationService.dispatch({
+          await this.notificationsService.dispatch({
             type: EmailEventType.PROJECT_ASSIGNED,
             payload: {
               projectName: project.name,
               projectId: project.id,
-              assignedTo: affectedUser,
+              assignedTo: filtered[0],
               assignedBy: updatedBy,
             },
           });
@@ -450,9 +457,13 @@ export class UsersService {
       }
       // Notify about removed projects, if any.
       if (removedProjects.length > 0) {
+              const filtered = await this.notificationsService.filterEmailRecipients(
+        [affectedUser],
+        EmailEventType.PROJECT_ASSIGNED,
+      );
         const removedNames = removedProjects.map((p) => p.name).join(', ');
 
-        await this.notificationService.notifyProjectMembers({
+        await this.notificationsService.notifyProjectMembers({
           actorId: loggedInUser.id,
           type: NotificationType.PROJECT_UNASSIGNED,
           entityType: NotificationEntityType.PROJECT,
@@ -461,11 +472,11 @@ export class UsersService {
           explicitRecipientIds: [userId],
         });
         for (const project of removedProjects) {
-          await this.notificationService.dispatch({
+          await this.notificationsService.dispatch({
             type: EmailEventType.PROJECT_UNASSIGNED,
             payload: {
               projectName: project.name,
-              unassignedFrom: affectedUser,
+              unassignedFrom: filtered[0],
               unassignedBy: updatedBy,
             },
           });

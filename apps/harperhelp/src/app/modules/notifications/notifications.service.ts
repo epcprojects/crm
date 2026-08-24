@@ -232,6 +232,7 @@ export class NotificationsService {
   // Public dispatch method (use this everywhere in the app)
 
   async dispatch(event: EmailNotificationEvent): Promise<void> {
+    //here
     if (this.queueUrl) {
       await this.queueService.publish(event);
       return;
@@ -1052,5 +1053,129 @@ export class NotificationsService {
     if (missingPreferences.length > 0) {
       await this.emailNotificationPreferenceRepo.save(missingPreferences);
     }
+  }
+
+  async filterEmailRecipients(
+    recipients: EmailRecipient[],
+    notificationType: EmailEventType,
+  ): Promise<EmailRecipient[]> {
+    if (!recipients.length) {
+      return [];
+    }
+
+    const userIds = [
+      ...new Set(
+        recipients.map((recipient) => recipient.userId).filter(Boolean),
+      ),
+    ];
+
+    if (!userIds.length) {
+      return recipients;
+    }
+
+    const preferences = await this.emailNotificationPreferenceRepo.find({
+      where: userIds.map((userId) => ({
+        userId,
+        notificationType,
+      })),
+    });
+
+    const preferenceMap = new Map(
+      preferences.map((preference) => [preference.userId, preference.enabled]),
+    );
+
+    return recipients.filter((recipient) => {
+      // No preference row = send email
+      return preferenceMap.get(recipient.userId) !== false;
+    });
+  }
+
+  async getEmailPreferences(userId: string) {
+    const preferences = await this.emailNotificationPreferenceRepo.find({
+      where: {
+        userId,
+      },
+      select: {
+        id: true,
+        entityType: true,
+        notificationType: true,
+        enabled: true,
+      },
+      order: {
+        notificationType: 'ASC',
+      },
+    });
+
+    return preferences;
+  }
+
+  private getEntityTypeForNotification(
+    notificationType: EmailEventType,
+  ): EmailNotificationEntityType {
+    switch (notificationType) {
+      case EmailEventType.PROJECT_CREATED:
+      case EmailEventType.PROJECT_ASSIGNED:
+      case EmailEventType.PROJECT_UNASSIGNED:
+        return EmailNotificationEntityType.PROJECT;
+
+      case EmailEventType.THREAD_MESSAGE_CREATED:
+      case EmailEventType.THREAD_REPLY_CREATED:
+        return EmailNotificationEntityType.THREAD;
+
+      case EmailEventType.TICKET_CREATED:
+      case EmailEventType.TICKET_REPLY_POSTED:
+      case EmailEventType.TICKET_STATUS_UPDATED:
+      case EmailEventType.TICKET_PRIORITY_UPDATED:
+      case EmailEventType.TICKET_ASSIGNEE_UPDATED:
+      case EmailEventType.TICKET_ATTACHMENT_ADDED:
+        return EmailNotificationEntityType.TICKET;
+
+      default:
+        throw new BadRequestException(
+          `Unsupported notification type: ${notificationType}`,
+        );
+    }
+  }
+
+  async updateEmailPreference(
+    userId: string,
+    notificationType: string,
+    enabled: boolean,
+  ) {
+    if (!this.isValidEmailNotificationType(notificationType)) {
+      throw new BadRequestException(
+        `Invalid notification type: ${notificationType}`,
+      );
+    }
+    const entityType = this.getEntityTypeForNotification(notificationType);
+
+    const preference = await this.emailNotificationPreferenceRepo.findOne({
+      where: {
+        userId,
+        notificationType,
+      },
+    });
+
+    if (preference) {
+      preference.enabled = enabled;
+      preference.entityType = entityType;
+
+      return this.emailNotificationPreferenceRepo.save(preference);
+    }
+
+    return this.emailNotificationPreferenceRepo.save({
+      userId,
+      entityType,
+      notificationType,
+      enabled,
+    });
+  }
+
+  private isValidEmailNotificationType(
+    notificationType: string,
+  ): notificationType is EmailEventType {
+    return Object.values(EmailEventType).includes(
+      notificationType as EmailEventType,
+    );
   }
 }

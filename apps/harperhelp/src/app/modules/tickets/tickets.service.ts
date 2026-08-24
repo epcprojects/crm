@@ -140,6 +140,7 @@ export class TicketsService {
       const members = (ticket.project?.members || [])
         .filter((m) => m.id !== userId)
         .map((m) => ({
+          userId: m.id,
           name: m.fullName,
           email: m.email,
           isInvitationAccepted: m.isInvitationAccepted,
@@ -148,23 +149,30 @@ export class TicketsService {
       console.debug('Ticket saved', saved.id, 'members', members.length);
       const participantsMap = new Map<
         string,
-        { name: string; email: string; isInvitationAccepted?: boolean }
+        { userId: string; name: string; email: string; isInvitationAccepted?: boolean }
       >();
       for (const m of members) participantsMap.set(m.email, m);
       if (ticket.reporter && ticket?.reporter?.id !== userId)
         participantsMap.set(ticket.reporter.email, {
+          userId: ticket.reporter.id,
           name: ticket.reporter.fullName,
           email: ticket.reporter.email,
           isInvitationAccepted: ticket.reporter.isInvitationAccepted,
         });
       if (ticket.assignee && ticket?.assignee?.id !== userId)
         participantsMap.set(ticket.assignee.email, {
+          userId: ticket.assignee.id,
           name: ticket.assignee.fullName,
           email: ticket.assignee.email,
           isInvitationAccepted: ticket.assignee.isInvitationAccepted, // Include the isInvitationAccepted property
         });
 
       const participants = Array.from(participantsMap.values());
+          const filteredParticipants =
+      await this.notificationsService.filterEmailRecipients(
+        participants,
+        EmailEventType.TICKET_CREATED,
+      );
       // const attachments = await this.utilityService.getEmailAttachmentLinks( files ?? [] );
 
       console.debug(
@@ -185,6 +193,7 @@ export class TicketsService {
           projectId: ticket.project?.id || '',
           projectName: ticket.project?.name || '',
           createdBy: {
+            userId: ticket.reporter?.id || '',
             name: ticket.reporter?.fullName || '',
             email: ticket.reporter?.email || '',
             isInvitationAccepted:
@@ -192,12 +201,13 @@ export class TicketsService {
           },
           assignee: ticket.assignee
             ? {
+                userId: ticket.assignee.id,
                 name: ticket.assignee.fullName,
                 email: ticket.assignee.email,
                 isInvitationAccepted: ticket.assignee.isInvitationAccepted,
               }
             : undefined,
-          participants,
+          participants: filteredParticipants,
           // attachments,
         },
       });
@@ -760,23 +770,26 @@ export class TicketsService {
     const members = (updatedTicket.project?.members || [])
       .filter((m) => m.id !== userId)
       .map((m) => ({
+        userId: m.id,
         name: m.fullName,
         email: m.email,
         isInvitationAccepted: m.isInvitationAccepted,
       }));
     const participantsMap = new Map<
       string,
-      { name: string; email: string; isInvitationAccepted?: boolean }
+      { userId: string; name: string; email: string; isInvitationAccepted?: boolean }
     >();
     for (const m of members) participantsMap.set(m.email, m);
     if (updatedTicket.reporter && updatedTicket?.reporter?.id !== userId)
       participantsMap.set(updatedTicket.reporter.email, {
+        userId: updatedTicket.reporter.id,
         name: updatedTicket.reporter.fullName,
         email: updatedTicket.reporter.email,
         isInvitationAccepted: updatedTicket.reporter.isInvitationAccepted,
       });
     if (updatedTicket.assignee && updatedTicket?.assignee?.id !== userId)
       participantsMap.set(updatedTicket.assignee.email, {
+        userId: updatedTicket.assignee.id,
         name: updatedTicket.assignee.fullName,
         email: updatedTicket.assignee.email,
         isInvitationAccepted: updatedTicket.assignee.isInvitationAccepted, // Include the isInvitationAccepted property
@@ -821,12 +834,18 @@ export class TicketsService {
     // const participants = Array.from(participantsMap.values());
 
     const updatedByRecipient = {
+      userId: updatedBy.id,
       name: updatedBy.fullName,
       email: updatedBy.email,
       isInvitationAccepted: updatedBy.isInvitationAccepted,
     };
     // STATUS CHANGED
     if (dto.statusKey && oldStatus && dto.statusKey !== oldStatus.key) {
+          const filteredParticipants =
+      await this.notificationsService.filterEmailRecipients(
+        participants,
+        EmailEventType.TICKET_STATUS_UPDATED,
+      );
       await this.notificationsService.notifyProjectMembers({
         projectId: ticket.projectId,
         actorId: userId,
@@ -849,13 +868,18 @@ export class TicketsService {
           previousStatus: oldStatus.label,
           newStatus: updatedTicket.status.label,
           updatedBy: updatedByRecipient,
-          participants,
+          participants: filteredParticipants,
         },
       });
     }
 
     // PRIORITY CHANGED
     if (dto.priorityKey && oldPriority && dto.priorityKey !== oldPriority.key) {
+      const filteredParticipants =
+      await this.notificationsService.filterEmailRecipients(
+        participants,
+        EmailEventType.TICKET_PRIORITY_UPDATED,
+      );
       await this.notificationsService.notifyProjectMembers({
         projectId: ticket.projectId,
         actorId: userId,
@@ -878,7 +902,7 @@ export class TicketsService {
           previousPriority: oldPriority.label,
           newPriority: updatedTicket.priority.label,
           updatedBy: updatedByRecipient,
-          participants,
+          participants: filteredParticipants,
         },
       });
     }
@@ -912,6 +936,11 @@ export class TicketsService {
       // No email is dispatched for unassignment because
       // TicketAssigneeUpdatedPayload.newAssignee is required.
       if (newAssignee) {
+            const filteredParticipants =
+      await this.notificationsService.filterEmailRecipients(
+        participants,
+        EmailEventType.TICKET_ASSIGNEE_UPDATED,
+      );
         await this.notificationsService.dispatch({
           type: EmailEventType.TICKET_ASSIGNEE_UPDATED,
           payload: {
@@ -923,6 +952,7 @@ export class TicketsService {
 
             previousAssignee: oldTicket.assignee
               ? {
+                userId: oldTicket.assignee.id,
                   name: oldTicket.assignee.fullName,
                   email: oldTicket.assignee.email,
                   isInvitationAccepted: oldTicket.assignee.isInvitationAccepted,
@@ -930,13 +960,14 @@ export class TicketsService {
               : undefined,
 
             newAssignee: {
+              userId: newAssignee.id,
               name: newAssignee.fullName,
               email: newAssignee.email,
               isInvitationAccepted: newAssignee.isInvitationAccepted,
             },
 
             updatedBy: updatedByRecipient,
-            participants,
+            participants: filteredParticipants,
           },
         });
       }
