@@ -3,6 +3,7 @@
 import * as Accordion from '@radix-ui/react-accordion';
 import { Tab, TabGroup, TabList } from '@headlessui/react';
 import Link from 'next/link';
+import { useEffect, useRef, useState } from 'react';
 import {
   ChatIcon,
   CloseIcon,
@@ -74,9 +75,24 @@ export default function NotificationTray({
 }: NotificationTrayProps) {
   const selectedIndex = activeFilter === 'unread' ? 1 : 0;
   const hasSearch = searchValue.trim().length > 0;
+  const [openGroup, setOpenGroup] = useState<string | undefined>(
+    () => groupedItems.find((group) => group.items.length > 0)?.category,
+  );
   const hasGroupedNotifications = groupedItems.some(
     (group) => group.count > 0 || group.items.length > 0,
   );
+
+  useEffect(() => {
+    if (hasSearch || !groupedItems.length) {
+      return;
+    }
+
+    if (groupedItems.some((group) => group.category === openGroup)) {
+      return;
+    }
+
+    setOpenGroup(undefined);
+  }, [groupedItems, hasSearch, openGroup]);
 
   return (
     <section className="pointer-events-auto flex h-full w-full sm:w-95 flex-col overflow-hidden border border-white/70 bg-white shadow-xl">
@@ -182,16 +198,15 @@ export default function NotificationTray({
           <Accordion.Root
             type="single"
             collapsible
-            defaultValue={
-              groupedItems.filter((group) => group.items.length > 0).at(0)
-                ?.category
-            }
+            value={openGroup}
+            onValueChange={(value) => setOpenGroup(value || undefined)}
             className="flex h-full min-h-0 flex-col divide-y divide-gray-200 overflow-hidden"
           >
             {groupedItems.map((group) => (
               <NotificationGroupSection
                 key={group.category}
                 group={group}
+                isOpen={openGroup === group.category}
                 onClose={onClose}
                 onLoadMoreGroup={onLoadMoreGroup}
                 onViewSingle={onViewSingle}
@@ -311,11 +326,13 @@ function NotificationTab({
 
 function NotificationGroupSection({
   group,
+  isOpen,
   onClose,
   onLoadMoreGroup,
   onViewSingle,
 }: {
   group: NotificationGroup;
+  isOpen: boolean;
   onClose: () => void;
   onLoadMoreGroup: (
     category: NotificationGroupCategory,
@@ -323,17 +340,71 @@ function NotificationGroupSection({
   ) => void;
   onViewSingle: (value: string) => void;
 }) {
-  const canFillAvailableSpace = group.items.length > 0;
+  const itemRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const contentInnerRef = useRef<HTMLDivElement | null>(null);
+  const [shouldFillSpace, setShouldFillSpace] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || !group.items.length) {
+      setShouldFillSpace(false);
+      return;
+    }
+
+    const measure = () => {
+      const itemElement = itemRef.current;
+      const contentElement = contentRef.current;
+      const contentInnerElement = contentInnerRef.current;
+      const parentElement = itemElement?.parentElement;
+
+      if (
+        !itemElement ||
+        !contentElement ||
+        !contentInnerElement ||
+        !parentElement
+      ) {
+        setShouldFillSpace(false);
+        return;
+      }
+
+      const availableHeight =
+        parentElement.getBoundingClientRect().bottom -
+        itemElement.getBoundingClientRect().top;
+      const headerElement = itemElement.querySelector<HTMLElement>(
+        '[data-notification-header]',
+      );
+      const headerHeight = headerElement?.getBoundingClientRect().height ?? 0;
+      const naturalContentHeight = Math.max(
+        contentInnerElement.getBoundingClientRect().height,
+        320,
+      );
+
+      setShouldFillSpace(naturalContentHeight + headerHeight > availableHeight);
+    };
+
+    measure();
+
+    const resizeObserver = new ResizeObserver(measure);
+    resizeObserver.observe(document.body);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [group.items.length, isOpen]);
 
   return (
     <Accordion.Item
+      ref={itemRef}
       value={group.category}
-      className={`flex shrink-0 flex-col bg-white data-[state=open]:min-h-[20rem] ${
-        canFillAvailableSpace ? 'data-[state=open]:flex-1' : ''
+      className={`flex shrink-0 flex-col bg-white  ${
+        shouldFillSpace ? '' : ''
       }`}
     >
       <Accordion.Header>
-        <Accordion.Trigger className="group flex w-full items-center justify-between gap-3 border-b border-transparent px-4 py-3 text-left transition hover:bg-gray-50 data-[state=open]:border-gray-200 data-[state=open]:bg-gray-100">
+        <Accordion.Trigger
+          data-notification-header
+          className="group flex w-full items-center justify-between gap-3 border-b border-transparent px-4 py-3 text-left transition hover:bg-gray-50 data-[state=open]:border-gray-200 data-[state=open]:bg-gray-100"
+        >
           <div className="flex min-w-0 items-center gap-3">
             <NotificationGroupIcon category={group.category} />
             <div className="flex min-w-0 items-center gap-2">
@@ -355,13 +426,16 @@ function NotificationGroupSection({
       </Accordion.Header>
 
       <Accordion.Content
-        className={`min-h-0 overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down ${
-          canFillAvailableSpace ? 'data-[state=open]:flex-1' : ''
+        className={`overflow-hidden max-h-100 data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down ${
+          shouldFillSpace ? '' : ''
         }`}
       >
         {group.items.length ? (
           <div
-            className="tiny-scrollbar max-h-full min-h-[20rem] overflow-y-auto border-t border-gray-100"
+            ref={contentRef}
+            className={`tiny-scrollbar overflow-y-auto max-h-100 border-t border-gray-100 ${
+              shouldFillSpace ? 'h-full ' : ''
+            }`}
             onScroll={(event) => {
               const element = event.currentTarget;
               const nearBottom =
@@ -373,19 +447,21 @@ function NotificationGroupSection({
               }
             }}
           >
-            {group.items.map((item) => (
-              <NotificationRow
-                key={item.id}
-                item={item}
-                onClose={onClose}
-                onViewSingle={() => onViewSingle(item.id)}
-              />
-            ))}
-            {group.isLoadingMore ? (
-              <div className="px-4 py-3 text-center text-xs font-medium text-gray-400">
-                Loading more...
-              </div>
-            ) : null}
+            <div ref={contentInnerRef}>
+              {group.items.map((item) => (
+                <NotificationRow
+                  key={item.id}
+                  item={item}
+                  onClose={onClose}
+                  onViewSingle={() => onViewSingle(item.id)}
+                />
+              ))}
+              {group.isLoadingMore ? (
+                <div className="px-4 py-3 text-center text-xs font-medium text-gray-400">
+                  Loading more...
+                </div>
+              ) : null}
+            </div>
           </div>
         ) : (
           <div className="border-t border-gray-100 px-4 py-5 text-sm text-gray-400">
@@ -556,6 +632,7 @@ function NotificationGroupIcon({
 function ChevronAccordionIcon() {
   return (
     <svg
+      className="transition-transform duration-200 group-data-[state=open]:rotate-180"
       width="20"
       height="20"
       viewBox="0 0 20 20"

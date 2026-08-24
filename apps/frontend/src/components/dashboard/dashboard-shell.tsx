@@ -53,7 +53,7 @@ import { useNotificationsSocket } from '../../app/providers/NotificationsSocketP
 import EmptyState from '../EmptyState';
 
 const PAGE_SIZE = 20;
-const INITIAL_GROUP_PAGE_SIZE = 10;
+const INITIAL_GROUP_PAGE_SIZE = 20;
 
 type NavItem = {
   href: string;
@@ -237,10 +237,11 @@ const fallbackAccount = {
 
 const notificationCategoryLabels: Record<NotificationGroupCategory, string> = {
   mentions: 'Mentions',
-  projects: 'Projects',
-  threads: 'Threads',
   tickets: 'Tickets',
   ticket_replies: 'Ticket Replies',
+  projects: 'Projects',
+  threads: 'Threads',
+
   internal_messages: 'Internal Messages',
   members: 'Members',
   events: 'Events',

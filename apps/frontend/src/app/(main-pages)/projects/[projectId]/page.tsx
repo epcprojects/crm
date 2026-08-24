@@ -840,24 +840,21 @@ export default function ProjectDetailPage() {
       parentId?: string;
       mentionedUserIds: string[];
     }) => {
-      const formData = new FormData();
-      formData.append('message', message.trim());
-
-      if (parentId?.trim()) {
-        formData.append('parentId', parentId.trim());
-      }
-
-      mentionedUserIds.forEach((mentionedUserId) => {
-        if (mentionedUserId.trim()) {
-          formData.append('mentionedUserIds', mentionedUserId.trim());
-        }
-      });
-
       const response = await fetch(
         `/api/projects/${projectId}/thread/${messageId}`,
         {
           method: 'PUT',
-          body: formData,
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({
+            message: message.trim(),
+            parentId: parentId?.trim() || undefined,
+            mentionedUserIds: mentionedUserIds
+              .map((mentionedUserId) => mentionedUserId.trim())
+              .filter((mentionedUserId) => mentionedUserId.length > 0),
+          }),
         },
       );
 
