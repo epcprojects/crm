@@ -10,7 +10,7 @@ import {
   ThreadMessageCreatedPayload,
   ProjectUnassignedPayload,
   ThreadReplyCreatedPayload,
-  EmailAttachmentLink,
+  // EmailAttachmentLink,
 } from '../notifications.types';
 
 const PRIORITY_COLOR: Record<string, string> = {
@@ -441,7 +441,7 @@ interface NotificationEmailParams {
   buttonUrl: string;
   showReplyCallout?: boolean;
   internalNote?: boolean; // default false
-  attachments?: EmailAttachmentLink[]; // optional list of attachments to show in the email
+  // attachments?: EmailAttachmentLink[]; // optional list of attachments to show in the email
 }
 
 // ---------- helpers ----------
@@ -855,7 +855,7 @@ export function renderNotificationEmail(
     buttonUrl,
     showReplyCallout = false,
     internalNote = false,
-    attachments = [],
+    // attachments = [],
   } = params;
 
   const logoUrl = iconUrl(appUrl, 'HarperLogo.png');
@@ -863,7 +863,7 @@ export function renderNotificationEmail(
   const notificationIconUrl = iconUrl(appUrl, 'EmailNotificationIcon.png');
 
   const internalNoteHtml = internalNote ? internalNoteBannerHtml() : '';
-  const attachmentsHtml = attachmentsBlockHtml(appUrl, attachments);
+  // const attachmentsHtml = attachmentsBlockHtml(appUrl, attachments);
 
   const rowsHtml = rows.map((r, i) => dataRowHtml(r, i === 0)).join('');
 
@@ -1137,7 +1137,6 @@ ${internalNoteHtml}
                                                                                                                 </td>
                                                                                                             </tr>
 ${replyCalloutHtml}
- ${attachmentsHtml}
                                                                                                         </tbody>
                                                                                                     </table>
                                                                                                 </td>
@@ -1223,7 +1222,7 @@ export function buildTicketReplyEmail(
     buttonText: 'View Ticket',
     buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}`,
     showReplyCallout: !p.isInternal, // "reply by email" doesn't make sense for internal-only notes
-    attachments: p.attachments, // NEW
+    // attachments: p.attachments, // NEW
     internalNote: p.isInternal,
   });
 
@@ -1258,7 +1257,7 @@ export function buildProjectCreatedEmail(
     buttonText: 'View Project',
     buttonUrl: `${appUrl}/projects`,
     showReplyCallout: false,
-    attachments: p.attachments, // NEW
+    // attachments: p.attachments, // NEW
   });
 
   return {
@@ -1304,7 +1303,7 @@ export function buildTicketCreatedEmail(
     buttonText: 'View Ticket',
     buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}`,
     showReplyCallout: false,
-    attachments: p.attachments, // NEW
+    // attachments: p.attachments, // NEW
   });
 
   return {
@@ -1443,7 +1442,7 @@ export function buildAttachmentAddedEmail(
     rows,
     buttonText: 'View Attachment',
     buttonUrl: `${appUrl}/tickets/${p.ticketId}`,
-    attachments: p.attachments, // NEW
+    // attachments: p.attachments, // NEW
     showReplyCallout: false,
   });
 
@@ -1526,7 +1525,7 @@ export function buildThreadMessageCreatedEmail(
     buttonText: 'View Thread',
     buttonUrl: `${appUrl}/projects/${p.projectId}?t=1`,
     showReplyCallout: false,
-    attachments: p.attachments, // NEW
+    // attachments: p.attachments, // NEW
   });
 
   return {
@@ -1555,7 +1554,7 @@ export function buildThreadReplyCreatedEmail(
     buttonText: 'View Thread Reply',
     buttonUrl: `${appUrl}/projects/${p.projectId}?t=1`,
     showReplyCallout: false,
-    attachments: p.attachments, // NEW
+    // attachments: p.attachments, // NEW
   });
 
   return {

@@ -110,7 +110,7 @@ export class ThreadService {
       ? message.message.slice(0, 140)
       : 'New thread message';
 
-    const attachments = await this.utilityService.getEmailAttachmentLinks(files ?? []);
+    // const attachments = await this.utilityService.getEmailAttachmentLinks(files ?? []);
 
     if (dto.parentId) {
       // Fetch parent so the reply email can show what's being replied to
@@ -132,7 +132,7 @@ export class ThreadService {
             id: parent?.id ?? dto.parentId,
             message: parent?.message ?? '',
           },
-          attachments,
+          // attachments,
         },
       });
 
@@ -155,7 +155,7 @@ export class ThreadService {
           message: msg.message || '',
           createdBy: createdByRecipient,
           participants,
-          attachments,
+          // attachments,
         },
       });
 

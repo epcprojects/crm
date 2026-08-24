@@ -25,7 +25,7 @@ import { TicketsService } from '../tickets/tickets.service';
 import { ReactionsService } from '../reactions/reactions.service';
 import { Project } from '../projects/entities/project.entity';
 import { ProjectsService } from '../projects/projects.service';
-import { EmailAttachmentLink, EmailEventType } from '../notifications/notifications.types';
+import { EmailEventType } from '../notifications/notifications.types';
 import { UtilityService } from '../utility/utility.service';
 
 export type ChatChannel = 'internal' | 'external';
@@ -165,18 +165,18 @@ export class ChatMessagesService {
         });
 
       const participants = Array.from(participantsMap.values());
-      const attachments: EmailAttachmentLink[] = dto.attachmentUrls?.length
-        ? await this.utilityService.getEmailAttachmentLinks(
-            dto.attachmentUrls.map((storageKey, index) => ({
-              storageKey,
-              originalName: extractFilenameFromStorageKey(storageKey),
-              mimeType: 'application/octet-stream',
-              // Only the first file has a real size (schema limitation) —
-              // rest get 0, which formatFileSize should render as empty/omitted
-              sizeBytes: 0,
-            })),
-          )
-        : [];
+      // const attachments: EmailAttachmentLink[] = dto.attachmentUrls?.length
+        // ? await this.utilityService.getEmailAttachmentLinks(
+        //     dto.attachmentUrls.map((storageKey, index) => ({
+        //       storageKey,
+        //       originalName: extractFilenameFromStorageKey(storageKey),
+        //       mimeType: 'application/octet-stream',
+        //       // Only the first file has a real size (schema limitation) —
+        //       // rest get 0, which formatFileSize should render as empty/omitted
+        //       sizeBytes: 0,
+        //     })),
+        //   )
+        // : [];
 
       console.debug('members for internal message notification:', participants);
       await this.notificationsService.dispatch({
@@ -199,7 +199,7 @@ export class ChatMessagesService {
             email: '',
           },
           participants,
-          attachments,
+          // attachments,
         },
       });
     } catch (err) {
