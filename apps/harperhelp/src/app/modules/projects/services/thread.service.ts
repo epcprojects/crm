@@ -602,8 +602,6 @@ export class ThreadService {
     const projectRepo = this.repo.manager.getRepository(Project);
 
     // Get all projects the authenticated user has access to.
-    // TypeORM automatically excludes soft-deleted projects when
-    // Project has a DeleteDateColumn (e.g. deletedAt).
     const projects = await projectRepo
       .createQueryBuilder('project')
       .innerJoin('project.members', 'member', 'member.id = :userId', {
@@ -619,8 +617,7 @@ export class ThreadService {
 
     const projectIds = projects.map((project) => project.id);
 
-    // PostgreSQL DISTINCT ON gives us exactly one latest
-    // top-level message per project.
+    // Get exactly one latest top-level message per project.
     const latestMessages = await this.repo
       .createQueryBuilder('msg')
       .leftJoin('msg.author', 'author')
@@ -645,6 +642,30 @@ export class ThreadService {
     const latestMessageMap = new Map(
       latestMessages.map((message) => [message.projectId, message]),
     );
+
+    // Fetch attachments for all latest messages in one query.
+    const messageIds = latestMessages.map((message) => message.id);
+
+    const attachments = messageIds.length
+      ? await this.filesService.findBySourceBulk(FileSource.THREAD, messageIds)
+      : [];
+
+    const attachmentsMap = new Map<
+      string,
+      { id: string; originalName: string; extension: string }[]
+    >();
+
+    for (const attachment of attachments) {
+      const messageAttachments = attachmentsMap.get(attachment.sourceId) ?? [];
+
+      messageAttachments.push({
+        id: attachment.id,
+        originalName: attachment.originalName,
+        extension: attachment.extension,
+      });
+
+      attachmentsMap.set(attachment.sourceId, messageAttachments);
+    }
 
     return projects.map((project) => {
       const message = latestMessageMap.get(project.id);
@@ -672,6 +693,7 @@ export class ThreadService {
           authorId: message.authorId,
           authorName: message.author?.fullName ?? null,
           timestamp: message.updatedAt ?? message.createdAt,
+          attachments: attachmentsMap.get(message.id) ?? [],
         },
       };
     });
