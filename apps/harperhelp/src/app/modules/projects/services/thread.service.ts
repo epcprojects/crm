@@ -622,7 +622,7 @@ export class ThreadService {
       .innerJoin('project.members', 'member', 'member.id = :userId', {
         userId: user.id,
       })
-      .select(['project.id', 'project.name'])
+      .select(['project.id', 'project.name', 'project.brandColor'])
       .where('project.deletedAt IS NULL')
       .getMany();
 
@@ -682,13 +682,15 @@ export class ThreadService {
       attachmentsMap.set(attachment.sourceId, messageAttachments);
     }
 
-    return projects.map((project) => {
+    // Build response first.
+    const result = projects.map((project) => {
       const message = latestMessageMap.get(project.id);
 
       if (!message) {
         return {
           projectId: project.id,
           projectName: project.name,
+          projectBrandColor: project.brandColor,
           latestMessage: null,
         };
       }
@@ -698,6 +700,7 @@ export class ThreadService {
       return {
         projectId: project.id,
         projectName: project.name,
+        projectBrandColor: project.brandColor,
         latestMessage: {
           id: message.id,
           message:
@@ -707,10 +710,36 @@ export class ThreadService {
           createdAt: message.createdAt,
           authorId: message.authorId,
           authorName: message.author?.fullName ?? null,
+
+          // Use updatedAt if available, otherwise createdAt.
           timestamp: message.updatedAt ?? message.createdAt,
+
           attachments: attachmentsMap.get(message.id) ?? [],
         },
       };
     });
+
+    // Sort projects by their latest thread message.
+    // Projects without messages go to the bottom.
+    result.sort((a, b) => {
+      if (!a.latestMessage && !b.latestMessage) {
+        return 0;
+      }
+
+      if (!a.latestMessage) {
+        return 1;
+      }
+
+      if (!b.latestMessage) {
+        return -1;
+      }
+
+      return (
+        new Date(b.latestMessage.timestamp).getTime() -
+        new Date(a.latestMessage.timestamp).getTime()
+      );
+    });
+
+    return result;
   }
 }
