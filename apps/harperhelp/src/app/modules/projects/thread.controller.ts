@@ -146,6 +146,7 @@ export class ThreadController {
   ) {
     return this.service.removeReaction(pid, messageId, user.id);
   }
+  
   // @Get(':messageId/replies')
   // @ApiOperation({
   //   description: 'Get replies by parent message id',
@@ -153,4 +154,23 @@ export class ThreadController {
   // getReplies(@Param('pid') pid: string, @Param('messageId') messageId: string) {
   //   return this.service.findReplies(messageId, pid);
   // }
+}
+
+
+@Controller('projects/threads')
+@ApiBearerAuth('JWT-auth')
+@UseGuards(JwtAuthGuard, RolesGuard)
+export class ProjectThreadsOverviewController {
+  constructor(private readonly service: ThreadService) {}
+
+  @Get('latest')
+  @ApiOperation({
+    description:
+      'Returns, for every project the authenticated user has access to, ' +
+      'the most recent top-level thread message (parentId is null) with a ' +
+      'timestamp and message preview.',
+  })
+  getLatestPerProject(@GetUser() user) {
+    return this.service.getLatestThreadMessagePerProject(user);
+  }
 }
