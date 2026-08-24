@@ -3,7 +3,7 @@ import { ProjectsService } from './projects.service';
 import { ProjectsController } from './projects.controller';
 import { Project } from './entities/project.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ThreadController } from './thread.controller';
+import { ProjectThreadsOverviewController, ThreadController } from './thread.controller';
 import { ThreadService } from './services/thread.service';
 import { ThreadMessage } from './entities/thread-messages.entity';
 
@@ -27,7 +27,7 @@ import { ReactionsModule } from '../reactions/reactions.module';
     JwtModule,
     ReactionsModule,
   ],
-  controllers: [ProjectsController, ThreadController],
+  controllers: [ProjectsController, ThreadController,ProjectThreadsOverviewController],
   providers: [
     ProjectsService,
     ThreadService,

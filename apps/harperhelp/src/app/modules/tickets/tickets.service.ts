@@ -165,7 +165,7 @@ export class TicketsService {
         });
 
       const participants = Array.from(participantsMap.values());
-      const attachments = await this.utilityService.getEmailAttachmentLinks( files ?? [] );
+      // const attachments = await this.utilityService.getEmailAttachmentLinks( files ?? [] );
 
       console.debug(
         `Dispatching ticket.created notification for ticket ${saved.id} to ${participants.length} participants`,
@@ -198,7 +198,7 @@ export class TicketsService {
               }
             : undefined,
           participants,
-          attachments,
+          // attachments,
         },
       });
       const fullname = await this.usersService.getFullName(

@@ -251,6 +251,9 @@ export class ProjectsService {
           id: user.id,
         },
       },
+      order: {
+        name: 'ASC',
+      },
     });
   }
 

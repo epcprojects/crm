@@ -110,7 +110,7 @@ export class ThreadService {
       ? message.message.slice(0, 140)
       : 'New thread message';
 
-    const attachments = await this.utilityService.getEmailAttachmentLinks(files ?? []);
+    // const attachments = await this.utilityService.getEmailAttachmentLinks(files ?? []);
 
     if (dto.parentId) {
       // Fetch parent so the reply email can show what's being replied to
@@ -132,7 +132,7 @@ export class ThreadService {
             id: parent?.id ?? dto.parentId,
             message: parent?.message ?? '',
           },
-          attachments,
+          // attachments,
         },
       });
 
@@ -155,7 +155,7 @@ export class ThreadService {
           message: msg.message || '',
           createdBy: createdByRecipient,
           participants,
-          attachments,
+          // attachments,
         },
       });
 
@@ -597,5 +597,105 @@ export class ThreadService {
     if (!hasAccess) {
       throw new ForbiddenException('You do not have access to this project.');
     }
+  }
+  async getLatestThreadMessagePerProject(user: any) {
+    const projectRepo = this.repo.manager.getRepository(Project);
+
+    // Get all projects the authenticated user has access to.
+    const projects = await projectRepo
+      .createQueryBuilder('project')
+      .innerJoin('project.members', 'member', 'member.id = :userId', {
+        userId: user.id,
+      })
+      .select(['project.id', 'project.name'])
+      .where('project.deletedAt IS NULL')
+      .getMany();
+
+    if (!projects.length) {
+      return [];
+    }
+
+    const projectIds = projects.map((project) => project.id);
+
+    // Get exactly one latest top-level message per project.
+    const latestMessages = await this.repo
+      .createQueryBuilder('msg')
+      .leftJoin('msg.author', 'author')
+      .select([
+        'msg.id',
+        'msg.projectId',
+        'msg.message',
+        'msg.createdAt',
+        'msg.updatedAt',
+        'msg.authorId',
+        'author.fullName',
+      ])
+      .where('msg.projectId IN (:...projectIds)', { projectIds })
+      .andWhere('msg.parentId IS NULL')
+      .andWhere('msg.deletedAt IS NULL')
+      .distinctOn(['msg.projectId'])
+      .orderBy('msg.projectId', 'ASC')
+      .addOrderBy('msg.createdAt', 'DESC')
+      .addOrderBy('msg.id', 'DESC')
+      .getMany();
+
+    const latestMessageMap = new Map(
+      latestMessages.map((message) => [message.projectId, message]),
+    );
+
+    // Fetch attachments for all latest messages in one query.
+    const messageIds = latestMessages.map((message) => message.id);
+
+    const attachments = messageIds.length
+      ? await this.filesService.findBySourceBulk(FileSource.THREAD, messageIds)
+      : [];
+
+    const attachmentsMap = new Map<
+      string,
+      { id: string; originalName: string; extension: string }[]
+    >();
+
+    for (const attachment of attachments) {
+      const messageAttachments = attachmentsMap.get(attachment.sourceId) ?? [];
+
+      messageAttachments.push({
+        id: attachment.id,
+        originalName: attachment.originalName,
+        extension: attachment.extension,
+      });
+
+      attachmentsMap.set(attachment.sourceId, messageAttachments);
+    }
+
+    return projects.map((project) => {
+      const message = latestMessageMap.get(project.id);
+
+      if (!message) {
+        return {
+          projectId: project.id,
+          projectName: project.name,
+          latestMessage: null,
+        };
+      }
+
+      const messageText = message.message ?? '';
+
+      return {
+        projectId: project.id,
+        projectName: project.name,
+        latestMessage: {
+          id: message.id,
+          message:
+            messageText.length > 100
+              ? `${messageText.slice(0, 100)}...`
+              : messageText,
+          createdAt: message.createdAt,
+          authorId: message.authorId,
+          authorName: message.author?.fullName ?? null,
+          timestamp: message.updatedAt ?? message.createdAt,
+          attachments: attachmentsMap.get(message.id) ?? [],
+        },
+      };
+    });
   }
 }
