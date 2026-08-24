@@ -9,7 +9,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
-  EmailAttachmentLink,
+  // EmailAttachmentLink,
   formatFileSize,
 } from '../notifications/notifications.types';
 import { UploadedFileDto } from '../files/dto/uploaded-file.dto';
@@ -176,57 +176,57 @@ export class UtilityService {
    * Currently backed by S3 presigned URLs — swap the implementation here
    * (CloudFront signed URL, tokenized redirect route, etc.) without touching callers.
    */
-  async getEmailAttachmentLink(
-    file: UploadedFileDto,
-  ): Promise<EmailAttachmentLink> {
-    const extension = (file.originalName.split('.').pop() ?? '').toLowerCase();
-    const url = this.getCloudFrontUrl(file.storageKey);
-    const downloadUrl = `${url}?response-content-disposition=${encodeURIComponent(
-      `attachment; filename="${file.originalName.replace(/"/g, '')}"`,
-    )}`;
-    return {
-      filename: file.originalName,
-      extension,
-      viewUrl: 'https://google.com', // placeholder for now — separate behavior deferred
-      downloadUrl: 'https://google.com', // same for now — separate behavior deferred
-      sizeLabel: formatFileSize(file.sizeBytes),
-    };
-  }
+  // async getEmailAttachmentLink(
+  //   file: UploadedFileDto,
+  // ): Promise<EmailAttachmentLink> {
+  //   const extension = (file.originalName.split('.').pop() ?? '').toLowerCase();
+  //   const url = this.getCloudFrontUrl(file.storageKey);
+  //   const downloadUrl = `${url}?response-content-disposition=${encodeURIComponent(
+  //     `attachment; filename="${file.originalName.replace(/"/g, '')}"`,
+  //   )}`;
+  //   return {
+  //     filename: file.originalName,
+  //     extension,
+  //     viewUrl: 'https://google.com', // placeholder for now — separate behavior deferred
+  //     downloadUrl: 'https://google.com', // same for now — separate behavior deferred
+  //     sizeLabel: formatFileSize(file.sizeBytes),
+  //   };
+  // }
 
-  async getEmailAttachmentLinks(
-    files: UploadedFileDto[],
-  ): Promise<EmailAttachmentLink[]> {
-    if (!files?.length) return [];
-    return Promise.all(files.map((f) => this.getEmailAttachmentLink(f)));
-  }
+  // async getEmailAttachmentLinks(
+  //   files: UploadedFileDto[],
+  // ): Promise<EmailAttachmentLink[]> {
+  //   if (!files?.length) return [];
+  //   return Promise.all(files.map((f) => this.getEmailAttachmentLink(f)));
+  // }
 
-  // NEW — forces Content-Disposition: attachment so it always downloads, never previews
-  private async getPresignedDownloadUrl(
-    key: string,
-    filename: string,
-    expiresInSeconds: number,
-  ): Promise<string> {
-    const command = new GetObjectCommand({
-      Bucket: this.bucketName,
-      Key: key,
-      ResponseContentDisposition: `attachment; filename="${filename.replace(/"/g, '')}"`,
-    });
-    return getSignedUrl(this.s3Client, command, {
-      expiresIn: expiresInSeconds,
-    });
-  }
+  // // NEW — forces Content-Disposition: attachment so it always downloads, never previews
+  // private async getPresignedDownloadUrl(
+  //   key: string,
+  //   filename: string,
+  //   expiresInSeconds: number,
+  // ): Promise<string> {
+  //   const command = new GetObjectCommand({
+  //     Bucket: this.bucketName,
+  //     Key: key,
+  //     ResponseContentDisposition: `attachment; filename="${filename.replace(/"/g, '')}"`,
+  //   });
+  //   return getSignedUrl(this.s3Client, command, {
+  //     expiresIn: expiresInSeconds,
+  //   });
+  // }
 
-  private getCloudFrontUrl(storageKey: string): string {
-    if (!this.cloudFrontDomain) {
-      throw new Error('CLOUDFRONT_ASSETS_DOMAIN is not configured');
-    }
-    // Normalize: strip protocol if present, then rebuild consistently
-    const domain = this.cloudFrontDomain
-      .replace(/^https?:\/\//, '')
-      .replace(/\/$/, ''); // also strip trailing slash if present
+  // private getCloudFrontUrl(storageKey: string): string {
+  //   if (!this.cloudFrontDomain) {
+  //     throw new Error('CLOUDFRONT_ASSETS_DOMAIN is not configured');
+  //   }
+  //   // Normalize: strip protocol if present, then rebuild consistently
+  //   const domain = this.cloudFrontDomain
+  //     .replace(/^https?:\/\//, '')
+  //     .replace(/\/$/, ''); // also strip trailing slash if present
 
-    const key = storageKey.replace(/^\//, ''); // strip leading slash if present, avoid double /
-    // storageKey should NOT have a leading slash already (matches your existing key format)
-    return `https://${domain}/${key}`;
-  }
+  //   const key = storageKey.replace(/^\//, ''); // strip leading slash if present, avoid double /
+  //   // storageKey should NOT have a leading slash already (matches your existing key format)
+  //   return `https://${domain}/${key}`;
+  // }
 }
