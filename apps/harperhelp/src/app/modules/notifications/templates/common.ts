@@ -1234,37 +1234,37 @@ export function buildTicketReplyEmail(
   };
 }
 
-export function buildProjectCreatedEmail(
-  p: ProjectCreatedPayload,
-  appUrl: string,
-): { subject: string; html: string } {
-  const rows: DataRow[] = [
-    { label: 'Project', value: `${p.projectCode} - ${p.projectName}` },
-    { label: 'Created by', value: p.createdBy.name },
-    // ...(p.description ? [{ label: 'Description', value: p.description }] : []),
-    {
-      label: 'Team',
-      value: `${p.members.length} member${p.members.length === 1 ? '' : 's'}`,
-    },
-  ];
+// export function buildProjectCreatedEmail(
+//   p: ProjectCreatedPayload,
+//   appUrl: string,
+// ): { subject: string; html: string } {
+//   const rows: DataRow[] = [
+//     { label: 'Project', value: `${p.projectCode} - ${p.projectName}` },
+//     { label: 'Created by', value: p.createdBy.name },
+//     // ...(p.description ? [{ label: 'Description', value: p.description }] : []),
+//     {
+//       label: 'Team',
+//       value: `${p.members.length} member${p.members.length === 1 ? '' : 's'}`,
+//     },
+//   ];
 
-  const html = renderNotificationEmail({
-    appUrl,
-    iconFileName: 'ProjectAssignedIcon.png',
-    title: 'New Project Created',
-    subheading: `${p.createdBy.name} created a new project you're part of.`,
-    rows,
-    buttonText: 'View Project',
-    buttonUrl: `${appUrl}/projects`,
-    showReplyCallout: false,
-    // attachments: p.attachments, // NEW
-  });
+//   const html = renderNotificationEmail({
+//     appUrl,
+//     iconFileName: 'ProjectAssignedIcon.png',
+//     title: 'New Project Created',
+//     subheading: `${p.createdBy.name} created a new project you're part of.`,
+//     rows,
+//     buttonText: 'View Project',
+//     buttonUrl: `${appUrl}/projects`,
+//     showReplyCallout: false,
+//     // attachments: p.attachments, // NEW
+//   });
 
-  return {
-    subject: `[${p.projectCode}] Project "${truncateSubject(p.projectName)}" has been created`,
-    html,
-  };
-}
+//   return {
+//     subject: `[${p.projectCode}] Project "${truncateSubject(p.projectName)}" has been created`,
+//     html,
+//   };
+// }
 
 export function buildTicketCreatedEmail(
   p: TicketCreatedPayload,

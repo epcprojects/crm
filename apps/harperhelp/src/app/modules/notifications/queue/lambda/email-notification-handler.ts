@@ -3,7 +3,7 @@ import {
   buildAttachmentAddedEmail,
   buildAssigneeUpdatedEmail,
   buildPriorityUpdatedEmail,
-  buildProjectCreatedEmail,
+  // buildProjectCreatedEmail,
   buildStatusUpdatedEmail,
   buildTicketCreatedEmail,
   buildTicketReplyEmail,
@@ -64,8 +64,8 @@ async function sendMailToRecipients(
 
 function buildEmailForEvent(event: EmailNotificationEvent) {
   switch (event.type) {
-    case EmailEventType.PROJECT_CREATED:
-      return buildProjectCreatedEmail(event.payload, appUrl);
+    // case EmailEventType.PROJECT_CREATED:
+    //   return buildProjectCreatedEmail(event.payload, appUrl);
     case EmailEventType.PROJECT_ASSIGNED:
       return buildProjectAssignedEmail(event.payload, appUrl);
     case EmailEventType.PROJECT_UNASSIGNED:
@@ -103,8 +103,8 @@ function filterAcceptedRecipients(
 
 function resolveRecipients(event: EmailNotificationEvent) {
   switch (event.type) {
-    case EmailEventType.PROJECT_CREATED:
-      return event.payload.members;
+    // case EmailEventType.PROJECT_CREATED:
+    //   return event.payload.members;
     case EmailEventType.PROJECT_ASSIGNED:
       return event.payload.assignedTo ? [event.payload.assignedTo] : [];
     case EmailEventType.PROJECT_UNASSIGNED:

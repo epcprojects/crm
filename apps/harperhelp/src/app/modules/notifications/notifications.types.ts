@@ -1,7 +1,7 @@
 
 import { EmailNotificationEntityType } from '@harperhelp/types';
 export enum EmailEventType {
-  PROJECT_CREATED = 'project.created',
+  // PROJECT_CREATED = 'project.created',
   PROJECT_ASSIGNED = 'project.assigned',
   PROJECT_UNASSIGNED = 'project.unassigned',
   THREAD_MESSAGE_CREATED = 'thread.message_created',
@@ -14,55 +14,19 @@ export enum EmailEventType {
   THREAD_REPLY_CREATED = 'thread.reply_created'
 
 }
-export const EMAIL_NOTIFICATION_ENTITY_TYPE_MAP: Record<
-  EmailEventType,
-  EmailNotificationEntityType
-> = {
-  [EmailEventType.PROJECT_CREATED]:
-    EmailNotificationEntityType.PROJECT,
 
-  [EmailEventType.PROJECT_ASSIGNED]:
-    EmailNotificationEntityType.PROJECT,
-
-  [EmailEventType.PROJECT_UNASSIGNED]:
-    EmailNotificationEntityType.PROJECT,
-
-  [EmailEventType.THREAD_MESSAGE_CREATED]:
-    EmailNotificationEntityType.THREAD,
-
-  [EmailEventType.THREAD_REPLY_CREATED]:
-    EmailNotificationEntityType.THREAD,
-
-  [EmailEventType.TICKET_CREATED]:
-    EmailNotificationEntityType.TICKET,
-
-  [EmailEventType.TICKET_REPLY_POSTED]:
-    EmailNotificationEntityType.TICKET,
-
-  [EmailEventType.TICKET_STATUS_UPDATED]:
-    EmailNotificationEntityType.TICKET,
-
-  [EmailEventType.TICKET_PRIORITY_UPDATED]:
-    EmailNotificationEntityType.TICKET,
-
-  [EmailEventType.TICKET_ASSIGNEE_UPDATED]:
-    EmailNotificationEntityType.TICKET,
-
-  [EmailEventType.TICKET_ATTACHMENT_ADDED]:
-    EmailNotificationEntityType.TICKET,
-};
 
 export function getEmailNotificationEntityType(
   eventType: EmailEventType,
 ): EmailNotificationEntityType {
-  return EMAIL_NOTIFICATION_ENTITY_TYPE_MAP[eventType];
+  return EMAIL_NOTIFICATION_METADATA[eventType].entityType;
 }
 
 export const EMAIL_NOTIFICATION_METADATA : Record<EmailEventType, { entityType: EmailNotificationEntityType; label: string }> = {
-  [EmailEventType.PROJECT_CREATED]: {
-    entityType: EmailNotificationEntityType.PROJECT,
-    label: 'Project created',
-  },
+  // [EmailEventType.PROJECT_CREATED]: {
+  //   entityType: EmailNotificationEntityType.PROJECT,
+  //   label: 'Project created',
+  // },
 
   [EmailEventType.PROJECT_ASSIGNED]: {
     entityType: EmailNotificationEntityType.PROJECT,
@@ -270,7 +234,7 @@ export function formatFileSize(bytes: number): string {
 }
 
 export type EmailNotificationEvent =
-  | { type: EmailEventType.PROJECT_CREATED; payload: ProjectCreatedPayload }
+  // | { type: EmailEventType.PROJECT_CREATED; payload: ProjectCreatedPayload }
   | { type: EmailEventType.PROJECT_UNASSIGNED; payload: ProjectUnassignedPayload }
   | { type: EmailEventType.PROJECT_ASSIGNED; payload: ProjectAssignedPayload } 
   | {type: EmailEventType.THREAD_MESSAGE_CREATED; payload: ThreadMessageCreatedPayload }

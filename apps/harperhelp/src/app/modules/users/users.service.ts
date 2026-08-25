@@ -246,13 +246,14 @@ export class UsersService {
         userType: dto.userType,
       }),
     );
-    await this.notificationsService.ensureEmailNotificationPreferences(newUser.id);
-
-
+    
+    
     await this.userRoleRepo.save({
       userId: newUser.id,
       roleId: role.id,
     });
+    
+    await this.notificationsService.ensureEmailNotificationPreferences(newUser.id);
 
     await this.notificationsService.sendAdminInviteEmail({
       to: newUser.email,
@@ -399,8 +400,9 @@ export class UsersService {
         userId,
         roleId: role.id,
       });
+      console.debug(`Updated role for user ${userId} to ${role.name}`);
     }
-
+    
     // Send notifications based on the actual diff — not just "projectIds
     // was passed in the request". Skip entirely if the admin is editing
     // their own account (no self-notifications).
@@ -409,8 +411,9 @@ export class UsersService {
     // their own account (no self-notifications).
     
     user.updatedAt = new Date();
-
+    
     await this.userRepo.save(user);
+    await this.notificationsService.ensureEmailNotificationPreferences(userId);
     if (userId !== loggedInUser.id && dto.projectIds !== undefined) {
       const affectedUser: EmailRecipient = {
         userId: user.id,
@@ -443,6 +446,7 @@ export class UsersService {
           message: `New project${addedProjects.length === 1 ? '' : 's'}: ${addedNames}`,
           explicitRecipientIds: [userId],
         });
+        if (filtered.length > 0) {
         for (const project of addedProjects) {
           await this.notificationsService.dispatch({
             type: EmailEventType.PROJECT_ASSIGNED,
@@ -454,12 +458,12 @@ export class UsersService {
             },
           });
         }
-      }
+      }}
       // Notify about removed projects, if any.
       if (removedProjects.length > 0) {
               const filtered = await this.notificationsService.filterEmailRecipients(
         [affectedUser],
-        EmailEventType.PROJECT_ASSIGNED,
+        EmailEventType.PROJECT_UNASSIGNED,
       );
         const removedNames = removedProjects.map((p) => p.name).join(', ');
 
@@ -471,6 +475,7 @@ export class UsersService {
           message: `Removed project${removedProjects.length === 1 ? '' : 's'}: ${removedNames}`,
           explicitRecipientIds: [userId],
         });
+        if (filtered.length > 0) {
         for (const project of removedProjects) {
           await this.notificationsService.dispatch({
             type: EmailEventType.PROJECT_UNASSIGNED,
@@ -481,12 +486,12 @@ export class UsersService {
             },
           });
         }
-      }
+      }}
     }
 
-    user.updatedAt = new Date();
+    // user.updatedAt = new Date();
 
-    await this.userRepo.save(user);
+    // await this.userRepo.save(user);
 
     return this.findById(userId);
   }

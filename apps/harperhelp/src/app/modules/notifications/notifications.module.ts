@@ -9,10 +9,12 @@ import { JwtModule } from '@nestjs/jwt';
 import { NotificationsController } from './notifications.controller';
 import { ActivityModule } from '../activity/activity-log.module';
 import { EmailNotificationPreference } from './entities/email-notification-preference.entity';
+import { RoleClaim } from '../roles/entities/role.claim.entity';
+import { UserRole } from '../users/entities/user.roles.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Notification, EmailNotificationPreference]),
+    TypeOrmModule.forFeature([Notification, EmailNotificationPreference, UserRole, RoleClaim]),
     SqsNotificationQueueModule,
     ActivityModule,
     JwtModule
