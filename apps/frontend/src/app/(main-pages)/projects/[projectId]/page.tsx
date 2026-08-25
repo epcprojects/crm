@@ -714,7 +714,10 @@ export default function ProjectDetailPage() {
     }) => {
       // const formData = new FormData();
       const uploadedAttachments = attachments.length
-        ? await uploadFilesDirectly(attachments, `projects/${projectId}/threads`)
+        ? await uploadFilesDirectly(
+            attachments,
+            `projects/${projectId}/threads`,
+          )
         : [];
       // if (message.trim()) {
       //   formData.append('message', message.trim());
@@ -756,47 +759,47 @@ export default function ProjectDetailPage() {
       return data;
     },
     onSuccess: async (_data, variables) => {
-  if (variables.parentId) {
-    updateProjectThreadReplyCount(
-      variables.parentId,
-      (currentCount) => currentCount + 1,
-    );
-  }
-
-  const invalidations: Promise<unknown>[] = [
-    queryClient.invalidateQueries({
-      queryKey: [...projectThreadQueryKey, projectId],
-    }),
-  ];
-
-  if (variables.parentId) {
-    invalidations.push(
-      queryClient.invalidateQueries({
-        queryKey: [
-          ...projectThreadDetailQueryKey,
-          projectId,
+      if (variables.parentId) {
+        updateProjectThreadReplyCount(
           variables.parentId,
-        ],
-      }),
-    );
-  }
+          (currentCount) => currentCount + 1,
+        );
+      }
 
-  if (variables.attachments.length > 0) {
-    invalidations.push(
-      queryClient.invalidateQueries({
-        queryKey: [...projectFilesQueryKey, projectId],
-      }),
-    );
-  }
+      const invalidations: Promise<unknown>[] = [
+        queryClient.invalidateQueries({
+          queryKey: [...projectThreadQueryKey, projectId],
+        }),
+      ];
 
-  await Promise.all(invalidations);
+      if (variables.parentId) {
+        invalidations.push(
+          queryClient.invalidateQueries({
+            queryKey: [
+              ...projectThreadDetailQueryKey,
+              projectId,
+              variables.parentId,
+            ],
+          }),
+        );
+      }
 
-  appToast.success(
-    variables.parentId
-      ? 'Reply posted successfully.'
-      : 'Thread posted successfully.',
-  );
-},
+      if (variables.attachments.length > 0) {
+        invalidations.push(
+          queryClient.invalidateQueries({
+            queryKey: [...projectFilesQueryKey, projectId],
+          }),
+        );
+      }
+
+      await Promise.all(invalidations);
+
+      appToast.success(
+        variables.parentId
+          ? 'Reply posted successfully.'
+          : 'Thread posted successfully.',
+      );
+    },
     // onSuccess: async (_data, variables) => {
     //   if (variables.parentId) {
     //     updateProjectThreadReplyCount(
@@ -1780,28 +1783,30 @@ export default function ProjectDetailPage() {
       }>(queryKey),
     }));
 
-    queryClient.setQueryData<InfiniteData<ProjectThreadPage>>(threadQueryKey, (current) =>
-      current
-        ? {
-            ...current,
-            pages: current.pages.map((page) => ({
-              ...page,
-              threads: page.threads.map((threadReply) =>
-                threadReply.id === reply.id
-                  ? {
-                      ...threadReply,
-                      reactions: applyProjectThreadReactionUpdate(
-                        threadReply.reactions ?? [],
-                        emoji,
-                        remove,
-                        currentUserId,
-                      ),
-                    }
-                  : threadReply,
-              ),
-            })),
-          }
-        : current,
+    queryClient.setQueryData<InfiniteData<ProjectThreadPage>>(
+      threadQueryKey,
+      (current) =>
+        current
+          ? {
+              ...current,
+              pages: current.pages.map((page) => ({
+                ...page,
+                threads: page.threads.map((threadReply) =>
+                  threadReply.id === reply.id
+                    ? {
+                        ...threadReply,
+                        reactions: applyProjectThreadReactionUpdate(
+                          threadReply.reactions ?? [],
+                          emoji,
+                          remove,
+                          currentUserId,
+                        ),
+                      }
+                    : threadReply,
+                ),
+              })),
+            }
+          : current,
     );
 
     detailQueryKeys.forEach((queryKey) => {
@@ -2312,7 +2317,7 @@ export default function ProjectDetailPage() {
                             <div className="flex items-center gap-3">
                               {/* Desktop inline filters */}
                               {projectTicketsViewMode === 'table' ? (
-                                <div className="hidden w-45 xl:block">
+                                <div className="hidden w-55 xl:block">
                                   <Dropdown
                                     options={statusFilterOptions}
                                     value={selectedStatus}
@@ -2326,7 +2331,7 @@ export default function ProjectDetailPage() {
                                 </div>
                               ) : null}
 
-                              <div className="hidden w-45 xl:flex gap-3">
+                              <div className="hidden w-55 xl:flex gap-3">
                                 <Dropdown
                                   options={priorityFilterOptions}
                                   value={selectedPriority}
@@ -2472,7 +2477,9 @@ export default function ProjectDetailPage() {
                           <ProjectThreadPanel
                             title="Discussion"
                             replies={projectThreadReplies}
-                            hasMoreReplies={Boolean(projectThreadQuery.hasNextPage)}
+                            hasMoreReplies={Boolean(
+                              projectThreadQuery.hasNextPage,
+                            )}
                             isLoadingMoreReplies={
                               projectThreadQuery.isFetchingNextPage
                             }
