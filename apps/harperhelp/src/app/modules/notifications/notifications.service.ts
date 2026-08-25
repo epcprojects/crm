@@ -1070,6 +1070,7 @@ export class NotificationsService {
         EmailEventType.TICKET_STATUS_UPDATED,
         EmailEventType.TICKET_PRIORITY_UPDATED,
         EmailEventType.TICKET_ASSIGNEE_UPDATED,
+        EmailEventType.TICKET_INTERNAL_MESSAGE,
         // EmailEventType.TICKET_ATTACHMENT_ADDED,
       ],
     },
