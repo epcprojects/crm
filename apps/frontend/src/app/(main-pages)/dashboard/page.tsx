@@ -219,7 +219,8 @@ export default function Page() {
   const canCreateTicket = hasPermission('tickets.create');
   const canViewTicketsList = hasPermission('tickets.view_list');
   const canViewTicketDetail = hasPermission('tickets.view_detail');
-  const canViewThreads = hasPermission('thread.view');
+  // const canViewThreads = hasPermission('thread.view');
+  const canViewThreads = false;
   const canViewProjectDetail = hasPermission('projects.view_detail');
   const canEditProject = hasPermission('projects.edit');
   const canDeleteProject = hasPermission('projects.delete');
