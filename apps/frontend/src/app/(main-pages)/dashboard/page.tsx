@@ -248,7 +248,9 @@ export default function Page() {
   const projectsQuery = useProjectsQuery(
     canViewProjectCards || canCreateTicket,
   );
-  const projectNamesQuery = useProjectNamesQuery(canCreateTicket);
+  const projectNamesQuery = useProjectNamesQuery(
+    canViewRecentTickets || canCreateTicket,
+  );
   const selectedStatus = getDashboardStatusFilterValue(
     searchParams.get(RECENT_TICKETS_STATUS_QUERY_PARAM),
   );
@@ -332,11 +334,11 @@ export default function Page() {
   );
   const projectFilterOptions = useMemo(
     () =>
-      (projectsQuery.data ?? []).map((project) => ({
+      (projectNamesQuery.data ?? []).map((project) => ({
         label: project.name,
         value: project.id,
       })),
-    [projectsQuery.data],
+    [projectNamesQuery.data],
   );
   const ticketSummaryQuery = useQuery({
     queryKey: ['dashboard', 'ticket-summary'],
