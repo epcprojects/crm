@@ -10,6 +10,7 @@ import {
   ThreadMessageCreatedPayload,
   ProjectUnassignedPayload,
   ThreadReplyCreatedPayload,
+  TicketInternalMessageEmailPayload,
   // EmailAttachmentLink,
 } from '../notifications.types';
 
@@ -1202,6 +1203,39 @@ ${replyCalloutHtml}
 
 export function buildTicketReplyEmail(
   p: TicketReplyPostedPayload,
+  appUrl: string,
+): { subject: string; html: string } {
+  const rows: DataRow[] = [
+    { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
+    { label: 'Project', value: p.projectName },
+    { label: 'Replied by', value: p.postedBy.name },
+    { label: 'Preview', value: p.replyContent ?? '' },
+  ];
+
+  const html = renderNotificationEmail({
+    appUrl,
+    iconFileName: 'NewReplyOnTicketIcon.png',
+    title: p.isInternal ? 'New Internal Note' : 'New Reply on Ticket',
+    subheading: p.isInternal
+      ? 'A new internal note has been added to a ticket.'
+      : "A new reply has been added to a ticket you're following.",
+    rows,
+    buttonText: 'View Ticket',
+    buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}`,
+    showReplyCallout: !p.isInternal, // "reply by email" doesn't make sense for internal-only notes
+    // attachments: p.attachments, // NEW
+    internalNote: p.isInternal,
+  });
+
+  return {
+    subject: p.isInternal
+      ? `[Internal] Message: [${p.ticketNumber}] `
+      : `New Reply: [${p.ticketNumber}] `,
+    html,
+  };
+}
+export function buildTicketInternalMessageEmail(
+  p: TicketInternalMessageEmailPayload,
   appUrl: string,
 ): { subject: string; html: string } {
   const rows: DataRow[] = [

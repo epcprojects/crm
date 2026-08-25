@@ -6,6 +6,7 @@ export enum EmailEventType {
   PROJECT_UNASSIGNED = 'project.unassigned',
   THREAD_MESSAGE_CREATED = 'thread.message_created',
   TICKET_CREATED = 'ticket.created',
+  TICKET_INTERNAL_MESSAGE = 'ticket.internal_message',
   TICKET_REPLY_POSTED = 'ticket.reply_posted',
   TICKET_STATUS_UPDATED = 'ticket.status_updated',
   TICKET_PRIORITY_UPDATED = 'ticket.priority_updated',
@@ -56,6 +57,11 @@ export const EMAIL_NOTIFICATION_METADATA : Record<EmailEventType, { entityType: 
   [EmailEventType.TICKET_REPLY_POSTED]: {
     entityType: EmailNotificationEntityType.TICKET,
     label: 'Ticket reply',
+  },
+
+  [EmailEventType.TICKET_INTERNAL_MESSAGE]: {
+    entityType: EmailNotificationEntityType.TICKET,
+    label: 'Internal message',
   },
 
   [EmailEventType.TICKET_STATUS_UPDATED]: {
@@ -141,6 +147,19 @@ export interface TicketCreatedPayload {
 }
 
 export interface TicketReplyPostedPayload {
+  projectId: string
+  ticketId: string;
+  ticketNumber: string;
+  ticketTitle: string;
+  projectName: string;
+  replyContent: string;
+  isInternal: boolean; // internal PM<->Dev vs external PM<->Client
+  postedBy: EmailRecipient;
+  participants: EmailRecipient[];
+  // attachments?: EmailAttachmentLink[]; // optional list of attachments to show in the email
+}
+
+export interface TicketInternalMessageEmailPayload {
   projectId: string
   ticketId: string;
   ticketNumber: string;
@@ -243,6 +262,10 @@ export type EmailNotificationEvent =
   | {
       type: EmailEventType.TICKET_REPLY_POSTED;
       payload: TicketReplyPostedPayload;
+    }
+  | {
+      type: EmailEventType.TICKET_INTERNAL_MESSAGE;
+      payload: TicketInternalMessageEmailPayload;
     }
   | {
       type: EmailEventType.TICKET_STATUS_UPDATED;

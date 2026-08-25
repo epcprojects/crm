@@ -7,6 +7,7 @@ import {
   buildStatusUpdatedEmail,
   buildTicketCreatedEmail,
   buildTicketReplyEmail,
+  buildTicketInternalMessageEmail,
   buildThreadMessageCreatedEmail,
   buildThreadReplyCreatedEmail,
   buildProjectUnassignedEmail,
@@ -78,6 +79,8 @@ function buildEmailForEvent(event: EmailNotificationEvent) {
       return buildTicketCreatedEmail(event.payload, appUrl);
     case EmailEventType.TICKET_REPLY_POSTED:
       return buildTicketReplyEmail(event.payload, appUrl);
+    case EmailEventType.TICKET_INTERNAL_MESSAGE:
+      return buildTicketInternalMessageEmail(event.payload, appUrl);
     case EmailEventType.TICKET_STATUS_UPDATED:
       return buildStatusUpdatedEmail(event.payload, appUrl);
     case EmailEventType.TICKET_PRIORITY_UPDATED:
@@ -116,6 +119,10 @@ function resolveRecipients(event: EmailNotificationEvent) {
     case EmailEventType.THREAD_REPLY_CREATED:
       return event.payload.participants;
     case EmailEventType.TICKET_REPLY_POSTED:
+      return event.payload.participants.filter(
+        (recipient) => recipient.email !== event.payload.postedBy.email,
+      );
+    case EmailEventType.TICKET_INTERNAL_MESSAGE:
       return event.payload.participants.filter(
         (recipient) => recipient.email !== event.payload.postedBy.email,
       );

@@ -12,6 +12,7 @@ import {
   // ProjectCreatedPayload,
   TicketCreatedPayload,
   TicketReplyPostedPayload,
+  TicketInternalMessageEmailPayload,
   TicketStatusUpdatedPayload,
   TicketPriorityUpdatedPayload,
   TicketAssigneeUpdatedPayload,
@@ -30,6 +31,7 @@ import {
   buildStatusUpdatedEmail,
   buildPriorityUpdatedEmail,
   buildAssigneeUpdatedEmail,
+  buildTicketInternalMessageEmail,
   // buildAttachmentAddedEmail,
   buildProjectAssignedEmail,
   buildThreadMessageCreatedEmail,
@@ -262,8 +264,10 @@ export class NotificationsService {
         return this.onThreadReplyCreated(event.payload);
       case EmailEventType.TICKET_CREATED: // done
         return this.onTicketCreated(event.payload);
-      case EmailEventType.TICKET_REPLY_POSTED: // almost done
+      case EmailEventType.TICKET_REPLY_POSTED: // almost done 
         return this.onTicketReplyPosted(event.payload);
+      case EmailEventType.TICKET_INTERNAL_MESSAGE: // done
+        return this.onTicketInternalMessageEmail(event.payload);
       case EmailEventType.TICKET_STATUS_UPDATED:
         return this.onTicketStatusUpdated(event.payload);
       case EmailEventType.TICKET_PRIORITY_UPDATED:
@@ -368,6 +372,21 @@ export class NotificationsService {
     p: TicketReplyPostedPayload,
   ): Promise<void> {
     const { subject, html } = buildTicketReplyEmail(
+      p,
+      this.appUrl,
+      // this.appName,
+    );
+    // Internal notes: exclude the poster themselves from the notification list
+    const recipients = p.participants.filter(
+      (r) => r.email !== p.postedBy.email && r.isInvitationAccepted === true,
+    );
+    await this.sendBulk(recipients, subject, html);
+  }
+
+  private async onTicketInternalMessageEmail(
+    p: TicketInternalMessageEmailPayload,
+  ): Promise<void> {
+    const { subject, html } = buildTicketInternalMessageEmail(
       p,
       this.appUrl,
       // this.appName,

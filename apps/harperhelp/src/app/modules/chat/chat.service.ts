@@ -170,7 +170,7 @@ export class ChatMessagesService {
       const participants = Array.from(participantsMap.values());
       const filteredParticipants = await this.notificationsService.filterEmailRecipients(
         participants,
-        EmailEventType.TICKET_REPLY_POSTED,
+        EmailEventType.TICKET_INTERNAL_MESSAGE,
       );
       // const attachments: EmailAttachmentLink[] = dto.attachmentUrls?.length
         // ? await this.utilityService.getEmailAttachmentLinks(
