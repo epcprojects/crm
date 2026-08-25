@@ -168,11 +168,11 @@ export class TicketsService {
         });
 
       const participants = Array.from(participantsMap.values());
-          const filteredParticipants =
-      await this.notificationsService.filterEmailRecipients(
-        participants,
-        EmailEventType.TICKET_CREATED,
-      );
+      const filteredParticipants =
+        await this.notificationsService.filterEmailRecipients(
+          participants,
+          EmailEventType.TICKET_CREATED,
+        );
       // const attachments = await this.utilityService.getEmailAttachmentLinks( files ?? [] );
 
       console.debug(
@@ -445,6 +445,34 @@ export class TicketsService {
         },
       );
     }
+    /*
+     * Clone the filtered query again (same base as summaryQuery) so this
+     * reflects ALL matching tickets, not just the current page.
+     */
+    const countPerStatusQuery = qb.clone();
+
+    const countPerStatusRaw = await countPerStatusQuery
+      .select('t.statusKey', 'statusKey')
+      .addSelect('COUNT(t.id)', 'count')
+      .groupBy('t.statusKey')
+      .getRawMany();
+
+    const countsByStatusKey: Record<string, number> = {};
+    for (const row of countPerStatusRaw) {
+      const key = row.statusKey ?? row.statuskey;
+      countsByStatusKey[key] = Number(row.count);
+    }
+    // Pull every possible status key so zero-count ones are included too
+    const allStatuses = await this.statusRepo
+      .createQueryBuilder('s')
+      .select('s.key', 'key')
+      .getRawMany();
+
+    const countPerStatus: Record<string, number> = {};
+    for (const row of allStatuses) {
+      const key = row.key;
+      countPerStatus[key] = countsByStatusKey[key] ?? 0;
+    }
 
     /*
      * Clone the filtered query before adding pagination and item selection.
@@ -549,7 +577,7 @@ export class TicketsService {
         resolved: Number(summaryResult?.resolved ?? 0),
         critical: Number(summaryResult?.critical ?? 0),
       },
-
+      countPerStatus,
       meta: {
         page: query.page,
         limit: query.limit,
@@ -841,11 +869,11 @@ export class TicketsService {
     };
     // STATUS CHANGED
     if (dto.statusKey && oldStatus && dto.statusKey !== oldStatus.key) {
-          const filteredParticipants =
-      await this.notificationsService.filterEmailRecipients(
-        participants,
-        EmailEventType.TICKET_STATUS_UPDATED,
-      );
+      const filteredParticipants =
+        await this.notificationsService.filterEmailRecipients(
+          participants,
+          EmailEventType.TICKET_STATUS_UPDATED,
+        );
       await this.notificationsService.notifyProjectMembers({
         projectId: ticket.projectId,
         actorId: userId,
@@ -876,10 +904,10 @@ export class TicketsService {
     // PRIORITY CHANGED
     if (dto.priorityKey && oldPriority && dto.priorityKey !== oldPriority.key) {
       const filteredParticipants =
-      await this.notificationsService.filterEmailRecipients(
-        participants,
-        EmailEventType.TICKET_PRIORITY_UPDATED,
-      );
+        await this.notificationsService.filterEmailRecipients(
+          participants,
+          EmailEventType.TICKET_PRIORITY_UPDATED,
+        );
       await this.notificationsService.notifyProjectMembers({
         projectId: ticket.projectId,
         actorId: userId,
@@ -936,11 +964,11 @@ export class TicketsService {
       // No email is dispatched for unassignment because
       // TicketAssigneeUpdatedPayload.newAssignee is required.
       if (newAssignee) {
-            const filteredParticipants =
-      await this.notificationsService.filterEmailRecipients(
-        participants,
-        EmailEventType.TICKET_ASSIGNEE_UPDATED,
-      );
+        const filteredParticipants =
+          await this.notificationsService.filterEmailRecipients(
+            participants,
+            EmailEventType.TICKET_ASSIGNEE_UPDATED,
+          );
         await this.notificationsService.dispatch({
           type: EmailEventType.TICKET_ASSIGNEE_UPDATED,
           payload: {
@@ -952,7 +980,7 @@ export class TicketsService {
 
             previousAssignee: oldTicket.assignee
               ? {
-                userId: oldTicket.assignee.id,
+                  userId: oldTicket.assignee.id,
                   name: oldTicket.assignee.fullName,
                   email: oldTicket.assignee.email,
                   isInvitationAccepted: oldTicket.assignee.isInvitationAccepted,
