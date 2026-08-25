@@ -712,7 +712,7 @@ export class ThreadService {
           authorName: message.author?.fullName ?? null,
 
           // Use updatedAt if available, otherwise createdAt.
-          timestamp: message.updatedAt ?? message.createdAt,
+          timestamp: message.createdAt,
 
           attachments: attachmentsMap.get(message.id) ?? [],
         },
@@ -735,8 +735,8 @@ export class ThreadService {
       }
 
       return (
-        new Date(b.latestMessage.timestamp).getTime() -
-        new Date(a.latestMessage.timestamp).getTime()
+        new Date(b.latestMessage.createdAt).getTime() -
+        new Date(a.latestMessage.createdAt).getTime()
       );
     });
 
