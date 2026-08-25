@@ -235,12 +235,11 @@ const fallbackAccount = {
 };
 
 const notificationCategoryLabels: Record<NotificationGroupCategory, string> = {
-  mentions: 'Mentions',
   tickets: 'Tickets',
   ticket_replies: 'Ticket Replies',
-  projects: 'Projects',
   threads: 'Threads',
-
+  mentions: 'Mentions',
+  projects: 'Projects',
   internal_messages: 'Internal Messages',
   members: 'Members',
   events: 'Events',
