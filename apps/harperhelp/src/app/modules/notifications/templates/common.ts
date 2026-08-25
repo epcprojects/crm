@@ -5,7 +5,7 @@ import {
   TicketStatusUpdatedPayload,
   TicketPriorityUpdatedPayload,
   TicketAssigneeUpdatedPayload,
-  TicketAttachmentAddedPayload,
+  // TicketAttachmentAddedPayload,
   ProjectAssignedPayload,
   ThreadMessageCreatedPayload,
   ProjectUnassignedPayload,
@@ -1422,35 +1422,35 @@ export function buildAssigneeUpdatedEmail(
   };
 }
 
-export function buildAttachmentAddedEmail(
-  p: TicketAttachmentAddedPayload,
-  appUrl: string,
-): { subject: string; html: string } {
-  const rows: DataRow[] = [
-    { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
-    { label: 'Project', value: p.projectName },
-    { label: 'Uploaded by', value: p.uploadedBy.name },
-    { label: 'File name', value: p.fileName },
-    { label: 'File size', value: p.fileSize },
-  ];
+// export function buildAttachmentAddedEmail(
+//   p: TicketAttachmentAddedPayload,
+//   appUrl: string,
+// ): { subject: string; html: string } {
+//   const rows: DataRow[] = [
+//     { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
+//     { label: 'Project', value: p.projectName },
+//     { label: 'Uploaded by', value: p.uploadedBy.name },
+//     { label: 'File name', value: p.fileName },
+//     { label: 'File size', value: p.fileSize },
+//   ];
 
-  const html = renderNotificationEmail({
-    appUrl,
-    iconFileName: 'AttachmentAddedIcon.png',
-    title: 'Attachment Added',
-    subheading: `${p.uploadedBy.name} added an attachment to a ticket you're following.`,
-    rows,
-    buttonText: 'View Attachment',
-    buttonUrl: `${appUrl}/tickets/${p.ticketId}`,
-    // attachments: p.attachments, // NEW
-    showReplyCallout: false,
-  });
+//   const html = renderNotificationEmail({
+//     appUrl,
+//     iconFileName: 'AttachmentAddedIcon.png',
+//     title: 'Attachment Added',
+//     subheading: `${p.uploadedBy.name} added an attachment to a ticket you're following.`,
+//     rows,
+//     buttonText: 'View Attachment',
+//     buttonUrl: `${appUrl}/tickets/${p.ticketId}`,
+//     // attachments: p.attachments, // NEW
+//     showReplyCallout: false,
+//   });
 
-  return {
-    subject: `[${p.ticketNumber}] Attachment added: ${p.fileName}`,
-    html,
-  };
-}
+//   return {
+//     subject: `[${p.ticketNumber}] Attachment added: ${p.fileName}`,
+//     html,
+//   };
+// }
 
 export function buildProjectAssignedEmail(
   p: ProjectAssignedPayload,

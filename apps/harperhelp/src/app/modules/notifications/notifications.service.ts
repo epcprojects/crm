@@ -15,12 +15,13 @@ import {
   TicketStatusUpdatedPayload,
   TicketPriorityUpdatedPayload,
   TicketAssigneeUpdatedPayload,
-  TicketAttachmentAddedPayload,
+  // TicketAttachmentAddedPayload,
   ProjectAssignedPayload,
   ThreadMessageCreatedPayload,
   ProjectUnassignedPayload,
   ThreadReplyCreatedPayload,
   getEmailNotificationEntityType,
+  EMAIL_NOTIFICATION_METADATA,
 } from './notifications.types';
 import {
   // buildProjectCreatedEmail,
@@ -29,7 +30,7 @@ import {
   buildStatusUpdatedEmail,
   buildPriorityUpdatedEmail,
   buildAssigneeUpdatedEmail,
-  buildAttachmentAddedEmail,
+  // buildAttachmentAddedEmail,
   buildProjectAssignedEmail,
   buildThreadMessageCreatedEmail,
   buildProjectUnassignedEmail,
@@ -269,8 +270,8 @@ export class NotificationsService {
         return this.onTicketPriorityUpdated(event.payload);
       case EmailEventType.TICKET_ASSIGNEE_UPDATED:
         return this.onTicketAssigneeUpdated(event.payload);
-      case EmailEventType.TICKET_ATTACHMENT_ADDED:
-        return this.onTicketAttachmentAdded(event.payload);
+      // case EmailEventType.TICKET_ATTACHMENT_ADDED:
+      //   return this.onTicketAttachmentAdded(event.payload);
     }
   }
 
@@ -423,19 +424,19 @@ export class NotificationsService {
     await this.sendBulk([...recipientSet.values()], subject, html);
   }
 
-  private async onTicketAttachmentAdded(
-    p: TicketAttachmentAddedPayload,
-  ): Promise<void> {
-    const { subject, html } = buildAttachmentAddedEmail(
-      p,
-      this.appUrl,
-      // this.appName,
-    );
-    const recipients = p.participants.filter(
-      (r) => r.email !== p.uploadedBy.email && r.isInvitationAccepted === true,
-    );
-    await this.sendBulk(recipients, subject, html);
-  }
+  // private async onTicketAttachmentAdded(
+  //   p: TicketAttachmentAddedPayload,
+  // ): Promise<void> {
+  //   const { subject, html } = buildAttachmentAddedEmail(
+  //     p,
+  //     this.appUrl,
+  //     // this.appName,
+  //   );
+  //   const recipients = p.participants.filter(
+  //     (r) => r.email !== p.uploadedBy.email && r.isInvitationAccepted === true,
+  //   );
+  //   await this.sendBulk(recipients, subject, html);
+  // }
 
   // ====================================================================
   async notifyProjectMembers(dto: NotifyProjectMembersDto): Promise<void> {
@@ -1050,7 +1051,7 @@ export class NotificationsService {
         EmailEventType.TICKET_STATUS_UPDATED,
         EmailEventType.TICKET_PRIORITY_UPDATED,
         EmailEventType.TICKET_ASSIGNEE_UPDATED,
-        EmailEventType.TICKET_ATTACHMENT_ADDED,
+        // EmailEventType.TICKET_ATTACHMENT_ADDED,
       ],
     },
     {
@@ -1077,10 +1078,15 @@ export class NotificationsService {
       ? await this.roleClaimRepo.find({ where: { roleId: userRole.roleId } })
       : [];
 
-    console.debug(`User ${userId} has role ${userRole?.roleId} with claims: ${roleClaims.map((c) => c.claimType).join(', ')}`,);
+    console.debug(
+      `User ${userId} has role ${userRole?.roleId} with claims: ${roleClaims.map((c) => c.claimType).join(', ')}`,
+    );
 
     const claimMap = new Map<string, boolean>(
-      roleClaims.map((claim) => [claim.claimType, claim.claimValue.trim().toLowerCase() === 'true']),
+      roleClaims.map((claim) => [
+        claim.claimType,
+        claim.claimValue.trim().toLowerCase() === 'true',
+      ]),
     );
 
     console.debug(`Claim map for user ${userId}:`, claimMap);
@@ -1093,7 +1099,10 @@ export class NotificationsService {
         group.eventTypes.forEach((type) => permittedTypes.add(type));
       }
     }
-    console.debug(`Permitted email notification types for user ${userId}:`, Array.from(permittedTypes));
+    console.debug(
+      `Permitted email notification types for user ${userId}:`,
+      Array.from(permittedTypes),
+    );
 
     const existing = await this.emailNotificationPreferenceRepo.find({
       where: { userId },
@@ -1132,12 +1141,16 @@ export class NotificationsService {
     console.debug(`To insert for user ${userId}:`, toInsert);
     console.debug(`To remove for user ${userId}:`, toRemove);
     if (toInsert.length > 0) {
-      console.debug(`Inserting ${toInsert.length} email notification preferences for user ${userId}`);
+      console.debug(
+        `Inserting ${toInsert.length} email notification preferences for user ${userId}`,
+      );
       console.debug('Inserting rows:', toInsert);
       await this.emailNotificationPreferenceRepo.save(toInsert);
     }
     if (toRemove.length > 0) {
-      console.debug(`Removing ${toRemove.length} email notification preferences for user ${userId}`);
+      console.debug(
+        `Removing ${toRemove.length} email notification preferences for user ${userId}`,
+      );
       console.debug('Removing rows:', toRemove);
       await this.emailNotificationPreferenceRepo.remove(toRemove);
     }
@@ -1193,11 +1206,15 @@ export class NotificationsService {
         notificationType: 'ASC',
       },
     });
+    return preferences.map((preference) => ({
+      ...preference,
+      title:
+        EMAIL_NOTIFICATION_METADATA[preference.notificationType]?.label ??
+        preference.notificationType,
+    }));
 
-    return preferences;
+    // return preferences;
   }
-
-
 
   async updateEmailPreference(
     userId: string,
@@ -1217,20 +1234,31 @@ export class NotificationsService {
         notificationType,
       },
     });
-
+    let saved;
     if (preference) {
       preference.enabled = enabled;
       preference.entityType = entityType;
+      saved = await this.emailNotificationPreferenceRepo.save(preference);
 
-      return this.emailNotificationPreferenceRepo.save(preference);
+      // return this.emailNotificationPreferenceRepo.save(preference);
+    } else {
+      saved = await this.emailNotificationPreferenceRepo.save({
+        userId,
+        entityType,
+        notificationType,
+        enabled,
+      });
     }
 
-    return this.emailNotificationPreferenceRepo.save({
-      userId,
-      entityType,
-      notificationType,
-      enabled,
-    });
+    return {
+      id: saved.id,
+      entityType: saved.entityType,
+      notificationType: saved.notificationType,
+      enabled: saved.enabled,
+      title:
+        EMAIL_NOTIFICATION_METADATA[saved.notificationType]?.label ??
+        saved.notificationType,
+    };
   }
 
   private isValidEmailNotificationType(

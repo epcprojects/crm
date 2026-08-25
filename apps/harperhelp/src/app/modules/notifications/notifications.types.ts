@@ -10,7 +10,7 @@ export enum EmailEventType {
   TICKET_STATUS_UPDATED = 'ticket.status_updated',
   TICKET_PRIORITY_UPDATED = 'ticket.priority_updated',
   TICKET_ASSIGNEE_UPDATED = 'ticket.assignee_updated',
-  TICKET_ATTACHMENT_ADDED = 'ticket.attachment_added',
+  // TICKET_ATTACHMENT_ADDED = 'ticket.attachment_added',
   THREAD_REPLY_CREATED = 'thread.reply_created'
 
 }
@@ -40,7 +40,7 @@ export const EMAIL_NOTIFICATION_METADATA : Record<EmailEventType, { entityType: 
 
   [EmailEventType.THREAD_MESSAGE_CREATED]: {
     entityType: EmailNotificationEntityType.THREAD,
-    label: 'New thread message',
+    label: 'New thread',
   },
 
   [EmailEventType.THREAD_REPLY_CREATED]: {
@@ -55,28 +55,28 @@ export const EMAIL_NOTIFICATION_METADATA : Record<EmailEventType, { entityType: 
 
   [EmailEventType.TICKET_REPLY_POSTED]: {
     entityType: EmailNotificationEntityType.TICKET,
-    label: 'Ticket reply posted',
+    label: 'Ticket reply',
   },
 
   [EmailEventType.TICKET_STATUS_UPDATED]: {
     entityType: EmailNotificationEntityType.TICKET,
-    label: 'Ticket status updated',
+    label: 'Status updated',
   },
 
   [EmailEventType.TICKET_PRIORITY_UPDATED]: {
     entityType: EmailNotificationEntityType.TICKET,
-    label: 'Ticket priority updated',
+    label: 'Priority updated',
   },
 
   [EmailEventType.TICKET_ASSIGNEE_UPDATED]: {
     entityType: EmailNotificationEntityType.TICKET,
-    label: 'Ticket assignee updated',
+    label: 'Assignee updated',
   },
 
-  [EmailEventType.TICKET_ATTACHMENT_ADDED]: {
-    entityType: EmailNotificationEntityType.TICKET,
-    label: 'Ticket attachment added',
-  },
+  // [EmailEventType.TICKET_ATTACHMENT_ADDED]: {
+  //   entityType: EmailNotificationEntityType.TICKET,
+  //   label: 'Ticket attachment added',
+  // },
 } as const;
 
 // export interface EmailAttachmentLink {
@@ -189,17 +189,17 @@ export interface TicketAssigneeUpdatedPayload {
   participants: EmailRecipient[];
 }
 
-export interface TicketAttachmentAddedPayload {
-  ticketId: string;
-  ticketNumber: string;
-  ticketTitle: string;
-  projectName: string;
-  fileName: string;
-  fileSize: string; // human-readable e.g. "2.4 MB"
-  uploadedBy: EmailRecipient;
-  participants: EmailRecipient[];
-  // attachments?: EmailAttachmentLink[];
-}
+// export interface TicketAttachmentAddedPayload {
+//   ticketId: string;
+//   ticketNumber: string;
+//   ticketTitle: string;
+//   projectName: string;
+//   fileName: string;
+//   fileSize: string; // human-readable e.g. "2.4 MB"
+//   uploadedBy: EmailRecipient;
+//   participants: EmailRecipient[];
+//   // attachments?: EmailAttachmentLink[];
+// }
 
 export interface ThreadMessageCreatedPayload {
   messageId: string;
@@ -255,8 +255,8 @@ export type EmailNotificationEvent =
   | {
       type: EmailEventType.TICKET_ASSIGNEE_UPDATED;
       payload: TicketAssigneeUpdatedPayload;
-    }
-  | {
-      type: EmailEventType.TICKET_ATTACHMENT_ADDED;
-      payload: TicketAttachmentAddedPayload;
     };
+  // | {
+  //     type: EmailEventType.TICKET_ATTACHMENT_ADDED;
+  //     payload: TicketAttachmentAddedPayload;
+  //   };

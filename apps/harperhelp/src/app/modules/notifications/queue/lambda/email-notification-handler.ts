@@ -1,6 +1,6 @@
 import sgMail from '@sendgrid/mail';
 import {
-  buildAttachmentAddedEmail,
+  // buildAttachmentAddedEmail,
   buildAssigneeUpdatedEmail,
   buildPriorityUpdatedEmail,
   // buildProjectCreatedEmail,
@@ -84,8 +84,8 @@ function buildEmailForEvent(event: EmailNotificationEvent) {
       return buildPriorityUpdatedEmail(event.payload, appUrl);
     case EmailEventType.TICKET_ASSIGNEE_UPDATED:
       return buildAssigneeUpdatedEmail(event.payload, appUrl);
-    case EmailEventType.TICKET_ATTACHMENT_ADDED:
-      return buildAttachmentAddedEmail(event.payload, appUrl);
+    // case EmailEventType.TICKET_ATTACHMENT_ADDED:
+    //   return buildAttachmentAddedEmail(event.payload, appUrl);
   }
 }
 
@@ -137,10 +137,10 @@ function resolveRecipients(event: EmailNotificationEvent) {
       ].filter(
         (recipient) => recipient.email !== event.payload.updatedBy.email,
       );
-    case EmailEventType.TICKET_ATTACHMENT_ADDED:
-      return event.payload.participants.filter(
-        (recipient) => recipient.email !== event.payload.uploadedBy.email,
-      );
+    // case EmailEventType.TICKET_ATTACHMENT_ADDED:
+    //   return event.payload.participants.filter(
+    //     (recipient) => recipient.email !== event.payload.uploadedBy.email,
+    //   );
   }
 
   return [];
