@@ -187,7 +187,7 @@ export class ChatMessagesService {
 
       console.debug('members for internal message notification:', filteredParticipants);
       await this.notificationsService.dispatch({
-        type: EmailEventType.TICKET_REPLY_POSTED,
+        type: EmailEventType.TICKET_INTERNAL_MESSAGE,
         payload: {
           projectId: ticket?.project?.id,
           ticketId: ticketId,

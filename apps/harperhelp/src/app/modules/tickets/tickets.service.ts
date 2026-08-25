@@ -149,7 +149,12 @@ export class TicketsService {
       console.debug('Ticket saved', saved.id, 'members', members.length);
       const participantsMap = new Map<
         string,
-        { userId: string; name: string; email: string; isInvitationAccepted?: boolean }
+        {
+          userId: string;
+          name: string;
+          email: string;
+          isInvitationAccepted?: boolean;
+        }
       >();
       for (const m of members) participantsMap.set(m.email, m);
       if (ticket.reporter && ticket?.reporter?.id !== userId)
@@ -805,7 +810,12 @@ export class TicketsService {
       }));
     const participantsMap = new Map<
       string,
-      { userId: string; name: string; email: string; isInvitationAccepted?: boolean }
+      {
+        userId: string;
+        name: string;
+        email: string;
+        isInvitationAccepted?: boolean;
+      }
     >();
     for (const m of members) participantsMap.set(m.email, m);
     if (updatedTicket.reporter && updatedTicket?.reporter?.id !== userId)
@@ -895,6 +905,40 @@ export class TicketsService {
           projectId: updatedTicket.projectId,
           previousStatus: oldStatus.label,
           newStatus: updatedTicket.status.label,
+          updatedBy: updatedByRecipient,
+          participants: filteredParticipants,
+        },
+      });
+    }
+
+    // DUE DATE CHANGED
+    if (dto.dueDate !== undefined && oldTicket.dueDate !== dto.dueDate) {
+      const filteredParticipants =
+        await this.notificationsService.filterEmailRecipients(
+          participants,
+          EmailEventType.TICKET_DUE_DATE_UPDATED,
+        );
+      await this.notificationsService.notifyProjectMembers({
+        projectId: ticket.projectId,
+        actorId: userId,
+        type: NotificationType.TICKET_DUE_DATE_CHANGED,
+        entityType: NotificationEntityType.TICKET,
+        entityId: ticket.id,
+        ticketId: ticket.id,
+        title: `"Ticket: "${ticket.ticketRefNo}" due date changed to ${ticket.dueDate} by ${fullname}`,
+        message: `${oldTicket.dueDate} to ${dto.dueDate}`,
+        explicitRecipientIds: [...new Set(recipients)],
+      });
+      await this.notificationsService.dispatch({
+        type: EmailEventType.TICKET_DUE_DATE_UPDATED,
+        payload: {
+          ticketId: updatedTicket.id,
+          ticketNumber: updatedTicket.ticketRefNo,
+          ticketTitle: updatedTicket.title,
+          projectName: updatedTicket.project.name,
+          projectId: updatedTicket.projectId,
+          previousDueDate: oldTicket.dueDate,
+          newDueDate: updatedTicket.dueDate,
           updatedBy: updatedByRecipient,
           participants: filteredParticipants,
         },
@@ -1001,9 +1045,7 @@ export class TicketsService {
       }
     }
 
-    if (dto.title !== undefined && 
-      oldTicket.title !== dto.title
-    ) {
+    if (dto.title !== undefined && oldTicket.title !== dto.title) {
       await this.notificationsService.notifyProjectMembers({
         projectId: ticket.projectId,
         actorId: userId,

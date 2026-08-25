@@ -9,6 +9,7 @@ export enum EmailEventType {
   TICKET_INTERNAL_MESSAGE = 'ticket.internal_message',
   TICKET_REPLY_POSTED = 'ticket.reply_posted',
   TICKET_STATUS_UPDATED = 'ticket.status_updated',
+  TICKET_DUE_DATE_UPDATED = 'ticket.due_date_updated',
   TICKET_PRIORITY_UPDATED = 'ticket.priority_updated',
   TICKET_ASSIGNEE_UPDATED = 'ticket.assignee_updated',
   // TICKET_ATTACHMENT_ADDED = 'ticket.attachment_added',
@@ -67,6 +68,11 @@ export const EMAIL_NOTIFICATION_METADATA : Record<EmailEventType, { entityType: 
   [EmailEventType.TICKET_STATUS_UPDATED]: {
     entityType: EmailNotificationEntityType.TICKET,
     label: 'Status updated',
+  },
+
+  [EmailEventType.TICKET_DUE_DATE_UPDATED]: {
+    entityType: EmailNotificationEntityType.TICKET,
+    label: 'Due date updated',
   },
 
   [EmailEventType.TICKET_PRIORITY_UPDATED]: {
@@ -184,6 +190,18 @@ export interface TicketStatusUpdatedPayload {
   participants: EmailRecipient[];
 }
 
+export interface TicketDueDateUpdatedPayload {
+    ticketId: string;
+  ticketNumber: string;
+  ticketTitle: string;
+  projectName: string;
+  projectId: string;
+  previousDueDate: string;
+  newDueDate: string;
+  updatedBy: EmailRecipient;
+  participants: EmailRecipient[];
+}
+
 export interface TicketPriorityUpdatedPayload {
   ticketId: string;
   ticketNumber: string;
@@ -270,6 +288,10 @@ export type EmailNotificationEvent =
   | {
       type: EmailEventType.TICKET_STATUS_UPDATED;
       payload: TicketStatusUpdatedPayload;
+    }
+  | {
+      type: EmailEventType.TICKET_DUE_DATE_UPDATED;
+      payload: TicketDueDateUpdatedPayload;
     }
   | {
       type: EmailEventType.TICKET_PRIORITY_UPDATED;

@@ -14,6 +14,7 @@ import {
   TicketReplyPostedPayload,
   TicketInternalMessageEmailPayload,
   TicketStatusUpdatedPayload,
+  TicketDueDateUpdatedPayload,
   TicketPriorityUpdatedPayload,
   TicketAssigneeUpdatedPayload,
   // TicketAttachmentAddedPayload,
@@ -29,6 +30,7 @@ import {
   buildTicketCreatedEmail,
   buildTicketReplyEmail,
   buildStatusUpdatedEmail,
+  buildDueDateUpdatedEmail,
   buildPriorityUpdatedEmail,
   buildAssigneeUpdatedEmail,
   buildTicketInternalMessageEmail,
@@ -270,6 +272,8 @@ export class NotificationsService {
         return this.onTicketInternalMessageEmail(event.payload);
       case EmailEventType.TICKET_STATUS_UPDATED:
         return this.onTicketStatusUpdated(event.payload);
+      case EmailEventType.TICKET_DUE_DATE_UPDATED:
+        return this.onTicketDueDateUpdated(event.payload);
       case EmailEventType.TICKET_PRIORITY_UPDATED:
         return this.onTicketPriorityUpdated(event.payload);
       case EmailEventType.TICKET_ASSIGNEE_UPDATED:
@@ -402,6 +406,21 @@ export class NotificationsService {
     p: TicketStatusUpdatedPayload,
   ): Promise<void> {
     const { subject, html } = buildStatusUpdatedEmail(
+      p,
+      this.appUrl,
+      // this.appName,
+    );
+    const recipients = p.participants.filter(
+      (r) => r.email !== p.updatedBy.email && r.isInvitationAccepted === true,
+    );
+    await this.sendBulk(recipients, subject, html);
+  }
+
+  private async onTicketDueDateUpdated(
+    p: TicketDueDateUpdatedPayload,
+  ): Promise<void> {
+    console.debug('onTicketDueDateUpdated payload:', p);
+    const { subject, html } = buildDueDateUpdatedEmail(
       p,
       this.appUrl,
       // this.appName,

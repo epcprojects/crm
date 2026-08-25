@@ -11,6 +11,7 @@ import {
   ProjectUnassignedPayload,
   ThreadReplyCreatedPayload,
   TicketInternalMessageEmailPayload,
+  TicketDueDateUpdatedPayload,
   // EmailAttachmentLink,
 } from '../notifications.types';
 
@@ -1378,6 +1379,44 @@ export function buildStatusUpdatedEmail(
 
   return {
     subject: `[${p.ticketNumber}] Status changed to ${p.newStatus}`,
+    html,
+  };
+}
+
+export function buildDueDateUpdatedEmail(
+  p: TicketDueDateUpdatedPayload,
+  appUrl: string,
+): { subject: string; html: string } {
+    console.debug('INSIDE BUILD DUE DATE UPDATED payload:', p);
+    const formattedDueDate = new Date(p.newDueDate).toDateString();
+  const rows: DataRow[] = [
+    { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
+    { label: 'Project', value: p.projectName },
+    { label: 'Updated by', value: p.updatedBy.name },
+    {
+      label: 'Update',
+      value: '',
+      compound: {
+        prefix: 'Due date changed to',
+        badgeText: formattedDueDate,
+        colors: { bg: '#f0f0f0', text: '#333' ,border: '#ccc'},
+      },
+    },
+  ];
+
+  const html = renderNotificationEmail({
+    appUrl,
+    iconFileName: 'TicketUpdatedIcon.png',
+    title: 'Ticket Updated',
+    subheading: `Ticket ${p.ticketNumber} has been updated.`,
+    rows,
+    buttonText: 'View Ticket',
+    buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}`,
+    showReplyCallout: false,
+  });
+
+  return {
+    subject: `[${p.ticketNumber}] Due date changed to ${formattedDueDate}`,
     html,
   };
 }
