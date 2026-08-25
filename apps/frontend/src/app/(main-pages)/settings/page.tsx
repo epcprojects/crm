@@ -34,38 +34,32 @@ type ApiTicketStatus = {
 
 type ApiTicketPriority = ApiTicketStatus;
 
-type EmailNotificationSettingsState = {
-  projectsAssigned: boolean;
-  projectsUnassigned: boolean;
-  threadsNewMessages: boolean;
-  threadsReplies: boolean;
-  ticketsNewTickets: boolean;
-  ticketsReplies: boolean;
-  ticketsStatusUpdates: boolean;
-  ticketsPriorityUpdates: boolean;
-  ticketsAssigneeUpdates: boolean;
-};
-
 type ApiEmailPreference = {
   id: string;
   entityType: string;
   notificationType: string;
   enabled: boolean;
+  title?: string | null;
 };
 
-const EMAIL_NOTIFICATION_TYPE_BY_KEY: Record<
-  keyof EmailNotificationSettingsState,
-  string
-> = {
-  projectsAssigned: 'project.assigned',
-  projectsUnassigned: 'project.unassigned',
-  threadsNewMessages: 'thread.message_created',
-  threadsReplies: 'thread.reply_created',
-  ticketsNewTickets: 'ticket.created',
-  ticketsReplies: 'ticket.reply_posted',
-  ticketsStatusUpdates: 'ticket.status_updated',
-  ticketsPriorityUpdates: 'ticket.priority_updated',
-  ticketsAssigneeUpdates: 'ticket.assignee_updated',
+type EmailNotificationPreferenceItem = {
+  id: string;
+  entityType: string;
+  notificationType: string;
+  label: string;
+  enabled: boolean;
+};
+
+type EmailNotificationGroupRecord = {
+  key: string;
+  title: string;
+  items: EmailNotificationPreferenceItem[];
+};
+
+type EmailPreferenceEntityAccess = {
+  project: boolean;
+  thread: boolean;
+  ticket: boolean;
 };
 
 export default function Page() {
@@ -89,18 +83,9 @@ export default function Page() {
     canDeletePriority;
   const [statusItems, setStatusItems] = useState<SettingsConfigItem[]>([]);
   const [priorityItems, setPriorityItems] = useState<SettingsConfigItem[]>([]);
-  const [emailNotificationSettings, setEmailNotificationSettings] =
-    useState<EmailNotificationSettingsState>({
-      projectsAssigned: true,
-      projectsUnassigned: false,
-      threadsNewMessages: true,
-      threadsReplies: false,
-      ticketsNewTickets: true,
-      ticketsReplies: false,
-      ticketsStatusUpdates: false,
-      ticketsPriorityUpdates: false,
-      ticketsAssigneeUpdates: false,
-    });
+  const [emailPreferences, setEmailPreferences] = useState<
+    EmailNotificationPreferenceItem[]
+  >([]);
   const emailPreferencesQuery = useQuery({
     queryKey: ['settings', 'email-preferences'],
     queryFn: fetchEmailPreferences,
@@ -383,10 +368,9 @@ export default function Page() {
 
   useEffect(() => {
     if (emailPreferencesQuery.data) {
-      setEmailNotificationSettings((current) => ({
-        ...current,
-        ...mapEmailPreferencesToSettingsState(emailPreferencesQuery.data),
-      }));
+      setEmailPreferences(
+        mapEmailPreferencesToItems(emailPreferencesQuery.data),
+      );
     }
   }, [emailPreferencesQuery.data]);
 
@@ -524,24 +508,36 @@ export default function Page() {
     }
   };
 
-  const handleToggleEmailPreference = async (
-    key: keyof EmailNotificationSettingsState,
-  ) => {
-    const nextEnabled = !emailNotificationSettings[key];
-    const previousSettings = emailNotificationSettings;
+  const handleToggleEmailPreference = async (notificationType: string) => {
+    const preference = emailPreferences.find(
+      (item) => item.notificationType === notificationType,
+    );
 
-    setEmailNotificationSettings((current) => ({
-      ...current,
-      [key]: nextEnabled,
-    }));
+    if (!preference) {
+      return;
+    }
+
+    const nextEnabled = !preference.enabled;
+    const previousPreferences = emailPreferences;
+
+    setEmailPreferences((current) =>
+      current.map((item) =>
+        item.notificationType === notificationType
+          ? {
+              ...item,
+              enabled: nextEnabled,
+            }
+          : item,
+      ),
+    );
 
     try {
       await updateEmailPreferenceMutation.mutateAsync({
-        notificationType: EMAIL_NOTIFICATION_TYPE_BY_KEY[key],
+        notificationType,
         enabled: nextEnabled,
       });
     } catch (error) {
-      setEmailNotificationSettings(previousSettings);
+      setEmailPreferences(previousPreferences);
       appToast.error(
         error instanceof Error
           ? error.message
@@ -581,6 +577,36 @@ export default function Page() {
       : visibleSettingsPanelCount === 2
         ? 'xl:grid-cols-2'
         : 'xl:grid-cols-1';
+  const emailPreferenceEntityAccess: EmailPreferenceEntityAccess = {
+    project:
+      hasPermission('projects.view_list') ||
+      hasPermission('projects.view_detail') ||
+      hasPermission('projects.create') ||
+      hasPermission('projects.edit') ||
+      hasPermission('projects.delete'),
+    thread:
+      hasPermission('thread.view') ||
+      hasPermission('thread.view_replies') ||
+      hasPermission('thread.post_message') ||
+      hasPermission('thread.post_reply') ||
+      hasPermission('thread.edit') ||
+      hasPermission('thread.delete') ||
+      hasPermission('thread.attach_file'),
+    ticket:
+      hasPermission('tickets.view_list') ||
+      hasPermission('tickets.view_detail') ||
+      hasPermission('tickets.create') ||
+      hasPermission('tickets.filter') ||
+      hasPermission('tickets.edit_status') ||
+      hasPermission('tickets.edit_priority') ||
+      hasPermission('tickets.edit_assignee') ||
+      hasPermission('tickets.edit_due_date') ||
+      hasPermission('tickets.edit_title_description'),
+  };
+  const emailPreferenceGroups = buildEmailPreferenceGroups(
+    emailPreferences,
+    emailPreferenceEntityAccess,
+  );
 
   // const settingsPageScrollRef = useRef<HTMLDivElement | null>(null);
   // const settingsSectionRef = useRef<HTMLDivElement | null>(null);
@@ -656,94 +682,92 @@ export default function Page() {
           </p>
         </div>
         <div
-            // ref={settingsSectionRef}
-            // className={`sticky -top-5 z-20 grid h-full min-h-0 flex-none touch-pan-y auto-rows-max grid-cols-1 gap-2 bg-gray-200 scrollbar-hide md:gap-4 xl:static xl:z-auto xl:flex-1 xl:auto-rows-fr xl:grid-cols-2 xl:overflow-hidden xl:bg-transparent ${
-            //   isSettingsSectionPinned
-            //     ? 'overflow-y-auto overscroll-auto'
-            //     : 'overflow-y-hidden overscroll-auto'
-            // }`}
-            // className="sticky -top-5 z-20 grid h-full min-h-0 flex-none auto-rows-max grid-cols-1 gap-2 overflow-y-auto bg-gray-200 scrollbar-hide md:gap-4 xl:static xl:z-auto xl:flex-1 xl:auto-rows-fr xl:grid-cols-2 xl:overflow-hidden xl:bg-transparent"
-            // className="grid min-h-0 flex-1 auto-rows-max grid-cols-1 gap-2 overflow-y-auto  scrollbar-hide md:gap-4 xl:auto-rows-fr xl:grid-cols-2 xl:overflow-hidden "
-           className={`grid h-auto min-h-0 flex-none auto-rows-max grid-cols-1 gap-2 overflow-visible scrollbar-hide md:gap-4 xl:h-full xl:flex-1 xl:auto-rows-fr ${settingsGridColumnsClass} xl:overflow-hidden`}
+          // ref={settingsSectionRef}
+          // className={`sticky -top-5 z-20 grid h-full min-h-0 flex-none touch-pan-y auto-rows-max grid-cols-1 gap-2 bg-gray-200 scrollbar-hide md:gap-4 xl:static xl:z-auto xl:flex-1 xl:auto-rows-fr xl:grid-cols-2 xl:overflow-hidden xl:bg-transparent ${
+          //   isSettingsSectionPinned
+          //     ? 'overflow-y-auto overscroll-auto'
+          //     : 'overflow-y-hidden overscroll-auto'
+          // }`}
+          // className="sticky -top-5 z-20 grid h-full min-h-0 flex-none auto-rows-max grid-cols-1 gap-2 overflow-y-auto bg-gray-200 scrollbar-hide md:gap-4 xl:static xl:z-auto xl:flex-1 xl:auto-rows-fr xl:grid-cols-2 xl:overflow-hidden xl:bg-transparent"
+          // className="grid min-h-0 flex-1 auto-rows-max grid-cols-1 gap-2 overflow-y-auto  scrollbar-hide md:gap-4 xl:auto-rows-fr xl:grid-cols-2 xl:overflow-hidden "
+          className={`grid h-auto min-h-0 flex-none auto-rows-max grid-cols-1 gap-2 overflow-visible scrollbar-hide md:gap-4 xl:h-full xl:flex-1 xl:auto-rows-fr ${settingsGridColumnsClass} xl:overflow-hidden`}
         >
-            {canAccessStatuses ? (
-              <SettingsConfigCard
-                title="Ticket Statuses"
-                subtitle={`${statusItems.length} statuses · used across all projects`}
-                buttonLabel="Add Status"
-                emptyImageUrl="/images/EmptyStatusIcon.svg"
-                emptyImageAlt="No ticket statuses"
-                emptyTitle="No Statuses Yet"
-                emptyDescription="Create your first ticket status to get started."
-                items={statusItems}
-                badgeVariant="status"
-                isLoading={ticketStatusesQuery.isLoading}
-                onAdd={
-                  canCreateStatus
-                    ? () => {
-                        setStatusModalMode('create');
-                        setEditingStatusId('new-status');
-                      }
-                    : undefined
-                }
-                onEdit={
-                  canEditStatus
-                    ? (item) => {
-                        setStatusModalMode('edit');
-                        setEditingStatusId(item.id);
-                      }
-                    : undefined
-                }
-                onDelete={
-                  canDeleteStatus
-                    ? (item) => setStatusToDelete(item)
-                    : undefined
-                }
-              />
-            ) : null}
-
-            {canAccessPriorities ? (
-              <SettingsConfigCard
-                title="Priority Levels"
-                subtitle={`${priorityItems.length} levels · used across all projects`}
-                buttonLabel="Add Priority"
-                items={priorityItems}
-                badgeVariant="priority"
-                emptyImageUrl="/images/EmptyPriorityIcon.svg"
-                emptyImageAlt="No priority levels"
-                emptyTitle="No Priority Levels Yet"
-                emptyDescription="Create your first priority level to get started."
-                isLoading={ticketPrioritiesQuery.isLoading}
-                onAdd={
-                  canCreatePriority
-                    ? () => {
-                        setPriorityModalMode('create');
-                        setEditingPriorityId('new-priority');
-                      }
-                    : undefined
-                }
-                onEdit={
-                  canEditPriority
-                    ? (item) => {
-                        setPriorityModalMode('edit');
-                        setEditingPriorityId(item.id);
-                      }
-                    : undefined
-                }
-                onDelete={
-                  canDeletePriority
-                    ? (item) => setPriorityToDelete(item)
-                    : undefined
-                }
-              />
-            ) : null}
-
-            <EmailNotificationSettingsCard
-              settings={emailNotificationSettings}
-              isLoading={emailPreferencesQuery.isLoading}
-              isUpdating={updateEmailPreferenceMutation.isPending}
-              onToggle={handleToggleEmailPreference}
+          {canAccessStatuses ? (
+            <SettingsConfigCard
+              title="Ticket Statuses"
+              subtitle={`${statusItems.length} statuses · used across all projects`}
+              buttonLabel="Add Status"
+              emptyImageUrl="/images/EmptyStatusIcon.svg"
+              emptyImageAlt="No ticket statuses"
+              emptyTitle="No Statuses Yet"
+              emptyDescription="Create your first ticket status to get started."
+              items={statusItems}
+              badgeVariant="status"
+              isLoading={ticketStatusesQuery.isLoading}
+              onAdd={
+                canCreateStatus
+                  ? () => {
+                      setStatusModalMode('create');
+                      setEditingStatusId('new-status');
+                    }
+                  : undefined
+              }
+              onEdit={
+                canEditStatus
+                  ? (item) => {
+                      setStatusModalMode('edit');
+                      setEditingStatusId(item.id);
+                    }
+                  : undefined
+              }
+              onDelete={
+                canDeleteStatus ? (item) => setStatusToDelete(item) : undefined
+              }
             />
+          ) : null}
+
+          {canAccessPriorities ? (
+            <SettingsConfigCard
+              title="Priority Levels"
+              subtitle={`${priorityItems.length} levels · used across all projects`}
+              buttonLabel="Add Priority"
+              items={priorityItems}
+              badgeVariant="priority"
+              emptyImageUrl="/images/EmptyPriorityIcon.svg"
+              emptyImageAlt="No priority levels"
+              emptyTitle="No Priority Levels Yet"
+              emptyDescription="Create your first priority level to get started."
+              isLoading={ticketPrioritiesQuery.isLoading}
+              onAdd={
+                canCreatePriority
+                  ? () => {
+                      setPriorityModalMode('create');
+                      setEditingPriorityId('new-priority');
+                    }
+                  : undefined
+              }
+              onEdit={
+                canEditPriority
+                  ? (item) => {
+                      setPriorityModalMode('edit');
+                      setEditingPriorityId(item.id);
+                    }
+                  : undefined
+              }
+              onDelete={
+                canDeletePriority
+                  ? (item) => setPriorityToDelete(item)
+                  : undefined
+              }
+            />
+          ) : null}
+
+          <EmailNotificationSettingsCard
+            groups={emailPreferenceGroups}
+            isLoading={emailPreferencesQuery.isLoading}
+            isUpdating={updateEmailPreferenceMutation.isPending}
+            onToggle={handleToggleEmailPreference}
+          />
         </div>
         {canCreateStatus ? (
           <button
@@ -860,13 +884,13 @@ export default function Page() {
 }
 
 function EmailNotificationSettingsCard({
-  settings,
+  groups,
   onToggle,
   isLoading = false,
   isUpdating = false,
 }: {
-  settings: EmailNotificationSettingsState;
-  onToggle: (key: keyof EmailNotificationSettingsState) => void;
+  groups: EmailNotificationGroupRecord[];
+  onToggle: (notificationType: string) => void;
   isLoading?: boolean;
   isUpdating?: boolean;
 }) {
@@ -882,71 +906,16 @@ function EmailNotificationSettingsCard({
         {isLoading ? (
           <EmailNotificationSettingsSkeleton />
         ) : (
-          <>
+          groups.map((group) => (
             <EmailNotificationGroup
-              title="Projects"
-              items={[
-                {
-                  key: 'projectsAssigned',
-                  label: 'Assigned',
-                },
-                {
-                  key: 'projectsUnassigned',
-                  label: 'Unassigned',
-                },
-              ]}
-              settings={settings}
+              key={group.key}
+              title={group.title}
+              items={group.items}
               onToggle={onToggle}
+              columns={group.items.length > 2 ? 2 : 1}
               isDisabled={isUpdating}
             />
-
-            <EmailNotificationGroup
-              title="Threads"
-              items={[
-                {
-                  key: 'threadsNewMessages',
-                  label: 'New Messages',
-                },
-                {
-                  key: 'threadsReplies',
-                  label: 'Replies',
-                },
-              ]}
-              settings={settings}
-              onToggle={onToggle}
-              isDisabled={isUpdating}
-            />
-
-            <EmailNotificationGroup
-              title="Tickets"
-              items={[
-                {
-                  key: 'ticketsNewTickets',
-                  label: 'New Tickets',
-                },
-                {
-                  key: 'ticketsReplies',
-                  label: 'Replies',
-                },
-                {
-                  key: 'ticketsStatusUpdates',
-                  label: 'Status Updates',
-                },
-                {
-                  key: 'ticketsPriorityUpdates',
-                  label: 'Priority Updates',
-                },
-                {
-                  key: 'ticketsAssigneeUpdates',
-                  label: 'Assignee Updates',
-                },
-              ]}
-              settings={settings}
-              onToggle={onToggle}
-              columns={2}
-              isDisabled={isUpdating}
-            />
-          </>
+          ))
         )}
       </div>
     </section>
@@ -965,16 +934,18 @@ function EmailNotificationSettingsSkeleton() {
             <div className="h-4 w-24 rounded bg-gray-200" />
           </div>
           <div className="grid grid-cols-2 gap-3 bg-white p-4">
-            {Array.from({ length: index === 2 ? 5 : 2 }).map((__, itemIndex) => (
-              <div key={itemIndex} className="flex items-center gap-2">
-                <div className="h-5 w-10 rounded-full bg-gray-200" />
-                <div
-                  className={`h-3 rounded bg-gray-200 ${
-                    itemIndex % 2 === 0 ? 'w-20' : 'w-24'
-                  }`}
-                />
-              </div>
-            ))}
+            {Array.from({ length: index === 2 ? 5 : 2 }).map(
+              (__, itemIndex) => (
+                <div key={itemIndex} className="flex items-center gap-2">
+                  <div className="h-5 w-10 rounded-full bg-gray-200" />
+                  <div
+                    className={`h-3 rounded bg-gray-200 ${
+                      itemIndex % 2 === 0 ? 'w-20' : 'w-24'
+                    }`}
+                  />
+                </div>
+              ),
+            )}
           </div>
         </div>
       ))}
@@ -985,18 +956,13 @@ function EmailNotificationSettingsSkeleton() {
 function EmailNotificationGroup({
   title,
   items,
-  settings,
   onToggle,
   columns = 2,
   isDisabled = false,
 }: {
   title: string;
-  items: Array<{
-    key: keyof EmailNotificationSettingsState;
-    label: string;
-  }>;
-  settings: EmailNotificationSettingsState;
-  onToggle: (key: keyof EmailNotificationSettingsState) => void;
+  items: EmailNotificationPreferenceItem[];
+  onToggle: (notificationType: string) => void;
   columns?: 1 | 2;
   isDisabled?: boolean;
 }) {
@@ -1008,17 +974,17 @@ function EmailNotificationGroup({
         </h3>
       </div>
       <div
-        className={` bg-white grid gap-2 md:gap-3 p-2.5 md:p-4 ${
-          columns === 2 ? 'grid-cols-2' : 'grid-cols-1'
+        className={` bg-white grid gap-2 md:gap-3 p-2 md:p-3 ${
+          columns === 2 ? 'grid-cols-2' : 'grid-cols-2'
         }`}
       >
         {items.map((item) => (
           <EmailNotificationToggleRow
-            key={item.key}
+            key={item.id}
             label={item.label}
-            checked={settings[item.key]}
+            checked={item.enabled}
             disabled={isDisabled}
-            onChange={() => onToggle(item.key)}
+            onChange={() => onToggle(item.notificationType)}
           />
         ))}
       </div>
@@ -1038,7 +1004,7 @@ function EmailNotificationToggleRow({
   onChange: () => void;
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center whitespace-nowrap gap-2">
       <Switch
         checked={checked}
         onChange={onChange}
@@ -1189,46 +1155,95 @@ async function fetchEmailPreferences() {
   return payload;
 }
 
-function mapEmailPreferencesToSettingsState(
+function mapEmailPreferencesToItems(
   preferences: ApiEmailPreference[],
-): Partial<EmailNotificationSettingsState> {
-  const nextState: Partial<EmailNotificationSettingsState> = {};
+): EmailNotificationPreferenceItem[] {
+  return preferences.map((preference) => ({
+    id: preference.id,
+    entityType: preference.entityType,
+    notificationType: preference.notificationType,
+    label:
+      preference.title?.trim() ||
+      formatNotificationTypeLabel(preference.notificationType),
+    enabled: preference.enabled,
+  }));
+}
 
-  preferences.forEach((preference) => {
-    switch (preference.notificationType) {
-      case 'project.assigned':
-        nextState.projectsAssigned = preference.enabled;
-        break;
-      case 'project.unassigned':
-        nextState.projectsUnassigned = preference.enabled;
-        break;
-      case 'thread.message_created':
-        nextState.threadsNewMessages = preference.enabled;
-        break;
-      case 'thread.reply_created':
-        nextState.threadsReplies = preference.enabled;
-        break;
-      case 'ticket.created':
-        nextState.ticketsNewTickets = preference.enabled;
-        break;
-      case 'ticket.reply_posted':
-        nextState.ticketsReplies = preference.enabled;
-        break;
-      case 'ticket.status_updated':
-        nextState.ticketsStatusUpdates = preference.enabled;
-        break;
-      case 'ticket.priority_updated':
-        nextState.ticketsPriorityUpdates = preference.enabled;
-        break;
-      case 'ticket.assignee_updated':
-        nextState.ticketsAssigneeUpdates = preference.enabled;
-        break;
-      default:
-        break;
-    }
-  });
+function buildEmailPreferenceGroups(
+  preferences: EmailNotificationPreferenceItem[],
+  entityAccess: EmailPreferenceEntityAccess,
+): EmailNotificationGroupRecord[] {
+  const grouped = preferences.reduce<Map<string, EmailNotificationGroupRecord>>(
+    (accumulator, preference) => {
+      const groupKey = preference.entityType?.trim().toLowerCase() || 'other';
 
-  return nextState;
+      if (!shouldShowEmailPreferenceEntityGroup(groupKey, entityAccess)) {
+        return accumulator;
+      }
+
+      const existingGroup = accumulator.get(groupKey);
+
+      if (existingGroup) {
+        existingGroup.items.push(preference);
+        return accumulator;
+      }
+
+      accumulator.set(groupKey, {
+        key: groupKey,
+        title: formatEntityTypeTitle(groupKey),
+        items: [preference],
+      });
+
+      return accumulator;
+    },
+    new Map(),
+  );
+
+  return Array.from(grouped.values()).sort((first, second) =>
+    first.title.localeCompare(second.title),
+  );
+}
+
+function shouldShowEmailPreferenceEntityGroup(
+  entityType: string,
+  entityAccess: EmailPreferenceEntityAccess,
+) {
+  if (entityType === 'project') {
+    return entityAccess.project;
+  }
+
+  if (entityType === 'thread') {
+    return entityAccess.thread;
+  }
+
+  if (entityType === 'ticket') {
+    return entityAccess.ticket;
+  }
+
+  return true;
+}
+
+function formatEntityTypeTitle(entityType: string) {
+  const normalized = entityType.trim().toLowerCase();
+
+  if (normalized === 'project') return 'Projects';
+  if (normalized === 'thread') return 'Threads';
+  if (normalized === 'ticket') return 'Tickets';
+
+  return toTitleCase(normalized.replace(/[_-]+/g, ' '));
+}
+
+function formatNotificationTypeLabel(notificationType: string) {
+  const suffix = notificationType.split('.').pop() ?? notificationType;
+  return toTitleCase(suffix.replace(/[_-]+/g, ' '));
+}
+
+function toTitleCase(value: string) {
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word[0].toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
 }
 
 function mapTicketStatusToSettingsItem(
