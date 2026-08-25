@@ -569,16 +569,20 @@ async function fetchProjectNames(): Promise<ProjectNameRecord[]> {
     );
   }
 
-  return payload.flatMap((project) => {
-    const id = project.id?.trim();
-    const name = project.name?.trim();
+  return payload
+    .flatMap((project) => {
+      const id = project.id?.trim();
+      const name = project.name?.trim();
 
-    if (!id || !name) {
-      return [];
-    }
+      if (!id || !name) {
+        return [];
+      }
 
-    return [{ id, name }];
-  });
+      return [{ id, name }];
+    })
+    .sort((left, right) =>
+      left.name.localeCompare(right.name, undefined, { sensitivity: 'base' }),
+    );
 }
 
 function normalizeProjectsResponse(
