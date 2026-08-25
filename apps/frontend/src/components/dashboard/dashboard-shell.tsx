@@ -160,7 +160,6 @@ const navigationItems: NavItem[] = [
     label: 'Settings',
     icon: (isActive) => <SettingsIcon fill="currentColor" />,
     roles: ['admin'],
-    anyPermissions: ['settings.view_statuses', 'settings.view_priorities'],
   },
 ];
 

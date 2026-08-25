@@ -13,6 +13,7 @@ type TicketStatusOption = {
 type TicketsKanbanViewProps = {
   tickets: RecentTicket[];
   statusOptions: TicketStatusOption[];
+  statusCountsByKey?: Record<string, number>;
   onTicketClick?: (ticket: RecentTicket) => void;
   onMoveTicket?: (ticket: RecentTicket, nextStatusKey: string) => void;
   onReorderColumn?: (statusId: string, newIndex: number) => void;
@@ -33,6 +34,7 @@ const defaultStatusTone = {
 export default function TicketsKanbanView({
   tickets,
   statusOptions,
+  statusCountsByKey = {},
   onTicketClick,
   onMoveTicket,
   onReorderColumn,
@@ -87,9 +89,10 @@ export default function TicketsKanbanView({
 
     return [...normalizedOptions, ...extraStatuses].map((column) => ({
       ...column,
+      count: statusCountsByKey[column.key],
       tickets: tickets.filter((ticket) => ticket.status === column.label),
     }));
-  }, [statusOptions, tickets]);
+  }, [statusCountsByKey, statusOptions, tickets]);
 
   /*
    * Backend-backed columns can be reordered.
@@ -501,6 +504,14 @@ export default function TicketsKanbanView({
                       }}
                     >
                       {column.label}
+                    </span>
+                    <span
+                      className="ml-auto text-sm font-semibold"
+                      style={{
+                        color: tone.text,
+                      }}
+                    >
+                      {column.count ?? column.tickets.length}
                     </span>
                   </div>
 

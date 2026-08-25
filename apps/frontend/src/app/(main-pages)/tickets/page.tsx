@@ -1307,6 +1307,7 @@ export default function Page() {
                     <TicketsKanbanView
                       tickets={sortedTickets}
                       statusOptions={kanbanStatusOptions}
+                      statusCountsByKey={ticketsQuery.data?.countPerStatus ?? {}}
                       onTicketClick={
                         canViewTicketDetail ? handleTicketClick : undefined
                       }
@@ -1385,6 +1386,7 @@ type ApiTicketSetting = {
 type DashboardTicketsResponse = {
   items: RecentTicket[];
   summary: TicketSummary;
+  countPerStatus: Record<string, number>;
   meta: {
     page: number;
     limit: number;
@@ -1431,6 +1433,7 @@ type ApiDashboardTicket = {
 type ApiDashboardTicketsResponse = {
   items: ApiDashboardTicket[];
   summary: TicketSummary;
+  countPerStatus?: Record<string, number>;
   meta: DashboardTicketsResponse['meta'];
 };
 
@@ -1499,6 +1502,7 @@ async function fetchDashboardTickets({
   return {
     items: payload.items.map(mapApiDashboardTicketToRecentTicket),
     summary: payload.summary,
+    countPerStatus: payload.countPerStatus ?? {},
     meta: payload.meta,
   };
 }
