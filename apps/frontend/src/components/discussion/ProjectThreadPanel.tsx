@@ -844,7 +844,7 @@ export default function ProjectThreadPanel({
                                   !reply.message &&
                                   reply.attachments &&
                                   reply.attachments.length > 1
-                                    ? 'p-2'
+                                    ? 'p-0'
                                     : ''
                                 } ${
                                   isCurrentUserReply
@@ -866,7 +866,7 @@ export default function ProjectThreadPanel({
                                       ) ||
                                       (reply.attachments &&
                                         reply.attachments.length > 1 &&
-                                        'p-0.5 w-full border border-gray-200 bg-gray-50')
+                                        'p-0.5 w-full')
                                     } transition`}
                                   >
                                     <a
@@ -1703,7 +1703,7 @@ function AttachmentFileIcon({ extension }: { extension?: string }) {
   return (
     <span className="relative">
       <span
-        className={`rounded-xs absolute top-4.5 px-0.75 pt-1 pb-0.75 text-[10px] font-bold uppercase leading-none! text-white ${badgeClassName}`}
+        className={`rounded-xs absolute top-4 px-0.75 pt-0.75 pb-0.5 text-[7.5px] font-bold uppercase leading-none! text-white ${badgeClassName}`}
       >
         {label}
       </span>
@@ -1836,7 +1836,11 @@ function LocalAttachmentPreview({ file }: { file: File }) {
 //   );
 // }
 
-function PaperclipIcon({ width = '24', height = '24' }) {
+export function PaperclipIcon({
+  fill = '#020F52',
+  width = '24',
+  height = '24',
+}) {
   return (
     <svg
       width={width}
@@ -1849,7 +1853,7 @@ function PaperclipIcon({ width = '24', height = '24' }) {
         fillRule="evenodd"
         clipRule="evenodd"
         d="M9.5 3.75C7.15279 3.75 5.25 5.65279 5.25 8V13.5001C5.25 17.228 8.27208 20.2501 12 20.2501C15.7279 20.2501 18.75 17.228 18.75 13.5001V12.0001C18.75 11.5859 19.0858 11.2501 19.5 11.2501C19.9142 11.2501 20.25 11.5859 20.25 12.0001V13.5001C20.25 18.0564 16.5563 21.7501 12 21.7501C7.44365 21.7501 3.75 18.0564 3.75 13.5001V8C3.75 4.82436 6.32436 2.25 9.5 2.25C12.6756 2.25 15.25 4.82436 15.25 8V13.5C15.25 15.2949 13.7949 16.75 12 16.75C10.2051 16.75 8.75 15.2949 8.75 13.5V9.5C8.75 9.08579 9.08579 8.75 9.5 8.75C9.91421 8.75 10.25 9.08579 10.25 9.5V13.5C10.25 14.4665 11.0335 15.25 12 15.25C12.9665 15.25 13.75 14.4665 13.75 13.5V8C13.75 5.65279 11.8472 3.75 9.5 3.75Z"
-        fill="#020F52"
+        fill={fill}
       />
     </svg>
   );

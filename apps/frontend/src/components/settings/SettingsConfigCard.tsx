@@ -44,9 +44,10 @@ export default function SettingsConfigCard({
   emptyDescription,
 }: SettingsConfigCardProps) {
   const itemColumnLabel = badgeVariant === 'priority' ? 'Priority' : 'Status';
+  const hasActions = Boolean(onEdit || onDelete);
 
   const renderActions = (item: SettingsConfigItem) => {
-    if (!onEdit && !onDelete) return null;
+    if (!hasActions) return null;
 
     return (
       <div className="flex shrink-0 items-center justify-end gap-3">
@@ -156,10 +157,18 @@ export default function SettingsConfigCard({
 
           {/* Existing XL desktop table */}
           <div className="hidden min-h-0 flex-1 flex-col xl:flex">
-            <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_300px] items-center gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3 text-xs font-medium text-gray-500">
+            <div
+              className={`grid items-center gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3 text-xs font-medium text-gray-500 ${
+                hasActions
+                  ? 'grid-cols-3 md:grid-cols-2 2xl:grid-cols-3'
+                  : 'grid-cols-2'
+              }`}
+            >
               <p>{itemColumnLabel}</p>
-              <p>Slug</p>
-              <p className="text-right">Actions</p>
+              <p className={hasActions ? '2xl:block md:hidden block' : ''}>
+                Slug
+              </p>
+              {hasActions ? <p className="text-right">Actions</p> : null}
             </div>
 
             {isLoading ? (
@@ -173,14 +182,24 @@ export default function SettingsConfigCard({
                     key={item.id}
                     className="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 last:border-b-0"
                   >
-                    <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_300px] items-center gap-3">
+                    <div
+                      className={`grid min-w-0 flex-1 items-center gap-3 ${
+                        hasActions
+                          ? 'grid-cols-3 md:grid-cols-2 2xl:grid-cols-3'
+                          : 'grid-cols-2'
+                      }`}
+                    >
                       <SettingsBadge
                         label={item.label}
                         colorHex={item.colorHex ?? '#667085'}
                         variant={badgeVariant}
                       />
 
-                      <p className="truncate text-sm text-gray-700">
+                      <p
+                        className={`truncate text-sm text-gray-700 ${
+                          hasActions ? '2xl:block md:hidden block' : ''
+                        }`}
+                      >
                         {item.value}
                       </p>
 

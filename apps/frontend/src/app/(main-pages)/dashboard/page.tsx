@@ -40,6 +40,7 @@ import RecentTicketsTable, {
   type RecentTicket,
 } from '../../../components/tables/RecentTicketsTable';
 import { appToast } from '../../../components/toast/AppToast';
+import { ALLOWED_ATTACHMENT_EXTENSIONS } from '../../../lib/attachments';
 import { createTicket } from '../../../lib/tickets';
 import type { ProjectRecord } from '../projects/projects.data';
 import {
@@ -67,6 +68,7 @@ import { NotificationItem } from '@harperhelp/interfaces';
 import { NotificationEntityType } from '@harperhelp/types';
 import { getNotificationNavigationPath } from '../../../lib/notification-navigation';
 import { EmojiSmileIcon } from '../../../components/discussion/EmojiPickerButton';
+import { PaperclipIcon } from '../../../components/discussion/ProjectThreadPanel';
 
 type TicketSummary = {
   open: number | null;
@@ -75,7 +77,41 @@ type TicketSummary = {
   critical: number | null;
 };
 
-type DashboardProjectPanelTabKey = 'projects' | 'activity';
+type DashboardProjectPanelTabKey = 'projects' | 'threads' | 'activity';
+
+type ApiDashboardProjectThreadAttachment = {
+  id: string;
+  originalName?: string | null;
+  extension?: string | null;
+};
+
+type ApiDashboardProjectThreadItem = {
+  projectId: string;
+  projectName: string;
+  projectBrandColor?: string | null;
+  latestMessage?: {
+    id: string;
+    message?: string | null;
+    createdAt?: string | null;
+    authorId?: string | null;
+    authorName?: string | null;
+    timestamp?: string | null;
+    attachments?: ApiDashboardProjectThreadAttachment[] | null;
+  } | null;
+};
+
+type DashboardProjectThreadItem = {
+  projectId: string;
+  projectName: string;
+  projectInitials: string;
+  projectColor: string;
+  messageId: string;
+  messagePreview: string;
+  authorName: string;
+  timeLabel: string;
+  attachmentCount: number;
+  attachmentSummary: string;
+};
 
 type DashboardActivityItem = {
   id: string;
@@ -148,6 +184,25 @@ const DASHBOARD_TABS_QUERY_PARAM = 'dashboardTab';
 const DASHBOARD_ACTIVITY_PAGE_SIZE = 20;
 const DASHBOARD_UPCOMING_TICKETS_PAGE_SIZE = 50;
 const DASHBOARD_CRITICAL_TICKETS_PAGE_SIZE = 50;
+const DASHBOARD_PROJECT_THREAD_FALLBACK_COLORS = [
+  '#4F7CFF',
+  '#EF4444',
+  '#F59E0B',
+  '#A855F7',
+  '#14B8A6',
+  '#22C55E',
+];
+const DASHBOARD_PHOTO_EXTENSIONS: string[] =
+  ALLOWED_ATTACHMENT_EXTENSIONS.filter((extension) =>
+    ['.jpg', '.jpeg', '.png', '.svg', '.webp'].includes(extension),
+  );
+const DASHBOARD_VIDEO_EXTENSIONS: string[] =
+  ALLOWED_ATTACHMENT_EXTENSIONS.filter((extension) =>
+    ['.mp4', '.mov'].includes(extension),
+  );
+const DASHBOARD_PDF_EXTENSIONS: string[] = ALLOWED_ATTACHMENT_EXTENSIONS.filter(
+  (extension) => extension === '.pdf',
+);
 
 export default function Page() {
   const router = useRouter();
@@ -164,13 +219,16 @@ export default function Page() {
   const canCreateTicket = hasPermission('tickets.create');
   const canViewTicketsList = hasPermission('tickets.view_list');
   const canViewTicketDetail = hasPermission('tickets.view_detail');
-  const canViewProjectsList = hasPermission('projects.view_list');
+  // const canViewThreads = hasPermission('thread.view');
+  const canViewThreads = false;
   const canViewProjectDetail = hasPermission('projects.view_detail');
   const canEditProject = hasPermission('projects.edit');
   const canDeleteProject = hasPermission('projects.delete');
   const [searchValue, setSearchValue] = useState('');
   const [projectPanelTab, setProjectPanelTab] =
-    useState<DashboardProjectPanelTabKey>('projects');
+    useState<DashboardProjectPanelTabKey>(
+      canViewThreads ? 'threads' : 'projects',
+    );
   const activityScrollContainerRef = useRef<HTMLDivElement | null>(null);
   const projectPanelButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [projectPanelIndicatorStyle, setProjectPanelIndicatorStyle] = useState({
@@ -190,7 +248,9 @@ export default function Page() {
   const projectsQuery = useProjectsQuery(
     canViewProjectCards || canCreateTicket,
   );
-  const projectNamesQuery = useProjectNamesQuery(canCreateTicket);
+  const projectNamesQuery = useProjectNamesQuery(
+    canViewRecentTickets || canCreateTicket,
+  );
   const selectedStatus = getDashboardStatusFilterValue(
     searchParams.get(RECENT_TICKETS_STATUS_QUERY_PARAM),
   );
@@ -200,10 +260,9 @@ export default function Page() {
   const selectedDashboardTab = getDashboardTabValue(
     searchParams.get(DASHBOARD_TABS_QUERY_PARAM),
   );
-  const projectPanelTabs: DashboardProjectPanelTabKey[] = [
-    'projects',
-    'activity',
-  ];
+  const projectPanelTabs: DashboardProjectPanelTabKey[] = canViewThreads
+    ? ['projects', 'threads', 'activity']
+    : ['projects', 'activity'];
 
   const selectedProjectIds = getTicketsProjectFilterValues(
     searchParams.getAll(TICKETS_PROJECT_QUERY_PARAM),
@@ -214,7 +273,8 @@ export default function Page() {
   );
 
   useEffect(() => {
-    const activeButton = projectPanelButtonRefs.current[activeProjectPanelIndex];
+    const activeButton =
+      projectPanelButtonRefs.current[activeProjectPanelIndex];
 
     if (!activeButton) {
       return;
@@ -226,6 +286,11 @@ export default function Page() {
       opacity: 1,
     });
   }, [activeProjectPanelIndex]);
+  useEffect(() => {
+    if (!canViewThreads && projectPanelTab === 'threads') {
+      setProjectPanelTab('projects');
+    }
+  }, [canViewThreads, projectPanelTab]);
   const selectedProjectIdsKey = selectedProjectIds.join(',');
 
   const ticketStatusesQuery = useQuery({
@@ -269,11 +334,11 @@ export default function Page() {
   );
   const projectFilterOptions = useMemo(
     () =>
-      (projectsQuery.data ?? []).map((project) => ({
+      (projectNamesQuery.data ?? []).map((project) => ({
         label: project.name,
         value: project.id,
       })),
-    [projectsQuery.data],
+    [projectNamesQuery.data],
   );
   const ticketSummaryQuery = useQuery({
     queryKey: ['dashboard', 'ticket-summary'],
@@ -295,6 +360,11 @@ export default function Page() {
       const limit = lastPage.limit ?? DASHBOARD_ACTIVITY_PAGE_SIZE;
       return page * limit < total ? page + 1 : undefined;
     },
+  });
+  const projectThreadsQuery = useQuery({
+    queryKey: ['dashboard', 'project-threads'],
+    queryFn: fetchDashboardProjectThreads,
+    enabled: canViewProjectCards && canViewThreads,
   });
 
   const recentTicketsQuery = useQuery({
@@ -584,6 +654,13 @@ export default function Page() {
     });
   };
 
+  const invalidateProjectThreadsRelated = async () => {
+    await queryClient.invalidateQueries({
+      queryKey: ['dashboard', 'project-threads'],
+      refetchType: 'all',
+    });
+  };
+
   const handleCreateTicket = async (values: CreateTicketFormValues) => {
     if (!canCreateTicket) {
       return;
@@ -670,6 +747,7 @@ export default function Page() {
   useEffect(() => {
     const handleNotificationNew = (payload: NotificationItem) => {
       void invalidateActivityRelated();
+      void invalidateProjectThreadsRelated();
 
       if (payload.entityType === NotificationEntityType.TICKET) {
         void invalidateTicketRelated();
@@ -724,6 +802,7 @@ export default function Page() {
     }
   };
   const displayedProjects = projectsQuery.data ?? [];
+  const displayedProjectThreads = projectThreadsQuery.data ?? [];
   const dashboardActivityItems = useMemo(
     () =>
       (activityQuery.data?.pages.flatMap((page) => page.items) ?? []).filter(
@@ -1284,7 +1363,11 @@ export default function Page() {
             <PermissionGuard permission="dashboard.view_project_cards">
               <div className="bg-white relative shadow-[0_0_35px_0_rgb(0_0_0/0.04)] h-full flex-1 overflow-y-auto scrollbar-hide rounded-xl  flex flex-col gap-3.5 pb-4">
                 <div className="flex flex-row justify-between items-center sticky w-full  z-10 top-0 px-4 pt-4 bg-white">
-                  <div className="relative grid w-full grid-cols-2 gap-1 rounded-full border border-gray-200 bg-gray-50 p-1 shadow-[inset_0_1px_3px_rgba(15,23,42,0.06)]">
+                  <div
+                    className={`relative grid w-full gap-1 rounded-full border border-gray-200 bg-gray-50 p-1 shadow-[inset_0_1px_3px_rgba(15,23,42,0.06)] ${
+                      canViewThreads ? 'grid-cols-3' : 'grid-cols-2'
+                    }`}
+                  >
                     <div
                       className="absolute top-1 bottom-1 left-0 rounded-full bg-white shadow-[0_0_25px_0_rgb(27_28_29/0.12)] transition-all duration-300 ease-out"
                       style={{
@@ -1307,9 +1390,26 @@ export default function Page() {
                     >
                       Projects
                     </button>
+                    {canViewThreads ? (
+                      <button
+                        ref={(element) => {
+                          projectPanelButtonRefs.current[1] = element;
+                        }}
+                        type="button"
+                        onClick={() => setProjectPanelTab('threads')}
+                        className={`relative z-10 w-full rounded-full px-4 py-1.25 text-sm font-medium transition-colors duration-300 ${
+                          projectPanelTab === 'threads'
+                            ? 'text-gray-950'
+                            : 'text-gray-500 hover:text-gray-800'
+                        }`}
+                      >
+                        Threads
+                      </button>
+                    ) : null}
                     <button
                       ref={(element) => {
-                        projectPanelButtonRefs.current[1] = element;
+                        projectPanelButtonRefs.current[canViewThreads ? 2 : 1] =
+                          element;
                       }}
                       type="button"
                       onClick={() => setProjectPanelTab('activity')}
@@ -1388,6 +1488,33 @@ export default function Page() {
                           }
                         />
                       ))
+                    )
+                  ) : projectPanelTab === 'threads' ? (
+                    projectThreadsQuery.isLoading ? (
+                      Array.from({ length: 6 }).map((_, index) => (
+                        <DashboardThreadRowSkeleton key={index} />
+                      ))
+                    ) : displayedProjectThreads.length === 0 ? (
+                      <EmptyState
+                        imageUrl="/images/NotificationEmptyState.svg"
+                        imageAlt="No threads"
+                        title="No Threads"
+                        description="Latest project thread messages will appear here."
+                      />
+                    ) : (
+                      <div className="overflow-y-auto pr-1 scrollbar-thin">
+                        {displayedProjectThreads.map((threadItem) => (
+                          <DashboardThreadRow
+                            key={threadItem.messageId}
+                            item={threadItem}
+                            onClick={() =>
+                              router.push(
+                                `/projects/${threadItem.projectId}?t=1`,
+                              )
+                            }
+                          />
+                        ))}
+                      </div>
                     )
                   ) : (
                     <div
@@ -1554,6 +1681,67 @@ function ProjectCardSkeleton() {
             <div className="h-4 w-4 shrink-0 rounded-full bg-gray-200 shadow-[0_0_18px_0_rgb(0_0_0/0.08)]" />
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function DashboardThreadRow({
+  item,
+  onClick,
+}: {
+  item: DashboardProjectThreadItem;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-start gap-3 border-b last:border-b-transparent border-b-gray-100 bg-white px-3 first:pt-0! py-3 text-left shadow-[0_4px_20px_rgba(15,23,42,0.05)] transition hover:border-gray-200 hover:shadow-[0_10px_28px_rgba(15,23,42,0.08)]"
+    >
+      <span
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white"
+        style={{ backgroundColor: item.projectColor }}
+      >
+        {item.projectInitials}
+      </span>
+
+      <span className="min-w-0 flex-1">
+        <span className="flex items-start justify-between gap-2">
+          <span className="truncate text-sm font-semibold text-gray-900">
+            {item.projectName}
+          </span>
+          <span className="shrink-0 text-xs font-medium text-[#3165F6]">
+            {item.timeLabel}
+          </span>
+        </span>
+        <span className="  line-clamp-2 text-xs text-gray-600">
+          {item.authorName}: {item.messagePreview}
+        </span>
+        {item.attachmentCount ? (
+          <div className="flex items-center gap-1 mt-1.5">
+            <PaperclipIcon width="14" height="14" />
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+              {item.attachmentSummary}
+            </span>
+          </div>
+        ) : null}
+      </span>
+    </button>
+  );
+}
+
+function DashboardThreadRowSkeleton() {
+  return (
+    <div className="flex animate-pulse items-start gap-3 rounded-2xl border border-gray-100 bg-white px-3 py-3 shadow-[0_4px_20px_rgba(15,23,42,0.04)]">
+      <div className="h-8.5 w-8.5 shrink-0 rounded-full bg-gray-200" />
+      <div className="min-w-0 flex-1 space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <div className="h-3.5 w-28 rounded bg-gray-200" />
+          <div className="h-3 w-12 rounded bg-gray-100" />
+        </div>
+        <div className="h-3 w-full rounded bg-gray-100" />
+        <div className="h-3 w-3/4 rounded bg-gray-100" />
       </div>
     </div>
   );
@@ -1775,9 +1963,7 @@ function ActivityEntityIcon({ item }: { item: DashboardActivityItem }) {
 
   if (item.type === 'mentioned_in_ticket_reply') {
     return (
-      <span className="text-base font-bold leading-none text-green-500">
-        @
-      </span>
+      <span className="text-base font-bold leading-none text-green-500">@</span>
     );
   }
 
@@ -1791,9 +1977,7 @@ function ActivityEntityIcon({ item }: { item: DashboardActivityItem }) {
 
   if (item.type === 'mentioned_in_internal_message') {
     return (
-      <span className="text-base font-bold leading-none text-blue-500">
-        @
-      </span>
+      <span className="text-base font-bold leading-none text-blue-500">@</span>
     );
   }
 
@@ -2125,6 +2309,35 @@ async function fetchUpcomingTickets(
   };
 }
 
+async function fetchDashboardProjectThreads(): Promise<
+  DashboardProjectThreadItem[]
+> {
+  const response = await fetch('/api/projects/threads/latest', {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiDashboardProjectThreadItem[]
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !Array.isArray(payload)) {
+    throw new Error(
+      !Array.isArray(payload)
+        ? payload?.message || 'Failed to fetch latest project threads.'
+        : 'Failed to fetch latest project threads.',
+    );
+  }
+
+  return payload
+    .filter((item) => Boolean(item?.projectId && item?.latestMessage?.id))
+    .map(mapApiDashboardProjectThreadItem);
+}
+
 async function fetchDashboardActivity(
   page = 1,
   limit = DASHBOARD_ACTIVITY_PAGE_SIZE,
@@ -2317,6 +2530,32 @@ function mapApiActivityToDashboardItem(
   };
 }
 
+function mapApiDashboardProjectThreadItem(
+  item: ApiDashboardProjectThreadItem,
+): DashboardProjectThreadItem {
+  const timestamp =
+    item.latestMessage?.timestamp?.trim() ||
+    item.latestMessage?.createdAt?.trim() ||
+    '';
+
+  return {
+    projectId: item.projectId,
+    projectName: item.projectName,
+    projectInitials: getInitials(item.projectName),
+    projectColor:
+      item.projectBrandColor?.trim() || getDashboardThreadColor(item.projectId),
+    messageId: item.latestMessage?.id ?? item.projectId,
+    messagePreview: formatThreadPreview(
+      item.latestMessage?.message,
+      item.latestMessage?.attachments?.length ?? 0,
+    ),
+    authorName: item.latestMessage?.authorName?.trim() || 'Unknown',
+    timeLabel: formatRelativeTime(timestamp),
+    attachmentCount: item.latestMessage?.attachments?.length ?? 0,
+    attachmentSummary: getAttachmentSummary(item.latestMessage?.attachments),
+  };
+}
+
 function mapApiDashboardTicketToRecentTicket(
   ticket: ApiDashboardTicket,
 ): RecentTicket {
@@ -2376,6 +2615,16 @@ function getPriorityTagClassName(priority: string) {
   }
 
   return 'border-gray-200 bg-gray-50 text-gray-600';
+}
+
+function getDashboardThreadColor(projectId: string) {
+  const hash = projectId.split('').reduce((total, character) => {
+    return total + character.charCodeAt(0);
+  }, 0);
+
+  return DASHBOARD_PROJECT_THREAD_FALLBACK_COLORS[
+    hash % DASHBOARD_PROJECT_THREAD_FALLBACK_COLORS.length
+  ];
 }
 
 export function getInitials(value: string) {
@@ -2484,6 +2733,10 @@ function formatRelativeTime(value: string) {
   const hour = 60 * minute;
   const day = 24 * hour;
 
+  if (diffMs < minute) {
+    return 'Just now';
+  }
+
   if (diffMs < hour) {
     const minutes = Math.max(1, Math.floor(diffMs / minute));
     return `${minutes}m ago`;
@@ -2500,6 +2753,86 @@ function formatRelativeTime(value: string) {
 
   const days = Math.max(1, Math.floor(diffMs / day));
   return `${days}d ago`;
+}
+
+function formatThreadPreview(value?: string | null, count = 0) {
+  const normalized = value?.replace(/\s+/g, ' ').trim();
+
+  if (!normalized) {
+    return count > 1 ? 'Shared an attachments' : 'Shared an attachment';
+  }
+
+  if (normalized.length <= 72) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, 69).trimEnd()}...`;
+}
+
+function getAttachmentSummary(
+  attachments?: ApiDashboardProjectThreadAttachment[] | null,
+) {
+  const items = attachments ?? [];
+
+  if (!items.length) {
+    return '';
+  }
+
+  const counts = items.reduce(
+    (summary, attachment) => {
+      const category = getAttachmentCategory(attachment.extension);
+      summary[category] += 1;
+      return summary;
+    },
+    { photo: 0, video: 0, pdf: 0, doc: 0 },
+  );
+
+  const parts = [
+    counts.photo ? formatAttachmentPart(counts.photo, 'photo') : null,
+    counts.video ? formatAttachmentPart(counts.video, 'video') : null,
+    counts.pdf ? formatAttachmentPart(counts.pdf, 'pdf') : null,
+    counts.doc ? formatAttachmentPart(counts.doc, 'doc') : null,
+  ].filter(Boolean);
+
+  return parts.join(' ');
+}
+
+function getAttachmentCategory(extension?: string | null) {
+  const trimmed = extension?.trim().toLowerCase() ?? '';
+  const normalized = trimmed
+    ? trimmed.startsWith('.')
+      ? trimmed
+      : `.${trimmed}`
+    : '';
+
+  if (DASHBOARD_PHOTO_EXTENSIONS.includes(normalized)) {
+    return 'photo' as const;
+  }
+
+  if (DASHBOARD_VIDEO_EXTENSIONS.includes(normalized)) {
+    return 'video' as const;
+  }
+
+  if (DASHBOARD_PDF_EXTENSIONS.includes(normalized)) {
+    return 'pdf' as const;
+  }
+
+  return 'doc' as const;
+}
+
+function formatAttachmentPart(
+  count: number,
+  category: 'photo' | 'video' | 'pdf' | 'doc',
+) {
+  if (category === 'pdf') {
+    return `${count} pdf${count === 1 ? '' : 's'}`;
+  }
+
+  if (category === 'doc') {
+    return `${count} doc${count === 1 ? '' : 's'}`;
+  }
+
+  return `${count} ${category}${count === 1 ? '' : 's'}`;
 }
 
 function slugify(value: string) {
