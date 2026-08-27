@@ -1289,7 +1289,7 @@ export function buildTicketInternalMessageEmail(
       : "A new reply has been added to a ticket you're following.",
     rows,
     buttonText: 'View Ticket',
-    buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}`,
+    buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}&internal=true`,
     showReplyCallout: !p.isInternal, // "reply by email" doesn't make sense for internal-only notes
     // attachments: p.attachments, // NEW
     internalNote: p.isInternal,
@@ -1321,7 +1321,7 @@ export function buildTicketInternalMessageMentionedEmail(
     subheading: `${p.mentionedBy.name} mentioned you in an internal note on ticket ${p.ticketNumber}.`,
     rows,
     buttonText: 'View Ticket',
-    buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}`,
+    buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}&internal=true`,
     showReplyCallout: false,
     internalNote: true,
   });
@@ -1691,7 +1691,7 @@ export function buildThreadMessageMentionedEmail(
   });
 
   return {
-    subject: `You were mentioned in ${truncateSubject(p.projectName)}`,
+    subject: `You were mentioned in a thread on "${truncateSubject(p.projectName)}"`,
     html,
   };
 }
@@ -1748,7 +1748,7 @@ export function buildThreadReplyMentionedEmail(
   });
 
   return {
-    subject: `You were mentioned in ${truncateSubject(p.projectName)}`,
+    subject: `You were mentioned in a thread reply on "${truncateSubject(p.projectName)}"`,
     html,
   };
 }

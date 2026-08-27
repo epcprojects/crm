@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { In, IsNull, Repository } from 'typeorm';
 import { FilesService } from '../../files/files.service';
 import { UtilityService } from '../../utility/utility.service';
 import { ThreadMessage } from '../entities/thread-messages.entity';
@@ -156,11 +156,11 @@ export class ThreadService {
         message: truncatedMessage,
       });
     } else {
-          const filteredParticipants =
-      await this.notificationsService.filterEmailRecipients(
-        participants,
-        EmailEventType.THREAD_MESSAGE_CREATED,
-      );
+      const filteredParticipants =
+        await this.notificationsService.filterEmailRecipients(
+          participants,
+          EmailEventType.THREAD_MESSAGE_CREATED,
+        );
       await this.notificationsService.dispatch({
         type: EmailEventType.THREAD_MESSAGE_CREATED,
         payload: {
@@ -195,6 +195,72 @@ export class ThreadService {
         message: '',
         explicitRecipientIds: mentionedUserIds,
       });
+      try {
+        const mentionedUsersData = await this.repo.manager
+          .getRepository('users')
+          .find({ where: { id: In(mentionedUserIds) } });
+
+        const mentionedRecipients = mentionedUsersData
+          .filter((u) => u.id !== user.id)
+          .map((u) => ({
+            userId: u.id,
+            name: u.fullName,
+            email: u.email,
+          }));
+
+        if (dto.parentId) {
+          const filteredMentioned =
+            await this.notificationsService.filterEmailRecipients(
+              mentionedRecipients,
+              EmailEventType.MENTIONED_IN_THREAD_REPLY,
+            );
+
+          const parent = await this.repo.findOne({
+            where: { id: dto.parentId },
+            select: { id: true, message: true },
+          });
+
+          for (const mentionedUser of filteredMentioned) {
+            await this.notificationsService.dispatch({
+              type: EmailEventType.MENTIONED_IN_THREAD_REPLY,
+              payload: {
+                messageId: message.id,
+                projectId,
+                projectName: project.name,
+                message: msg.message || '',
+                mentionedBy: createdByRecipient,
+                mentionedUser,
+                parentMessage: {
+                  id: parent?.id ?? dto.parentId,
+                  message: parent?.message ?? '',
+                },
+              },
+            });
+          }
+        } else {
+          const filteredMentioned =
+            await this.notificationsService.filterEmailRecipients(
+              mentionedRecipients,
+              EmailEventType.MENTIONED_IN_THREAD_MESSAGE,
+            );
+
+          for (const mentionedUser of filteredMentioned) {
+            await this.notificationsService.dispatch({
+              type: EmailEventType.MENTIONED_IN_THREAD_MESSAGE,
+              payload: {
+                messageId: message.id,
+                projectId,
+                projectName: project.name,
+                message: msg.message || '',
+                mentionedBy: createdByRecipient,
+                mentionedUser,
+              },
+            });
+          }
+        }
+      } catch (err) {
+        // ignore
+      }
     }
 
     return msg;
@@ -278,6 +344,78 @@ export class ThreadService {
         message: '',
         explicitRecipientIds: newlyMentionedUserIds,
       });
+      try {
+        const mentionedUsersData = await this.repo.manager
+          .getRepository('users')
+          .find({ where: { id: In(newlyMentionedUserIds) } });
+
+        const mentionedRecipients = mentionedUsersData
+          .filter((u) => u.id !== user.id)
+          .map((u) => ({
+            userId: u.id,
+            name: u.fullName,
+            email: u.email,
+          }));
+
+        const mentionedByRecipient = {
+          userId: user.id,
+          name: user.fullName,
+          email: user.email,
+        };
+
+        if (message.parentId) {
+          const filteredMentioned =
+            await this.notificationsService.filterEmailRecipients(
+              mentionedRecipients,
+              EmailEventType.MENTIONED_IN_THREAD_REPLY,
+            );
+
+          const parent = await this.repo.findOne({
+            where: { id: message.parentId },
+            select: { id: true, message: true },
+          });
+
+          for (const mentionedUser of filteredMentioned) {
+            await this.notificationsService.dispatch({
+              type: EmailEventType.MENTIONED_IN_THREAD_REPLY,
+              payload: {
+                messageId: updated.id,
+                projectId,
+                projectName: project?.name || '',
+                message: updated.message || '',
+                mentionedBy: mentionedByRecipient,
+                mentionedUser,
+                parentMessage: {
+                  id: parent?.id ?? message.parentId,
+                  message: parent?.message ?? '',
+                },
+              },
+            });
+          }
+        } else {
+          const filteredMentioned =
+            await this.notificationsService.filterEmailRecipients(
+              mentionedRecipients,
+              EmailEventType.MENTIONED_IN_THREAD_MESSAGE,
+            );
+
+          for (const mentionedUser of filteredMentioned) {
+            await this.notificationsService.dispatch({
+              type: EmailEventType.MENTIONED_IN_THREAD_MESSAGE,
+              payload: {
+                messageId: updated.id,
+                projectId,
+                projectName: project?.name || '',
+                message: updated.message || '',
+                mentionedBy: mentionedByRecipient,
+                mentionedUser,
+              },
+            });
+          }
+        }
+      } catch (err) {
+        // ignore
+      }
     }
     return updated;
   }
