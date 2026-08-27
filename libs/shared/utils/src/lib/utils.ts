@@ -19,6 +19,7 @@ export const MODULE_DEFINITIONS: {
       'view_project_cards',
       'view_recent_tickets',
       'view_upcoming',
+      'view_threads',
     ],
   },
   {

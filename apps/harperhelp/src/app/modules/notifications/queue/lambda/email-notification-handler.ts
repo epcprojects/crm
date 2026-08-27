@@ -1,9 +1,9 @@
 import sgMail from '@sendgrid/mail';
 import {
-  buildAttachmentAddedEmail,
+  // buildAttachmentAddedEmail,
   buildAssigneeUpdatedEmail,
   buildPriorityUpdatedEmail,
-  buildProjectCreatedEmail,
+  // buildProjectCreatedEmail,
   buildStatusUpdatedEmail,
   buildTicketCreatedEmail,
   buildTicketReplyEmail,
@@ -64,8 +64,8 @@ async function sendMailToRecipients(
 
 function buildEmailForEvent(event: EmailNotificationEvent) {
   switch (event.type) {
-    case EmailEventType.PROJECT_CREATED:
-      return buildProjectCreatedEmail(event.payload, appUrl);
+    // case EmailEventType.PROJECT_CREATED:
+    //   return buildProjectCreatedEmail(event.payload, appUrl);
     case EmailEventType.PROJECT_ASSIGNED:
       return buildProjectAssignedEmail(event.payload, appUrl);
     case EmailEventType.PROJECT_UNASSIGNED:
@@ -84,8 +84,8 @@ function buildEmailForEvent(event: EmailNotificationEvent) {
       return buildPriorityUpdatedEmail(event.payload, appUrl);
     case EmailEventType.TICKET_ASSIGNEE_UPDATED:
       return buildAssigneeUpdatedEmail(event.payload, appUrl);
-    case EmailEventType.TICKET_ATTACHMENT_ADDED:
-      return buildAttachmentAddedEmail(event.payload, appUrl);
+    // case EmailEventType.TICKET_ATTACHMENT_ADDED:
+    //   return buildAttachmentAddedEmail(event.payload, appUrl);
   }
 }
 
@@ -103,8 +103,8 @@ function filterAcceptedRecipients(
 
 function resolveRecipients(event: EmailNotificationEvent) {
   switch (event.type) {
-    case EmailEventType.PROJECT_CREATED:
-      return event.payload.members;
+    // case EmailEventType.PROJECT_CREATED:
+    //   return event.payload.members;
     case EmailEventType.PROJECT_ASSIGNED:
       return event.payload.assignedTo ? [event.payload.assignedTo] : [];
     case EmailEventType.PROJECT_UNASSIGNED:
@@ -137,10 +137,10 @@ function resolveRecipients(event: EmailNotificationEvent) {
       ].filter(
         (recipient) => recipient.email !== event.payload.updatedBy.email,
       );
-    case EmailEventType.TICKET_ATTACHMENT_ADDED:
-      return event.payload.participants.filter(
-        (recipient) => recipient.email !== event.payload.uploadedBy.email,
-      );
+    // case EmailEventType.TICKET_ATTACHMENT_ADDED:
+    //   return event.payload.participants.filter(
+    //     (recipient) => recipient.email !== event.payload.uploadedBy.email,
+    //   );
   }
 
   return [];

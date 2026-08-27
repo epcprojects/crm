@@ -103,16 +103,26 @@ export class ThreadService {
         name: m.fullName,
         email: m.email,
         isInvitationAccepted: m.isInvitationAccepted, // Include the isInviteAccepted property
+        userId: m.id,
       }));
 
-    const createdByRecipient = { name: user.fullName, email: user.email };
+    const createdByRecipient = {
+      userId: user.id,
+      name: user.fullName,
+      email: user.email,
+    };
     const truncatedMessage = message.message
       ? message.message.slice(0, 140)
       : 'New thread message';
 
-    const attachments = await this.utilityService.getEmailAttachmentLinks(files ?? []);
+    // const attachments = await this.utilityService.getEmailAttachmentLinks(files ?? []);
 
     if (dto.parentId) {
+      const filteredParticipants =
+        await this.notificationsService.filterEmailRecipients(
+          participants,
+          EmailEventType.THREAD_REPLY_CREATED,
+        );
       // Fetch parent so the reply email can show what's being replied to
       const parent = await this.repo.findOne({
         where: { id: dto.parentId },
@@ -127,12 +137,12 @@ export class ThreadService {
           projectName: project.name,
           message: msg.message || '',
           createdBy: createdByRecipient,
-          participants,
+          participants: filteredParticipants,
           parentMessage: {
             id: parent?.id ?? dto.parentId,
             message: parent?.message ?? '',
           },
-          attachments,
+          // attachments,
         },
       });
 
@@ -146,6 +156,11 @@ export class ThreadService {
         message: truncatedMessage,
       });
     } else {
+          const filteredParticipants =
+      await this.notificationsService.filterEmailRecipients(
+        participants,
+        EmailEventType.THREAD_MESSAGE_CREATED,
+      );
       await this.notificationsService.dispatch({
         type: EmailEventType.THREAD_MESSAGE_CREATED,
         payload: {
@@ -154,8 +169,8 @@ export class ThreadService {
           projectName: project.name,
           message: msg.message || '',
           createdBy: createdByRecipient,
-          participants,
-          attachments,
+          participants: filteredParticipants,
+          // attachments,
         },
       });
 
@@ -597,5 +612,134 @@ export class ThreadService {
     if (!hasAccess) {
       throw new ForbiddenException('You do not have access to this project.');
     }
+  }
+  async getLatestThreadMessagePerProject(user: any) {
+    const projectRepo = this.repo.manager.getRepository(Project);
+
+    // Get all projects the authenticated user has access to.
+    const projects = await projectRepo
+      .createQueryBuilder('project')
+      .innerJoin('project.members', 'member', 'member.id = :userId', {
+        userId: user.id,
+      })
+      .select(['project.id', 'project.name', 'project.brandColor'])
+      .where('project.deletedAt IS NULL')
+      .getMany();
+
+    if (!projects.length) {
+      return [];
+    }
+
+    const projectIds = projects.map((project) => project.id);
+
+    // Get exactly one latest top-level message per project.
+    const latestMessages = await this.repo
+      .createQueryBuilder('msg')
+      .leftJoin('msg.author', 'author')
+      .select([
+        'msg.id',
+        'msg.projectId',
+        'msg.message',
+        'msg.createdAt',
+        'msg.updatedAt',
+        'msg.authorId',
+        'author.fullName',
+      ])
+      .where('msg.projectId IN (:...projectIds)', { projectIds })
+      .andWhere('msg.parentId IS NULL')
+      .andWhere('msg.deletedAt IS NULL')
+      .distinctOn(['msg.projectId'])
+      .orderBy('msg.projectId', 'ASC')
+      .addOrderBy('msg.createdAt', 'DESC')
+      .addOrderBy('msg.id', 'DESC')
+      .getMany();
+
+    const latestMessageMap = new Map(
+      latestMessages.map((message) => [message.projectId, message]),
+    );
+
+    // Fetch attachments for all latest messages in one query.
+    const messageIds = latestMessages.map((message) => message.id);
+
+    const attachments = messageIds.length
+      ? await this.filesService.findBySourceBulk(FileSource.THREAD, messageIds)
+      : [];
+
+    const attachmentsMap = new Map<
+      string,
+      { id: string; originalName: string; extension: string }[]
+    >();
+
+    for (const attachment of attachments) {
+      const messageAttachments = attachmentsMap.get(attachment.sourceId) ?? [];
+
+      messageAttachments.push({
+        id: attachment.id,
+        originalName: attachment.originalName,
+        extension: attachment.extension,
+      });
+
+      attachmentsMap.set(attachment.sourceId, messageAttachments);
+    }
+
+    // Build response first.
+    const result = projects.map((project) => {
+      const message = latestMessageMap.get(project.id);
+
+      if (!message) {
+        return {
+          projectId: project.id,
+          projectName: project.name,
+          projectBrandColor: project.brandColor,
+          latestMessage: null,
+        };
+      }
+
+      const messageText = message.message ?? '';
+
+      return {
+        projectId: project.id,
+        projectName: project.name,
+        projectBrandColor: project.brandColor,
+        latestMessage: {
+          id: message.id,
+          message:
+            messageText.length > 100
+              ? `${messageText.slice(0, 100)}...`
+              : messageText,
+          createdAt: message.createdAt,
+          authorId: message.authorId,
+          authorName: message.author?.fullName ?? null,
+
+          // Use updatedAt if available, otherwise createdAt.
+          timestamp: message.createdAt,
+
+          attachments: attachmentsMap.get(message.id) ?? [],
+        },
+      };
+    });
+
+    // Sort projects by their latest thread message.
+    // Projects without messages go to the bottom.
+    result.sort((a, b) => {
+      if (!a.latestMessage && !b.latestMessage) {
+        return 0;
+      }
+
+      if (!a.latestMessage) {
+        return 1;
+      }
+
+      if (!b.latestMessage) {
+        return -1;
+      }
+
+      return (
+        new Date(b.latestMessage.createdAt).getTime() -
+        new Date(a.latestMessage.createdAt).getTime()
+      );
+    });
+
+    return result;
   }
 }

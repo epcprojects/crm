@@ -9,26 +9,28 @@ import {
   EmailEventType,
   EmailNotificationEvent,
   EmailRecipient,
-  ProjectCreatedPayload,
+  // ProjectCreatedPayload,
   TicketCreatedPayload,
   TicketReplyPostedPayload,
   TicketStatusUpdatedPayload,
   TicketPriorityUpdatedPayload,
   TicketAssigneeUpdatedPayload,
-  TicketAttachmentAddedPayload,
+  // TicketAttachmentAddedPayload,
   ProjectAssignedPayload,
   ThreadMessageCreatedPayload,
   ProjectUnassignedPayload,
   ThreadReplyCreatedPayload,
+  getEmailNotificationEntityType,
+  EMAIL_NOTIFICATION_METADATA,
 } from './notifications.types';
 import {
-  buildProjectCreatedEmail,
+  // buildProjectCreatedEmail,
   buildTicketCreatedEmail,
   buildTicketReplyEmail,
   buildStatusUpdatedEmail,
   buildPriorityUpdatedEmail,
   buildAssigneeUpdatedEmail,
-  buildAttachmentAddedEmail,
+  // buildAttachmentAddedEmail,
   buildProjectAssignedEmail,
   buildThreadMessageCreatedEmail,
   buildProjectUnassignedEmail,
@@ -42,7 +44,11 @@ import { NotifyProjectMembersDto } from './dto/create-notification.dto';
 import { Notification } from './entities/notification.entity';
 import { ActivityLogService } from '../activity/activity-log.service';
 import { SearchNotificationsDto } from './dto/search-notification.dto';
-import { NotificationEntityType, NotificationType } from '@harperhelp/types';
+import {
+  EmailNotificationEntityType,
+  NotificationEntityType,
+  NotificationType,
+} from '@harperhelp/types';
 import {
   CATEGORY_TO_ENTITY_TYPES,
   ENTITY_TYPE_TO_CATEGORY,
@@ -50,6 +56,9 @@ import {
   NotificationCategory,
   resolveCategory,
 } from './enum/notification-category.enum';
+import { EmailNotificationPreference } from './entities/email-notification-preference.entity';
+import { UserRole } from '../users/entities/user.roles.entity';
+import { RoleClaim } from '../roles/entities/role.claim.entity';
 
 interface CursorPage<T> {
   items: T[];
@@ -101,7 +110,8 @@ const NOTIFICATION_GROUPS = [
   },
 ] as const;
 
-type NotificationGroupCategory = (typeof NOTIFICATION_GROUPS)[number]['category'];
+type NotificationGroupCategory =
+  (typeof NOTIFICATION_GROUPS)[number]['category'];
 
 @Injectable()
 export class NotificationsService {
@@ -117,8 +127,16 @@ export class NotificationsService {
     private readonly queueService: SqsNotificationQueueService,
     private readonly activityLogService: ActivityLogService,
 
+    @InjectRepository(EmailNotificationPreference)
+    private readonly emailNotificationPreferenceRepo: Repository<EmailNotificationPreference>,
     // @InjectRepository(User)
     // private readonly userRepository: Repository<User>,
+    @InjectRepository(UserRole)
+    private readonly userRoleRepo: Repository<UserRole>,
+
+    @InjectRepository(RoleClaim)
+    private readonly roleClaimRepo: Repository<RoleClaim>,
+
     @InjectRepository(Notification)
     private readonly notificationsRepo: Repository<Notification>,
     // @InjectRepository(ActivityLog)
@@ -223,6 +241,7 @@ export class NotificationsService {
   // Public dispatch method (use this everywhere in the app)
 
   async dispatch(event: EmailNotificationEvent): Promise<void> {
+    //here
     if (this.queueUrl) {
       await this.queueService.publish(event);
       return;
@@ -231,8 +250,8 @@ export class NotificationsService {
     console.debug(`Dispatching notification event ${event.type} directly`);
 
     switch (event.type) {
-      case EmailEventType.PROJECT_CREATED:
-        return this.onProjectCreated(event.payload); // not needed
+      // case EmailEventType.PROJECT_CREATED:
+      //   return this.onProjectCreated(event.payload); // not needed
       case EmailEventType.PROJECT_ASSIGNED:
         return this.onProjectAssigned(event.payload);
       case EmailEventType.PROJECT_UNASSIGNED:
@@ -251,24 +270,24 @@ export class NotificationsService {
         return this.onTicketPriorityUpdated(event.payload);
       case EmailEventType.TICKET_ASSIGNEE_UPDATED:
         return this.onTicketAssigneeUpdated(event.payload);
-      case EmailEventType.TICKET_ATTACHMENT_ADDED:
-        return this.onTicketAttachmentAdded(event.payload);
+      // case EmailEventType.TICKET_ATTACHMENT_ADDED:
+      //   return this.onTicketAttachmentAdded(event.payload);
     }
   }
 
   //  Individual event handlers
 
-  private async onProjectCreated(p: ProjectCreatedPayload): Promise<void> {
-    const { subject, html } = buildProjectCreatedEmail(
-      p,
-      this.appUrl,
-      // this.appName,
-    );
-    // Internal notes: exclude the poster themselves from the notification list
-    const recipients = p.members.filter((r) => r.email !== p.createdBy.email);
-    // Notify all members
-    await this.sendBulk(recipients, subject, html);
-  }
+  // private async onProjectCreated(p: ProjectCreatedPayload): Promise<void> {
+  //   const { subject, html } = buildProjectCreatedEmail(
+  //     p,
+  //     this.appUrl,
+  //     // this.appName,
+  //   );
+  //   // Internal notes: exclude the poster themselves from the notification list
+  //   const recipients = p.members.filter((r) => r.email !== p.createdBy.email);
+  //   // Notify all members
+  //   await this.sendBulk(recipients, subject, html);
+  // }
 
   private async onProjectAssigned(p: ProjectAssignedPayload): Promise<void> {
     const { subject, html } = buildProjectAssignedEmail(
@@ -405,19 +424,19 @@ export class NotificationsService {
     await this.sendBulk([...recipientSet.values()], subject, html);
   }
 
-  private async onTicketAttachmentAdded(
-    p: TicketAttachmentAddedPayload,
-  ): Promise<void> {
-    const { subject, html } = buildAttachmentAddedEmail(
-      p,
-      this.appUrl,
-      // this.appName,
-    );
-    const recipients = p.participants.filter(
-      (r) => r.email !== p.uploadedBy.email && r.isInvitationAccepted === true,
-    );
-    await this.sendBulk(recipients, subject, html);
-  }
+  // private async onTicketAttachmentAdded(
+  //   p: TicketAttachmentAddedPayload,
+  // ): Promise<void> {
+  //   const { subject, html } = buildAttachmentAddedEmail(
+  //     p,
+  //     this.appUrl,
+  //     // this.appName,
+  //   );
+  //   const recipients = p.participants.filter(
+  //     (r) => r.email !== p.uploadedBy.email && r.isInvitationAccepted === true,
+  //   );
+  //   await this.sendBulk(recipients, subject, html);
+  // }
 
   // ====================================================================
   async notifyProjectMembers(dto: NotifyProjectMembersDto): Promise<void> {
@@ -638,7 +657,9 @@ export class NotificationsService {
           this.buildUserNotificationQuery(userId, unreadOnly),
           group.category,
         );
-        const [items, total] = await query.take(limitPerGroup).getManyAndCount();
+        const [items, total] = await query
+          .take(limitPerGroup)
+          .getManyAndCount();
 
         return {
           category: group.category,
@@ -672,12 +693,17 @@ export class NotificationsService {
       unreadOnly?: boolean;
     },
   ) {
-    const group = NOTIFICATION_GROUPS.find((item) => item.category === category);
+    const group = NOTIFICATION_GROUPS.find(
+      (item) => item.category === category,
+    );
     const query = this.applyNotificationCategoryFilter(
       this.buildUserNotificationQuery(userId, unreadOnly),
       category,
     );
-    const [items, total] = await query.skip(offset).take(limit).getManyAndCount();
+    const [items, total] = await query
+      .skip(offset)
+      .take(limit)
+      .getManyAndCount();
 
     return {
       category,
@@ -811,7 +837,8 @@ export class NotificationsService {
                 ticketReplyEntityType: NotificationEntityType.TICKET_REPLY,
               })
               .orWhere('n."entityType" = :internalMessageEntityType', {
-                internalMessageEntityType: NotificationEntityType.INTERNAL_MESSAGE,
+                internalMessageEntityType:
+                  NotificationEntityType.INTERNAL_MESSAGE,
               })
               .orWhere('n."type" IN (:...ticketReplyTypes)', {
                 ticketReplyTypes: [
@@ -911,7 +938,7 @@ export class NotificationsService {
         async (cat) =>
           [
             cat,
-            await this.fetchCategoryPage(userId, cat, 5, undefined, unreadOnly),
+            await this.fetchCategoryPage(userId, cat, limit, undefined, unreadOnly),
           ] as const,
       ),
     );
@@ -1010,5 +1037,235 @@ export class NotificationsService {
     }
 
     return { totalCount, totalUnreadCount, categoryUnreadCounts };
+  }
+
+  private readonly claimGatedNotificationGroups: Array<{
+    claimType: string;
+    eventTypes: EmailEventType[];
+  }> = [
+    {
+      claimType: 'tickets.view_list',
+      eventTypes: [
+        EmailEventType.TICKET_CREATED,
+        EmailEventType.TICKET_REPLY_POSTED,
+        EmailEventType.TICKET_STATUS_UPDATED,
+        EmailEventType.TICKET_PRIORITY_UPDATED,
+        EmailEventType.TICKET_ASSIGNEE_UPDATED,
+        // EmailEventType.TICKET_ATTACHMENT_ADDED,
+      ],
+    },
+    {
+      claimType: 'thread.view',
+      eventTypes: [
+        EmailEventType.THREAD_MESSAGE_CREATED,
+        EmailEventType.THREAD_REPLY_CREATED,
+      ],
+    },
+  ];
+
+  // Not gated by any claim — every user has a project, so these are always on.
+  private readonly alwaysOnNotificationTypes: EmailEventType[] = [
+    // EmailEventType.PROJECT_CREATED,
+    EmailEventType.PROJECT_ASSIGNED,
+    EmailEventType.PROJECT_UNASSIGNED,
+  ];
+
+  async ensureEmailNotificationPreferences(userId: string): Promise<void> {
+    console.debug(`Ensuring email notification preferences for user ${userId}`);
+    const userRole = await this.userRoleRepo.findOne({ where: { userId } });
+
+    const roleClaims = userRole
+      ? await this.roleClaimRepo.find({ where: { roleId: userRole.roleId } })
+      : [];
+
+    console.debug(
+      `User ${userId} has role ${userRole?.roleId} with claims: ${roleClaims.map((c) => c.claimType).join(', ')}`,
+    );
+
+    const claimMap = new Map<string, boolean>(
+      roleClaims.map((claim) => [
+        claim.claimType,
+        claim.claimValue.trim().toLowerCase() === 'true',
+      ]),
+    );
+
+    console.debug(`Claim map for user ${userId}:`, claimMap);
+    // Every EmailEventType this user is currently entitled to.
+    const permittedTypes = new Set<EmailEventType>(
+      this.alwaysOnNotificationTypes,
+    );
+    for (const group of this.claimGatedNotificationGroups) {
+      if (claimMap.get(group.claimType) === true) {
+        group.eventTypes.forEach((type) => permittedTypes.add(type));
+      }
+    }
+    console.debug(
+      `Permitted email notification types for user ${userId}:`,
+      Array.from(permittedTypes),
+    );
+
+    const existing = await this.emailNotificationPreferenceRepo.find({
+      where: { userId },
+    });
+    const existingByType = new Map(
+      existing.map((preference) => [preference.notificationType, preference]),
+    );
+
+    const toInsert: EmailNotificationPreference[] = [];
+    // const toDisable: EmailNotificationPreference[] = [];
+    const toRemove: EmailNotificationPreference[] = [];
+
+    for (const notificationType of Object.values(EmailEventType)) {
+      const isPermitted = permittedTypes.has(notificationType);
+      const existingRow = existingByType.get(notificationType);
+
+      if (isPermitted && !existingRow) {
+        // Newly permitted, no row yet -> create enabled.
+        toInsert.push(
+          this.emailNotificationPreferenceRepo.create({
+            userId,
+            entityType: getEmailNotificationEntityType(notificationType),
+            notificationType,
+            enabled: true,
+          }),
+        );
+      } else if (!isPermitted && existingRow) {
+        // No longer permitted ->delete.
+        toRemove.push(existingRow);
+        // existingRow.enabled = false;
+        // toDisable.push(existingRow);
+      }
+      // isPermitted && existingRow -> leave untouched (respects manual toggle)
+      // !isPermitted && (!existingRow || already disabled) -> nothing to do
+    }
+    console.debug(`To insert for user ${userId}:`, toInsert);
+    console.debug(`To remove for user ${userId}:`, toRemove);
+    if (toInsert.length > 0) {
+      console.debug(
+        `Inserting ${toInsert.length} email notification preferences for user ${userId}`,
+      );
+      console.debug('Inserting rows:', toInsert);
+      await this.emailNotificationPreferenceRepo.save(toInsert);
+    }
+    if (toRemove.length > 0) {
+      console.debug(
+        `Removing ${toRemove.length} email notification preferences for user ${userId}`,
+      );
+      console.debug('Removing rows:', toRemove);
+      await this.emailNotificationPreferenceRepo.remove(toRemove);
+    }
+  }
+
+  async filterEmailRecipients(
+    recipients: EmailRecipient[],
+    notificationType: EmailEventType,
+  ): Promise<EmailRecipient[]> {
+    if (!recipients.length) {
+      return [];
+    }
+
+    const userIds = [
+      ...new Set(
+        recipients.map((recipient) => recipient.userId).filter(Boolean),
+      ),
+    ];
+
+    if (!userIds.length) {
+      return recipients;
+    }
+
+    const preferences = await this.emailNotificationPreferenceRepo.find({
+      where: userIds.map((userId) => ({
+        userId,
+        notificationType,
+      })),
+    });
+
+    const preferenceMap = new Map(
+      preferences.map((preference) => [preference.userId, preference.enabled]),
+    );
+
+    return recipients.filter((recipient) => {
+      // No preference row = send email
+      return preferenceMap.get(recipient.userId) !== false;
+    });
+  }
+
+  async getEmailPreferences(userId: string) {
+    const preferences = await this.emailNotificationPreferenceRepo.find({
+      where: {
+        userId,
+      },
+      select: {
+        id: true,
+        entityType: true,
+        notificationType: true,
+        enabled: true,
+      },
+      order: {
+        notificationType: 'ASC',
+      },
+    });
+    return preferences.map((preference) => ({
+      ...preference,
+      title:
+        EMAIL_NOTIFICATION_METADATA[preference.notificationType]?.label ??
+        preference.notificationType,
+    }));
+
+    // return preferences;
+  }
+
+  async updateEmailPreference(
+    userId: string,
+    notificationType: string,
+    enabled: boolean,
+  ) {
+    if (!this.isValidEmailNotificationType(notificationType)) {
+      throw new BadRequestException(
+        `Invalid notification type: ${notificationType}`,
+      );
+    }
+    const entityType = getEmailNotificationEntityType(notificationType);
+
+    const preference = await this.emailNotificationPreferenceRepo.findOne({
+      where: {
+        userId,
+        notificationType,
+      },
+    });
+    let saved;
+    if (preference) {
+      preference.enabled = enabled;
+      preference.entityType = entityType;
+      saved = await this.emailNotificationPreferenceRepo.save(preference);
+
+      // return this.emailNotificationPreferenceRepo.save(preference);
+    } else {
+      saved = await this.emailNotificationPreferenceRepo.save({
+        userId,
+        entityType,
+        notificationType,
+        enabled,
+      });
+    }
+
+    return {
+      id: saved.id,
+      entityType: saved.entityType,
+      notificationType: saved.notificationType,
+      enabled: saved.enabled,
+      title:
+        EMAIL_NOTIFICATION_METADATA[saved.notificationType]?.label ??
+        saved.notificationType,
+    };
+  }
+
+  private isValidEmailNotificationType(
+    notificationType: string,
+  ): notificationType is EmailEventType {
+    return Object.values(EmailEventType).includes(
+      notificationType as EmailEventType,
+    );
   }
 }
