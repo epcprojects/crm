@@ -247,13 +247,15 @@ export class UsersService {
       }),
     );
     
-    
+
     await this.userRoleRepo.save({
       userId: newUser.id,
       roleId: role.id,
     });
-    
-    await this.notificationsService.ensureEmailNotificationPreferences(newUser.id);
+
+    await this.notificationsService.ensureEmailNotificationPreferences(
+      newUser.id,
+    );
 
     await this.notificationsService.sendAdminInviteEmail({
       to: newUser.email,
@@ -394,24 +396,52 @@ export class UsersService {
         throw new BadRequestException('Invalid role');
       }
 
-      await this.userRoleRepo.delete({ userId });
-
-      await this.userRoleRepo.save({
-        userId,
-        roleId: role.id,
+      // Snapshot current role BEFORE we delete it, so we can diff old vs new
+      // and build a "changed from X to Y" message.
+      const existingUserRole = await this.userRoleRepo.findOne({
+        where: { userId },
+        relations: { role: true },
       });
-      console.debug(`Updated role for user ${userId} to ${role.name}`);
+      const oldRole = existingUserRole?.role;
+
+      // Only mutate + notify if the role is actually changing.
+      if (!oldRole || oldRole.id !== role.id) {
+        await this.userRoleRepo.delete({ userId });
+
+        await this.userRoleRepo.save({
+          userId,
+          roleId: role.id,
+        });
+        console.debug(`Updated role for user ${userId} to ${role.name}`);
+
+        // Skip self-notification, same as the project assign/unassign logic.
+        if (userId !== loggedInUser.id) {
+          await this.notificationsService.notifyProjectMembers({
+            actorId: loggedInUser.id,
+            type: NotificationType.MEMBER_ROLE_UPDATED,
+            entityType: NotificationEntityType.MEMBER,
+            entityId: userId,
+            title: oldRole
+              ? `Your role was changed from ${oldRole.name} to ${role.name} by ${loggedInUser.fullName}`
+              : `Your role was set to ${role.name} by ${loggedInUser.fullName}`,
+            message: oldRole
+              ? `Role changed: ${oldRole.name} → ${role.name}`
+              : `Role set to ${role.name}`,
+            explicitRecipientIds: [userId],
+          });
+        }
+      }
     }
-    
+
     // Send notifications based on the actual diff — not just "projectIds
     // was passed in the request". Skip entirely if the admin is editing
     // their own account (no self-notifications).
     // Send notifications based on the actual diff — not just "projectIds
     // was passed in the request". Skip entirely if the admin is editing
     // their own account (no self-notifications).
-    
+
     user.updatedAt = new Date();
-    
+
     await this.userRepo.save(user);
     await this.notificationsService.ensureEmailNotificationPreferences(userId);
     if (userId !== loggedInUser.id && dto.projectIds !== undefined) {
@@ -447,24 +477,25 @@ export class UsersService {
           explicitRecipientIds: [userId],
         });
         if (filtered.length > 0) {
-        for (const project of addedProjects) {
-          await this.notificationsService.dispatch({
-            type: EmailEventType.PROJECT_ASSIGNED,
-            payload: {
-              projectName: project.name,
-              projectId: project.id,
-              assignedTo: filtered[0],
-              assignedBy: updatedBy,
-            },
-          });
+          for (const project of addedProjects) {
+            await this.notificationsService.dispatch({
+              type: EmailEventType.PROJECT_ASSIGNED,
+              payload: {
+                projectName: project.name,
+                projectId: project.id,
+                assignedTo: filtered[0],
+                assignedBy: updatedBy,
+              },
+            });
+          }
         }
-      }}
+      }
       // Notify about removed projects, if any.
       if (removedProjects.length > 0) {
-              const filtered = await this.notificationsService.filterEmailRecipients(
-        [affectedUser],
-        EmailEventType.PROJECT_UNASSIGNED,
-      );
+        const filtered = await this.notificationsService.filterEmailRecipients(
+          [affectedUser],
+          EmailEventType.PROJECT_UNASSIGNED,
+        );
         const removedNames = removedProjects.map((p) => p.name).join(', ');
 
         await this.notificationsService.notifyProjectMembers({
@@ -476,17 +507,18 @@ export class UsersService {
           explicitRecipientIds: [userId],
         });
         if (filtered.length > 0) {
-        for (const project of removedProjects) {
-          await this.notificationsService.dispatch({
-            type: EmailEventType.PROJECT_UNASSIGNED,
-            payload: {
-              projectName: project.name,
-              unassignedFrom: filtered[0],
-              unassignedBy: updatedBy,
-            },
-          });
+          for (const project of removedProjects) {
+            await this.notificationsService.dispatch({
+              type: EmailEventType.PROJECT_UNASSIGNED,
+              payload: {
+                projectName: project.name,
+                unassignedFrom: filtered[0],
+                unassignedBy: updatedBy,
+              },
+            });
+          }
         }
-      }}
+      }
     }
 
     // user.updatedAt = new Date();
