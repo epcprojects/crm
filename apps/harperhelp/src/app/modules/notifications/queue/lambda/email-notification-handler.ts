@@ -7,9 +7,13 @@ import {
   buildStatusUpdatedEmail,
   buildTicketCreatedEmail,
   buildTicketReplyEmail,
+  buildTicketReplyMentionedEmail,
+  buildTicketInternalMessageMentionedEmail,
   buildTicketInternalMessageEmail,
   buildThreadMessageCreatedEmail,
+  buildThreadReplyMentionedEmail,
   buildThreadReplyCreatedEmail,
+  buildThreadMessageMentionedEmail,
   buildProjectUnassignedEmail,
   buildProjectAssignedEmail,
   buildDueDateUpdatedEmail,
@@ -74,14 +78,22 @@ function buildEmailForEvent(event: EmailNotificationEvent) {
       return buildProjectUnassignedEmail(event.payload, appUrl);
     case EmailEventType.THREAD_MESSAGE_CREATED:
       return buildThreadMessageCreatedEmail(event.payload, appUrl);
+    case EmailEventType.MENTIONED_IN_THREAD_MESSAGE:
+      return buildThreadMessageMentionedEmail(event.payload, appUrl);
     case EmailEventType.THREAD_REPLY_CREATED:
       return buildThreadReplyCreatedEmail(event.payload, appUrl);
+    case EmailEventType.MENTIONED_IN_THREAD_REPLY:
+      return buildThreadReplyMentionedEmail(event.payload, appUrl);
     case EmailEventType.TICKET_CREATED:
       return buildTicketCreatedEmail(event.payload, appUrl);
     case EmailEventType.TICKET_REPLY_POSTED:
       return buildTicketReplyEmail(event.payload, appUrl);
+    case EmailEventType.MENTIONED_IN_TICKET_REPLY:
+      return buildTicketReplyMentionedEmail(event.payload, appUrl);
     case EmailEventType.TICKET_INTERNAL_MESSAGE:
       return buildTicketInternalMessageEmail(event.payload, appUrl);
+    case EmailEventType.MENTIONED_IN_TICKET_INTERNAL_MESSAGE:
+      return buildTicketInternalMessageMentionedEmail(event.payload, appUrl);
     case EmailEventType.TICKET_STATUS_UPDATED:
       return buildStatusUpdatedEmail(event.payload, appUrl);
     case EmailEventType.TICKET_DUE_DATE_UPDATED:
@@ -119,16 +131,24 @@ function resolveRecipients(event: EmailNotificationEvent) {
       return event.payload.participants;
     case EmailEventType.THREAD_MESSAGE_CREATED:
       return event.payload.participants;
+    case EmailEventType.MENTIONED_IN_THREAD_MESSAGE:
+      return [event.payload.mentionedUser];
     case EmailEventType.THREAD_REPLY_CREATED:
       return event.payload.participants;
+    case EmailEventType.MENTIONED_IN_THREAD_REPLY:
+      return [event.payload.mentionedUser];
     case EmailEventType.TICKET_REPLY_POSTED:
       return event.payload.participants.filter(
         (recipient) => recipient.email !== event.payload.postedBy.email,
       );
+    case EmailEventType.MENTIONED_IN_TICKET_REPLY:
+      return [event.payload.mentionedUser];
     case EmailEventType.TICKET_INTERNAL_MESSAGE:
       return event.payload.participants.filter(
         (recipient) => recipient.email !== event.payload.postedBy.email,
       );
+    case EmailEventType.MENTIONED_IN_TICKET_INTERNAL_MESSAGE:
+      return [event.payload.mentionedUser];
     case EmailEventType.TICKET_STATUS_UPDATED:
       return event.payload.participants.filter(
         (recipient) => recipient.email !== event.payload.updatedBy.email,

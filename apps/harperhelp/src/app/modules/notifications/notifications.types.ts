@@ -1,20 +1,22 @@
-
 import { EmailNotificationEntityType } from '@harperhelp/types';
 export enum EmailEventType {
   // PROJECT_CREATED = 'project.created',
   PROJECT_ASSIGNED = 'project.assigned',
   PROJECT_UNASSIGNED = 'project.unassigned',
   THREAD_MESSAGE_CREATED = 'thread.message_created',
+  MENTIONED_IN_THREAD_MESSAGE = 'thread.mentioned_in_thread_message',
+  MENTIONED_IN_THREAD_REPLY = 'thread.mentioned_in_thread_reply',
   TICKET_CREATED = 'ticket.created',
   TICKET_INTERNAL_MESSAGE = 'ticket.internal_message',
   TICKET_REPLY_POSTED = 'ticket.reply_posted',
+  MENTIONED_IN_TICKET_REPLY = 'ticket.mentioned_in_ticket_reply',
+  MENTIONED_IN_TICKET_INTERNAL_MESSAGE = 'ticket.mentioned_in_ticket_internal_message',
   TICKET_STATUS_UPDATED = 'ticket.status_updated',
   TICKET_DUE_DATE_UPDATED = 'ticket.due_date_updated',
   TICKET_PRIORITY_UPDATED = 'ticket.priority_updated',
   TICKET_ASSIGNEE_UPDATED = 'ticket.assignee_updated',
   // TICKET_ATTACHMENT_ADDED = 'ticket.attachment_added',
-  THREAD_REPLY_CREATED = 'thread.reply_created'
-
+  THREAD_REPLY_CREATED = 'thread.reply_created',
 }
 
 
@@ -45,9 +47,19 @@ export const EMAIL_NOTIFICATION_METADATA : Record<EmailEventType, { entityType: 
     label: 'New thread',
   },
 
+  [EmailEventType.MENTIONED_IN_THREAD_MESSAGE]: {
+    entityType: EmailNotificationEntityType.THREAD,
+    label: 'Mentioned in thread message',
+  },
+
   [EmailEventType.THREAD_REPLY_CREATED]: {
     entityType: EmailNotificationEntityType.THREAD,
     label: 'Thread reply',
+  },
+
+  [EmailEventType.MENTIONED_IN_THREAD_REPLY]: {
+    entityType: EmailNotificationEntityType.THREAD,
+    label: 'Mentioned in thread reply',
   },
 
   [EmailEventType.TICKET_CREATED]: {
@@ -60,9 +72,19 @@ export const EMAIL_NOTIFICATION_METADATA : Record<EmailEventType, { entityType: 
     label: 'Ticket reply',
   },
 
+  [EmailEventType.MENTIONED_IN_TICKET_REPLY]: {
+    entityType: EmailNotificationEntityType.TICKET,
+    label: 'Mentioned in ticket reply',
+  },
+
   [EmailEventType.TICKET_INTERNAL_MESSAGE]: {
     entityType: EmailNotificationEntityType.TICKET,
     label: 'Internal message',
+  },
+
+  [EmailEventType.MENTIONED_IN_TICKET_INTERNAL_MESSAGE]: {
+    entityType: EmailNotificationEntityType.TICKET,
+    label: 'Mentioned in internal message',
   },
 
   [EmailEventType.TICKET_STATUS_UPDATED]: {
@@ -153,7 +175,7 @@ export interface TicketCreatedPayload {
 }
 
 export interface TicketReplyPostedPayload {
-  projectId: string
+  projectId: string;
   ticketId: string;
   ticketNumber: string;
   ticketTitle: string;
@@ -165,8 +187,19 @@ export interface TicketReplyPostedPayload {
   // attachments?: EmailAttachmentLink[]; // optional list of attachments to show in the email
 }
 
+export interface TicketReplyMentionedPayload {
+  projectId: string;
+  ticketId: string;
+  ticketNumber: string;
+  ticketTitle: string;
+  projectName: string;
+  replyContent: string;
+  mentionedBy: EmailRecipient;
+  mentionedUser: EmailRecipient;
+}
+
 export interface TicketInternalMessageEmailPayload {
-  projectId: string
+  projectId: string;
   ticketId: string;
   ticketNumber: string;
   ticketTitle: string;
@@ -176,6 +209,17 @@ export interface TicketInternalMessageEmailPayload {
   postedBy: EmailRecipient;
   participants: EmailRecipient[];
   // attachments?: EmailAttachmentLink[]; // optional list of attachments to show in the email
+}
+
+export interface TicketInternalMessageMentionedPayload {
+  projectId: string;
+  ticketId: string;
+  ticketNumber: string;
+  ticketTitle: string;
+  projectName: string;
+  replyContent: string;
+  mentionedBy: EmailRecipient;
+  mentionedUser: EmailRecipient;
 }
 
 export interface TicketStatusUpdatedPayload {
@@ -191,7 +235,7 @@ export interface TicketStatusUpdatedPayload {
 }
 
 export interface TicketDueDateUpdatedPayload {
-    ticketId: string;
+  ticketId: string;
   ticketNumber: string;
   ticketTitle: string;
   projectName: string;
@@ -247,6 +291,16 @@ export interface ThreadMessageCreatedPayload {
   participants: EmailRecipient[];
   // attachments?: EmailAttachmentLink[];
 }
+
+export interface ThreadMessageMentionedPayload {
+  messageId: string;
+  projectId: string;
+  projectName: string;
+  message: string;
+  mentionedBy: EmailRecipient;
+  mentionedUser: EmailRecipient;
+}
+
 export interface ThreadReplyCreatedPayload {
   messageId: string;
   projectId: string;
@@ -261,6 +315,19 @@ export interface ThreadReplyCreatedPayload {
   // attachments?: EmailAttachmentLink[];
 }
 
+export interface ThreadReplyMentionedPayload {
+  messageId: string;
+  projectId: string;
+  projectName: string;
+  message: string;
+  mentionedBy: EmailRecipient;
+  mentionedUser: EmailRecipient;
+  parentMessage: {
+    id: string;
+    message: string;
+  };
+}
+
 // Union event type used internally
 
 export function formatFileSize(bytes: number): string {
@@ -272,10 +339,19 @@ export function formatFileSize(bytes: number): string {
 
 export type EmailNotificationEvent =
   // | { type: EmailEventType.PROJECT_CREATED; payload: ProjectCreatedPayload }
-  | { type: EmailEventType.PROJECT_UNASSIGNED; payload: ProjectUnassignedPayload }
-  | { type: EmailEventType.PROJECT_ASSIGNED; payload: ProjectAssignedPayload } 
-  | {type: EmailEventType.THREAD_MESSAGE_CREATED; payload: ThreadMessageCreatedPayload }
-  | { type: EmailEventType.THREAD_REPLY_CREATED; payload: ThreadReplyCreatedPayload }
+  | {
+      type: EmailEventType.PROJECT_UNASSIGNED;
+      payload: ProjectUnassignedPayload;
+    }
+  | { type: EmailEventType.PROJECT_ASSIGNED; payload: ProjectAssignedPayload }
+  | {
+      type: EmailEventType.THREAD_MESSAGE_CREATED;
+      payload: ThreadMessageCreatedPayload;
+    }
+  | {
+      type: EmailEventType.THREAD_REPLY_CREATED;
+      payload: ThreadReplyCreatedPayload;
+    }
   | { type: EmailEventType.TICKET_CREATED; payload: TicketCreatedPayload }
   | {
       type: EmailEventType.TICKET_REPLY_POSTED;
@@ -300,8 +376,24 @@ export type EmailNotificationEvent =
   | {
       type: EmailEventType.TICKET_ASSIGNEE_UPDATED;
       payload: TicketAssigneeUpdatedPayload;
+    }
+  | {
+      type: EmailEventType.MENTIONED_IN_THREAD_MESSAGE;
+      payload: ThreadMessageMentionedPayload;
+    }
+  | {
+      type: EmailEventType.MENTIONED_IN_THREAD_REPLY;
+      payload: ThreadReplyMentionedPayload;
+    }
+  | {
+      type: EmailEventType.MENTIONED_IN_TICKET_REPLY;
+      payload: TicketReplyMentionedPayload;
+    }
+  | {
+      type: EmailEventType.MENTIONED_IN_TICKET_INTERNAL_MESSAGE;
+      payload: TicketInternalMessageMentionedPayload;
     };
-  // | {
-  //     type: EmailEventType.TICKET_ATTACHMENT_ADDED;
-  //     payload: TicketAttachmentAddedPayload;
-  //   };
+// | {
+//     type: EmailEventType.TICKET_ATTACHMENT_ADDED;
+//     payload: TicketAttachmentAddedPayload;
+//   };

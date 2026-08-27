@@ -24,6 +24,10 @@ import {
   ThreadReplyCreatedPayload,
   getEmailNotificationEntityType,
   EMAIL_NOTIFICATION_METADATA,
+  ThreadMessageMentionedPayload,
+  ThreadReplyMentionedPayload,
+  TicketReplyMentionedPayload,
+  TicketInternalMessageMentionedPayload,
 } from './notifications.types';
 import {
   // buildProjectCreatedEmail,
@@ -39,6 +43,10 @@ import {
   buildThreadMessageCreatedEmail,
   buildProjectUnassignedEmail,
   buildThreadReplyCreatedEmail,
+  buildThreadMessageMentionedEmail,
+  buildThreadReplyMentionedEmail,
+  buildTicketReplyMentionedEmail,
+  buildTicketInternalMessageMentionedEmail,
 } from './templates/common';
 import { SqsNotificationQueueService } from './queue/sqs-notification-queue.service';
 import { Brackets, DataSource, Repository, SelectQueryBuilder } from 'typeorm';
@@ -262,14 +270,22 @@ export class NotificationsService {
         return this.onProjectUnassigned(event.payload);
       case EmailEventType.THREAD_MESSAGE_CREATED: // done
         return this.onThreadMessageCreated(event.payload);
+      case EmailEventType.MENTIONED_IN_THREAD_MESSAGE:
+        return this.onThreadMessageMentioned(event.payload);
       case EmailEventType.THREAD_REPLY_CREATED: // done
         return this.onThreadReplyCreated(event.payload);
+      case EmailEventType.MENTIONED_IN_THREAD_REPLY:
+        return this.onThreadReplyMentioned(event.payload);
       case EmailEventType.TICKET_CREATED: // done
         return this.onTicketCreated(event.payload);
-      case EmailEventType.TICKET_REPLY_POSTED: // almost done 
+      case EmailEventType.TICKET_REPLY_POSTED: // almost done
         return this.onTicketReplyPosted(event.payload);
+      case EmailEventType.MENTIONED_IN_TICKET_REPLY:
+        return this.onTicketReplyMentioned(event.payload);
       case EmailEventType.TICKET_INTERNAL_MESSAGE: // done
         return this.onTicketInternalMessageEmail(event.payload);
+      case EmailEventType.MENTIONED_IN_TICKET_INTERNAL_MESSAGE:
+        return this.onTicketInternalMessageMentioned(event.payload);
       case EmailEventType.TICKET_STATUS_UPDATED:
         return this.onTicketStatusUpdated(event.payload);
       case EmailEventType.TICKET_DUE_DATE_UPDATED:
@@ -460,6 +476,45 @@ export class NotificationsService {
     recipientSet.delete(p.updatedBy.email); // don't notify the person who made the change
 
     await this.sendBulk([...recipientSet.values()], subject, html);
+  }
+  private async onThreadMessageMentioned(
+    p: ThreadMessageMentionedPayload,
+  ): Promise<void> {
+    const { subject, html } = buildThreadMessageMentionedEmail(p, this.appUrl);
+    // Single recipient — the person who was mentioned. Guard against self-mention.
+    const recipients =
+      p.mentionedUser.email !== p.mentionedBy.email ? [p.mentionedUser] : [];
+    await this.sendBulk(recipients, subject, html);
+  }
+
+  private async onThreadReplyMentioned(
+    p: ThreadReplyMentionedPayload,
+  ): Promise<void> {
+    const { subject, html } = buildThreadReplyMentionedEmail(p, this.appUrl);
+    const recipients =
+      p.mentionedUser.email !== p.mentionedBy.email ? [p.mentionedUser] : [];
+    await this.sendBulk(recipients, subject, html);
+  }
+
+  private async onTicketReplyMentioned(
+    p: TicketReplyMentionedPayload,
+  ): Promise<void> {
+    const { subject, html } = buildTicketReplyMentionedEmail(p, this.appUrl);
+    const recipients =
+      p.mentionedUser.email !== p.mentionedBy.email ? [p.mentionedUser] : [];
+    await this.sendBulk(recipients, subject, html);
+  }
+
+  private async onTicketInternalMessageMentioned(
+    p: TicketInternalMessageMentionedPayload,
+  ): Promise<void> {
+    const { subject, html } = buildTicketInternalMessageMentionedEmail(
+      p,
+      this.appUrl,
+    );
+    const recipients =
+      p.mentionedUser.email !== p.mentionedBy.email ? [p.mentionedUser] : [];
+    await this.sendBulk(recipients, subject, html);
   }
 
   // private async onTicketAttachmentAdded(
@@ -1089,8 +1144,16 @@ export class NotificationsService {
         EmailEventType.TICKET_STATUS_UPDATED,
         EmailEventType.TICKET_PRIORITY_UPDATED,
         EmailEventType.TICKET_ASSIGNEE_UPDATED,
-        EmailEventType.TICKET_INTERNAL_MESSAGE,
+        EmailEventType.MENTIONED_IN_TICKET_REPLY,
+        // EmailEventType.TICKET_INTERNAL_MESSAGE,
         // EmailEventType.TICKET_ATTACHMENT_ADDED,
+      ],
+    },
+    {
+      claimType: 'tickets.internal_chat',
+      eventTypes: [
+        EmailEventType.TICKET_INTERNAL_MESSAGE,
+        EmailEventType.MENTIONED_IN_TICKET_INTERNAL_MESSAGE,
       ],
     },
     {
@@ -1098,6 +1161,8 @@ export class NotificationsService {
       eventTypes: [
         EmailEventType.THREAD_MESSAGE_CREATED,
         EmailEventType.THREAD_REPLY_CREATED,
+        EmailEventType.MENTIONED_IN_THREAD_MESSAGE,
+        EmailEventType.MENTIONED_IN_THREAD_REPLY,
       ],
     },
   ];

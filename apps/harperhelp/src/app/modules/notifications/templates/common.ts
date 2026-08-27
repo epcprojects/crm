@@ -12,6 +12,10 @@ import {
   ThreadReplyCreatedPayload,
   TicketInternalMessageEmailPayload,
   TicketDueDateUpdatedPayload,
+  TicketReplyMentionedPayload,
+  ThreadReplyMentionedPayload,
+  ThreadMessageMentionedPayload,
+  TicketInternalMessageMentionedPayload,
   // EmailAttachmentLink,
 } from '../notifications.types';
 
@@ -1235,6 +1239,36 @@ export function buildTicketReplyEmail(
     html,
   };
 }
+
+export function buildTicketReplyMentionedEmail(
+  p: TicketReplyMentionedPayload,
+  appUrl: string,
+): { subject: string; html: string } {
+  const rows: DataRow[] = [
+    { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
+    { label: 'Project', value: p.projectName },
+    { label: 'Mentioned by', value: p.mentionedBy.name },
+    { label: 'Preview', value: p.replyContent ?? '' },
+  ];
+
+  const html = renderNotificationEmail({
+    appUrl,
+    iconFileName: 'MentionedIcon.png',
+    title: 'You Were Mentioned',
+    subheading: `${p.mentionedBy.name} mentioned you in a reply on ticket ${p.ticketNumber}.`,
+    rows,
+    buttonText: 'View Ticket',
+    buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}`,
+    showReplyCallout: true,
+    internalNote: false,
+  });
+
+  return {
+    subject: `You were mentioned: [${p.ticketNumber}]`,
+    html,
+  };
+}
+
 export function buildTicketInternalMessageEmail(
   p: TicketInternalMessageEmailPayload,
   appUrl: string,
@@ -1269,6 +1303,34 @@ export function buildTicketInternalMessageEmail(
   };
 }
 
+export function buildTicketInternalMessageMentionedEmail(
+  p: TicketInternalMessageMentionedPayload,
+  appUrl: string,
+): { subject: string; html: string } {
+  const rows: DataRow[] = [
+    { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
+    { label: 'Project', value: p.projectName },
+    { label: 'Mentioned by', value: p.mentionedBy.name },
+    { label: 'Preview', value: p.replyContent ?? '' },
+  ];
+
+  const html = renderNotificationEmail({
+    appUrl,
+    iconFileName: 'MentionedIcon.png',
+    title: 'You Were Mentioned',
+    subheading: `${p.mentionedBy.name} mentioned you in an internal note on ticket ${p.ticketNumber}.`,
+    rows,
+    buttonText: 'View Ticket',
+    buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}`,
+    showReplyCallout: false,
+    internalNote: true,
+  });
+
+  return {
+    subject: `[Internal] You were mentioned: [${p.ticketNumber}]`,
+    html,
+  };
+}
 // export function buildProjectCreatedEmail(
 //   p: ProjectCreatedPayload,
 //   appUrl: string,
@@ -1607,6 +1669,33 @@ export function buildThreadMessageCreatedEmail(
   };
 }
 
+export function buildThreadMessageMentionedEmail(
+  p: ThreadMessageMentionedPayload,
+  appUrl: string,
+): { subject: string; html: string } {
+  const rows: DataRow[] = [
+    { label: 'Project', value: p.projectName },
+    { label: 'Mentioned by', value: p.mentionedBy.name },
+    { label: 'Message', value: p.message },
+  ];
+
+  const html = renderNotificationEmail({
+    appUrl,
+    iconFileName: 'MentionedIcon.png',
+    title: 'You Were Mentioned',
+    subheading: `${p.mentionedBy.name} mentioned you in a thread message in ${p.projectName}.`,
+    rows,
+    buttonText: 'View Thread',
+    buttonUrl: `${appUrl}/projects/${p.projectId}?t=1`,
+    showReplyCallout: false,
+  });
+
+  return {
+    subject: `You were mentioned in ${truncateSubject(p.projectName)}`,
+    html,
+  };
+}
+
 export function buildThreadReplyCreatedEmail(
   p: ThreadReplyCreatedPayload,
   appUrl: string,
@@ -1632,6 +1721,34 @@ export function buildThreadReplyCreatedEmail(
 
   return {
     subject: `New thread reply in ${truncateSubject(p.projectName)}`,
+    html,
+  };
+}
+
+export function buildThreadReplyMentionedEmail(
+  p: ThreadReplyMentionedPayload,
+  appUrl: string,
+): { subject: string; html: string } {
+  const rows: DataRow[] = [
+    { label: 'Project', value: p.projectName },
+    { label: 'Thread Message', value: p.parentMessage.message },
+    { label: 'Mentioned by', value: p.mentionedBy.name },
+    { label: 'Reply', value: p.message },
+  ];
+
+  const html = renderNotificationEmail({
+    appUrl,
+    iconFileName: 'MentionedIcon.png',
+    title: 'You Were Mentioned',
+    subheading: `${p.mentionedBy.name} mentioned you in a thread reply in ${p.projectName}.`,
+    rows,
+    buttonText: 'View Thread Reply',
+    buttonUrl: `${appUrl}/projects/${p.projectId}?t=1`,
+    showReplyCallout: false,
+  });
+
+  return {
+    subject: `You were mentioned in ${truncateSubject(p.projectName)}`,
     html,
   };
 }
