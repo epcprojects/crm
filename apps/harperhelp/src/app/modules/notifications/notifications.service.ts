@@ -1133,11 +1133,11 @@ export class NotificationsService {
   }
 
   private readonly claimGatedNotificationGroups: Array<{
-    claimType: string;
+    claimTypes: string[];
     eventTypes: EmailEventType[];
   }> = [
     {
-      claimType: 'tickets.view_list',
+      claimTypes: ['tickets:view_list', 'tickets.view_list'],
       eventTypes: [
         EmailEventType.TICKET_CREATED,
         EmailEventType.TICKET_REPLY_POSTED,
@@ -1150,14 +1150,14 @@ export class NotificationsService {
       ],
     },
     {
-      claimType: 'tickets.internal_chat',
+      claimTypes: ['tickets:internal_chat', 'tickets.internal_chat'],
       eventTypes: [
         EmailEventType.TICKET_INTERNAL_MESSAGE,
         EmailEventType.MENTIONED_IN_TICKET_INTERNAL_MESSAGE,
       ],
     },
     {
-      claimType: 'thread.view',
+      claimTypes: ['thread:view', 'thread.view'],
       eventTypes: [
         EmailEventType.THREAD_MESSAGE_CREATED,
         EmailEventType.THREAD_REPLY_CREATED,
@@ -1199,7 +1199,10 @@ export class NotificationsService {
       this.alwaysOnNotificationTypes,
     );
     for (const group of this.claimGatedNotificationGroups) {
-      if (claimMap.get(group.claimType) === true) {
+      const hasClaim = group.claimTypes.some(
+        (claimType) => claimMap.get(claimType) === true,
+      );
+      if (hasClaim) {
         group.eventTypes.forEach((type) => permittedTypes.add(type));
       }
     }
