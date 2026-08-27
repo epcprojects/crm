@@ -140,6 +140,7 @@ export class TicketsService {
       const members = (ticket.project?.members || [])
         .filter((m) => m.id !== userId)
         .map((m) => ({
+          userId: m.id,
           name: m.fullName,
           email: m.email,
           isInvitationAccepted: m.isInvitationAccepted,
@@ -148,24 +149,36 @@ export class TicketsService {
       console.debug('Ticket saved', saved.id, 'members', members.length);
       const participantsMap = new Map<
         string,
-        { name: string; email: string; isInvitationAccepted?: boolean }
+        {
+          userId: string;
+          name: string;
+          email: string;
+          isInvitationAccepted?: boolean;
+        }
       >();
       for (const m of members) participantsMap.set(m.email, m);
       if (ticket.reporter && ticket?.reporter?.id !== userId)
         participantsMap.set(ticket.reporter.email, {
+          userId: ticket.reporter.id,
           name: ticket.reporter.fullName,
           email: ticket.reporter.email,
           isInvitationAccepted: ticket.reporter.isInvitationAccepted,
         });
       if (ticket.assignee && ticket?.assignee?.id !== userId)
         participantsMap.set(ticket.assignee.email, {
+          userId: ticket.assignee.id,
           name: ticket.assignee.fullName,
           email: ticket.assignee.email,
           isInvitationAccepted: ticket.assignee.isInvitationAccepted, // Include the isInvitationAccepted property
         });
 
       const participants = Array.from(participantsMap.values());
-      const attachments = await this.utilityService.getEmailAttachmentLinks( files ?? [] );
+      const filteredParticipants =
+        await this.notificationsService.filterEmailRecipients(
+          participants,
+          EmailEventType.TICKET_CREATED,
+        );
+      // const attachments = await this.utilityService.getEmailAttachmentLinks( files ?? [] );
 
       console.debug(
         `Dispatching ticket.created notification for ticket ${saved.id} to ${participants.length} participants`,
@@ -185,6 +198,7 @@ export class TicketsService {
           projectId: ticket.project?.id || '',
           projectName: ticket.project?.name || '',
           createdBy: {
+            userId: ticket.reporter?.id || '',
             name: ticket.reporter?.fullName || '',
             email: ticket.reporter?.email || '',
             isInvitationAccepted:
@@ -192,13 +206,14 @@ export class TicketsService {
           },
           assignee: ticket.assignee
             ? {
+                userId: ticket.assignee.id,
                 name: ticket.assignee.fullName,
                 email: ticket.assignee.email,
                 isInvitationAccepted: ticket.assignee.isInvitationAccepted,
               }
             : undefined,
-          participants,
-          attachments,
+          participants: filteredParticipants,
+          // attachments,
         },
       });
       const fullname = await this.usersService.getFullName(
@@ -435,6 +450,34 @@ export class TicketsService {
         },
       );
     }
+    /*
+     * Clone the filtered query again (same base as summaryQuery) so this
+     * reflects ALL matching tickets, not just the current page.
+     */
+    const countPerStatusQuery = qb.clone();
+
+    const countPerStatusRaw = await countPerStatusQuery
+      .select('t.statusKey', 'statusKey')
+      .addSelect('COUNT(t.id)', 'count')
+      .groupBy('t.statusKey')
+      .getRawMany();
+
+    const countsByStatusKey: Record<string, number> = {};
+    for (const row of countPerStatusRaw) {
+      const key = row.statusKey ?? row.statuskey;
+      countsByStatusKey[key] = Number(row.count);
+    }
+    // Pull every possible status key so zero-count ones are included too
+    const allStatuses = await this.statusRepo
+      .createQueryBuilder('s')
+      .select('s.key', 'key')
+      .getRawMany();
+
+    const countPerStatus: Record<string, number> = {};
+    for (const row of allStatuses) {
+      const key = row.key;
+      countPerStatus[key] = countsByStatusKey[key] ?? 0;
+    }
 
     /*
      * Clone the filtered query before adding pagination and item selection.
@@ -539,7 +582,7 @@ export class TicketsService {
         resolved: Number(summaryResult?.resolved ?? 0),
         critical: Number(summaryResult?.critical ?? 0),
       },
-
+      countPerStatus,
       meta: {
         page: query.page,
         limit: query.limit,
@@ -760,23 +803,31 @@ export class TicketsService {
     const members = (updatedTicket.project?.members || [])
       .filter((m) => m.id !== userId)
       .map((m) => ({
+        userId: m.id,
         name: m.fullName,
         email: m.email,
         isInvitationAccepted: m.isInvitationAccepted,
       }));
     const participantsMap = new Map<
       string,
-      { name: string; email: string; isInvitationAccepted?: boolean }
+      {
+        userId: string;
+        name: string;
+        email: string;
+        isInvitationAccepted?: boolean;
+      }
     >();
     for (const m of members) participantsMap.set(m.email, m);
     if (updatedTicket.reporter && updatedTicket?.reporter?.id !== userId)
       participantsMap.set(updatedTicket.reporter.email, {
+        userId: updatedTicket.reporter.id,
         name: updatedTicket.reporter.fullName,
         email: updatedTicket.reporter.email,
         isInvitationAccepted: updatedTicket.reporter.isInvitationAccepted,
       });
     if (updatedTicket.assignee && updatedTicket?.assignee?.id !== userId)
       participantsMap.set(updatedTicket.assignee.email, {
+        userId: updatedTicket.assignee.id,
         name: updatedTicket.assignee.fullName,
         email: updatedTicket.assignee.email,
         isInvitationAccepted: updatedTicket.assignee.isInvitationAccepted, // Include the isInvitationAccepted property
@@ -821,12 +872,18 @@ export class TicketsService {
     // const participants = Array.from(participantsMap.values());
 
     const updatedByRecipient = {
+      userId: updatedBy.id,
       name: updatedBy.fullName,
       email: updatedBy.email,
       isInvitationAccepted: updatedBy.isInvitationAccepted,
     };
     // STATUS CHANGED
     if (dto.statusKey && oldStatus && dto.statusKey !== oldStatus.key) {
+      const filteredParticipants =
+        await this.notificationsService.filterEmailRecipients(
+          participants,
+          EmailEventType.TICKET_STATUS_UPDATED,
+        );
       await this.notificationsService.notifyProjectMembers({
         projectId: ticket.projectId,
         actorId: userId,
@@ -849,13 +906,52 @@ export class TicketsService {
           previousStatus: oldStatus.label,
           newStatus: updatedTicket.status.label,
           updatedBy: updatedByRecipient,
+          participants: filteredParticipants,
+        },
+      });
+    }
+
+    // DUE DATE CHANGED
+    if (dto.dueDate !== undefined && oldTicket.dueDate !== dto.dueDate) {
+      const filteredParticipants =
+        await this.notificationsService.filterEmailRecipients(
           participants,
+          EmailEventType.TICKET_DUE_DATE_UPDATED,
+        );
+      await this.notificationsService.notifyProjectMembers({
+        projectId: ticket.projectId,
+        actorId: userId,
+        type: NotificationType.TICKET_DUE_DATE_CHANGED,
+        entityType: NotificationEntityType.TICKET,
+        entityId: ticket.id,
+        ticketId: ticket.id,
+        title: `"Ticket: "${ticket.ticketRefNo}" due date changed to ${ticket.dueDate} by ${fullname}`,
+        message: `${oldTicket.dueDate} to ${dto.dueDate}`,
+        explicitRecipientIds: [...new Set(recipients)],
+      });
+      await this.notificationsService.dispatch({
+        type: EmailEventType.TICKET_DUE_DATE_UPDATED,
+        payload: {
+          ticketId: updatedTicket.id,
+          ticketNumber: updatedTicket.ticketRefNo,
+          ticketTitle: updatedTicket.title,
+          projectName: updatedTicket.project.name,
+          projectId: updatedTicket.projectId,
+          previousDueDate: oldTicket.dueDate,
+          newDueDate: updatedTicket.dueDate,
+          updatedBy: updatedByRecipient,
+          participants: filteredParticipants,
         },
       });
     }
 
     // PRIORITY CHANGED
     if (dto.priorityKey && oldPriority && dto.priorityKey !== oldPriority.key) {
+      const filteredParticipants =
+        await this.notificationsService.filterEmailRecipients(
+          participants,
+          EmailEventType.TICKET_PRIORITY_UPDATED,
+        );
       await this.notificationsService.notifyProjectMembers({
         projectId: ticket.projectId,
         actorId: userId,
@@ -878,7 +974,7 @@ export class TicketsService {
           previousPriority: oldPriority.label,
           newPriority: updatedTicket.priority.label,
           updatedBy: updatedByRecipient,
-          participants,
+          participants: filteredParticipants,
         },
       });
     }
@@ -912,6 +1008,11 @@ export class TicketsService {
       // No email is dispatched for unassignment because
       // TicketAssigneeUpdatedPayload.newAssignee is required.
       if (newAssignee) {
+        const filteredParticipants =
+          await this.notificationsService.filterEmailRecipients(
+            participants,
+            EmailEventType.TICKET_ASSIGNEE_UPDATED,
+          );
         await this.notificationsService.dispatch({
           type: EmailEventType.TICKET_ASSIGNEE_UPDATED,
           payload: {
@@ -923,6 +1024,7 @@ export class TicketsService {
 
             previousAssignee: oldTicket.assignee
               ? {
+                  userId: oldTicket.assignee.id,
                   name: oldTicket.assignee.fullName,
                   email: oldTicket.assignee.email,
                   isInvitationAccepted: oldTicket.assignee.isInvitationAccepted,
@@ -930,21 +1032,20 @@ export class TicketsService {
               : undefined,
 
             newAssignee: {
+              userId: newAssignee.id,
               name: newAssignee.fullName,
               email: newAssignee.email,
               isInvitationAccepted: newAssignee.isInvitationAccepted,
             },
 
             updatedBy: updatedByRecipient,
-            participants,
+            participants: filteredParticipants,
           },
         });
       }
     }
 
-    if (dto.title !== undefined && 
-      oldTicket.title !== dto.title
-    ) {
+    if (dto.title !== undefined && oldTicket.title !== dto.title) {
       await this.notificationsService.notifyProjectMembers({
         projectId: ticket.projectId,
         actorId: userId,

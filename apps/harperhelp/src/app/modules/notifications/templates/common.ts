@@ -5,12 +5,18 @@ import {
   TicketStatusUpdatedPayload,
   TicketPriorityUpdatedPayload,
   TicketAssigneeUpdatedPayload,
-  TicketAttachmentAddedPayload,
+  // TicketAttachmentAddedPayload,
   ProjectAssignedPayload,
   ThreadMessageCreatedPayload,
   ProjectUnassignedPayload,
   ThreadReplyCreatedPayload,
-  EmailAttachmentLink,
+  TicketInternalMessageEmailPayload,
+  TicketDueDateUpdatedPayload,
+  TicketReplyMentionedPayload,
+  ThreadReplyMentionedPayload,
+  ThreadMessageMentionedPayload,
+  TicketInternalMessageMentionedPayload,
+  // EmailAttachmentLink,
 } from '../notifications.types';
 
 const PRIORITY_COLOR: Record<string, string> = {
@@ -441,7 +447,7 @@ interface NotificationEmailParams {
   buttonUrl: string;
   showReplyCallout?: boolean;
   internalNote?: boolean; // default false
-  attachments?: EmailAttachmentLink[]; // optional list of attachments to show in the email
+  // attachments?: EmailAttachmentLink[]; // optional list of attachments to show in the email
 }
 
 // ---------- helpers ----------
@@ -677,170 +683,170 @@ function dataRowHtml(row: DataRow, isFirst: boolean): string {
 
 // --------- attachments Button ---------------------------
 
-function attachmentsBlockHtml(
-  appUrl: string,
-  attachments?: EmailAttachmentLink[],
-): string {
-  if (!attachments?.length) return '';
+// function attachmentsBlockHtml(
+//   appUrl: string,
+//   attachments?: EmailAttachmentLink[],
+// ): string {
+//   if (!attachments?.length) return '';
 
-  const inner =
-    attachments.length === 1
-      ? singleAttachmentHtml(appUrl, attachments[0])
-      : multiAttachmentsHtml(appUrl, attachments);
+//   const inner =
+//     attachments.length === 1
+//       ? singleAttachmentHtml(appUrl, attachments[0])
+//       : multiAttachmentsHtml(appUrl, attachments);
 
-  return `
-    <tr>
-        <td align="center" style="padding:8px 24px 16px 24px;">
-${inner}
-        </td>
-    </tr>`;
-}
-// ---------- full notification body (exact nesting preserved) ----------
+//   return `
+//     <tr>
+//         <td align="center" style="padding:8px 24px 16px 24px;">
+// ${inner}
+//         </td>
+//     </tr>`;
+// }
+// // ---------- full notification body (exact nesting preserved) ----------
 
-function singleAttachmentHtml(
-  appUrl: string,
-  att: EmailAttachmentLink,
-): string {
-  const isImage = isPreviewableImage(att.extension);
-  const iconUrlStr = attachmentIconUrl(appUrl, getIconFileName(att.extension));
-  const downloadIconUrlStr = attachmentIconUrl(appUrl, 'NewDownloadIcon.png');
+// function singleAttachmentHtml(
+//   appUrl: string,
+//   att: EmailAttachmentLink,
+// ): string {
+//   const isImage = isPreviewableImage(att.extension);
+//   const iconUrlStr = attachmentIconUrl(appUrl, getIconFileName(att.extension));
+//   const downloadIconUrlStr = attachmentIconUrl(appUrl, 'NewDownloadIcon.png');
 
-  const topSection = isImage
-    ? `
-    <tr>
-        <td style="padding:0;line-height:0;font-size:0;">
-            <a href="${escapeHtml(att.viewUrl)}" target="_blank" style="display:block;text-decoration:none;">
-                <img src="${escapeHtml(att.viewUrl)}" width="250" height="200" alt="Attachment preview"
-                    style="display:block;width:250px;height:200px;max-height:200px;max-width:100%;margin:0;border:0;outline:none;text-decoration:none;">
-            </a>
-        </td>
-    </tr>`
-    : `
-    <tr>
-        <td align="center" valign="middle" style="padding:34px 16px 36px 16px;line-height:0;font-size:0;">
-            <a href="${escapeHtml(att.viewUrl)}" target="_blank" style="display:inline-block;text-decoration:none;">
-                <img src="${iconUrlStr}" width="40" alt="${escapeHtml(att.extension)} file"
-                    style="display:block;width:40px;max-width:40px;height:auto;margin:0 auto;border:0;outline:none;text-decoration:none;">
-            </a>
-        </td>
-    </tr>`;
+//   const topSection = isImage
+//     ? `
+//     <tr>
+//         <td style="padding:0;line-height:0;font-size:0;">
+//             <a href="${escapeHtml(att.viewUrl)}" target="_blank" style="display:block;text-decoration:none;">
+//                 <img src="${escapeHtml(att.viewUrl)}" width="250" height="200" alt="Attachment preview"
+//                     style="display:block;width:250px;height:200px;max-height:200px;max-width:100%;margin:0;border:0;outline:none;text-decoration:none;">
+//             </a>
+//         </td>
+//     </tr>`
+//     : `
+//     <tr>
+//         <td align="center" valign="middle" style="padding:34px 16px 36px 16px;line-height:0;font-size:0;">
+//             <a href="${escapeHtml(att.viewUrl)}" target="_blank" style="display:inline-block;text-decoration:none;">
+//                 <img src="${iconUrlStr}" width="40" alt="${escapeHtml(att.extension)} file"
+//                     style="display:block;width:40px;max-width:40px;height:auto;margin:0 auto;border:0;outline:none;text-decoration:none;">
+//             </a>
+//         </td>
+//     </tr>`;
 
-  const nameAlign = isImage ? 'left' : 'center';
-  const smallIconCell = isImage
-    ? `
-        <td width="32" align="center" valign="middle" style="width:32px;padding:8px 0 8px 3px;line-height:0;font-size:0;">
-            <img src="${iconUrlStr}" width="24" height="24" alt="${escapeHtml(att.extension)}"
-                style="display:block;width:24px;height:24px;border:0;outline:none;">
-        </td>`
-    : '';
+//   const nameAlign = isImage ? 'left' : 'center';
+//   const smallIconCell = isImage
+//     ? `
+//         <td width="32" align="center" valign="middle" style="width:32px;padding:8px 0 8px 3px;line-height:0;font-size:0;">
+//             <img src="${iconUrlStr}" width="24" height="24" alt="${escapeHtml(att.extension)}"
+//                 style="display:block;width:24px;height:24px;border:0;outline:none;">
+//         </td>`
+//     : '';
 
-  const sizeSpan = att.sizeLabel
-    ? `<span style="display:block;padding-top:2px;color:#6B7280;font-family:'Nunito', Arial, sans-serif;font-size:10px;line-height:16px;font-weight:400;">${escapeHtml(att.sizeLabel)}</span>`
-    : '';
+//   const sizeSpan = att.sizeLabel
+//     ? `<span style="display:block;padding-top:2px;color:#6B7280;font-family:'Nunito', Arial, sans-serif;font-size:10px;line-height:16px;font-weight:400;">${escapeHtml(att.sizeLabel)}</span>`
+//     : '';
 
-  return `
-<table role="presentation" width="250" align="center" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF"
-    style="width:250px;max-width:250px;background-color:#FFFFFF;border:1px solid #E5E7EB;border-radius:8px;border-collapse:separate;">
-    <tbody>
-${topSection}
-        <tr>
-            <td align="left" bgcolor="#F9FAFB" style="padding:8px 10px;background-color:#F9FAFB;border-radius:0 0 8px 8px;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;table-layout:fixed;border-collapse:collapse;">
-                    <tr>
-${smallIconCell}
-                        <td align="${nameAlign}" valign="middle" width="154"
-                            style="width:154px;max-width:154px;overflow:hidden;font-family:'Nunito', Arial, sans-serif;">
-                            <a href="${escapeHtml(att.viewUrl)}" target="_blank"
-                                style="display:block;width:154px;max-width:154px;overflow:hidden;color:#111827;font-family:'Nunito', Arial, sans-serif;font-size:12px;line-height:18px;font-weight:500;white-space:nowrap;text-overflow:ellipsis;text-decoration:none;text-align:${nameAlign};">
-                                ${escapeHtml(truncateFileName(att.filename, 26))}
-                            </a>
-                            ${sizeSpan}
-                        </td>
-                        <td width="24" style="width:24px;padding:0;line-height:0;font-size:0;">
-                            <a href="${escapeHtml(att.downloadUrl)}" target="_blank" style="display:block;width:24px;height:24px;text-decoration:none;">
-                                <img src="${downloadIconUrlStr}" width="16" height="16" alt="Download"
-                                    style="display:block;width:16px;height:16px;border:0;outline:none;">
-                            </a>
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-    </tbody>
-</table>`;
-}
+//   return `
+// <table role="presentation" width="250" align="center" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF"
+//     style="width:250px;max-width:250px;background-color:#FFFFFF;border:1px solid #E5E7EB;border-radius:8px;border-collapse:separate;">
+//     <tbody>
+// ${topSection}
+//         <tr>
+//             <td align="left" bgcolor="#F9FAFB" style="padding:8px 10px;background-color:#F9FAFB;border-radius:0 0 8px 8px;">
+//                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;table-layout:fixed;border-collapse:collapse;">
+//                     <tr>
+// ${smallIconCell}
+//                         <td align="${nameAlign}" valign="middle" width="154"
+//                             style="width:154px;max-width:154px;overflow:hidden;font-family:'Nunito', Arial, sans-serif;">
+//                             <a href="${escapeHtml(att.viewUrl)}" target="_blank"
+//                                 style="display:block;width:154px;max-width:154px;overflow:hidden;color:#111827;font-family:'Nunito', Arial, sans-serif;font-size:12px;line-height:18px;font-weight:500;white-space:nowrap;text-overflow:ellipsis;text-decoration:none;text-align:${nameAlign};">
+//                                 ${escapeHtml(truncateFileName(att.filename, 26))}
+//                             </a>
+//                             ${sizeSpan}
+//                         </td>
+//                         <td width="24" style="width:24px;padding:0;line-height:0;font-size:0;">
+//                             <a href="${escapeHtml(att.downloadUrl)}" target="_blank" style="display:block;width:24px;height:24px;text-decoration:none;">
+//                                 <img src="${downloadIconUrlStr}" width="16" height="16" alt="Download"
+//                                     style="display:block;width:16px;height:16px;border:0;outline:none;">
+//                             </a>
+//                         </td>
+//                     </tr>
+//                 </table>
+//             </td>
+//         </tr>
+//     </tbody>
+// </table>`;
+// }
 
-function multiAttachmentCellHtml(
-  appUrl: string,
-  att: EmailAttachmentLink,
-): string {
-  const isImage = isPreviewableImage(att.extension);
-  const iconSrc = isImage
-    ? att.viewUrl
-    : attachmentIconUrl(appUrl, getIconFileName(att.extension));
-  const downloadIconUrlStr = attachmentIconUrl(appUrl, 'NewDownloadIcon.png');
-  const sizeSpan = att.sizeLabel
-    ? `<span style="display:block;padding-top:2px;color:#6B7280;font-family:'Nunito', Arial, sans-serif;font-size:10px;line-height:14px;font-weight:400;">${escapeHtml(att.sizeLabel)}</span>`
-    : '';
+// function multiAttachmentCellHtml(
+//   appUrl: string,
+//   att: EmailAttachmentLink,
+// ): string {
+//   const isImage = isPreviewableImage(att.extension);
+//   const iconSrc = isImage
+//     ? att.viewUrl
+//     : attachmentIconUrl(appUrl, getIconFileName(att.extension));
+//   const downloadIconUrlStr = attachmentIconUrl(appUrl, 'NewDownloadIcon.png');
+//   const sizeSpan = att.sizeLabel
+//     ? `<span style="display:block;padding-top:2px;color:#6B7280;font-family:'Nunito', Arial, sans-serif;font-size:10px;line-height:14px;font-weight:400;">${escapeHtml(att.sizeLabel)}</span>`
+//     : '';
 
-  return `
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F9FAFB"
-    style="width:100%;table-layout:fixed;background-color:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;border-collapse:separate;">
-    <tr>
-        <td width="32" align="center" valign="middle" style="width:32px;padding:8px 0 8px 3px;line-height:0;font-size:0;">
-            <img src="${iconSrc}" width="24" height="24" alt="${escapeHtml(att.extension)}"
-                style="display:block;width:24px;height:24px;border:0;outline:none;">
-        </td>
-        <td align="left" valign="middle" width="100%"
-            style="width:100%;min-width:0;max-width:0;padding:5px 4px 5px 0;overflow:hidden;font-family:'Nunito', Arial, sans-serif;">
-            <a href="${escapeHtml(att.viewUrl)}" target="_blank"
-                style="display:block;width:100%;max-width:100%;overflow:hidden;color:#111827;font-family:'Nunito', Arial, sans-serif;font-size:12px;line-height:12px;font-weight:400;white-space:nowrap;text-overflow:ellipsis;text-decoration:none;">
-                ${escapeHtml(truncateFileName(att.filename, 26))}
-            </a>
-            ${sizeSpan}
-        </td>
-        <td width="20" align="center" valign="middle" style="width:20px;padding:0 5px 0 0;line-height:0;font-size:0;">
-            <a href="${escapeHtml(att.downloadUrl)}" target="_blank" style="display:block;width:24px;height:24px;text-decoration:none;">
-                <img src="${downloadIconUrlStr}" width="16" height="16" alt="Download" style="display:block;width:16px;height:16px;margin:4px auto;border:0;outline:none;">
-            </a>
-        </td>
-    </tr>
-</table>`;
-}
+//   return `
+// <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F9FAFB"
+//     style="width:100%;table-layout:fixed;background-color:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;border-collapse:separate;">
+//     <tr>
+//         <td width="32" align="center" valign="middle" style="width:32px;padding:8px 0 8px 3px;line-height:0;font-size:0;">
+//             <img src="${iconSrc}" width="24" height="24" alt="${escapeHtml(att.extension)}"
+//                 style="display:block;width:24px;height:24px;border:0;outline:none;">
+//         </td>
+//         <td align="left" valign="middle" width="100%"
+//             style="width:100%;min-width:0;max-width:0;padding:5px 4px 5px 0;overflow:hidden;font-family:'Nunito', Arial, sans-serif;">
+//             <a href="${escapeHtml(att.viewUrl)}" target="_blank"
+//                 style="display:block;width:100%;max-width:100%;overflow:hidden;color:#111827;font-family:'Nunito', Arial, sans-serif;font-size:12px;line-height:12px;font-weight:400;white-space:nowrap;text-overflow:ellipsis;text-decoration:none;">
+//                 ${escapeHtml(truncateFileName(att.filename, 26))}
+//             </a>
+//             ${sizeSpan}
+//         </td>
+//         <td width="20" align="center" valign="middle" style="width:20px;padding:0 5px 0 0;line-height:0;font-size:0;">
+//             <a href="${escapeHtml(att.downloadUrl)}" target="_blank" style="display:block;width:24px;height:24px;text-decoration:none;">
+//                 <img src="${downloadIconUrlStr}" width="16" height="16" alt="Download" style="display:block;width:16px;height:16px;margin:4px auto;border:0;outline:none;">
+//             </a>
+//         </td>
+//     </tr>
+// </table>`;
+// }
 
-function multiAttachmentsHtml(
-  appUrl: string,
-  attachments: EmailAttachmentLink[],
-): string {
-  const rows: string[] = [];
+// function multiAttachmentsHtml(
+//   appUrl: string,
+//   attachments: EmailAttachmentLink[],
+// ): string {
+//   const rows: string[] = [];
 
-  for (let i = 0; i < attachments.length; i += 2) {
-    const left = attachments[i];
-    const right = attachments[i + 1];
+//   for (let i = 0; i < attachments.length; i += 2) {
+//     const left = attachments[i];
+//     const right = attachments[i + 1];
 
-    const rightCellHtml = right
-      ? `
-        <td width="12" style="width:12px;font-size:0;line-height:0;padding-bottom:8px;">&nbsp;</td>
-        <td width="50%" valign="top" style="padding-bottom:8px;">
-            ${multiAttachmentCellHtml(appUrl, right)}
-        </td>`
-      : `
-        <td width="12" style="width:12px;font-size:0;line-height:0;padding-bottom:8px;">&nbsp;</td>
-        <td width="50%" style="padding-bottom:8px;">&nbsp;</td>`;
+//     const rightCellHtml = right
+//       ? `
+//         <td width="12" style="width:12px;font-size:0;line-height:0;padding-bottom:8px;">&nbsp;</td>
+//         <td width="50%" valign="top" style="padding-bottom:8px;">
+//             ${multiAttachmentCellHtml(appUrl, right)}
+//         </td>`
+//       : `
+//         <td width="12" style="width:12px;font-size:0;line-height:0;padding-bottom:8px;">&nbsp;</td>
+//         <td width="50%" style="padding-bottom:8px;">&nbsp;</td>`;
 
-    rows.push(`
-    <tr>
-        <td width="50%" valign="top" style="padding-bottom:8px;">
-            ${multiAttachmentCellHtml(appUrl, left)}
-        </td>${rightCellHtml}
-    </tr>`);
-  }
+//     rows.push(`
+//     <tr>
+//         <td width="50%" valign="top" style="padding-bottom:8px;">
+//             ${multiAttachmentCellHtml(appUrl, left)}
+//         </td>${rightCellHtml}
+//     </tr>`);
+//   }
 
-  return `
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;table-layout:fixed;border-collapse:collapse;">
-${rows.join('')}
-</table>`;
-}
+//   return `
+// <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;table-layout:fixed;border-collapse:collapse;">
+// ${rows.join('')}
+// </table>`;
+// }
 
 export function renderNotificationEmail(
   params: NotificationEmailParams,
@@ -855,7 +861,7 @@ export function renderNotificationEmail(
     buttonUrl,
     showReplyCallout = false,
     internalNote = false,
-    attachments = [],
+    // attachments = [],
   } = params;
 
   const logoUrl = iconUrl(appUrl, 'HarperLogo.png');
@@ -863,7 +869,7 @@ export function renderNotificationEmail(
   const notificationIconUrl = iconUrl(appUrl, 'EmailNotificationIcon.png');
 
   const internalNoteHtml = internalNote ? internalNoteBannerHtml() : '';
-  const attachmentsHtml = attachmentsBlockHtml(appUrl, attachments);
+  // const attachmentsHtml = attachmentsBlockHtml(appUrl, attachments);
 
   const rowsHtml = rows.map((r, i) => dataRowHtml(r, i === 0)).join('');
 
@@ -1137,7 +1143,6 @@ ${internalNoteHtml}
                                                                                                                 </td>
                                                                                                             </tr>
 ${replyCalloutHtml}
- ${attachmentsHtml}
                                                                                                         </tbody>
                                                                                                     </table>
                                                                                                 </td>
@@ -1223,7 +1228,7 @@ export function buildTicketReplyEmail(
     buttonText: 'View Ticket',
     buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}`,
     showReplyCallout: !p.isInternal, // "reply by email" doesn't make sense for internal-only notes
-    attachments: p.attachments, // NEW
+    // attachments: p.attachments, // NEW
     internalNote: p.isInternal,
   });
 
@@ -1235,37 +1240,128 @@ export function buildTicketReplyEmail(
   };
 }
 
-export function buildProjectCreatedEmail(
-  p: ProjectCreatedPayload,
+export function buildTicketReplyMentionedEmail(
+  p: TicketReplyMentionedPayload,
   appUrl: string,
 ): { subject: string; html: string } {
   const rows: DataRow[] = [
-    { label: 'Project', value: `${p.projectCode} - ${p.projectName}` },
-    { label: 'Created by', value: p.createdBy.name },
-    // ...(p.description ? [{ label: 'Description', value: p.description }] : []),
-    {
-      label: 'Team',
-      value: `${p.members.length} member${p.members.length === 1 ? '' : 's'}`,
-    },
+    { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
+    { label: 'Project', value: p.projectName },
+    { label: 'Mentioned by', value: p.mentionedBy.name },
+    { label: 'Preview', value: p.replyContent ?? '' },
   ];
 
   const html = renderNotificationEmail({
     appUrl,
-    iconFileName: 'ProjectAssignedIcon.png',
-    title: 'New Project Created',
-    subheading: `${p.createdBy.name} created a new project you're part of.`,
+    iconFileName: 'MentionedIcon.png',
+    title: 'You Were Mentioned',
+    subheading: `${p.mentionedBy.name} mentioned you in a reply on ticket ${p.ticketNumber}.`,
     rows,
-    buttonText: 'View Project',
-    buttonUrl: `${appUrl}/projects`,
-    showReplyCallout: false,
-    attachments: p.attachments, // NEW
+    buttonText: 'View Ticket',
+    buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}`,
+    showReplyCallout: true,
+    internalNote: false,
   });
 
   return {
-    subject: `[${p.projectCode}] Project "${truncateSubject(p.projectName)}" has been created`,
+    subject: `You were mentioned: [${p.ticketNumber}]`,
     html,
   };
 }
+
+export function buildTicketInternalMessageEmail(
+  p: TicketInternalMessageEmailPayload,
+  appUrl: string,
+): { subject: string; html: string } {
+  const rows: DataRow[] = [
+    { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
+    { label: 'Project', value: p.projectName },
+    { label: 'Replied by', value: p.postedBy.name },
+    { label: 'Preview', value: p.replyContent ?? '' },
+  ];
+
+  const html = renderNotificationEmail({
+    appUrl,
+    iconFileName: 'NewReplyOnTicketIcon.png',
+    title: p.isInternal ? 'New Internal Note' : 'New Reply on Ticket',
+    subheading: p.isInternal
+      ? 'A new internal note has been added to a ticket.'
+      : "A new reply has been added to a ticket you're following.",
+    rows,
+    buttonText: 'View Ticket',
+    buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}&internal=true`,
+    showReplyCallout: !p.isInternal, // "reply by email" doesn't make sense for internal-only notes
+    // attachments: p.attachments, // NEW
+    internalNote: p.isInternal,
+  });
+
+  return {
+    subject: p.isInternal
+      ? `[Internal] Message: [${p.ticketNumber}] `
+      : `New Reply: [${p.ticketNumber}] `,
+    html,
+  };
+}
+
+export function buildTicketInternalMessageMentionedEmail(
+  p: TicketInternalMessageMentionedPayload,
+  appUrl: string,
+): { subject: string; html: string } {
+  const rows: DataRow[] = [
+    { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
+    { label: 'Project', value: p.projectName },
+    { label: 'Mentioned by', value: p.mentionedBy.name },
+    { label: 'Preview', value: p.replyContent ?? '' },
+  ];
+
+  const html = renderNotificationEmail({
+    appUrl,
+    iconFileName: 'MentionedIcon.png',
+    title: 'You Were Mentioned',
+    subheading: `${p.mentionedBy.name} mentioned you in an internal note on ticket ${p.ticketNumber}.`,
+    rows,
+    buttonText: 'View Ticket',
+    buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}&internal=true`,
+    showReplyCallout: false,
+    internalNote: true,
+  });
+
+  return {
+    subject: `[Internal] You were mentioned: [${p.ticketNumber}]`,
+    html,
+  };
+}
+// export function buildProjectCreatedEmail(
+//   p: ProjectCreatedPayload,
+//   appUrl: string,
+// ): { subject: string; html: string } {
+//   const rows: DataRow[] = [
+//     { label: 'Project', value: `${p.projectCode} - ${p.projectName}` },
+//     { label: 'Created by', value: p.createdBy.name },
+//     // ...(p.description ? [{ label: 'Description', value: p.description }] : []),
+//     {
+//       label: 'Team',
+//       value: `${p.members.length} member${p.members.length === 1 ? '' : 's'}`,
+//     },
+//   ];
+
+//   const html = renderNotificationEmail({
+//     appUrl,
+//     iconFileName: 'ProjectAssignedIcon.png',
+//     title: 'New Project Created',
+//     subheading: `${p.createdBy.name} created a new project you're part of.`,
+//     rows,
+//     buttonText: 'View Project',
+//     buttonUrl: `${appUrl}/projects`,
+//     showReplyCallout: false,
+//     // attachments: p.attachments, // NEW
+//   });
+
+//   return {
+//     subject: `[${p.projectCode}] Project "${truncateSubject(p.projectName)}" has been created`,
+//     html,
+//   };
+// }
 
 export function buildTicketCreatedEmail(
   p: TicketCreatedPayload,
@@ -1304,7 +1400,7 @@ export function buildTicketCreatedEmail(
     buttonText: 'View Ticket',
     buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}`,
     showReplyCallout: false,
-    attachments: p.attachments, // NEW
+    // attachments: p.attachments, // NEW
   });
 
   return {
@@ -1345,6 +1441,44 @@ export function buildStatusUpdatedEmail(
 
   return {
     subject: `[${p.ticketNumber}] Status changed to ${p.newStatus}`,
+    html,
+  };
+}
+
+export function buildDueDateUpdatedEmail(
+  p: TicketDueDateUpdatedPayload,
+  appUrl: string,
+): { subject: string; html: string } {
+    console.debug('INSIDE BUILD DUE DATE UPDATED payload:', p);
+    const formattedDueDate = new Date(p.newDueDate).toDateString();
+  const rows: DataRow[] = [
+    { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
+    { label: 'Project', value: p.projectName },
+    { label: 'Updated by', value: p.updatedBy.name },
+    {
+      label: 'Update',
+      value: '',
+      compound: {
+        prefix: 'Due date changed to',
+        badgeText: formattedDueDate,
+        colors: { bg: '#f0f0f0', text: '#333' ,border: '#ccc'},
+      },
+    },
+  ];
+
+  const html = renderNotificationEmail({
+    appUrl,
+    iconFileName: 'TicketUpdatedIcon.png',
+    title: 'Ticket Updated',
+    subheading: `Ticket ${p.ticketNumber} has been updated.`,
+    rows,
+    buttonText: 'View Ticket',
+    buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}`,
+    showReplyCallout: false,
+  });
+
+  return {
+    subject: `[${p.ticketNumber}] Due date changed to ${formattedDueDate}`,
     html,
   };
 }
@@ -1423,35 +1557,35 @@ export function buildAssigneeUpdatedEmail(
   };
 }
 
-export function buildAttachmentAddedEmail(
-  p: TicketAttachmentAddedPayload,
-  appUrl: string,
-): { subject: string; html: string } {
-  const rows: DataRow[] = [
-    { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
-    { label: 'Project', value: p.projectName },
-    { label: 'Uploaded by', value: p.uploadedBy.name },
-    { label: 'File name', value: p.fileName },
-    { label: 'File size', value: p.fileSize },
-  ];
+// export function buildAttachmentAddedEmail(
+//   p: TicketAttachmentAddedPayload,
+//   appUrl: string,
+// ): { subject: string; html: string } {
+//   const rows: DataRow[] = [
+//     { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
+//     { label: 'Project', value: p.projectName },
+//     { label: 'Uploaded by', value: p.uploadedBy.name },
+//     { label: 'File name', value: p.fileName },
+//     { label: 'File size', value: p.fileSize },
+//   ];
 
-  const html = renderNotificationEmail({
-    appUrl,
-    iconFileName: 'AttachmentAddedIcon.png',
-    title: 'Attachment Added',
-    subheading: `${p.uploadedBy.name} added an attachment to a ticket you're following.`,
-    rows,
-    buttonText: 'View Attachment',
-    buttonUrl: `${appUrl}/tickets/${p.ticketId}`,
-    attachments: p.attachments, // NEW
-    showReplyCallout: false,
-  });
+//   const html = renderNotificationEmail({
+//     appUrl,
+//     iconFileName: 'AttachmentAddedIcon.png',
+//     title: 'Attachment Added',
+//     subheading: `${p.uploadedBy.name} added an attachment to a ticket you're following.`,
+//     rows,
+//     buttonText: 'View Attachment',
+//     buttonUrl: `${appUrl}/tickets/${p.ticketId}`,
+//     // attachments: p.attachments, // NEW
+//     showReplyCallout: false,
+//   });
 
-  return {
-    subject: `[${p.ticketNumber}] Attachment added: ${p.fileName}`,
-    html,
-  };
-}
+//   return {
+//     subject: `[${p.ticketNumber}] Attachment added: ${p.fileName}`,
+//     html,
+//   };
+// }
 
 export function buildProjectAssignedEmail(
   p: ProjectAssignedPayload,
@@ -1526,11 +1660,38 @@ export function buildThreadMessageCreatedEmail(
     buttonText: 'View Thread',
     buttonUrl: `${appUrl}/projects/${p.projectId}?t=1`,
     showReplyCallout: false,
-    attachments: p.attachments, // NEW
+    // attachments: p.attachments, // NEW
   });
 
   return {
     subject: `New thread message in ${truncateSubject(p.projectName)}`,
+    html,
+  };
+}
+
+export function buildThreadMessageMentionedEmail(
+  p: ThreadMessageMentionedPayload,
+  appUrl: string,
+): { subject: string; html: string } {
+  const rows: DataRow[] = [
+    { label: 'Project', value: p.projectName },
+    { label: 'Mentioned by', value: p.mentionedBy.name },
+    { label: 'Message', value: p.message },
+  ];
+
+  const html = renderNotificationEmail({
+    appUrl,
+    iconFileName: 'MentionedIcon.png',
+    title: 'You Were Mentioned',
+    subheading: `${p.mentionedBy.name} mentioned you in a thread message in ${p.projectName}.`,
+    rows,
+    buttonText: 'View Thread',
+    buttonUrl: `${appUrl}/projects/${p.projectId}?t=1`,
+    showReplyCallout: false,
+  });
+
+  return {
+    subject: `You were mentioned in a thread on "${truncateSubject(p.projectName)}"`,
     html,
   };
 }
@@ -1555,11 +1716,39 @@ export function buildThreadReplyCreatedEmail(
     buttonText: 'View Thread Reply',
     buttonUrl: `${appUrl}/projects/${p.projectId}?t=1`,
     showReplyCallout: false,
-    attachments: p.attachments, // NEW
+    // attachments: p.attachments, // NEW
   });
 
   return {
     subject: `New thread reply in ${truncateSubject(p.projectName)}`,
+    html,
+  };
+}
+
+export function buildThreadReplyMentionedEmail(
+  p: ThreadReplyMentionedPayload,
+  appUrl: string,
+): { subject: string; html: string } {
+  const rows: DataRow[] = [
+    { label: 'Project', value: p.projectName },
+    { label: 'Thread Message', value: p.parentMessage.message },
+    { label: 'Mentioned by', value: p.mentionedBy.name },
+    { label: 'Reply', value: p.message },
+  ];
+
+  const html = renderNotificationEmail({
+    appUrl,
+    iconFileName: 'MentionedIcon.png',
+    title: 'You Were Mentioned',
+    subheading: `${p.mentionedBy.name} mentioned you in a thread reply in ${p.projectName}.`,
+    rows,
+    buttonText: 'View Thread Reply',
+    buttonUrl: `${appUrl}/projects/${p.projectId}?t=1`,
+    showReplyCallout: false,
+  });
+
+  return {
+    subject: `You were mentioned in a thread reply on "${truncateSubject(p.projectName)}"`,
     html,
   };
 }

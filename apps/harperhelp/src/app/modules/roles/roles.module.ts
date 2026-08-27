@@ -5,9 +5,10 @@ import { Role } from './entities/role.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { RoleClaim } from './entities/role.claim.entity';
 import { UserRole } from '../users/entities/user.roles.entity';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Role, RoleClaim, UserRole])],
+  imports: [TypeOrmModule.forFeature([Role, RoleClaim, UserRole]),NotificationsModule],
   controllers: [RolesController],
   providers: [RolesService],
 })

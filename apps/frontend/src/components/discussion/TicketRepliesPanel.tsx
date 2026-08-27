@@ -544,10 +544,10 @@ export default function TicketRepliesPanel({
       <section
         // className={`flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl  border border-gray-200 bg-white ${className}`}
         className={`flex h-[calc(100dvh-132px)] min-h-0 flex-none flex-col overflow-hidden rounded-xl ${
-  showBorderTop
-    ? 'border border-gray-200'
-    : 'border-t-0 border border-gray-200'
-} bg-white xl:h-full xl:flex-1 ${className}`}
+          showBorderTop
+            ? 'border border-gray-200'
+            : 'border-t-0 border border-gray-200'
+        } bg-white xl:h-full xl:flex-1 ${className}`}
       >
         <TopLoadingBar visible={isSubmittingReply} />
         {!hideHeader && (
@@ -717,8 +717,8 @@ export default function TicketRepliesPanel({
                                 : 'rounded-tl-none'
                             } ${
                               reply.message && editingMessageId !== reply.id
-                                ? `${reply.attachments?.length ? 'space-y-2' : ''} border border-gray-200 p-3 shadow-xs`
-                                : ''
+                                ? ` ${reply.attachments?.length ? 'space-y-2' : ''} border border-gray-200 p-3 shadow-xs`
+                                : 'border border-gray-200'
                             }`}
                           >
                             {!editingMessageId && (
@@ -871,12 +871,12 @@ export default function TicketRepliesPanel({
                                 <div
                                   className={`grid gap-2 ${
                                     reply.attachments.length > 1
-                                      ? 'md:grid-cols-2'
+                                      ? 'md:grid-cols-3'
                                       : ''
                                   } ${
                                     !reply.message &&
                                     reply.attachments.length > 1
-                                      ? 'rounded-xl border border-gray-200 p-2'
+                                      ? 'rounded-xl  p-2'
                                       : ''
                                   } ${
                                     isCurrentUserReply
@@ -887,7 +887,7 @@ export default function TicketRepliesPanel({
                                   {reply.attachments.map((attachment) => (
                                     <div
                                       key={attachment.id}
-                                      className="flex min-w-0 w-full items-start gap-3 rounded-xl border border-gray-200 bg-white p-2.5 transition hover:bg-gray-50"
+                                      className="flex min-w-0 w-full items-start gap-3 rounded-xl  bg-white p-2.5 transition hover:bg-gray-50"
                                     >
                                       <a
                                         href={getAttachmentUrl(
@@ -1645,7 +1645,7 @@ function AttachmentFileIcon({ extension }: { extension?: string }) {
   return (
     <span className="relative">
       <span
-        className={`rounded-xs absolute top-4.5 px-0.75 pt-1 pb-0.75 text-[10px] font-bold uppercase leading-none! text-white ${badgeClassName}`}
+        className={`rounded-xs absolute top-4 px-0.75 pt-0.75 pb-0.5 text-[7.5px] font-bold uppercase leading-none! text-white ${badgeClassName}`}
       >
         {label}
       </span>

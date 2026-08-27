@@ -1127,7 +1127,7 @@ export default function Page() {
                           </button>
                         </div>
 
-                        <div className="w-full hidden 2xl:block 2xl:w-45">
+                        <div className="w-full hidden 2xl:block 2xl:w-55">
                           <Dropdown
                             options={projectFilterOptions}
                             isMulti
@@ -1142,7 +1142,7 @@ export default function Page() {
                         </div>
 
                         {viewMode === 'table' && (
-                          <div className="w-full hidden 2xl:block 2xl:w-45">
+                          <div className="w-full hidden 2xl:block 2xl:w-55">
                             <Dropdown
                               options={statusFilterOptions}
                               value={selectedStatus}
@@ -1157,7 +1157,7 @@ export default function Page() {
                           </div>
                         )}
 
-                        <div className="w-full  gap-3 hidden 2xl:flex 2xl:w-45">
+                        <div className="w-full  gap-3 hidden 2xl:flex 2xl:w-55">
                           <Dropdown
                             options={priorityFilterOptions}
                             value={selectedPriority}
@@ -1307,6 +1307,9 @@ export default function Page() {
                     <TicketsKanbanView
                       tickets={sortedTickets}
                       statusOptions={kanbanStatusOptions}
+                      statusCountsByKey={
+                        ticketsQuery.data?.countPerStatus ?? {}
+                      }
                       onTicketClick={
                         canViewTicketDetail ? handleTicketClick : undefined
                       }
@@ -1385,6 +1388,7 @@ type ApiTicketSetting = {
 type DashboardTicketsResponse = {
   items: RecentTicket[];
   summary: TicketSummary;
+  countPerStatus: Record<string, number>;
   meta: {
     page: number;
     limit: number;
@@ -1431,6 +1435,7 @@ type ApiDashboardTicket = {
 type ApiDashboardTicketsResponse = {
   items: ApiDashboardTicket[];
   summary: TicketSummary;
+  countPerStatus?: Record<string, number>;
   meta: DashboardTicketsResponse['meta'];
 };
 
@@ -1499,6 +1504,7 @@ async function fetchDashboardTickets({
   return {
     items: payload.items.map(mapApiDashboardTicketToRecentTicket),
     summary: payload.summary,
+    countPerStatus: payload.countPerStatus ?? {},
     meta: payload.meta,
   };
 }

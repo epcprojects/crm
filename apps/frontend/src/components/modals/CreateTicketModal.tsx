@@ -530,7 +530,7 @@ function AttachmentFileIcon({ extension }: { extension?: string }) {
       <FileTypePlaceholder />
 
       <span
-        className={`absolute top-4 rounded-xs px-1 py-0.75 text-[9px] font-bold uppercase leading-none text-white ${badgeClassName}`}
+        className={`rounded-xs absolute top-4 px-0.75 pt-0.75 pb-0.5 text-[7.5px] font-bold uppercase leading-none! text-white ${badgeClassName}`}
       >
         {label}
       </span>

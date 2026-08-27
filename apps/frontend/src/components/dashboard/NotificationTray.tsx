@@ -75,9 +75,7 @@ export default function NotificationTray({
 }: NotificationTrayProps) {
   const selectedIndex = activeFilter === 'unread' ? 1 : 0;
   const hasSearch = searchValue.trim().length > 0;
-  const [openGroup, setOpenGroup] = useState<string | undefined>(
-    () => groupedItems.find((group) => group.items.length > 0)?.category,
-  );
+  const [openGroup, setOpenGroup] = useState<string | undefined>();
   const hasGroupedNotifications = groupedItems.some(
     (group) => group.count > 0 || group.items.length > 0,
   );

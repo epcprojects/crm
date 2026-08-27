@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { FilesService } from '../../files/files.service';
 import { UtilityService } from '../../utility/utility.service';
 import { TicketReply } from '../entities/ticket.reply.entity';
@@ -100,6 +100,7 @@ export class TicketRepliesService {
       const members = (ticket.project?.members || [])
         .filter((m) => m.id !== userId)
         .map((m) => ({
+          userId: m.id,
           name: m.fullName,
           email: m.email,
           isInvitationAccepted: m.isInvitationAccepted,
@@ -107,17 +108,24 @@ export class TicketRepliesService {
 
       const participantsMap = new Map<
         string,
-        { name: string; email: string; isInvitationAccepted?: boolean }
+        {
+          userId: string;
+          name: string;
+          email: string;
+          isInvitationAccepted?: boolean;
+        }
       >();
       for (const m of members) participantsMap.set(m.email, m);
       if (ticket.reporter && ticket?.reporter?.id !== userId)
         participantsMap.set(ticket.reporter.email, {
+          userId: ticket.reporter.id,
           name: ticket.reporter.fullName,
           email: ticket.reporter.email,
           isInvitationAccepted: ticket.reporter.isInvitationAccepted,
         });
       if (ticket.assignee && ticket?.assignee?.id !== userId)
         participantsMap.set(ticket.assignee.email, {
+          userId: ticket.assignee.id,
           name: ticket.assignee.fullName,
           email: ticket.assignee.email,
           isInvitationAccepted: ticket.assignee.isInvitationAccepted, // Include the isInvitationAccepted property
@@ -125,9 +133,15 @@ export class TicketRepliesService {
 
       const participants = Array.from(participantsMap.values());
 
-      const attachments = await this.utilityService.getEmailAttachmentLinks(
-        files ?? []
-      );
+      const filteredParticipants =
+        await this.notificationsService.filterEmailRecipients(
+          participants,
+          EmailEventType.TICKET_REPLY_POSTED,
+        );
+
+      // const attachments = await this.utilityService.getEmailAttachmentLinks(
+      //   files ?? []
+      // );
 
       await this.notificationsService.dispatch({
         type: EmailEventType.TICKET_REPLY_POSTED,
@@ -140,6 +154,7 @@ export class TicketRepliesService {
           replyContent: reply.message,
           isInternal: reply.isInternal,
           postedBy: {
+            userId: userId,
             name:
               (
                 await this.replyRepo.manager
@@ -148,14 +163,59 @@ export class TicketRepliesService {
               )?.fullName || '',
             email: '',
           },
-          participants,
-          attachments,
+          participants: filteredParticipants,
+          // attachments,
         },
       });
     } catch (err) {
       // ignore
     }
 
+    // Email notifications for mentioned users (skip internal-only replies —
+    // MENTIONED_IN_TICKET_REPLY is for external/regular replies)
+    if (validMentionedUserIds?.length && !reply.isInternal) {
+      const author = await this.replyRepo.manager
+        .getRepository('users')
+        .findOne({ where: { id: userId } });
+
+      const mentionedUsersData = await this.replyRepo.manager
+        .getRepository('users')
+        .find({ where: { id: In(validMentionedUserIds) } });
+
+      const mentionedRecipients = mentionedUsersData
+        .filter((u) => u.id !== userId)
+        .map((u) => ({
+          userId: u.id,
+          name: u.fullName,
+          email: u.email,
+        }));
+
+      const filteredMentioned =
+        await this.notificationsService.filterEmailRecipients(
+          mentionedRecipients,
+          EmailEventType.MENTIONED_IN_TICKET_REPLY,
+        );
+
+      for (const mentionedUser of filteredMentioned) {
+        await this.notificationsService.dispatch({
+          type: EmailEventType.MENTIONED_IN_TICKET_REPLY,
+          payload: {
+            projectId: ticket?.project?.id,
+            ticketId: ticketId,
+            ticketNumber: ticket.ticketRefNo,
+            ticketTitle: ticket.title,
+            projectName: ticket.project?.name || '',
+            replyContent: reply.message,
+            mentionedBy: {
+              userId,
+              name: author?.fullName || '',
+              email: '',
+            },
+            mentionedUser,
+          },
+        });
+      }
+    }
     const createdReply = await this.findOne(reply.id);
 
     this.ticketRepliesGateway.broadcastReply(projectId, ticketId, createdReply);
@@ -245,6 +305,7 @@ export class TicketRepliesService {
         id: ticketId,
         projectId,
       },
+      relations: {project:true}
     });
 
     if (!ticket) {
@@ -278,6 +339,50 @@ export class TicketRepliesService {
         message: '',
         explicitRecipientIds: newlyMentionedUserIds,
       });
+    
+    if (!reply.isInternal) {
+        try {
+          const mentionedUsersData = await this.replyRepo.manager
+            .getRepository('users')
+            .find({ where: { id: In(newlyMentionedUserIds) } });
+
+          const mentionedRecipients = mentionedUsersData
+            .filter((u) => u.id !== userId)
+            .map((u) => ({
+              userId: u.id,
+              name: u.fullName,
+              email: u.email,
+            }));
+
+          const filteredMentioned =
+            await this.notificationsService.filterEmailRecipients(
+              mentionedRecipients,
+              EmailEventType.MENTIONED_IN_TICKET_REPLY,
+            );
+
+          for (const mentionedUser of filteredMentioned) {
+            await this.notificationsService.dispatch({
+              type: EmailEventType.MENTIONED_IN_TICKET_REPLY,
+              payload: {
+                projectId,
+                ticketId: ticket.id,
+                ticketNumber: ticket.ticketRefNo,
+                ticketTitle: ticket.title,
+                projectName: ticket.project?.name || '',
+                replyContent: reply.message,
+                mentionedBy: {
+                  userId,
+                  name: fullname,
+                  email: '',
+                },
+                mentionedUser,
+              },
+            });
+          }
+        } catch (err) {
+          // ignore
+        }
+      }
     }
     return updatedReply;
   }

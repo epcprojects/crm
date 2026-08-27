@@ -6,7 +6,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan } from 'typeorm';
+import { Repository, LessThan, In } from 'typeorm';
 import { ChatMessageInternal } from './entities/chat-message-internal.entity';
 import { ChatMessageExternal } from './entities/chat-message-external.entity';
 import { SendMessageDto, GetMessagesQueryDto } from './dto/chat-message.dto';
@@ -25,7 +25,10 @@ import { TicketsService } from '../tickets/tickets.service';
 import { ReactionsService } from '../reactions/reactions.service';
 import { Project } from '../projects/entities/project.entity';
 import { ProjectsService } from '../projects/projects.service';
-import { EmailAttachmentLink, EmailEventType } from '../notifications/notifications.types';
+import {
+  EmailEventType,
+  TicketInternalMessageMentionedPayload,
+} from '../notifications/notifications.types';
 import { UtilityService } from '../utility/utility.service';
 
 export type ChatChannel = 'internal' | 'external';
@@ -141,6 +144,7 @@ export class ChatMessagesService {
       const members = (ticket.project?.members || [])
         .filter((m) => m.id !== senderId && m.userType !== UserType.EXTERNAL)
         .map((m) => ({
+          userId: m.id,
           name: m.fullName,
           email: m.email,
           isInvitationAccepted: m.isInvitationAccepted,
@@ -148,39 +152,54 @@ export class ChatMessagesService {
 
       const participantsMap = new Map<
         string,
-        { name: string; email: string; isInvitationAccepted?: boolean }
+        {
+          userId: string;
+          name: string;
+          email: string;
+          isInvitationAccepted?: boolean;
+        }
       >();
       for (const m of members) participantsMap.set(m.email, m);
       if (ticket.reporter && ticket?.reporter?.id !== senderId)
         participantsMap.set(ticket.reporter.email, {
+          userId: ticket.reporter.id,
           name: ticket.reporter.fullName,
           email: ticket.reporter.email,
           isInvitationAccepted: ticket.reporter.isInvitationAccepted,
         });
       if (ticket.assignee && ticket?.assignee?.id !== senderId)
         participantsMap.set(ticket.assignee.email, {
+          userId: ticket.assignee.id,
           name: ticket.assignee.fullName,
           email: ticket.assignee.email,
           isInvitationAccepted: ticket.assignee.isInvitationAccepted, // Include the isInvitationAccepted property
         });
 
       const participants = Array.from(participantsMap.values());
-      const attachments: EmailAttachmentLink[] = dto.attachmentUrls?.length
-        ? await this.utilityService.getEmailAttachmentLinks(
-            dto.attachmentUrls.map((storageKey, index) => ({
-              storageKey,
-              originalName: extractFilenameFromStorageKey(storageKey),
-              mimeType: 'application/octet-stream',
-              // Only the first file has a real size (schema limitation) —
-              // rest get 0, which formatFileSize should render as empty/omitted
-              sizeBytes: 0,
-            })),
-          )
-        : [];
+      const filteredParticipants =
+        await this.notificationsService.filterEmailRecipients(
+          participants,
+          EmailEventType.TICKET_INTERNAL_MESSAGE,
+        );
+      // const attachments: EmailAttachmentLink[] = dto.attachmentUrls?.length
+      // ? await this.utilityService.getEmailAttachmentLinks(
+      //     dto.attachmentUrls.map((storageKey, index) => ({
+      //       storageKey,
+      //       originalName: extractFilenameFromStorageKey(storageKey),
+      //       mimeType: 'application/octet-stream',
+      //       // Only the first file has a real size (schema limitation) —
+      //       // rest get 0, which formatFileSize should render as empty/omitted
+      //       sizeBytes: 0,
+      //     })),
+      //   )
+      // : [];
 
-      console.debug('members for internal message notification:', participants);
+      console.debug(
+        'members for internal message notification:',
+        filteredParticipants,
+      );
       await this.notificationsService.dispatch({
-        type: EmailEventType.TICKET_REPLY_POSTED,
+        type: EmailEventType.TICKET_INTERNAL_MESSAGE,
         payload: {
           projectId: ticket?.project?.id,
           ticketId: ticketId,
@@ -190,6 +209,7 @@ export class ChatMessagesService {
           replyContent: dto.message,
           isInternal: true,
           postedBy: {
+            userId: senderId,
             name:
               (
                 await this.internalRepo.manager
@@ -198,10 +218,51 @@ export class ChatMessagesService {
               )?.fullName || '',
             email: '',
           },
-          participants,
-          attachments,
+          participants: filteredParticipants,
+          // attachments,
         },
       });
+
+      // Email notifications for mentioned users
+      if (mentionedUserIds.length) {
+        const mentionedUsersData = await this.internalRepo.manager
+          .getRepository('users')
+          .find({ where: { id: In(mentionedUserIds) } });
+
+        const mentionedRecipients = mentionedUsersData
+          .filter((u) => u.id !== senderId)
+          .map((u) => ({
+            userId: u.id,
+            name: u.fullName,
+            email: u.email,
+          }));
+
+        const filteredMentioned =
+          await this.notificationsService.filterEmailRecipients(
+            mentionedRecipients,
+            EmailEventType.MENTIONED_IN_TICKET_INTERNAL_MESSAGE,
+          );
+
+        for (const mentionedUser of filteredMentioned) {
+          await this.notificationsService.dispatch({
+            type: EmailEventType.MENTIONED_IN_TICKET_INTERNAL_MESSAGE,
+            payload: {
+              projectId: ticket?.project?.id,
+              ticketId: ticketId,
+              ticketNumber: ticket.ticketRefNo,
+              ticketTitle: ticket.title,
+              projectName: ticket.project?.name || '',
+              replyContent: dto.message,
+              mentionedBy: {
+                userId: senderId,
+                name: fullname,
+                email: '',
+              },
+              mentionedUser,
+            } as TicketInternalMessageMentionedPayload,
+          });
+        }
+      }
     } catch (err) {
       // ignore
     }
@@ -309,6 +370,55 @@ export class ChatMessagesService {
         message: '',
         explicitRecipientIds: newlyMentionedUserIds,
       });
+      
+      try {
+        const ticket = await this.internalRepo.manager
+          .getRepository(Ticket)
+          .findOne({
+            where: { id: updated.ticketId },
+            relations: { project: true },
+          });
+
+        const mentionedUsersData = await this.internalRepo.manager
+          .getRepository('users')
+          .find({ where: { id: In(newlyMentionedUserIds) } });
+
+        const mentionedRecipients = mentionedUsersData
+          .filter((u) => u.id !== requesterId)
+          .map((u) => ({
+            userId: u.id,
+            name: u.fullName,
+            email: u.email,
+          }));
+
+        const filteredMentioned =
+          await this.notificationsService.filterEmailRecipients(
+            mentionedRecipients,
+            EmailEventType.MENTIONED_IN_TICKET_INTERNAL_MESSAGE,
+          );
+
+        for (const mentionedUser of filteredMentioned) {
+          await this.notificationsService.dispatch({
+            type: EmailEventType.MENTIONED_IN_TICKET_INTERNAL_MESSAGE,
+            payload: {
+              projectId: updated.projectId,
+              ticketId: updated.ticketId,
+              ticketNumber: ticketRefNo,
+              ticketTitle: ticket?.title || '',
+              projectName: ticket?.project?.name || '',
+              replyContent: updated.message,
+              mentionedBy: {
+                userId: requesterId,
+                name: fullname,
+                email: '',
+              },
+              mentionedUser,
+            } as TicketInternalMessageMentionedPayload,
+          });
+        }
+      } catch (err) {
+        // ignore
+      }
     }
 
     const updatedMessage = await repository.findOne({

@@ -20,6 +20,7 @@ import {
   EmailEventType,
   EmailRecipient,
 } from '../notifications/notifications.types';
+import { EmailNotificationPreference } from '../notifications/entities/email-notification-preference.entity';
 
 @Injectable()
 export class UsersService {
@@ -36,7 +37,7 @@ export class UsersService {
     @InjectRepository(Project)
     private readonly projectRepo: Repository<Project>,
 
-    private readonly notificationService: NotificationsService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async getMyself(currentUser: any) {
@@ -214,7 +215,7 @@ export class UsersService {
       //   // log later if needed
       // }
 
-      await this.notificationService.sendAdminInviteEmail({
+      await this.notificationsService.sendAdminInviteEmail({
         to: existing.email.toLocaleLowerCase(),
         // fullName: existing.fullName,
         fullName: currentUser.fullName,
@@ -245,13 +246,16 @@ export class UsersService {
         userType: dto.userType,
       }),
     );
-
+    
+    
     await this.userRoleRepo.save({
       userId: newUser.id,
       roleId: role.id,
     });
+    
+    await this.notificationsService.ensureEmailNotificationPreferences(newUser.id);
 
-    await this.notificationService.sendAdminInviteEmail({
+    await this.notificationsService.sendAdminInviteEmail({
       to: newUser.email,
       // fullName: newUser.fullName,
       fullName: currentUser.fullName,
@@ -396,8 +400,9 @@ export class UsersService {
         userId,
         roleId: role.id,
       });
+      console.debug(`Updated role for user ${userId} to ${role.name}`);
     }
-
+    
     // Send notifications based on the actual diff — not just "projectIds
     // was passed in the request". Skip entirely if the admin is editing
     // their own account (no self-notifications).
@@ -406,16 +411,24 @@ export class UsersService {
     // their own account (no self-notifications).
     
     user.updatedAt = new Date();
-
+    
     await this.userRepo.save(user);
+    await this.notificationsService.ensureEmailNotificationPreferences(userId);
     if (userId !== loggedInUser.id && dto.projectIds !== undefined) {
       const affectedUser: EmailRecipient = {
+        userId: user.id,
         name: user.fullName,
         email: user.email,
         isInvitationAccepted: user.isInvitationAccepted,
       };
 
+      const filtered = await this.notificationsService.filterEmailRecipients(
+        [affectedUser],
+        EmailEventType.PROJECT_ASSIGNED,
+      );
+
       const updatedBy: EmailRecipient = {
+        userId: loggedInUser.id,
         name: loggedInUser.fullName,
         email: loggedInUser.email,
         isInvitationAccepted: loggedInUser.isInvitationAccepted,
@@ -425,7 +438,7 @@ export class UsersService {
       if (addedProjects.length > 0) {
         const addedNames = addedProjects.map((p) => p.name).join(', ');
 
-        await this.notificationService.notifyProjectMembers({
+        await this.notificationsService.notifyProjectMembers({
           actorId: loggedInUser.id,
           type: NotificationType.PROJECT_ASSIGNED,
           entityType: NotificationEntityType.PROJECT,
@@ -433,23 +446,28 @@ export class UsersService {
           message: `New project${addedProjects.length === 1 ? '' : 's'}: ${addedNames}`,
           explicitRecipientIds: [userId],
         });
+        if (filtered.length > 0) {
         for (const project of addedProjects) {
-          await this.notificationService.dispatch({
+          await this.notificationsService.dispatch({
             type: EmailEventType.PROJECT_ASSIGNED,
             payload: {
               projectName: project.name,
               projectId: project.id,
-              assignedTo: affectedUser,
+              assignedTo: filtered[0],
               assignedBy: updatedBy,
             },
           });
         }
-      }
+      }}
       // Notify about removed projects, if any.
       if (removedProjects.length > 0) {
+              const filtered = await this.notificationsService.filterEmailRecipients(
+        [affectedUser],
+        EmailEventType.PROJECT_UNASSIGNED,
+      );
         const removedNames = removedProjects.map((p) => p.name).join(', ');
 
-        await this.notificationService.notifyProjectMembers({
+        await this.notificationsService.notifyProjectMembers({
           actorId: loggedInUser.id,
           type: NotificationType.PROJECT_UNASSIGNED,
           entityType: NotificationEntityType.PROJECT,
@@ -457,22 +475,23 @@ export class UsersService {
           message: `Removed project${removedProjects.length === 1 ? '' : 's'}: ${removedNames}`,
           explicitRecipientIds: [userId],
         });
+        if (filtered.length > 0) {
         for (const project of removedProjects) {
-          await this.notificationService.dispatch({
+          await this.notificationsService.dispatch({
             type: EmailEventType.PROJECT_UNASSIGNED,
             payload: {
               projectName: project.name,
-              unassignedFrom: affectedUser,
+              unassignedFrom: filtered[0],
               unassignedBy: updatedBy,
             },
           });
         }
-      }
+      }}
     }
 
-    user.updatedAt = new Date();
+    // user.updatedAt = new Date();
 
-    await this.userRepo.save(user);
+    // await this.userRepo.save(user);
 
     return this.findById(userId);
   }

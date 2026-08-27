@@ -19,6 +19,7 @@ export const MODULE_DEFINITIONS: {
       'view_project_cards',
       'view_recent_tickets',
       'view_upcoming',
+      'view_threads',
     ],
   },
   {
@@ -66,11 +67,11 @@ export const MODULE_DEFINITIONS: {
     ],
   },
   { key: 'files', label: 'Files', actions: ['view', 'upload', 'download'] },
-  {
-    key: 'project_notes',
-    label: 'Project Notes',
-    actions: ['view_list', 'view_detail', 'create', 'edit', 'delete'],
-  },
+  // {
+  //   key: 'project_notes',
+  //   label: 'Project Notes',
+  //   actions: ['view_list', 'view_detail', 'create', 'edit', 'delete'],
+  // },
   {
     key: 'calendar',
     label: 'Calendar',

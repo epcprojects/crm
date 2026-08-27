@@ -1,16 +1,22 @@
 import sgMail from '@sendgrid/mail';
 import {
-  buildAttachmentAddedEmail,
+  // buildAttachmentAddedEmail,
   buildAssigneeUpdatedEmail,
   buildPriorityUpdatedEmail,
-  buildProjectCreatedEmail,
+  // buildProjectCreatedEmail,
   buildStatusUpdatedEmail,
   buildTicketCreatedEmail,
   buildTicketReplyEmail,
+  buildTicketReplyMentionedEmail,
+  buildTicketInternalMessageMentionedEmail,
+  buildTicketInternalMessageEmail,
   buildThreadMessageCreatedEmail,
+  buildThreadReplyMentionedEmail,
   buildThreadReplyCreatedEmail,
+  buildThreadMessageMentionedEmail,
   buildProjectUnassignedEmail,
   buildProjectAssignedEmail,
+  buildDueDateUpdatedEmail,
 } from '../../templates/common';
 import {
   EmailEventType,
@@ -64,28 +70,40 @@ async function sendMailToRecipients(
 
 function buildEmailForEvent(event: EmailNotificationEvent) {
   switch (event.type) {
-    case EmailEventType.PROJECT_CREATED:
-      return buildProjectCreatedEmail(event.payload, appUrl);
+    // case EmailEventType.PROJECT_CREATED:
+    //   return buildProjectCreatedEmail(event.payload, appUrl);
     case EmailEventType.PROJECT_ASSIGNED:
       return buildProjectAssignedEmail(event.payload, appUrl);
     case EmailEventType.PROJECT_UNASSIGNED:
       return buildProjectUnassignedEmail(event.payload, appUrl);
     case EmailEventType.THREAD_MESSAGE_CREATED:
       return buildThreadMessageCreatedEmail(event.payload, appUrl);
+    case EmailEventType.MENTIONED_IN_THREAD_MESSAGE:
+      return buildThreadMessageMentionedEmail(event.payload, appUrl);
     case EmailEventType.THREAD_REPLY_CREATED:
       return buildThreadReplyCreatedEmail(event.payload, appUrl);
+    case EmailEventType.MENTIONED_IN_THREAD_REPLY:
+      return buildThreadReplyMentionedEmail(event.payload, appUrl);
     case EmailEventType.TICKET_CREATED:
       return buildTicketCreatedEmail(event.payload, appUrl);
     case EmailEventType.TICKET_REPLY_POSTED:
       return buildTicketReplyEmail(event.payload, appUrl);
+    case EmailEventType.MENTIONED_IN_TICKET_REPLY:
+      return buildTicketReplyMentionedEmail(event.payload, appUrl);
+    case EmailEventType.TICKET_INTERNAL_MESSAGE:
+      return buildTicketInternalMessageEmail(event.payload, appUrl);
+    case EmailEventType.MENTIONED_IN_TICKET_INTERNAL_MESSAGE:
+      return buildTicketInternalMessageMentionedEmail(event.payload, appUrl);
     case EmailEventType.TICKET_STATUS_UPDATED:
       return buildStatusUpdatedEmail(event.payload, appUrl);
+    case EmailEventType.TICKET_DUE_DATE_UPDATED:
+      return buildDueDateUpdatedEmail(event.payload, appUrl);
     case EmailEventType.TICKET_PRIORITY_UPDATED:
       return buildPriorityUpdatedEmail(event.payload, appUrl);
     case EmailEventType.TICKET_ASSIGNEE_UPDATED:
       return buildAssigneeUpdatedEmail(event.payload, appUrl);
-    case EmailEventType.TICKET_ATTACHMENT_ADDED:
-      return buildAttachmentAddedEmail(event.payload, appUrl);
+    // case EmailEventType.TICKET_ATTACHMENT_ADDED:
+    //   return buildAttachmentAddedEmail(event.payload, appUrl);
   }
 }
 
@@ -103,8 +121,8 @@ function filterAcceptedRecipients(
 
 function resolveRecipients(event: EmailNotificationEvent) {
   switch (event.type) {
-    case EmailEventType.PROJECT_CREATED:
-      return event.payload.members;
+    // case EmailEventType.PROJECT_CREATED:
+    //   return event.payload.members;
     case EmailEventType.PROJECT_ASSIGNED:
       return event.payload.assignedTo ? [event.payload.assignedTo] : [];
     case EmailEventType.PROJECT_UNASSIGNED:
@@ -113,13 +131,29 @@ function resolveRecipients(event: EmailNotificationEvent) {
       return event.payload.participants;
     case EmailEventType.THREAD_MESSAGE_CREATED:
       return event.payload.participants;
+    case EmailEventType.MENTIONED_IN_THREAD_MESSAGE:
+      return [event.payload.mentionedUser];
     case EmailEventType.THREAD_REPLY_CREATED:
       return event.payload.participants;
+    case EmailEventType.MENTIONED_IN_THREAD_REPLY:
+      return [event.payload.mentionedUser];
     case EmailEventType.TICKET_REPLY_POSTED:
       return event.payload.participants.filter(
         (recipient) => recipient.email !== event.payload.postedBy.email,
       );
+    case EmailEventType.MENTIONED_IN_TICKET_REPLY:
+      return [event.payload.mentionedUser];
+    case EmailEventType.TICKET_INTERNAL_MESSAGE:
+      return event.payload.participants.filter(
+        (recipient) => recipient.email !== event.payload.postedBy.email,
+      );
+    case EmailEventType.MENTIONED_IN_TICKET_INTERNAL_MESSAGE:
+      return [event.payload.mentionedUser];
     case EmailEventType.TICKET_STATUS_UPDATED:
+      return event.payload.participants.filter(
+        (recipient) => recipient.email !== event.payload.updatedBy.email,
+      );
+    case EmailEventType.TICKET_DUE_DATE_UPDATED:
       return event.payload.participants.filter(
         (recipient) => recipient.email !== event.payload.updatedBy.email,
       );
@@ -128,24 +162,32 @@ function resolveRecipients(event: EmailNotificationEvent) {
         (recipient) => recipient.email !== event.payload.updatedBy.email,
       );
     case EmailEventType.TICKET_ASSIGNEE_UPDATED:
-      return [
-        ...new Map(
-          [...event.payload.participants, event.payload.newAssignee].map(
-            (recipient) => [recipient.email, recipient],
-          ),
-        ).values(),
-      ].filter(
+      return event.payload.participants.filter(
         (recipient) => recipient.email !== event.payload.updatedBy.email,
       );
-    case EmailEventType.TICKET_ATTACHMENT_ADDED:
-      return event.payload.participants.filter(
-        (recipient) => recipient.email !== event.payload.uploadedBy.email,
-      );
+    // return [
+    //   ...new Map(
+    //     [...event.payload.participants, event.payload.newAssignee].map(
+    //       (recipient) => [recipient.email, recipient],
+    //     ),
+    //   ).values(),
+    // ].filter(
+    //   (recipient) => recipient.email !== event.payload.updatedBy.email,
+    // );
+    // case EmailEventType.TICKET_ATTACHMENT_ADDED:
+    //   return event.payload.participants.filter(
+    //     (recipient) => recipient.email !== event.payload.uploadedBy.email,
+    //   );
   }
 
   return [];
 }
-
+const MENTION_EVENT_TYPES = new Set<EmailEventType>([
+  EmailEventType.MENTIONED_IN_THREAD_MESSAGE,
+  EmailEventType.MENTIONED_IN_THREAD_REPLY,
+  EmailEventType.MENTIONED_IN_TICKET_REPLY,
+  EmailEventType.MENTIONED_IN_TICKET_INTERNAL_MESSAGE,
+]);
 export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
   const batchItemFailures: Array<{ itemIdentifier: string }> = [];
 
@@ -159,7 +201,9 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
       console.log('HTML:', html, 'Subject:', subject);
       const resolvedRecipients = resolveRecipients(parsed);
       console.log('Recipients:', resolvedRecipients);
-      const recipients = filterAcceptedRecipients(resolvedRecipients);
+      const recipients = MENTION_EVENT_TYPES.has(parsed.type)
+        ? resolvedRecipients
+        : filterAcceptedRecipients(resolvedRecipients);
       console.log('Filtered Recipients:', recipients);
       await sendMailToRecipients(recipients, subject, html);
     } catch (error) {
