@@ -162,15 +162,18 @@ function resolveRecipients(event: EmailNotificationEvent) {
         (recipient) => recipient.email !== event.payload.updatedBy.email,
       );
     case EmailEventType.TICKET_ASSIGNEE_UPDATED:
-      return [
-        ...new Map(
-          [...event.payload.participants, event.payload.newAssignee].map(
-            (recipient) => [recipient.email, recipient],
-          ),
-        ).values(),
-      ].filter(
+      return event.payload.participants.filter(
         (recipient) => recipient.email !== event.payload.updatedBy.email,
       );
+    // return [
+    //   ...new Map(
+    //     [...event.payload.participants, event.payload.newAssignee].map(
+    //       (recipient) => [recipient.email, recipient],
+    //     ),
+    //   ).values(),
+    // ].filter(
+    //   (recipient) => recipient.email !== event.payload.updatedBy.email,
+    // );
     // case EmailEventType.TICKET_ATTACHMENT_ADDED:
     //   return event.payload.participants.filter(
     //     (recipient) => recipient.email !== event.payload.uploadedBy.email,
