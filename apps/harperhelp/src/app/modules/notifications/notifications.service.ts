@@ -470,12 +470,11 @@ export class NotificationsService {
       // this.appName,
     );
     // Always notify new assignee even if not in participants list
-    const recipientSet = new Map<string, EmailRecipient>();
-    for (const r of p.participants) recipientSet.set(r.email, r);
-    recipientSet.set(p.newAssignee.email, p.newAssignee);
-    recipientSet.delete(p.updatedBy.email); // don't notify the person who made the change
+    const recipients = p.participants.filter(
+      (r) => r.email !== p.updatedBy.email && r.isInvitationAccepted === true,
+    );
 
-    await this.sendBulk([...recipientSet.values()], subject, html);
+    await this.sendBulk(recipients, subject, html);
   }
   private async onThreadMessageMentioned(
     p: ThreadMessageMentionedPayload,
@@ -1144,6 +1143,7 @@ export class NotificationsService {
         EmailEventType.TICKET_STATUS_UPDATED,
         EmailEventType.TICKET_PRIORITY_UPDATED,
         EmailEventType.TICKET_ASSIGNEE_UPDATED,
+        EmailEventType.TICKET_DUE_DATE_UPDATED,
         EmailEventType.MENTIONED_IN_TICKET_REPLY,
         // EmailEventType.TICKET_INTERNAL_MESSAGE,
         // EmailEventType.TICKET_ATTACHMENT_ADDED,
