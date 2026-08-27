@@ -660,7 +660,7 @@ export default function Page() {
           <DashboardSummaryBanner
             imageSrc="/images/settingsPageIcon.svg"
             title="Settings"
-            stats={projectSummaryStats}
+            // stats={projectSummaryStats}
           />
         </div>
         <div className="hidden shrink-0 xl:flex-row flex-col  items-center gap-3 rounded-[10px] xl:rounded-full border border-warning-200 bg-[#FFFAEB] p-1 text-[#69410A]">
