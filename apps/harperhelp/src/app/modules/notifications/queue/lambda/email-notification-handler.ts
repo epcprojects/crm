@@ -179,7 +179,12 @@ function resolveRecipients(event: EmailNotificationEvent) {
 
   return [];
 }
-
+const MENTION_EVENT_TYPES = new Set<EmailEventType>([
+  EmailEventType.MENTIONED_IN_THREAD_MESSAGE,
+  EmailEventType.MENTIONED_IN_THREAD_REPLY,
+  EmailEventType.MENTIONED_IN_TICKET_REPLY,
+  EmailEventType.MENTIONED_IN_TICKET_INTERNAL_MESSAGE,
+]);
 export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
   const batchItemFailures: Array<{ itemIdentifier: string }> = [];
 
@@ -193,7 +198,9 @@ export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
       console.log('HTML:', html, 'Subject:', subject);
       const resolvedRecipients = resolveRecipients(parsed);
       console.log('Recipients:', resolvedRecipients);
-      const recipients = filterAcceptedRecipients(resolvedRecipients);
+      const recipients = MENTION_EVENT_TYPES.has(parsed.type)
+        ? resolvedRecipients
+        : filterAcceptedRecipients(resolvedRecipients);
       console.log('Filtered Recipients:', recipients);
       await sendMailToRecipients(recipients, subject, html);
     } catch (error) {
