@@ -17,6 +17,7 @@ import {
   ApiBearerAuth,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiResponse,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
@@ -128,6 +129,52 @@ export class ProjectsController {
   @ApiOperation({ summary: 'Get list of project members.' })
   findProjectMembers(@Param('id', ParseUUIDPipe) id: string, @GetUser() user) {
     return this.projectsService.findProjectMembers(id, user);
+  }
+
+  @Get(':id/members/projects')
+  @ApiOperation({
+    summary:
+      'Get list of Project Memebers that needed on projects page (for viewing purposes direclty)',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Optional search term for filtering project members',
+  })
+  findProjectMembersForProjectsPage(
+    @Param('id', ParseUUIDPipe) id: string,
+    @GetUser() user,
+    @Query('search') search?: string,
+  ) {
+    return this.projectsService.findProjectMembersForProjectsPage(
+      id,
+      user,
+      search,
+    );
+  }
+
+  @Get(':id/members/available')
+  @ApiOperation({
+    summary:
+      'Get list of available users that can be assigned to a project (not already assigned)',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Optional search term for filtering available users',
+  })
+  findAvailibleUsersForAssigningProject(
+    @Param('id', ParseUUIDPipe) id: string,
+    @GetUser() user,
+    @Query('search') search?: string,
+  ) {
+    return this.projectsService.findAvailibleUsersForAssigningProject(
+      id,
+      user,
+      search,
+    );
   }
 
   // ---------------- UPLOAD FILES ----------------

@@ -303,24 +303,121 @@ export class ProjectsService {
   }
 
   async findProjectMembers(projectId: string, user) {
-    return (
-      this.projectRepo
-        .createQueryBuilder('project')
-        .innerJoin('project.members', 'member')
-        .where('project.id = :projectId', { projectId })
-        .andWhere('member.isInvitationAccepted = true')
-        .andWhere('member.deletedAt IS NULL')
-        .andWhere('member.id != :excludedUserId', {
-          excludedUserId: '00000000-0000-0000-0000-000000000002',
-        })
+    return this.projectRepo
+      .createQueryBuilder('project')
+      .innerJoin('project.members', 'member')
+      .where('project.id = :projectId', { projectId })
+      .andWhere('member.isInvitationAccepted = true')
+      .andWhere('member.deletedAt IS NULL')
+      .andWhere('member.id != :excludedUserId', {
+        excludedUserId: '00000000-0000-0000-0000-000000000002',
+      })
 
-        .select([
-          'member.id AS id',
-          'member.fullName AS "fullName"',
-          'member.isInvitationAccepted AS "isInvitationAccepted"',
-        ])
-        .getRawMany()
-    );
+      .select([
+        'member.id AS id',
+        'member.fullName AS "fullName"',
+        'member.isInvitationAccepted AS "isInvitationAccepted"',
+      ])
+      .getRawMany();
+  }
+
+  // function to find members of a specific project that returns user's id, fullName, email. it also supports search
+
+  async findProjectMembersForProjectsPage(
+    projectId: string,
+    user: { id: string },
+    search?: string,
+  ) {
+    const query = this.projectRepo
+      .createQueryBuilder('project')
+      .innerJoin('project.members', 'member')
+      .where('project.id = :projectId', { projectId })
+      .andWhere('member.isInvitationAccepted = true')
+      .andWhere('member.deletedAt IS NULL')
+      .andWhere('member.id != :excludedUserId', {
+        excludedUserId: '00000000-0000-0000-0000-000000000002',
+      })
+      .andWhere('member.id != :currentUserId', {
+        currentUserId: user.id,
+      });
+
+    const trimmedSearch = search?.trim();
+
+    if (trimmedSearch) {
+      query.andWhere(
+        `
+      (
+        member.fullName ILIKE :search
+        OR member.email ILIKE :search
+      )
+      `,
+        { search: `%${trimmedSearch}%` },
+      );
+    }
+
+    return query
+      .select([
+        'member.id AS id',
+        'member.email AS email',
+        'member.fullName AS "fullName"',
+      ])
+      .orderBy('member.fullName', 'ASC')
+      .getRawMany();
+  }
+
+  // function to get all members excluding the users that are already assigned to that projects
+
+  async findAvailibleUsersForAssigningProject(
+    projectId: string,
+    user: { id: string },
+    search?: string,
+  ) {
+    const userRepository = this.projectRepo.manager.getRepository(User);
+
+    const query = userRepository
+      .createQueryBuilder('member')
+      .where('member.isInvitationAccepted = true')
+      .andWhere('member.deletedAt IS NULL')
+      .andWhere('member.id != :excludedUserId', {
+        excludedUserId: '00000000-0000-0000-0000-000000000002',
+      })
+      .andWhere('member.id != :currentUserId', {
+        currentUserId: user.id,
+      })
+      .andWhere(
+        `
+      NOT EXISTS (
+        SELECT 1
+        FROM user_projects_join upj
+        WHERE upj."usersId" = member.id
+          AND upj."projectsId" = :projectId
+      )
+      `,
+        { projectId },
+      );
+
+    const trimmedSearch = search?.trim();
+
+    if (trimmedSearch) {
+      query.andWhere(
+        `
+      (
+        member.fullName ILIKE :search
+        OR member.email ILIKE :search
+      )
+      `,
+        { search: `%${trimmedSearch}%` },
+      );
+    }
+
+    return query
+      .select([
+        'member.id AS id',
+        'member.email AS email',
+        'member.fullName AS "fullName"',
+      ])
+      .orderBy('member.fullName', 'ASC')
+      .getRawMany();
   }
 
   async findMembersWithProjects(query: GetMembersQueryDto) {
