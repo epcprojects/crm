@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useDashboardHeaderAction } from '../../../components/dashboard/dashboard-shell';
 import CreateProjectModal, {
@@ -11,6 +11,10 @@ import ConfirmActionModal from '../../../components/modals/ConfirmActionModal';
 import CreateTicketModal, {
   type CreateTicketFormValues,
 } from '../../../components/modals/CreateTicketModal';
+import AssignProjectUsersModal from '../../../components/modals/AssignProjectUsersModal';
+import ProjectUsersModal, {
+  type ProjectUserRecord,
+} from '../../../components/modals/ProjectUsersModal';
 import { createTicketProjectOptions } from '../../../components/modals/create-ticket-modal.data';
 import ProjectCard from '../../../components/projects/ProjectCard';
 import { appToast } from '../../../components/toast/AppToast';
@@ -36,6 +40,20 @@ import EmptyState from '../../../components/EmptyState';
 import { eventEmitter } from '../../../lib/event-emitter';
 import { NotificationEntityType } from '@harperhelp/types';
 import { NotificationItem } from '@harperhelp/interfaces';
+import {
+  assignProjectUsers,
+  fetchAvailableProjectUsers,
+  fetchProjectUsers,
+  removeProjectUser,
+} from '../../../lib/project-users';
+
+type ProjectUsersModalState = {
+  projectId: string;
+  projectName: string;
+  projectInitials: string;
+  projectColorHex?: string;
+  mode: 'view' | 'assign';
+};
 
 export default function ProjectsPage() {
   const router = useRouter();
@@ -56,6 +74,11 @@ export default function ProjectsPage() {
   const [projectToEdit, setProjectToEdit] = useState<ProjectRecord | null>(
     null,
   );
+  const [projectUsersModal, setProjectUsersModal] =
+    useState<ProjectUsersModalState | null>(null);
+  const [projectUsersSearchValue, setProjectUsersSearchValue] = useState('');
+  const [availableProjectUsersSearchValue, setAvailableProjectUsersSearchValue] =
+    useState('');
   const hasShownLoadError = useRef(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const createProjectMutation = useCreateProjectMutation();
@@ -67,6 +90,7 @@ export default function ProjectsPage() {
   const canCreateTicket = hasPermission('tickets.create');
   const canEditProject = hasPermission('projects.edit');
   const canDeleteProject = hasPermission('projects.delete');
+  const canViewUsers = hasPermission('users.view_list');
   const projectsQuery = useProjectsInfiniteQuery(
     canViewProjectList,
     12,
@@ -81,6 +105,81 @@ export default function ProjectsPage() {
     () => createTicketProjectOptions(projectNamesQuery.data ?? []),
     [projectNamesQuery.data],
   );
+  const projectUsersQuery = useQuery({
+    queryKey: [
+      'project-users',
+      projectUsersModal?.projectId,
+      projectUsersSearchValue.trim(),
+    ],
+    queryFn: () =>
+      fetchProjectUsers(
+        projectUsersModal!.projectId,
+        projectUsersSearchValue.trim() || undefined,
+      ),
+    enabled: Boolean(projectUsersModal?.projectId && canViewUsers),
+  });
+  const availableProjectUsersQuery = useQuery({
+    queryKey: [
+      'available-project-users',
+      projectUsersModal?.projectId,
+      availableProjectUsersSearchValue.trim(),
+    ],
+    queryFn: () =>
+      fetchAvailableProjectUsers(
+        projectUsersModal!.projectId,
+        availableProjectUsersSearchValue.trim() || undefined,
+      ),
+    enabled: Boolean(
+      projectUsersModal?.projectId &&
+        projectUsersModal?.mode === 'assign' &&
+        canViewUsers,
+    ),
+  });
+  const removeProjectUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      if (!projectUsersModal?.projectId) {
+        throw new Error('Project is required.');
+      }
+
+      return removeProjectUser(projectUsersModal.projectId, userId);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ['project-users', projectUsersModal?.projectId],
+      });
+      appToast.success('User removed successfully.');
+    },
+  });
+  const assignProjectUsersMutation = useMutation({
+    mutationFn: async (userIds: string[]) => {
+      if (!projectUsersModal?.projectId) {
+        throw new Error('Project is required.');
+      }
+
+      return assignProjectUsers(projectUsersModal.projectId, userIds);
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['project-users', projectUsersModal?.projectId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['available-project-users', projectUsersModal?.projectId],
+        }),
+      ]);
+      appToast.success('Users assigned successfully.');
+      setProjectUsersSearchValue('');
+      setAvailableProjectUsersSearchValue('');
+      setProjectUsersModal((current) =>
+        current
+          ? {
+              ...current,
+              mode: 'view',
+            }
+          : current,
+      );
+    },
+  });
 
   useEffect(() => {
     setHeaderActionOverride(
@@ -235,8 +334,38 @@ export default function ProjectsPage() {
       setLoading(false);
     }
   };
+  const handleRemoveProjectUser = async (userId: string) => {
+    try {
+      await removeProjectUserMutation.mutateAsync(userId);
+    } catch (error) {
+      appToast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to remove project user.',
+      );
+    }
+  };
+  const handleAssignProjectUsers = async (userIds: string[]) => {
+    try {
+      await assignProjectUsersMutation.mutateAsync(userIds);
+    } catch (error) {
+      appToast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to assign project users.',
+      );
+    }
+  };
 
   const filteredProjects = projects;
+  const projectUsers = useMemo<ProjectUserRecord[]>(
+    () => projectUsersQuery.data ?? [],
+    [projectUsersQuery.data],
+  );
+  const availableProjectUsers = useMemo<ProjectUserRecord[]>(
+    () => availableProjectUsersQuery.data ?? [],
+    [availableProjectUsersQuery.data],
+  );
   const projectSummary = projectsQuery.data?.pages[0]?.summary;
 
   const totalProjects =
@@ -490,6 +619,36 @@ export default function ProjectsPage() {
                                 }
                               : undefined
                           }
+                          onViewUsers={
+                            canViewUsers
+                              ? () => {
+                                  setProjectUsersSearchValue('');
+                                  setAvailableProjectUsersSearchValue('');
+                                  setProjectUsersModal({
+                                    projectId: project.id,
+                                    projectName: project.name,
+                                    projectInitials: project.initials,
+                                    projectColorHex: project.colorHex,
+                                    mode: 'view',
+                                  });
+                                }
+                              : undefined
+                          }
+                          onAssignUsers={
+                            canViewUsers
+                              ? () => {
+                                  setProjectUsersSearchValue('');
+                                  setAvailableProjectUsersSearchValue('');
+                                  setProjectUsersModal({
+                                    projectId: project.id,
+                                    projectName: project.name,
+                                    projectInitials: project.initials,
+                                    projectColorHex: project.colorHex,
+                                    mode: 'assign',
+                                  });
+                                }
+                              : undefined
+                          }
                           onDelete={
                             canDeleteProject
                               ? () =>
@@ -608,6 +767,53 @@ export default function ProjectsPage() {
         projectOptions={projectOptions}
         preselectedProjectId={selectedProjectId ?? undefined}
         disableProjectSelection={Boolean(selectedProjectId)}
+      />
+
+      <ProjectUsersModal
+        isOpen={Boolean(projectUsersModal) && projectUsersModal?.mode === 'view'}
+        onClose={() => {
+          setProjectUsersModal(null);
+          setProjectUsersSearchValue('');
+          setAvailableProjectUsersSearchValue('');
+        }}
+        projectName={projectUsersModal?.projectName ?? 'Project'}
+        projectInitials={projectUsersModal?.projectInitials ?? 'PR'}
+        projectColorHex={projectUsersModal?.projectColorHex}
+        users={projectUsers}
+        isLoading={projectUsersQuery.isLoading || projectUsersQuery.isFetching}
+        removingUserId={removeProjectUserMutation.isPending ? removeProjectUserMutation.variables : null}
+        onSearchChange={setProjectUsersSearchValue}
+        onAssignUsers={() => {
+          if (projectUsersModal?.mode !== 'assign') {
+            setAvailableProjectUsersSearchValue('');
+            setProjectUsersModal((current) =>
+              current
+                ? {
+                    ...current,
+                    mode: 'assign',
+                  }
+                : current,
+            );
+          }
+        }}
+        onRemoveUser={handleRemoveProjectUser}
+      />
+
+      <AssignProjectUsersModal
+        isOpen={Boolean(projectUsersModal) && projectUsersModal?.mode === 'assign'}
+        onClose={() => {
+          setProjectUsersModal(null);
+          setAvailableProjectUsersSearchValue('');
+        }}
+        projectName={projectUsersModal?.projectName ?? 'Project'}
+        users={availableProjectUsers}
+        isLoading={
+          availableProjectUsersQuery.isLoading ||
+          availableProjectUsersQuery.isFetching
+        }
+        isSubmitting={assignProjectUsersMutation.isPending}
+        onSearchChange={setAvailableProjectUsersSearchValue}
+        onAssign={handleAssignProjectUsers}
       />
     </>
   );

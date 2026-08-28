@@ -5,10 +5,10 @@ import {
   ThreedotIcon,
   TicketIcon2,
   TrashIcon,
+  UserGroup,
+  EyeOpenedIcon,
 } from '../../../public/icons';
-import Tooltip from '../tooltip';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
-import { EditPencilIcon } from '../discussion/TicketRepliesPanel';
 
 type ProjectCardProps = {
   id?: string;
@@ -22,6 +22,8 @@ type ProjectCardProps = {
   onClick?: () => void;
   href?: string;
   onAddTicket?: () => void;
+  onViewUsers?: () => void;
+  onAssignUsers?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
   isDeleting?: boolean;
@@ -61,6 +63,8 @@ export default function ProjectCard({
   onClick,
   href,
   onAddTicket,
+  onViewUsers,
+  onAssignUsers,
   onEdit,
   onDelete,
   isDeleting = false,
@@ -110,7 +114,7 @@ export default function ProjectCard({
           {/* Desktop Add Ticket button */}
 
           {/* Mobile Add Ticket + Edit/Delete actions */}
-          {onAddTicket || onEdit || onDelete ? (
+          {onAddTicket || onViewUsers || onAssignUsers || onEdit || onDelete ? (
             <Menu
               as="div"
               className="relative group/menu flex gap-2 z-10"
@@ -159,7 +163,7 @@ export default function ProjectCard({
                 anchor="bottom end"
                 transition
                 className="
-          z-100 mt-1 w-32 origin-top-right
+          z-100 mt-1 w-44 origin-top-right
           rounded-lg border border-gray-200
           bg-white p-1
           shadow-[0_10px_30px_rgb(0_0_0/0.12)]
@@ -172,14 +176,16 @@ export default function ProjectCard({
                 {/* Only show Add Ticket inside menu on mobile */}
                 {onAddTicket ? (
                   <MenuItem>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        onAddTicket();
-                      }}
-                      className="
+                    {({ close }) => (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          close();
+                          onAddTicket();
+                        }}
+                        className="
                 flex w-full items-center gap-2
                 rounded-md px-2.5 py-2
                 text-left text-xs font-medium
@@ -187,59 +193,118 @@ export default function ProjectCard({
                 data-focus:bg-gray-50
                 xl:hidden
               "
-                    >
-                      <TicketIcon2 opacity="0" fill="currentColor" />
-                      Add Ticket
-                    </button>
+                      >
+                        <TicketIcon2 opacity="0" fill="currentColor" />
+                        Add Ticket
+                      </button>
+                    )}
                   </MenuItem>
                 ) : null}
 
-                {onEdit ? (
+                {onViewUsers ? (
                   <MenuItem>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        onEdit();
-                      }}
-                      className="
-                flex w-full items-center gap-2
+                    {({ close }) => (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          close();
+                          onViewUsers();
+                        }}
+                        className="
+                flex w-full items-center whitespace-nowrap gap-1 md:gap-2
                 rounded-md px-2.5 py-2
                 text-left text-xs font-medium
                 text-gray-700 outline-none transition
                 data-focus:bg-gray-50
               "
-                    >
-                      <EditPencilIcon />
-                      Edit
-                    </button>
+                      >
+                        <EyeOpenedIcon fill="#374151" width="16" height="16" />
+                        View Users
+                      </button>
+                    )}
+                  </MenuItem>
+                ) : null}
+
+                {onAssignUsers ? (
+                  <MenuItem>
+                    {({ close }) => (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          close();
+                          onAssignUsers();
+                        }}
+                        className="
+                flex w-full items-center whitespace-nowrap gap-1 md:gap-2
+                rounded-md px-2.5 py-2
+                text-left text-xs font-medium
+                text-gray-700 outline-none transition
+                data-focus:bg-gray-50
+              "
+                      >
+                        <UserGroup width="16" height="16" opacity="0" />
+                        Assign Users
+                      </button>
+                    )}
+                  </MenuItem>
+                ) : null}
+
+                {onEdit ? (
+                  <MenuItem>
+                    {({ close }) => (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          close();
+                          onEdit();
+                        }}
+                        className="
+                flex w-full items-center whitespace-nowrap gap-1 md:gap-2
+                rounded-md px-2.5 py-2
+                text-left text-xs font-medium
+                text-gray-700 outline-none transition
+                data-focus:bg-gray-50
+              "
+                      >
+                        <EditIcon />
+                        Edit Project
+                      </button>
+                    )}
                   </MenuItem>
                 ) : null}
 
                 {onDelete ? (
                   <MenuItem>
-                    <button
-                      type="button"
-                      disabled={isDeleting}
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        onDelete();
-                      }}
-                      className="
-                flex w-full items-center gap-2
+                    {({ close }) => (
+                      <button
+                        type="button"
+                        disabled={isDeleting}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          close();
+                          onDelete();
+                        }}
+                        className="
+                flex w-full items-center whitespace-nowrap gap-1 md:gap-2
                 rounded-md px-2.5 py-2
                 text-left text-xs font-medium
                 text-red-500 outline-none transition
                 data-focus:bg-red-50
                 disabled:cursor-not-allowed disabled:opacity-50
               "
-                    >
-                      <TrashIcon width="16" height="16" />
+                      >
+                        <TrashIcon width="16" height="16" />
 
-                      {isDeleting ? 'Deleting...' : 'Delete'}
-                    </button>
+                        {isDeleting ? 'Deleting...' : 'Delete Project'}
+                      </button>
+                    )}
                   </MenuItem>
                 ) : null}
               </MenuItems>
