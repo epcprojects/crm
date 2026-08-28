@@ -31,6 +31,7 @@ import { GetProjectsQueryDto } from './dto/get-projects-query.dto';
 import { GetMembersQueryDto } from './dto/get-members-query.dto';
 import { UploadedFileDto } from '../files/dto/uploaded-file.dto';
 import { UploadProjectFileDto } from './dto/upload-project-file.dto';
+import { AssignUsersToProjectDto } from './dto/assign-users-to-project.dto';
 
 @Controller('projects')
 @ApiBearerAuth('JWT-auth')
@@ -175,6 +176,41 @@ export class ProjectsController {
       user,
       search,
     );
+  }
+
+  @Post(':id/members')
+  @ApiOperation({ summary: 'Assign users to a project' })
+  @ApiParam({
+    name: 'id',
+    description: 'Project ID',
+    type: String,
+  })
+  assignUsersToProject(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AssignUsersToProjectDto,
+    @GetUser() user,
+  ) {
+    return this.projectsService.assignUsersToProject(id, dto.userIds, user);
+  }
+
+  @Delete(':id/members/:userId')
+  @ApiOperation({ summary: 'Remove a user from a project' })
+  @ApiParam({
+    name: 'id',
+    description: 'Project ID',
+    type: String,
+  })
+  @ApiParam({
+    name: 'userId',
+    description: 'User ID to remove from the project',
+    type: String,
+  })
+  removeUserFromProject(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @GetUser() user,
+  ) {
+    return this.projectsService.removeUserFromProject(id, userId, user);
   }
 
   // ---------------- UPLOAD FILES ----------------

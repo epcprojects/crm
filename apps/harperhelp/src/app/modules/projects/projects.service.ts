@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -20,6 +21,7 @@ import { Ticket } from '../tickets/entities/ticket.entity';
 import { GetProjectsQueryDto } from './dto/get-projects-query.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { GetMembersQueryDto } from './dto/get-members-query.dto';
+import { EmailEventType, EmailRecipient } from '../notifications/notifications.types';
 
 @Injectable()
 export class ProjectsService {
@@ -419,6 +421,201 @@ export class ProjectsService {
       .orderBy('member.fullName', 'ASC')
       .getRawMany();
   }
+
+  // function to give userIds access to projectid
+
+  async assignUsersToProject(projectId: string, userIds: string[], user: User) {
+    const project = await this.projectRepo.findOneBy({ id: projectId });
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    const uniqueUserIds = [...new Set(userIds)];
+
+    const userRepository = this.projectRepo.manager.getRepository(User);
+
+    const validUsers = await userRepository
+      .createQueryBuilder('member')
+      .where('member.id IN (:...userIds)', { userIds: uniqueUserIds })
+      .andWhere('member.isInvitationAccepted = true')
+      .andWhere('member.deletedAt IS NULL')
+      .andWhere('member.id != :excludedUserId', {
+        excludedUserId: '00000000-0000-0000-0000-000000000002',
+      })
+      .select([
+        'member.id AS id',
+        'member.email AS email',
+        'member.fullName AS "fullName"',
+        'member.isInvitationAccepted AS "isInvitationAccepted"',
+      ])
+      .getRawMany<{
+        id: string;
+        email: string;
+        fullName: string;
+        isInvitationAccepted: boolean;
+      }>();
+
+    if (validUsers.length !== uniqueUserIds.length) {
+      throw new BadRequestException('One or more user IDs are invalid');
+    }
+
+    // Skip anyone already a member of this project (defensive — shouldn't
+    // happen since the picker uses findAvailibleUsersForAssigningProject).
+    const existingMemberIds = new Set(
+      (
+        await this.projectRepo
+          .createQueryBuilder('project')
+          .innerJoin('project.members', 'member')
+          .where('project.id = :projectId', { projectId })
+          .andWhere('member.id IN (:...userIds)', { userIds: uniqueUserIds })
+          .select('member.id', 'id')
+          .getRawMany<{ id: string }>()
+      ).map((m) => m.id),
+    );
+
+    const usersToAdd = validUsers.filter((u) => !existingMemberIds.has(u.id));
+
+    if (usersToAdd.length === 0) {
+      return { success: true, added: [] };
+    }
+
+    await this.projectRepo
+      .createQueryBuilder()
+      .relation(Project, 'members')
+      .of(projectId)
+      .add(usersToAdd.map((u) => u.id));
+
+    const updatedBy: EmailRecipient = {
+      userId: user.id,
+      name: user.fullName,
+      email: user.email,
+      isInvitationAccepted: user.isInvitationAccepted,
+    };
+
+    for (const addedUser of usersToAdd) {
+      if (addedUser.id === user.id) continue; // no self-notify
+
+      const affectedUser: EmailRecipient = {
+        userId: addedUser.id,
+        name: addedUser.fullName,
+        email: addedUser.email,
+        isInvitationAccepted: addedUser.isInvitationAccepted,
+      };
+
+      await this.notificationsService.notifyProjectMembers({
+        actorId: user.id,
+        type: NotificationType.PROJECT_ASSIGNED,
+        entityType: NotificationEntityType.PROJECT,
+        entityId: projectId,
+        title: `You have been granted access to "${project.name}" by ${user.fullName}`,
+        message: `New project: ${project.name}`,
+        explicitRecipientIds: [addedUser.id],
+      });
+
+      const filtered = await this.notificationsService.filterEmailRecipients(
+        [affectedUser],
+        EmailEventType.PROJECT_ASSIGNED,
+      );
+
+      if (filtered.length > 0) {
+        await this.notificationsService.dispatch({
+          type: EmailEventType.PROJECT_ASSIGNED,
+          payload: {
+            projectName: project.name,
+            projectId: project.id,
+            assignedTo: filtered[0],
+            assignedBy: updatedBy,
+          },
+        });
+      }
+    }
+
+    return { success: true, added: usersToAdd.map((u) => u.id) };
+  }
+
+  async removeUserFromProject(projectId: string, userId: string, user: User) {
+    const project = await this.projectRepo.findOneBy({ id: projectId });
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    const membership = await this.projectRepo
+      .createQueryBuilder('project')
+      .innerJoin('project.members', 'member')
+      .where('project.id = :projectId', { projectId })
+      .andWhere('member.id = :userId', { userId })
+      .select('member.id AS id')
+      .addSelect('member.email AS email')
+      .addSelect('member.fullName AS "fullName"')
+      .addSelect('member.isInvitationAccepted AS "isInvitationAccepted"')
+      .getRawOne<{
+        id: string;
+        email: string;
+        fullName: string;
+        isInvitationAccepted: boolean;
+      }>();
+
+    if (!membership) {
+      // Not currently a member — nothing to remove, no notification.
+      return { success: true };
+    }
+
+    await this.projectRepo
+      .createQueryBuilder()
+      .relation(Project, 'members')
+      .of(projectId)
+      .remove([userId]);
+
+    if (userId === user.id) {
+      return { success: true }; // no self-notify
+    }
+
+    const affectedUser: EmailRecipient = {
+      userId: membership.id,
+      name: membership.fullName,
+      email: membership.email,
+      isInvitationAccepted: membership.isInvitationAccepted,
+    };
+
+    const updatedBy: EmailRecipient = {
+      userId: user.id,
+      name: user.fullName,
+      email: user.email,
+      isInvitationAccepted: user.isInvitationAccepted,
+    };
+
+    await this.notificationsService.notifyProjectMembers({
+      actorId: user.id,
+      type: NotificationType.PROJECT_UNASSIGNED,
+      entityType: NotificationEntityType.PROJECT,
+      entityId: projectId,
+      title: `You have been removed from "${project.name}" by ${user.fullName}`,
+      message: `Removed project: ${project.name}`,
+      explicitRecipientIds: [userId],
+    });
+
+    const filtered = await this.notificationsService.filterEmailRecipients(
+      [affectedUser],
+      EmailEventType.PROJECT_UNASSIGNED,
+    );
+
+    if (filtered.length > 0) {
+      await this.notificationsService.dispatch({
+        type: EmailEventType.PROJECT_UNASSIGNED,
+        payload: {
+          projectName: project.name,
+          unassignedFrom: filtered[0],
+          unassignedBy: updatedBy,
+        },
+      });
+    }
+
+    return { success: true };
+  }
+
+  // fucntin to revoke access to userId to that projectid
 
   async findMembersWithProjects(query: GetMembersQueryDto) {
     const { search, isInvitationAccepted, projectIds, roleId, sortBy } = query;
