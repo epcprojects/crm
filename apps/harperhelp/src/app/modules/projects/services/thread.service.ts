@@ -185,16 +185,6 @@ export class ThreadService {
       });
     }
     if (mentionedUserIds.length) {
-      await this.notificationsService.notifyProjectMembers({
-        projectId,
-        actorId: user.id,
-        type: NotificationType.MENTIONED_IN_THREAD_MESSAGE,
-        entityType: NotificationEntityType.THREAD_MESSAGE,
-        entityId: msg.id,
-        title: `You were mentioned in a thread message in project "${project.name}" by "${user.fullName}"`,
-        message: '',
-        explicitRecipientIds: mentionedUserIds,
-      });
       try {
         const mentionedUsersData = await this.repo.manager
           .getRepository('users')
@@ -209,6 +199,16 @@ export class ThreadService {
           }));
 
         if (dto.parentId) {
+          await this.notificationsService.notifyProjectMembers({
+            projectId,
+            actorId: user.id,
+            type: NotificationType.MENTIONED_IN_THREAD_REPLY,
+            entityType: NotificationEntityType.THREAD_MESSAGE,
+            entityId: msg.id,
+            title: `You were mentioned in a thread reply in project "${project.name}" by "${user.fullName}"`,
+            message: '',
+            explicitRecipientIds: mentionedUserIds,
+          });
           const filteredMentioned =
             await this.notificationsService.filterEmailRecipients(
               mentionedRecipients,
@@ -238,6 +238,16 @@ export class ThreadService {
             });
           }
         } else {
+          await this.notificationsService.notifyProjectMembers({
+            projectId,
+            actorId: user.id,
+            type: NotificationType.MENTIONED_IN_THREAD_MESSAGE,
+            entityType: NotificationEntityType.THREAD_MESSAGE,
+            entityId: msg.id,
+            title: `You were mentioned in a thread message in project "${project.name}" by "${user.fullName}"`,
+            message: '',
+            explicitRecipientIds: mentionedUserIds,
+          });
           const filteredMentioned =
             await this.notificationsService.filterEmailRecipients(
               mentionedRecipients,
@@ -334,16 +344,6 @@ export class ThreadService {
       attachments: updated.attachments,
     });
     if (newlyMentionedUserIds.length) {
-      await this.notificationsService.notifyProjectMembers({
-        projectId,
-        actorId: user.id,
-        type: NotificationType.MENTIONED_IN_THREAD_MESSAGE,
-        entityType: NotificationEntityType.THREAD_MESSAGE,
-        entityId: updated.id,
-        title: `You were mentioned in a thread message in project "${project?.name}" by "${user.fullName}"`,
-        message: '',
-        explicitRecipientIds: newlyMentionedUserIds,
-      });
       try {
         const mentionedUsersData = await this.repo.manager
           .getRepository('users')
@@ -364,6 +364,16 @@ export class ThreadService {
         };
 
         if (message.parentId) {
+          await this.notificationsService.notifyProjectMembers({
+            projectId,
+            actorId: user.id,
+            type: NotificationType.MENTIONED_IN_THREAD_REPLY,
+            entityType: NotificationEntityType.THREAD_MESSAGE,
+            entityId: updated.id,
+            title: `You were mentioned in a thread reply in project "${project?.name}" by "${user.fullName}"`,
+            message: '',
+            explicitRecipientIds: newlyMentionedUserIds,
+          });
           const filteredMentioned =
             await this.notificationsService.filterEmailRecipients(
               mentionedRecipients,
@@ -393,6 +403,16 @@ export class ThreadService {
             });
           }
         } else {
+          await this.notificationsService.notifyProjectMembers({
+            projectId,
+            actorId: user.id,
+            type: NotificationType.MENTIONED_IN_THREAD_MESSAGE,
+            entityType: NotificationEntityType.THREAD_MESSAGE,
+            entityId: updated.id,
+            title: `You were mentioned in a thread message in project "${project?.name}" by "${user.fullName}"`,
+            message: '',
+            explicitRecipientIds: newlyMentionedUserIds,
+          });
           const filteredMentioned =
             await this.notificationsService.filterEmailRecipients(
               mentionedRecipients,
@@ -686,11 +706,15 @@ export class ThreadService {
         actorId: user.id,
         explicitRecipientIds: [updated.authorId],
 
-        type: NotificationType.THREAD_MESSAGE_REACTION,
+        type: updated.parentId
+          ? NotificationType.THREAD_REPLY_REACTION
+          : NotificationType.THREAD_MESSAGE_REACTION,
         entityType: NotificationEntityType.THREAD_MESSAGE,
         entityId: updated.id,
 
-        title: `${user.fullName} reacted to your thread message in project "${project?.name}"`,
+        title: `${user.fullName} reacted to your thread ${
+          updated.parentId ? 'reply' : 'message'
+        } in project "${project?.name}"`,
         message: emoji,
       });
     }

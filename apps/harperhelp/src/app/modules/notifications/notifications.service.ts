@@ -669,6 +669,25 @@ export class NotificationsService {
     ],
   };
 
+  // Overrides entityPermissionClaims for specific NotificationType values that
+  // need a more specific permission than the rest of their entityType bucket.
+  private readonly typePermissionClaims: Partial<
+    Record<NotificationType, string[]>
+  > = {
+    [NotificationType.THREAD_REPLY]: [
+      'thread:view_replies',
+      'thread.view_replies',
+    ],
+    [NotificationType.MENTIONED_IN_THREAD_REPLY]: [
+      'thread:view_replies',
+      'thread.view_replies',
+    ],
+    [NotificationType.THREAD_REPLY_REACTION]: [
+      'thread:view_replies',
+      'thread.view_replies',
+    ],
+  };
+
   private async resolveRecipients(
     dto: NotifyProjectMembersDto,
   ): Promise<string[]> {
@@ -684,9 +703,10 @@ export class NotificationsService {
     recipientIds = recipientIds.filter((id) => id !== dto.actorId);
 
     // Permission gate — applies regardless of how the list was built
-    recipientIds = await this.filterRecipientsByEntityPermission(
+    recipientIds = await this.filterRecipientsByPermission(
       recipientIds,
       dto.entityType,
+      dto.type,
     );
 
     return recipientIds;
@@ -714,13 +734,17 @@ export class NotificationsService {
    * MEMBER) are always allowed through untouched. Every user always has a
    * role, so "no matching claim" is the only drop condition (fail-closed).
    */
-  private async filterRecipientsByEntityPermission(
+  private async filterRecipientsByPermission(
     userIds: string[],
     entityType: NotificationEntityType,
+    type: NotificationType,
   ): Promise<string[]> {
     if (!userIds.length) return userIds;
 
-    const requiredClaimTypes = this.entityPermissionClaims[entityType];
+    const requiredClaimTypes =
+      this.typePermissionClaims[type] ??
+      this.entityPermissionClaims[entityType];
+
     if (!requiredClaimTypes?.length) {
       return userIds; // not gated
     }
@@ -1230,6 +1254,13 @@ export class NotificationsService {
         EmailEventType.THREAD_MESSAGE_CREATED,
         EmailEventType.THREAD_REPLY_CREATED,
         EmailEventType.MENTIONED_IN_THREAD_MESSAGE,
+        EmailEventType.MENTIONED_IN_THREAD_REPLY,
+      ],
+    },
+    {
+      claimTypes: ['thread:view_replies', 'thread.view_replies'],
+      eventTypes: [
+        EmailEventType.THREAD_REPLY_CREATED,
         EmailEventType.MENTIONED_IN_THREAD_REPLY,
       ],
     },
