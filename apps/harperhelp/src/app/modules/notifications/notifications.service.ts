@@ -650,6 +650,44 @@ export class NotificationsService {
       .getMany();
   }
 
+  private readonly entityPermissionClaims: Partial<
+    Record<NotificationEntityType, string[]>
+  > = {
+    [NotificationEntityType.TICKET]: ['tickets:view_list', 'tickets.view_list'],
+    [NotificationEntityType.TICKET_REPLY]: [
+      'ticket_replies:view',
+      'ticket_replies.view',
+    ],
+    [NotificationEntityType.INTERNAL_MESSAGE]: [
+      'tickets:internal_chat',
+      'tickets.internal_chat',
+    ],
+    [NotificationEntityType.THREAD_MESSAGE]: ['thread:view', 'thread.view'],
+    [NotificationEntityType.EVENT]: [
+      'calendar:view_grid',
+      'calendar.view_grid',
+    ],
+  };
+
+  // Overrides entityPermissionClaims for specific NotificationType values that
+  // need a more specific permission than the rest of their entityType bucket.
+  private readonly typePermissionClaims: Partial<
+    Record<NotificationType, string[]>
+  > = {
+    [NotificationType.THREAD_REPLY]: [
+      'thread:view_replies',
+      'thread.view_replies',
+    ],
+    [NotificationType.MENTIONED_IN_THREAD_REPLY]: [
+      'thread:view_replies',
+      'thread.view_replies',
+    ],
+    [NotificationType.THREAD_REPLY_REACTION]: [
+      'thread:view_replies',
+      'thread.view_replies',
+    ],
+  };
+
   private async resolveRecipients(
     dto: NotifyProjectMembersDto,
   ): Promise<string[]> {
@@ -657,17 +695,21 @@ export class NotificationsService {
 
     if (dto.explicitRecipientIds?.length) {
       recipientIds = [...new Set(dto.explicitRecipientIds)];
-    } else if (dto.requiredClaimValue) {
-      recipientIds = await this.getProjectMemberIdsWithClaim(
-        dto.projectId,
-        dto.requiredClaimValue,
-      );
     } else {
       recipientIds = await this.getProjectMemberIds(dto.projectId);
     }
 
     // Never notify whoever caused the event
-    return recipientIds.filter((id) => id !== dto.actorId);
+    recipientIds = recipientIds.filter((id) => id !== dto.actorId);
+
+    // Permission gate — applies regardless of how the list was built
+    recipientIds = await this.filterRecipientsByPermission(
+      recipientIds,
+      dto.entityType,
+      dto.type,
+    );
+
+    return recipientIds;
   }
 
   /** All active users assigned to a project, via user_projects_join. */
@@ -684,6 +726,43 @@ export class NotificationsService {
       [projectId],
     );
     return rows.map((r) => r.usersId);
+  }
+
+  /**
+   * Drops any userId whose role doesn't carry a claim required for this
+   * entityType. Entity types with no entry in entityPermissionClaims (PROJECT,
+   * MEMBER) are always allowed through untouched. Every user always has a
+   * role, so "no matching claim" is the only drop condition (fail-closed).
+   */
+  private async filterRecipientsByPermission(
+    userIds: string[],
+    entityType: NotificationEntityType,
+    type: NotificationType,
+  ): Promise<string[]> {
+    if (!userIds.length) return userIds;
+
+    const requiredClaimTypes =
+      this.typePermissionClaims[type] ??
+      this.entityPermissionClaims[entityType];
+
+    if (!requiredClaimTypes?.length) {
+      return userIds; // not gated
+    }
+
+    const rows: { userId: string }[] = await this.dataSource.query(
+      `
+    SELECT DISTINCT ur."userId"
+    FROM user_roles ur
+    INNER JOIN role_claims rc ON rc."roleId" = ur."roleId"
+    WHERE ur."userId" = ANY($1)
+      AND rc."claimType" = ANY($2)
+      AND LOWER(rc."claimValue") = 'true'
+    `,
+      [userIds, requiredClaimTypes],
+    );
+
+    const permitted = new Set(rows.map((r) => r.userId));
+    return userIds.filter((id) => permitted.has(id));
   }
 
   /**
@@ -1030,7 +1109,13 @@ export class NotificationsService {
         async (cat) =>
           [
             cat,
-            await this.fetchCategoryPage(userId, cat, limit, undefined, unreadOnly),
+            await this.fetchCategoryPage(
+              userId,
+              cat,
+              limit,
+              undefined,
+              unreadOnly,
+            ),
           ] as const,
       ),
     );
@@ -1139,14 +1224,21 @@ export class NotificationsService {
       claimTypes: ['tickets:view_list', 'tickets.view_list'],
       eventTypes: [
         EmailEventType.TICKET_CREATED,
-        EmailEventType.TICKET_REPLY_POSTED,
+        // EmailEventType.TICKET_REPLY_POSTED,
         EmailEventType.TICKET_STATUS_UPDATED,
         EmailEventType.TICKET_PRIORITY_UPDATED,
         EmailEventType.TICKET_ASSIGNEE_UPDATED,
         EmailEventType.TICKET_DUE_DATE_UPDATED,
-        EmailEventType.MENTIONED_IN_TICKET_REPLY,
+        // EmailEventType.MENTIONED_IN_TICKET_REPLY,
         // EmailEventType.TICKET_INTERNAL_MESSAGE,
         // EmailEventType.TICKET_ATTACHMENT_ADDED,
+      ],
+    },
+    {
+      claimTypes: ['ticket_replies:view', 'ticket_replies.view'],
+      eventTypes: [
+        EmailEventType.TICKET_REPLY_POSTED,
+        EmailEventType.MENTIONED_IN_TICKET_REPLY,
       ],
     },
     {
@@ -1160,8 +1252,15 @@ export class NotificationsService {
       claimTypes: ['thread:view', 'thread.view'],
       eventTypes: [
         EmailEventType.THREAD_MESSAGE_CREATED,
-        EmailEventType.THREAD_REPLY_CREATED,
         EmailEventType.MENTIONED_IN_THREAD_MESSAGE,
+        // EmailEventType.THREAD_REPLY_CREATED,
+        // EmailEventType.MENTIONED_IN_THREAD_REPLY,
+      ],
+    },
+    {
+      claimTypes: ['thread:view_replies', 'thread.view_replies'],
+      eventTypes: [
+        EmailEventType.THREAD_REPLY_CREATED,
         EmailEventType.MENTIONED_IN_THREAD_REPLY,
       ],
     },
@@ -1293,8 +1392,8 @@ export class NotificationsService {
     );
 
     return recipients.filter((recipient) => {
-      // No preference row = send email
-      return preferenceMap.get(recipient.userId) !== false;
+      // Only send if a preference row exists and is explicitly enabled
+      return preferenceMap.get(recipient.userId) === true;
     });
   }
 

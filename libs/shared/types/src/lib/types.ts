@@ -53,6 +53,7 @@ export enum NotificationType {
   TICKET_REPLY_REACTION = 'ticket_reply_reaction',
   INTERNAL_MESSAGE_REACTION = 'internal_message_reaction',
   THREAD_MESSAGE_REACTION = 'thread_message_reaction',
+  THREAD_REPLY_REACTION = 'thread_reply_reaction',
   TICKET_STATUS_CHANGED = 'ticket_status_changed',
   TICKET_PRIORITY_CHANGED = 'ticket_priority_changed',
   TICKET_ASSIGNEE_CHANGED = 'ticket_assignee_changed',
@@ -75,6 +76,7 @@ export enum NotificationType {
   MENTIONED_IN_TICKET_REPLY = 'mentioned_in_ticket_reply',
   MENTIONED_IN_THREAD_MESSAGE = 'mentioned_in_thread_message',
   MENTIONED_IN_INTERNAL_MESSAGE = 'mentioned_in_internal_message',
+  MENTIONED_IN_THREAD_REPLY = 'mentioned_in_thread_reply',
 }
 
 export enum NotificationEntityType {
