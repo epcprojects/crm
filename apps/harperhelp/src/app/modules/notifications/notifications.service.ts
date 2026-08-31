@@ -1293,7 +1293,7 @@ export class NotificationsService {
     );
 
     return recipients.filter((recipient) => {
-      // No preference row = send email
+      // Only send if a preference row exists and is explicitly enabled
       return preferenceMap.get(recipient.userId) === true;
     });
   }
