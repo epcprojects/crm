@@ -931,8 +931,8 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `"Ticket: "${ticket.ticketRefNo}" due date changed to ${ticket.dueDate} by ${fullname}`,
-        message: `${oldTicket.dueDate} to ${dto.dueDate}`,
+        title: `"Ticket: "${ticket.ticketRefNo}" due date changed to ${newDueDateStr} by ${fullname}`,
+        message: `${oldDueDateStr} to ${newDueDateStr}`,
         // explicitRecipientIds: [...new Set(recipients)],
       });
       await this.notificationsService.dispatch({
