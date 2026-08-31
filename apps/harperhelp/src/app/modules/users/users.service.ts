@@ -479,7 +479,7 @@ export class UsersService {
             message: oldRole
               ? `Role changed: ${oldRole.name} → ${role.name}`
               : `Role set to ${role.name}`,
-            skipCreate: true,
+            // skipCreate: true,
             explicitRecipientIds: [userId],
           });
         }
