@@ -168,6 +168,7 @@ export class RolesService {
         entityId: role.id,
         title: 'Your permissions have been updated',
         message: 'Permissions changed',
+        skipCreate: true,
         explicitRecipientIds: recipientIds,
       });
     }
