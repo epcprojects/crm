@@ -1252,9 +1252,9 @@ export class NotificationsService {
       claimTypes: ['thread:view', 'thread.view'],
       eventTypes: [
         EmailEventType.THREAD_MESSAGE_CREATED,
-        EmailEventType.THREAD_REPLY_CREATED,
         EmailEventType.MENTIONED_IN_THREAD_MESSAGE,
-        EmailEventType.MENTIONED_IN_THREAD_REPLY,
+        // EmailEventType.THREAD_REPLY_CREATED,
+        // EmailEventType.MENTIONED_IN_THREAD_REPLY,
       ],
     },
     {
