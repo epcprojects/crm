@@ -130,6 +130,58 @@ export class UsersService {
     };
   }
 
+  async findById_with_password(id: string) {
+    const user = await this.userRepo.findOne({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        isActive: true,
+        isInvitationAccepted: true,
+        normalizedFullName: true,
+        normalizedEmail: true,
+        passwordHash: true,
+        updatedAt: true,
+        updatedBy: true,
+        createdAt: true,
+        createdBy: true,
+        userType: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const userRoles = await this.userRoleRepo.find({
+      where: { userId: id },
+      relations: {
+        role: {
+          roleClaims: true,
+        },
+      },
+    });
+
+    const roles = userRoles.map((ur) => ur.role.name);
+
+    const permissions = [
+      ...new Set(
+        userRoles.flatMap((ur) =>
+          ur.role.roleClaims
+            .filter((c) => c.claimValue === 'true')
+            .map((c) => c.claimType),
+        ),
+      ),
+    ];
+
+    return {
+      ...user,
+      roles,
+      permissions,
+    };
+  }
+
   async inviteToProject(dto: InviteUserDto, currentUser: any) {
     const project = await this.projectRepo.find({
       where: {

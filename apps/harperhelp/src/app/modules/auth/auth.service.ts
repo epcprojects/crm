@@ -120,7 +120,8 @@ export class AuthService {
       );
     }
 
-    const user = await this.usersService.findById(userId);
+    // const user = await this.usersService.findById(userId);
+    const user = await this.usersService.findById_with_password(userId);
 
     if (!user.passwordHash) {
       throw new BadRequestException('Password is not set for this account');
