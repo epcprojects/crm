@@ -650,6 +650,25 @@ export class NotificationsService {
       .getMany();
   }
 
+  private readonly entityPermissionClaims: Partial<
+    Record<NotificationEntityType, string[]>
+  > = {
+    [NotificationEntityType.TICKET]: ['tickets:view_list', 'tickets.view_list'],
+    [NotificationEntityType.TICKET_REPLY]: [
+      'ticket_replies:view',
+      'ticket_replies.view',
+    ],
+    [NotificationEntityType.INTERNAL_MESSAGE]: [
+      'tickets:internal_chat',
+      'tickets.internal_chat',
+    ],
+    [NotificationEntityType.THREAD_MESSAGE]: ['thread:view', 'thread.view'],
+    [NotificationEntityType.EVENT]: [
+      'calendar:view_grid',
+      'calendar.view_grid',
+    ],
+  };
+
   private async resolveRecipients(
     dto: NotifyProjectMembersDto,
   ): Promise<string[]> {
@@ -657,17 +676,20 @@ export class NotificationsService {
 
     if (dto.explicitRecipientIds?.length) {
       recipientIds = [...new Set(dto.explicitRecipientIds)];
-    } else if (dto.requiredClaimValue) {
-      recipientIds = await this.getProjectMemberIdsWithClaim(
-        dto.projectId,
-        dto.requiredClaimValue,
-      );
     } else {
       recipientIds = await this.getProjectMemberIds(dto.projectId);
     }
 
     // Never notify whoever caused the event
-    return recipientIds.filter((id) => id !== dto.actorId);
+    recipientIds = recipientIds.filter((id) => id !== dto.actorId);
+
+    // Permission gate — applies regardless of how the list was built
+    recipientIds = await this.filterRecipientsByEntityPermission(
+      recipientIds,
+      dto.entityType,
+    );
+
+    return recipientIds;
   }
 
   /** All active users assigned to a project, via user_projects_join. */
@@ -684,6 +706,39 @@ export class NotificationsService {
       [projectId],
     );
     return rows.map((r) => r.usersId);
+  }
+
+  /**
+   * Drops any userId whose role doesn't carry a claim required for this
+   * entityType. Entity types with no entry in entityPermissionClaims (PROJECT,
+   * MEMBER) are always allowed through untouched. Every user always has a
+   * role, so "no matching claim" is the only drop condition (fail-closed).
+   */
+  private async filterRecipientsByEntityPermission(
+    userIds: string[],
+    entityType: NotificationEntityType,
+  ): Promise<string[]> {
+    if (!userIds.length) return userIds;
+
+    const requiredClaimTypes = this.entityPermissionClaims[entityType];
+    if (!requiredClaimTypes?.length) {
+      return userIds; // not gated
+    }
+
+    const rows: { userId: string }[] = await this.dataSource.query(
+      `
+    SELECT DISTINCT ur."userId"
+    FROM user_roles ur
+    INNER JOIN role_claims rc ON rc."roleId" = ur."roleId"
+    WHERE ur."userId" = ANY($1)
+      AND rc."claimType" = ANY($2)
+      AND LOWER(rc."claimValue") = 'true'
+    `,
+      [userIds, requiredClaimTypes],
+    );
+
+    const permitted = new Set(rows.map((r) => r.userId));
+    return userIds.filter((id) => permitted.has(id));
   }
 
   /**
@@ -1030,7 +1085,13 @@ export class NotificationsService {
         async (cat) =>
           [
             cat,
-            await this.fetchCategoryPage(userId, cat, limit, undefined, unreadOnly),
+            await this.fetchCategoryPage(
+              userId,
+              cat,
+              limit,
+              undefined,
+              unreadOnly,
+            ),
           ] as const,
       ),
     );
