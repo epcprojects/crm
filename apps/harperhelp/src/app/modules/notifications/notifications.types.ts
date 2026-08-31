@@ -49,7 +49,7 @@ export const EMAIL_NOTIFICATION_METADATA : Record<EmailEventType, { entityType: 
 
   [EmailEventType.MENTIONED_IN_THREAD_MESSAGE]: {
     entityType: EmailNotificationEntityType.THREAD,
-    label: 'Mentioned in thread message',
+    label: 'Thread mention',
   },
 
   [EmailEventType.THREAD_REPLY_CREATED]: {
@@ -59,7 +59,7 @@ export const EMAIL_NOTIFICATION_METADATA : Record<EmailEventType, { entityType: 
 
   [EmailEventType.MENTIONED_IN_THREAD_REPLY]: {
     entityType: EmailNotificationEntityType.THREAD,
-    label: 'Mentioned in thread reply',
+    label: 'Thread reply mention',
   },
 
   [EmailEventType.TICKET_CREATED]: {
@@ -74,7 +74,7 @@ export const EMAIL_NOTIFICATION_METADATA : Record<EmailEventType, { entityType: 
 
   [EmailEventType.MENTIONED_IN_TICKET_REPLY]: {
     entityType: EmailNotificationEntityType.TICKET,
-    label: 'Mentioned in ticket reply',
+    label: 'Ticket reply mention',
   },
 
   [EmailEventType.TICKET_INTERNAL_MESSAGE]: {
@@ -84,7 +84,7 @@ export const EMAIL_NOTIFICATION_METADATA : Record<EmailEventType, { entityType: 
 
   [EmailEventType.MENTIONED_IN_TICKET_INTERNAL_MESSAGE]: {
     entityType: EmailNotificationEntityType.TICKET,
-    label: 'Mentioned in internal message',
+    label: 'Internal message mention',
   },
 
   [EmailEventType.TICKET_STATUS_UPDATED]: {
