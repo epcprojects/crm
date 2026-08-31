@@ -51,9 +51,9 @@ export async function removeProjectUser(projectId: string, userId: string) {
     return null;
   }
 
-  const payload = (await response.json().catch(() => null)) as
-    | { message?: string }
-    | null;
+  const payload = (await response.json().catch(() => null)) as {
+    message?: string;
+  } | null;
 
   if (!response.ok) {
     throw new Error(payload?.message || 'Failed to remove project user.');
@@ -109,16 +109,16 @@ export async function assignProjectUsers(projectId: string, userIds: string[]) {
       'Content-Type': 'application/json',
       Accept: 'application/json',
     },
-    body: JSON.stringify(userIds),
+    body: JSON.stringify({ userIds }),
   });
 
   if (response.status === 204) {
     return null;
   }
 
-  const payload = (await response.json().catch(() => null)) as
-    | { message?: string }
-    | null;
+  const payload = (await response.json().catch(() => null)) as {
+    message?: string;
+  } | null;
 
   if (!response.ok) {
     throw new Error(payload?.message || 'Failed to assign project users.');
