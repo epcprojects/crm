@@ -1393,7 +1393,7 @@ export class NotificationsService {
 
     return recipients.filter((recipient) => {
       // No preference row = send email
-      return preferenceMap.get(recipient.userId) !== false;
+      return preferenceMap.get(recipient.userId) === true;
     });
   }
 
