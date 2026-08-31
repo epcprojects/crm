@@ -1200,14 +1200,21 @@ export class NotificationsService {
       claimTypes: ['tickets:view_list', 'tickets.view_list'],
       eventTypes: [
         EmailEventType.TICKET_CREATED,
-        EmailEventType.TICKET_REPLY_POSTED,
+        // EmailEventType.TICKET_REPLY_POSTED,
         EmailEventType.TICKET_STATUS_UPDATED,
         EmailEventType.TICKET_PRIORITY_UPDATED,
         EmailEventType.TICKET_ASSIGNEE_UPDATED,
         EmailEventType.TICKET_DUE_DATE_UPDATED,
-        EmailEventType.MENTIONED_IN_TICKET_REPLY,
+        // EmailEventType.MENTIONED_IN_TICKET_REPLY,
         // EmailEventType.TICKET_INTERNAL_MESSAGE,
         // EmailEventType.TICKET_ATTACHMENT_ADDED,
+      ],
+    },
+    {
+      claimTypes: ['ticket_replies:view', 'ticket_replies.view'],
+      eventTypes: [
+        EmailEventType.TICKET_REPLY_POSTED,
+        EmailEventType.MENTIONED_IN_TICKET_REPLY,
       ],
     },
     {
