@@ -893,7 +893,7 @@ export class TicketsService {
         ticketId: ticket.id,
         title: `"Ticket: "${ticket.ticketRefNo}" status changed to ${ticket.status.label} by ${fullname}`,
         message: `${oldStatus.label} to ${dto.statusKey}`,
-        explicitRecipientIds: [...new Set(recipients)],
+        // explicitRecipientIds: [...new Set(recipients)],
       });
       await this.notificationsService.dispatch({
         type: EmailEventType.TICKET_STATUS_UPDATED,
@@ -931,9 +931,9 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `"Ticket: "${ticket.ticketRefNo}" due date changed to ${newDueDateStr} by ${fullname}`,
-        message: `${oldDueDateStr} to ${newDueDateStr}`,
-        explicitRecipientIds: [...new Set(recipients)],
+        title: `"Ticket: "${ticket.ticketRefNo}" due date changed to ${ticket.dueDate} by ${fullname}`,
+        message: `${oldTicket.dueDate} to ${dto.dueDate}`,
+        // explicitRecipientIds: [...new Set(recipients)],
       });
       await this.notificationsService.dispatch({
         type: EmailEventType.TICKET_DUE_DATE_UPDATED,
@@ -967,7 +967,7 @@ export class TicketsService {
         ticketId: ticket.id,
         title: `Ticket: "${ticket.ticketRefNo}" priority changed to ${ticket.priority.label} by ${fullname}`,
         message: `${oldPriority.label} to ${dto.priorityKey}`,
-        explicitRecipientIds: [...new Set(recipients)],
+        // explicitRecipientIds: [...new Set(recipients)],
       });
       await this.notificationsService.dispatch({
         type: EmailEventType.TICKET_PRIORITY_UPDATED,
@@ -1008,7 +1008,7 @@ export class TicketsService {
           ? // ? `"${user.fullName || 'Someone'}" was assigned to ticket: "${ticket.ticketRefNo}"`
             `"${ticket.ticketRefNo} is assigned to ${user.fullName} by ${fullname}"`
           : `Ticket: "${ticket.ticketRefNo}" is now unassigned`,
-        explicitRecipientIds: [...new Set(recipients)],
+        // explicitRecipientIds: [...new Set(recipients)],
       });
       // Email only when assigning to someone.
       // No email is dispatched for unassignment because
@@ -1061,7 +1061,7 @@ export class TicketsService {
         ticketId: ticket.id,
         title: `Ticket: "${ticket.ticketRefNo}" renamed to "${dto.title}" by ${fullname}`,
         message: `Previously: "${oldTicket.title}"`,
-        explicitRecipientIds: [...new Set(recipients)],
+        // explicitRecipientIds: [...new Set(recipients)],
       });
     }
 
@@ -1074,7 +1074,7 @@ export class TicketsService {
         entityId: ticket.id,
         ticketId: ticket.id,
         title: `Ticket: "${ticket.ticketRefNo}" description was updated by ${fullname}`,
-        explicitRecipientIds: [...new Set(recipients)],
+        // explicitRecipientIds: [...new Set(recipients)],
       });
     }
 
