@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Switch } from '@headlessui/react';
 import SettingsItemModal, {
@@ -14,10 +14,7 @@ import SettingsConfigCard, {
 import { appToast } from '../../../components/toast/AppToast';
 import { useIsMobile } from '../../../components/hooks/useIsMobile';
 import { useAppLoader } from '../../providers/AppLoaderProvider';
-import {
-  PermissionGuard,
-  usePermissions,
-} from '../../providers/PermissionProvider';
+import { usePermissions } from '../../providers/PermissionProvider';
 import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { PlusIcon } from 'apps/frontend/public/icons';
@@ -280,9 +277,6 @@ export default function Page() {
       });
       await queryClient.invalidateQueries({ queryKey: ['ticket-statuses'] });
     },
-    //     onError: (error) => {
-    //   appToast.error(error instanceof Error ? error.message : 'Failed to delete ticket status.');
-    // },
   });
   const updateTicketStatusMutation = useMutation({
     mutationFn: async ({
@@ -547,28 +541,7 @@ export default function Page() {
   };
 
   const isMobile = useIsMobile();
-  const projectSummaryStats = [
-    {
-      title: 'Total Statuses',
-      count: 8,
-      color: '#17B26A',
-    },
-    {
-      title: 'Priority Levels',
-      count: 8,
-      color: '#7A5AF8',
-    },
-    {
-      title: 'Tickets Using Statuses',
-      count: 3,
-      color: '#F79009',
-    },
-    {
-      title: 'Tickets Using Priorities',
-      count: 4,
-      color: '#F04438',
-    },
-  ];
+
   const visibleSettingsPanelCount =
     1 + Number(canAccessStatuses) + Number(canAccessPriorities);
   const settingsGridColumnsClass =
@@ -608,54 +581,9 @@ export default function Page() {
     emailPreferenceEntityAccess,
   );
 
-  // const settingsPageScrollRef = useRef<HTMLDivElement | null>(null);
-  // const settingsSectionRef = useRef<HTMLDivElement | null>(null);
-
-  // const [isSettingsSectionPinned, setIsSettingsSectionPinned] = useState(false);
-  // useEffect(() => {
-  //   const scrollContainer = settingsPageScrollRef.current;
-  //   const settingsSection = settingsSectionRef.current;
-
-  //   if (!scrollContainer || !settingsSection) {
-  //     return;
-  //   }
-
-  //   const updatePinnedState = () => {
-  //     if (window.innerWidth >= 1280) {
-  //       setIsSettingsSectionPinned(true);
-  //       return;
-  //     }
-
-  //     const containerRect = scrollContainer.getBoundingClientRect();
-  //     const sectionRect = settingsSection.getBoundingClientRect();
-
-  //     const hasReachedStickyPosition =
-  //       Math.ceil(sectionRect.top) <= Math.ceil(containerRect.top);
-
-  //     setIsSettingsSectionPinned(hasReachedStickyPosition);
-  //   };
-
-  //   updatePinnedState();
-
-  //   scrollContainer.addEventListener('scroll', updatePinnedState, {
-  //     passive: true,
-  //   });
-
-  //   window.addEventListener('resize', updatePinnedState);
-
-  //   return () => {
-  //     scrollContainer.removeEventListener('scroll', updatePinnedState);
-  //     window.removeEventListener('resize', updatePinnedState);
-  //   };
-  // }, [canViewSettings]);
-
   return (
     <div className="relative z-100 xl:h-dvh h-full overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0">
-      <div
-        // ref={settingsPageScrollRef}
-        className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
-        // className="flex h-full min-h-0 flex-col space-y-3 xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
-      >
+      <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
         <div className="shrink-0">
           <DashboardSummaryBanner
             imageSrc="/images/settingsPageIcon.svg"
@@ -682,14 +610,6 @@ export default function Page() {
           </p>
         </div>
         <div
-          // ref={settingsSectionRef}
-          // className={`sticky -top-5 z-20 grid h-full min-h-0 flex-none touch-pan-y auto-rows-max grid-cols-1 gap-2 bg-gray-200 scrollbar-hide md:gap-4 xl:static xl:z-auto xl:flex-1 xl:auto-rows-fr xl:grid-cols-2 xl:overflow-hidden xl:bg-transparent ${
-          //   isSettingsSectionPinned
-          //     ? 'overflow-y-auto overscroll-auto'
-          //     : 'overflow-y-hidden overscroll-auto'
-          // }`}
-          // className="sticky -top-5 z-20 grid h-full min-h-0 flex-none auto-rows-max grid-cols-1 gap-2 overflow-y-auto bg-gray-200 scrollbar-hide md:gap-4 xl:static xl:z-auto xl:flex-1 xl:auto-rows-fr xl:grid-cols-2 xl:overflow-hidden xl:bg-transparent"
-          // className="grid min-h-0 flex-1 auto-rows-max grid-cols-1 gap-2 overflow-y-auto  scrollbar-hide md:gap-4 xl:auto-rows-fr xl:grid-cols-2 xl:overflow-hidden "
           className={`grid h-auto min-h-0 flex-none auto-rows-max grid-cols-1 gap-2 overflow-visible scrollbar-hide md:gap-4 xl:h-full xl:flex-1 xl:auto-rows-fr ${settingsGridColumnsClass} xl:overflow-hidden`}
         >
           {canAccessStatuses ? (

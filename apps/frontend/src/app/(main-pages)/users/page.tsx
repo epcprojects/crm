@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useDashboardHeaderAction } from '../../../components/dashboard/dashboard-shell';
@@ -52,8 +52,6 @@ export default function Page() {
   const [searchValue, setSearchValue] = useState('');
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
-
-  // const [userList, setUserList] = useState<UserCardUser[]>([]);
   const { hasPermission } = usePermissions();
   const canViewUsers = hasPermission('users.view_list');
   const canCreateUser = hasPermission('users.create');
@@ -200,12 +198,6 @@ export default function Page() {
     };
   }, [canCreateUser, setHeaderActionOverride]);
 
-  // useEffect(() => {
-  //   if (membersQuery.data) {
-  //     setUserList(membersQuery.data);
-  //   }
-  // }, [membersQuery.data]);
-
   useEffect(() => {
     setHeaderCountOverride(
       canViewUsers ? (membersQuery.data?.summary.totalUsers ?? 0) : null,
@@ -345,18 +337,6 @@ export default function Page() {
     }
   };
 
-  type MemberSummary = {
-    totalUsers: number;
-    activeUsers: number;
-    pendingInvites: number;
-    externalUsers: number;
-  };
-
-  type ProjectMembersResponse = {
-    items: UserCardUser[];
-    summary: MemberSummary;
-  };
-
   const editingUser =
     userList.find((user) => user.id === editingUserId) ?? null;
   const deletingUser =
@@ -451,54 +431,10 @@ export default function Page() {
     });
   };
 
-  // const usersPageScrollRef = useRef<HTMLDivElement | null>(null);
-  // const usersSectionRef = useRef<HTMLDivElement | null>(null);
-
-  // const [isUsersSectionPinned, setIsUsersSectionPinned] = useState(false);
-  // useEffect(() => {
-  //   const scrollContainer = usersPageScrollRef.current;
-  //   const usersSection = usersSectionRef.current;
-
-  //   if (!scrollContainer || !usersSection) {
-  //     return;
-  //   }
-
-  //   const updatePinnedState = () => {
-  //     if (window.innerWidth >= 1280) {
-  //       setIsUsersSectionPinned(true);
-  //       return;
-  //     }
-
-  //     const containerRect = scrollContainer.getBoundingClientRect();
-  //     const sectionRect = usersSection.getBoundingClientRect();
-
-  //     const hasReachedStickyPosition =
-  //       Math.ceil(sectionRect.top) <= Math.ceil(containerRect.top);
-
-  //     setIsUsersSectionPinned(hasReachedStickyPosition);
-  //   };
-
-  //   updatePinnedState();
-
-  //   scrollContainer.addEventListener('scroll', updatePinnedState, {
-  //     passive: true,
-  //   });
-
-  //   window.addEventListener('resize', updatePinnedState);
-
-  //   return () => {
-  //     scrollContainer.removeEventListener('scroll', updatePinnedState);
-  //     window.removeEventListener('resize', updatePinnedState);
-  //   };
-  // }, []);
   return (
     <>
       <div className="relative z-100 h-full overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 xl:h-dvh">
-        <div
-          // ref={usersPageScrollRef}
-          className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
-          // className="flex h-full min-h-0 flex-col gap-3 xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
-        >
+        <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <div className="shrink-0">
             <DashboardSummaryBanner
               imageSrc="/images/UsersIcon.svg"
@@ -508,12 +444,7 @@ export default function Page() {
             />
           </div>
 
-          <div
-            // ref={usersSectionRef}
-            // className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden rounded-xl bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5"
-            // className="sticky -top-5 z-20 flex h-full min-h-0 flex-none flex-col gap-4 overflow-hidden rounded-xl bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5 xl:static xl:z-auto xl:flex-1"
-            className="flex h-auto min-h-0 flex-none flex-col gap-4 overflow-visible rounded-xl bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5 xl:h-full xl:flex-1 xl:overflow-hidden"
-          >
+          <div className="flex h-auto min-h-0 flex-none flex-col gap-4 overflow-visible rounded-xl bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5 xl:h-full xl:flex-1 xl:overflow-hidden">
             <PermissionGuard
               permission="users.view_list"
               fallback={
@@ -522,11 +453,7 @@ export default function Page() {
                 </div>
               }
             >
-              <div
-                className="flex h-auto min-h-0 flex-none flex-col gap-4 overflow-visible xl:h-full xl:flex-1 xl:overflow-hidden"
-                // className="flex h-full min-h-0 flex-col gap-4 overflow-hidden"
-              >
-                {/* {!hasSearchOrFilters && ( */}
+              <div className="flex h-auto min-h-0 flex-none flex-col gap-4 overflow-visible xl:h-full xl:flex-1 xl:overflow-hidden">
                 <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex gap-2">
                     <div className="w-full">
@@ -681,15 +608,6 @@ export default function Page() {
                         placeholder="All Projects"
                       />
                     </div>
-
-                    {/* <button
-                      type="button"
-                      onClick={clearUsersFilters}
-                      disabled={!hasSearchOrFilters}
-                      className="hidden h-10 shrink-0 items-center justify-center rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 xl:inline-flex"
-                    >
-                      Clear Filters
-                    </button> */}
                     <ThemeButton
                       type="button"
                       variant="secondary"
@@ -714,15 +632,7 @@ export default function Page() {
                   </div>
                 </div>
 
-                <div
-                  // className={`min-h-0 flex-1 touch-pan-y scrollbar-hide ${
-                  //   isUsersSectionPinned
-                  //     ? 'overflow-y-auto overscroll-contain'
-                  //     : 'overflow-y-hidden overscroll-auto xl:overflow-y-auto xl:overscroll-contain'
-                  // }`}
-                  // className="min-h-0 flex-1 overflow-y-auto scrollbar-hide"
-                  className="flex-none overflow-visible scrollbar-hide xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain"
-                >
+                <div className="flex-none overflow-visible scrollbar-hide xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain">
                   {isUsersLoading ? (
                     <UserCardsSkeleton />
                   ) : userList.length ? (
@@ -777,13 +687,6 @@ export default function Page() {
                           <PlusIcon fill="#3889FE" width="20" height="20" />
                         )
                       }
-                      // onButtonClick={
-                      //   hasSearchOrFilters
-                      //     ? () => setSearchValue('')
-                      //     : canCreateUser
-                      //       ? () => setAddUserOpen(true)
-                      //       : undefined
-                      // }
                     />
                   )}
                 </div>

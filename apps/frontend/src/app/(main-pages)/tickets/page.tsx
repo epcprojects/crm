@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PaginationState } from '@tanstack/react-table';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -122,13 +122,11 @@ export default function Page() {
     searchParams.get(TICKETS_PROJECT_QUERY_PARAM),
   );
   const selectedProjectIdsKey = selectedProjectIds.join(',');
-  // const canViewTickets = hasPermission('tickets.view_list');
 
   const ticketStatusesQuery = useQuery({
     queryKey: ['ticket-statuses'],
     queryFn: fetchTicketStatuses,
     enabled: canFilterTickets,
-    // refetchOnMount: true,
   });
 
   const ticketPrioritiesQuery = useQuery({
@@ -136,12 +134,6 @@ export default function Page() {
     queryFn: fetchTicketPriorities,
     enabled: canFilterTickets,
   });
-  // const ticketSummaryQuery = useQuery({
-  //   queryKey: ['dashboard', 'ticket-summary'],
-  //   queryFn: fetchTicketSummary,
-  //   enabled: canViewTickets,
-  // });
-
   const ticketsQuery = useQuery({
     queryKey: [
       'dashboard-project-tickets',
@@ -830,54 +822,11 @@ export default function Page() {
       status: nextViewMode === 'kanban' ? 'all' : undefined,
     });
   };
-  // const ticketsPageScrollRef = useRef<HTMLDivElement | null>(null);
-  // const ticketsSectionRef = useRef<HTMLDivElement | null>(null);
-
-  // const [isTicketsSectionPinned, setIsTicketsSectionPinned] = useState(false);
-  // useEffect(() => {
-  //   const scrollContainer = ticketsPageScrollRef.current;
-  //   const ticketsSection = ticketsSectionRef.current;
-
-  //   if (!scrollContainer || !ticketsSection) {
-  //     return;
-  //   }
-
-  //   const updatePinnedState = () => {
-  //     if (window.innerWidth >= 1280) {
-  //       setIsTicketsSectionPinned(true);
-  //       return;
-  //     }
-
-  //     const containerRect = scrollContainer.getBoundingClientRect();
-  //     const sectionRect = ticketsSection.getBoundingClientRect();
-
-  //     const hasReachedStickyPosition =
-  //       Math.ceil(sectionRect.top) <= Math.ceil(containerRect.top);
-
-  //     setIsTicketsSectionPinned(hasReachedStickyPosition);
-  //   };
-
-  //   updatePinnedState();
-
-  //   scrollContainer.addEventListener('scroll', updatePinnedState, {
-  //     passive: true,
-  //   });
-
-  //   window.addEventListener('resize', updatePinnedState);
-
-  //   return () => {
-  //     scrollContainer.removeEventListener('scroll', updatePinnedState);
-  //     window.removeEventListener('resize', updatePinnedState);
-  //   };
-  // }, []);
 
   return (
     <>
       <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 py-4">
-        <div
-          //  ref={ticketsPageScrollRef}
-          className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden overflow-y-auto overscroll-contain scrollbar-hide xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
-        >
+        <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden overflow-y-auto overscroll-contain scrollbar-hide xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <div className="shrink-0">
             <DashboardSummaryBanner
               imageSrc="/images/TicketsIcon.svg"
@@ -886,12 +835,7 @@ export default function Page() {
               stats={ticketSummaryStats}
             />
           </div>
-          <div
-            // ref={ticketsSectionRef}
-            // className="sticky -top-5 z-20 h-full min-h-0 min-w-0 flex-none overflow-hidden rounded-xl bg-white p-3 md:p-4 xl:static xl:z-auto xl:h-full xl:flex-1"
-            className="flex h-auto min-h-0 min-w-0 flex-none flex-col overflow-visible rounded-xl bg-white p-3 md:p-4 xl:h-full xl:flex-1 xl:overflow-hidden"
-            // className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-white p-3 md:p-4"
-          >
+          <div className="flex h-auto min-h-0 min-w-0 flex-none flex-col overflow-visible rounded-xl bg-white p-3 md:p-4 xl:h-full xl:flex-1 xl:overflow-hidden">
             <PermissionGuard
               permission="tickets.view_list"
               fallback={
@@ -900,10 +844,7 @@ export default function Page() {
                 </div>
               }
             >
-              <div
-                className="flex h-auto min-h-0 min-w-0 flex-col gap-4 overflow-visible xl:h-full xl:overflow-hidden"
-                // className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-hidden"
-              >
+              <div className="flex h-auto min-h-0 min-w-0 flex-col gap-4 overflow-visible xl:h-full xl:overflow-hidden">
                 <div className="flex flex-col gap-3 rounded-xl md:flex-row justify-end items-end">
                   {canFilterTickets ? (
                     <div className="flex w-full md:flex-row flex-col gap-2 justify-between">
@@ -1169,14 +1110,6 @@ export default function Page() {
                           />
                         </div>
 
-                        {/* <button
-                          type="button"
-                          onClick={clearTicketFilters}
-                          disabled={!hasActiveTicketFilters}
-                          className="hidden h-10 shrink-0 items-center justify-center rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 2xl:inline-flex"
-                        >
-                          Clear Filters
-                        </button> */}
                         <ThemeButton
                           type="button"
                           variant="secondary"
@@ -1297,10 +1230,7 @@ export default function Page() {
                   ) : null}
                 </div>
 
-                <div
-                  className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden"
-                  // className="min-h-0 min-w-0 flex-1 overflow-hidden"
-                >
+                <div className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden">
                   {ticketsQuery.isLoading ? (
                     <RecentTicketsTableSkeleton />
                   ) : viewMode === 'kanban' ? (
@@ -1332,7 +1262,6 @@ export default function Page() {
                       initialPageSize={10}
                       pageSizeOptions={[10, 25, 50, 100]}
                       pagination={pagination}
-                      // internalScrollEnabled={isTicketsSectionPinned}
                       onPaginationChange={handlePaginationChange}
                       totalRows={ticketsQuery.data?.meta.total ?? 0}
                       manualPagination
@@ -1588,41 +1517,7 @@ function isApiDashboardTicketsResponse(
       typeof (value as ApiDashboardTicketsResponse).meta === 'object',
   );
 }
-// async function fetchTicketSummary(): Promise<TicketSummary> {
-//   const response = await fetch('/api/dashboard/ticket-summary', {
-//     method: 'GET',
-//     headers: {
-//       Accept: 'application/json',
-//     },
-//     cache: 'no-store',
-//   });
 
-//   const payload = (await response.json().catch(() => null)) as
-//     | TicketSummary
-//     | { message?: string }
-//     | null;
-
-//   if (!response.ok || !isTicketSummary(payload)) {
-//     throw new Error(
-//       payload && typeof payload === 'object' && 'message' in payload
-//         ? payload.message || 'Failed to fetch ticket summary.'
-//         : 'Failed to fetch ticket summary.',
-//     );
-//   }
-
-//   return payload;
-// }
-
-// function isTicketSummary(value: unknown): value is TicketSummary {
-//   return Boolean(
-//     value &&
-//     typeof value === 'object' &&
-//     'open' in value &&
-//     'inProgress' in value &&
-//     'resolved' in value &&
-//     'critical' in value,
-//   );
-// }
 function mapApiDashboardTicketToRecentTicket(
   ticket: ApiDashboardTicket,
 ): RecentTicket {

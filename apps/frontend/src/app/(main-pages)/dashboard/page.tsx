@@ -52,7 +52,6 @@ import {
   useCreateProjectMutation,
 } from '../projects/projects.queries';
 import { useIsMobile } from '../../../components/hooks/useIsMobile';
-import Link from 'next/link';
 import {
   PermissionGuard,
   usePermissions,
@@ -638,7 +637,6 @@ export default function Page() {
         queryKey: ['project-names'],
         refetchType: 'all',
       }),
-      //projects
       queryClient.invalidateQueries({
         queryKey: ['projects'],
         refetchType: 'all',
@@ -742,7 +740,6 @@ export default function Page() {
     };
   }, [canCreateTicket, setHeaderActionOverride]);
 
-  // Event listener
   useEffect(() => {
     const handleNotificationNew = (payload: NotificationItem) => {
       void invalidateActivityRelated();
@@ -809,63 +806,13 @@ export default function Page() {
       ),
     [activityQuery.data, currentUserId],
   );
-  // const displayedProjects = (projectsQuery.data ?? []).slice(0, 0);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  // const dashboardScrollRef = useRef<HTMLDivElement | null>(null);
-  // const upcomingSectionRef = useRef<HTMLDivElement | null>(null);
-  // const [isUpcomingSectionPinned, setIsUpcomingSectionPinned] = useState(false);
-  // useEffect(() => {
-  //   const scrollContainer = dashboardScrollRef.current;
-  //   const upcomingSection = upcomingSectionRef.current;
 
-  //   if (!scrollContainer || !upcomingSection) {
-  //     return;
-  //   }
-
-  //   const updatePinnedState = () => {
-  //     if (window.innerWidth >= 1280) {
-  //       setIsUpcomingSectionPinned(true);
-  //       return;
-  //     }
-
-  //     const containerRect = scrollContainer.getBoundingClientRect();
-  //     const sectionRect = upcomingSection.getBoundingClientRect();
-
-  //     const hasReachedStickyPosition =
-  //       Math.ceil(sectionRect.top) <= Math.ceil(containerRect.top);
-
-  //     setIsUpcomingSectionPinned(hasReachedStickyPosition);
-  //   };
-
-  //   updatePinnedState();
-
-  //   scrollContainer.addEventListener('scroll', updatePinnedState, {
-  //     passive: true,
-  //   });
-
-  //   window.addEventListener('resize', updatePinnedState);
-
-  //   return () => {
-  //     scrollContainer.removeEventListener('scroll', updatePinnedState);
-  //     window.removeEventListener('resize', updatePinnedState);
-  //   };
-  // }, []);
   return (
     <div className="xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 z-100 h-full xl:h-dvh relative">
-      {/* <div className="bg-white/40 border border-white rounded-3xl p-3 flex flex-row h-full gap-3"> */}
-      <div
-        // ref={dashboardScrollRef}
-        className="flex h-full min-h-0 flex-col gap-3 xl:overflow-hidden  overflow-y-auto overscroll-contain scrollbar-hide xl:rounded-2xl  bg-gray-200 xl:flex-row xl:border xl:border-white xl:bg-white/40 xl:p-3"
-      >
+      <div className="flex h-full min-h-0 flex-col gap-3 xl:overflow-hidden  overflow-y-auto overscroll-contain scrollbar-hide xl:rounded-2xl  bg-gray-200 xl:flex-row xl:border xl:border-white xl:bg-white/40 xl:p-3">
         <PermissionGuard permission="dashboard.view_upcoming">
           <div
-            // ref={upcomingSectionRef}
-            // className={`sticky -top-5 z-20 order-2 h-full min-h-0 flex-none overflow-hidden bg-gray-200 xl:static xl:z-auto xl:order-0 xl:h-full xl:flex-none xl:bg-transparent ${
-            //   canViewRecentTickets ? 'xl:w-82.5' : 'xl:flex-1'
-            // }`}
-            // className={`order-2 min-h-0 flex-1 overflow-hidden xl:order-0 xl:h-full xl:flex-none ${
-            //   canViewRecentTickets ? 'xl:w-82.5' : 'xl:flex-1'
-            // }`}
             className={`order-2 min-h-0 flex-none overflow-visible xl:order-0 xl:h-full xl:flex-none xl:overflow-hidden ${
               canViewRecentTickets ? 'xl:w-82.5' : 'xl:flex-1'
             }`}
@@ -902,7 +849,6 @@ export default function Page() {
                         }
                       : undefined
                 }
-                // internalScrollEnabled={isUpcomingSectionPinned}
                 onTicketClick={
                   canViewTicketDetail
                     ? (ticket) =>
@@ -924,7 +870,7 @@ export default function Page() {
             {isStatsLoading ? (
               <DashboardStatsSkeleton />
             ) : (
-              <div className="flex w-full flex-col justify-between gap-2 xl:gap-6 rounded-[10px] xl:rounded-xl bg-[url('/images/DashboardComponentBgImage.jpg')]  bg-cover bg-center bg-no-repeat p-4 sm:p-5 xl:gap-8.5 xl:p-7.5">
+              <div className="flex w-full flex-col justify-between gap-2  rounded-[10px] xl:rounded-xl bg-[url('/images/DashboardComponentBgImage.jpg')]  bg-cover bg-center bg-no-repeat p-4 sm:p-5 xl:gap-8.5 xl:p-7.5">
                 <div className="flex flex-col items-start gap-2 xl:flex-row xl:gap-6">
                   <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                     <p className="text-2xl text-white font-semibold sm:text-[32px]">
@@ -1148,21 +1094,6 @@ export default function Page() {
                         )}
                       </Popover>
 
-                      {/* <button
-                        type="button"
-                        onClick={() => setFiltersOpen((current) => !current)}
-                        className={`flex items-center justify-center gap-1 rounded-lg px-4 py-2 text-sm font-semibold ring-1 transition duration-300 hover:bg-linear-to-l hover:from-royal-blue/80 hover:to-crystal-blue/80 hover:text-white ${
-                          filtersOpen
-                            ? 'bg-primary/5 text-primary ring-primary'
-                            : 'bg-white text-gray-600 ring-gray-200'
-                        }`}
-                        aria-label="Open ticket filters"
-                        aria-expanded={filtersOpen}
-                        aria-controls="recent-ticket-filters"
-                      >
-                        <FiltersIcon fill="currentColor" />
-                        <span>Filter</span>
-                      </button> */}
                       <ThemeButton
                         type="button"
                         variant="secondary"
@@ -1182,13 +1113,6 @@ export default function Page() {
 
                       {canViewTicketsList ? (
                         <div>
-                          {/* <button
-                            type="button"
-                            onClick={handleViewAllTickets}
-                            className="ring text-sm hover:ring-transparent text-primary hover:text-white ring-primary  hover:bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 font-semibold bg-white rounded-lg py-2 px-4 flex items-center justify-center"
-                          >
-                            View All
-                          </button> */}
                           <ThemeButton
                             type="button"
                             variant="secondary"
@@ -1198,54 +1122,9 @@ export default function Page() {
                           </ThemeButton>
                         </div>
                       ) : null}
-
-                      {/* <button
-                      type="button"
-                      className="border border-gray-200 bg-gray-100 py-2 px-2.5 rounded-lg flex flex-row items-center gap-0.75"
-                    >
-                      <FiltersIcon />
-                      <p className="text-xs font-medium text-black-olive">
-                        Filter
-                      </p>
-                    </button> */}
                     </div>
                   </div>
-                  {/* <div className="hidden items-center gap-2 xl:flex">
-                        <div className="  relative w-full overflow-visible">
-                          <Dropdown
-                            options={projectFilterOptions}
-                            isMulti
-                            value={selectedProjectIds}
-                            onChange={(value) =>
-                              updateRecentTicketsFilters({
-                                project: value,
-                              })
-                            }
-                            placeholder="All Projects"
-                            maxMenuHeight={150}
-                          />
-                        </div>{' '}
-                        <div className=" w-38">
-                          <Dropdown
-                            options={statusFilterOptions}
-                            value={selectedStatus}
-                            onChange={(value) =>
-                              updateRecentTicketsFilters({ status: value })
-                            }
-                            placeholder="All Status"
-                          />
-                        </div>
-                        <div className=" w-38">
-                          <Dropdown
-                            options={priorityFilterOptions}
-                            value={selectedPriority}
-                            onChange={(value) =>
-                              updateRecentTicketsFilters({ priority: value })
-                            }
-                            placeholder="All Priority"
-                          />
-                        </div>
-                      </div> */}
+
                   <div
                     className={`hidden w-full transition-[grid-template-rows,opacity,transform] duration-300 ease-out xl:grid ${
                       filtersOpen
@@ -1301,10 +1180,6 @@ export default function Page() {
                             placeholder="All Priority"
                           />
                         </div>
-
-                        {/* {selectedProject !== 'all' ||
-                        selectedStatus !== 'all' ||
-                        selectedPriority !== 'all' ? ( */}
                         <ThemeButton
                           type="button"
                           variant="secondary"
@@ -1568,17 +1443,6 @@ export default function Page() {
                     </div>
                   )}
                 </div>
-
-                {/* {projectPanelTab === 'projects' && canViewProjectsList ? (
-                  <div className="py-2 pt-1 sticky -bottom-4">
-                    <Link
-                      href="/projects"
-                      className="flex items-center justify-center rounded-xl  bg-white px-4  text-base font-semibold text-primary transition hover:border-transparent hover:bg-linear-to-l  hover:underline underline-offset-2"
-                    >
-                      View All
-                    </Link>
-                  </div>
-                ) : null} */}
               </div>
             </PermissionGuard>
           </div>
@@ -1945,11 +1809,7 @@ function DashboardActivityRow({ item }: { item: DashboardActivityItem }) {
 
       <div className="min-w-0 flex-1">
         <p className="text-sm text-gray-600">
-          {/* <span className="font-semibold text-gray-950">{item.actor}</span>{' '} */}
-          {/* {item.action}{' '} */}
-
           <span className="font-semibold text-gray-950">{item.title}</span>
-          {/* <span className="font-semibold text-gray-950">{item.title}</span> */}
         </p>
         <p className="mt-1 text-xs text-gray-400">{item.timeLabel}</p>
       </div>
@@ -2071,13 +1931,6 @@ function ActivityEntityIcon({ item }: { item: DashboardActivityItem }) {
       {getInitials(item.actor)}
     </span>
   );
-}
-function getTicketsFilterValue(value: string | null) {
-  if (!value || !value.trim()) {
-    return 'all';
-  }
-
-  return value;
 }
 
 function getTicketsProjectFilterValues(
@@ -2471,11 +2324,9 @@ function mapApiDashboardTicketToTicketListItem(
     title: ticket.title,
     date: formatTicketDate(ticket.createdAt),
     owner: projectName,
-    // ownerColor: 'border-red-200 bg-red-50 text-red-700',
     ownerColor: ticket.project?.brandColor
       ? ticket.project.brandColor
       : '#df169c',
-    // ownerColor: ticket.project?.brandColor ? `border-[${ticket.project.brandColor}] bg-[${ticket.project.brandColor}30] text-[${ticket.project.brandColor}]` : 'border-purple-200 bg-purple-50 text-purple-700',
     tag: priorityLabel,
     tagClassName: getPriorityTagClassName(priorityLabel),
     icon: getInitials(projectName),

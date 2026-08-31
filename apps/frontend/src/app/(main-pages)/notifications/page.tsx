@@ -25,7 +25,6 @@ import {
   ThreadIcon,
   TicketsIcon,
 } from '../../../../public/icons';
-import { useRouter } from 'next/navigation';
 import { getNotificationNavigationPath } from '../../../lib/notification-navigation';
 
 type NotificationFilter = 'all' | 'unread';
@@ -114,7 +113,6 @@ export default function Page() {
     );
   }, [items]);
 
-  //hamza
   const {
     markAllAsRead: syncMarkAllAsRead,
     recentNotifications,
@@ -213,7 +211,6 @@ export default function Page() {
     : page < totalPages;
 
   const isMobile = useIsMobile();
-  const router = useRouter();
 
   return (
     <div className="xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 z-100 h-full xl:h-dvh relative">
@@ -525,7 +522,6 @@ function NotificationPageRow({
       <div className="min-w-0 flex-1">
         <p className="text-sm  text-gray-600">
           <span className="font-semibold text-gray-900">{item.title}</span>{' '}
-          {/* {item.message} */}
         </p>
         <p className="mt-1 text-xs text-gray-500">
           {new Date(item.createdAt).toLocaleString()}
