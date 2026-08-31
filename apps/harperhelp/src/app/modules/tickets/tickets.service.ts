@@ -911,8 +911,14 @@ export class TicketsService {
       });
     }
 
+    const toDateStr = (d: Date | string | null | undefined) =>
+      d ? new Date(d).toISOString().slice(0, 10) : null; // "2026-08-30"
+
+    const oldDueDateStr = toDateStr(oldTicket.dueDate);
+    const newDueDateStr = toDateStr(ticket.dueDate); // after Object.assign, or dto.dueDate
+
     // DUE DATE CHANGED
-    if (dto.dueDate !== undefined && oldTicket.dueDate !== dto.dueDate) {
+    if (dto.dueDate !== undefined && oldDueDateStr !== newDueDateStr) {
       const filteredParticipants =
         await this.notificationsService.filterEmailRecipients(
           participants,
@@ -937,8 +943,8 @@ export class TicketsService {
           ticketTitle: updatedTicket.title,
           projectName: updatedTicket.project.name,
           projectId: updatedTicket.projectId,
-          previousDueDate: oldTicket.dueDate,
-          newDueDate: updatedTicket.dueDate,
+          previousDueDate: oldDueDateStr,
+          newDueDate: newDueDateStr,
           updatedBy: updatedByRecipient,
           participants: filteredParticipants,
         },
