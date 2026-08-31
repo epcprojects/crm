@@ -169,15 +169,6 @@ export default function ProjectsPage() {
       ]);
       appToast.success('Users assigned successfully.');
       setProjectUsersSearchValue('');
-      setAvailableProjectUsersSearchValue('');
-      setProjectUsersModal((current) =>
-        current
-          ? {
-              ...current,
-              mode: 'view',
-            }
-          : current,
-      );
     },
   });
 
@@ -780,7 +771,7 @@ export default function ProjectsPage() {
         projectInitials={projectUsersModal?.projectInitials ?? 'PR'}
         projectColorHex={projectUsersModal?.projectColorHex}
         users={projectUsers}
-        isLoading={projectUsersQuery.isLoading || projectUsersQuery.isFetching}
+        isLoading={projectUsersQuery.isLoading}
         removingUserId={removeProjectUserMutation.isPending ? removeProjectUserMutation.variables : null}
         onSearchChange={setProjectUsersSearchValue}
         onAssignUsers={() => {
@@ -807,10 +798,7 @@ export default function ProjectsPage() {
         }}
         projectName={projectUsersModal?.projectName ?? 'Project'}
         users={availableProjectUsers}
-        isLoading={
-          availableProjectUsersQuery.isLoading ||
-          availableProjectUsersQuery.isFetching
-        }
+        isLoading={availableProjectUsersQuery.isLoading}
         isSubmitting={assignProjectUsersMutation.isPending}
         onSearchChange={setAvailableProjectUsersSearchValue}
         onAssign={handleAssignProjectUsers}
