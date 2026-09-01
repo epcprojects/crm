@@ -92,7 +92,8 @@ export default function ProjectsPage() {
   const canCreateTicket = hasPermission('tickets.create');
   const canEditProject = hasPermission('projects.edit');
   const canDeleteProject = hasPermission('projects.delete');
-  const canViewUsers = hasPermission('users.view_list');
+  const canViewProjectUsers = hasPermission('projects.view_users');
+  const canAssignProjectUsers = hasPermission('projects.assign_users');
   const projectsQuery = useProjectsInfiniteQuery(
     canViewProjectList,
     12,
@@ -118,7 +119,7 @@ export default function ProjectsPage() {
         projectUsersModal!.projectId,
         projectUsersSearchValue.trim() || undefined,
       ),
-    enabled: Boolean(projectUsersModal?.projectId && canViewUsers),
+    enabled: Boolean(projectUsersModal?.projectId && canViewProjectUsers),
   });
   const availableProjectUsersQuery = useQuery({
     queryKey: [
@@ -134,7 +135,7 @@ export default function ProjectsPage() {
     enabled: Boolean(
       projectUsersModal?.projectId &&
         projectUsersModal?.mode === 'assign' &&
-        canViewUsers,
+        canAssignProjectUsers,
     ),
   });
   const removeProjectUserMutation = useMutation({
@@ -549,7 +550,7 @@ export default function ProjectsPage() {
                               : undefined
                           }
                           onViewUsers={
-                            canViewUsers
+                            canViewProjectUsers
                               ? () => {
                                   setProjectUsersSearchValue('');
                                   setAvailableProjectUsersSearchValue('');
@@ -564,7 +565,7 @@ export default function ProjectsPage() {
                               : undefined
                           }
                           onAssignUsers={
-                            canViewUsers
+                            canAssignProjectUsers
                               ? () => {
                                   setProjectUsersSearchValue('');
                                   setAvailableProjectUsersSearchValue('');
@@ -718,20 +719,26 @@ export default function ProjectsPage() {
             : null
         }
         onSearchChange={setProjectUsersSearchValue}
-        onAssignUsers={() => {
-          if (projectUsersModal?.mode !== 'assign') {
-            setAvailableProjectUsersSearchValue('');
-            setProjectUsersModal((current) =>
-              current
-                ? {
-                    ...current,
-                    mode: 'assign',
-                  }
-                : current,
-            );
-          }
-        }}
-        onRemoveUser={handleRemoveProjectUser}
+        onAssignUsers={
+          canAssignProjectUsers
+            ? () => {
+                if (projectUsersModal?.mode !== 'assign') {
+                  setAvailableProjectUsersSearchValue('');
+                  setProjectUsersModal((current) =>
+                    current
+                      ? {
+                          ...current,
+                          mode: 'assign',
+                        }
+                      : current,
+                  );
+                }
+              }
+            : undefined
+        }
+        onRemoveUser={
+          canAssignProjectUsers ? handleRemoveProjectUser : undefined
+        }
       />
 
       <AssignProjectUsersModal

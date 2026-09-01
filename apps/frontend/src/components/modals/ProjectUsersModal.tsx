@@ -1,9 +1,7 @@
 'use client';
 
-import Image from 'next/image';
 import { useEffect, useMemo, useState } from 'react';
 import AppModal from './AppModal';
-import ThemeButton from '../ui/ThemeButton';
 import { SearchIcon, UserAdd, UserGroup } from '../../../public/icons';
 import EmptyState from '../EmptyState';
 
@@ -66,9 +64,11 @@ export default function ProjectUsersModal({
   const emptyStateDescription = hasSearch
     ? 'No assigned users match your search. Try a different name or email.'
     : 'No users have been assigned to this project yet.';
-  const showAssignButton = !hasSearch && !isLoading && users.length === 0;
+  const showAssignButton =
+    Boolean(onAssignUsers) && !hasSearch && !isLoading && users.length === 0;
   const userRows = useMemo(() => users, [users]);
-  const showInlineAssignAction = !isLoading && userRows.length > 0;
+  const showInlineAssignAction =
+    Boolean(onAssignUsers) && !isLoading && userRows.length > 0;
 
   return (
     <AppModal
@@ -175,11 +175,16 @@ export default function ProjectUsersModal({
               </div>
             ) : (
               <EmptyState
-                buttonLabel="Assign Users"
+                buttonLabel={showAssignButton ? 'Assign Users' : undefined}
                 imageUrl={emptyStateImage}
                 title={emptyStateTitle}
-                buttonIcon={<UserGroup width="16" height="16" />}
+                buttonIcon={
+                  showAssignButton ? (
+                    <UserGroup width="16" height="16" />
+                  ) : undefined
+                }
                 description={emptyStateDescription}
+                onButtonClick={showAssignButton ? onAssignUsers : undefined}
               />
             )}
           </div>
