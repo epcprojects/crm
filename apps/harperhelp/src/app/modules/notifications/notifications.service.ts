@@ -577,12 +577,15 @@ export class NotificationsService {
     // Single multi-row INSERT, not N round trips
     const saved = await this.notificationsRepo.save(rows);
 
+    // One grouped COUNT for every affected recipient instead of one query per row.
+    const unreadCounts = await this.getUnreadCounts(
+      [...new Set(saved.map((n) => n.recipientId))],
+    );
     for (const notification of saved) {
-      const unreadCount = await this.getUnreadCount(notification.recipientId);
       this.gateway.emitNewNotification(
         notification.recipientId,
         notification,
-        unreadCount,
+        unreadCounts.get(notification.recipientId) ?? 0,
       );
     }
 
@@ -900,11 +903,33 @@ export class NotificationsService {
     });
   }
 
+  /** Same as getUnreadCount, batched for multiple recipients in one query. */
+  async getUnreadCounts(recipientIds: string[]): Promise<Map<string, number>> {
+    if (recipientIds.length === 0) return new Map();
+
+    const rows: { recipientId: string; count: string }[] =
+      await this.notificationsRepo
+        .createQueryBuilder('n')
+        .select('n.recipientId', 'recipientId')
+        .addSelect('COUNT(*)', 'count')
+        .where('n.recipientId IN (:...recipientIds)', { recipientIds })
+        .andWhere('n.isRead = false')
+        .andWhere('n.isActive = true')
+        .groupBy('n.recipientId')
+        .getRawMany();
+
+    return new Map(rows.map((r) => [r.recipientId, Number(r.count)]));
+  }
+
   async markAsRead(userId: string, notificationId: string): Promise<void> {
-    await this.notificationsRepo.update(
-      { id: notificationId, recipientId: userId },
+    // Scope the UPDATE to isRead=false too, so an already-read notification
+    // is a no-op -- no wasted write, no wasted recount below.
+    const result = await this.notificationsRepo.update(
+      { id: notificationId, recipientId: userId, isRead: false },
       { isRead: true, readAt: new Date() },
     );
+    if (!result.affected) return;
+
     const unreadCount = await this.getUnreadCount(userId);
     this.gateway.emitUnreadCount(userId, unreadCount);
   }
