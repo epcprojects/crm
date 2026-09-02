@@ -47,6 +47,7 @@ import Portal from '../modals/portal';
 import { appToast } from '../toast/AppToast';
 import ThemeButton from '../ui/ThemeButton';
 import { useIsMobile } from '../hooks/useIsMobile';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import MobileBottomNavigation from './MobileBottomNavigation';
 import MobileTopHeader from './MobileTopHeader';
 import { useNotificationsSocket } from '../../app/providers/NotificationsSocketProvider';
@@ -312,6 +313,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   >(null);
   const [isNotificationTrayOpen, setIsNotificationTrayOpen] = useState(false);
   const [notificationSearchValue, setNotificationSearchValue] = useState('');
+  const debouncedNotificationSearchValue = useDebouncedValue(
+    notificationSearchValue,
+  );
   const [notificationFilter, setNotificationFilter] = useState<
     'all' | 'unread'
   >('all');
@@ -664,8 +668,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       return;
     }
 
-    load(unreadOnly, notificationSearchValue);
-  }, [isAuthenticated, unreadOnly, load, notificationSearchValue]);
+    load(unreadOnly, debouncedNotificationSearchValue);
+  }, [isAuthenticated, unreadOnly, load, debouncedNotificationSearchValue]);
 
   useEffect(() => {
     if (!isAuthenticated || hasNotificationSearch) {

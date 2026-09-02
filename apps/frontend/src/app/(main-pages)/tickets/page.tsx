@@ -34,6 +34,7 @@ import {
   usePermissions,
 } from '../../providers/PermissionProvider';
 import { useAppLoader } from '../../providers/AppLoaderProvider';
+import { useDebouncedValue } from '../../../components/hooks/useDebouncedValue';
 import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
 import ThemeButton from '../../../components/ui/ThemeButton';
 import { RecentTicketsTableSkeleton } from '../dashboard/page';
@@ -67,6 +68,7 @@ export default function Page() {
   const [isExportingTickets, setIsExportingTickets] = useState(false);
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
+  const debouncedSearchValue = useDebouncedValue(searchValue);
   const [pagination, setPagination] = useState<PaginationState>(() => {
     const requestedPageSize = Number(
       searchParams.get(TICKETS_PAGE_SIZE_QUERY_PARAM),
@@ -140,7 +142,7 @@ export default function Page() {
       selectedStatus,
       selectedPriority,
       selectedProjectIdsKey,
-      searchValue.trim(),
+      debouncedSearchValue.trim(),
       viewMode,
       pagination.pageIndex,
       pagination.pageSize,
@@ -150,7 +152,7 @@ export default function Page() {
         statusKey: selectedStatus === 'all' ? undefined : selectedStatus,
         priorityKey: selectedPriority === 'all' ? undefined : selectedPriority,
         projectIds: selectedProjectIds.length ? selectedProjectIds : undefined,
-        search: searchValue.trim(),
+        search: debouncedSearchValue.trim(),
         page: viewMode === 'kanban' ? 1 : pagination.pageIndex + 1,
         limit: viewMode === 'kanban' ? 100 : pagination.pageSize,
       }),

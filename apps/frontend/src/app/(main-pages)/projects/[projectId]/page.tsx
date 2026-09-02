@@ -23,6 +23,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useDebouncedValue } from '../../../../components/hooks/useDebouncedValue';
 import {
   useParams,
   usePathname,
@@ -179,8 +180,10 @@ export default function ProjectDetailPage() {
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [uploadFileOpen, setUploadFileOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
+  const debouncedSearchValue = useDebouncedValue(searchValue);
   const [fileSearchValue, setFileSearchValue] = useState('');
   const [notesSearchValue, setNotesSearchValue] = useState('');
+  const debouncedNotesSearchValue = useDebouncedValue(notesSearchValue);
   const [uploadedFilesState, setUploadedFilesState] = useState<
     ProjectFileRecord[]
   >([]);
@@ -309,7 +312,7 @@ export default function ProjectDetailPage() {
     {
       page: 1,
       limit: PROJECT_NOTES_LIMIT,
-      search: notesSearchValue.trim() || undefined,
+      search: debouncedNotesSearchValue.trim() || undefined,
     },
     canViewProjectNotesList,
   );
@@ -327,7 +330,7 @@ export default function ProjectDetailPage() {
           : ticketsPagination.pageIndex + 1,
       limit:
         projectTicketsViewMode === 'kanban' ? 100 : ticketsPagination.pageSize,
-      search: searchValue.trim() || undefined,
+      search: debouncedSearchValue.trim() || undefined,
       statusKey: selectedStatus === 'all' ? undefined : selectedStatus,
       priorityKey: selectedPriority === 'all' ? undefined : selectedPriority,
     },

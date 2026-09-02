@@ -24,6 +24,7 @@ import {
 import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
 import ThemeButton from '../../../components/ui/ThemeButton';
 import EmptyState from '../../../components/EmptyState';
+import { useDebouncedValue } from '../../../components/hooks/useDebouncedValue';
 
 export default function RolesPage() {
   const { setHeaderActionOverride } = useDashboardHeaderAction();
@@ -43,9 +44,10 @@ export default function RolesPage() {
     null,
   );
   const [searchValue, setSearchValue] = useState('');
+  const debouncedSearchValue = useDebouncedValue(searchValue);
   const rolesQuery = useQuery({
-    queryKey: ['roles', searchValue.trim()],
-    queryFn: () => fetchRoles(searchValue.trim()),
+    queryKey: ['roles', debouncedSearchValue.trim()],
+    queryFn: () => fetchRoles(debouncedSearchValue.trim()),
     enabled: canViewRoles,
   });
   const permissionCatalogQuery = useQuery({

@@ -21,6 +21,7 @@ import {
   usePermissions,
 } from '../../providers/PermissionProvider';
 import { useAppLoader } from '../../providers/AppLoaderProvider';
+import { useDebouncedValue } from '../../../components/hooks/useDebouncedValue';
 import { eventEmitter } from '../../../lib/event-emitter';
 import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
 import {
@@ -50,6 +51,7 @@ export default function Page() {
   const { setLoading } = useAppLoader();
   const [addUserOpen, setAddUserOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
+  const debouncedSearchValue = useDebouncedValue(searchValue);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const { hasPermission } = usePermissions();
@@ -77,7 +79,7 @@ export default function Page() {
   const membersQuery = useQuery({
     queryKey: [
       'project-members',
-      searchValue.trim(),
+      debouncedSearchValue.trim(),
       selectedInvitationStatus,
       selectedProjectIdsKey,
       selectedRoleId,
@@ -85,7 +87,7 @@ export default function Page() {
 
     queryFn: () =>
       fetchProjectMembers(projects, {
-        search: searchValue.trim() || undefined,
+        search: debouncedSearchValue.trim() || undefined,
 
         isInvitationAccepted:
           selectedInvitationStatus === 'all'

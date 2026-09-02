@@ -12,6 +12,7 @@ import {
 } from 'react';
 import EmptyState from '../../../components/EmptyState';
 import { useIsMobile } from '../../../components/hooks/useIsMobile';
+import { useDebouncedValue } from '../../../components/hooks/useDebouncedValue';
 import { useNotificationsSocket } from '../../providers/NotificationsSocketProvider';
 import { NotificationItem } from '@harperhelp/interfaces';
 import ThemeButton from '../../../components/ui/ThemeButton';
@@ -93,6 +94,7 @@ export default function Page() {
 
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [searchValue, setSearchValue] = useState('');
+  const debouncedSearchValue = useDebouncedValue(searchValue);
   const hasSearchQuery = searchValue.trim().length > 0;
   const categoryCounts = useMemo(() => {
     return categoryOptions.reduce<Record<NotificationCategory, number>>(
@@ -176,11 +178,11 @@ export default function Page() {
 
   useEffect(() => {
     setPage(1);
-  }, [searchValue, unreadOnly]);
+  }, [debouncedSearchValue, unreadOnly]);
 
   useEffect(() => {
-    load(page, unreadOnly, searchValue);
-  }, [page, unreadOnly, load, searchValue]);
+    load(page, unreadOnly, debouncedSearchValue);
+  }, [page, unreadOnly, load, debouncedSearchValue]);
 
   useEffect(() => {
     if (recentNotifications?.length > 0 && !hasSearchQuery) {

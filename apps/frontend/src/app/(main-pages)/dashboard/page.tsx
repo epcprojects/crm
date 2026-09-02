@@ -52,6 +52,7 @@ import {
   useCreateProjectMutation,
 } from '../projects/projects.queries';
 import { useIsMobile } from '../../../components/hooks/useIsMobile';
+import { useDebouncedValue } from '../../../components/hooks/useDebouncedValue';
 import {
   PermissionGuard,
   usePermissions,
@@ -223,6 +224,7 @@ export default function Page() {
   const canEditProject = hasPermission('projects.edit');
   const canDeleteProject = hasPermission('projects.delete');
   const [searchValue, setSearchValue] = useState('');
+  const debouncedSearchValue = useDebouncedValue(searchValue);
   const [projectPanelTab, setProjectPanelTab] =
     useState<DashboardProjectPanelTabKey>(
       canViewThreads ? 'threads' : 'projects',
@@ -369,7 +371,7 @@ export default function Page() {
     queryKey: [
       'dashboard',
       'recent-tickets',
-      searchValue.trim(),
+      debouncedSearchValue.trim(),
       selectedProjectIdsKey,
       selectedStatus,
       selectedPriority,
@@ -380,7 +382,7 @@ export default function Page() {
         page: 1,
         limit: 20,
 
-        search: searchValue.trim() || undefined,
+        search: debouncedSearchValue.trim() || undefined,
         projectIds: selectedProjectIds.length ? selectedProjectIds : undefined,
 
         statusKey: selectedStatus === 'all' ? undefined : selectedStatus,

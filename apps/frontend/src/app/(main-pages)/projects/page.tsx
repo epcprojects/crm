@@ -37,6 +37,7 @@ import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanne
 import { CloseIcon, PlusIcon, SearchIcon } from '../../../../public/icons';
 import ThemeButton from '../../../components/ui/ThemeButton';
 import EmptyState from '../../../components/EmptyState';
+import { useDebouncedValue } from '../../../components/hooks/useDebouncedValue';
 import { eventEmitter } from '../../../lib/event-emitter';
 import { NotificationEntityType } from '@harperhelp/types';
 import { NotificationItem } from '@harperhelp/interfaces';
@@ -62,6 +63,7 @@ export default function ProjectsPage() {
   const { setLoading } = useAppLoader();
   const { hasPermission } = usePermissions();
   const [searchValue, setSearchValue] = useState('');
+  const debouncedSearchValue = useDebouncedValue(searchValue);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
@@ -77,10 +79,16 @@ export default function ProjectsPage() {
   const [projectUsersModal, setProjectUsersModal] =
     useState<ProjectUsersModalState | null>(null);
   const [projectUsersSearchValue, setProjectUsersSearchValue] = useState('');
+  const debouncedProjectUsersSearchValue = useDebouncedValue(
+    projectUsersSearchValue,
+  );
   const [
     availableProjectUsersSearchValue,
     setAvailableProjectUsersSearchValue,
   ] = useState('');
+  const debouncedAvailableProjectUsersSearchValue = useDebouncedValue(
+    availableProjectUsersSearchValue,
+  );
   const hasShownLoadError = useRef(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const createProjectMutation = useCreateProjectMutation();
@@ -97,7 +105,7 @@ export default function ProjectsPage() {
   const projectsQuery = useProjectsInfiniteQuery(
     canViewProjectList,
     12,
-    searchValue,
+    debouncedSearchValue,
   );
   const projectNamesQuery = useProjectNamesQuery(canCreateTicket);
   const projects = useMemo(
@@ -112,12 +120,12 @@ export default function ProjectsPage() {
     queryKey: [
       'project-users',
       projectUsersModal?.projectId,
-      projectUsersSearchValue.trim(),
+      debouncedProjectUsersSearchValue.trim(),
     ],
     queryFn: () =>
       fetchProjectUsers(
         projectUsersModal!.projectId,
-        projectUsersSearchValue.trim() || undefined,
+        debouncedProjectUsersSearchValue.trim() || undefined,
       ),
     enabled: Boolean(projectUsersModal?.projectId && canViewProjectUsers),
   });
@@ -125,12 +133,12 @@ export default function ProjectsPage() {
     queryKey: [
       'available-project-users',
       projectUsersModal?.projectId,
-      availableProjectUsersSearchValue.trim(),
+      debouncedAvailableProjectUsersSearchValue.trim(),
     ],
     queryFn: () =>
       fetchAvailableProjectUsers(
         projectUsersModal!.projectId,
-        availableProjectUsersSearchValue.trim() || undefined,
+        debouncedAvailableProjectUsersSearchValue.trim() || undefined,
       ),
     enabled: Boolean(
       projectUsersModal?.projectId &&
