@@ -51,6 +51,22 @@ Add this environment variable for the frontend app before using the Google conne
 NEXT_PUBLIC_GOOGLE_CALENDAR_CLIENT_ID=your_google_oauth_client_id
 ```
 
+## Idle logout
+
+The frontend now supports automatic logout after user inactivity.
+
+Set this optional environment variable for the frontend app:
+
+```sh
+NEXT_PUBLIC_IDLE_LOGOUT_HOURS=3
+```
+
+Notes:
+
+- The value is in hours
+- If omitted or invalid, the frontend defaults to `3` hours
+- Activity is tracked in the browser and synced across tabs for the same session
+
 Notes:
 
 - Use a Google OAuth client that allows browser-based sign-in
