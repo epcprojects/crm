@@ -1004,7 +1004,7 @@ function EmailNotificationToggleRow({
   onChange: () => void;
 }) {
   return (
-    <div className="flex items-center whitespace-nowrap gap-2">
+    <div className="flex items-start  gap-2">
       <Switch
         checked={checked}
         onChange={onChange}
