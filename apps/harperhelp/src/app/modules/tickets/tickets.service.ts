@@ -28,6 +28,7 @@ import { UsersService } from '../users/users.service';
 import { extname } from 'path';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
 import { UploadedFileDto } from '../files/dto/uploaded-file.dto';
+import { KanbanQueryDto } from './dto/kanban-query.dto';
 
 @Injectable()
 export class TicketsService {
@@ -1266,5 +1267,108 @@ export class TicketsService {
     if (!ticket) throw new NotFoundException('Ticket not found');
 
     return ticket;
+  }
+
+  async getKanbanBoard(query: KanbanQueryDto, user) {
+    const qb = this.ticketRepo
+      .createQueryBuilder('t')
+      .leftJoin('t.project', 'p')
+      .innerJoin('p.members', 'u', 'u.id = :userId', { userId: user.id })
+      .leftJoin('t.status', 's')
+      .leftJoin('t.priority', 'pr')
+      .leftJoin('t.assignee', 'a')
+      .leftJoin('t.reporter', 'r');
+
+    if (query.projectIds?.length) {
+      qb.andWhere('t.projectId IN (:...projectIds)', {
+        projectIds: query.projectIds,
+      });
+    }
+
+    if (query.priorityKey) {
+      qb.andWhere('t.priorityKey = :priorityKey', {
+        priorityKey: query.priorityKey,
+      });
+    }
+
+    if (query.search?.trim()) {
+      qb.andWhere(
+        `(t.title ILIKE :search OR t.description ILIKE :search OR t.ticketRefNo ILIKE :search)`,
+        { search: `%${query.search.trim()}%` },
+      );
+    }
+
+    // Count per status — clone BEFORE select/order so it reflects all matching tickets,
+    // same pattern as findAllProjects.
+    const countPerStatusRaw = await qb
+      .clone()
+      .select('t.statusKey', 'statusKey')
+      .addSelect('COUNT(t.id)', 'count')
+      .groupBy('t.statusKey')
+      .getRawMany();
+
+    const countsByStatusKey: Record<string, number> = {};
+    for (const row of countPerStatusRaw) {
+      const key = row.statusKey ?? row.statuskey;
+      countsByStatusKey[key] = Number(row.count);
+    }
+
+    // Pull every status (so empty columns still render on the board)
+    const allStatuses = await this.statusRepo
+      .createQueryBuilder('s')
+      .select('s.key', 'key')
+      .addSelect('s.label', 'label')
+      .addSelect('s.color', 'color')
+      .getRawMany();
+
+    const countPerStatus: Record<string, number> = {};
+    for (const row of allStatuses) {
+      countPerStatus[row.key] = countsByStatusKey[row.key] ?? 0;
+    }
+
+    // Card data
+    qb.select([
+      't.id',
+      't.title',
+      't.ticketRefNo',
+      't.dueDate',
+      't.createdAt',
+      't.statusKey',
+
+      'p.id',
+      'p.name',
+      'p.brandColor',
+
+      's.key',
+      's.label',
+      's.color',
+
+      'pr.key',
+      'pr.label',
+      'pr.color',
+
+      'a.id',
+      'a.fullName',
+      'a.email',
+    ]);
+
+    qb.orderBy('t.createdAt', 'DESC');
+
+    const tickets = await qb.getMany();
+
+    // Group into columns, seeded with every status (even zero-count ones)
+    const items: Record<string, typeof tickets> = {};
+    for (const row of allStatuses) {
+      items[row.key] = [];
+    }
+    for (const ticket of tickets) {
+      const key = ticket.statusKey ?? 'unassigned';
+      (items[key] ??= []).push(ticket);
+    }
+
+    return {
+      items,
+      countPerStatus,
+    };
   }
 }
