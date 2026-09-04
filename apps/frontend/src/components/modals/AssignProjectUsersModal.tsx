@@ -10,7 +10,10 @@ import {
   UserAdd,
   UserGroup,
 } from '../../../public/icons';
-import type { ProjectUserRecord } from './ProjectUsersModal';
+import {
+  formatProjectUserRoleName,
+  type ProjectUserRecord,
+} from './ProjectUsersModal';
 import EmptyState from '../EmptyState';
 
 type AssignProjectUsersModalProps = {
@@ -158,8 +161,13 @@ export default function AssignProjectUsersModal({
                       {getUserInitials(user.fullName)}
                     </span>
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-gray-900">
-                        {user.fullName}
+                      <p className="truncate text-sm font-semibold text-gray-900">
+                        {user.fullName}{' '}
+                        {user.roleName ? (
+                          <p className=" text-[10px] inline-block capitalize w-fit px-1.5 py-0.25 font-medium text-gray-700 rounded-full bg-gray-50 border border-gray-200">
+                            {formatProjectUserRoleName(user.roleName)}
+                          </p>
+                        ) : null}
                       </p>
                       <p className="truncate text-xs text-gray-500">
                         {user.email}

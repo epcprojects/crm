@@ -9,7 +9,17 @@ export type ProjectUserRecord = {
   id: string;
   email: string;
   fullName: string;
+  roleName?: string | null;
 };
+
+export function formatProjectUserRoleName(roleName: string) {
+  return roleName
+    .trim()
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
 
 type ProjectUsersModalProps = {
   isOpen: boolean;
@@ -146,11 +156,17 @@ export default function ProjectUsersModal({
                     className="group cursor-pointer hover:bg-gray-100 flex items-center gap-3 px-3 py-3 md:px-4"
                   >
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#EEF2FF] text-xs font-medium text-[#6941C6]">
-                      {getUserInitials(user.fullName)}
+                      {getUserInitials(user.fullName)}{' '}
                     </span>
+
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-gray-900">
-                        {user.fullName}
+                        {user.fullName}{' '}
+                        {user.roleName ? (
+                          <p className=" text-[10px] inline-block w-fit capitalize px-1.5 py-0.25 font-medium text-gray-700 rounded-full bg-gray-50 border border-gray-200">
+                            {formatProjectUserRoleName(user.roleName)}
+                          </p>
+                        ) : null}
                       </p>
                       <p className="truncate text-xs text-gray-600">
                         {user.email}
