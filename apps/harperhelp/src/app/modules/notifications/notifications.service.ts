@@ -578,9 +578,9 @@ export class NotificationsService {
     const saved = await this.notificationsRepo.save(rows);
 
     // One grouped COUNT for every affected recipient instead of one query per row.
-    const unreadCounts = await this.getUnreadCounts(
-      [...new Set(saved.map((n) => n.recipientId))],
-    );
+    const unreadCounts = await this.getUnreadCounts([
+      ...new Set(saved.map((n) => n.recipientId)),
+    ]);
     for (const notification of saved) {
       this.gateway.emitNewNotification(
         notification.recipientId,
@@ -654,40 +654,37 @@ export class NotificationsService {
   }
 
   private readonly entityPermissionClaims: Partial<
-    Record<NotificationEntityType, string[]>
+    Record<NotificationEntityType, string[][]>
   > = {
-    [NotificationEntityType.TICKET]: ['tickets:view_list', 'tickets.view_list'],
+    [NotificationEntityType.TICKET]: [
+      ['tickets:view_list', 'tickets.view_list'],
+    ],
     [NotificationEntityType.TICKET_REPLY]: [
-      'ticket_replies:view',
-      'ticket_replies.view',
+      ['tickets:view_list', 'tickets.view_list'],
+      ['ticket_replies:view', 'ticket_replies.view'],
     ],
     [NotificationEntityType.INTERNAL_MESSAGE]: [
-      'tickets:internal_chat',
-      'tickets.internal_chat',
+      ['tickets:internal_chat', 'tickets.internal_chat'],
     ],
-    [NotificationEntityType.THREAD_MESSAGE]: ['thread:view', 'thread.view'],
+    [NotificationEntityType.THREAD_MESSAGE]: [['thread:view', 'thread.view']],
     [NotificationEntityType.EVENT]: [
-      'calendar:view_grid',
-      'calendar.view_grid',
+      ['calendar:view_grid', 'calendar.view_grid'],
     ],
   };
 
   // Overrides entityPermissionClaims for specific NotificationType values that
   // need a more specific permission than the rest of their entityType bucket.
   private readonly typePermissionClaims: Partial<
-    Record<NotificationType, string[]>
+    Record<NotificationType, string[][]>
   > = {
     [NotificationType.THREAD_REPLY]: [
-      'thread:view_replies',
-      'thread.view_replies',
+      ['thread:view_replies', 'thread.view_replies'],
     ],
     [NotificationType.MENTIONED_IN_THREAD_REPLY]: [
-      'thread:view_replies',
-      'thread.view_replies',
+      ['thread:view_replies', 'thread.view_replies'],
     ],
     [NotificationType.THREAD_REPLY_REACTION]: [
-      'thread:view_replies',
-      'thread.view_replies',
+      ['thread:view_replies', 'thread.view_replies'],
     ],
   };
 
@@ -744,28 +741,44 @@ export class NotificationsService {
   ): Promise<string[]> {
     if (!userIds.length) return userIds;
 
-    const requiredClaimTypes =
+    const requiredClaimGroups =
       this.typePermissionClaims[type] ??
       this.entityPermissionClaims[entityType];
 
-    if (!requiredClaimTypes?.length) {
+    if (!requiredClaimGroups?.length) {
       return userIds; // not gated
     }
 
-    const rows: { userId: string }[] = await this.dataSource.query(
-      `
-    SELECT DISTINCT ur."userId"
+    const allClaimTypes = requiredClaimGroups.flat();
+
+    const rows: { userId: string; claimType: string }[] =
+      await this.dataSource.query(
+        `
+    SELECT ur."userId", rc."claimType"
     FROM user_roles ur
     INNER JOIN role_claims rc ON rc."roleId" = ur."roleId"
     WHERE ur."userId" = ANY($1)
       AND rc."claimType" = ANY($2)
       AND LOWER(rc."claimValue") = 'true'
     `,
-      [userIds, requiredClaimTypes],
-    );
+        [userIds, allClaimTypes],
+      );
 
-    const permitted = new Set(rows.map((r) => r.userId));
-    return userIds.filter((id) => permitted.has(id));
+    const claimsByUser = new Map<string, Set<string>>();
+    for (const row of rows) {
+      if (!claimsByUser.has(row.userId))
+        claimsByUser.set(row.userId, new Set());
+      claimsByUser.get(row.userId)!.add(row.claimType);
+    }
+
+    return userIds.filter((id) => {
+      const claims = claimsByUser.get(id);
+      if (!claims) return false;
+      // every AND-group must have at least one satisfied claim
+      return requiredClaimGroups.every((group) =>
+        group.some((claimType) => claims.has(claimType)),
+      );
+    });
   }
 
   /**
@@ -1242,48 +1255,45 @@ export class NotificationsService {
   }
 
   private readonly claimGatedNotificationGroups: Array<{
-    claimTypes: string[];
+    claimGroups: string[][]; // AND of OR-groups
     eventTypes: EmailEventType[];
   }> = [
     {
-      claimTypes: ['tickets:view_list', 'tickets.view_list'],
+      claimGroups: [['tickets:view_list', 'tickets.view_list']],
       eventTypes: [
         EmailEventType.TICKET_CREATED,
-        // EmailEventType.TICKET_REPLY_POSTED,
         EmailEventType.TICKET_STATUS_UPDATED,
         EmailEventType.TICKET_PRIORITY_UPDATED,
         EmailEventType.TICKET_ASSIGNEE_UPDATED,
         EmailEventType.TICKET_DUE_DATE_UPDATED,
-        // EmailEventType.MENTIONED_IN_TICKET_REPLY,
-        // EmailEventType.TICKET_INTERNAL_MESSAGE,
-        // EmailEventType.TICKET_ATTACHMENT_ADDED,
       ],
     },
     {
-      claimTypes: ['ticket_replies:view', 'ticket_replies.view'],
+      claimGroups: [
+        ['tickets:view_list', 'tickets.view_list'],
+        ['ticket_replies:view', 'ticket_replies.view'],
+      ],
       eventTypes: [
         EmailEventType.TICKET_REPLY_POSTED,
         EmailEventType.MENTIONED_IN_TICKET_REPLY,
       ],
     },
     {
-      claimTypes: ['tickets:internal_chat', 'tickets.internal_chat'],
+      claimGroups: [['tickets:internal_chat', 'tickets.internal_chat']],
       eventTypes: [
         EmailEventType.TICKET_INTERNAL_MESSAGE,
         EmailEventType.MENTIONED_IN_TICKET_INTERNAL_MESSAGE,
       ],
     },
     {
-      claimTypes: ['thread:view', 'thread.view'],
+      claimGroups: [['thread:view', 'thread.view']],
       eventTypes: [
         EmailEventType.THREAD_MESSAGE_CREATED,
         EmailEventType.MENTIONED_IN_THREAD_MESSAGE,
-        // EmailEventType.THREAD_REPLY_CREATED,
-        // EmailEventType.MENTIONED_IN_THREAD_REPLY,
       ],
     },
     {
-      claimTypes: ['thread:view_replies', 'thread.view_replies'],
+      claimGroups: [['thread:view_replies', 'thread.view_replies']],
       eventTypes: [
         EmailEventType.THREAD_REPLY_CREATED,
         EmailEventType.MENTIONED_IN_THREAD_REPLY,
@@ -1323,10 +1333,10 @@ export class NotificationsService {
       this.alwaysOnNotificationTypes,
     );
     for (const group of this.claimGatedNotificationGroups) {
-      const hasClaim = group.claimTypes.some(
-        (claimType) => claimMap.get(claimType) === true,
+      const satisfiesAll = group.claimGroups.every((orGroup) =>
+        orGroup.some((claimType) => claimMap.get(claimType) === true),
       );
-      if (hasClaim) {
+      if (satisfiesAll) {
         group.eventTypes.forEach((type) => permittedTypes.add(type));
       }
     }
