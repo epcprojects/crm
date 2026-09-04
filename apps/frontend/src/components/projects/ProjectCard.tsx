@@ -112,9 +112,25 @@ export default function ProjectCard({
 
         <div className="absolute top-4 end-4 flex flex-wrap items-center gap-2">
           {/* Desktop Add Ticket button */}
-
+          {onAddTicket ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onAddTicket();
+              }}
+              className="hidden shrink-0 items-center justify-center gap-1 rounded-full border border-white/70 bg-white/90 py-0.5 ps-0.5 pe-2.5 text-xs text-primary-dark opacity-0 shadow-sm transition hover:bg-white group-hover:opacity-100 xl:flex md:text-sm data-focus:opacity-100"
+              aria-label={`Add ticket for ${name}`}
+            >
+              <span className="flex h-5.5 w-5.5 items-center justify-center rounded-full bg-[#E1E5FF] md:h-6.5 md:w-6.5">
+                <TicketIcon2 />
+              </span>
+              Add Ticket
+            </button>
+          ) : null}
           {/* Mobile Add Ticket + Edit/Delete actions */}
-          {onAddTicket || onViewUsers || onAssignUsers || onEdit || onDelete ? (
+          {onViewUsers || onAssignUsers || onEdit || onDelete ? (
             <Menu
               as="div"
               className="relative group/menu flex gap-2 z-10"
@@ -123,24 +139,6 @@ export default function ProjectCard({
                 event.stopPropagation();
               }}
             >
-              {onAddTicket ? (
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    onAddTicket();
-                  }}
-                  className="hidden shrink-0 items-center justify-center gap-1 rounded-full border border-white/70 bg-white/90 py-0.5 ps-0.5 pe-2.5 text-xs text-primary-dark opacity-0 shadow-sm transition hover:bg-white group-hover:opacity-100 xl:flex md:text-sm data-focus:opacity-100"
-                  aria-label={`Add ticket for ${name}`}
-                >
-                  <span className="flex h-5.5 w-5.5 items-center justify-center rounded-full bg-[#E1E5FF] md:h-6.5 md:w-6.5">
-                    <TicketIcon2 />
-                  </span>
-                  Add Ticket
-                </button>
-              ) : null}
-
               <MenuButton
                 type="button"
                 disabled={isDeleting}
