@@ -25,6 +25,8 @@ import {
   EmailEventType,
   EmailRecipient,
 } from '../notifications/notifications.types';
+import { UploadedFileDto } from '../files/dto/uploaded-file.dto';
+import { ProjectsFilesService } from './services/project-files.service';
 
 @Injectable()
 export class ProjectsService {
@@ -41,9 +43,14 @@ export class ProjectsService {
     @InjectRepository(Ticket)
     private readonly ticketRepo: Repository<Ticket>,
     private readonly notificationsService: NotificationsService,
+    private readonly projectFilesService: ProjectsFilesService
   ) {}
 
-  async createProject(dto: CreateProjectDto, currentUser: User) {
+  async createProject(
+    dto: CreateProjectDto,
+    currentUser: User,
+    attachments?: UploadedFileDto[],
+  ) {
     const trimmedName = dto.name.trim();
     const existing = await this.projectRepo
       .createQueryBuilder('p')
@@ -72,6 +79,9 @@ export class ProjectsService {
 
     const savedProject = await this.projectRepo.save(project);
 
+    if (attachments?.length) {
+      await this.projectFilesService.uploadProjectAttachments(savedProject.id, attachments, currentUser.id);
+    }
     // get all super admins
     const superAdmins = await this.userRoleRepo
       .createQueryBuilder('ur')

@@ -53,6 +53,41 @@ export class ProjectsFilesService {
     return this.filesService.findBySource(FileSource.PROJECT, projectId);
   }
 
+  async uploadProjectAttachments(
+    projectId: string,
+    files: UploadedFileDto[],
+    userId: string,
+  ) {
+    const project = await this.projectRepo.findOne({
+      where: { id: projectId },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    for (const file of files) {
+      const rawExt = extname(file.originalName); // e.g. '.DOCX' or ''
+      const extension = rawExt ? rawExt.slice(1).toLowerCase() : 'unknown';
+
+      await this.filesService.create({
+        projectId,
+        uploadedBy: userId,
+        originalName: file.originalName,
+        storageKey: file.storageKey,
+        sizeBytes: file.sizeBytes,
+        // extension: file.mimetype.split('/')[1],
+        extension: extension,
+        mimeType: file.mimeType,
+
+        source: FileSource.PROJECT,
+        sourceId: projectId,
+
+        status: FileStatus.ACTIVE,
+      });
+    }
+  }
+
   async getProjectFiles(projectId: string, user) {
     const project = await this.projectRepo.findOne({
       where: { id: projectId },

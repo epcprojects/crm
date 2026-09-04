@@ -50,7 +50,7 @@ export class ProjectsController {
   // })
   @ApiOperation({ summary: 'Create a new project' })
   create(@Body() createProjectDto: CreateProjectDto, @GetUser() user) {
-    return this.projectsService.createProject(createProjectDto, user);
+    return this.projectsService.createProject(createProjectDto, user, createProjectDto.attachments);
   }
 
   @Get()

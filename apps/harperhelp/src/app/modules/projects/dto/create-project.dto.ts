@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString } from 'class-validator';
+import { IsArray, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { UploadedFileDto } from '../../files/dto/uploaded-file.dto';
+import { Type } from 'class-transformer';
 
 export class CreateProjectDto {
   @ApiProperty()
@@ -17,4 +19,14 @@ export class CreateProjectDto {
   @IsString()
   @ApiPropertyOptional()
   logoLetter?: string;
+
+  @ApiPropertyOptional({
+    description: 'Metadata for files already uploaded directly to S3',
+    type: [UploadedFileDto],
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => UploadedFileDto)
+  attachments?: UploadedFileDto[];
 }
