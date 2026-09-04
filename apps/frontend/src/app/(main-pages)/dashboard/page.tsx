@@ -1468,6 +1468,7 @@ export default function Page() {
                 name: projectToEdit.name,
                 category: projectToEdit.category,
                 colorHex: projectToEdit.colorHex,
+                attachments: [],
               }
             : undefined
         }

@@ -1030,6 +1030,13 @@ async function deleteProjectNote({
   return payload;
 }
 async function createProject(values: CreateProjectFormValues) {
+  const validAttachments = values.attachments.filter(
+    (attachment) => attachment.size > 0,
+  );
+  const uploadedAttachments = validAttachments.length
+    ? await uploadFilesDirectly(validAttachments, 'projects/creation')
+    : [];
+
   const response = await fetch('/api/projects', {
     method: 'POST',
     headers: {
@@ -1041,6 +1048,7 @@ async function createProject(values: CreateProjectFormValues) {
       category: values.category.toLowerCase(),
       brandColor: values.colorHex,
       logoLetter: getProjectLogoLetter(values.name),
+      attachments: uploadedAttachments,
     }),
   });
 
