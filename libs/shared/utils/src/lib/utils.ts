@@ -25,7 +25,7 @@ export const MODULE_DEFINITIONS: {
   {
     key: 'projects',
     label: 'Projects',
-    actions: ['view_list', 'view_detail', 'create', 'edit', 'delete'],
+    actions: ['view_list', 'view_detail', 'create', 'edit', 'delete', 'assign_users', 'view_users'],
   },
   {
     key: 'projects_notes',

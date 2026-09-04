@@ -28,6 +28,7 @@ import { UsersService } from '../users/users.service';
 import { extname } from 'path';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
 import { UploadedFileDto } from '../files/dto/uploaded-file.dto';
+import { KanbanQueryDto } from './dto/kanban-query.dto';
 
 @Injectable()
 export class TicketsService {
@@ -893,7 +894,7 @@ export class TicketsService {
         ticketId: ticket.id,
         title: `"Ticket: "${ticket.ticketRefNo}" status changed to ${ticket.status.label} by ${fullname}`,
         message: `${oldStatus.label} to ${dto.statusKey}`,
-        explicitRecipientIds: [...new Set(recipients)],
+        // explicitRecipientIds: [...new Set(recipients)],
       });
       await this.notificationsService.dispatch({
         type: EmailEventType.TICKET_STATUS_UPDATED,
@@ -911,13 +912,23 @@ export class TicketsService {
       });
     }
 
+    const toDateStr = (d: Date | string | null | undefined) =>
+      d ? new Date(d).toISOString().slice(0, 10) : null; // "2026-08-30"
+
+    const oldDueDateStr = toDateStr(oldTicket.dueDate);
+    const newDueDateStr = toDateStr(ticket.dueDate); // after Object.assign, or dto.dueDate
+
     // DUE DATE CHANGED
-    if (dto.dueDate !== undefined && oldTicket.dueDate !== dto.dueDate) {
+    if (dto.dueDate !== undefined && oldDueDateStr !== newDueDateStr) {
       const filteredParticipants =
         await this.notificationsService.filterEmailRecipients(
           participants,
           EmailEventType.TICKET_DUE_DATE_UPDATED,
         );
+      const message = oldDueDateStr
+        ? `${oldDueDateStr} to ${newDueDateStr}`
+        : `Set to ${newDueDateStr}`;
+
       await this.notificationsService.notifyProjectMembers({
         projectId: ticket.projectId,
         actorId: userId,
@@ -925,9 +936,9 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `"Ticket: "${ticket.ticketRefNo}" due date changed to ${ticket.dueDate} by ${fullname}`,
-        message: `${oldTicket.dueDate} to ${dto.dueDate}`,
-        explicitRecipientIds: [...new Set(recipients)],
+        title: `"Ticket: "${ticket.ticketRefNo}" due date changed to ${newDueDateStr} by ${fullname}`,
+        message: message,
+        // explicitRecipientIds: [...new Set(recipients)],
       });
       await this.notificationsService.dispatch({
         type: EmailEventType.TICKET_DUE_DATE_UPDATED,
@@ -937,8 +948,8 @@ export class TicketsService {
           ticketTitle: updatedTicket.title,
           projectName: updatedTicket.project.name,
           projectId: updatedTicket.projectId,
-          previousDueDate: oldTicket.dueDate,
-          newDueDate: updatedTicket.dueDate,
+          previousDueDate: oldDueDateStr,
+          newDueDate: newDueDateStr,
           updatedBy: updatedByRecipient,
           participants: filteredParticipants,
         },
@@ -961,7 +972,7 @@ export class TicketsService {
         ticketId: ticket.id,
         title: `Ticket: "${ticket.ticketRefNo}" priority changed to ${ticket.priority.label} by ${fullname}`,
         message: `${oldPriority.label} to ${dto.priorityKey}`,
-        explicitRecipientIds: [...new Set(recipients)],
+        // explicitRecipientIds: [...new Set(recipients)],
       });
       await this.notificationsService.dispatch({
         type: EmailEventType.TICKET_PRIORITY_UPDATED,
@@ -1002,7 +1013,7 @@ export class TicketsService {
           ? // ? `"${user.fullName || 'Someone'}" was assigned to ticket: "${ticket.ticketRefNo}"`
             `"${ticket.ticketRefNo} is assigned to ${user.fullName} by ${fullname}"`
           : `Ticket: "${ticket.ticketRefNo}" is now unassigned`,
-        explicitRecipientIds: [...new Set(recipients)],
+        // explicitRecipientIds: [...new Set(recipients)],
       });
       // Email only when assigning to someone.
       // No email is dispatched for unassignment because
@@ -1055,7 +1066,7 @@ export class TicketsService {
         ticketId: ticket.id,
         title: `Ticket: "${ticket.ticketRefNo}" renamed to "${dto.title}" by ${fullname}`,
         message: `Previously: "${oldTicket.title}"`,
-        explicitRecipientIds: [...new Set(recipients)],
+        // explicitRecipientIds: [...new Set(recipients)],
       });
     }
 
@@ -1068,7 +1079,7 @@ export class TicketsService {
         entityId: ticket.id,
         ticketId: ticket.id,
         title: `Ticket: "${ticket.ticketRefNo}" description was updated by ${fullname}`,
-        explicitRecipientIds: [...new Set(recipients)],
+        // explicitRecipientIds: [...new Set(recipients)],
       });
     }
 
@@ -1266,5 +1277,108 @@ export class TicketsService {
     if (!ticket) throw new NotFoundException('Ticket not found');
 
     return ticket;
+  }
+
+  async getKanbanBoard(query: KanbanQueryDto, user) {
+    const qb = this.ticketRepo
+      .createQueryBuilder('t')
+      .leftJoin('t.project', 'p')
+      .innerJoin('p.members', 'u', 'u.id = :userId', { userId: user.id })
+      .leftJoin('t.status', 's')
+      .leftJoin('t.priority', 'pr')
+      .leftJoin('t.assignee', 'a')
+      .leftJoin('t.reporter', 'r');
+
+    if (query.projectIds?.length) {
+      qb.andWhere('t.projectId IN (:...projectIds)', {
+        projectIds: query.projectIds,
+      });
+    }
+
+    if (query.priorityKey) {
+      qb.andWhere('t.priorityKey = :priorityKey', {
+        priorityKey: query.priorityKey,
+      });
+    }
+
+    if (query.search?.trim()) {
+      qb.andWhere(
+        `(t.title ILIKE :search OR t.description ILIKE :search OR t.ticketRefNo ILIKE :search)`,
+        { search: `%${query.search.trim()}%` },
+      );
+    }
+
+    // Count per status — clone BEFORE select/order so it reflects all matching tickets,
+    // same pattern as findAllProjects.
+    const countPerStatusRaw = await qb
+      .clone()
+      .select('t.statusKey', 'statusKey')
+      .addSelect('COUNT(t.id)', 'count')
+      .groupBy('t.statusKey')
+      .getRawMany();
+
+    const countsByStatusKey: Record<string, number> = {};
+    for (const row of countPerStatusRaw) {
+      const key = row.statusKey ?? row.statuskey;
+      countsByStatusKey[key] = Number(row.count);
+    }
+
+    // Pull every status (so empty columns still render on the board)
+    const allStatuses = await this.statusRepo
+      .createQueryBuilder('s')
+      .select('s.key', 'key')
+      .addSelect('s.label', 'label')
+      .addSelect('s.color', 'color')
+      .getRawMany();
+
+    const countPerStatus: Record<string, number> = {};
+    for (const row of allStatuses) {
+      countPerStatus[row.key] = countsByStatusKey[row.key] ?? 0;
+    }
+
+    // Card data
+    qb.select([
+      't.id',
+      't.title',
+      't.ticketRefNo',
+      't.dueDate',
+      't.createdAt',
+      't.statusKey',
+
+      'p.id',
+      'p.name',
+      'p.brandColor',
+
+      's.key',
+      's.label',
+      's.color',
+
+      'pr.key',
+      'pr.label',
+      'pr.color',
+
+      'a.id',
+      'a.fullName',
+      'a.email',
+    ]);
+
+    qb.orderBy('t.createdAt', 'DESC');
+
+    const tickets = await qb.getMany();
+
+    // Group into columns, seeded with every status (even zero-count ones)
+    const items: Record<string, typeof tickets> = {};
+    for (const row of allStatuses) {
+      items[row.key] = [];
+    }
+    for (const ticket of tickets) {
+      const key = ticket.statusKey ?? 'unassigned';
+      (items[key] ??= []).push(ticket);
+    }
+
+    return {
+      items,
+      countPerStatus,
+    };
   }
 }

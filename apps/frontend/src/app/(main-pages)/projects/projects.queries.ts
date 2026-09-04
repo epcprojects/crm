@@ -265,11 +265,29 @@ type ProjectTicketsQueryOptions = {
   search?: string;
   statusKey?: string;
   priorityKey?: string;
+  kanban?: boolean;
+};
+
+type ProjectTicketsResponse = {
+  items: RecentTicket[];
+  countPerStatus: Record<string, number>;
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+  };
 };
 
 export function useProjectTicketsQuery(
   projectId: string,
-  { page, limit, search, statusKey, priorityKey }: ProjectTicketsQueryOptions,
+  {
+    page,
+    limit,
+    search,
+    statusKey,
+    priorityKey,
+    kanban = false,
+  }: ProjectTicketsQueryOptions,
   enabled = true,
 ) {
   return useQuery({
@@ -281,16 +299,19 @@ export function useProjectTicketsQuery(
       search ?? '',
       statusKey ?? 'all',
       priorityKey ?? 'all',
+      kanban,
     ],
 
     queryFn: () =>
-      fetchProjectTickets(projectId, {
-        page,
-        limit,
-        search,
-        statusKey,
-        priorityKey,
-      }),
+      kanban
+        ? fetchProjectTicketsKanban(projectId, { search, priorityKey })
+        : fetchProjectTickets(projectId, {
+            page,
+            limit,
+            search,
+            statusKey,
+            priorityKey,
+          }),
 
     enabled: Boolean(projectId && enabled),
   });
@@ -1009,6 +1030,13 @@ async function deleteProjectNote({
   return payload;
 }
 async function createProject(values: CreateProjectFormValues) {
+  const validAttachments = values.attachments.filter(
+    (attachment) => attachment.size > 0,
+  );
+  const uploadedAttachments = validAttachments.length
+    ? await uploadFilesDirectly(validAttachments, 'projects/creation')
+    : [];
+
   const response = await fetch('/api/projects', {
     method: 'POST',
     headers: {
@@ -1020,6 +1048,7 @@ async function createProject(values: CreateProjectFormValues) {
       category: values.category.toLowerCase(),
       brandColor: values.colorHex,
       logoLetter: getProjectLogoLetter(values.name),
+      attachments: uploadedAttachments,
     }),
   });
 
@@ -1206,7 +1235,7 @@ type ApiProjectTicket = {
     fullName?: string;
     name?: string;
   } | null;
-  reporter: {
+  reporter?: {
     id: string;
     email: string;
     fullName: string;
@@ -1243,6 +1272,11 @@ type ApiProjectTicketsResponse = {
     page: number;
     limit: number;
   };
+};
+
+type ApiProjectTicketsKanbanResponse = {
+  items: Record<string, ApiProjectTicket[]>;
+  countPerStatus?: Record<string, number>;
 };
 
 async function fetchProjectThread(projectId: string, currentUserId: string) {
@@ -1398,7 +1432,7 @@ async function fetchProjectThreadDetail(
 async function fetchProjectTickets(
   projectId: string,
   { page, limit, search, statusKey, priorityKey }: ProjectTicketsQueryOptions,
-) {
+): Promise<ProjectTicketsResponse> {
   const searchParams = new URLSearchParams({
     page: String(page),
     limit: String(limit),
@@ -1442,7 +1476,64 @@ async function fetchProjectTickets(
 
   return {
     items: payload.items.map(mapApiProjectTicketToRecentTicket),
+    countPerStatus: {},
     meta: payload.meta,
+  };
+}
+
+async function fetchProjectTicketsKanban(
+  projectId: string,
+  {
+    search,
+    priorityKey,
+  }: Pick<ProjectTicketsQueryOptions, 'search' | 'priorityKey'>,
+): Promise<ProjectTicketsResponse> {
+  const searchParams = new URLSearchParams();
+
+  searchParams.append('projectIds', projectId);
+
+  if (search?.trim()) {
+    searchParams.set('search', search.trim());
+  }
+
+  if (priorityKey) {
+    searchParams.set('priorityKey', priorityKey);
+  }
+
+  const response = await fetch(
+    `/api/dashboard/tickets/kanban?${searchParams.toString()}`,
+    {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+    },
+  );
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiProjectTicketsKanbanResponse
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !isApiProjectTicketsKanbanResponse(payload)) {
+    throw new Error(
+      isProjectErrorPayload(payload)
+        ? payload.message || 'Failed to fetch project Kanban tickets.'
+        : 'Failed to fetch project Kanban tickets.',
+    );
+  }
+
+  const tickets = Object.values(payload.items).flat();
+
+  return {
+    items: tickets.map(mapApiProjectTicketToRecentTicket),
+    countPerStatus: payload.countPerStatus ?? {},
+    meta: {
+      total: tickets.length,
+      page: 1,
+      limit: tickets.length,
+    },
   };
 }
 
@@ -1756,9 +1847,9 @@ function mapApiProjectTicketToRecentTicket(
     ),
     sortDate: ticket.dueDate ?? ticket.createdAt,
     reporter: {
-      id: ticket.reporter.id,
-      email: ticket.reporter.email,
-      fullName: ticket.reporter.fullName,
+      id: ticket.reporter?.id ?? '',
+      email: ticket.reporter?.email ?? '',
+      fullName: ticket.reporter?.fullName ?? 'Unknown',
     },
   };
 }
@@ -1800,6 +1891,18 @@ function isApiProjectTicketsResponse(
       'items' in value &&
       'meta' in value &&
       Array.isArray((value as ApiProjectTicketsResponse).items),
+  );
+}
+
+function isApiProjectTicketsKanbanResponse(
+  value: unknown,
+): value is ApiProjectTicketsKanbanResponse {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      (value as ApiProjectTicketsKanbanResponse).items &&
+      !Array.isArray((value as ApiProjectTicketsKanbanResponse).items) &&
+      typeof (value as ApiProjectTicketsKanbanResponse).items === 'object',
   );
 }
 

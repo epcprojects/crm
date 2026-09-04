@@ -14,6 +14,8 @@ import { RoleClaim } from './entities/role.claim.entity';
 import { UserRole } from '../users/entities/user.roles.entity';
 import { GetRoleQueryDTO } from './dto/get-role-query.dto';
 import { NotificationsService } from '../notifications/notifications.service';
+import { User } from '../users/entities/user.entity';
+import { NotificationEntityType, NotificationType } from '@harperhelp/types';
 // import { User } from '../users/entities/user.entity';
 
 @Injectable()
@@ -115,7 +117,7 @@ export class RolesService {
     return claims.map((c) => c.permission);
   }
 
-  async update(id: string, dto: UpdateRoleDto): Promise<Role> {
+  async update(id: string, dto: UpdateRoleDto, currentUser: User): Promise<Role> {
     const role = await this.findOne(id);
 
     if (dto.name) {
@@ -151,8 +153,26 @@ export class RolesService {
           userRole.userId,
         );
       }
-    }
+      // Notify everyone holding this role, except the actor who made the change.
+    // One batched call — notifyProjectMembers already does a single
+    // multi-row insert + single activity log entry for a recipient list.
+    const recipientIds = affectedUserRoles
+      .map((userRole) => userRole.userId)
+      .filter((userId) => userId !== currentUser.id);
 
+    if (recipientIds.length > 0) {
+      await this.notificationsService.notifyProjectMembers({
+        actorId: currentUser.id,
+        type: NotificationType.MEMBER_PERMISSIONS_UPDATED,
+        entityType: NotificationEntityType.MEMBER,
+        entityId: role.id,
+        title: 'Your permissions have been updated',
+        message: 'Permissions changed',
+        skipCreate: true,
+        explicitRecipientIds: recipientIds,
+      });
+    }
+  }
     return this.findOne(id);
   }
 

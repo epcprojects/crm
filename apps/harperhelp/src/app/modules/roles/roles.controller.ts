@@ -68,8 +68,8 @@ export class RolesController {
   @Patch(':id')
   // @Roles(SystemRoles.SUPER_ADMIN)
   @ApiOperation({ summary: 'Update existing role.' })
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() updateRoleDto: UpdateRoleDto) {
-    return this.rolesService.update(id, updateRoleDto);
+  update(@Param('id', ParseUUIDPipe) id: string, @GetUser() currentUser, @Body() updateRoleDto: UpdateRoleDto) {
+    return this.rolesService.update(id, updateRoleDto, currentUser);
   }
 
   @Delete(':id')

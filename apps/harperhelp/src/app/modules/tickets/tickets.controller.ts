@@ -32,6 +32,7 @@ import { CalendarView } from '@harperhelp/types';
 import { CalendarQueryDto } from '../calendar/dto/calendar-query.dto';
 import { FileSizeGuard } from '../../../common/guards/file-size.guard';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
+import { KanbanQueryDto } from './dto/kanban-query.dto';
 
 @Controller('projects/:pid/tickets')
 @ApiBearerAuth('JWT-auth')
@@ -230,5 +231,14 @@ export class DashboardController {
   @ApiOperation({ summary: 'Get upcoming tickets' })
   getUpcomingTickets(@Query() query: PaginationQueryDto, @GetUser() user) {
     return this.ticketsService.getUpcomingTickets(query, user);
+  }
+
+  @Get('tickets/kanban')
+  @ApiOperation({
+    summary:
+      'Get Kanban board — tickets grouped by status, with per-status counts',
+  })
+  getKanbanBoard(@Query() query: KanbanQueryDto, @GetUser() user) {
+    return this.ticketsService.getKanbanBoard(query, user);
   }
 }

@@ -577,12 +577,15 @@ export class NotificationsService {
     // Single multi-row INSERT, not N round trips
     const saved = await this.notificationsRepo.save(rows);
 
+    // One grouped COUNT for every affected recipient instead of one query per row.
+    const unreadCounts = await this.getUnreadCounts([
+      ...new Set(saved.map((n) => n.recipientId)),
+    ]);
     for (const notification of saved) {
-      const unreadCount = await this.getUnreadCount(notification.recipientId);
       this.gateway.emitNewNotification(
         notification.recipientId,
         notification,
-        unreadCount,
+        unreadCounts.get(notification.recipientId) ?? 0,
       );
     }
 
@@ -650,6 +653,41 @@ export class NotificationsService {
       .getMany();
   }
 
+  private readonly entityPermissionClaims: Partial<
+    Record<NotificationEntityType, string[][]>
+  > = {
+    [NotificationEntityType.TICKET]: [
+      ['tickets:view_list', 'tickets.view_list'],
+    ],
+    [NotificationEntityType.TICKET_REPLY]: [
+      ['tickets:view_list', 'tickets.view_list'],
+      ['ticket_replies:view', 'ticket_replies.view'],
+    ],
+    [NotificationEntityType.INTERNAL_MESSAGE]: [
+      ['tickets:internal_chat', 'tickets.internal_chat'],
+    ],
+    [NotificationEntityType.THREAD_MESSAGE]: [['thread:view', 'thread.view']],
+    [NotificationEntityType.EVENT]: [
+      ['calendar:view_grid', 'calendar.view_grid'],
+    ],
+  };
+
+  // Overrides entityPermissionClaims for specific NotificationType values that
+  // need a more specific permission than the rest of their entityType bucket.
+  private readonly typePermissionClaims: Partial<
+    Record<NotificationType, string[][]>
+  > = {
+    [NotificationType.THREAD_REPLY]: [
+      ['thread:view_replies', 'thread.view_replies'],
+    ],
+    [NotificationType.MENTIONED_IN_THREAD_REPLY]: [
+      ['thread:view_replies', 'thread.view_replies'],
+    ],
+    [NotificationType.THREAD_REPLY_REACTION]: [
+      ['thread:view_replies', 'thread.view_replies'],
+    ],
+  };
+
   private async resolveRecipients(
     dto: NotifyProjectMembersDto,
   ): Promise<string[]> {
@@ -657,17 +695,21 @@ export class NotificationsService {
 
     if (dto.explicitRecipientIds?.length) {
       recipientIds = [...new Set(dto.explicitRecipientIds)];
-    } else if (dto.requiredClaimValue) {
-      recipientIds = await this.getProjectMemberIdsWithClaim(
-        dto.projectId,
-        dto.requiredClaimValue,
-      );
     } else {
       recipientIds = await this.getProjectMemberIds(dto.projectId);
     }
 
     // Never notify whoever caused the event
-    return recipientIds.filter((id) => id !== dto.actorId);
+    recipientIds = recipientIds.filter((id) => id !== dto.actorId);
+
+    // Permission gate — applies regardless of how the list was built
+    recipientIds = await this.filterRecipientsByPermission(
+      recipientIds,
+      dto.entityType,
+      dto.type,
+    );
+
+    return recipientIds;
   }
 
   /** All active users assigned to a project, via user_projects_join. */
@@ -684,6 +726,59 @@ export class NotificationsService {
       [projectId],
     );
     return rows.map((r) => r.usersId);
+  }
+
+  /**
+   * Drops any userId whose role doesn't carry a claim required for this
+   * entityType. Entity types with no entry in entityPermissionClaims (PROJECT,
+   * MEMBER) are always allowed through untouched. Every user always has a
+   * role, so "no matching claim" is the only drop condition (fail-closed).
+   */
+  private async filterRecipientsByPermission(
+    userIds: string[],
+    entityType: NotificationEntityType,
+    type: NotificationType,
+  ): Promise<string[]> {
+    if (!userIds.length) return userIds;
+
+    const requiredClaimGroups =
+      this.typePermissionClaims[type] ??
+      this.entityPermissionClaims[entityType];
+
+    if (!requiredClaimGroups?.length) {
+      return userIds; // not gated
+    }
+
+    const allClaimTypes = requiredClaimGroups.flat();
+
+    const rows: { userId: string; claimType: string }[] =
+      await this.dataSource.query(
+        `
+    SELECT ur."userId", rc."claimType"
+    FROM user_roles ur
+    INNER JOIN role_claims rc ON rc."roleId" = ur."roleId"
+    WHERE ur."userId" = ANY($1)
+      AND rc."claimType" = ANY($2)
+      AND LOWER(rc."claimValue") = 'true'
+    `,
+        [userIds, allClaimTypes],
+      );
+
+    const claimsByUser = new Map<string, Set<string>>();
+    for (const row of rows) {
+      if (!claimsByUser.has(row.userId))
+        claimsByUser.set(row.userId, new Set());
+      claimsByUser.get(row.userId)!.add(row.claimType);
+    }
+
+    return userIds.filter((id) => {
+      const claims = claimsByUser.get(id);
+      if (!claims) return false;
+      // every AND-group must have at least one satisfied claim
+      return requiredClaimGroups.every((group) =>
+        group.some((claimType) => claims.has(claimType)),
+      );
+    });
   }
 
   /**
@@ -821,11 +916,33 @@ export class NotificationsService {
     });
   }
 
+  /** Same as getUnreadCount, batched for multiple recipients in one query. */
+  async getUnreadCounts(recipientIds: string[]): Promise<Map<string, number>> {
+    if (recipientIds.length === 0) return new Map();
+
+    const rows: { recipientId: string; count: string }[] =
+      await this.notificationsRepo
+        .createQueryBuilder('n')
+        .select('n.recipientId', 'recipientId')
+        .addSelect('COUNT(*)', 'count')
+        .where('n.recipientId IN (:...recipientIds)', { recipientIds })
+        .andWhere('n.isRead = false')
+        .andWhere('n.isActive = true')
+        .groupBy('n.recipientId')
+        .getRawMany();
+
+    return new Map(rows.map((r) => [r.recipientId, Number(r.count)]));
+  }
+
   async markAsRead(userId: string, notificationId: string): Promise<void> {
-    await this.notificationsRepo.update(
-      { id: notificationId, recipientId: userId },
+    // Scope the UPDATE to isRead=false too, so an already-read notification
+    // is a no-op -- no wasted write, no wasted recount below.
+    const result = await this.notificationsRepo.update(
+      { id: notificationId, recipientId: userId, isRead: false },
       { isRead: true, readAt: new Date() },
     );
+    if (!result.affected) return;
+
     const unreadCount = await this.getUnreadCount(userId);
     this.gateway.emitUnreadCount(userId, unreadCount);
   }
@@ -1030,7 +1147,13 @@ export class NotificationsService {
         async (cat) =>
           [
             cat,
-            await this.fetchCategoryPage(userId, cat, limit, undefined, unreadOnly),
+            await this.fetchCategoryPage(
+              userId,
+              cat,
+              limit,
+              undefined,
+              unreadOnly,
+            ),
           ] as const,
       ),
     );
@@ -1132,36 +1255,47 @@ export class NotificationsService {
   }
 
   private readonly claimGatedNotificationGroups: Array<{
-    claimTypes: string[];
+    claimGroups: string[][]; // AND of OR-groups
     eventTypes: EmailEventType[];
   }> = [
     {
-      claimTypes: ['tickets:view_list', 'tickets.view_list'],
+      claimGroups: [['tickets:view_list', 'tickets.view_list']],
       eventTypes: [
         EmailEventType.TICKET_CREATED,
-        EmailEventType.TICKET_REPLY_POSTED,
         EmailEventType.TICKET_STATUS_UPDATED,
         EmailEventType.TICKET_PRIORITY_UPDATED,
         EmailEventType.TICKET_ASSIGNEE_UPDATED,
         EmailEventType.TICKET_DUE_DATE_UPDATED,
-        EmailEventType.MENTIONED_IN_TICKET_REPLY,
-        // EmailEventType.TICKET_INTERNAL_MESSAGE,
-        // EmailEventType.TICKET_ATTACHMENT_ADDED,
       ],
     },
     {
-      claimTypes: ['tickets:internal_chat', 'tickets.internal_chat'],
+      claimGroups: [
+        ['tickets:view_list', 'tickets.view_list'],
+        ['ticket_replies:view', 'ticket_replies.view'],
+      ],
+      eventTypes: [
+        EmailEventType.TICKET_REPLY_POSTED,
+        EmailEventType.MENTIONED_IN_TICKET_REPLY,
+      ],
+    },
+    {
+      claimGroups: [['tickets:internal_chat', 'tickets.internal_chat']],
       eventTypes: [
         EmailEventType.TICKET_INTERNAL_MESSAGE,
         EmailEventType.MENTIONED_IN_TICKET_INTERNAL_MESSAGE,
       ],
     },
     {
-      claimTypes: ['thread:view', 'thread.view'],
+      claimGroups: [['thread:view', 'thread.view']],
       eventTypes: [
         EmailEventType.THREAD_MESSAGE_CREATED,
-        EmailEventType.THREAD_REPLY_CREATED,
         EmailEventType.MENTIONED_IN_THREAD_MESSAGE,
+      ],
+    },
+    {
+      claimGroups: [['thread:view_replies', 'thread.view_replies']],
+      eventTypes: [
+        EmailEventType.THREAD_REPLY_CREATED,
         EmailEventType.MENTIONED_IN_THREAD_REPLY,
       ],
     },
@@ -1199,10 +1333,10 @@ export class NotificationsService {
       this.alwaysOnNotificationTypes,
     );
     for (const group of this.claimGatedNotificationGroups) {
-      const hasClaim = group.claimTypes.some(
-        (claimType) => claimMap.get(claimType) === true,
+      const satisfiesAll = group.claimGroups.every((orGroup) =>
+        orGroup.some((claimType) => claimMap.get(claimType) === true),
       );
-      if (hasClaim) {
+      if (satisfiesAll) {
         group.eventTypes.forEach((type) => permittedTypes.add(type));
       }
     }
@@ -1293,8 +1427,8 @@ export class NotificationsService {
     );
 
     return recipients.filter((recipient) => {
-      // No preference row = send email
-      return preferenceMap.get(recipient.userId) !== false;
+      // Only send if a preference row exists and is explicitly enabled
+      return preferenceMap.get(recipient.userId) === true;
     });
   }
 

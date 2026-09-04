@@ -83,7 +83,7 @@ const AppModal: React.FC<AppModalProps> = ({
   hideCrossButton = false,
   centerFooter = false,
   headerAction,
-   fullScreen = false,
+  fullScreen = false,
 }) => {
   useBodyScrollLock(isOpen);
   const isMobile = useIsMobile();
@@ -100,16 +100,16 @@ const AppModal: React.FC<AppModalProps> = ({
       : 'md:w-[600px]';
 
   const modalClasses = fullScreen
-  ? `${baseModalClasses} container  p-5 mx-auto`
-  : position === ModalPosition.RIGHT
-    ? `${baseModalClasses} w-full ${rightModalWidth} md:rounded-xl overflow-hidden`
-    : `${baseModalClasses} sm:h-fit relative w-full sm:max-h-[90dvh] md:m-auto container md:mx-4 ${sizeClasses[size]}`;
+    ? `${baseModalClasses} container  p-5 mx-auto`
+    : position === ModalPosition.RIGHT
+      ? `${baseModalClasses} w-full ${rightModalWidth} md:rounded-xl overflow-hidden`
+      : `${baseModalClasses} sm:h-fit relative w-full sm:max-h-[90dvh] md:m-auto container md:mx-4 ${sizeClasses[size]}`;
 
- const wrapperClasses = fullScreen
-  ? `${baseWrapperClasses} items-stretch justify-stretch p-0`
-  : position === ModalPosition.RIGHT
-    ? `${baseWrapperClasses} justify-end items-stretch p-0 md:p-5`
-    : `${baseWrapperClasses} min-h-dvh top-0 items-end md:items-center justify-center`;
+  const wrapperClasses = fullScreen
+    ? `${baseWrapperClasses} items-stretch justify-stretch p-0`
+    : position === ModalPosition.RIGHT
+      ? `${baseWrapperClasses} justify-end items-stretch p-0 md:p-5`
+      : `${baseWrapperClasses} min-h-dvh top-0 items-end md:items-center justify-center`;
 
   return (
     <Portal>
@@ -128,12 +128,12 @@ const AppModal: React.FC<AppModalProps> = ({
                 {icon}
                 <div>
                   <h2
-                    className={`text-base md:text-xl text-black font-semibold`}
+                    className={`text-base md:text-lg text-black font-semibold`}
                   >
                     {title}
                   </h2>
                   {subtitle && (
-                    <h3 className="text-gray-800 text-xs font-normal md:text-sm">
+                    <h3 className="text-gray-800 text-xs font-normal md:text-xs">
                       {subtitle}
                     </h3>
                   )}
@@ -169,7 +169,7 @@ const AppModal: React.FC<AppModalProps> = ({
 
           <div
             className={`flex-1 bg-white ${
-              scrollNeeded && 'overflow-y-auto tiny-scrollbar max-h-dvh'
+              scrollNeeded && 'overflow-y-auto scrollbar-thin max-h-dvh'
             } ${!showFooter && (roundedCustom ? 'sm:rounded-b-[20px]' : 'sm:rounded-b-xl')} ${
               !showHeader &&
               (roundedCustom ? 'sm:rounded-t-[20px]' : 'sm:rounded-t-xl')

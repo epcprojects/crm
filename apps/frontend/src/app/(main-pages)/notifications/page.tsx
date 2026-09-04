@@ -2,20 +2,13 @@
 
 import { Tab, TabGroup, TabList } from '@headlessui/react';
 import Link from 'next/link';
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useCallback,
-  ReactNode,
-} from 'react';
+import { useEffect, useRef, useState, useCallback, ReactNode } from 'react';
 import EmptyState from '../../../components/EmptyState';
 import { useIsMobile } from '../../../components/hooks/useIsMobile';
+import { useDebouncedValue } from '../../../components/hooks/useDebouncedValue';
 import { useNotificationsSocket } from '../../providers/NotificationsSocketProvider';
 import { NotificationItem } from '@harperhelp/interfaces';
-import ThemeButton from '../../../components/ui/ThemeButton';
-import { NotificationCategory } from '../../../components/dashboard/notification-data';
+import type { NotificationGroupCategory } from '../../../components/dashboard/NotificationTray';
 import {
   ChatIcon,
   CloseIcon,
@@ -25,17 +18,43 @@ import {
   ThreadIcon,
   TicketsIcon,
 } from '../../../../public/icons';
-import { useRouter } from 'next/navigation';
 import { getNotificationNavigationPath } from '../../../lib/notification-navigation';
 
 type NotificationFilter = 'all' | 'unread';
 
 const PAGE_SIZE = 20;
 
+type CategorizedNotificationPage = {
+  items: NotificationItem[];
+  cursor: string | null;
+  hasMore: boolean;
+};
+
+type NotificationCountSummary = {
+  totalCount: number;
+  totalUnreadCount: number;
+  categoryUnreadCounts: Record<NotificationGroupCategory, number>;
+};
+
+const emptyCategoryUnreadCounts: Record<NotificationGroupCategory, number> = {
+  tickets: 0,
+  projects: 0,
+  ticket_replies: 0,
+  threads: 0,
+  internal_messages: 0,
+  mentions: 0,
+  members: 0,
+  events: 0,
+};
+
 export default function Page() {
   const [activeFilter, setActiveFilter] = useState<NotificationFilter>('all');
   const [activeCategory, setActiveCategory] =
-    useState<NotificationCategory>('tickets');
+    useState<NotificationGroupCategory>('tickets');
+  const notificationListRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const isFetchingRef = useRef(false);
+  const activeLoadIdRef = useRef(0);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const activeTabIndex = activeFilter === 'unread' ? 1 : 0;
   const [indicatorStyle, setIndicatorStyle] = useState({
@@ -59,7 +78,7 @@ export default function Page() {
   }, [activeTabIndex]);
 
   type CategoryOption = {
-    key: NotificationCategory;
+    key: NotificationGroupCategory;
     label: string;
     icon: ReactNode;
   };
@@ -76,8 +95,8 @@ export default function Page() {
       icon: <ProjectsIcon fill="currentColor" opacity="0" />,
     },
     {
-      key: 'messages',
-      label: 'Messages',
+      key: 'ticket_replies',
+      label: 'Ticket Replies',
       icon: <ChatIcon />,
     },
     {
@@ -86,109 +105,246 @@ export default function Page() {
       icon: <ThreadIcon />,
     },
     {
-      key: 'files',
-      label: 'Files',
+      key: 'internal_messages',
+      label: 'Internal Messages',
       icon: <FileIcon />,
     },
+    { key: 'mentions', label: 'Mentions', icon: <ChatIcon /> },
+    {
+      key: 'members',
+      label: 'Members',
+      icon: <ProjectsIcon fill="currentColor" opacity="0" />,
+    },
+    { key: 'events', label: 'Events', icon: <FileIcon /> },
   ];
 
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [searchValue, setSearchValue] = useState('');
+  const debouncedSearchValue = useDebouncedValue(searchValue);
   const hasSearchQuery = searchValue.trim().length > 0;
-  const categoryCounts = useMemo(() => {
-    return categoryOptions.reduce<Record<NotificationCategory, number>>(
-      (counts, category) => {
-        counts[category.key] = items.filter((notification) =>
-          notification.entityType.includes(category.key),
-        ).length;
 
-        return counts;
-      },
-      {
-        tickets: 0,
-        projects: 0,
-        messages: 0,
-        threads: 0,
-        files: 0,
-      },
-    );
-  }, [items]);
+  const { markAllAsRead: syncMarkAllAsRead, recentNotifications } =
+    useNotificationsSocket();
 
-  //hamza
-  const {
-    markAllAsRead: syncMarkAllAsRead,
-    recentNotifications,
-    unreadCount: socketUnreadCount,
-  } = useNotificationsSocket();
-
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [allNotificationCount, setAllNotificationCount] = useState(0);
   const [searchAllCount, setSearchAllCount] = useState(0);
   const [searchUnreadCount, setSearchUnreadCount] = useState(0);
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [notificationCountSummary, setNotificationCountSummary] =
+    useState<NotificationCountSummary>({
+      totalCount: 0,
+      totalUnreadCount: 0,
+      categoryUnreadCounts: emptyCategoryUnreadCounts,
+    });
+
+  const loadNotificationCounts = useCallback(async () => {
+    const response = await fetch('/api/notifications/unread-count', {
+      cache: 'no-store',
+    });
+    const payload = (await response.json().catch(() => null)) as {
+      totalCount?: number;
+      totalUnreadCount?: number;
+      categoryUnreadCounts?: Partial<Record<NotificationGroupCategory, number>>;
+    } | null;
+
+    if (!response.ok || !payload) {
+      return;
+    }
+
+    const categoryUnreadCounts = payload.categoryUnreadCounts ?? {};
+
+    setNotificationCountSummary({
+      totalCount: Number(payload.totalCount ?? 0),
+      totalUnreadCount: Number(payload.totalUnreadCount ?? 0),
+      categoryUnreadCounts: {
+        tickets: Number(categoryUnreadCounts.tickets ?? 0),
+        projects: Number(categoryUnreadCounts.projects ?? 0),
+        ticket_replies: Number(categoryUnreadCounts.ticket_replies ?? 0),
+        threads: Number(categoryUnreadCounts.threads ?? 0),
+        internal_messages: Number(categoryUnreadCounts.internal_messages ?? 0),
+        mentions: Number(categoryUnreadCounts.mentions ?? 0),
+        members: Number(categoryUnreadCounts.members ?? 0),
+        events: Number(categoryUnreadCounts.events ?? 0),
+      },
+    });
+  }, []);
+
+  useEffect(() => {
+    void loadNotificationCounts();
+  }, [loadNotificationCounts]);
 
   const load = useCallback(
-    async (p: number, unreadOnlyFlag: boolean, searchTerm: string) => {
-      setLoading(true);
-
-      const normalizedSearch = searchTerm.trim();
-
-      if (normalizedSearch) {
-        const searchParams = new URLSearchParams({
-          query: normalizedSearch,
-          limit: String(PAGE_SIZE),
-          offset: String((p - 1) * PAGE_SIZE),
-        });
-
-        const res = await fetch(`/api/notifications/search?${searchParams}`, {
-          cache: 'no-store',
-        });
-        const data = (await res.json().catch(() => [])) as NotificationItem[];
-        const nextItems = unreadOnlyFlag
-          ? data.filter((item) => !item.isRead)
-          : data;
-        const unreadItemsCount = data.filter((item) => !item.isRead).length;
-
-        setItems(nextItems);
-        setTotal((p - 1) * PAGE_SIZE + nextItems.length);
-        setSearchAllCount(data.length);
-        setSearchUnreadCount(unreadItemsCount);
-        setLoading(false);
+    async (
+      append: boolean,
+      unreadOnlyFlag: boolean,
+      searchTerm: string,
+      category: NotificationGroupCategory,
+      cursor: string | null,
+      offset: number,
+    ) => {
+      if (append && isFetchingRef.current) {
         return;
       }
 
-      const res = await fetch(
-        `/api/notifications?page=${p}&limit=${PAGE_SIZE}&unreadOnly=${unreadOnlyFlag}`,
-        {
-          cache: 'no-store',
-        },
-      );
-      const data = await res.json();
-      setItems(data.items);
-      setTotal(data.total);
-      if (!unreadOnlyFlag) {
-        setAllNotificationCount(data.total);
+      const loadId = ++activeLoadIdRef.current;
+      isFetchingRef.current = true;
+
+      if (append) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
       }
-      setLoading(false);
+
+      const normalizedSearch = searchTerm.trim();
+
+      try {
+        if (normalizedSearch) {
+          const searchParams = new URLSearchParams({
+            query: normalizedSearch,
+            limit: String(PAGE_SIZE),
+            offset: String(offset),
+          });
+          const res = await fetch(`/api/notifications/search?${searchParams}`, {
+            cache: 'no-store',
+          });
+          const data = (await res.json().catch(() => [])) as NotificationItem[];
+          const nextItems = unreadOnlyFlag
+            ? data.filter((item) => !item.isRead)
+            : data;
+          const unreadItemsCount = data.filter((item) => !item.isRead).length;
+
+          if (loadId !== activeLoadIdRef.current) {
+            return;
+          }
+
+          setItems((previousItems) =>
+            append
+              ? mergeNotificationsById(previousItems, nextItems)
+              : nextItems,
+          );
+          setSearchAllCount((currentCount) =>
+            append ? currentCount + data.length : data.length,
+          );
+          setSearchUnreadCount((currentCount) =>
+            append ? currentCount + unreadItemsCount : unreadItemsCount,
+          );
+          setHasMore(data.length === PAGE_SIZE);
+          return;
+        }
+
+        const categoryParams = new URLSearchParams({
+          category,
+          limit: String(PAGE_SIZE),
+          unreadOnly: String(unreadOnlyFlag),
+        });
+
+        if (cursor) {
+          categoryParams.set('cursor', cursor);
+        }
+
+        const res = await fetch(`/api/notifications?${categoryParams}`, {
+          cache: 'no-store',
+        });
+        const data = (await res.json().catch(() => null)) as
+          | CategorizedNotificationPage
+          | { message?: string }
+          | null;
+
+        if (!res.ok || !isCategorizedNotificationPage(data)) {
+          if (loadId !== activeLoadIdRef.current) {
+            return;
+          }
+
+          if (!append) {
+            setItems([]);
+          }
+          setHasMore(false);
+          return;
+        }
+
+        if (loadId !== activeLoadIdRef.current) {
+          return;
+        }
+
+        setItems((previousItems) =>
+          append
+            ? mergeNotificationsById(previousItems, data.items)
+            : data.items,
+        );
+        setHasMore(data.hasMore);
+        setNextCursor(data.cursor);
+      } finally {
+        if (loadId === activeLoadIdRef.current) {
+          isFetchingRef.current = false;
+          setLoading(false);
+          setLoadingMore(false);
+        }
+      }
     },
     [],
   );
 
   useEffect(() => {
-    setPage(1);
-  }, [searchValue, unreadOnly]);
+    setItems([]);
+    setHasMore(false);
+    setNextCursor(null);
+    setSearchAllCount(0);
+    setSearchUnreadCount(0);
+    void load(false, unreadOnly, debouncedSearchValue, activeCategory, null, 0);
+  }, [activeCategory, debouncedSearchValue, load, unreadOnly]);
 
   useEffect(() => {
-    load(page, unreadOnly, searchValue);
-  }, [page, unreadOnly, load, searchValue]);
+    const loadMoreElement = loadMoreRef.current;
 
-  useEffect(() => {
-    if (recentNotifications?.length > 0 && !hasSearchQuery) {
-      setItems((prev) => mergeNotificationsById(recentNotifications, prev));
+    if (!loadMoreElement || !hasMore || loading || loadingMore) {
+      return;
     }
-  }, [hasSearchQuery, recentNotifications]);
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting) {
+          return;
+        }
+
+        void load(
+          true,
+          unreadOnly,
+          debouncedSearchValue,
+          activeCategory,
+          nextCursor,
+          items.length,
+        );
+      },
+      { root: notificationListRef.current, rootMargin: '240px' },
+    );
+
+    observer.observe(loadMoreElement);
+
+    return () => observer.disconnect();
+  }, [
+    activeCategory,
+    debouncedSearchValue,
+    hasMore,
+    items.length,
+    load,
+    loading,
+    loadingMore,
+    nextCursor,
+    unreadOnly,
+  ]);
+
+  useEffect(() => {
+    if (recentNotifications?.length > 0) {
+      void loadNotificationCounts();
+
+      if (!hasSearchQuery) {
+        setItems((prev) => mergeNotificationsById(recentNotifications, prev));
+      }
+    }
+  }, [hasSearchQuery, loadNotificationCounts, recentNotifications]);
 
   async function handleMarkAsRead(id: string) {
     setItems((prev) =>
@@ -197,29 +353,30 @@ export default function Page() {
     await fetch(`/api/notifications/${id}/read`, {
       method: 'PATCH',
     });
+    void loadNotificationCounts();
   }
 
   async function handleMarkAllAsRead() {
     setItems((prev) => prev?.map((n) => ({ ...n, isRead: true })));
-    syncMarkAllAsRead();
+    await syncMarkAllAsRead();
+    await loadNotificationCounts();
   }
 
-  const unreadCount = hasSearchQuery ? searchUnreadCount : socketUnreadCount;
-  const totalCount = hasSearchQuery ? searchAllCount : allNotificationCount;
-
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const canGoToNextPage = hasSearchQuery
-    ? items.length === PAGE_SIZE
-    : page < totalPages;
+  const categoryCounts = notificationCountSummary.categoryUnreadCounts;
+  const unreadCount = hasSearchQuery
+    ? searchUnreadCount
+    : notificationCountSummary.totalUnreadCount;
+  const totalCount = hasSearchQuery
+    ? searchAllCount
+    : notificationCountSummary.totalCount;
 
   const isMobile = useIsMobile();
-  const router = useRouter();
 
   return (
     <div className="xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 z-100 h-full xl:h-dvh relative">
       <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden xl:rounded-2xl  bg-gray-200 xl:flex-row xl:border xl:border-white xl:bg-white/40 xl:p-3">
         {!isMobile && (
-          <aside className="hidden  w-full shrink-0 flex-col overflow-hidden rounded-[20px] border border-white bg-white py-4 px-4.5 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] xl:w-[288px]">
+          <aside className="flex  w-full shrink-0 flex-col overflow-hidden rounded-[20px] border border-white bg-white py-4 px-4.5 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] xl:w-[288px]">
             <TabGroup
               selectedIndex={activeTabIndex}
               onChange={(index) => {
@@ -385,11 +542,12 @@ export default function Page() {
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div
+            ref={notificationListRef}
+            className="min-h-0 flex-1 overflow-y-auto scrollbar-thin"
+          >
             {loading ? (
-              <div className="py-12 text-center text-sm text-gray-400">
-                Loading…
-              </div>
+              <NotificationPageSkeleton />
             ) : items.length ? (
               items.map((notification) => (
                 <NotificationPageRow
@@ -410,26 +568,11 @@ export default function Page() {
                 />
               </div>
             )}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-3 mt-6">
-                <ThemeButton
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => p - 1)}
-                >
-                  Previous
-                </ThemeButton>
-                <span className="text-sm text-gray-500">
-                  Page {page} of {totalPages}
-                </span>
-
-                <ThemeButton
-                  disabled={!canGoToNextPage}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                </ThemeButton>
+            {hasMore ? (
+              <div ref={loadMoreRef} className="px-4 py-3">
+                {loadingMore ? <NotificationLoadMoreSkeleton /> : null}
               </div>
-            )}
+            ) : null}
           </div>
         </section>
       </div>
@@ -525,7 +668,6 @@ function NotificationPageRow({
       <div className="min-w-0 flex-1">
         <p className="text-sm  text-gray-600">
           <span className="font-semibold text-gray-900">{item.title}</span>{' '}
-          {/* {item.message} */}
         </p>
         <p className="mt-1 text-xs text-gray-500">
           {new Date(item.createdAt).toLocaleString()}
@@ -536,6 +678,34 @@ function NotificationPageRow({
         {!item.isRead ? <MailUnreadIcon /> : <MailReadIcon />}
       </div>
     </article>
+  );
+}
+
+function NotificationPageSkeleton() {
+  return (
+    <div className="animate-pulse divide-y divide-gray-200">
+      {Array.from({ length: 8 }).map((_, index) => (
+        <div
+          key={index}
+          className="flex items-start gap-4 px-3 py-3 sm:px-4 md:py-4"
+        >
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="h-4 w-3/5 rounded bg-gray-200" />
+            <div className="h-3 w-28 rounded bg-gray-100" />
+          </div>
+          <div className="mt-0.5 h-5 w-5 shrink-0 rounded-full bg-gray-100" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function NotificationLoadMoreSkeleton() {
+  return (
+    <div className="animate-pulse space-y-2">
+      <div className="h-4 w-3/5 rounded bg-gray-200" />
+      <div className="h-3 w-28 rounded bg-gray-100" />
+    </div>
   );
 }
 
@@ -582,6 +752,17 @@ function MailReadIcon() {
         fill="#6B7280"
       />
     </svg>
+  );
+}
+
+function isCategorizedNotificationPage(
+  value: unknown,
+): value is CategorizedNotificationPage {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      Array.isArray((value as CategorizedNotificationPage).items) &&
+      typeof (value as CategorizedNotificationPage).hasMore === 'boolean',
   );
 }
 
