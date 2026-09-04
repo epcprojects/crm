@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PaginationState } from '@tanstack/react-table';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -34,6 +34,7 @@ import {
   usePermissions,
 } from '../../providers/PermissionProvider';
 import { useAppLoader } from '../../providers/AppLoaderProvider';
+import { useDebouncedValue } from '../../../components/hooks/useDebouncedValue';
 import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
 import ThemeButton from '../../../components/ui/ThemeButton';
 import { RecentTicketsTableSkeleton } from '../dashboard/page';
@@ -67,6 +68,7 @@ export default function Page() {
   const [isExportingTickets, setIsExportingTickets] = useState(false);
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
+  const debouncedSearchValue = useDebouncedValue(searchValue);
   const [pagination, setPagination] = useState<PaginationState>(() => {
     const requestedPageSize = Number(
       searchParams.get(TICKETS_PAGE_SIZE_QUERY_PARAM),
@@ -122,13 +124,11 @@ export default function Page() {
     searchParams.get(TICKETS_PROJECT_QUERY_PARAM),
   );
   const selectedProjectIdsKey = selectedProjectIds.join(',');
-  // const canViewTickets = hasPermission('tickets.view_list');
 
   const ticketStatusesQuery = useQuery({
     queryKey: ['ticket-statuses'],
     queryFn: fetchTicketStatuses,
     enabled: canFilterTickets,
-    // refetchOnMount: true,
   });
 
   const ticketPrioritiesQuery = useQuery({
@@ -136,32 +136,35 @@ export default function Page() {
     queryFn: fetchTicketPriorities,
     enabled: canFilterTickets,
   });
-  // const ticketSummaryQuery = useQuery({
-  //   queryKey: ['dashboard', 'ticket-summary'],
-  //   queryFn: fetchTicketSummary,
-  //   enabled: canViewTickets,
-  // });
-
   const ticketsQuery = useQuery({
     queryKey: [
       'dashboard-project-tickets',
       selectedStatus,
       selectedPriority,
       selectedProjectIdsKey,
-      searchValue.trim(),
+      debouncedSearchValue.trim(),
       viewMode,
       pagination.pageIndex,
       pagination.pageSize,
     ],
-    queryFn: () =>
-      fetchDashboardTickets({
-        statusKey: selectedStatus === 'all' ? undefined : selectedStatus,
+    queryFn: () => {
+      const filters = {
         priorityKey: selectedPriority === 'all' ? undefined : selectedPriority,
         projectIds: selectedProjectIds.length ? selectedProjectIds : undefined,
-        search: searchValue.trim(),
-        page: viewMode === 'kanban' ? 1 : pagination.pageIndex + 1,
-        limit: viewMode === 'kanban' ? 100 : pagination.pageSize,
-      }),
+        search: debouncedSearchValue.trim(),
+      };
+
+      if (viewMode === 'kanban') {
+        return fetchDashboardTicketsKanban(filters);
+      }
+
+      return fetchDashboardTickets({
+        ...filters,
+        statusKey: selectedStatus === 'all' ? undefined : selectedStatus,
+        page: pagination.pageIndex + 1,
+        limit: pagination.pageSize,
+      });
+    },
     enabled: hasPermission('tickets.view_list'),
   });
   const ticketSummaryStats = useMemo(
@@ -830,54 +833,11 @@ export default function Page() {
       status: nextViewMode === 'kanban' ? 'all' : undefined,
     });
   };
-  // const ticketsPageScrollRef = useRef<HTMLDivElement | null>(null);
-  // const ticketsSectionRef = useRef<HTMLDivElement | null>(null);
-
-  // const [isTicketsSectionPinned, setIsTicketsSectionPinned] = useState(false);
-  // useEffect(() => {
-  //   const scrollContainer = ticketsPageScrollRef.current;
-  //   const ticketsSection = ticketsSectionRef.current;
-
-  //   if (!scrollContainer || !ticketsSection) {
-  //     return;
-  //   }
-
-  //   const updatePinnedState = () => {
-  //     if (window.innerWidth >= 1280) {
-  //       setIsTicketsSectionPinned(true);
-  //       return;
-  //     }
-
-  //     const containerRect = scrollContainer.getBoundingClientRect();
-  //     const sectionRect = ticketsSection.getBoundingClientRect();
-
-  //     const hasReachedStickyPosition =
-  //       Math.ceil(sectionRect.top) <= Math.ceil(containerRect.top);
-
-  //     setIsTicketsSectionPinned(hasReachedStickyPosition);
-  //   };
-
-  //   updatePinnedState();
-
-  //   scrollContainer.addEventListener('scroll', updatePinnedState, {
-  //     passive: true,
-  //   });
-
-  //   window.addEventListener('resize', updatePinnedState);
-
-  //   return () => {
-  //     scrollContainer.removeEventListener('scroll', updatePinnedState);
-  //     window.removeEventListener('resize', updatePinnedState);
-  //   };
-  // }, []);
 
   return (
     <>
       <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 py-4">
-        <div
-          //  ref={ticketsPageScrollRef}
-          className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden overflow-y-auto overscroll-contain scrollbar-hide xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
-        >
+        <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden overflow-y-auto overscroll-contain scrollbar-hide xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <div className="shrink-0">
             <DashboardSummaryBanner
               imageSrc="/images/TicketsIcon.svg"
@@ -886,12 +846,7 @@ export default function Page() {
               stats={ticketSummaryStats}
             />
           </div>
-          <div
-            // ref={ticketsSectionRef}
-            // className="sticky -top-5 z-20 h-full min-h-0 min-w-0 flex-none overflow-hidden rounded-xl bg-white p-3 md:p-4 xl:static xl:z-auto xl:h-full xl:flex-1"
-            className="flex h-auto min-h-0 min-w-0 flex-none flex-col overflow-visible rounded-xl bg-white p-3 md:p-4 xl:h-full xl:flex-1 xl:overflow-hidden"
-            // className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-white p-3 md:p-4"
-          >
+          <div className="flex h-auto min-h-0 min-w-0 flex-none flex-col overflow-visible rounded-xl bg-white p-3 md:p-4 xl:h-full xl:flex-1 xl:overflow-hidden">
             <PermissionGuard
               permission="tickets.view_list"
               fallback={
@@ -900,10 +855,7 @@ export default function Page() {
                 </div>
               }
             >
-              <div
-                className="flex h-auto min-h-0 min-w-0 flex-col gap-4 overflow-visible xl:h-full xl:overflow-hidden"
-                // className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-hidden"
-              >
+              <div className="flex h-auto min-h-0 min-w-0 flex-col gap-4 overflow-visible xl:h-full xl:overflow-hidden">
                 <div className="flex flex-col gap-3 rounded-xl md:flex-row justify-end items-end">
                   {canFilterTickets ? (
                     <div className="flex w-full md:flex-row flex-col gap-2 justify-between">
@@ -1169,14 +1121,6 @@ export default function Page() {
                           />
                         </div>
 
-                        {/* <button
-                          type="button"
-                          onClick={clearTicketFilters}
-                          disabled={!hasActiveTicketFilters}
-                          className="hidden h-10 shrink-0 items-center justify-center rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 2xl:inline-flex"
-                        >
-                          Clear Filters
-                        </button> */}
                         <ThemeButton
                           type="button"
                           variant="secondary"
@@ -1297,10 +1241,7 @@ export default function Page() {
                   ) : null}
                 </div>
 
-                <div
-                  className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden"
-                  // className="min-h-0 min-w-0 flex-1 overflow-hidden"
-                >
+                <div className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden">
                   {ticketsQuery.isLoading ? (
                     <RecentTicketsTableSkeleton />
                   ) : viewMode === 'kanban' ? (
@@ -1332,7 +1273,6 @@ export default function Page() {
                       initialPageSize={10}
                       pageSizeOptions={[10, 25, 50, 100]}
                       pagination={pagination}
-                      // internalScrollEnabled={isTicketsSectionPinned}
                       onPaginationChange={handlePaginationChange}
                       totalRows={ticketsQuery.data?.meta.total ?? 0}
                       manualPagination
@@ -1403,7 +1343,7 @@ type ApiDashboardTicket = {
   id: string;
   ticketRefNo?: string;
   createdAt: string;
-  dueDate: string;
+  dueDate: string | null;
   title: string;
   project: {
     id: string;
@@ -1425,7 +1365,7 @@ type ApiDashboardTicket = {
     fullName?: string;
     name?: string;
   } | null;
-  reporter: {
+  reporter?: {
     id: string;
     email: string;
     fullName: string;
@@ -1437,6 +1377,11 @@ type ApiDashboardTicketsResponse = {
   summary: TicketSummary;
   countPerStatus?: Record<string, number>;
   meta: DashboardTicketsResponse['meta'];
+};
+
+type ApiDashboardKanbanResponse = {
+  items: Record<string, ApiDashboardTicket[]>;
+  countPerStatus?: Record<string, number>;
 };
 
 async function fetchDashboardTickets({
@@ -1506,6 +1451,72 @@ async function fetchDashboardTickets({
     summary: payload.summary,
     countPerStatus: payload.countPerStatus ?? {},
     meta: payload.meta,
+  };
+}
+
+async function fetchDashboardTicketsKanban({
+  priorityKey,
+  projectIds,
+  search,
+}: {
+  priorityKey?: string;
+  projectIds?: string[];
+  search?: string;
+}): Promise<DashboardTicketsResponse> {
+  const searchParams = new URLSearchParams();
+
+  if (priorityKey) {
+    searchParams.set('priorityKey', priorityKey);
+  }
+
+  projectIds?.forEach((projectId) => {
+    if (projectId) {
+      searchParams.append('projectIds', projectId);
+    }
+  });
+
+  if (search) {
+    searchParams.set('search', search);
+  }
+
+  const response = await fetch(
+    `/api/dashboard/tickets/kanban?${searchParams.toString()}`,
+    {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+    },
+  );
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiDashboardKanbanResponse
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !isApiDashboardKanbanResponse(payload)) {
+    throw new Error(
+      payload && typeof payload === 'object' && 'message' in payload
+        ? payload.message || 'Failed to fetch Kanban tickets.'
+        : 'Failed to fetch Kanban tickets.',
+    );
+  }
+
+  const kanbanTickets = Object.values(payload.items).flat();
+
+  return {
+    items: kanbanTickets.map(mapApiDashboardTicketToRecentTicket),
+    summary: createKanbanTicketSummary(kanbanTickets),
+    countPerStatus: payload.countPerStatus ?? {},
+    meta: {
+      page: 1,
+      limit: kanbanTickets.length,
+      total: kanbanTickets.length,
+      totalPages: 1,
+      hasNext: false,
+      hasPrevious: false,
+    },
   };
 }
 
@@ -1588,41 +1599,51 @@ function isApiDashboardTicketsResponse(
       typeof (value as ApiDashboardTicketsResponse).meta === 'object',
   );
 }
-// async function fetchTicketSummary(): Promise<TicketSummary> {
-//   const response = await fetch('/api/dashboard/ticket-summary', {
-//     method: 'GET',
-//     headers: {
-//       Accept: 'application/json',
-//     },
-//     cache: 'no-store',
-//   });
 
-//   const payload = (await response.json().catch(() => null)) as
-//     | TicketSummary
-//     | { message?: string }
-//     | null;
+function isApiDashboardKanbanResponse(
+  value: unknown,
+): value is ApiDashboardKanbanResponse {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      (value as ApiDashboardKanbanResponse).items &&
+      !Array.isArray((value as ApiDashboardKanbanResponse).items) &&
+      typeof (value as ApiDashboardKanbanResponse).items === 'object',
+  );
+}
 
-//   if (!response.ok || !isTicketSummary(payload)) {
-//     throw new Error(
-//       payload && typeof payload === 'object' && 'message' in payload
-//         ? payload.message || 'Failed to fetch ticket summary.'
-//         : 'Failed to fetch ticket summary.',
-//     );
-//   }
+function createKanbanTicketSummary(
+  tickets: ApiDashboardTicket[],
+): TicketSummary {
+  return tickets.reduce<{
+    open: number;
+    inProgress: number;
+    resolved: number;
+    critical: number;
+  }>(
+    (summary, ticket) => {
+      switch (ticket.status?.key.toLowerCase()) {
+        case 'open':
+          summary.open += 1;
+          break;
+        case 'inprogress':
+          summary.inProgress += 1;
+          break;
+        case 'resolved':
+          summary.resolved += 1;
+          break;
+      }
 
-//   return payload;
-// }
+      if (ticket.priority?.key.toLowerCase() === 'critical') {
+        summary.critical += 1;
+      }
 
-// function isTicketSummary(value: unknown): value is TicketSummary {
-//   return Boolean(
-//     value &&
-//     typeof value === 'object' &&
-//     'open' in value &&
-//     'inProgress' in value &&
-//     'resolved' in value &&
-//     'critical' in value,
-//   );
-// }
+      return summary;
+    },
+    { open: 0, inProgress: 0, resolved: 0, critical: 0 },
+  );
+}
+
 function mapApiDashboardTicketToRecentTicket(
   ticket: ApiDashboardTicket,
 ): RecentTicket {
@@ -1653,9 +1674,9 @@ function mapApiDashboardTicketToRecentTicket(
       initials: getInitials(assigneeName),
     },
     reporter: {
-      id: ticket.reporter.id,
-      email: ticket.reporter.email,
-      fullName: ticket.reporter.fullName,
+      id: ticket.reporter?.id ?? '',
+      email: ticket.reporter?.email ?? '',
+      fullName: ticket.reporter?.fullName ?? 'Unknown',
     },
     date: formatTicketDate(ticket.createdAt),
     sortDate: ticket.createdAt,

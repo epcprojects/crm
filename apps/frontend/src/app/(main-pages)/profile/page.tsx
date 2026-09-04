@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useState, type ChangeEvent, type FormEvent } from 'react';
 import { useAppDispatch, useAppSelector } from '../../Redux/store';
 import { hydrateAuthFromProfile } from '../../Redux/slices/auth/authSlice';
 import { appToast } from '../../../components/toast/AppToast';
@@ -19,19 +19,7 @@ export default function ProfilePage() {
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
   const account = user ?? fallbackAccount;
-  const primaryRole = useMemo(() => {
-    const role = account.roles?.[0];
 
-    if (!role) {
-      return 'Admin';
-    }
-
-    if (typeof role === 'string') {
-      return role;
-    }
-
-    return role.name || role.key || 'Admin';
-  }, [account.roles]);
   const [fullName, setFullName] = useState(account.fullName);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -97,7 +85,7 @@ export default function ProfilePage() {
 
           <section className="flex h-auto min-h-0 flex-none items-start justify-start w-full flex-col gap-4 overflow-visible rounded-xl bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5 xl:h-full xl:flex-1 xl:overflow-hidden">
             <form
-              className=" flex w-full max-w-[800px] flex-col gap-5"
+              className=" flex w-full max-w-200 flex-col gap-5"
               onSubmit={handleSubmit}
             >
               <ProfileField
@@ -108,19 +96,6 @@ export default function ProfilePage() {
                 autoComplete="name"
               />
 
-              {/* <ProfileField
-                label="Email Address"
-                value={account.email}
-                name="email"
-                disabled
-              />
-
-              <ProfileField
-                label="Role"
-                value={formatRoleLabel(primaryRole)}
-                name="role"
-                disabled
-              /> */}
               <div className="flex justify-end pt-1">
                 <ThemeButton
                   disabled={isSaving}
@@ -170,36 +145,4 @@ function ProfileField({
       />
     </div>
   );
-}
-
-function ProfileHeroIcon() {
-  return (
-    <svg
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M12 12C14.2091 12 16 10.2091 16 8C16 5.79086 14.2091 4 12 4C9.79086 4 8 5.79086 8 8C8 10.2091 9.79086 12 12 12Z"
-        stroke="white"
-        strokeWidth="1.5"
-      />
-      <path
-        d="M19 20C19 16.6863 15.866 14 12 14C8.13401 14 5 16.6863 5 20"
-        stroke="white"
-        strokeLinecap="round"
-        strokeWidth="1.5"
-      />
-    </svg>
-  );
-}
-
-function formatRoleLabel(role: string) {
-  return role
-    .toLowerCase()
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
 }

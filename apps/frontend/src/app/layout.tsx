@@ -4,6 +4,7 @@ import { StoreProvider } from './Redux/storeProvider';
 import QueryProvider from './providers/QueryProvider';
 import AppLoaderProvider from './providers/AppLoaderProvider';
 import AuthBootstrap from './providers/AuthBootstrap';
+import IdleLogout from './providers/IdleLogout';
 import PermissionProvider from './providers/PermissionProvider';
 import { AppToastProvider } from '../components/toast/AppToast';
 import { NotificationsSocketProvider } from './providers/NotificationsSocketProvider';
@@ -54,6 +55,7 @@ export default function RootLayout({
             <AppLoaderProvider>
               <PermissionProvider>
                 <AuthBootstrap />
+                <IdleLogout />
                 <NotificationsSocketProvider>
                   {children}
                 </NotificationsSocketProvider>

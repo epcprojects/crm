@@ -52,8 +52,10 @@ import CommaEndIcon from './CommaEndIcon';
 import OrderedListIcon from './OrderedListIcon';
 import UnorderedListIcon from './UnorderedListIcon';
 import LinkIcon from './LinkIcon';
+import UserAdd from './UserAdd';
 export {
   BoldIcon,
+  UserAdd,
   ItalicIcon,
   StrokeIcon,
   UnderlineIcon,

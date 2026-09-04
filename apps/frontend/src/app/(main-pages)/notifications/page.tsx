@@ -2,20 +2,13 @@
 
 import { Tab, TabGroup, TabList } from '@headlessui/react';
 import Link from 'next/link';
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useCallback,
-  ReactNode,
-} from 'react';
+import { useEffect, useRef, useState, useCallback, ReactNode } from 'react';
 import EmptyState from '../../../components/EmptyState';
 import { useIsMobile } from '../../../components/hooks/useIsMobile';
+import { useDebouncedValue } from '../../../components/hooks/useDebouncedValue';
 import { useNotificationsSocket } from '../../providers/NotificationsSocketProvider';
 import { NotificationItem } from '@harperhelp/interfaces';
-import ThemeButton from '../../../components/ui/ThemeButton';
-import { NotificationCategory } from '../../../components/dashboard/notification-data';
+import type { NotificationGroupCategory } from '../../../components/dashboard/NotificationTray';
 import {
   ChatIcon,
   CloseIcon,
@@ -25,17 +18,44 @@ import {
   ThreadIcon,
   TicketsIcon,
 } from '../../../../public/icons';
-import { useRouter } from 'next/navigation';
 import { getNotificationNavigationPath } from '../../../lib/notification-navigation';
 
 type NotificationFilter = 'all' | 'unread';
 
 const PAGE_SIZE = 20;
+const pageSizeOptions = [10, 20, 30, 50];
+
+type CategorizedNotificationPage = {
+  items: NotificationItem[];
+  cursor: string | null;
+  hasMore: boolean;
+};
+
+type NotificationCountSummary = {
+  totalCount: number;
+  totalUnreadCount: number;
+  categoryUnreadCounts: Record<NotificationGroupCategory, number>;
+};
+
+const emptyCategoryUnreadCounts: Record<NotificationGroupCategory, number> = {
+  tickets: 0,
+  projects: 0,
+  ticket_replies: 0,
+  threads: 0,
+  internal_messages: 0,
+  mentions: 0,
+  members: 0,
+  events: 0,
+};
 
 export default function Page() {
   const [activeFilter, setActiveFilter] = useState<NotificationFilter>('all');
   const [activeCategory, setActiveCategory] =
-    useState<NotificationCategory>('tickets');
+    useState<NotificationGroupCategory>('tickets');
+  const categoryCursorsRef = useRef(
+    new Map<number, string | null>([[1, null]]),
+  );
+  const [categoryHasMore, setCategoryHasMore] = useState(false);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const activeTabIndex = activeFilter === 'unread' ? 1 : 0;
   const [indicatorStyle, setIndicatorStyle] = useState({
@@ -59,7 +79,7 @@ export default function Page() {
   }, [activeTabIndex]);
 
   type CategoryOption = {
-    key: NotificationCategory;
+    key: NotificationGroupCategory;
     label: string;
     icon: ReactNode;
   };
@@ -76,8 +96,8 @@ export default function Page() {
       icon: <ProjectsIcon fill="currentColor" opacity="0" />,
     },
     {
-      key: 'messages',
-      label: 'Messages',
+      key: 'ticket_replies',
+      label: 'Ticket Replies',
       icon: <ChatIcon />,
     },
     {
@@ -86,51 +106,84 @@ export default function Page() {
       icon: <ThreadIcon />,
     },
     {
-      key: 'files',
-      label: 'Files',
+      key: 'internal_messages',
+      label: 'Internal Messages',
       icon: <FileIcon />,
     },
+    { key: 'mentions', label: 'Mentions', icon: <ChatIcon /> },
+    {
+      key: 'members',
+      label: 'Members',
+      icon: <ProjectsIcon fill="currentColor" opacity="0" />,
+    },
+    { key: 'events', label: 'Events', icon: <FileIcon /> },
   ];
 
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [searchValue, setSearchValue] = useState('');
+  const debouncedSearchValue = useDebouncedValue(searchValue);
   const hasSearchQuery = searchValue.trim().length > 0;
-  const categoryCounts = useMemo(() => {
-    return categoryOptions.reduce<Record<NotificationCategory, number>>(
-      (counts, category) => {
-        counts[category.key] = items.filter((notification) =>
-          notification.entityType.includes(category.key),
-        ).length;
 
-        return counts;
-      },
-      {
-        tickets: 0,
-        projects: 0,
-        messages: 0,
-        threads: 0,
-        files: 0,
-      },
-    );
-  }, [items]);
-
-  //hamza
-  const {
-    markAllAsRead: syncMarkAllAsRead,
-    recentNotifications,
-    unreadCount: socketUnreadCount,
-  } = useNotificationsSocket();
+  const { markAllAsRead: syncMarkAllAsRead, recentNotifications } =
+    useNotificationsSocket();
 
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [total, setTotal] = useState(0);
-  const [allNotificationCount, setAllNotificationCount] = useState(0);
   const [searchAllCount, setSearchAllCount] = useState(0);
   const [searchUnreadCount, setSearchUnreadCount] = useState(0);
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [notificationCountSummary, setNotificationCountSummary] =
+    useState<NotificationCountSummary>({
+      totalCount: 0,
+      totalUnreadCount: 0,
+      categoryUnreadCounts: emptyCategoryUnreadCounts,
+    });
+
+  const loadNotificationCounts = useCallback(async () => {
+    const response = await fetch('/api/notifications/unread-count', {
+      cache: 'no-store',
+    });
+    const payload = (await response.json().catch(() => null)) as {
+      totalCount?: number;
+      totalUnreadCount?: number;
+      categoryUnreadCounts?: Partial<Record<NotificationGroupCategory, number>>;
+    } | null;
+
+    if (!response.ok || !payload) {
+      return;
+    }
+
+    const categoryUnreadCounts = payload.categoryUnreadCounts ?? {};
+
+    setNotificationCountSummary({
+      totalCount: Number(payload.totalCount ?? 0),
+      totalUnreadCount: Number(payload.totalUnreadCount ?? 0),
+      categoryUnreadCounts: {
+        tickets: Number(categoryUnreadCounts.tickets ?? 0),
+        projects: Number(categoryUnreadCounts.projects ?? 0),
+        ticket_replies: Number(categoryUnreadCounts.ticket_replies ?? 0),
+        threads: Number(categoryUnreadCounts.threads ?? 0),
+        internal_messages: Number(categoryUnreadCounts.internal_messages ?? 0),
+        mentions: Number(categoryUnreadCounts.mentions ?? 0),
+        members: Number(categoryUnreadCounts.members ?? 0),
+        events: Number(categoryUnreadCounts.events ?? 0),
+      },
+    });
+  }, []);
+
+  useEffect(() => {
+    void loadNotificationCounts();
+  }, [loadNotificationCounts]);
 
   const load = useCallback(
-    async (p: number, unreadOnlyFlag: boolean, searchTerm: string) => {
+    async (
+      p: number,
+      unreadOnlyFlag: boolean,
+      searchTerm: string,
+      category: NotificationGroupCategory,
+    ) => {
       setLoading(true);
 
       const normalizedSearch = searchTerm.trim();
@@ -138,8 +191,8 @@ export default function Page() {
       if (normalizedSearch) {
         const searchParams = new URLSearchParams({
           query: normalizedSearch,
-          limit: String(PAGE_SIZE),
-          offset: String((p - 1) * PAGE_SIZE),
+          limit: String(pageSize),
+          offset: String((p - 1) * pageSize),
         });
 
         const res = await fetch(`/api/notifications/search?${searchParams}`, {
@@ -152,43 +205,65 @@ export default function Page() {
         const unreadItemsCount = data.filter((item) => !item.isRead).length;
 
         setItems(nextItems);
-        setTotal((p - 1) * PAGE_SIZE + nextItems.length);
+        setTotal((p - 1) * pageSize + nextItems.length);
         setSearchAllCount(data.length);
         setSearchUnreadCount(unreadItemsCount);
         setLoading(false);
         return;
       }
 
-      const res = await fetch(
-        `/api/notifications?page=${p}&limit=${PAGE_SIZE}&unreadOnly=${unreadOnlyFlag}`,
-        {
-          cache: 'no-store',
-        },
-      );
-      const data = await res.json();
-      setItems(data.items);
-      setTotal(data.total);
-      if (!unreadOnlyFlag) {
-        setAllNotificationCount(data.total);
+      const categoryParams = new URLSearchParams({
+        category,
+        limit: String(pageSize),
+        unreadOnly: String(unreadOnlyFlag),
+      });
+      const cursor = categoryCursorsRef.current.get(p);
+
+      if (cursor) {
+        categoryParams.set('cursor', cursor);
       }
+
+      const res = await fetch(`/api/notifications?${categoryParams}`, {
+        cache: 'no-store',
+      });
+      const data = (await res.json().catch(() => null)) as
+        | CategorizedNotificationPage
+        | { message?: string }
+        | null;
+
+      if (!res.ok || !isCategorizedNotificationPage(data)) {
+        setItems([]);
+        setCategoryHasMore(false);
+        setLoading(false);
+        return;
+      }
+
+      setItems(data.items);
+      setCategoryHasMore(data.hasMore);
+      categoryCursorsRef.current.set(p + 1, data.cursor);
       setLoading(false);
     },
-    [],
+    [pageSize],
   );
 
   useEffect(() => {
+    categoryCursorsRef.current = new Map([[1, null]]);
     setPage(1);
-  }, [searchValue, unreadOnly]);
+  }, [activeCategory, debouncedSearchValue, pageSize, unreadOnly]);
 
   useEffect(() => {
-    load(page, unreadOnly, searchValue);
-  }, [page, unreadOnly, load, searchValue]);
+    load(page, unreadOnly, debouncedSearchValue, activeCategory);
+  }, [activeCategory, page, unreadOnly, load, debouncedSearchValue, pageSize]);
 
   useEffect(() => {
-    if (recentNotifications?.length > 0 && !hasSearchQuery) {
-      setItems((prev) => mergeNotificationsById(recentNotifications, prev));
+    if (recentNotifications?.length > 0) {
+      void loadNotificationCounts();
+
+      if (!hasSearchQuery) {
+        setItems((prev) => mergeNotificationsById(recentNotifications, prev));
+      }
     }
-  }, [hasSearchQuery, recentNotifications]);
+  }, [hasSearchQuery, loadNotificationCounts, recentNotifications]);
 
   async function handleMarkAsRead(id: string) {
     setItems((prev) =>
@@ -197,29 +272,42 @@ export default function Page() {
     await fetch(`/api/notifications/${id}/read`, {
       method: 'PATCH',
     });
+    void loadNotificationCounts();
   }
 
   async function handleMarkAllAsRead() {
     setItems((prev) => prev?.map((n) => ({ ...n, isRead: true })));
-    syncMarkAllAsRead();
+    await syncMarkAllAsRead();
+    await loadNotificationCounts();
   }
 
-  const unreadCount = hasSearchQuery ? searchUnreadCount : socketUnreadCount;
-  const totalCount = hasSearchQuery ? searchAllCount : allNotificationCount;
+  const categoryCounts = notificationCountSummary.categoryUnreadCounts;
+  const unreadCount = hasSearchQuery
+    ? searchUnreadCount
+    : notificationCountSummary.totalUnreadCount;
+  const totalCount = hasSearchQuery
+    ? searchAllCount
+    : notificationCountSummary.totalCount;
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const totalPages = hasSearchQuery
+    ? Math.max(1, Math.ceil(total / pageSize))
+    : categoryHasMore
+      ? page + 1
+      : page;
   const canGoToNextPage = hasSearchQuery
-    ? items.length === PAGE_SIZE
-    : page < totalPages;
+    ? items.length === pageSize
+    : categoryHasMore;
+  const visiblePages = getVisiblePageNumbers(page, totalPages);
+  const startRow = items.length ? (page - 1) * pageSize + 1 : 0;
+  const endRow = items.length ? startRow + items.length - 1 : 0;
 
   const isMobile = useIsMobile();
-  const router = useRouter();
 
   return (
     <div className="xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 z-100 h-full xl:h-dvh relative">
       <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden xl:rounded-2xl  bg-gray-200 xl:flex-row xl:border xl:border-white xl:bg-white/40 xl:p-3">
         {!isMobile && (
-          <aside className="hidden  w-full shrink-0 flex-col overflow-hidden rounded-[20px] border border-white bg-white py-4 px-4.5 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] xl:w-[288px]">
+          <aside className="flex  w-full shrink-0 flex-col overflow-hidden rounded-[20px] border border-white bg-white py-4 px-4.5 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] xl:w-[288px]">
             <TabGroup
               selectedIndex={activeTabIndex}
               onChange={(index) => {
@@ -385,11 +473,9 @@ export default function Page() {
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
             {loading ? (
-              <div className="py-12 text-center text-sm text-gray-400">
-                Loading…
-              </div>
+              <NotificationPageSkeleton />
             ) : items.length ? (
               items.map((notification) => (
                 <NotificationPageRow
@@ -410,26 +496,75 @@ export default function Page() {
                 />
               </div>
             )}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-3 mt-6">
-                <ThemeButton
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => p - 1)}
-                >
-                  Previous
-                </ThemeButton>
-                <span className="text-sm text-gray-500">
-                  Page {page} of {totalPages}
-                </span>
+          </div>
+          <div className="flex shrink-0 justify-between gap-3 border-t border-gray-200 px-4 pt-3 sm:flex-col md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span className="hidden sm:inline-block">Showing per page</span>
+              <select
+                value={pageSize}
+                onChange={(event) => setPageSize(Number(event.target.value))}
+                className="rounded-md border border-gray-200 bg-white px-2 py-1 text-sm text-gray-900 outline-none"
+                aria-label="Notifications per page"
+              >
+                {pageSizeOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-                <ThemeButton
-                  disabled={!canGoToNextPage}
-                  onClick={() => setPage((p) => p + 1)}
+            <div className="flex flex-col gap-3 text-sm text-gray-600 md:flex-row md:items-center">
+              <span className="hidden sm:inline-block">
+                {startRow}-{endRow}
+              </span>
+
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setPage((current) => current - 1)}
+                  disabled={page <= 1}
+                  className="flex h-8 w-8 items-center justify-center rounded-md text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-label="Previous page"
                 >
-                  Next
-                </ThemeButton>
+                  <ChevronLeftIcon />
+                </button>
+
+                {visiblePages.map((pageNumber, index) =>
+                  pageNumber === 'ellipsis' ? (
+                    <span
+                      key={`ellipsis-${index}`}
+                      className="hidden px-2 text-sm text-gray-500 xl:block"
+                    >
+                      ...
+                    </span>
+                  ) : (
+                    <button
+                      key={pageNumber}
+                      type="button"
+                      onClick={() => setPage(pageNumber)}
+                      className={`hidden min-w-8 rounded-md px-2 py-1 text-sm transition xl:block ${
+                        page === pageNumber
+                          ? 'bg-gray-100 font-semibold text-gray-900'
+                          : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {pageNumber}
+                    </button>
+                  ),
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setPage((current) => current + 1)}
+                  disabled={!canGoToNextPage}
+                  className="flex h-8 w-8 items-center justify-center rounded-md text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-label="Next page"
+                >
+                  <ChevronRightIcon />
+                </button>
               </div>
-            )}
+            </div>
           </div>
         </section>
       </div>
@@ -525,7 +660,6 @@ function NotificationPageRow({
       <div className="min-w-0 flex-1">
         <p className="text-sm  text-gray-600">
           <span className="font-semibold text-gray-900">{item.title}</span>{' '}
-          {/* {item.message} */}
         </p>
         <p className="mt-1 text-xs text-gray-500">
           {new Date(item.createdAt).toLocaleString()}
@@ -536,6 +670,25 @@ function NotificationPageRow({
         {!item.isRead ? <MailUnreadIcon /> : <MailReadIcon />}
       </div>
     </article>
+  );
+}
+
+function NotificationPageSkeleton() {
+  return (
+    <div className="animate-pulse divide-y divide-gray-200">
+      {Array.from({ length: 8 }).map((_, index) => (
+        <div
+          key={index}
+          className="flex items-start gap-4 px-3 py-3 sm:px-4 md:py-4"
+        >
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="h-4 w-3/5 rounded bg-gray-200" />
+            <div className="h-3 w-28 rounded bg-gray-100" />
+          </div>
+          <div className="mt-0.5 h-5 w-5 shrink-0 rounded-full bg-gray-100" />
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -580,6 +733,88 @@ function MailReadIcon() {
         clipRule="evenodd"
         d="M7.45648 1.04166H12.5431C13.2919 1.04163 13.9162 1.04161 14.4119 1.10825C14.935 1.17859 15.4074 1.33331 15.7869 1.71287C16.1665 2.09243 16.3212 2.56476 16.3916 3.08793C16.4582 3.58357 16.4582 4.2079 16.4582 4.95661V5.49864L17.2186 6.00559C17.5632 6.23534 17.857 6.43118 18.0866 6.61735C18.3313 6.81585 18.5386 7.03056 18.6901 7.31469C18.8413 7.59843 18.9041 7.88932 18.9325 8.20232C18.9591 8.49557 18.958 8.84683 18.9566 9.25847L18.9565 9.2859C18.9529 10.3356 18.9432 11.4078 18.9161 12.494L18.9149 12.5428C18.8839 13.7824 18.859 14.7825 18.7171 15.5872C18.5681 16.4317 18.282 17.1189 17.6953 17.7056C17.1073 18.2936 16.4146 18.5792 15.5629 18.728C14.7501 18.87 13.7375 18.8953 12.4803 18.9267L12.4318 18.9279C10.8059 18.9685 9.19436 18.9685 7.56846 18.9279L7.51995 18.9267C6.26278 18.8953 5.25022 18.87 4.43741 18.728C3.58568 18.5792 2.89296 18.2936 2.30497 17.7056C1.71823 17.1189 1.43213 16.4317 1.28319 15.5872C1.14127 14.7825 1.11632 13.7824 1.0854 12.5428L1.08419 12.494C1.05707 11.4078 1.04731 10.3356 1.04378 9.2859L1.04369 9.25851C1.04229 8.84685 1.0411 8.49558 1.06771 8.20232C1.09611 7.88932 1.1589 7.59843 1.31014 7.31469C1.46159 7.03056 1.66891 6.81585 1.91368 6.61735C2.14325 6.43117 2.43701 6.23535 2.78166 6.00559L3.54148 5.49905V4.95666C3.54146 4.20793 3.54144 3.58358 3.60808 3.08793C3.67841 2.56476 3.83314 2.09243 4.2127 1.71287C4.59226 1.33331 5.06459 1.17859 5.58775 1.10825C6.0834 1.04161 6.70776 1.04163 7.45648 1.04166ZM16.4581 8.72951L16.4582 7.00096L16.5024 7.03048C16.876 7.27954 17.1205 7.44326 17.2992 7.58822C17.4678 7.72496 17.5412 7.81666 17.587 7.90266C17.6053 7.937 17.6219 7.97533 17.6364 8.02253L16.4581 8.72951ZM15.2081 4.99999V9.47951L12.2508 11.2539C11.6133 11.6364 11.1745 11.8988 10.8098 12.0703C10.458 12.2357 10.2219 12.2929 9.99983 12.2929C9.77776 12.2929 9.5417 12.2357 9.18984 12.0703C8.82515 11.8988 8.38634 11.6364 7.74891 11.2539L4.79148 9.47949V4.99999C4.79148 4.19665 4.79281 3.65702 4.84693 3.25449C4.89863 2.86993 4.98798 2.70535 5.09658 2.59676C5.20518 2.48816 5.36976 2.39881 5.75431 2.34711C6.15684 2.29299 6.69647 2.29166 7.49982 2.29166H12.4998C13.3032 2.29166 13.8428 2.29299 14.2453 2.34711C14.6299 2.39881 14.7945 2.48816 14.9031 2.59676C15.0117 2.70535 15.101 2.86993 15.1527 3.25449C15.2068 3.65702 15.2081 4.19665 15.2081 4.99999ZM3.54148 7.00136L3.54148 8.72949L2.3637 8.02282C2.37828 7.97549 2.39488 7.93707 2.41322 7.90266C2.45906 7.81666 2.53241 7.72496 2.70102 7.58822C2.87978 7.44326 3.12421 7.27954 3.49781 7.03048L3.54148 7.00136ZM2.29435 9.43895C2.2983 10.4334 2.30834 11.443 2.3338 12.4628C2.36624 13.7628 2.39049 14.6687 2.51419 15.3701C2.63272 16.0422 2.83362 16.4665 3.18887 16.8218C3.54289 17.1758 3.97035 17.3775 4.65251 17.4966C5.36315 17.6208 6.28258 17.6453 7.59968 17.6783C9.20477 17.7184 10.7955 17.7184 12.4006 17.6783C13.7177 17.6453 14.6371 17.6208 15.3478 17.4966C16.0299 17.3775 16.4574 17.1758 16.8114 16.8218C17.1667 16.4665 17.3676 16.0421 17.4861 15.3701C17.6098 14.6687 17.634 13.7628 17.6665 12.4628C17.6919 11.4429 17.7019 10.4332 17.7059 9.4386L12.8665 12.3422C12.2631 12.7043 11.7703 13 11.3417 13.2015C10.8937 13.4121 10.4702 13.5429 9.99983 13.5429C9.52945 13.5429 9.10594 13.4121 8.65802 13.2015C8.22937 13 7.73659 12.7043 7.13315 12.3422L2.29435 9.43895Z"
         fill="#6B7280"
+      />
+    </svg>
+  );
+}
+
+function isCategorizedNotificationPage(
+  value: unknown,
+): value is CategorizedNotificationPage {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      Array.isArray((value as CategorizedNotificationPage).items) &&
+      typeof (value as CategorizedNotificationPage).hasMore === 'boolean',
+  );
+}
+
+function getVisiblePageNumbers(currentPage: number, totalPages: number) {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  if (currentPage <= 3) {
+    return [1, 2, 3, 'ellipsis', totalPages - 1, totalPages] as const;
+  }
+
+  if (currentPage >= totalPages - 2) {
+    return [
+      1,
+      2,
+      'ellipsis',
+      totalPages - 2,
+      totalPages - 1,
+      totalPages,
+    ] as const;
+  }
+
+  return [
+    1,
+    'ellipsis',
+    currentPage - 1,
+    currentPage,
+    currentPage + 1,
+    'ellipsis',
+    totalPages,
+  ] as const;
+}
+
+function ChevronLeftIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M10 12L6 8L10 4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ChevronRightIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M6 12L10 8L6 4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );

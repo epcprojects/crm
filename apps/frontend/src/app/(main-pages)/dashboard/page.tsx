@@ -52,7 +52,7 @@ import {
   useCreateProjectMutation,
 } from '../projects/projects.queries';
 import { useIsMobile } from '../../../components/hooks/useIsMobile';
-import Link from 'next/link';
+import { useDebouncedValue } from '../../../components/hooks/useDebouncedValue';
 import {
   PermissionGuard,
   usePermissions,
@@ -224,11 +224,17 @@ export default function Page() {
   const canEditProject = hasPermission('projects.edit');
   const canDeleteProject = hasPermission('projects.delete');
   const [searchValue, setSearchValue] = useState('');
+  const debouncedSearchValue = useDebouncedValue(searchValue);
   const [projectPanelTab, setProjectPanelTab] =
     useState<DashboardProjectPanelTabKey>(
-      canViewThreads ? 'threads' : 'projects',
+      canViewProjectCards
+        ? canViewThreads
+          ? 'threads'
+          : 'projects'
+        : canViewThreads
+          ? 'threads'
+          : 'activity',
     );
-  const activityScrollContainerRef = useRef<HTMLDivElement | null>(null);
   const projectPanelButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [projectPanelIndicatorStyle, setProjectPanelIndicatorStyle] = useState({
     width: 0,
@@ -259,9 +265,11 @@ export default function Page() {
   const selectedDashboardTab = getDashboardTabValue(
     searchParams.get(DASHBOARD_TABS_QUERY_PARAM),
   );
-  const projectPanelTabs: DashboardProjectPanelTabKey[] = canViewThreads
-    ? ['projects', 'threads', 'activity']
-    : ['projects', 'activity'];
+  const projectPanelTabs: DashboardProjectPanelTabKey[] = [
+    ...(canViewProjectCards ? (['projects'] as const) : []),
+    ...(canViewThreads ? (['threads'] as const) : []),
+    'activity',
+  ];
 
   const selectedProjectIds = getTicketsProjectFilterValues(
     searchParams.getAll(TICKETS_PROJECT_QUERY_PARAM),
@@ -286,10 +294,10 @@ export default function Page() {
     });
   }, [activeProjectPanelIndex]);
   useEffect(() => {
-    if (!canViewThreads && projectPanelTab === 'threads') {
-      setProjectPanelTab('projects');
+    if (!projectPanelTabs.includes(projectPanelTab)) {
+      setProjectPanelTab(projectPanelTabs[0]);
     }
-  }, [canViewThreads, projectPanelTab]);
+  }, [projectPanelTab, projectPanelTabs]);
   const selectedProjectIdsKey = selectedProjectIds.join(',');
 
   const ticketStatusesQuery = useQuery({
@@ -351,7 +359,7 @@ export default function Page() {
         Number(pageParam ?? 1),
         DASHBOARD_ACTIVITY_PAGE_SIZE,
       ),
-    enabled: canViewProjectCards,
+    enabled: true,
     initialPageParam: 1,
     getNextPageParam: (lastPage) => {
       const total = lastPage.total ?? 0;
@@ -363,14 +371,14 @@ export default function Page() {
   const projectThreadsQuery = useQuery({
     queryKey: ['dashboard', 'project-threads'],
     queryFn: fetchDashboardProjectThreads,
-    enabled: canViewProjectCards && canViewThreads,
+    enabled: canViewThreads,
   });
 
   const recentTicketsQuery = useQuery({
     queryKey: [
       'dashboard',
       'recent-tickets',
-      searchValue.trim(),
+      debouncedSearchValue.trim(),
       selectedProjectIdsKey,
       selectedStatus,
       selectedPriority,
@@ -381,7 +389,7 @@ export default function Page() {
         page: 1,
         limit: 20,
 
-        search: searchValue.trim() || undefined,
+        search: debouncedSearchValue.trim() || undefined,
         projectIds: selectedProjectIds.length ? selectedProjectIds : undefined,
 
         statusKey: selectedStatus === 'all' ? undefined : selectedStatus,
@@ -638,7 +646,6 @@ export default function Page() {
         queryKey: ['project-names'],
         refetchType: 'all',
       }),
-      //projects
       queryClient.invalidateQueries({
         queryKey: ['projects'],
         refetchType: 'all',
@@ -742,7 +749,6 @@ export default function Page() {
     };
   }, [canCreateTicket, setHeaderActionOverride]);
 
-  // Event listener
   useEffect(() => {
     const handleNotificationNew = (payload: NotificationItem) => {
       void invalidateActivityRelated();
@@ -809,63 +815,13 @@ export default function Page() {
       ),
     [activityQuery.data, currentUserId],
   );
-  // const displayedProjects = (projectsQuery.data ?? []).slice(0, 0);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  // const dashboardScrollRef = useRef<HTMLDivElement | null>(null);
-  // const upcomingSectionRef = useRef<HTMLDivElement | null>(null);
-  // const [isUpcomingSectionPinned, setIsUpcomingSectionPinned] = useState(false);
-  // useEffect(() => {
-  //   const scrollContainer = dashboardScrollRef.current;
-  //   const upcomingSection = upcomingSectionRef.current;
 
-  //   if (!scrollContainer || !upcomingSection) {
-  //     return;
-  //   }
-
-  //   const updatePinnedState = () => {
-  //     if (window.innerWidth >= 1280) {
-  //       setIsUpcomingSectionPinned(true);
-  //       return;
-  //     }
-
-  //     const containerRect = scrollContainer.getBoundingClientRect();
-  //     const sectionRect = upcomingSection.getBoundingClientRect();
-
-  //     const hasReachedStickyPosition =
-  //       Math.ceil(sectionRect.top) <= Math.ceil(containerRect.top);
-
-  //     setIsUpcomingSectionPinned(hasReachedStickyPosition);
-  //   };
-
-  //   updatePinnedState();
-
-  //   scrollContainer.addEventListener('scroll', updatePinnedState, {
-  //     passive: true,
-  //   });
-
-  //   window.addEventListener('resize', updatePinnedState);
-
-  //   return () => {
-  //     scrollContainer.removeEventListener('scroll', updatePinnedState);
-  //     window.removeEventListener('resize', updatePinnedState);
-  //   };
-  // }, []);
   return (
     <div className="xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 z-100 h-full xl:h-dvh relative">
-      {/* <div className="bg-white/40 border border-white rounded-3xl p-3 flex flex-row h-full gap-3"> */}
-      <div
-        // ref={dashboardScrollRef}
-        className="flex h-full min-h-0 flex-col gap-3 xl:overflow-hidden  overflow-y-auto overscroll-contain scrollbar-hide xl:rounded-2xl  bg-gray-200 xl:flex-row xl:border xl:border-white xl:bg-white/40 xl:p-3"
-      >
+      <div className="flex h-full min-h-0 flex-col gap-3 xl:overflow-hidden  overflow-y-auto overscroll-contain scrollbar-hide xl:rounded-2xl  bg-gray-200 xl:flex-row xl:border xl:border-white xl:bg-white/40 xl:p-3">
         <PermissionGuard permission="dashboard.view_upcoming">
           <div
-            // ref={upcomingSectionRef}
-            // className={`sticky -top-5 z-20 order-2 h-full min-h-0 flex-none overflow-hidden bg-gray-200 xl:static xl:z-auto xl:order-0 xl:h-full xl:flex-none xl:bg-transparent ${
-            //   canViewRecentTickets ? 'xl:w-82.5' : 'xl:flex-1'
-            // }`}
-            // className={`order-2 min-h-0 flex-1 overflow-hidden xl:order-0 xl:h-full xl:flex-none ${
-            //   canViewRecentTickets ? 'xl:w-82.5' : 'xl:flex-1'
-            // }`}
             className={`order-2 min-h-0 flex-none overflow-visible xl:order-0 xl:h-full xl:flex-none xl:overflow-hidden ${
               canViewRecentTickets ? 'xl:w-82.5' : 'xl:flex-1'
             }`}
@@ -902,7 +858,6 @@ export default function Page() {
                         }
                       : undefined
                 }
-                // internalScrollEnabled={isUpcomingSectionPinned}
                 onTicketClick={
                   canViewTicketDetail
                     ? (ticket) =>
@@ -924,7 +879,7 @@ export default function Page() {
             {isStatsLoading ? (
               <DashboardStatsSkeleton />
             ) : (
-              <div className="flex w-full flex-col justify-between gap-2 xl:gap-6 rounded-[10px] xl:rounded-xl bg-[url('/images/DashboardComponentBgImage.jpg')]  bg-cover bg-center bg-no-repeat p-4 sm:p-5 xl:gap-8.5 xl:p-7.5">
+              <div className="flex w-full flex-col justify-between gap-2  rounded-[10px] xl:rounded-xl bg-[url('/images/DashboardComponentBgImage.jpg')]  bg-cover bg-center bg-no-repeat p-4 sm:p-5 xl:gap-8.5 xl:p-7.5">
                 <div className="flex flex-col items-start gap-2 xl:flex-row xl:gap-6">
                   <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                     <p className="text-2xl text-white font-semibold sm:text-[32px]">
@@ -1148,21 +1103,6 @@ export default function Page() {
                         )}
                       </Popover>
 
-                      {/* <button
-                        type="button"
-                        onClick={() => setFiltersOpen((current) => !current)}
-                        className={`flex items-center justify-center gap-1 rounded-lg px-4 py-2 text-sm font-semibold ring-1 transition duration-300 hover:bg-linear-to-l hover:from-royal-blue/80 hover:to-crystal-blue/80 hover:text-white ${
-                          filtersOpen
-                            ? 'bg-primary/5 text-primary ring-primary'
-                            : 'bg-white text-gray-600 ring-gray-200'
-                        }`}
-                        aria-label="Open ticket filters"
-                        aria-expanded={filtersOpen}
-                        aria-controls="recent-ticket-filters"
-                      >
-                        <FiltersIcon fill="currentColor" />
-                        <span>Filter</span>
-                      </button> */}
                       <ThemeButton
                         type="button"
                         variant="secondary"
@@ -1182,13 +1122,6 @@ export default function Page() {
 
                       {canViewTicketsList ? (
                         <div>
-                          {/* <button
-                            type="button"
-                            onClick={handleViewAllTickets}
-                            className="ring text-sm hover:ring-transparent text-primary hover:text-white ring-primary  hover:bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 font-semibold bg-white rounded-lg py-2 px-4 flex items-center justify-center"
-                          >
-                            View All
-                          </button> */}
                           <ThemeButton
                             type="button"
                             variant="secondary"
@@ -1198,54 +1131,9 @@ export default function Page() {
                           </ThemeButton>
                         </div>
                       ) : null}
-
-                      {/* <button
-                      type="button"
-                      className="border border-gray-200 bg-gray-100 py-2 px-2.5 rounded-lg flex flex-row items-center gap-0.75"
-                    >
-                      <FiltersIcon />
-                      <p className="text-xs font-medium text-black-olive">
-                        Filter
-                      </p>
-                    </button> */}
                     </div>
                   </div>
-                  {/* <div className="hidden items-center gap-2 xl:flex">
-                        <div className="  relative w-full overflow-visible">
-                          <Dropdown
-                            options={projectFilterOptions}
-                            isMulti
-                            value={selectedProjectIds}
-                            onChange={(value) =>
-                              updateRecentTicketsFilters({
-                                project: value,
-                              })
-                            }
-                            placeholder="All Projects"
-                            maxMenuHeight={150}
-                          />
-                        </div>{' '}
-                        <div className=" w-38">
-                          <Dropdown
-                            options={statusFilterOptions}
-                            value={selectedStatus}
-                            onChange={(value) =>
-                              updateRecentTicketsFilters({ status: value })
-                            }
-                            placeholder="All Status"
-                          />
-                        </div>
-                        <div className=" w-38">
-                          <Dropdown
-                            options={priorityFilterOptions}
-                            value={selectedPriority}
-                            onChange={(value) =>
-                              updateRecentTicketsFilters({ priority: value })
-                            }
-                            placeholder="All Priority"
-                          />
-                        </div>
-                      </div> */}
+
                   <div
                     className={`hidden w-full transition-[grid-template-rows,opacity,transform] duration-300 ease-out xl:grid ${
                       filtersOpen
@@ -1301,10 +1189,6 @@ export default function Page() {
                             placeholder="All Priority"
                           />
                         </div>
-
-                        {/* {selectedProject !== 'all' ||
-                        selectedStatus !== 'all' ||
-                        selectedPriority !== 'all' ? ( */}
                         <ThemeButton
                           type="button"
                           variant="secondary"
@@ -1359,228 +1243,194 @@ export default function Page() {
                 )}
               </div>
             </PermissionGuard>
-            <PermissionGuard permission="dashboard.view_project_cards">
-              <div className="bg-white relative shadow-[0_0_35px_0_rgb(0_0_0/0.04)] h-full flex-1 overflow-y-auto scrollbar-hide rounded-xl  flex flex-col gap-3.5 pb-4">
-                <div className="flex flex-row justify-between items-center sticky w-full  z-10 top-0 px-4 pt-4 bg-white">
-                  <div
-                    className={`relative grid w-full gap-1 rounded-full border border-gray-200 bg-gray-50 p-1 shadow-[inset_0_1px_3px_rgba(15,23,42,0.06)] ${
-                      canViewThreads ? 'grid-cols-3' : 'grid-cols-2'
-                    }`}
-                  >
-                    <div
-                      className="absolute top-1 bottom-1 left-0 rounded-full bg-white shadow-[0_0_25px_0_rgb(27_28_29/0.12)] transition-all duration-300 ease-out"
-                      style={{
-                        width: projectPanelIndicatorStyle.width,
-                        transform: projectPanelIndicatorStyle.transform,
-                        opacity: projectPanelIndicatorStyle.opacity,
-                      }}
-                    />
-                    <button
-                      ref={(element) => {
-                        projectPanelButtonRefs.current[0] = element;
-                      }}
-                      type="button"
-                      onClick={() => setProjectPanelTab('projects')}
-                      className={`relative z-10 w-full rounded-full px-4 py-1.25 text-sm font-medium transition-colors duration-300 ${
-                        projectPanelTab === 'projects'
-                          ? 'text-gray-950'
-                          : 'text-gray-500 hover:text-gray-800'
-                      }`}
-                    >
-                      Projects
-                    </button>
-                    {canViewThreads ? (
-                      <button
-                        ref={(element) => {
-                          projectPanelButtonRefs.current[1] = element;
-                        }}
-                        type="button"
-                        onClick={() => setProjectPanelTab('threads')}
-                        className={`relative z-10 w-full rounded-full px-4 py-1.25 text-sm font-medium transition-colors duration-300 ${
-                          projectPanelTab === 'threads'
-                            ? 'text-gray-950'
-                            : 'text-gray-500 hover:text-gray-800'
-                        }`}
-                      >
-                        Threads
-                      </button>
-                    ) : null}
-                    <button
-                      ref={(element) => {
-                        projectPanelButtonRefs.current[canViewThreads ? 2 : 1] =
-                          element;
-                      }}
-                      type="button"
-                      onClick={() => setProjectPanelTab('activity')}
-                      className={`relative z-10 w-full rounded-full px-4 py-1.25 text-sm font-medium transition-colors duration-300 ${
-                        projectPanelTab === 'activity'
-                          ? 'text-gray-950'
-                          : 'text-gray-500 hover:text-gray-800'
-                      }`}
-                    >
-                      Activity
-                    </button>
-                  </div>
-                </div>
+            <div
+              onScroll={(event) => {
+                if (projectPanelTab !== 'activity') {
+                  return;
+                }
 
-                <div className="relative grid grid-cols-1 gap-3 px-3">
-                  {projectPanelTab === 'projects' ? (
-                    projectsQuery.isLoading ? (
-                      Array.from({ length: 3 }).map((_, index) => (
-                        <ProjectCardSkeleton key={index} />
-                      ))
-                    ) : displayedProjects.length === 0 ? (
-                      <EmptyState
-                        imageUrl="/images/EmptyProjectIcon.svg"
-                        imageAlt="No projects"
-                        title="No Projects"
-                        description="Projects will appear here once they are created."
-                        buttonLabel="New Project"
-                        onButtonClick={
-                          canCreateProject
-                            ? () => {
-                                setProjectToEdit(null);
-                                setCreateProjectOpen(true);
-                              }
+                const target = event.currentTarget;
+                const distanceToBottom =
+                  target.scrollHeight - target.scrollTop - target.clientHeight;
+
+                if (
+                  distanceToBottom > 40 ||
+                  !activityQuery.hasNextPage ||
+                  activityQuery.isFetchingNextPage
+                ) {
+                  return;
+                }
+
+                void activityQuery.fetchNextPage();
+              }}
+              className="bg-white relative shadow-[0_0_35px_0_rgb(0_0_0/0.04)] h-full flex-1 overflow-y-auto scrollbar-hide rounded-xl flex flex-col gap-3.5 pb-4"
+            >
+              <div className="flex flex-row justify-between items-center sticky w-full  z-10 top-0 px-4 pt-4 bg-white">
+                <div
+                  className={`relative grid w-full gap-1 rounded-full border border-gray-200 bg-gray-50 p-1 shadow-[inset_0_1px_3px_rgba(15,23,42,0.06)] ${
+                    projectPanelTabs.length === 3
+                      ? 'grid-cols-3'
+                      : projectPanelTabs.length === 2
+                        ? 'grid-cols-2'
+                        : 'grid-cols-1'
+                  }`}
+                >
+                  <div
+                    className="absolute top-1 bottom-1 left-0 rounded-full bg-white shadow-[0_0_25px_0_rgb(27_28_29/0.12)] transition-all duration-300 ease-out"
+                    style={{
+                      width: projectPanelIndicatorStyle.width,
+                      transform: projectPanelIndicatorStyle.transform,
+                      opacity: projectPanelIndicatorStyle.opacity,
+                    }}
+                  />
+                  {projectPanelTabs.map((tab, index) => (
+                    <button
+                      key={tab}
+                      ref={(element) => {
+                        projectPanelButtonRefs.current[index] = element;
+                      }}
+                      type="button"
+                      onClick={() => setProjectPanelTab(tab)}
+                      className={`relative z-10 w-full rounded-full px-4 py-1.25 text-sm font-medium transition-colors duration-300 ${
+                        projectPanelTab === tab
+                          ? 'text-gray-950'
+                          : 'text-gray-500 hover:text-gray-800'
+                      }`}
+                    >
+                      {tab === 'projects'
+                        ? 'Projects'
+                        : tab === 'threads'
+                          ? 'Threads'
+                          : 'Activity'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="relative grid grid-cols-1 gap-3 px-3">
+                {projectPanelTab === 'projects' && canViewProjectCards ? (
+                  projectsQuery.isLoading ? (
+                    Array.from({ length: 3 }).map((_, index) => (
+                      <ProjectCardSkeleton key={index} />
+                    ))
+                  ) : displayedProjects.length === 0 ? (
+                    <EmptyState
+                      imageUrl="/images/EmptyProjectIcon.svg"
+                      imageAlt="No projects"
+                      title="No Projects"
+                      description="Projects will appear here once they are created."
+                      buttonLabel="New Project"
+                      onButtonClick={
+                        canCreateProject
+                          ? () => {
+                              setProjectToEdit(null);
+                              setCreateProjectOpen(true);
+                            }
+                          : undefined
+                      }
+                    />
+                  ) : (
+                    displayedProjects.map((project) => (
+                      <ProjectCard
+                        key={project.id}
+                        id={project.id}
+                        initials={project.initials}
+                        name={project.name}
+                        category={project.category}
+                        totalCount={project.totalCount}
+                        openCount={project.openCount}
+                        criticalCount={project.criticalCount}
+                        colorHex={project.colorHex}
+                        href={
+                          canViewProjectDetail
+                            ? `/projects/${project.id}`
                             : undefined
                         }
+                        onClick={
+                          canViewProjectDetail
+                            ? () => router.push(`/projects/${project.id}`)
+                            : undefined
+                        }
+                        onEdit={
+                          canEditProject
+                            ? () => setProjectToEdit(project)
+                            : undefined
+                        }
+                        onDelete={
+                          canDeleteProject
+                            ? () =>
+                                setProjectToDelete({
+                                  id: project.id,
+                                  name: project.name,
+                                })
+                            : undefined
+                        }
+                        isDeleting={
+                          deleteProjectMutation.isPending &&
+                          deleteProjectMutation.variables === project.id
+                        }
                       />
-                    ) : (
-                      displayedProjects.map((project) => (
-                        <ProjectCard
-                          key={project.id}
-                          id={project.id}
-                          initials={project.initials}
-                          name={project.name}
-                          category={project.category}
-                          totalCount={project.totalCount}
-                          openCount={project.openCount}
-                          criticalCount={project.criticalCount}
-                          colorHex={project.colorHex}
-                          href={
-                            canViewProjectDetail
-                              ? `/projects/${project.id}`
-                              : undefined
-                          }
-                          onClick={
-                            canViewProjectDetail
-                              ? () => router.push(`/projects/${project.id}`)
-                              : undefined
-                          }
-                          onEdit={
-                            canEditProject
-                              ? () => setProjectToEdit(project)
-                              : undefined
-                          }
-                          onDelete={
-                            canDeleteProject
-                              ? () =>
-                                  setProjectToDelete({
-                                    id: project.id,
-                                    name: project.name,
-                                  })
-                              : undefined
-                          }
-                          isDeleting={
-                            deleteProjectMutation.isPending &&
-                            deleteProjectMutation.variables === project.id
+                    ))
+                  )
+                ) : projectPanelTab === 'threads' && canViewThreads ? (
+                  projectThreadsQuery.isLoading ? (
+                    Array.from({ length: 6 }).map((_, index) => (
+                      <DashboardThreadRowSkeleton key={index} />
+                    ))
+                  ) : displayedProjectThreads.length === 0 ? (
+                    <EmptyState
+                      imageUrl="/images/NotificationEmptyState.svg"
+                      imageAlt="No threads"
+                      title="No Threads"
+                      description="Latest project thread messages will appear here."
+                    />
+                  ) : (
+                    <div className="overflow-y-auto pr-1 scrollbar-thin">
+                      {displayedProjectThreads.map((threadItem) => (
+                        <DashboardThreadRow
+                          key={threadItem.messageId}
+                          item={threadItem}
+                          onClick={() =>
+                            router.push(`/projects/${threadItem.projectId}?t=1`)
                           }
                         />
+                      ))}
+                    </div>
+                  )
+                ) : (
+                  <div className="pr-1">
+                    {activityQuery.isLoading ? (
+                      Array.from({ length: 5 }).map((_, index) => (
+                        <DashboardActivityRowSkeleton key={index} />
                       ))
-                    )
-                  ) : projectPanelTab === 'threads' ? (
-                    projectThreadsQuery.isLoading ? (
-                      Array.from({ length: 6 }).map((_, index) => (
-                        <DashboardThreadRowSkeleton key={index} />
-                      ))
-                    ) : displayedProjectThreads.length === 0 ? (
+                    ) : dashboardActivityItems.length === 0 ? (
                       <EmptyState
                         imageUrl="/images/NotificationEmptyState.svg"
-                        imageAlt="No threads"
-                        title="No Threads"
-                        description="Latest project thread messages will appear here."
+                        imageAlt="No activity"
+                        title="No Activity"
+                        description="Activity will appear here as work happens across projects and tickets."
                       />
                     ) : (
-                      <div className="overflow-y-auto pr-1 scrollbar-thin">
-                        {displayedProjectThreads.map((threadItem) => (
-                          <DashboardThreadRow
-                            key={threadItem.messageId}
-                            item={threadItem}
-                            onClick={() =>
-                              router.push(
-                                `/projects/${threadItem.projectId}?t=1`,
-                              )
-                            }
+                      <>
+                        {dashboardActivityItems.map((activityItem) => (
+                          <DashboardActivityRow
+                            key={activityItem.id}
+                            item={activityItem}
                           />
                         ))}
-                      </div>
-                    )
-                  ) : (
-                    <div
-                      ref={activityScrollContainerRef}
-                      onScroll={(event) => {
-                        const target = event.currentTarget;
-                        const distanceToBottom =
-                          target.scrollHeight -
-                          target.scrollTop -
-                          target.clientHeight;
-
-                        if (
-                          distanceToBottom > 80 ||
-                          !activityQuery.hasNextPage ||
-                          activityQuery.isFetchingNextPage
-                        ) {
-                          return;
-                        }
-
-                        void activityQuery.fetchNextPage();
-                      }}
-                      className="overflow-y-auto pr-1 scrollbar-thin"
-                    >
-                      {activityQuery.isLoading ? (
-                        Array.from({ length: 5 }).map((_, index) => (
-                          <DashboardActivityRowSkeleton key={index} />
-                        ))
-                      ) : dashboardActivityItems.length === 0 ? (
-                        <EmptyState
-                          imageUrl="/images/NotificationEmptyState.svg"
-                          imageAlt="No activity"
-                          title="No Activity"
-                          description="Activity will appear here as work happens across projects and tickets."
-                        />
-                      ) : (
-                        <>
-                          {dashboardActivityItems.map((activityItem) => (
-                            <DashboardActivityRow
-                              key={activityItem.id}
-                              item={activityItem}
-                            />
-                          ))}
-                          {activityQuery.isFetchingNextPage
-                            ? Array.from({ length: 2 }).map((_, index) => (
-                                <DashboardActivityRowSkeleton
-                                  key={`activity-loading-${index}`}
-                                />
-                              ))
-                            : null}
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* {projectPanelTab === 'projects' && canViewProjectsList ? (
-                  <div className="py-2 pt-1 sticky -bottom-4">
-                    <Link
-                      href="/projects"
-                      className="flex items-center justify-center rounded-xl  bg-white px-4  text-base font-semibold text-primary transition hover:border-transparent hover:bg-linear-to-l  hover:underline underline-offset-2"
-                    >
-                      View All
-                    </Link>
+                        {activityQuery.isFetchingNextPage
+                          ? Array.from({ length: 2 }).map((_, index) => (
+                              <DashboardActivityRowSkeleton
+                                key={`activity-loading-${index}`}
+                              />
+                            ))
+                          : null}
+                      </>
+                    )}
                   </div>
-                ) : null} */}
+                )}
               </div>
-            </PermissionGuard>
+            </div>
           </div>
         </div>
         {canCreateTicket ? (
@@ -1618,6 +1468,7 @@ export default function Page() {
                 name: projectToEdit.name,
                 category: projectToEdit.category,
                 colorHex: projectToEdit.colorHex,
+                attachments: [],
               }
             : undefined
         }
@@ -1945,11 +1796,7 @@ function DashboardActivityRow({ item }: { item: DashboardActivityItem }) {
 
       <div className="min-w-0 flex-1">
         <p className="text-sm text-gray-600">
-          {/* <span className="font-semibold text-gray-950">{item.actor}</span>{' '} */}
-          {/* {item.action}{' '} */}
-
           <span className="font-semibold text-gray-950">{item.title}</span>
-          {/* <span className="font-semibold text-gray-950">{item.title}</span> */}
         </p>
         <p className="mt-1 text-xs text-gray-400">{item.timeLabel}</p>
       </div>
@@ -2071,13 +1918,6 @@ function ActivityEntityIcon({ item }: { item: DashboardActivityItem }) {
       {getInitials(item.actor)}
     </span>
   );
-}
-function getTicketsFilterValue(value: string | null) {
-  if (!value || !value.trim()) {
-    return 'all';
-  }
-
-  return value;
 }
 
 function getTicketsProjectFilterValues(
@@ -2471,11 +2311,9 @@ function mapApiDashboardTicketToTicketListItem(
     title: ticket.title,
     date: formatTicketDate(ticket.createdAt),
     owner: projectName,
-    // ownerColor: 'border-red-200 bg-red-50 text-red-700',
     ownerColor: ticket.project?.brandColor
       ? ticket.project.brandColor
       : '#df169c',
-    // ownerColor: ticket.project?.brandColor ? `border-[${ticket.project.brandColor}] bg-[${ticket.project.brandColor}30] text-[${ticket.project.brandColor}]` : 'border-purple-200 bg-purple-50 text-purple-700',
     tag: priorityLabel,
     tagClassName: getPriorityTagClassName(priorityLabel),
     icon: getInitials(projectName),

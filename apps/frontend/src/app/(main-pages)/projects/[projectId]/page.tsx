@@ -23,6 +23,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useDebouncedValue } from '../../../../components/hooks/useDebouncedValue';
 import {
   useParams,
   usePathname,
@@ -179,8 +180,10 @@ export default function ProjectDetailPage() {
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [uploadFileOpen, setUploadFileOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
+  const debouncedSearchValue = useDebouncedValue(searchValue);
   const [fileSearchValue, setFileSearchValue] = useState('');
   const [notesSearchValue, setNotesSearchValue] = useState('');
+  const debouncedNotesSearchValue = useDebouncedValue(notesSearchValue);
   const [uploadedFilesState, setUploadedFilesState] = useState<
     ProjectFileRecord[]
   >([]);
@@ -309,7 +312,7 @@ export default function ProjectDetailPage() {
     {
       page: 1,
       limit: PROJECT_NOTES_LIMIT,
-      search: notesSearchValue.trim() || undefined,
+      search: debouncedNotesSearchValue.trim() || undefined,
     },
     canViewProjectNotesList,
   );
@@ -327,9 +330,10 @@ export default function ProjectDetailPage() {
           : ticketsPagination.pageIndex + 1,
       limit:
         projectTicketsViewMode === 'kanban' ? 100 : ticketsPagination.pageSize,
-      search: searchValue.trim() || undefined,
+      search: debouncedSearchValue.trim() || undefined,
       statusKey: selectedStatus === 'all' ? undefined : selectedStatus,
       priorityKey: selectedPriority === 'all' ? undefined : selectedPriority,
+      kanban: projectTicketsViewMode === 'kanban',
     },
     canViewTickets,
   );
@@ -712,26 +716,12 @@ export default function ProjectDetailPage() {
       parentId?: string;
       mentionedUserIds?: string[];
     }) => {
-      // const formData = new FormData();
       const uploadedAttachments = attachments.length
         ? await uploadFilesDirectly(
             attachments,
             `projects/${projectId}/threads`,
           )
         : [];
-      // if (message.trim()) {
-      //   formData.append('message', message.trim());
-      // }
-
-      // if (parentId?.trim()) {
-      //   formData.append('parentId', parentId.trim());
-      // }
-
-      // mentionedUserIds?.forEach((mentionedUserId) => {
-      //   if (mentionedUserId.trim()) {
-      //     formData.append('mentionedUserIds', mentionedUserId.trim());
-      //   }
-      // });
 
       const response = await fetch(`/api/projects/${projectId}/thread`, {
         method: 'POST',
@@ -800,28 +790,6 @@ export default function ProjectDetailPage() {
           : 'Thread posted successfully.',
       );
     },
-    // onSuccess: async (_data, variables) => {
-    //   if (variables.parentId) {
-    //     updateProjectThreadReplyCount(
-    //       variables.parentId,
-    //       (currentCount) => currentCount + 1,
-    //     );
-    //   }
-
-    //   await queryClient.invalidateQueries({
-    //     queryKey: [...projectThreadQueryKey, projectId],
-    //   });
-    //   if (variables.parentId) {
-    //     await queryClient.invalidateQueries({
-    //       queryKey: [
-    //         ...projectThreadDetailQueryKey,
-    //         projectId,
-    //         variables.parentId,
-    //       ],
-    //     });
-    //   }
-    //   appToast.success('Reply posted successfully.');
-    // },
     onError: (error) => {
       appToast.error(
         error instanceof Error
@@ -1103,16 +1071,6 @@ export default function ProjectDetailPage() {
     shouldRedirectToNotFound,
   ]);
 
-  // const projectTickets = useMemo(
-  //   () =>
-  //     (projectTicketsQuery.data?.items ?? []).map((ticket) => ({
-  //       ...ticket,
-  //       statusColor:
-  //         ticket.statusColor ??
-  //         getTicketStatusColor(ticket.status, ticketStatusesQuery.data),
-  //     })),
-  //   [projectTicketsQuery.data?.items, ticketStatusesQuery.data],
-  // );
   const projectTickets = useMemo(
     () =>
       (projectTicketsQuery.data?.items ?? []).map((ticket) => ({
@@ -1912,61 +1870,6 @@ export default function ProjectDetailPage() {
     },
     [pathname, router, searchParams, visibleProjectTabs],
   );
-  // const projectDetailScrollRef = useRef<HTMLDivElement | null>(null);
-  // const projectDetailSectionRef = useRef<HTMLDivElement | null>(null);
-
-  // const [isProjectDetailSectionPinned, setIsProjectDetailSectionPinned] =
-  //   useState(false);
-
-  // useEffect(() => {
-  //   if (
-  //     projectDetailQuery.isLoading ||
-  //     shouldRedirectToNotFound ||
-  //     !canViewProjectDetail ||
-  //     !project
-  //   ) {
-  //     return;
-  //   }
-
-  //   const scrollContainer = projectDetailScrollRef.current;
-  //   const detailSection = projectDetailSectionRef.current;
-
-  //   if (!scrollContainer || !detailSection) {
-  //     return;
-  //   }
-
-  //   const updatePinnedState = () => {
-  //     if (window.innerWidth >= 1280) {
-  //       setIsProjectDetailSectionPinned(true);
-  //       return;
-  //     }
-
-  //     const containerRect = scrollContainer.getBoundingClientRect();
-  //     const sectionRect = detailSection.getBoundingClientRect();
-
-  //     setIsProjectDetailSectionPinned(
-  //       Math.ceil(sectionRect.top) <= Math.ceil(containerRect.top),
-  //     );
-  //   };
-
-  //   updatePinnedState();
-
-  //   scrollContainer.addEventListener('scroll', updatePinnedState, {
-  //     passive: true,
-  //   });
-
-  //   window.addEventListener('resize', updatePinnedState);
-
-  //   return () => {
-  //     scrollContainer.removeEventListener('scroll', updatePinnedState);
-  //     window.removeEventListener('resize', updatePinnedState);
-  //   };
-  // }, [
-  //   projectDetailQuery.isLoading,
-  //   shouldRedirectToNotFound,
-  //   canViewProjectDetail,
-  //   project?.id,
-  // ]);
 
   if (projectDetailQuery.isLoading) {
     return <ProjectDetailSkeleton onBack={() => router.back()} />;
@@ -1984,7 +1887,6 @@ export default function ProjectDetailPage() {
             imageUrl="/images/EmptyProjectIcon.svg"
             imageAlt="Project not found"
             title="You do not have permission to view project details."
-            // description="Recent tickets will appear here once they are created."
             buttonLabel="Go Back"
             onButtonClick={() => router.back()}
           />
@@ -2001,7 +1903,6 @@ export default function ProjectDetailPage() {
             imageUrl="/images/EmptyProjectIcon.svg"
             imageAlt="Project not found"
             title="Project not found"
-            // description="Recent tickets will appear here once they are created."
             buttonLabel="Go Back"
             onButtonClick={() => router.back()}
           />
@@ -2039,41 +1940,10 @@ export default function ProjectDetailPage() {
         ]
       : []),
   ];
-
-  // const ticketSummaryStats = useMemo(
-  //   () => [
-  //     {
-  //       title: 'Open',
-  //       count: ticketsQuery.data?.summary?.open ?? 0,
-  //       color: '#F04438',
-  //     },
-  //     {
-  //       title: 'InProgress',
-  //       count: ticketsQuery.data?.summary?.inProgress ?? 0,
-  //       color: '#F79009',
-  //     },
-  //     {
-  //       title: 'Resolved',
-  //       count: ticketsQuery.data?.summary?.resolved ?? 0,
-  //       color: '#17B26A',
-  //     },
-  //     {
-  //       title: 'Critical',
-  //       count: ticketsQuery.data?.summary?.critical ?? 0,
-  //       color: '#7A5AF8',
-  //     },
-  //   ],
-  //   [ticketsQuery.data],
-  // );
-
   return (
     <>
       <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 py-4">
-        <div
-          // ref={projectDetailScrollRef}
-          className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
-          // className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
-        >
+        <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <div className="shrink-0">
             <DashboardSummaryBanner
               imageSrc="/images/bannerBackBtn.svg"
@@ -2086,70 +1956,11 @@ export default function ProjectDetailPage() {
             />
           </div>
 
-          <div
-            // ref={projectDetailSectionRef}
-            // className="sticky -top-5 z-20 flex h-full min-h-0 min-w-0 flex-none flex-col gap-4 overflow-hidden rounded-xl bg-white  shadow-[0_0_35px_0_rgb(0_0_0/0.04)] p-3 md:px-5 md:pt-4 xl:static xl:z-auto xl:flex-1"
-            // className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden rounded-xl bg-white px-0 pt-2 md:pt-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:px-5"
-
-            className="flex h-auto min-h-0 min-w-0 flex-none flex-col gap-4 overflow-visible rounded-xl bg-white p-3 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:px-5 md:pt-4 xl:h-full xl:flex-1 xl:overflow-hidden"
-          >
-            {/* <section className="w-full shrink-0">
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
-                  <span
-                    className="flex h-12 min-w-12 shrink-0 items-center justify-center rounded-full text-lg font-semibold sm:h-19 sm:w-19 md:text-3xl"
-                    style={{
-                      backgroundColor: `${project.colorHex}22`,
-                      color: project.colorHex,
-                    }}
-                  >
-                    {project.initials}
-                  </span>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <h2 className="truncate text-base font-semibold text-gray-900 md:text-lg">
-                        {project.name}
-                      </h2>
-
-                      <span className="rounded-full border border-green-200 bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-600 sm:text-sm">
-                        {project.category}
-                      </span>
-                    </div>
-
-                    {projectSummaryStats.length ? (
-                      <div className="mt-3 flex max-w-full flex-wrap items-center gap-x-5 gap-y-2">
-                        {projectSummaryStats.map((item, index) => (
-                          <div
-                            key={`${item.title}-${index}`}
-                            className="flex items-center gap-2"
-                          >
-                            <span
-                              className="h-2.5 w-2.5 shrink-0 rounded-full"
-                              style={{ backgroundColor: item.color }}
-                            />
-
-                            <span className="whitespace-nowrap text-xs text-gray-500 sm:text-sm">
-                              {item.title}
-                            </span>
-
-                            <span className="whitespace-nowrap text-sm font-semibold text-gray-900">
-                              {item.count}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            </section> */}
-
+          <div className="flex h-auto min-h-0 min-w-0 flex-none flex-col gap-4 overflow-visible rounded-xl bg-white p-3 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:px-5 md:pt-4 xl:h-full xl:flex-1 xl:overflow-hidden">
             <TabGroup
               key={`${projectId}-${searchParams.get('t') ?? '0'}`}
               defaultIndex={defaultProjectTabIndex}
               onChange={handleProjectTabChange}
-              // className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden"
               className="flex h-auto min-h-0 min-w-0 flex-none flex-col gap-4 overflow-visible xl:h-full xl:flex-1 xl:overflow-hidden"
             >
               <TabList className="flex shrink-0 overflow-x-auto scrollbar-hide border-b border-gray-200">
@@ -2175,15 +1986,9 @@ export default function ProjectDetailPage() {
                 ))}
               </TabList>
 
-              <TabPanels
-                // className="flex min-h-0 min-w-0 flex-1 flex-col pb-4 md:pb-4 overflow-hidden"
-                className="flex h-auto min-h-0 min-w-0 flex-none flex-col overflow-visible pb-2  xl:h-full xl:flex-1 xl:overflow-hidden"
-              >
+              <TabPanels className="flex h-auto min-h-0 min-w-0 flex-none flex-col overflow-visible pb-2  xl:h-full xl:flex-1 xl:overflow-hidden">
                 <PermissionGuard permission="tickets.view_list">
-                  <TabPanel
-                    // className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-hidden"
-                    className="flex h-auto min-h-0 min-w-0 flex-none flex-col gap-4 overflow-visible xl:h-full xl:flex-1 xl:overflow-hidden"
-                  >
+                  <TabPanel className="flex h-auto min-h-0 min-w-0 flex-none flex-col gap-4 overflow-visible xl:h-full xl:flex-1 xl:overflow-hidden">
                     <div className="flex shrink-0 flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
                       {canFilterTickets ? (
                         <>
@@ -2343,15 +2148,6 @@ export default function ProjectDetailPage() {
                                   placeholder="All Priority"
                                 />
                               </div>
-
-                              {/* <button
-                              type="button"
-                              onClick={clearProjectTicketFilters}
-                              disabled={!hasActiveProjectTicketFilters}
-                              className="hidden h-10 shrink-0 items-center justify-center rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 xl:inline-flex"
-                            >
-                              Clear Filters
-                            </button> */}
                               <ThemeButton
                                 type="button"
                                 variant="secondary"
@@ -2389,16 +2185,16 @@ export default function ProjectDetailPage() {
                         </div>
                       ) : null}
                     </div>
-                    <div
-                      // className="min-h-0 min-w-0 flex-1 overflow-hidden"
-                      className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden"
-                    >
+                    <div className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden">
                       {projectTicketsQuery.isLoading ? (
                         <RecentTicketsTableSkeleton />
                       ) : projectTicketsViewMode === 'kanban' ? (
                         <TicketsKanbanView
                           tickets={projectTickets}
                           statusOptions={kanbanStatusOptions}
+                          statusCountsByKey={
+                            projectTicketsQuery.data?.countPerStatus ?? {}
+                          }
                           onTicketClick={
                             canViewTicketDetail
                               ? (ticket) =>
@@ -2453,16 +2249,8 @@ export default function ProjectDetailPage() {
                 </PermissionGuard>
 
                 <PermissionGuard permission="thread.view">
-                  <TabPanel
-                    // className="h-full min-h-0 min-w-0 overflow-hidden"
-                    className="h-auto min-h-0 min-w-0 overflow-visible xl:h-full xl:overflow-hidden"
-                  >
+                  <TabPanel className="h-auto min-h-0 min-w-0 overflow-visible xl:h-full xl:overflow-hidden">
                     <div
-                      // className={`grid h-full min-h-0 min-w-0 overflow-hidden rounded-xl border border-gray-200 md:rounded-2xl ${
-                      //   selectedThreadMessageId && !isMobile
-                      //     ? 'xl:grid-cols-[minmax(0,1fr)_400px] xl:grid-rows-[minmax(0,1fr)] xl:divide-x xl:divide-gray-200'
-                      //     : 'grid-cols-1'
-                      // }`}
                       className={`grid h-auto min-h-0 min-w-0 overflow-visible rounded-sm border border-gray-200 md:rounded-2xl xl:h-full xl:overflow-hidden ${
                         selectedThreadMessageId && !isMobile
                           ? 'xl:grid-cols-[minmax(0,1fr)_400px] xl:grid-rows-[minmax(0,1fr)] xl:divide-x xl:divide-gray-200'
@@ -2470,10 +2258,7 @@ export default function ProjectDetailPage() {
                       }`}
                     >
                       {(!isMobile || !selectedThreadMessageId) && (
-                        <div
-                          // className="h-full min-h-0 min-w-0 overflow-hidden"
-                          className="h-auto min-h-0 min-w-0 overflow-visible xl:h-full xl:overflow-hidden"
-                        >
+                        <div className="h-auto min-h-0 min-w-0 overflow-visible xl:h-full xl:overflow-hidden">
                           <ProjectThreadPanel
                             title="Discussion"
                             replies={projectThreadReplies}
@@ -2618,10 +2403,7 @@ export default function ProjectDetailPage() {
                 </PermissionGuard>
 
                 <PermissionGuard permission="files.view">
-                  <TabPanel
-                    // className="h-full min-h-0 min-w-0 overflow-hidden"
-                    className="h-auto min-h-0 min-w-0 overflow-visible xl:h-full xl:overflow-hidden"
-                  >
+                  <TabPanel className="h-auto min-h-0 min-w-0 overflow-visible xl:h-full xl:overflow-hidden">
                     <ProjectFilesPanel
                       files={projectFiles}
                       searchValue={fileSearchValue}
@@ -2651,15 +2433,7 @@ export default function ProjectDetailPage() {
                 </PermissionGuard>
 
                 <PermissionGuard permission="calendar.view_grid">
-                  <TabPanel
-                    // className={`h-full min-h-0 touch-pan-y ${
-                    //   isProjectDetailSectionPinned
-                    //     ? 'overflow-y-auto overscroll-auto '
-                    //     : 'overflow-y-hidden overscroll-auto xl:overflow-y-auto'
-                    // }`}
-                    className="h-auto min-h-0 overflow-visible xl:h-full xl:overflow-y-auto"
-                    // className="h-full min-h-0 overflow-y-auto"
-                  >
+                  <TabPanel className="h-auto min-h-0 overflow-visible xl:h-full xl:overflow-y-auto">
                     <Calendar projectId={projectId} />
                   </TabPanel>
                 </PermissionGuard>
@@ -2729,7 +2503,7 @@ export default function ProjectDetailPage() {
                               {projectNotes.map((note) => {
                                 const isActive =
                                   note.id === selectedProjectNoteSummary?.id;
-                                const noteForPreview = note;
+
                                 return (
                                   <article
                                     key={note.id}
@@ -3031,9 +2805,6 @@ export default function ProjectDetailPage() {
                                     className={`w-full ${!isEditingProjectNote ? 'pb-0' : 'border-b border-b-gray-300 pb-2'} bg-transparent text-base font-semibold text-gray-900 outline-none md:text-xl`}
                                     placeholder="Note title"
                                   />
-                                  {/* <p className="mt-3 text-xs text-gray-400">
-                              {formatProjectNoteDate(selectedProjectNote)}
-                            </p> */}
                                 </div>
                                 <div
                                   className={`${isEditingProjectNote ? 'pt-4' : ''} ps-4 md:ps-5 flex-1 max-h-[90dvh]`}
@@ -3041,7 +2812,7 @@ export default function ProjectDetailPage() {
                                   {projectNoteDetailQuery.isLoading &&
                                   selectedProjectNoteId ? (
                                     <div className="space-y-4 pb-4 pt-2">
-                                      <div className="h-[50dvh] min-h-[18rem] w-full animate-pulse rounded-lg bg-gray-100" />
+                                      <div className="h-[50dvh] min-h-72 w-full animate-pulse rounded-lg bg-gray-100" />
                                     </div>
                                   ) : (
                                     <>
@@ -3187,9 +2958,6 @@ export default function ProjectDetailPage() {
                                     className={`w-full ${!isEditingProjectNote ? 'pb-0' : 'border-b border-b-gray-300 pb-2'} bg-transparent text-base font-semibold text-gray-900 outline-none md:text-xl`}
                                     placeholder="Note title"
                                   />
-                                  {/* <p className="mt-3 text-xs text-gray-400">
-                              {formatProjectNoteDate(selectedProjectNote)}
-                            </p> */}
                                 </div>
 
                                 <div
@@ -3369,16 +3137,6 @@ export default function ProjectDetailPage() {
             </TabGroup>
           </div>
         </div>
-        {/* {canCreateTicket ? (
-          <button
-            type="button"
-            onClick={() => setCreateTicketOpen(true)}
-            aria-label="Create new ticket"
-            className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-l from-royal-blue to-crystal-blue text-white shadow-[0_10px_30px_rgb(48_79_253/0.35)] transition hover:opacity-90 active:scale-95 xl:hidden"
-          >
-            <PlusIcon fill="#FFFFFF" width="24" height="24" />
-          </button>
-        ) : null} */}
       </div>
 
       <CreateTicketModal

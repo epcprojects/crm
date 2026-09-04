@@ -60,14 +60,9 @@ import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { NotificationItem } from '@harperhelp/interfaces';
 import { NotificationEntityType } from '@harperhelp/types';
 import { eventEmitter } from '../../../../lib/event-emitter';
-import {
-  validateAttachments,
-  uploadFilesDirectly,
-} from '../../../../lib/attachments';
+import { uploadFilesDirectly } from '../../../../lib/attachments';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import RichTextEditor from 'apps/frontend/src/components/RichTextEditor';
-// eslint-disable-next-line @nx/enforce-module-boundaries
-import ThemeButton from 'apps/frontend/src/components/ui/ThemeButton';
 import {
   CalendarTabIcon,
   FilesTabIcon,
@@ -86,7 +81,6 @@ type GalleryImage = {
   alt: string;
 };
 
-// type ConversationView = 'replies' | 'internal-chat';
 type TicketAttachmentToDelete = {
   attachmentId: string;
   projectFileId: string;
@@ -492,8 +486,6 @@ export default function TicketDetailPage() {
   );
   const [chatDrawerChannel, setChatDrawerChannel] =
     useState<ChatChannel | null>(null);
-  // const [conversationView, setConversationView] =
-  //   useState<ConversationView>('replies');
   const [hasUnreadInternalChat, setHasUnreadInternalChat] = useState(false);
   const isChatDrawerOpen = Boolean(chatDrawerChannel);
   const internalChatParam = searchParams.get('internal');
@@ -537,14 +529,11 @@ export default function TicketDetailPage() {
   const {
     messages: externalChatMessages,
     loading: externalChatLoading,
-    loadingMore: externalChatLoadingMore,
-    hasMore: externalChatHasMore,
     sendMessage: sendExternalChatMessage,
     markRead: markExternalChatRead,
     deleteMessage: deleteExternalChatMessage,
     updateMessage: updateExternalChatMessage,
     toggleReaction: toggleExternalChatReaction,
-    loadOlderMessages: loadOlderExternalChatMessages,
   } = useTicketChat({
     projectId:
       isChatDrawerOpen && chatDrawerChannel === 'external' ? projectId : '',
@@ -563,17 +552,12 @@ export default function TicketDetailPage() {
   const [selectedDueDate, setSelectedDueDate] = useState('');
   const [ticketSidebarTab, setTicketSidebarTab] =
     useState<TicketSidebarTabKey>('quick-links');
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isEditContentModalOpen, setIsEditContentModalOpen] = useState(false);
 
   const [isDescriptionModalOpen, setIsDescriptionModalOpen] = useState(false);
-  // const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 
   const [shouldShowDescriptionToggle, setShouldShowDescriptionToggle] =
     useState(false);
-  // const [descriptionPreviewText, setDescriptionPreviewText] = useState('');
-  // const [descriptionRemainingText, setDescriptionRemainingText] = useState('');
   const descriptionContentRef = useRef<HTMLDivElement | null>(null);
 
   const [isSendingChatMessage, setIsSendingChatMessage] = useState(false);
@@ -823,97 +807,19 @@ export default function TicketDetailPage() {
     setSelectedDueDate(toDateInputValue(ticket.dueDateValue ?? ''));
     setTitleDraft(ticket.title);
     setDescriptionDraft(ticket.description ?? '');
-    // setIsDescriptionExpanded(false);
   }, [ticket]);
 
-  // useEffect(() => {
-  //   const description = ticket?.description?.trim() ?? '';
-  //   const measurementElement = descriptionMeasureRef.current;
-  //   const overflowElement = descriptionOverflowRef.current;
-
-  //   if (!description || !measurementElement || !overflowElement) {
-  //     setShouldShowDescriptionToggle(false);
-  //     setDescriptionPreviewText(description);
-  //     setDescriptionRemainingText('');
-  //     return;
-  //   }
-
-  //   const measureDescription = () => {
-  //     const computedStyle = window.getComputedStyle(measurementElement);
-  //     const lineHeight = Number.parseFloat(computedStyle.lineHeight);
-
-  //     if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
-  //       setShouldShowDescriptionToggle(false);
-  //       setDescriptionPreviewText(description);
-  //       setDescriptionRemainingText('');
-  //       return;
-  //     }
-
-  //     overflowElement.textContent = description;
-  //     const maxHeight = lineHeight * 2;
-  //     const fullHeight = overflowElement.scrollHeight;
-
-  //     if (fullHeight <= maxHeight + 1) {
-  //       setShouldShowDescriptionToggle(false);
-  //       setDescriptionPreviewText(description);
-  //       setDescriptionRemainingText('');
-  //       return;
-  //     }
-
-  //     const toggleLabel = ' read more';
-  //     let low = 0;
-  //     let high = description.length;
-  //     let bestFit = '';
-
-  //     while (low <= high) {
-  //       const middle = Math.floor((low + high) / 2);
-  //       const candidate = `${description.slice(0, middle).trimEnd()}${toggleLabel}`;
-  //       overflowElement.textContent = candidate;
-
-  //       if (overflowElement.scrollHeight <= maxHeight + 1) {
-  //         bestFit = `${description.slice(0, middle).trimEnd()}`;
-  //         low = middle + 1;
-  //       } else {
-  //         high = middle - 1;
-  //       }
-  //     }
-
-  //     setShouldShowDescriptionToggle(true);
-  //     const previewText = bestFit || description;
-  //     setDescriptionPreviewText(previewText);
-  //     setDescriptionRemainingText(description.slice(previewText.length));
-  //   };
-
-  //   measureDescription();
-
-  //   const resizeObserver = new ResizeObserver(() => {
-  //     measureDescription();
-  //   });
-
-  //   resizeObserver.observe(measurementElement);
-
-  //   return () => {
-  //     resizeObserver.disconnect();
-  //   };
-  // }, [ticket?.description]);
-
-  useEffect(() => {
-    // setIsDescriptionExpanded(false);
-  }, [sanitizedDescription]);
+  useEffect(() => { /* empty */ }, [sanitizedDescription]);
 
   useEffect(() => {
     const descriptionElement = descriptionContentRef.current;
 
-    if (!descriptionElement || !hasDescriptionContent || isEditingDescription) {
+    if (!descriptionElement || !hasDescriptionContent) {
       setShouldShowDescriptionToggle(false);
       return;
     }
 
     const measureOverflow = () => {
-      // if (isDescriptionExpanded) {
-      //   return;
-      // }
-
       setShouldShowDescriptionToggle(
         descriptionElement.scrollHeight > descriptionElement.clientHeight + 1,
       );
@@ -931,12 +837,7 @@ export default function TicketDetailPage() {
       window.cancelAnimationFrame(animationFrameId);
       resizeObserver.disconnect();
     };
-  }, [
-    sanitizedDescription,
-    hasDescriptionContent,
-    // isDescriptionExpanded,
-    isEditingDescription,
-  ]);
+  }, [sanitizedDescription, hasDescriptionContent]);
 
   useEffect(() => {
     if (!projectId || !ticketId || !currentUserId) {
@@ -1004,14 +905,6 @@ export default function TicketDetailPage() {
         if (payload.channel === 'internal') {
           setHasUnreadInternalChat(true);
         }
-
-        // appToast.info(
-        //   getIncomingChatToastMessage(payload.channel, payload.message),
-        //   {
-        //     position: 'top-right',
-        //     toastId: `ticket-chat-${payload.channel}-${payload.message.id}`,
-        //   },
-        // );
       };
 
       socket.on('connect', joinUnreadRooms);
@@ -1155,20 +1048,6 @@ export default function TicketDetailPage() {
     };
   }, []);
 
-  // const handleOpenChatDrawer = (channel: ChatChannel) => {
-  //   if (channel === 'internal') {
-  //     setHasUnreadInternalChat(false);
-  //     setConversationView('internal-chat');
-  //     return;
-  //   }
-
-  //   if (channel === 'external') {
-  //     setHasUnreadExternalChat(false);
-  //   }
-
-  //   setChatDrawerChannel(channel);
-  // };
-
   const openGallery = (images: GalleryImage[], index: number) => {
     if (!images.length || index < 0) {
       return;
@@ -1232,7 +1111,6 @@ export default function TicketDetailPage() {
             imageUrl="/images/RecentTicketEmpty.svg"
             imageAlt="Tickets detail not found "
             title="Tickets detail not found"
-            // description="Recent tickets will appear here once they are created."
             buttonLabel="Go Back"
             onButtonClick={() => router.back()}
           />
@@ -1464,7 +1342,6 @@ export default function TicketDetailPage() {
         });
       }
 
-      // appToast.success('Chat updated successfully.');
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'ticket-summary'],
@@ -1515,11 +1392,7 @@ export default function TicketDetailPage() {
     }
 
     if (nextTitle === ticket.title && nextDescription === currentDescription) {
-      // setIsDescriptionExpanded(false);
       setIsEditContentModalOpen(false);
-
-      // setIsEditingTitle(false);
-      // setIsEditingDescription(false);
       return;
     }
 
@@ -1534,9 +1407,6 @@ export default function TicketDetailPage() {
       }),
     );
 
-    // setIsDescriptionExpanded(false);
-    // setIsEditingTitle(false);
-    // setIsEditingDescription(false);
     setIsEditContentModalOpen(false);
   };
 
@@ -1816,10 +1686,7 @@ export default function TicketDetailPage() {
 
   return (
     <div className="relative z-100 h-full xl:h-dvh overflow-hidden py-4 xl:py-5 xl:pr-5 px-3 xl:px-0 pt-2 pb-0">
-      <div
-        className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
-        // className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden  xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
-      >
+      <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
         <div className="relative shrink-0 flex w-full flex-col gap-2 overflow-hidden rounded-xl bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat px-4 pt-4 pb-2 xl:flex-row xl:items-center xl:gap-4  xl:px-7.5 xl:py-6">
           {/* Background overlay */}
           <div
@@ -1923,48 +1790,11 @@ export default function TicketDetailPage() {
               </div>
             </div>
           </div>
-          <div className="flex  items-center gap-2 relative z-20">
-            {/* {canViewInternalChatBtn && (
-              <Tooltip content="" heading="Internal Chat">
-                <button
-                  type="button"
-                  onClick={() => handleOpenChatDrawer('internal')}
-                  className="inline-flex relative items-center justify-center gap-2 rounded-full bg-black/50  h-10 min-w-10 text-sm font-medium text-[#10175A] transition hover:bg-black"
-                >
-                  <InternalChatIcon />
-                  {hasUnreadInternalChat ? (
-                    <span className="h-2.5 w-2.5 rounded-full bg-green-500 animate-pulse  inline-block absolute top-0.5 right-0.5"></span>
-                  ) : null}
-                </button>
-              </Tooltip>
-            )} */}
-            {/* {canViewExternalChatBtn && (
-              <Tooltip content="" heading="External Chat">
-                <button
-                  type="button"
-                  onClick={() => handleOpenChatDrawer('external')}
-                  className="inline-flex relative items-center justify-center gap-2 rounded-full bg-black/50  h-10 min-w-10 text-sm font-medium text-[#10175A] transition hover:bg-black"
-                >
-                  <ExternalChatIcon />
-
-                  {hasUnreadExternalChat ? (
-                    <span className="h-2.5 w-2.5 rounded-full bg-green-500 animate-pulse inline-block absolute top-0.5 right-0.5"></span>
-                  ) : null}
-                </button>
-              </Tooltip>
-            )} */}
-          </div>
         </div>
 
-        <div
-          // className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain  scrollbar-hide xl:overflow-hidden "
-          className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden"
-        >
+        <div className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden">
           <div className="grid h-auto min-h-0 min-w-0 grid-cols-1 gap-4 overflow-visible xl:h-full xl:grid-cols-12 xl:grid-rows-[minmax(0,1fr)] xl:overflow-hidden">
-            <div
-              className="flex h-auto min-w-0 flex-col space-y-4 overflow-visible xl:col-span-9 xl:h-full xl:min-h-0 xl:overflow-hidden"
-              // className="flex min-w-0 flex-col space-y-4 xl:col-span-9"
-            >
+            <div className="flex h-auto min-w-0 flex-col space-y-4 overflow-visible xl:col-span-9 xl:h-full xl:min-h-0 xl:overflow-hidden">
               <section className="rounded-xl border border-gray-200 bg-white p-3  md:p-5">
                 <div className=" relative">
                   <div className="mb-2 flex absolute top-0 inset-e-0 items-start justify-end">
@@ -1978,135 +1808,14 @@ export default function TicketDetailPage() {
                         <EditIcon />
                       </button>
                     ) : null}
-                    {/* {canEditTitleDescription ? (
-                      <button
-                        type="button"
-                        disabled={updateTicketMutation.isPending}
-                        onClick={() => {
-                          if (isEditingTitle || isEditingDescription) {
-                            void handleSaveTicketContent();
-                            return;
-                          }
-
-                          handleStartEditingContent();
-                        }}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-                        aria-label={
-                          isEditingTitle || isEditingDescription
-                            ? 'Save ticket content'
-                            : 'Edit ticket content'
-                        }
-                      >
-                        {isEditingTitle || isEditingDescription ? (
-                          <CheckMarkCircleIcon
-                            width="18"
-                            height="18"
-                            fill="gray"
-                            opacity="0"
-                          />
-                        ) : (
-                          <EditIcon />
-                        )}
-                      </button>
-                    ) : null} */}
                   </div>
-                  {/* {isEditingTitle ? (
-                    <div className="mr-10">
-                      <input
-                        type="text"
-                        value={titleDraft}
-                        autoFocus
-                        disabled={updateTicketMutation.isPending}
-                        onChange={(event) => setTitleDraft(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter') {
-                            event.preventDefault();
-                            void handleSaveTicketContent();
-                          }
 
-                          if (event.key === 'Escape') {
-                            handleCancelEditingContent();
-                          }
-                        }}
-                        className="w-full border-b border-b-gray-400 pb-2  text-base font-semibold text-gray-900 outline-none md:text-xl"
-                      />
-                    </div>
-                  ) : (
-                    <div className="block w-full text-left">
-                      <h2 className="text-base font-semibold leading-8 text-gray-900 md:text-xl">
-                        {ticket.title}
-                      </h2>
-                    </div>
-                  )} */}
                   <div className="block w-full text-left">
                     <h2 className="pr-10 text-base font-semibold leading-8 text-gray-900 md:text-xl">
                       {ticket.title}
                     </h2>
                   </div>
 
-                  {/* {isEditingDescription ? (
-                    <div className="mt-4">
-                      <RichTextEditor
-                        value={descriptionDraft}
-                        onChange={setDescriptionDraft}
-                        placeholder="Describe the issue in detail..."
-                        maxLength={MAX_DESCRIPTION_LENGTH}
-                        disabled={updateTicketMutation.isPending}
-                        showCharacterCount
-                      />
-                      <div className="mt-4 flex  justify-end gap-3">
-                        <ThemeButton
-                          type="button"
-                          variant="secondary"
-                          size="md"
-                          onClick={handleCancelEditingContent}
-                          disabled={updateTicketMutation.isPending}
-                          className="disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          Discard
-                        </ThemeButton>
-
-                        <ThemeButton
-                          type="button"
-                          variant="primaryGradient"
-                          size="md"
-                          onClick={() => void handleSaveTicketContent()}
-                          disabled={updateTicketMutation.isPending}
-                          className="disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {updateTicketMutation.isPending
-                            ? 'Updating...'
-                            : 'Update'}
-                        </ThemeButton>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-2 w-full text-left max-h-52 overflow-y-auto tiny-scrollbar">
-                      {hasDescriptionContent ? (
-                        <>
-                          <div
-                            ref={descriptionContentRef}
-                            className="rich-text-content line-clamp-2 text-sm text-gray-700"
-                            dangerouslySetInnerHTML={{
-                              __html: sanitizedDescription,
-                            }}
-                          />
-
-                          {shouldShowDescriptionToggle ? (
-                            <button
-                              type="button"
-                              onClick={() => setIsDescriptionModalOpen(true)}
-                              className="mt-1 inline-flex cursor-pointer text-sm font-medium text-[#8A38F5]"
-                            >
-                              ... read more
-                            </button>
-                          ) : null}
-                        </>
-                      ) : (
-                        <p className="text-sm text-gray-700">Add description</p>
-                      )}
-                    </div>
-                  )} */}
                   <div className="mt-2 max-h-52 w-full overflow-y-auto text-left tiny-scrollbar">
                     {hasDescriptionContent ? (
                       <>
@@ -2134,10 +1843,7 @@ export default function TicketDetailPage() {
                   </div>
                 </div>
               </section>
-              <div
-                // className="min-h-0 xl:flex-1 xl:overflow-hidden"
-                className="h-auto min-h-0 flex-none overflow-visible xl:h-full xl:flex-1 xl:overflow-hidden"
-              >
+              <div className="h-auto min-h-0 flex-none overflow-visible xl:h-full xl:flex-1 xl:overflow-hidden">
                 {canViewReplies || canViewInternalChatBtn ? (
                   <TicketRepliesPanel
                     title={
@@ -2155,37 +1861,7 @@ export default function TicketDetailPage() {
                           <span className="text-xs font-medium text-gray-600">
                             Internal Chat
                           </span>
-                          {/* <button
-                            type="button"
-                            role="switch"
-                            aria-checked={isInternalChatActive}
-                            aria-label="Toggle internal chat"
-                            onClick={() => {
-                              const nextIsInternalChat = !isInternalChatActive;
-                              setConversationView(
-                                nextIsInternalChat
-                                  ? 'internal-chat'
-                                  : 'replies',
-                              );
 
-                              if (nextIsInternalChat) {
-                                setHasUnreadInternalChat(false);
-                              }
-                            }}
-                            className={`relative inline-flex h-6 w-10 items-center rounded-full transition ${
-                              isInternalChatActive
-                                ? 'bg-[#3B82F6]'
-                                : 'bg-gray-300'
-                            }`}
-                          >
-                            <span
-                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
-                                isInternalChatActive
-                                  ? 'translate-x-5'
-                                  : 'translate-x-1'
-                              }`}
-                            />
-                          </button> */}
                           <button
                             type="button"
                             role="switch"
@@ -2354,11 +2030,7 @@ export default function TicketDetailPage() {
                 ) : null}
               </div>
             </div>
-            <aside
-              className="h-auto min-h-0 min-w-0 space-y-4 overflow-visible scrollbar-hide xl:col-span-3 xl:h-full xl:overflow-y-auto"
-              // className="min-h-0 min-w-0 space-y-4 overflow-y-auto scrollbar-hide  xl:col-span-3 xl:h-full"
-            >
-              {/* {!isExternalUser ? ( */}
+            <aside className="h-auto min-h-0 min-w-0 space-y-4 overflow-visible scrollbar-hide xl:col-span-3 xl:h-full xl:overflow-y-auto">
               <section className="rounded-xl border border-gray-200 bg-white">
                 <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 md:text-base">
                   Actions
@@ -2370,8 +2042,6 @@ export default function TicketDetailPage() {
                       Status
                     </span>
                     <Dropdown
-                      // label="Status"
-
                       options={statusOptions}
                       value={selectedStatus}
                       disabled={
@@ -2409,7 +2079,6 @@ export default function TicketDetailPage() {
                       onChange={handleAssigneeChange}
                     />
                   </div>
-                  {/* {!isExternalUser ? ( */}
                   <section className="grid w-full grid-cols-[60px_minmax(0,1fr)] items-center gap-2 2xl:grid-cols-2 2xl:gap-4">
                     <span className="whitespace-nowrap text-sm font-normal text-black">
                       Due Date
@@ -2432,10 +2101,8 @@ export default function TicketDetailPage() {
                       </label>
                     </div>
                   </section>
-                  {/* ) : null} */}
                 </div>
               </section>
-              {/* ) : null} */}
               {projectId && canViewProjectDetail ? (
                 <section className="rounded-xl border border-gray-200 bg-white">
                   <div className=" px-3 py-3">
@@ -2732,11 +2399,6 @@ export default function TicketDetailPage() {
         isOpen={isChatDrawerOpen && chatDrawerChannel === 'external'}
         onClose={() => setChatDrawerChannel(null)}
         title="External Chat"
-        // subtitle={getChatSubtitle({
-        //   connected: chatConnected,
-        //   loading: chatLoading,
-        //   typingUsers,
-        // })}
         position={ModalPosition.RIGHT}
         size="extraLarge"
         showFooter={false}
@@ -2752,11 +2414,6 @@ export default function TicketDetailPage() {
             </div>
           ) : null}
           <div className="min-h-0 flex-1  relative">
-            {/* {chatConnected ? (
-              <span className="min-w-2.5 h-2.5 bg-green-500  animate-pulse rounded-full block absolute z-100 -top-9 end-8"></span>
-            ) : (
-              <span className="min-w-2 h-2 bg-red-500 rounded-full block absolute -top-9 end-8"></span>
-            )} */}
             <TicketRepliesPanel
               hideHeader={true}
               className="rounded-none!"
@@ -4059,15 +3716,6 @@ function decrementDiscussionReaction(
     );
 }
 
-type UploadedProjectFile = {
-  id?: string;
-  originalName?: string | null;
-  name?: string | null;
-  storageKey?: string | null;
-  sizeBytes?: string | number | null;
-  extension?: string | null;
-  mimeType?: string | null;
-};
 
 async function uploadChatAttachments(
   attachments: File[],
@@ -4122,39 +3770,7 @@ function getAttachmentExtension(value?: string | null) {
   return lastSegment.toLowerCase();
 }
 
-// function buildAttachmentUrl(storageKey?: string | null) {
-//   if (!storageKey) {
-//     return '';
-//   }
 
-//   if (/^https?:\/\//i.test(storageKey)) {
-//     return storageKey;
-//   }
-
-//   const cloudfrontUrl = process.env.NEXT_PUBLIC_CLOUDFRONT_URL?.trim() ?? '';
-//   const normalizedBaseUrl = cloudfrontUrl.replace(/\/+$/, '');
-//   const normalizedStorageKey = storageKey.replace(/^\/+/, '');
-//   const encodedStorageKey = normalizedStorageKey
-//     .split('/')
-//     .filter(Boolean)
-//     .map((segment) => encodeURIComponent(segment))
-//     .join('/');
-
-//   if (normalizedBaseUrl && encodedStorageKey) {
-//     return `${normalizedBaseUrl}/${encodedStorageKey}`;
-//   }
-
-//   if (typeof window !== 'undefined' && normalizedStorageKey) {
-//     const searchParams = new URLSearchParams({
-//       storageKey: normalizedStorageKey,
-//       fileName: extractFileNameFromUrl(normalizedStorageKey) || 'attachment',
-//     });
-
-//     return `${window.location.origin}/api/projects/files/download?${searchParams.toString()}`;
-//   }
-
-//   return '';
-// }
 function buildAttachmentUrl(storageKey?: string | null) {
   if (!storageKey) {
     return '';
@@ -4167,15 +3783,6 @@ function toNumber(value: string | number | null | undefined) {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function buildUploadedFileMatchKey({
-  name,
-  sizeBytes,
-}: {
-  name: string;
-  sizeBytes: string | number | null | undefined;
-}) {
-  return `${name.trim().toLowerCase()}::${toNumber(sizeBytes) ?? ''}`;
-}
 
 function getInitials(value: string) {
   const words = value.trim().split(/\s+/).filter(Boolean);
