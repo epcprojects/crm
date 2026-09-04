@@ -235,7 +235,6 @@ export default function Page() {
           ? 'threads'
           : 'activity',
     );
-  const activityScrollContainerRef = useRef<HTMLDivElement | null>(null);
   const projectPanelButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [projectPanelIndicatorStyle, setProjectPanelIndicatorStyle] = useState({
     width: 0,
@@ -1244,7 +1243,28 @@ export default function Page() {
                 )}
               </div>
             </PermissionGuard>
-            <div className="bg-white relative shadow-[0_0_35px_0_rgb(0_0_0/0.04)] h-full flex-1 overflow-y-auto scrollbar-hide rounded-xl  flex flex-col gap-3.5 pb-4">
+            <div
+              onScroll={(event) => {
+                if (projectPanelTab !== 'activity') {
+                  return;
+                }
+
+                const target = event.currentTarget;
+                const distanceToBottom =
+                  target.scrollHeight - target.scrollTop - target.clientHeight;
+
+                if (
+                  distanceToBottom > 40 ||
+                  !activityQuery.hasNextPage ||
+                  activityQuery.isFetchingNextPage
+                ) {
+                  return;
+                }
+
+                void activityQuery.fetchNextPage();
+              }}
+              className="bg-white relative shadow-[0_0_35px_0_rgb(0_0_0/0.04)] h-full flex-1 overflow-y-auto scrollbar-hide rounded-xl flex flex-col gap-3.5 pb-4"
+            >
               <div className="flex flex-row justify-between items-center sticky w-full  z-10 top-0 px-4 pt-4 bg-white">
                 <div
                   className={`relative grid w-full gap-1 rounded-full border border-gray-200 bg-gray-50 p-1 shadow-[inset_0_1px_3px_rgba(15,23,42,0.06)] ${
@@ -1378,27 +1398,7 @@ export default function Page() {
                     </div>
                   )
                 ) : (
-                  <div
-                    ref={activityScrollContainerRef}
-                    onScroll={(event) => {
-                      const target = event.currentTarget;
-                      const distanceToBottom =
-                        target.scrollHeight -
-                        target.scrollTop -
-                        target.clientHeight;
-
-                      if (
-                        distanceToBottom > 80 ||
-                        !activityQuery.hasNextPage ||
-                        activityQuery.isFetchingNextPage
-                      ) {
-                        return;
-                      }
-
-                      void activityQuery.fetchNextPage();
-                    }}
-                    className="overflow-y-auto pr-1 scrollbar-thin"
-                  >
+                  <div className="pr-1">
                     {activityQuery.isLoading ? (
                       Array.from({ length: 5 }).map((_, index) => (
                         <DashboardActivityRowSkeleton key={index} />
