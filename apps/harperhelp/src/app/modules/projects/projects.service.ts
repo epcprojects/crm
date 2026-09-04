@@ -21,7 +21,10 @@ import { Ticket } from '../tickets/entities/ticket.entity';
 import { GetProjectsQueryDto } from './dto/get-projects-query.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { GetMembersQueryDto } from './dto/get-members-query.dto';
-import { EmailEventType, EmailRecipient } from '../notifications/notifications.types';
+import {
+  EmailEventType,
+  EmailRecipient,
+} from '../notifications/notifications.types';
 
 @Injectable()
 export class ProjectsService {
@@ -333,6 +336,8 @@ export class ProjectsService {
     const query = this.projectRepo
       .createQueryBuilder('project')
       .innerJoin('project.members', 'member')
+      .leftJoin(UserRole, 'ur', 'ur."userId" = member.id')
+      .leftJoin('ur.role', 'r')
       .where('project.id = :projectId', { projectId })
       .andWhere('member.isInvitationAccepted = true')
       .andWhere('member.deletedAt IS NULL')
@@ -362,6 +367,8 @@ export class ProjectsService {
         'member.id AS id',
         'member.email AS email',
         'member.fullName AS "fullName"',
+        // 'r.id AS "roleId"',
+        'r.name AS "roleName"',
       ])
       .orderBy('member.fullName', 'ASC')
       .getRawMany();
@@ -378,6 +385,8 @@ export class ProjectsService {
 
     const query = userRepository
       .createQueryBuilder('member')
+      .leftJoin(UserRole, 'ur', 'ur."userId" = member.id')
+      .leftJoin('ur.role', 'r')
       .where('member.isInvitationAccepted = true')
       .andWhere('member.deletedAt IS NULL')
       .andWhere('member.id != :excludedUserId', {
@@ -417,6 +426,8 @@ export class ProjectsService {
         'member.id AS id',
         'member.email AS email',
         'member.fullName AS "fullName"',
+        // 'r.id AS "roleId"',
+        'r.name AS "roleName"',
       ])
       .orderBy('member.fullName', 'ASC')
       .getRawMany();
