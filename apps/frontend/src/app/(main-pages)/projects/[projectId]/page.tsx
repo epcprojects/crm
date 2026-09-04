@@ -333,6 +333,7 @@ export default function ProjectDetailPage() {
       search: debouncedSearchValue.trim() || undefined,
       statusKey: selectedStatus === 'all' ? undefined : selectedStatus,
       priorityKey: selectedPriority === 'all' ? undefined : selectedPriority,
+      kanban: projectTicketsViewMode === 'kanban',
     },
     canViewTickets,
   );
@@ -1987,9 +1988,7 @@ export default function ProjectDetailPage() {
 
               <TabPanels className="flex h-auto min-h-0 min-w-0 flex-none flex-col overflow-visible pb-2  xl:h-full xl:flex-1 xl:overflow-hidden">
                 <PermissionGuard permission="tickets.view_list">
-                  <TabPanel
-                    className="flex h-auto min-h-0 min-w-0 flex-none flex-col gap-4 overflow-visible xl:h-full xl:flex-1 xl:overflow-hidden"
-                  >
+                  <TabPanel className="flex h-auto min-h-0 min-w-0 flex-none flex-col gap-4 overflow-visible xl:h-full xl:flex-1 xl:overflow-hidden">
                     <div className="flex shrink-0 flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
                       {canFilterTickets ? (
                         <>
@@ -2186,15 +2185,16 @@ export default function ProjectDetailPage() {
                         </div>
                       ) : null}
                     </div>
-                    <div
-                      className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden"
-                    >
+                    <div className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden">
                       {projectTicketsQuery.isLoading ? (
                         <RecentTicketsTableSkeleton />
                       ) : projectTicketsViewMode === 'kanban' ? (
                         <TicketsKanbanView
                           tickets={projectTickets}
                           statusOptions={kanbanStatusOptions}
+                          statusCountsByKey={
+                            projectTicketsQuery.data?.countPerStatus ?? {}
+                          }
                           onTicketClick={
                             canViewTicketDetail
                               ? (ticket) =>
@@ -2249,9 +2249,7 @@ export default function ProjectDetailPage() {
                 </PermissionGuard>
 
                 <PermissionGuard permission="thread.view">
-                  <TabPanel
-                    className="h-auto min-h-0 min-w-0 overflow-visible xl:h-full xl:overflow-hidden"
-                  >
+                  <TabPanel className="h-auto min-h-0 min-w-0 overflow-visible xl:h-full xl:overflow-hidden">
                     <div
                       className={`grid h-auto min-h-0 min-w-0 overflow-visible rounded-sm border border-gray-200 md:rounded-2xl xl:h-full xl:overflow-hidden ${
                         selectedThreadMessageId && !isMobile
@@ -2260,9 +2258,7 @@ export default function ProjectDetailPage() {
                       }`}
                     >
                       {(!isMobile || !selectedThreadMessageId) && (
-                        <div
-                          className="h-auto min-h-0 min-w-0 overflow-visible xl:h-full xl:overflow-hidden"
-                        >
+                        <div className="h-auto min-h-0 min-w-0 overflow-visible xl:h-full xl:overflow-hidden">
                           <ProjectThreadPanel
                             title="Discussion"
                             replies={projectThreadReplies}
@@ -2407,9 +2403,7 @@ export default function ProjectDetailPage() {
                 </PermissionGuard>
 
                 <PermissionGuard permission="files.view">
-                  <TabPanel
-                    className="h-auto min-h-0 min-w-0 overflow-visible xl:h-full xl:overflow-hidden"
-                  >
+                  <TabPanel className="h-auto min-h-0 min-w-0 overflow-visible xl:h-full xl:overflow-hidden">
                     <ProjectFilesPanel
                       files={projectFiles}
                       searchValue={fileSearchValue}
@@ -2439,9 +2433,7 @@ export default function ProjectDetailPage() {
                 </PermissionGuard>
 
                 <PermissionGuard permission="calendar.view_grid">
-                  <TabPanel
-                    className="h-auto min-h-0 overflow-visible xl:h-full xl:overflow-y-auto"
-                  >
+                  <TabPanel className="h-auto min-h-0 overflow-visible xl:h-full xl:overflow-y-auto">
                     <Calendar projectId={projectId} />
                   </TabPanel>
                 </PermissionGuard>
@@ -2511,7 +2503,7 @@ export default function ProjectDetailPage() {
                               {projectNotes.map((note) => {
                                 const isActive =
                                   note.id === selectedProjectNoteSummary?.id;
-                 
+
                                 return (
                                   <article
                                     key={note.id}

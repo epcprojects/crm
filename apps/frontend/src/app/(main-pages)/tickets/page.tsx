@@ -147,15 +147,24 @@ export default function Page() {
       pagination.pageIndex,
       pagination.pageSize,
     ],
-    queryFn: () =>
-      fetchDashboardTickets({
-        statusKey: selectedStatus === 'all' ? undefined : selectedStatus,
+    queryFn: () => {
+      const filters = {
         priorityKey: selectedPriority === 'all' ? undefined : selectedPriority,
         projectIds: selectedProjectIds.length ? selectedProjectIds : undefined,
         search: debouncedSearchValue.trim(),
-        page: viewMode === 'kanban' ? 1 : pagination.pageIndex + 1,
-        limit: viewMode === 'kanban' ? 100 : pagination.pageSize,
-      }),
+      };
+
+      if (viewMode === 'kanban') {
+        return fetchDashboardTicketsKanban(filters);
+      }
+
+      return fetchDashboardTickets({
+        ...filters,
+        statusKey: selectedStatus === 'all' ? undefined : selectedStatus,
+        page: pagination.pageIndex + 1,
+        limit: pagination.pageSize,
+      });
+    },
     enabled: hasPermission('tickets.view_list'),
   });
   const ticketSummaryStats = useMemo(
@@ -1334,7 +1343,7 @@ type ApiDashboardTicket = {
   id: string;
   ticketRefNo?: string;
   createdAt: string;
-  dueDate: string;
+  dueDate: string | null;
   title: string;
   project: {
     id: string;
@@ -1356,7 +1365,7 @@ type ApiDashboardTicket = {
     fullName?: string;
     name?: string;
   } | null;
-  reporter: {
+  reporter?: {
     id: string;
     email: string;
     fullName: string;
@@ -1368,6 +1377,11 @@ type ApiDashboardTicketsResponse = {
   summary: TicketSummary;
   countPerStatus?: Record<string, number>;
   meta: DashboardTicketsResponse['meta'];
+};
+
+type ApiDashboardKanbanResponse = {
+  items: Record<string, ApiDashboardTicket[]>;
+  countPerStatus?: Record<string, number>;
 };
 
 async function fetchDashboardTickets({
@@ -1437,6 +1451,72 @@ async function fetchDashboardTickets({
     summary: payload.summary,
     countPerStatus: payload.countPerStatus ?? {},
     meta: payload.meta,
+  };
+}
+
+async function fetchDashboardTicketsKanban({
+  priorityKey,
+  projectIds,
+  search,
+}: {
+  priorityKey?: string;
+  projectIds?: string[];
+  search?: string;
+}): Promise<DashboardTicketsResponse> {
+  const searchParams = new URLSearchParams();
+
+  if (priorityKey) {
+    searchParams.set('priorityKey', priorityKey);
+  }
+
+  projectIds?.forEach((projectId) => {
+    if (projectId) {
+      searchParams.append('projectIds', projectId);
+    }
+  });
+
+  if (search) {
+    searchParams.set('search', search);
+  }
+
+  const response = await fetch(
+    `/api/dashboard/tickets/kanban?${searchParams.toString()}`,
+    {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+    },
+  );
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiDashboardKanbanResponse
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !isApiDashboardKanbanResponse(payload)) {
+    throw new Error(
+      payload && typeof payload === 'object' && 'message' in payload
+        ? payload.message || 'Failed to fetch Kanban tickets.'
+        : 'Failed to fetch Kanban tickets.',
+    );
+  }
+
+  const kanbanTickets = Object.values(payload.items).flat();
+
+  return {
+    items: kanbanTickets.map(mapApiDashboardTicketToRecentTicket),
+    summary: createKanbanTicketSummary(kanbanTickets),
+    countPerStatus: payload.countPerStatus ?? {},
+    meta: {
+      page: 1,
+      limit: kanbanTickets.length,
+      total: kanbanTickets.length,
+      totalPages: 1,
+      hasNext: false,
+      hasPrevious: false,
+    },
   };
 }
 
@@ -1520,6 +1600,50 @@ function isApiDashboardTicketsResponse(
   );
 }
 
+function isApiDashboardKanbanResponse(
+  value: unknown,
+): value is ApiDashboardKanbanResponse {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      (value as ApiDashboardKanbanResponse).items &&
+      !Array.isArray((value as ApiDashboardKanbanResponse).items) &&
+      typeof (value as ApiDashboardKanbanResponse).items === 'object',
+  );
+}
+
+function createKanbanTicketSummary(
+  tickets: ApiDashboardTicket[],
+): TicketSummary {
+  return tickets.reduce<{
+    open: number;
+    inProgress: number;
+    resolved: number;
+    critical: number;
+  }>(
+    (summary, ticket) => {
+      switch (ticket.status?.key.toLowerCase()) {
+        case 'open':
+          summary.open += 1;
+          break;
+        case 'inprogress':
+          summary.inProgress += 1;
+          break;
+        case 'resolved':
+          summary.resolved += 1;
+          break;
+      }
+
+      if (ticket.priority?.key.toLowerCase() === 'critical') {
+        summary.critical += 1;
+      }
+
+      return summary;
+    },
+    { open: 0, inProgress: 0, resolved: 0, critical: 0 },
+  );
+}
+
 function mapApiDashboardTicketToRecentTicket(
   ticket: ApiDashboardTicket,
 ): RecentTicket {
@@ -1550,9 +1674,9 @@ function mapApiDashboardTicketToRecentTicket(
       initials: getInitials(assigneeName),
     },
     reporter: {
-      id: ticket.reporter.id,
-      email: ticket.reporter.email,
-      fullName: ticket.reporter.fullName,
+      id: ticket.reporter?.id ?? '',
+      email: ticket.reporter?.email ?? '',
+      fullName: ticket.reporter?.fullName ?? 'Unknown',
     },
     date: formatTicketDate(ticket.createdAt),
     sortDate: ticket.createdAt,
