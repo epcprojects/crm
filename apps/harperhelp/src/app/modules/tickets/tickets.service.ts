@@ -925,6 +925,10 @@ export class TicketsService {
           participants,
           EmailEventType.TICKET_DUE_DATE_UPDATED,
         );
+      const message = oldDueDateStr
+        ? `${oldDueDateStr} to ${newDueDateStr}`
+        : `Set to ${newDueDateStr}`;
+
       await this.notificationsService.notifyProjectMembers({
         projectId: ticket.projectId,
         actorId: userId,
@@ -933,7 +937,7 @@ export class TicketsService {
         entityId: ticket.id,
         ticketId: ticket.id,
         title: `"Ticket: "${ticket.ticketRefNo}" due date changed to ${newDueDateStr} by ${fullname}`,
-        message: `${oldDueDateStr} to ${newDueDateStr}`,
+        message: message,
         // explicitRecipientIds: [...new Set(recipients)],
       });
       await this.notificationsService.dispatch({
