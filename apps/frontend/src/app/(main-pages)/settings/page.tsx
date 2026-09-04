@@ -894,8 +894,8 @@ function EmailNotificationGroup({
         </h3>
       </div>
       <div
-        className={` bg-white grid gap-2 md:gap-3 p-2 md:p-3 ${
-          columns === 2 ? 'grid-cols-2' : 'grid-cols-2'
+        className={` bg-white grid items-start gap-3 p-2 md:p-3 ${
+          columns === 2 ? 'md:grid-cols-2' : 'md:grid-cols-2'
         }`}
       >
         {items.map((item) => (
@@ -924,7 +924,7 @@ function EmailNotificationToggleRow({
   onChange: () => void;
 }) {
   return (
-    <div className="flex items-center whitespace-nowrap gap-2">
+    <div className="flex md:items-start items-center gap-2">
       <Switch
         checked={checked}
         onChange={onChange}
