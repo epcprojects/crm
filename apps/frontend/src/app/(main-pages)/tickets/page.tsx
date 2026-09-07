@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PaginationState } from '@tanstack/react-table';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -124,6 +124,10 @@ export default function Page() {
     searchParams.get(TICKETS_PROJECT_QUERY_PARAM),
   );
   const selectedProjectIdsKey = selectedProjectIds.join(',');
+  const [loadingKanbanStatuses, setLoadingKanbanStatuses] = useState<
+    Record<string, boolean>
+  >({});
+  const loadingKanbanStatusesRef = useRef<Record<string, boolean>>({});
 
   const ticketStatusesQuery = useQuery({
     queryKey: ['ticket-statuses'],
@@ -136,6 +140,37 @@ export default function Page() {
     queryFn: fetchTicketPriorities,
     enabled: canFilterTickets,
   });
+  // const ticketsQuery = useQuery({
+  //   queryKey: [
+  //     'dashboard-project-tickets',
+  //     selectedStatus,
+  //     selectedPriority,
+  //     selectedProjectIdsKey,
+  //     debouncedSearchValue.trim(),
+  //     viewMode,
+  //     pagination.pageIndex,
+  //     pagination.pageSize,
+  //   ],
+  //   queryFn: () => {
+  //     const filters = {
+  //       priorityKey: selectedPriority === 'all' ? undefined : selectedPriority,
+  //       projectIds: selectedProjectIds.length ? selectedProjectIds : undefined,
+  //       search: debouncedSearchValue.trim(),
+  //     };
+
+  //     if (viewMode === 'kanban') {
+  //       return fetchDashboardTicketsKanban(filters);
+  //     }
+
+  //     return fetchDashboardTickets({
+  //       ...filters,
+  //       statusKey: selectedStatus === 'all' ? undefined : selectedStatus,
+  //       page: pagination.pageIndex + 1,
+  //       limit: pagination.pageSize,
+  //     });
+  //   },
+  //   enabled: hasPermission('tickets.view_list'),
+  // });
   const ticketsQuery = useQuery({
     queryKey: [
       'dashboard-project-tickets',
@@ -143,7 +178,6 @@ export default function Page() {
       selectedPriority,
       selectedProjectIdsKey,
       debouncedSearchValue.trim(),
-      viewMode,
       pagination.pageIndex,
       pagination.pageSize,
     ],
@@ -154,9 +188,11 @@ export default function Page() {
         search: debouncedSearchValue.trim(),
       };
 
-      if (viewMode === 'kanban') {
-        return fetchDashboardTicketsKanban(filters);
-      }
+      /*
+    if (viewMode === 'kanban') {
+      return fetchDashboardTicketsKanban(filters);
+    }
+    */
 
       return fetchDashboardTickets({
         ...filters,
@@ -165,8 +201,46 @@ export default function Page() {
         limit: pagination.pageSize,
       });
     },
-    enabled: hasPermission('tickets.view_list'),
+    enabled: hasPermission('tickets.view_list') && viewMode === 'table',
   });
+  const kanbanFilters = {
+    priorityKey: selectedPriority === 'all' ? undefined : selectedPriority,
+    projectIds: selectedProjectIds.length ? selectedProjectIds : undefined,
+    search: debouncedSearchValue.trim() || undefined,
+  };
+
+  const kanbanBoardQueryKey = [
+    'dashboard-kanban-board',
+    selectedPriority,
+    selectedProjectIdsKey,
+    debouncedSearchValue.trim(),
+  ] as const;
+
+  const kanbanBoardQuery = useQuery({
+    queryKey: kanbanBoardQueryKey,
+    queryFn: () =>
+      fetchDashboardKanbanBoard({
+        ...kanbanFilters,
+        limit: 20,
+      }),
+    enabled: hasPermission('tickets.view_list') && viewMode === 'kanban',
+  });
+
+  const kanbanCountsQuery = useQuery({
+    queryKey: [
+      'dashboard-kanban-ticket-counts',
+      selectedPriority,
+      selectedProjectIdsKey,
+      debouncedSearchValue.trim(),
+    ],
+    queryFn: () => fetchDashboardKanbanTicketCounts(kanbanFilters),
+    enabled: hasPermission('tickets.view_list') && viewMode === 'kanban',
+  });
+
+  const kanbanTickets = useMemo(
+    () => Object.values(kanbanBoardQuery.data?.items ?? {}).flat(),
+    [kanbanBoardQuery.data?.items],
+  );
   const ticketSummaryStats = useMemo(
     () => [
       {
@@ -363,6 +437,7 @@ export default function Page() {
 
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
+        
         throw new Error(
           payload?.message ||
             'No tickets found to export with the current filters.',
@@ -497,6 +572,10 @@ export default function Page() {
         }),
         queryClient.invalidateQueries({
           queryKey: ['dashboard', 'ticket-summary'],
+          refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard-kanban-ticket-counts'],
           refetchType: 'all',
         }),
       ]);
@@ -806,7 +885,107 @@ export default function Page() {
 
     router.push(`/tickets/${ticket.id}?projectId=${ticket.project.id}`);
   };
+  const handleLoadMoreKanbanStatus = async (statusKey: string) => {
+    const currentBoard =
+      queryClient.getQueryData<KanbanBoardData>(kanbanBoardQueryKey);
 
+    /*
+     * Ref synchronous lock provide karta hai, isliye next React render se
+     * pehle multiple scroll events duplicate requests start nahi karenge.
+     */
+    if (
+      !currentBoard?.hasMore[statusKey] ||
+      loadingKanbanStatusesRef.current[statusKey]
+    ) {
+      return;
+    }
+
+    loadingKanbanStatusesRef.current[statusKey] = true;
+
+    const nextPage = (currentBoard.pageByStatus[statusKey] ?? 1) + 1;
+
+    setLoadingKanbanStatuses((current) => ({
+      ...current,
+      [statusKey]: true,
+    }));
+
+    try {
+      const nextPageData = await queryClient.fetchQuery({
+        queryKey: [
+          'dashboard-kanban-board-page',
+          selectedPriority,
+          selectedProjectIdsKey,
+          debouncedSearchValue.trim(),
+          statusKey,
+          nextPage,
+        ],
+        queryFn: () =>
+          fetchDashboardKanbanBoard({
+            ...kanbanFilters,
+            statusKey,
+            page: nextPage,
+            limit: 20,
+          }),
+      });
+
+      queryClient.setQueryData<KanbanBoardData>(
+        kanbanBoardQueryKey,
+        (current) => {
+          if (!current) {
+            return current;
+          }
+
+          const currentTickets = current.items[statusKey] ?? [];
+          const incomingTickets = nextPageData.items[statusKey] ?? [];
+
+          /*
+           * Current tickets aur incoming response dono mein duplicate IDs
+           * render hone se rokta hai.
+           */
+          const seenTicketIds = new Set(
+            currentTickets.map((ticket) => ticket.id).filter(Boolean),
+          );
+
+          const uniqueIncomingTickets = incomingTickets.filter((ticket) => {
+            if (!ticket.id || seenTicketIds.has(ticket.id)) {
+              return false;
+            }
+
+            seenTicketIds.add(ticket.id);
+
+            return true;
+          });
+
+          return {
+            ...current,
+            items: {
+              ...current.items,
+              [statusKey]: [...currentTickets, ...uniqueIncomingTickets],
+            },
+            hasMore: {
+  ...current.hasMore,
+  [statusKey]: nextPageData.hasMore[statusKey] ?? false,
+},
+            pageByStatus: {
+              ...current.pageByStatus,
+              [statusKey]: nextPage,
+            },
+          };
+        },
+      );
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to load more tickets.',
+      );
+    } finally {
+      loadingKanbanStatusesRef.current[statusKey] = false;
+
+      setLoadingKanbanStatuses((current) => ({
+        ...current,
+        [statusKey]: false,
+      }));
+    }
+  };
   const handleMoveTicket = async (
     ticket: RecentTicket,
     nextStatusKey: string,
@@ -1246,11 +1425,14 @@ export default function Page() {
                     <RecentTicketsTableSkeleton />
                   ) : viewMode === 'kanban' ? (
                     <TicketsKanbanView
-                      tickets={sortedTickets}
+                      tickets={kanbanTickets}
                       statusOptions={kanbanStatusOptions}
-                      statusCountsByKey={
-                        ticketsQuery.data?.countPerStatus ?? {}
-                      }
+                      statusCountsByKey={kanbanCountsQuery.data ?? {}}
+                      hasMoreByStatus={kanbanBoardQuery.data?.hasMore ?? {}}
+                      loadingByStatus={loadingKanbanStatuses}
+                      onLoadMoreStatus={(statusKey) => {
+                        void handleLoadMoreKanbanStatus(statusKey);
+                      }}
                       onTicketClick={
                         canViewTicketDetail ? handleTicketClick : undefined
                       }
@@ -1379,10 +1561,170 @@ type ApiDashboardTicketsResponse = {
   meta: DashboardTicketsResponse['meta'];
 };
 
-type ApiDashboardKanbanResponse = {
-  items: Record<string, ApiDashboardTicket[]>;
-  countPerStatus?: Record<string, number>;
+type ApiKanbanBoardTicket = {
+  // Initial Kanban response fields
+  t_id?: string;
+  t_title?: string;
+  t_ticketRefNo?: string;
+  t_dueDate?: string | null;
+  t_createdAt?: string;
+  t_statusKey?: string;
+
+  p_id?: string;
+  p_name?: string;
+  p_brandColor?: string | null;
+
+  s_key?: string;
+  s_label?: string;
+  s_color?: string | null;
+
+  pr_key?: string | null;
+  pr_label?: string | null;
+  pr_color?: string | null;
+
+  a_id?: string | null;
+  a_fullName?: string | null;
+  a_email?: string | null;
+
+  rn?: string;
+
+  // Paginated response fields
+  id?: string;
+  title?: string;
+  ticketRefNo?: string;
+  dueDate?: string | null;
+  createdAt?: string;
+
+  project?: {
+    id?: string;
+    name?: string;
+    brandColor?: string | null;
+  };
+
+  status?: {
+    key?: string;
+    label?: string;
+    color?: string | null;
+  } | null;
+
+  priority?: {
+    key?: string;
+    label?: string;
+    color?: string | null;
+  } | null;
+
+  assignee?: {
+    id?: string;
+    fullName?: string;
+    name?: string;
+  } | null;
 };
+
+type ApiKanbanBoardResponse = {
+  items: Record<string, ApiKanbanBoardTicket[]> | ApiKanbanBoardTicket[];
+  hasMore: Record<string, boolean> | boolean;
+};
+
+type KanbanBoardData = {
+  items: Record<string, RecentTicket[]>;
+  hasMore: Record<string, boolean>;
+  pageByStatus: Record<string, number>;
+};
+
+type ApiKanbanTicketCountsResponse = {
+  countPerStatus: Record<string, number>;
+};
+function mapApiKanbanTicketToRecentTicket(
+  ticket: ApiKanbanBoardTicket,
+): RecentTicket {
+  const ticketId = ticket.t_id ?? ticket.id ?? '';
+
+  const projectId =
+    ticket.p_id ??
+    ticket.project?.id ??
+    '';
+
+  const projectName =
+    ticket.p_name?.trim() ||
+    ticket.project?.name?.trim() ||
+    'Unknown Project';
+
+  const assigneeName =
+    ticket.a_fullName?.trim() ||
+    ticket.assignee?.fullName?.trim() ||
+    ticket.assignee?.name?.trim() ||
+    'Unassigned';
+
+  const statusLabel =
+    ticket.s_label?.trim() ||
+    ticket.status?.label?.trim() ||
+    ticket.s_key?.trim() ||
+    ticket.status?.key?.trim() ||
+    'Unknown';
+
+  const priorityLabel =
+    ticket.pr_label?.trim() ||
+    ticket.priority?.label?.trim() ||
+    ticket.pr_key?.trim() ||
+    ticket.priority?.key?.trim() ||
+    null;
+
+  const dueDate =
+    ticket.t_dueDate ??
+    ticket.dueDate ??
+    null;
+
+  const createdAt =
+    ticket.t_createdAt ??
+    ticket.createdAt ??
+    '';
+
+  return {
+    id: ticketId,
+    ticketRefNo:
+      ticket.t_ticketRefNo ??
+      ticket.ticketRefNo,
+    title:
+      ticket.t_title ??
+      ticket.title ??
+      'Untitled Ticket',
+    project: {
+      id: projectId,
+      name: projectName,
+      initials: getInitials(projectName),
+      brandColor:
+        ticket.p_brandColor ??
+        ticket.project?.brandColor ??
+        '#31d81b',
+    },
+    dueDate: dueDate
+      ? formatTicketDate(dueDate.split('T')[0] ?? dueDate)
+      : '--',
+    status: statusLabel,
+    statusColor:
+      ticket.s_color ??
+      ticket.status?.color ??
+      undefined,
+    priority: priorityLabel,
+    priorityColor:
+      ticket.pr_color ??
+      ticket.priority?.color ??
+      undefined,
+    assignee: {
+      name: assigneeName,
+      initials: getInitials(assigneeName),
+    },
+    reporter: {
+      id: '',
+      email: '',
+      fullName: 'Unknown',
+    },
+    date: createdAt
+      ? formatTicketDate(createdAt)
+      : '--',
+    sortDate: createdAt,
+  };
+}
 
 async function fetchDashboardTickets({
   statusKey,
@@ -1454,7 +1796,72 @@ async function fetchDashboardTickets({
   };
 }
 
-async function fetchDashboardTicketsKanban({
+// async function fetchDashboardTicketsKanban({
+//   priorityKey,
+//   projectIds,
+//   search,
+// }: {
+//   priorityKey?: string;
+//   projectIds?: string[];
+//   search?: string;
+// }): Promise<DashboardTicketsResponse> {
+//   const searchParams = new URLSearchParams();
+
+//   if (priorityKey) {
+//     searchParams.set('priorityKey', priorityKey);
+//   }
+
+//   projectIds?.forEach((projectId) => {
+//     if (projectId) {
+//       searchParams.append('projectIds', projectId);
+//     }
+//   });
+
+//   if (search) {
+//     searchParams.set('search', search);
+//   }
+
+//   const response = await fetch(
+//     `/api/dashboard/tickets/kanban?${searchParams.toString()}`,
+//     {
+//       method: 'GET',
+//       headers: {
+//         Accept: 'application/json',
+//       },
+//       cache: 'no-store',
+//     },
+//   );
+
+//   const payload = (await response.json().catch(() => null)) as
+//     | ApiDashboardKanbanResponse
+//     | { message?: string }
+//     | null;
+
+//   if (!response.ok || !isApiDashboardKanbanResponse(payload)) {
+//     throw new Error(
+//       payload && typeof payload === 'object' && 'message' in payload
+//         ? payload.message || 'Failed to fetch Kanban tickets.'
+//         : 'Failed to fetch Kanban tickets.',
+//     );
+//   }
+
+//   const kanbanTickets = Object.values(payload.items).flat();
+
+//   return {
+//     items: kanbanTickets.map(mapApiDashboardTicketToRecentTicket),
+//     summary: createKanbanTicketSummary(kanbanTickets),
+//     countPerStatus: payload.countPerStatus ?? {},
+//     meta: {
+//       page: 1,
+//       limit: kanbanTickets.length,
+//       total: kanbanTickets.length,
+//       totalPages: 1,
+//       hasNext: false,
+//       hasPrevious: false,
+//     },
+//   };
+// }
+async function fetchDashboardKanbanTicketCounts({
   priorityKey,
   projectIds,
   search,
@@ -1462,11 +1869,15 @@ async function fetchDashboardTicketsKanban({
   priorityKey?: string;
   projectIds?: string[];
   search?: string;
-}): Promise<DashboardTicketsResponse> {
+}): Promise<Record<string, number>> {
   const searchParams = new URLSearchParams();
 
   if (priorityKey) {
     searchParams.set('priorityKey', priorityKey);
+  }
+
+  if (search) {
+    searchParams.set('search', search);
   }
 
   projectIds?.forEach((projectId) => {
@@ -1475,12 +1886,8 @@ async function fetchDashboardTicketsKanban({
     }
   });
 
-  if (search) {
-    searchParams.set('search', search);
-  }
-
   const response = await fetch(
-    `/api/dashboard/tickets/kanban?${searchParams.toString()}`,
+    `/api/dashboard/kanban-ticket-counts?${searchParams.toString()}`,
     {
       method: 'GET',
       headers: {
@@ -1491,35 +1898,184 @@ async function fetchDashboardTicketsKanban({
   );
 
   const payload = (await response.json().catch(() => null)) as
-    | ApiDashboardKanbanResponse
+    | ApiKanbanTicketCountsResponse
     | { message?: string }
     | null;
 
-  if (!response.ok || !isApiDashboardKanbanResponse(payload)) {
+  if (!response.ok || !payload || !('countPerStatus' in payload)) {
     throw new Error(
-      payload && typeof payload === 'object' && 'message' in payload
-        ? payload.message || 'Failed to fetch Kanban tickets.'
-        : 'Failed to fetch Kanban tickets.',
+      payload && 'message' in payload
+        ? payload.message || 'Failed to fetch Kanban counts.'
+        : 'Failed to fetch Kanban counts.',
     );
   }
 
-  const kanbanTickets = Object.values(payload.items).flat();
-
-  return {
-    items: kanbanTickets.map(mapApiDashboardTicketToRecentTicket),
-    summary: createKanbanTicketSummary(kanbanTickets),
-    countPerStatus: payload.countPerStatus ?? {},
-    meta: {
-      page: 1,
-      limit: kanbanTickets.length,
-      total: kanbanTickets.length,
-      totalPages: 1,
-      hasNext: false,
-      hasPrevious: false,
-    },
-  };
+  return payload.countPerStatus;
 }
 
+async function fetchDashboardKanbanBoard({
+  priorityKey,
+  projectIds,
+  search,
+  statusKey,
+  page = 1,
+  limit = 20,
+}: {
+  priorityKey?: string;
+  projectIds?: string[];
+  search?: string;
+  statusKey?: string;
+  page?: number;
+  limit?: number;
+}): Promise<KanbanBoardData> {
+  const searchParams = new URLSearchParams({
+    limit: String(limit),
+  });
+
+  /*
+   * Initial request:
+   * statusKey aur page send nahi honge.
+   *
+   * Column pagination:
+   * statusKey aur page dono send honge.
+   */
+  if (statusKey) {
+    searchParams.set('statusKey', statusKey);
+    searchParams.set('page', String(page));
+  }
+
+  if (priorityKey) {
+    searchParams.set('priorityKey', priorityKey);
+  }
+
+  if (search) {
+    searchParams.set('search', search);
+  }
+
+  projectIds?.forEach((projectId) => {
+    if (projectId) {
+      searchParams.append('projectIds', projectId);
+    }
+  });
+
+  const requestUrl =
+    `/api/dashboard/kanban-board?${searchParams.toString()}`;
+
+  const response = await fetch(requestUrl, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message =
+      payload &&
+      typeof payload === 'object' &&
+      'message' in payload
+        ? Array.isArray(payload.message)
+          ? payload.message.join(', ')
+          : String(payload.message || '')
+        : '';
+
+    throw new Error(
+      message ||
+        `Failed to fetch Kanban board (${response.status}).`,
+    );
+  }
+
+  /*
+   * Direct API response:
+   * {
+   *   items: { Open: [], Closed: [] },
+   *   hasMore: { Open: true, Closed: false }
+   * }
+   *
+   * Wrapped API response:
+   * {
+   *   data: {
+   *     items: { Open: [], Closed: [] },
+   *     hasMore: { Open: true, Closed: false }
+   *   }
+   * }
+   */
+  const responseData =
+    payload &&
+    typeof payload === 'object' &&
+    'data' in payload
+      ? payload.data
+      : payload;
+
+  if (
+    !responseData ||
+    typeof responseData !== 'object' ||
+    !('items' in responseData)
+  ) {
+    console.error('Invalid Kanban board response:', {
+      requestUrl,
+      statusKey,
+      page,
+      payload,
+    });
+
+    throw new Error('Kanban board returned an invalid response.');
+  }
+
+  const kanbanPayload =
+    responseData as ApiKanbanBoardResponse;
+
+  /*
+   * Initial request mein items status-wise object ho sakta hai:
+   * items: { Open: [...], Closed: [...] }
+   *
+   * Paginated request mein items direct array bhi ho sakta hai:
+   * items: [...]
+   */
+  const normalizedItems: Record<
+    string,
+    ApiKanbanBoardTicket[]
+  > = Array.isArray(kanbanPayload.items)
+    ? {
+        [statusKey ?? 'Unknown']: kanbanPayload.items,
+      }
+    : kanbanPayload.items;
+
+  const mappedItems = Object.fromEntries(
+    Object.entries(normalizedItems).map(
+      ([currentStatusKey, tickets]) => [
+        currentStatusKey,
+        Array.isArray(tickets)
+          ? tickets.map(mapApiKanbanTicketToRecentTicket)
+          : [],
+      ],
+    ),
+  ) as Record<string, RecentTicket[]>;
+
+  /*
+   * hasMore initial request mein object aur paginated request
+   * mein direct boolean ho sakta hai.
+   */
+  const normalizedHasMore: Record<string, boolean> =
+    typeof kanbanPayload.hasMore === 'boolean'
+      ? {
+          [statusKey ?? 'Unknown']: kanbanPayload.hasMore,
+        }
+      : (kanbanPayload.hasMore ?? {});
+
+  return {
+    items: mappedItems,
+    hasMore: normalizedHasMore,
+    pageByStatus: Object.fromEntries(
+      Object.keys(mappedItems).map((currentStatusKey) => [
+        currentStatusKey,
+        statusKey ? page : 1,
+      ]),
+    ),
+  };
+}
 async function fetchTicketStatuses() {
   const response = await fetch('/api/ticket-statuses', {
     method: 'GET',
@@ -1600,17 +2156,17 @@ function isApiDashboardTicketsResponse(
   );
 }
 
-function isApiDashboardKanbanResponse(
-  value: unknown,
-): value is ApiDashboardKanbanResponse {
-  return Boolean(
-    value &&
-      typeof value === 'object' &&
-      (value as ApiDashboardKanbanResponse).items &&
-      !Array.isArray((value as ApiDashboardKanbanResponse).items) &&
-      typeof (value as ApiDashboardKanbanResponse).items === 'object',
-  );
-}
+// function isApiDashboardKanbanResponse(
+//   value: unknown,
+// ): value is ApiDashboardKanbanResponse {
+//   return Boolean(
+//     value &&
+//       typeof value === 'object' &&
+//       (value as ApiDashboardKanbanResponse).items &&
+//       !Array.isArray((value as ApiDashboardKanbanResponse).items) &&
+//       typeof (value as ApiDashboardKanbanResponse).items === 'object',
+//   );
+// }
 
 function createKanbanTicketSummary(
   tickets: ApiDashboardTicket[],
@@ -1744,8 +2300,11 @@ function getTicketSortValue(
   }
 }
 
-function getInitials(value: string) {
-  const words = value.trim().split(/\s+/).filter(Boolean);
+function getInitials(value?: string | null) {
+  const words = String(value ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
 
   if (!words.length) {
     return 'NA';
@@ -1757,7 +2316,6 @@ function getInitials(value: string) {
     .join('')
     .toUpperCase();
 }
-
 function getTicketsViewMode(value: string | null): 'table' | 'kanban' {
   if (value === 'kanban') {
     return 'kanban';

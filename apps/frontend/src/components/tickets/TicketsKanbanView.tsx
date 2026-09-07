@@ -14,6 +14,11 @@ type TicketsKanbanViewProps = {
   tickets: RecentTicket[];
   statusOptions: TicketStatusOption[];
   statusCountsByKey?: Record<string, number>;
+
+  hasMoreByStatus?: Record<string, boolean>;
+  loadingByStatus?: Record<string, boolean>;
+  onLoadMoreStatus?: (statusKey: string) => void;
+
   onTicketClick?: (ticket: RecentTicket) => void;
   onMoveTicket?: (ticket: RecentTicket, nextStatusKey: string) => void;
   onReorderColumn?: (statusId: string, newIndex: number) => void;
@@ -35,6 +40,11 @@ export default function TicketsKanbanView({
   tickets,
   statusOptions,
   statusCountsByKey = {},
+
+  hasMoreByStatus = {},
+  loadingByStatus = {},
+  onLoadMoreStatus,
+
   onTicketClick,
   onMoveTicket,
   onReorderColumn,
@@ -516,6 +526,21 @@ export default function TicketsKanbanView({
                   </div>
 
                   <div
+                    onScroll={(event) => {
+                      const element = event.currentTarget;
+                      const remainingScroll =
+                        element.scrollHeight -
+                        element.scrollTop -
+                        element.clientHeight;
+
+                      if (
+                        remainingScroll <= 100 &&
+                        hasMoreByStatus[column.key] &&
+                        !loadingByStatus[column.key]
+                      ) {
+                        onLoadMoreStatus?.(column.key);
+                      }
+                    }}
                     className={`mt-3.5 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-xl transition scrollbar-hide ${
                       hoveredColumnKey === column.key && !draggingColumnKey
                         ? 'border border-dashed border-gray-200 bg-primary/5'
@@ -555,7 +580,7 @@ export default function TicketsKanbanView({
                             setHoveredColumnKey(null);
                           }}
                           onClick={() => onTicketClick?.(ticket)}
-                          className={`rounded-xl border border-gray-200 bg-white p-3 text-left shadow-xs transition hover:border-gray-300 hover:shadow-sm ${
+                          className={`rounded-xl border  shrink-0 border-gray-200 bg-white p-3 text-left shadow-xs transition hover:border-gray-300 hover:shadow-sm ${
                             draggingTicketId === ticket.id
                               ? 'opacity-60 ring-2 ring-primary/20'
                               : ''
@@ -629,6 +654,11 @@ export default function TicketsKanbanView({
                         No tickets
                       </div>
                     )}
+                    {loadingByStatus[column.key] ? (
+                      <div className="flex shrink-0 items-center justify-center py-3 text-xs text-gray-500">
+                        Loading more tickets...
+                      </div>
+                    ) : null}
                   </div>
                 </>
               )}
