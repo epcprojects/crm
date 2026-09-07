@@ -339,11 +339,29 @@ export class TicketsService {
         assigneeId: query.assigneeId,
       });
     }
+    const search = query.search?.trim();
+    if (search) {
+      qb.andWhere(
+        `(
+        t.title ILIKE :searchLike
+        OR t.description ILIKE :searchLike
+        OR t.ticketRefNo ILIKE :searchLike
+        OR :search <% t.title
+        OR :search <% t.description
+      )`,
+        { search, searchLike: `%${search}%` },
+      );
 
-    if (query.search) {
-      qb.andWhere(`(t.title ILIKE :search OR t.description ILIKE :search)`, {
-        search: `%${query.search}%`,
-      });
+      // qb.addSelect(
+      //   `GREATEST(
+      //   CASE WHEN t.title ILIKE :searchLike THEN 1.0 ELSE 0 END,
+      //   CASE WHEN t.description ILIKE :searchLike THEN 1.0 ELSE 0 END,
+      //   CASE WHEN t.ticketRefNo ILIKE :searchLike THEN 1.0 ELSE 0 END,
+      //   word_similarity(:search, t.title),
+      //   word_similarity(:search, t.description)
+      // )`,
+      //   'search_score',
+      // );
     }
 
     qb.select([
@@ -373,9 +391,27 @@ export class TicketsService {
       'r.email',
     ]);
 
-    qb.orderBy('t.createdAt', 'DESC')
-      .skip((query.page - 1) * query.limit)
-      .take(query.limit);
+    // getSql-order note: TypeORM appends addSelect columns onto whatever .select()
+    // already set — but since addSelect for search_score happened before .select()
+    // is called here, .select() would normally REPLACE the whole select list and
+    // wipe out search_score. To avoid that footgun, re-add it after .select():
+    if (search) {
+      qb.addSelect(
+        `GREATEST(
+        CASE WHEN t.title ILIKE :searchLike THEN 1.0 ELSE 0 END,
+        CASE WHEN t.description ILIKE :searchLike THEN 1.0 ELSE 0 END,
+        CASE WHEN t.ticketRefNo ILIKE :searchLike THEN 1.0 ELSE 0 END,
+        word_similarity(:search, t.title),
+        word_similarity(:search, t.description)
+      )`,
+        'search_score',
+      );
+      qb.orderBy('search_score', 'DESC').addOrderBy('t.createdAt', 'DESC');
+    } else {
+      qb.orderBy('t.createdAt', 'DESC');
+    }
+
+    qb.skip((query.page - 1) * query.limit).take(query.limit);
 
     const [items, total] = await qb.getManyAndCount();
 
@@ -437,20 +473,20 @@ export class TicketsService {
       });
     }
 
-    if (query.search?.trim()) {
+    const search = query.search?.trim();
+    if (search) {
       qb.andWhere(
-        `
-      (
-        t.title ILIKE :search
-        OR t.description ILIKE :search
-        OR t.ticketRefNo ILIKE :search
-      )
-      `,
-        {
-          search: `%${query.search.trim()}%`,
-        },
+        `(
+        t.title ILIKE :searchLike
+        OR t.description ILIKE :searchLike
+        OR t.ticketRefNo ILIKE :searchLike
+        OR :search <% t.title
+        OR :search <% t.description
+      )`,
+        { search, searchLike: `%${search}%` },
       );
     }
+
     /*
      * Clone the filtered query again (same base as summaryQuery) so this
      * reflects ALL matching tickets, not just the current page.
@@ -568,11 +604,35 @@ export class TicketsService {
       'r.email',
     ]);
 
-    qb.orderBy('t.createdAt', 'DESC')
-      .skip((query.page - 1) * query.limit)
-      .take(query.limit);
+    if (search) {
+      qb.addSelect(
+        `GREATEST(
+        CASE WHEN t.title ILIKE :searchLike THEN 1.0 ELSE 0 END,
+        CASE WHEN t.description ILIKE :searchLike THEN 1.0 ELSE 0 END,
+        CASE WHEN t.ticketRefNo ILIKE :searchLike THEN 1.0 ELSE 0 END,
+        word_similarity(:search, t.title),
+        word_similarity(:search, t.description)
+      )`,
+        'search_score',
+      );
+      qb.orderBy('search_score', 'DESC').addOrderBy('t.createdAt', 'DESC');
+    } else {
+      qb.orderBy('t.createdAt', 'DESC');
+    }
 
-    const [items, total] = await qb.getManyAndCount();
+    qb.skip((query.page - 1) * query.limit).take(query.limit);
+    const total = await qb.getCount();
+    const { entities, raw } = await qb.getRawAndEntities();
+
+    console.debug("SQL QUERY NEED TO COPY AND PASTE TO PGADMIN OR DBeaver");
+    console.log(qb.getSql());
+    console.debug("PARAMETERS NEED TO COPY AND PASTE TO PGADMIN OR DBeaver");
+    console.log(qb.getParameters());
+    console.debug("ended ended ended..................")
+    const items = entities.map((entity, i) => ({
+      ...entity,
+      searchScore: search ? Number(raw[i]?.search_score ?? 0) : undefined,
+    }));
 
     return {
       items,
@@ -1301,10 +1361,17 @@ export class TicketsService {
       });
     }
 
-    if (query.search?.trim()) {
+    const search = query.search?.trim();
+    if (search) {
       qb.andWhere(
-        `(t.title ILIKE :search OR t.description ILIKE :search OR t.ticketRefNo ILIKE :search)`,
-        { search: `%${query.search.trim()}%` },
+        `(
+        t.title ILIKE :searchLike
+        OR t.description ILIKE :searchLike
+        OR t.ticketRefNo ILIKE :searchLike
+        OR :search <% t.title
+        OR :search <% t.description
+      )`,
+        { search, searchLike: `%${search}%` },
       );
     }
 
@@ -1362,7 +1429,21 @@ export class TicketsService {
       'a.email',
     ]);
 
-    qb.orderBy('t.createdAt', 'DESC');
+    if (search) {
+      qb.addSelect(
+        `GREATEST(
+        CASE WHEN t.title ILIKE :searchLike THEN 1.0 ELSE 0 END,
+        CASE WHEN t.description ILIKE :searchLike THEN 1.0 ELSE 0 END,
+        CASE WHEN t.ticketRefNo ILIKE :searchLike THEN 1.0 ELSE 0 END,
+        word_similarity(:search, t.title),
+        word_similarity(:search, t.description)
+      )`,
+        'search_score',
+      );
+      qb.orderBy('search_score', 'DESC').addOrderBy('t.createdAt', 'DESC');
+    } else {
+      qb.orderBy('t.createdAt', 'DESC');
+    }
 
     const tickets = await qb.getMany();
 
