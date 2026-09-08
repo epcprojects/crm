@@ -108,8 +108,8 @@ View ranges:
 
   // ---------------- CREATE ----------------
   @Post()
-  @UseGuards(FileSizeGuard)
-  @ApiConsumes('multipart/form-data')
+  // @UseGuards(FileSizeGuard)
+  // @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
       type: 'object',
@@ -123,6 +123,10 @@ View ranges:
         statusKey: {
           type: 'string',
         },
+        type: {
+          type: 'string',
+          enum: ['feature_request','bug'],
+        },
         priorityKey: {
           type: 'string',
         },
@@ -131,15 +135,9 @@ View ranges:
           format: 'date-time',
           nullable: true,
         },
-        attachments: {
-          type: 'array',
-          items: {
-            type: 'string',
-            format: 'binary',
-          },
-        },
+
       },
-      required: ['title'],
+      required: ['title', 'type'],
     },
   })
   @ApiOperation({

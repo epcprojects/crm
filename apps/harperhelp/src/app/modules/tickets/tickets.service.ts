@@ -334,6 +334,10 @@ export class TicketsService {
       });
     }
 
+    if (query.type) {
+      qb.andWhere('t.type = :type', { type: query.type });
+    }
+
     if (query.assigneeId) {
       qb.andWhere('t.assigneeId = :assigneeId', {
         assigneeId: query.assigneeId,
@@ -352,6 +356,7 @@ export class TicketsService {
       't.createdAt',
       't.ticketRefNo',
       't.dueDate',
+      't.type',
 
       'p.id',
       'p.name',
@@ -417,6 +422,10 @@ export class TicketsService {
           statusKey: query.statusKey,
         });
       }
+    }
+
+    if (query.type) {
+      qb.andWhere('t.type = :type', { type: query.type });
     }
 
     if (query.priorityKey) {
@@ -546,6 +555,7 @@ export class TicketsService {
       't.createdAt',
       't.ticketRefNo',
       't.dueDate',
+      't.type',
 
       'p.id',
       'p.name',
@@ -1200,6 +1210,7 @@ export class TicketsService {
       't.createdAt',
       't.ticketRefNo',
       't.dueDate',
+      't.type',
 
       'p.id',
       'p.name',
@@ -1308,6 +1319,10 @@ export class TicketsService {
       );
     }
 
+    if (query.type) {
+      qb.andWhere('t.type = :type', { type: query.type });
+    }
+
     // Count per status — clone BEFORE select/order so it reflects all matching tickets,
     // same pattern as findAllProjects.
     const countPerStatusRaw = await qb
@@ -1344,6 +1359,7 @@ export class TicketsService {
       't.dueDate',
       't.createdAt',
       't.statusKey',
+      't.type',
 
       'p.id',
       'p.name',

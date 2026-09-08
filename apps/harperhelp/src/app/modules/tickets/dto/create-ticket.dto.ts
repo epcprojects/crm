@@ -8,8 +8,11 @@ import {
   IsDateString,
   IsArray,
   ValidateNested,
+  IsEnum,
+  IsNotEmpty,
 } from 'class-validator';
 import { UploadedFileDto } from '../../files/dto/uploaded-file.dto';
+import { TicketType } from '../enum/ticket-type.enum';
 
 export class CreateTicketDto {
   @ApiProperty()
@@ -25,6 +28,13 @@ export class CreateTicketDto {
   @IsString()
   statusKey: string;
 
+  @ApiProperty({ enum: TicketType })
+  @IsNotEmpty()
+  @IsEnum(TicketType, {
+    message: 'type must be either bug or feature_request',
+  })
+  type: TicketType;
+
   @Transform(({ value }) => (value === '' ? null : value))
   @ApiPropertyOptional()
   @IsOptional()
@@ -35,14 +45,14 @@ export class CreateTicketDto {
   @IsOptional()
   @IsDateString()
   dueDate?: string;
-  
-   @ApiPropertyOptional({
-      description: 'Metadata for files already uploaded directly to S3',
-      type: [UploadedFileDto],
-    })
-    @IsOptional()
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => UploadedFileDto)
-    attachments?: UploadedFileDto[];
+
+  @ApiPropertyOptional({
+    description: 'Metadata for files already uploaded directly to S3',
+    type: [UploadedFileDto],
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => UploadedFileDto)
+  attachments?: UploadedFileDto[];
 }

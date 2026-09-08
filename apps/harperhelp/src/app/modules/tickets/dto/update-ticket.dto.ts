@@ -1,9 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsString,
-  MaxLength,
-  IsOptional,
-} from 'class-validator';
+import { IsString, MaxLength, IsOptional, IsEnum } from 'class-validator';
+import { TicketType } from '../enum/ticket-type.enum';
 
 export class UpdateTicketDto {
   @ApiPropertyOptional()
@@ -21,6 +18,12 @@ export class UpdateTicketDto {
   @IsOptional()
   @IsString()
   statusKey?: string;
+
+  @IsOptional()
+  @IsEnum(TicketType, {
+    message: 'type must be either bug or feature_request',
+  })
+  type: TicketType;
 
   @ApiPropertyOptional()
   @IsOptional()

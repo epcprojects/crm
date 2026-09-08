@@ -7,13 +7,20 @@ import {
   Min,
   Max,
   IsArray,
+  IsEnum,
 } from 'class-validator';
+import { TicketType } from '../enum/ticket-type.enum';
 
 export class GetTicketsQueryDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   statusKey?: string;
+
+  @ApiPropertyOptional({ enum: TicketType })
+  @IsOptional()
+  @IsEnum(TicketType)
+  type?: TicketType;
 
   @ApiPropertyOptional()
   @IsOptional()
