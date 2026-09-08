@@ -809,7 +809,9 @@ export default function TicketDetailPage() {
     setDescriptionDraft(ticket.description ?? '');
   }, [ticket]);
 
-  useEffect(() => { /* empty */ }, [sanitizedDescription]);
+  useEffect(() => {
+    /* empty */
+  }, [sanitizedDescription]);
 
   useEffect(() => {
     const descriptionElement = descriptionContentRef.current;
@@ -3716,7 +3718,6 @@ function decrementDiscussionReaction(
     );
 }
 
-
 async function uploadChatAttachments(
   attachments: File[],
   ticketId: string,
@@ -3770,7 +3771,6 @@ function getAttachmentExtension(value?: string | null) {
   return lastSegment.toLowerCase();
 }
 
-
 function buildAttachmentUrl(storageKey?: string | null) {
   if (!storageKey) {
     return '';
@@ -3782,7 +3782,6 @@ function toNumber(value: string | number | null | undefined) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
 }
-
 
 function getInitials(value: string) {
   const words = value.trim().split(/\s+/).filter(Boolean);
@@ -4036,7 +4035,7 @@ function MetaItem({
         content={''}
         hide={hideTooltip}
       >
-        <p className="sm:mt-1 text-sm truncate sm:text-base font-semibold text-white">
+        <p className="sm:mt-1 text-sm whitespace-break-spaces sm:text-base font-semibold  text-white">
           {value}
         </p>
       </Tooltip>
