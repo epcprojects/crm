@@ -345,7 +345,7 @@ export default function Page() {
   );
   const ticketTypeFilterOptions = [
     {
-      label: 'All',
+      label: 'All Types',
       value: 'all',
     },
     {

@@ -262,7 +262,7 @@ export default function ProjectDetailPage() {
   );
 
   const ticketTypeFilterOptions = [
-    { label: 'All', value: 'all' },
+    { label: 'All Types', value: 'all' },
     { label: 'Bug', value: 'bug' },
     { label: 'Feature', value: 'feature_request' },
   ];

@@ -128,7 +128,7 @@ export default function Page() {
     searchParams.get(TICKETS_TYPE_QUERY_PARAM),
   );
   const ticketTypeFilterOptions = [
-    { label: 'All', value: 'all' },
+    { label: 'All Types', value: 'all' },
     { label: 'Bug', value: 'bug' },
     { label: 'Feature', value: 'feature_request' },
   ];
@@ -1132,7 +1132,7 @@ export default function Page() {
       : ticketsQuery.isLoading;
   const isTicketSummaryLoading =
     viewMode === 'table' && ticketsQuery.isLoading && !ticketsQuery.data;
-
+  const [filtersOpen, setFiltersOpen] = useState(false);
   return (
     <>
       <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 py-4">
@@ -1414,71 +1414,24 @@ export default function Page() {
                             <KanbanViewIcon />
                           </button>
                         </div>
-
-                        <div className="w-full hidden 2xl:block 2xl:w-55">
-                          <Dropdown
-                            options={projectFilterOptions}
-                            isMulti
-                            value={selectedProjectIds}
-                            onChange={(value) =>
-                              updateTicketsPageFilters({ project: value })
-                            }
-                            placeholder="All Projects"
-                            maxMenuHeight={320}
-                            showSearch={true}
-                          />
-                        </div>
-
-                        {viewMode === 'table' && (
-                          <div className="w-full hidden 2xl:block 2xl:w-55">
-                            <Dropdown
-                              options={statusFilterOptions}
-                              value={selectedStatus}
-                              onChange={(value) =>
-                                updateTicketsPageFilters({ status: value })
-                              }
-                              placeholder="All Status"
-                              minHeight="min-h-70"
-                              menuScrollable={false}
-                              showSearch={true}
-                            />
-                          </div>
-                        )}
-
-                        <div className="w-full  gap-3 hidden 2xl:flex 2xl:w-55">
-                          <Dropdown
-                            options={priorityFilterOptions}
-                            value={selectedPriority}
-                            onChange={(value) =>
-                              updateTicketsPageFilters({ priority: value })
-                            }
-                            showSearch={true}
-                            placeholder="All Priority"
-                          />
-                        </div>
-                        <div className="hidden w-full 2xl:block 2xl:w-55">
-                          <Dropdown
-                            options={ticketTypeFilterOptions}
-                            value={selectedTicketType}
-                            onChange={(value) =>
-                              updateTicketsPageFilters({
-                                ticketType: value,
-                              })
-                            }
-                            placeholder="All Types"
-                          />
-                        </div>
-
-                        <ThemeButton
+                        <div className='2xl:block hidden'>
+                          <ThemeButton
                           type="button"
                           variant="secondary"
-                          size="md"
-                          onClick={clearTicketFilters}
-                          disabled={!hasActiveTicketFilters}
-                          className="hidden h-10 shrink-0 disabled:cursor-not-allowed disabled:opacity-50 2xl:inline-flex"
+                          icon={<FiltersIcon fill="currentColor" />}
+                          onClick={() => setFiltersOpen((current) => !current)}
+                          aria-label="Open ticket filters"
+                          aria-expanded={filtersOpen}
+                          aria-controls="recent-ticket-filters"
+                          className={
+                            filtersOpen
+                              ? 'border-primary! bg-primary/5! text-primary! shadow-sm'
+                              : ''
+                          }
                         >
-                          Clear Filters
+                          Filter
                         </ThemeButton>
+                        </div>
 
                         <div className="flex flex-row gap-3 ">
                           <Popover
@@ -1603,7 +1556,84 @@ export default function Page() {
                     </div>
                   ) : null}
                 </div>
+                <div
+                  className={`hidden w-full justify-end transition-[grid-template-rows,opacity,transform] duration-300 ease-out xl:grid ${
+                    filtersOpen
+                      ? 'grid-rows-[1fr]  translate-y-0 opacity-100'
+                      : 'pointer-events-none grid-rows-[0fr] -translate-y-2 opacity-0'
+                  }`}
+                >
+                  <div className="min-h-0 overflow-hidden">
+                    <div
+                      id="recent-ticket-filters"
+                      className="flex w-full items-center gap-2 pt-1"
+                    >
+                      <div className="w-full hidden 2xl:block 2xl:w-55">
+                        <Dropdown
+                          options={projectFilterOptions}
+                          isMulti
+                          value={selectedProjectIds}
+                          onChange={(value) =>
+                            updateTicketsPageFilters({ project: value })
+                          }
+                          placeholder="All Projects"
+                          maxMenuHeight={320}
+                          showSearch={true}
+                        />
+                      </div>
+                      {viewMode === 'table' && (
+                        <div className="w-full hidden 2xl:block 2xl:w-55">
+                          <Dropdown
+                            options={statusFilterOptions}
+                            value={selectedStatus}
+                            onChange={(value) =>
+                              updateTicketsPageFilters({ status: value })
+                            }
+                            placeholder="All Status"
+                            minHeight="min-h-70"
+                            menuScrollable={false}
+                            showSearch={true}
+                          />
+                        </div>
+                      )}
 
+                      <div className="w-full  gap-3 hidden 2xl:flex 2xl:w-55">
+                        <Dropdown
+                          options={priorityFilterOptions}
+                          value={selectedPriority}
+                          onChange={(value) =>
+                            updateTicketsPageFilters({ priority: value })
+                          }
+                          showSearch={true}
+                          placeholder="All Priority"
+                        />
+                      </div>
+                      <div className="hidden w-full 2xl:block 2xl:w-55">
+                        <Dropdown
+                          options={ticketTypeFilterOptions}
+                          value={selectedTicketType}
+                          onChange={(value) =>
+                            updateTicketsPageFilters({
+                              ticketType: value,
+                            })
+                          }
+                          placeholder="All Types"
+                        />
+                      </div>
+
+                      <ThemeButton
+                        type="button"
+                        variant="secondary"
+                        size="md"
+                        onClick={clearTicketFilters}
+                        disabled={!hasActiveTicketFilters}
+                        className="hidden h-10 shrink-0 disabled:cursor-not-allowed disabled:opacity-50 2xl:inline-flex"
+                      >
+                        Clear Filters
+                      </ThemeButton>
+                    </div>
+                  </div>
+                </div>
                 <div className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden">
                   {isTicketsContentLoading ? (
                     viewMode === 'kanban' ? (
