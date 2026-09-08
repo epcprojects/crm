@@ -5,6 +5,7 @@ import { User } from '../../users/entities/user.entity';
 import { TicketStatus } from './ticket.statuses.entity';
 import { TicketPriority } from './ticket.priority.entity';
 import { SYSTEM_TICKET_STATUS } from '@harperhelp/types';
+import { TicketType } from '../enum/ticket-type.enum';
 
 @Entity('tickets')
 @Index('IDX_TICKET_PROJECT_ID', ['projectId'])
@@ -12,6 +13,7 @@ import { SYSTEM_TICKET_STATUS } from '@harperhelp/types';
 @Index('IDX_TICKET_ASSIGNEE_ID', ['assigneeId'])
 @Index('IDX_TICKET_STATUS_KEY', ['statusKey'])
 @Index('IDX_TICKET_PRIORITY_KEY', ['priorityKey'])
+@Index('IDX_TICKET_PROJECT_STATUS_CREATED', ['projectId', 'statusKey', 'createdAt', 'id'])
 export class Ticket extends BaseEntity {
   @Column({
     type: 'uuid',
@@ -60,6 +62,13 @@ export class Ticket extends BaseEntity {
   status: TicketStatus;
 
   @Column({
+    type: 'enum',
+    enum: TicketType,
+    nullable: true,
+  })
+  ticketType: TicketType | null;
+  
+  @Column({
     type: 'varchar',
     length: 60,
     nullable: true,
@@ -101,11 +110,11 @@ export class Ticket extends BaseEntity {
   assignee?: User;
 
   @ManyToOne(() => User, {
-  nullable: true,
-  onDelete: 'SET NULL',
-})
-@JoinColumn({ name: 'createdBy' }) // reuses the existing FK column from BaseEntity
-submitter?: User;
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'createdBy' }) // reuses the existing FK column from BaseEntity
+  submitter?: User;
 
   @Column({
     type: 'timestamptz',

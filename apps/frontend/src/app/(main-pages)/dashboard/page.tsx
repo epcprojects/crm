@@ -2100,7 +2100,7 @@ type ApiDashboardTicket = {
     id: string;
     email: string;
     fullName: string;
-  };
+  } | null;
   dueDate: string;
 };
 
@@ -2425,9 +2425,9 @@ function mapApiDashboardTicketToRecentTicket(
       : '--',
     sortDate: ticket.createdAt,
     reporter: {
-      id: ticket.reporter.id ?? '',
-      email: ticket.reporter.email,
-      fullName: ticket.reporter.fullName,
+      id: ticket.reporter?.id ?? '',
+      email: ticket.reporter?.email ?? '',
+      fullName: ticket.reporter?.fullName ?? '',
     },
   };
 }
