@@ -46,11 +46,27 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    requestUrl.searchParams.getAll('projectIds').forEach((projectId) => {
-      if (projectId) {
-        upstreamUrl.searchParams.append('projectIds', projectId);
-      }
-    });
+    // requestUrl.searchParams.getAll('projectIds').forEach((projectId) => {
+    //   if (projectId) {
+    //     upstreamUrl.searchParams.append('projectIds', projectId);
+    //   }
+    // });
+    const projectIds = requestUrl.searchParams
+  .getAll('projectIds')
+  .filter(Boolean);
+
+projectIds.forEach((projectId) => {
+  upstreamUrl.searchParams.append('projectIds', projectId);
+});
+
+/*
+ * A single repeated-query value is parsed as a string by the backend.
+ * Repeating the same UUID guarantees projectIds is parsed as an array.
+ * Duplicate values do not affect SQL IN filtering.
+ */
+if (projectIds.length === 1) {
+  upstreamUrl.searchParams.append('projectIds', projectIds[0]);
+}
 
     const response = await fetch(upstreamUrl.toString(), {
       method: 'GET',

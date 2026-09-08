@@ -57,7 +57,7 @@ const TICKETS_PROJECT_QUERY_PARAM = 'project';
 const DEFAULT_TICKETS_STATUS_FILTER = 'Active';
 const TICKETS_PAGE_SIZE_QUERY_PARAM = 'size';
 const ALLOWED_TICKETS_PAGE_SIZES = [10, 25, 50, 100];
-
+const KANBAN_PAGE_SIZE = 20;
 export default function Page() {
   const router = useRouter();
   const pathname = usePathname();
@@ -221,7 +221,7 @@ export default function Page() {
     queryFn: () =>
       fetchDashboardKanbanBoard({
         ...kanbanFilters,
-        limit: 20,
+        limit: KANBAN_PAGE_SIZE,
       }),
     enabled: hasPermission('tickets.view_list') && viewMode === 'kanban',
   });
@@ -241,6 +241,7 @@ export default function Page() {
     () => Object.values(kanbanBoardQuery.data?.items ?? {}).flat(),
     [kanbanBoardQuery.data?.items],
   );
+
   const ticketSummaryStats = useMemo(
     () => [
       {
@@ -306,6 +307,27 @@ export default function Page() {
       })),
     [ticketStatusesQuery.data],
   );
+  const kanbanHasMoreByStatus = useMemo(() => {
+    const boardData = kanbanBoardQuery.data;
+    const counts = kanbanCountsQuery.data ?? {};
+
+    return Object.fromEntries(
+      kanbanStatusOptions.map((status) => {
+        const loadedCount = boardData?.items[status.value]?.length ?? 0;
+
+        const totalCount = counts[status.value] ?? 0;
+
+        /*
+         * Counts API batati hai total kitne tickets hain.
+         * Board API batati hai next page available hai ya nahi.
+         */
+        const backendHasMore =
+          boardData?.hasMore[status.value] ?? loadedCount < totalCount;
+
+        return [status.value, loadedCount < totalCount && backendHasMore];
+      }),
+    );
+  }, [kanbanBoardQuery.data, kanbanCountsQuery.data, kanbanStatusOptions]);
 
   const sortedTickets = useMemo(
     () => sortTicketsLocally(ticketsQuery.data?.items ?? [], sortState),
@@ -437,7 +459,7 @@ export default function Page() {
 
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
-        
+
         throw new Error(
           payload?.message ||
             'No tickets found to export with the current filters.',
@@ -889,12 +911,22 @@ export default function Page() {
     const currentBoard =
       queryClient.getQueryData<KanbanBoardData>(kanbanBoardQueryKey);
 
-    /*
-     * Ref synchronous lock provide karta hai, isliye next React render se
-     * pehle multiple scroll events duplicate requests start nahi karenge.
-     */
+    if (!currentBoard) {
+      return;
+    }
+
+    const currentTickets = currentBoard.items[statusKey] ?? [];
+
+    const loadedCount = currentTickets.length;
+
+    const totalCount = kanbanCountsQuery.data?.[statusKey] ?? 0;
+
+    const backendHasMore =
+      currentBoard.hasMore[statusKey] ?? loadedCount < totalCount;
+
     if (
-      !currentBoard?.hasMore[statusKey] ||
+      loadedCount >= totalCount ||
+      !backendHasMore ||
       loadingKanbanStatusesRef.current[statusKey]
     ) {
       return;
@@ -910,21 +942,32 @@ export default function Page() {
     }));
 
     try {
+      const activePriorityKey =
+        selectedPriority === 'all' ? undefined : selectedPriority;
+
+      const activeProjectIds =
+        selectedProjectIds.length > 0 ? [...selectedProjectIds] : undefined;
+
+      const activeSearch = debouncedSearchValue.trim() || undefined;
+
       const nextPageData = await queryClient.fetchQuery({
         queryKey: [
           'dashboard-kanban-board-page',
-          selectedPriority,
-          selectedProjectIdsKey,
-          debouncedSearchValue.trim(),
           statusKey,
           nextPage,
+          KANBAN_PAGE_SIZE,
+          activePriorityKey ?? 'all',
+          selectedProjectIdsKey,
+          activeSearch ?? '',
         ],
         queryFn: () =>
           fetchDashboardKanbanBoard({
-            ...kanbanFilters,
             statusKey,
             page: nextPage,
-            limit: 20,
+            limit: KANBAN_PAGE_SIZE,
+            priorityKey: activePriorityKey,
+            projectIds: activeProjectIds,
+            search: activeSearch,
           }),
       });
 
@@ -935,37 +978,70 @@ export default function Page() {
             return current;
           }
 
-          const currentTickets = current.items[statusKey] ?? [];
-          const incomingTickets = nextPageData.items[statusKey] ?? [];
+          const existingTickets = current.items[statusKey] ?? [];
 
           /*
-           * Current tickets aur incoming response dono mein duplicate IDs
-           * render hone se rokta hai.
+           * Paginated response ke tickets ko requested column ka
+           * exact display label dein.
+           *
+           * Example:
+           * statusKey: UnderReview
+           * display label: Under Review
            */
+          const targetStatus = statusMetadataByKey.get(statusKey);
+
+          const normalizedIncomingTickets = (
+            nextPageData.items[statusKey] ?? []
+          ).map((ticket) => ({
+            ...ticket,
+            status: targetStatus?.label ?? ticket.status ?? statusKey,
+            statusColor: targetStatus?.color ?? ticket.statusColor,
+          }));
+
           const seenTicketIds = new Set(
-            currentTickets.map((ticket) => ticket.id).filter(Boolean),
+            existingTickets.map((ticket) => ticket.id).filter(Boolean),
           );
 
-          const uniqueIncomingTickets = incomingTickets.filter((ticket) => {
-            if (!ticket.id || seenTicketIds.has(ticket.id)) {
-              return false;
-            }
+          const uniqueIncomingTickets = normalizedIncomingTickets.filter(
+            (ticket) => {
+              if (!ticket.id || seenTicketIds.has(ticket.id)) {
+                return false;
+              }
 
-            seenTicketIds.add(ticket.id);
+              seenTicketIds.add(ticket.id);
+              return true;
+            },
+          );
 
-            return true;
-          });
+          const nextLoadedCount =
+            existingTickets.length + uniqueIncomingTickets.length;
+
+          const statusTotalCount = kanbanCountsQuery.data?.[statusKey] ?? 0;
+
+          /*
+           * Normally backend hasMore source of truth hai.
+           * Count comparison additional safety provide karti hai.
+           *
+           * Agar response mein koi naya valid ticket nahi aya,
+           * repeated observer/API loop rok diya jayega.
+           */
+          const responseHasMore = nextPageData.hasMore[statusKey] ?? false;
+
+          const shouldLoadMore =
+            uniqueIncomingTickets.length > 0 &&
+            nextLoadedCount < statusTotalCount &&
+            responseHasMore;
 
           return {
             ...current,
             items: {
               ...current.items,
-              [statusKey]: [...currentTickets, ...uniqueIncomingTickets],
+              [statusKey]: [...existingTickets, ...uniqueIncomingTickets],
             },
             hasMore: {
-  ...current.hasMore,
-  [statusKey]: nextPageData.hasMore[statusKey] ?? false,
-},
+              ...current.hasMore,
+              [statusKey]: shouldLoadMore,
+            },
             pageByStatus: {
               ...current.pageByStatus,
               [statusKey]: nextPage,
@@ -1105,20 +1181,22 @@ export default function Page() {
                                   />
                                 </div>
 
-                                <div className="relative w-full overflow-visible">
-                                  <Dropdown
-                                    options={statusFilterOptions}
-                                    value={selectedStatus}
-                                    onChange={(value) =>
-                                      updateTicketsPageFilters({
-                                        status: value,
-                                      })
-                                    }
-                                    showSearch={true}
-                                    placeholder="All Status"
-                                    maxMenuHeight={150}
-                                  />
-                                </div>
+                                {viewMode === 'table' ? (
+                                  <div className="relative w-full overflow-visible">
+                                    <Dropdown
+                                      options={statusFilterOptions}
+                                      value={selectedStatus}
+                                      onChange={(value) =>
+                                        updateTicketsPageFilters({
+                                          status: value,
+                                        })
+                                      }
+                                      showSearch={true}
+                                      placeholder="All Status"
+                                      maxMenuHeight={150}
+                                    />
+                                  </div>
+                                ) : null}
 
                                 <div className="relative w-full overflow-visible">
                                   <Dropdown
@@ -1188,20 +1266,22 @@ export default function Page() {
                                   />
                                 </div>
 
-                                <div className="relative w-full overflow-visible">
-                                  <Dropdown
-                                    options={statusFilterOptions}
-                                    value={selectedStatus}
-                                    onChange={(value) =>
-                                      updateTicketsPageFilters({
-                                        status: value,
-                                      })
-                                    }
-                                    showSearch={true}
-                                    placeholder="All Status"
-                                    maxMenuHeight={150}
-                                  />
-                                </div>
+                                {viewMode === 'table' ? (
+                                  <div className="relative w-full overflow-visible">
+                                    <Dropdown
+                                      options={statusFilterOptions}
+                                      value={selectedStatus}
+                                      onChange={(value) =>
+                                        updateTicketsPageFilters({
+                                          status: value,
+                                        })
+                                      }
+                                      showSearch={true}
+                                      placeholder="All Status"
+                                      maxMenuHeight={150}
+                                    />
+                                  </div>
+                                ) : null}
 
                                 <div className="relative w-full overflow-visible">
                                   <Dropdown
@@ -1350,20 +1430,22 @@ export default function Page() {
                                     />
                                   </div>
 
-                                  <div className="relative w-full overflow-visible">
-                                    <Dropdown
-                                      options={statusFilterOptions}
-                                      value={selectedStatus}
-                                      onChange={(value) =>
-                                        updateTicketsPageFilters({
-                                          status: value,
-                                        })
-                                      }
-                                      placeholder="All Status"
-                                      maxMenuHeight={150}
-                                      showSearch={true}
-                                    />
-                                  </div>
+                                  {viewMode === 'table' ? (
+                                    <div className="relative w-full overflow-visible">
+                                      <Dropdown
+                                        options={statusFilterOptions}
+                                        value={selectedStatus}
+                                        onChange={(value) =>
+                                          updateTicketsPageFilters({
+                                            status: value,
+                                          })
+                                        }
+                                        showSearch={true}
+                                        placeholder="All Status"
+                                        maxMenuHeight={150}
+                                      />
+                                    </div>
+                                  ) : null}
 
                                   <div className="relative w-full overflow-visible">
                                     <Dropdown
@@ -1428,7 +1510,7 @@ export default function Page() {
                       tickets={kanbanTickets}
                       statusOptions={kanbanStatusOptions}
                       statusCountsByKey={kanbanCountsQuery.data ?? {}}
-                      hasMoreByStatus={kanbanBoardQuery.data?.hasMore ?? {}}
+                      hasMoreByStatus={kanbanHasMoreByStatus}
                       loadingByStatus={loadingKanbanStatuses}
                       onLoadMoreStatus={(statusKey) => {
                         void handleLoadMoreKanbanStatus(statusKey);
@@ -1562,7 +1644,9 @@ type ApiDashboardTicketsResponse = {
 };
 
 type ApiKanbanBoardTicket = {
-  // Initial Kanban response fields
+  /*
+   * Initial Kanban response raw fields
+   */
   t_id?: string;
   t_title?: string;
   t_ticketRefNo?: string;
@@ -1588,18 +1672,24 @@ type ApiKanbanBoardTicket = {
 
   rn?: string;
 
-  // Paginated response fields
+  /*
+   * Paginated Kanban response entity fields
+   */
   id?: string;
   title?: string;
   ticketRefNo?: string;
   dueDate?: string | null;
   createdAt?: string;
+  statusKey?: string;
+  projectId?: string;
+  priorityKey?: string | null;
+  assigneeId?: string | null;
 
   project?: {
     id?: string;
     name?: string;
     brandColor?: string | null;
-  };
+  } | null;
 
   status?: {
     key?: string;
@@ -1617,6 +1707,7 @@ type ApiKanbanBoardTicket = {
     id?: string;
     fullName?: string;
     name?: string;
+    email?: string;
   } | null;
 };
 
@@ -1639,15 +1730,10 @@ function mapApiKanbanTicketToRecentTicket(
 ): RecentTicket {
   const ticketId = ticket.t_id ?? ticket.id ?? '';
 
-  const projectId =
-    ticket.p_id ??
-    ticket.project?.id ??
-    '';
+  const projectId = ticket.p_id ?? ticket.project?.id ?? ticket.projectId ?? '';
 
   const projectName =
-    ticket.p_name?.trim() ||
-    ticket.project?.name?.trim() ||
-    'Unknown Project';
+    ticket.p_name?.trim() || ticket.project?.name?.trim() || 'Unknown Project';
 
   const assigneeName =
     ticket.a_fullName?.trim() ||
@@ -1660,6 +1746,8 @@ function mapApiKanbanTicketToRecentTicket(
     ticket.status?.label?.trim() ||
     ticket.s_key?.trim() ||
     ticket.status?.key?.trim() ||
+    ticket.t_statusKey?.trim() ||
+    ticket.statusKey?.trim() ||
     'Unknown';
 
   const priorityLabel =
@@ -1667,49 +1755,31 @@ function mapApiKanbanTicketToRecentTicket(
     ticket.priority?.label?.trim() ||
     ticket.pr_key?.trim() ||
     ticket.priority?.key?.trim() ||
+    ticket.priorityKey?.trim() ||
     null;
 
-  const dueDate =
-    ticket.t_dueDate ??
-    ticket.dueDate ??
-    null;
+  const dueDate = ticket.t_dueDate ?? ticket.dueDate ?? null;
 
-  const createdAt =
-    ticket.t_createdAt ??
-    ticket.createdAt ??
-    '';
+  const createdAt = ticket.t_createdAt ?? ticket.createdAt ?? '';
 
   return {
     id: ticketId,
-    ticketRefNo:
-      ticket.t_ticketRefNo ??
-      ticket.ticketRefNo,
-    title:
-      ticket.t_title ??
-      ticket.title ??
-      'Untitled Ticket',
+    ticketRefNo: ticket.t_ticketRefNo ?? ticket.ticketRefNo,
+    title: ticket.t_title ?? ticket.title ?? 'Untitled Ticket',
     project: {
       id: projectId,
       name: projectName,
       initials: getInitials(projectName),
       brandColor:
-        ticket.p_brandColor ??
-        ticket.project?.brandColor ??
-        '#31d81b',
+        ticket.p_brandColor ?? ticket.project?.brandColor ?? '#31d81b',
     },
     dueDate: dueDate
       ? formatTicketDate(dueDate.split('T')[0] ?? dueDate)
       : '--',
     status: statusLabel,
-    statusColor:
-      ticket.s_color ??
-      ticket.status?.color ??
-      undefined,
+    statusColor: ticket.s_color ?? ticket.status?.color ?? undefined,
     priority: priorityLabel,
-    priorityColor:
-      ticket.pr_color ??
-      ticket.priority?.color ??
-      undefined,
+    priorityColor: ticket.pr_color ?? ticket.priority?.color ?? undefined,
     assignee: {
       name: assigneeName,
       initials: getInitials(assigneeName),
@@ -1719,9 +1789,7 @@ function mapApiKanbanTicketToRecentTicket(
       email: '',
       fullName: 'Unknown',
     },
-    date: createdAt
-      ? formatTicketDate(createdAt)
-      : '--',
+    date: createdAt ? formatTicketDate(createdAt) : '--',
     sortDate: createdAt,
   };
 }
@@ -1919,7 +1987,7 @@ async function fetchDashboardKanbanBoard({
   search,
   statusKey,
   page = 1,
-  limit = 20,
+  limit = KANBAN_PAGE_SIZE,
 }: {
   priorityKey?: string;
   projectIds?: string[];
@@ -1958,8 +2026,7 @@ async function fetchDashboardKanbanBoard({
     }
   });
 
-  const requestUrl =
-    `/api/dashboard/kanban-board?${searchParams.toString()}`;
+  const requestUrl = `/api/dashboard/kanban-board?${searchParams.toString()}`;
 
   const response = await fetch(requestUrl, {
     method: 'GET',
@@ -1973,39 +2040,19 @@ async function fetchDashboardKanbanBoard({
 
   if (!response.ok) {
     const message =
-      payload &&
-      typeof payload === 'object' &&
-      'message' in payload
+      payload && typeof payload === 'object' && 'message' in payload
         ? Array.isArray(payload.message)
           ? payload.message.join(', ')
           : String(payload.message || '')
         : '';
 
     throw new Error(
-      message ||
-        `Failed to fetch Kanban board (${response.status}).`,
+      message || `Failed to fetch Kanban board (${response.status}).`,
     );
   }
 
-  /*
-   * Direct API response:
-   * {
-   *   items: { Open: [], Closed: [] },
-   *   hasMore: { Open: true, Closed: false }
-   * }
-   *
-   * Wrapped API response:
-   * {
-   *   data: {
-   *     items: { Open: [], Closed: [] },
-   *     hasMore: { Open: true, Closed: false }
-   *   }
-   * }
-   */
   const responseData =
-    payload &&
-    typeof payload === 'object' &&
-    'data' in payload
+    payload && typeof payload === 'object' && 'data' in payload
       ? payload.data
       : payload;
 
@@ -2024,40 +2071,24 @@ async function fetchDashboardKanbanBoard({
     throw new Error('Kanban board returned an invalid response.');
   }
 
-  const kanbanPayload =
-    responseData as ApiKanbanBoardResponse;
-
-  /*
-   * Initial request mein items status-wise object ho sakta hai:
-   * items: { Open: [...], Closed: [...] }
-   *
-   * Paginated request mein items direct array bhi ho sakta hai:
-   * items: [...]
-   */
-  const normalizedItems: Record<
-    string,
-    ApiKanbanBoardTicket[]
-  > = Array.isArray(kanbanPayload.items)
+  const kanbanPayload = responseData as ApiKanbanBoardResponse;
+  const normalizedItems: Record<string, ApiKanbanBoardTicket[]> = Array.isArray(
+    kanbanPayload.items,
+  )
     ? {
         [statusKey ?? 'Unknown']: kanbanPayload.items,
       }
     : kanbanPayload.items;
 
   const mappedItems = Object.fromEntries(
-    Object.entries(normalizedItems).map(
-      ([currentStatusKey, tickets]) => [
-        currentStatusKey,
-        Array.isArray(tickets)
-          ? tickets.map(mapApiKanbanTicketToRecentTicket)
-          : [],
-      ],
-    ),
+    Object.entries(normalizedItems).map(([currentStatusKey, tickets]) => [
+      currentStatusKey,
+      Array.isArray(tickets)
+        ? tickets.map(mapApiKanbanTicketToRecentTicket)
+        : [],
+    ]),
   ) as Record<string, RecentTicket[]>;
 
-  /*
-   * hasMore initial request mein object aur paginated request
-   * mein direct boolean ho sakta hai.
-   */
   const normalizedHasMore: Record<string, boolean> =
     typeof kanbanPayload.hasMore === 'boolean'
       ? {

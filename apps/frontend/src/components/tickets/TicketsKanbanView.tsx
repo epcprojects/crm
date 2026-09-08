@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type DragEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import type { RecentTicket } from '../tables/RecentTicketsTable';
 
 type TicketStatusOption = {
@@ -526,21 +526,6 @@ export default function TicketsKanbanView({
                   </div>
 
                   <div
-                    onScroll={(event) => {
-                      const element = event.currentTarget;
-                      const remainingScroll =
-                        element.scrollHeight -
-                        element.scrollTop -
-                        element.clientHeight;
-
-                      if (
-                        remainingScroll <= 100 &&
-                        hasMoreByStatus[column.key] &&
-                        !loadingByStatus[column.key]
-                      ) {
-                        onLoadMoreStatus?.(column.key);
-                      }
-                    }}
                     className={`mt-3.5 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-xl transition scrollbar-hide ${
                       hoveredColumnKey === column.key && !draggingColumnKey
                         ? 'border border-dashed border-gray-200 bg-primary/5'
@@ -654,11 +639,13 @@ export default function TicketsKanbanView({
                         No tickets
                       </div>
                     )}
-                    {loadingByStatus[column.key] ? (
-                      <div className="flex shrink-0 items-center justify-center py-3 text-xs text-gray-500">
-                        Loading more tickets...
-                      </div>
-                    ) : null}
+                    <KanbanLoadMoreTrigger
+                      hasMore={Boolean(hasMoreByStatus[column.key])}
+                      isLoading={Boolean(loadingByStatus[column.key])}
+                      onLoadMore={() => {
+                        onLoadMoreStatus?.(column.key);
+                      }}
+                    />
                   </div>
                 </>
               )}
@@ -670,6 +657,72 @@ export default function TicketsKanbanView({
   );
 }
 
+function KanbanLoadMoreTrigger({
+  hasMore,
+  isLoading,
+  onLoadMore,
+}: {
+  hasMore: boolean;
+  isLoading: boolean;
+  onLoadMore: () => void;
+}) {
+  const triggerRef = useRef<HTMLDivElement | null>(null);
+  const onLoadMoreRef = useRef(onLoadMore);
+
+  /*
+   * Latest callback ref mein rakhein taa-ke observer har parent
+   * render par recreate na ho.
+   */
+  useEffect(() => {
+    onLoadMoreRef.current = onLoadMore;
+  }, [onLoadMore]);
+
+  useEffect(() => {
+    const triggerElement = triggerRef.current;
+
+    if (!triggerElement || !hasMore || isLoading) {
+      return;
+    }
+
+    const scrollContainer = triggerElement.parentElement;
+
+    if (!scrollContainer) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          onLoadMoreRef.current();
+        }
+      },
+      {
+        root: scrollContainer,
+        rootMargin: '0px 0px 100px 0px',
+        threshold: 0,
+      },
+    );
+
+    observer.observe(triggerElement);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasMore, isLoading]);
+
+  if (!hasMore && !isLoading) {
+    return null;
+  }
+
+  return (
+    <div
+      ref={triggerRef}
+      className="flex min-h-8 shrink-0 items-center justify-center py-2 text-xs text-gray-500"
+    >
+      {isLoading ? 'Loading more tickets...' : null}
+    </div>
+  );
+}
 function renderPriorityBadge(ticket: RecentTicket) {
   return (
     <span className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-2 py-0.5 text-sm font-medium text-gray-700 shadow-xs">
