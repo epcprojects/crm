@@ -2100,7 +2100,7 @@ type ApiDashboardTicket = {
     id: string;
     email: string;
     fullName: string;
-  };
+  } | null;
   dueDate: string;
 };
 
