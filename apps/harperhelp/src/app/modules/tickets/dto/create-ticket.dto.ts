@@ -31,9 +31,9 @@ export class CreateTicketDto {
   @ApiProperty({ enum: TicketType })
   @IsNotEmpty()
   @IsEnum(TicketType, {
-    message: 'type must be either bug or feature_request',
+    message: 'ticketType must be either bug or feature_request',
   })
-  type: TicketType;
+  ticketType: TicketType;
 
   @Transform(({ value }) => (value === '' ? null : value))
   @ApiPropertyOptional()

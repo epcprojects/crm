@@ -66,7 +66,7 @@ export class Ticket extends BaseEntity {
     enum: TicketType,
     nullable: true,
   })
-  type: TicketType | null;
+  ticketType: TicketType | null;
   
   @Column({
     type: 'varchar',

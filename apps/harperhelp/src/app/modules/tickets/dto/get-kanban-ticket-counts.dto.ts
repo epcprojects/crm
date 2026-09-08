@@ -14,7 +14,7 @@ export class GetKanbanTicketCountsDto {
   @ApiPropertyOptional({ enum: TicketType })
   @IsOptional()
   @IsEnum(TicketType)
-  type?: TicketType;
+  ticketType?: TicketType;
   
   @IsOptional()
   @IsArray()

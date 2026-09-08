@@ -125,7 +125,7 @@ View ranges:
         statusKey: {
           type: 'string',
         },
-        type: {
+        ticketType: {
           type: 'string',
           enum: ['feature_request','bug'],
         },
@@ -139,7 +139,7 @@ View ranges:
         },
 
       },
-      required: ['title', 'type'],
+      required: ['title', 'ticketType'],
     },
   })
   @ApiOperation({

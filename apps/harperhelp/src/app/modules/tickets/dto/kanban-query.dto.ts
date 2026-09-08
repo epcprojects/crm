@@ -30,5 +30,5 @@ export class KanbanQueryDto {
   @ApiPropertyOptional({ enum: TicketType })
   @IsOptional()
   @IsEnum(TicketType)
-  type?: TicketType;
+  ticketType?: TicketType;
 }

@@ -20,7 +20,7 @@ export class GetTicketsQueryDto {
   @ApiPropertyOptional({ enum: TicketType })
   @IsOptional()
   @IsEnum(TicketType)
-  type?: TicketType;
+  ticketType?: TicketType;
 
   @ApiPropertyOptional()
   @IsOptional()

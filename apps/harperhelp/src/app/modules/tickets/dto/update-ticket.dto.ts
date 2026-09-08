@@ -21,9 +21,9 @@ export class UpdateTicketDto {
 
   @IsOptional()
   @IsEnum(TicketType, {
-    message: 'type must be either bug or feature_request',
+    message: 'ticketType must be either bug or feature_request',
   })
-  type: TicketType;
+  ticketType: TicketType;
 
   @ApiPropertyOptional()
   @IsOptional()

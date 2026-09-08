@@ -336,8 +336,8 @@ export class TicketsService {
       });
     }
 
-    if (query.type) {
-      qb.andWhere('t.type = :type', { type: query.type });
+    if (query.ticketType) {
+      qb.andWhere('t.ticketType = :ticketType', { ticketType: query.ticketType });
     }
 
     if (query.assigneeId) {
@@ -376,7 +376,7 @@ export class TicketsService {
       't.createdAt',
       't.ticketRefNo',
       't.dueDate',
-      't.type',
+      't.ticketType',
 
       'p.id',
       'p.name',
@@ -462,8 +462,8 @@ export class TicketsService {
       }
     }
 
-    if (query.type) {
-      qb.andWhere('t.type = :type', { type: query.type });
+    if (query.ticketType) {
+      qb.andWhere('t.ticketType = :ticketType', { ticketType: query.ticketType });
     }
 
     if (query.priorityKey) {
@@ -593,7 +593,7 @@ export class TicketsService {
       't.createdAt',
       't.ticketRefNo',
       't.dueDate',
-      't.type',
+      't.ticketType', 
 
       'p.id',
       'p.name',
@@ -1272,7 +1272,7 @@ export class TicketsService {
       't.createdAt',
       't.ticketRefNo',
       't.dueDate',
-      't.type',
+      't.ticketType', 
 
       'p.id',
       'p.name',
@@ -1374,8 +1374,8 @@ export class TicketsService {
       });
     }
 
-    if (query.type) {
-      qb.andWhere('t.type = :type', { type: query.type });
+    if (query.ticketType) {
+      qb.andWhere('t.ticketType = :ticketType', { ticketType: query.ticketType });
     }
 
     const search = query.search?.trim();
@@ -1454,8 +1454,8 @@ export class TicketsService {
       );
     }
 
-    if (query.type) {
-      qb.andWhere('t.type = :type', { type: query.type });
+    if (query.ticketType) {
+      qb.andWhere('t.ticketType = :ticketType', { ticketType: query.ticketType });
     }
 
     // Count per status — clone BEFORE select/order so it reflects all matching tickets,
@@ -1494,7 +1494,7 @@ export class TicketsService {
       't.dueDate',
       't.createdAt',
       't.statusKey',
-      't.type',
+      't.ticketType', 
 
       'p.id',
       'p.name',
@@ -1572,8 +1572,8 @@ export class TicketsService {
   //     });
   //   }
 
-  //   if (query.type) {
-  //     baseQb.andWhere('t.type = :type', { type: query.type });
+  //   if (query.ticketType) {
+  //     baseQb.andWhere('t.ticketType = :ticketType', { ticketType: query.ticketType });
   //   }
 
   //   const search = query.search?.trim();
@@ -1597,7 +1597,7 @@ export class TicketsService {
   //     't.dueDate',
   //     't.createdAt',
   //     't.statusKey',
-  //     't.type',
+  //     't.ticketType', 
   //     'p.id',
   //     'p.name',
   //     'p.brandColor',
@@ -1689,7 +1689,7 @@ export class TicketsService {
       dueDate: t.dueDate,
       createdAt: t.createdAt,
       statusKey: t.statusKey,
-      type: t.type,
+      ticketType: t.ticketType,
       project: t.project
         ? {
             id: t.project.id,
@@ -1772,8 +1772,8 @@ export class TicketsService {
       });
     }
 
-    if (query.type) {
-      baseQb.andWhere('t.type = :type', { type: query.type });
+    if (query.ticketType) {
+      baseQb.andWhere('t.ticketType = :ticketType', { ticketType: query.ticketType });
     }
 
     const search = query.search?.trim();
