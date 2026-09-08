@@ -1414,25 +1414,89 @@ export default function Page() {
                             <KanbanViewIcon />
                           </button>
                         </div>
-                        <div className='2xl:block hidden'>
+                        <div className="2xl:block  3xl:hidden hidden">
                           <ThemeButton
-                          type="button"
-                          variant="secondary"
-                          icon={<FiltersIcon fill="currentColor" />}
-                          onClick={() => setFiltersOpen((current) => !current)}
-                          aria-label="Open ticket filters"
-                          aria-expanded={filtersOpen}
-                          aria-controls="recent-ticket-filters"
-                          className={
-                            filtersOpen
-                              ? 'border-primary! bg-primary/5! text-primary! shadow-sm'
-                              : ''
-                          }
-                        >
-                          Filter
-                        </ThemeButton>
+                            type="button"
+                            variant="secondary"
+                            icon={<FiltersIcon fill="currentColor" />}
+                            onClick={() =>
+                              setFiltersOpen((current) => !current)
+                            }
+                            aria-label="Open ticket filters"
+                            aria-expanded={filtersOpen}
+                            aria-controls="recent-ticket-filters"
+                            className={
+                              filtersOpen
+                                ? 'border-primary! bg-primary/5! text-primary! shadow-sm'
+                                : ''
+                            }
+                          >
+                            Filter
+                          </ThemeButton>
+                        </div>
+                        <div className="w-full hidden 3xl:block 2xl:w-55">
+                          <Dropdown
+                            options={projectFilterOptions}
+                            isMulti
+                            value={selectedProjectIds}
+                            onChange={(value) =>
+                              updateTicketsPageFilters({ project: value })
+                            }
+                            placeholder="All Projects"
+                            maxMenuHeight={320}
+                            showSearch={true}
+                          />
+                        </div>
+                        {viewMode === 'table' && (
+                          <div className="w-full hidden 3xl:block 2xl:w-55">
+                            <Dropdown
+                              options={statusFilterOptions}
+                              value={selectedStatus}
+                              onChange={(value) =>
+                                updateTicketsPageFilters({ status: value })
+                              }
+                              placeholder="All Status"
+                              minHeight="min-h-70"
+                              menuScrollable={false}
+                              showSearch={true}
+                            />
+                          </div>
+                        )}
+
+                        <div className="w-full  gap-3 hidden 3xl:flex 2xl:w-55">
+                          <Dropdown
+                            options={priorityFilterOptions}
+                            value={selectedPriority}
+                            onChange={(value) =>
+                              updateTicketsPageFilters({ priority: value })
+                            }
+                            showSearch={true}
+                            placeholder="All Priority"
+                          />
+                        </div>
+                        <div className="hidden w-full 3xl:block 2xl:w-55">
+                          <Dropdown
+                            options={ticketTypeFilterOptions}
+                            value={selectedTicketType}
+                            onChange={(value) =>
+                              updateTicketsPageFilters({
+                                ticketType: value,
+                              })
+                            }
+                            placeholder="All Types"
+                          />
                         </div>
 
+                        <ThemeButton
+                          type="button"
+                          variant="secondary"
+                          size="md"
+                          onClick={clearTicketFilters}
+                          disabled={!hasActiveTicketFilters}
+                          className="hidden h-10 shrink-0 disabled:cursor-not-allowed disabled:opacity-50 3xl:inline-flex"
+                        >
+                          Clear Filters
+                        </ThemeButton>
                         <div className="flex flex-row gap-3 ">
                           <Popover
                             as="div"

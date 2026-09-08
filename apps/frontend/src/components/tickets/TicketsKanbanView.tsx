@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import type { RecentTicket } from '../tables/RecentTicketsTable';
+import Tooltip from '../tooltip';
 
 type TicketStatusOption = {
   id: string;
@@ -610,15 +611,17 @@ export default function TicketsKanbanView({
                                   Project:
                                 </span>
 
-                                <div className="flex justify-end">
-                                  <span className="flex w-fit items-center justify-end gap-2 whitespace-nowrap rounded-full bg-purple-100 py-0.75 pr-2.5 pl-0.75 text-xs font-medium text-purple-700">
-                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-medium">
+                               <Tooltip content={""} heading={ticket.project.name}>
+                                 <div className="flex justify-end w-full max-w-56">
+                                  <span className="flex w-fit  truncate text-ellipsis items-center justify-start gap-2 whitespace-nowrap rounded-full bg-purple-100 py-0.75 pr-2.5 pl-0.75 text-xs font-medium text-purple-700">
+                                    <span className="flex shrink-0 h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-medium">
                                       {ticket.project.initials}
                                     </span>
 
-                                    {ticket.project.name}
+                                   <span className='truncate'> {ticket.project.name}</span>
                                   </span>
                                 </div>
+                               </Tooltip>
                               </div>
 
                               <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
