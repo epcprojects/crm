@@ -179,6 +179,7 @@ type ApiTicketSetting = {
 
 const RECENT_TICKETS_STATUS_QUERY_PARAM = 'status';
 const RECENT_TICKETS_PRIORITY_QUERY_PARAM = 'priority';
+const RECENT_TICKETS_TYPE_QUERY_PARAM = 'ticketType';
 const TICKETS_PROJECT_QUERY_PARAM = 'project';
 const DASHBOARD_TABS_QUERY_PARAM = 'dashboardTab';
 const DASHBOARD_ACTIVITY_PAGE_SIZE = 20;
@@ -262,6 +263,9 @@ export default function Page() {
   const selectedPriority = getDashboardPriorityFilterValue(
     searchParams.get(RECENT_TICKETS_PRIORITY_QUERY_PARAM),
   );
+  const selectedTicketType = getDashboardTicketTypeFilterValue(
+    searchParams.get(RECENT_TICKETS_TYPE_QUERY_PARAM),
+  );
   const selectedDashboardTab = getDashboardTabValue(
     searchParams.get(DASHBOARD_TABS_QUERY_PARAM),
   );
@@ -339,6 +343,20 @@ export default function Page() {
     ],
     [ticketPrioritiesQuery.data],
   );
+  const ticketTypeFilterOptions = [
+    {
+      label: 'All Types',
+      value: 'all',
+    },
+    {
+      label: 'Bug',
+      value: 'bug',
+    },
+    {
+      label: 'Feature',
+      value: 'feature_request',
+    },
+  ];
   const projectFilterOptions = useMemo(
     () =>
       (projectNamesQuery.data ?? []).map((project) => ({
@@ -382,6 +400,7 @@ export default function Page() {
       selectedProjectIdsKey,
       selectedStatus,
       selectedPriority,
+      selectedTicketType,
     ],
 
     queryFn: () =>
@@ -395,6 +414,8 @@ export default function Page() {
         statusKey: selectedStatus === 'all' ? undefined : selectedStatus,
 
         priorityKey: selectedPriority === 'all' ? undefined : selectedPriority,
+        ticketType:
+          selectedTicketType === 'all' ? undefined : selectedTicketType,
       }),
 
     enabled: canViewRecentTickets,
@@ -467,15 +488,19 @@ export default function Page() {
     status,
     priority,
     project,
+    ticketType,
   }: {
     status?: string;
     priority?: string;
     project?: string[];
+    ticketType?: string;
   }) => {
     const nextSearchParams = new URLSearchParams(searchParams.toString());
+
     const nextStatus = status ?? selectedStatus;
     const nextPriority = priority ?? selectedPriority;
     const nextProjectIds = project ?? selectedProjectIds;
+    const nextTicketType = ticketType ?? selectedTicketType;
 
     if (nextStatus === 'Open') {
       nextSearchParams.delete(RECENT_TICKETS_STATUS_QUERY_PARAM);
@@ -489,12 +514,20 @@ export default function Page() {
       nextSearchParams.set(RECENT_TICKETS_PRIORITY_QUERY_PARAM, nextPriority);
     }
 
+    if (nextTicketType === 'all') {
+      nextSearchParams.delete(RECENT_TICKETS_TYPE_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(RECENT_TICKETS_TYPE_QUERY_PARAM, nextTicketType);
+    }
+
     nextSearchParams.delete(TICKETS_PROJECT_QUERY_PARAM);
+
     nextProjectIds.forEach((projectId) => {
       nextSearchParams.append(TICKETS_PROJECT_QUERY_PARAM, projectId);
     });
 
     const nextQueryString = nextSearchParams.toString();
+
     const currentQueryString = searchParams.toString();
 
     if (nextQueryString === currentQueryString) {
@@ -680,6 +713,7 @@ export default function Page() {
         description: values.description,
         statusKey: values.status,
         priorityKey: values.priority,
+        ticketType: values.ticketType,
         dueDate: values.dueDate,
         attachments: values.attachments,
       });
@@ -1023,7 +1057,8 @@ export default function Page() {
                               className={`ring text-sm gap-1  hover:bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 hover:text-white  font-semibold bg-white rounded-lg py-2 px-4 flex items-center justify-center ${
                                 open ||
                                 selectedStatus !== 'Open' ||
-                                selectedPriority !== 'all'
+                                selectedPriority !== 'all' ||
+                                selectedTicketType !== 'all'
                                   ? 'border-primary bg-primary/5 text-primary'
                                   : 'border-gray-200 bg-white text-gray-600'
                               }`}
@@ -1081,8 +1116,22 @@ export default function Page() {
                                   maxMenuHeight={150}
                                 />
                               </div>
+                              <div className="relative w-full overflow-visible">
+                                <Dropdown
+                                  options={ticketTypeFilterOptions}
+                                  value={selectedTicketType}
+                                  onChange={(value) =>
+                                    updateRecentTicketsFilters({
+                                      ticketType: value,
+                                    })
+                                  }
+                                  placeholder="All Types"
+                                  maxMenuHeight={150}
+                                />
+                              </div>
                               {selectedStatus !== 'all' ||
                               selectedPriority !== 'all' ||
+                              selectedTicketType !== 'all' ||
                               selectedProjectIds.length > 0 ? (
                                 <button
                                   type="button"
@@ -1091,6 +1140,7 @@ export default function Page() {
                                       project: [],
                                       status: 'all',
                                       priority: 'all',
+                                      ticketType: 'all',
                                     });
                                   }}
                                   className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50"
@@ -1189,6 +1239,18 @@ export default function Page() {
                             placeholder="All Priority"
                           />
                         </div>
+                        <div className="w-full">
+                          <Dropdown
+                            options={ticketTypeFilterOptions}
+                            value={selectedTicketType}
+                            onChange={(value) =>
+                              updateRecentTicketsFilters({
+                                ticketType: value,
+                              })
+                            }
+                            placeholder="All Types"
+                          />
+                        </div>
                         <ThemeButton
                           type="button"
                           variant="secondary"
@@ -1196,13 +1258,15 @@ export default function Page() {
                           disabled={
                             selectedProjectIds.length === 0 &&
                             selectedStatus === 'all' &&
-                            selectedPriority === 'all'
+                            selectedPriority === 'all' &&
+                              selectedTicketType === 'all'
                           }
                           onClick={() => {
                             updateRecentTicketsFilters({
                               project: [],
                               status: 'all',
                               priority: 'all',
+                                ticketType: 'all',
                             });
                           }}
                           className="disabled:cursor-not-allowed disabled:opacity-50"
@@ -1597,7 +1661,6 @@ function DashboardThreadRowSkeleton() {
   );
 }
 
-
 function DashboardStatsSkeleton() {
   return (
     <div
@@ -1709,10 +1772,7 @@ export function RecentTicketsTableSkeleton() {
       <div className="hidden min-h-0 flex-1 overflow-hidden xl:block">
         <div className="grid grid-cols-[110px_1.5fr_1.2fr_100px_100px_1.2fr_110px_110px] gap-4 border-b border-gray-200 bg-gray-50 px-4 py-3">
           {Array.from({ length: 8 }).map((_, index) => (
-            <div
-              key={index}
-              className="h-4 rounded bg-gray-200"
-            />
+            <div key={index} className="h-4 rounded bg-gray-200" />
           ))}
         </div>
 
@@ -1726,9 +1786,7 @@ export function RecentTicketsTableSkeleton() {
                 <div
                   key={cellIndex}
                   className={`rounded bg-gray-100 ${
-                    cellIndex === 2 || cellIndex === 5
-                      ? 'h-7'
-                      : 'h-5'
+                    cellIndex === 2 || cellIndex === 5 ? 'h-7' : 'h-5'
                   }`}
                 />
               ))}
@@ -2090,6 +2148,7 @@ type ApiDashboardTicket = {
   ticketRefNo?: string;
   createdAt: string;
   title: string;
+  ticketType?: string | null;
   project: {
     id: string;
     name: string;
@@ -2235,10 +2294,11 @@ async function fetchDashboardActivity(
 }
 
 async function fetchDashboardTickets({
-  page,
+ page,
   limit,
   statusKey,
   priorityKey,
+  ticketType,
   search,
   projectIds,
 }: {
@@ -2246,6 +2306,7 @@ async function fetchDashboardTickets({
   limit: number;
   statusKey?: string;
   priorityKey?: string;
+  ticketType?: string;
   search?: string;
   projectIds?: string[];
 }): Promise<DashboardTicketsResponse> {
@@ -2264,6 +2325,9 @@ async function fetchDashboardTickets({
   if (statusKey) {
     searchParams.set('statusKey', statusKey);
   }
+  if (ticketType) {
+  searchParams.set('ticketType', ticketType);
+}
   projectIds?.forEach((projectId) => {
     if (projectId) {
       searchParams.append('projectIds', projectId);
@@ -2419,6 +2483,7 @@ function mapApiDashboardTicketToRecentTicket(
     id: ticket.id,
     ticketRefNo: ticket.ticketRefNo,
     title: ticket.title,
+    ticketType: ticket.ticketType ?? null,
     project: {
       id: ticket.project?.id,
       name: ticket.project?.name ?? 'No Project',
@@ -2708,4 +2773,16 @@ function formatTicketDate(value: string) {
     day: 'numeric',
     year: 'numeric',
   }).format(date);
+}
+function getDashboardTicketTypeFilterValue(
+  value: string | null,
+) {
+  if (
+    value === 'bug' ||
+    value === 'feature_request'
+  ) {
+    return value;
+  }
+
+  return 'all';
 }

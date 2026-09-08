@@ -59,6 +59,7 @@ const TICKETS_STATUS_QUERY_PARAM = 'status';
 const TICKETS_PRIORITY_QUERY_PARAM = 'priority';
 const TICKETS_PROJECT_QUERY_PARAM = 'project';
 const DEFAULT_TICKETS_STATUS_FILTER = 'Active';
+const TICKETS_TYPE_QUERY_PARAM = 'ticketType';
 const TICKETS_PAGE_SIZE_QUERY_PARAM = 'size';
 const ALLOWED_TICKETS_PAGE_SIZES = [10, 25, 50, 100];
 const KANBAN_PAGE_SIZE = 20;
@@ -123,6 +124,14 @@ export default function Page() {
   const selectedPriority = getTicketsFilterValue(
     searchParams.get(TICKETS_PRIORITY_QUERY_PARAM),
   );
+  const selectedTicketType = getTicketsTypeFilterValue(
+    searchParams.get(TICKETS_TYPE_QUERY_PARAM),
+  );
+  const ticketTypeFilterOptions = [
+    { label: 'All Types', value: 'all' },
+    { label: 'Bug', value: 'bug' },
+    { label: 'Feature', value: 'feature_request' },
+  ];
   const selectedProjectIds = getTicketsProjectFilterValues(
     searchParams.getAll(TICKETS_PROJECT_QUERY_PARAM),
     searchParams.get(TICKETS_PROJECT_QUERY_PARAM),
@@ -180,42 +189,39 @@ export default function Page() {
       'dashboard-project-tickets',
       selectedStatus,
       selectedPriority,
+      selectedTicketType,
       selectedProjectIdsKey,
       debouncedSearchValue.trim(),
       pagination.pageIndex,
       pagination.pageSize,
     ],
-    queryFn: () => {
-      const filters = {
+    queryFn: () =>
+      fetchDashboardTickets({
+        statusKey: selectedStatus === 'all' ? undefined : selectedStatus,
         priorityKey: selectedPriority === 'all' ? undefined : selectedPriority,
+        ticketType:
+          selectedTicketType === 'all' ? undefined : selectedTicketType,
         projectIds: selectedProjectIds.length ? selectedProjectIds : undefined,
         search: debouncedSearchValue.trim(),
-      };
-
-      /*
-    if (viewMode === 'kanban') {
-      return fetchDashboardTicketsKanban(filters);
-    }
-    */
-
-      return fetchDashboardTickets({
-        ...filters,
-        statusKey: selectedStatus === 'all' ? undefined : selectedStatus,
         page: pagination.pageIndex + 1,
         limit: pagination.pageSize,
-      });
-    },
-    enabled: hasPermission('tickets.view_list') ,
+      }),
+    enabled: hasPermission('tickets.view_list') && viewMode === 'table',
   });
   const kanbanFilters = {
     priorityKey: selectedPriority === 'all' ? undefined : selectedPriority,
+
+    ticketType: selectedTicketType === 'all' ? undefined : selectedTicketType,
+
     projectIds: selectedProjectIds.length ? selectedProjectIds : undefined,
+
     search: debouncedSearchValue.trim() || undefined,
   };
 
   const kanbanBoardQueryKey = [
     'dashboard-kanban-board',
     selectedPriority,
+    selectedTicketType,
     selectedProjectIdsKey,
     debouncedSearchValue.trim(),
   ] as const;
@@ -234,6 +240,7 @@ export default function Page() {
     queryKey: [
       'dashboard-kanban-ticket-counts',
       selectedPriority,
+      selectedTicketType,
       selectedProjectIdsKey,
       debouncedSearchValue.trim(),
     ],
@@ -704,6 +711,7 @@ export default function Page() {
         description: values.description,
         statusKey: values.status,
         priorityKey: values.priority,
+        ticketType: values.ticketType,
         dueDate: values.dueDate,
         attachments: values.attachments,
       });
@@ -761,29 +769,40 @@ export default function Page() {
       ...current,
       pageIndex: 0,
     }));
-  }, [searchValue, selectedPriority, selectedProjectIdsKey, selectedStatus]);
+  }, [
+    searchValue,
+    selectedPriority,
+    selectedTicketType,
+    selectedProjectIdsKey,
+    selectedStatus,
+  ]);
 
   const hasActiveTicketFilters =
     Boolean(searchValue.trim()) ||
     selectedStatus !== DEFAULT_TICKETS_STATUS_FILTER ||
     selectedPriority !== 'all' ||
+    selectedTicketType !== 'all' ||
     selectedProjectIds.length > 0;
 
   const updateTicketsPageFilters = ({
     view,
     status,
     priority,
+    ticketType,
     project,
   }: {
     view?: 'table' | 'kanban';
     status?: string;
     priority?: string;
+    ticketType?: string;
     project?: string[];
   }) => {
     const nextSearchParams = new URLSearchParams(searchParams.toString());
+
     const nextViewMode = view ?? viewMode;
     const nextStatus = status ?? selectedStatus;
     const nextPriority = priority ?? selectedPriority;
+    const nextTicketType = ticketType ?? selectedTicketType;
     const nextProjectIds = project ?? selectedProjectIds;
 
     if (nextViewMode === 'table') {
@@ -807,12 +826,20 @@ export default function Page() {
       nextSearchParams.set(TICKETS_PRIORITY_QUERY_PARAM, nextPriority);
     }
 
+    if (nextTicketType === 'all') {
+      nextSearchParams.delete(TICKETS_TYPE_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(TICKETS_TYPE_QUERY_PARAM, nextTicketType);
+    }
+
     nextSearchParams.delete(TICKETS_PROJECT_QUERY_PARAM);
+
     nextProjectIds.forEach((projectId) => {
       nextSearchParams.append(TICKETS_PROJECT_QUERY_PARAM, projectId);
     });
 
     const nextQueryString = nextSearchParams.toString();
+
     const currentQueryString = searchParams.toString();
 
     if (nextQueryString === currentQueryString) {
@@ -826,9 +853,11 @@ export default function Page() {
 
   const clearTicketFilters = () => {
     setSearchValue('');
+
     updateTicketsPageFilters({
       status: DEFAULT_TICKETS_STATUS_FILTER,
       priority: 'all',
+      ticketType: 'all',
       project: [],
     });
   };
@@ -946,34 +975,46 @@ export default function Page() {
     }));
 
     try {
-      const activePriorityKey =
-        selectedPriority === 'all' ? undefined : selectedPriority;
+  const activePriorityKey =
+    selectedPriority === 'all'
+      ? undefined
+      : selectedPriority;
 
-      const activeProjectIds =
-        selectedProjectIds.length > 0 ? [...selectedProjectIds] : undefined;
+  const activeTicketType =
+    selectedTicketType === 'all'
+      ? undefined
+      : selectedTicketType;
 
-      const activeSearch = debouncedSearchValue.trim() || undefined;
+  const activeProjectIds =
+    selectedProjectIds.length > 0
+      ? [...selectedProjectIds]
+      : undefined;
 
-      const nextPageData = await queryClient.fetchQuery({
-        queryKey: [
-          'dashboard-kanban-board-page',
-          statusKey,
-          nextPage,
-          KANBAN_PAGE_SIZE,
-          activePriorityKey ?? 'all',
-          selectedProjectIdsKey,
-          activeSearch ?? '',
-        ],
-        queryFn: () =>
-          fetchDashboardKanbanBoard({
-            statusKey,
-            page: nextPage,
-            limit: KANBAN_PAGE_SIZE,
-            priorityKey: activePriorityKey,
-            projectIds: activeProjectIds,
-            search: activeSearch,
-          }),
-      });
+  const activeSearch =
+    debouncedSearchValue.trim() || undefined;
+
+  const nextPageData = await queryClient.fetchQuery({
+    queryKey: [
+      'dashboard-kanban-board-page',
+      statusKey,
+      nextPage,
+      KANBAN_PAGE_SIZE,
+      activePriorityKey ?? 'all',
+      activeTicketType ?? 'all',
+      selectedProjectIdsKey,
+      activeSearch ?? '',
+    ],
+    queryFn: () =>
+      fetchDashboardKanbanBoard({
+        statusKey,
+        page: nextPage,
+        limit: KANBAN_PAGE_SIZE,
+        priorityKey: activePriorityKey,
+        ticketType: activeTicketType,
+        projectIds: activeProjectIds,
+        search: activeSearch,
+      }),
+  });
 
       queryClient.setQueryData<KanbanBoardData>(
         kanbanBoardQueryKey,
@@ -1053,7 +1094,8 @@ export default function Page() {
           };
         },
       );
-    } catch (error) {
+    } 
+    catch (error) {
       appToast.error(
         error instanceof Error ? error.message : 'Failed to load more tickets.',
       );
@@ -1229,6 +1271,19 @@ export default function Page() {
                                     maxMenuHeight={150}
                                   />
                                 </div>
+                                <div className="relative  overflow-visible">
+                                  <Dropdown
+                                    options={ticketTypeFilterOptions}
+                                    value={selectedTicketType}
+                                    onChange={(value) =>
+                                      updateTicketsPageFilters({
+                                        ticketType: value,
+                                      })
+                                    }
+                                    placeholder="All Types"
+                                    maxMenuHeight={150}
+                                  />
+                                </div>
 
                                 <button
                                   type="button"
@@ -1314,6 +1369,19 @@ export default function Page() {
                                     maxMenuHeight={150}
                                   />
                                 </div>
+                                <div className="relative  overflow-visible">
+                                  <Dropdown
+                                    options={ticketTypeFilterOptions}
+                                    value={selectedTicketType}
+                                    onChange={(value) =>
+                                      updateTicketsPageFilters({
+                                        ticketType: value,
+                                      })
+                                    }
+                                    placeholder="All Types"
+                                    maxMenuHeight={150}
+                                  />
+                                </div>
 
                                 <button
                                   type="button"
@@ -1396,6 +1464,18 @@ export default function Page() {
                             placeholder="All Priority"
                           />
                         </div>
+                        <div className="hidden w-full 2xl:block 2xl:w-55">
+                          <Dropdown
+                            options={ticketTypeFilterOptions}
+                            value={selectedTicketType}
+                            onChange={(value) =>
+                              updateTicketsPageFilters({
+                                ticketType: value,
+                              })
+                            }
+                            placeholder="All Types"
+                          />
+                        </div>
 
                         <ThemeButton
                           type="button"
@@ -1476,6 +1556,19 @@ export default function Page() {
                                       placeholder="All Priority"
                                       maxMenuHeight={150}
                                       showSearch={true}
+                                    />
+                                  </div>
+                                  <div className="relative  overflow-visible">
+                                    <Dropdown
+                                      options={ticketTypeFilterOptions}
+                                      value={selectedTicketType}
+                                      onChange={(value) =>
+                                        updateTicketsPageFilters({
+                                          ticketType: value,
+                                        })
+                                      }
+                                      placeholder="All Types"
+                                      maxMenuHeight={150}
                                     />
                                   </div>
 
@@ -1645,6 +1738,7 @@ type ApiDashboardTicket = {
     label: string;
     color?: string;
   } | null;
+  ticketType?: string | null;
   assignee: {
     id?: string;
     fullName?: string;
@@ -1705,6 +1799,7 @@ type ApiKanbanBoardTicket = {
   projectId?: string;
   priorityKey?: string | null;
   assigneeId?: string | null;
+  ticketType?: string | null;
 
   project?: {
     id?: string;
@@ -1787,6 +1882,7 @@ function mapApiKanbanTicketToRecentTicket(
     id: ticketId,
     ticketRefNo: ticket.t_ticketRefNo ?? ticket.ticketRefNo,
     title: ticket.t_title ?? ticket.title ?? 'Untitled Ticket',
+    ticketType: ticket.ticketType ?? null,
     project: {
       id: projectId,
       name: projectName,
@@ -1818,6 +1914,7 @@ function mapApiKanbanTicketToRecentTicket(
 async function fetchDashboardTickets({
   statusKey,
   priorityKey,
+  ticketType,
   projectIds,
   search,
   page,
@@ -1825,6 +1922,7 @@ async function fetchDashboardTickets({
 }: {
   statusKey?: string;
   priorityKey?: string;
+  ticketType?: string;
   projectIds?: string[];
   search?: string;
   page: number;
@@ -1841,6 +1939,9 @@ async function fetchDashboardTickets({
 
   if (priorityKey) {
     searchParams.set('priorityKey', priorityKey);
+  }
+  if (ticketType) {
+    searchParams.set('ticketType', ticketType);
   }
 
   projectIds?.forEach((projectId) => {
@@ -1952,10 +2053,12 @@ async function fetchDashboardTickets({
 // }
 async function fetchDashboardKanbanTicketCounts({
   priorityKey,
+  ticketType,
   projectIds,
   search,
 }: {
   priorityKey?: string;
+  ticketType?: string;
   projectIds?: string[];
   search?: string;
 }): Promise<Record<string, number>> {
@@ -1964,7 +2067,9 @@ async function fetchDashboardKanbanTicketCounts({
   if (priorityKey) {
     searchParams.set('priorityKey', priorityKey);
   }
-
+if (ticketType) {
+  searchParams.set('ticketType', ticketType);
+}
   if (search) {
     searchParams.set('search', search);
   }
@@ -2003,7 +2108,8 @@ async function fetchDashboardKanbanTicketCounts({
 }
 
 async function fetchDashboardKanbanBoard({
-  priorityKey,
+   priorityKey,
+  ticketType,
   projectIds,
   search,
   statusKey,
@@ -2011,6 +2117,7 @@ async function fetchDashboardKanbanBoard({
   limit = KANBAN_PAGE_SIZE,
 }: {
   priorityKey?: string;
+  ticketType?: string;
   projectIds?: string[];
   search?: string;
   statusKey?: string;
@@ -2036,7 +2143,9 @@ async function fetchDashboardKanbanBoard({
   if (priorityKey) {
     searchParams.set('priorityKey', priorityKey);
   }
-
+if (ticketType) {
+  searchParams.set('ticketType', ticketType);
+}
   if (search) {
     searchParams.set('search', search);
   }
@@ -2276,6 +2385,7 @@ function mapApiDashboardTicketToRecentTicket(
     status: statusLabel,
     statusColor: ticket.status?.color,
     priority: priorityLabel,
+    ticketType: ticket.ticketType ?? null,
     priorityColor: ticket.priority?.color,
     assignee: {
       name: assigneeName,
@@ -2487,4 +2597,11 @@ export function KanbanViewIcon() {
       />
     </svg>
   );
+}
+function getTicketsTypeFilterValue(value: string | null) {
+  if (value === 'bug' || value === 'feature_request') {
+    return value;
+  }
+
+  return 'all';
 }

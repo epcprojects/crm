@@ -50,6 +50,7 @@ export type RecentTicket = {
     name: string;
     initials: string;
   };
+  ticketType?: string | null;
   date: string;
   sortDate?: string;
   reporter: {
@@ -80,6 +81,23 @@ export type RecentTicketQuickLinkItem = {
   label: string;
   href: string;
 };
+function formatTicketType(ticketType?: string | null) {
+  if (!ticketType) {
+    return 'No Type';
+  }
+
+  if (ticketType === 'feature_request') {
+    return 'Feature';
+  }
+
+  if (ticketType === 'bug') {
+    return 'Bug';
+  }
+
+  return ticketType
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
 
 const statusStyles: Record<string, string> = {
   Open: 'border-red-200 bg-red-50 text-red-500',
@@ -179,6 +197,30 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     ),
   },
   {
+    id: 'ticketType',
+    accessorKey: 'ticketType',
+    header: 'Type',
+    cell: ({ row }) => {
+      const ticketType = row.original.ticketType;
+
+      if (ticketType !== 'bug' && ticketType !== 'feature_request') {
+        return <span className="text-sm text-gray-500">--</span>;
+      }
+
+      return (
+        <span
+          className={`inline-flex items-center whitespace-nowrap rounded-full border px-2 py-1 text-xs font-medium ${
+            ticketType === 'bug'
+              ? 'border-red-200 bg-red-50 text-red-600'
+              : 'border-blue-200 bg-blue-50 text-blue-600'
+          }`}
+        >
+          {formatTicketType(ticketType)}
+        </span>
+      );
+    },
+  },
+  {
     id: 'Creater',
     accessorKey: 'reporter.fullname',
     header: 'Created by',
@@ -272,7 +314,7 @@ export default function RecentTicketsTable({
     pageSize: initialPageSize,
   });
   const TICKETS_PAGE_SIZE_QUERY_PARAM = 'pageSize';
-const ALLOWED_TICKETS_PAGE_SIZES = [10, 25, 50, 100];
+  const ALLOWED_TICKETS_PAGE_SIZES = [10, 25, 50, 100];
   const activePagination = controlledPagination ?? pagination;
   const totalRows = controlledTotalRows ?? tickets.length;
   const pageCount = Math.max(
@@ -710,6 +752,18 @@ function TicketMobileCard({
             >
               {ticket.priority ?? 'No Priority'}
             </span>
+            {ticket.ticketType === 'bug' ||
+            ticket.ticketType === 'feature_request' ? (
+              <span
+                className={`inline-flex items-center whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-medium ${
+                  ticket.ticketType === 'bug'
+                    ? 'border-red-200 bg-red-50 text-red-600'
+                    : 'border-blue-200 bg-blue-50 text-blue-600'
+                }`}
+              >
+                {formatTicketType(ticket.ticketType)}
+              </span>
+            ) : null}
           </div>
         </div>
       </div>

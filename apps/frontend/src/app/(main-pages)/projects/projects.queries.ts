@@ -265,6 +265,7 @@ type ProjectTicketsQueryOptions = {
   search?: string;
   statusKey?: string;
   priorityKey?: string;
+  ticketType?: string;
   kanban?: boolean;
 };
 
@@ -286,21 +287,23 @@ export function useProjectTicketsQuery(
     search,
     statusKey,
     priorityKey,
+    ticketType,
     kanban = false,
   }: ProjectTicketsQueryOptions,
   enabled = true,
 ) {
   return useQuery({
     queryKey: [
-      ...projectTicketsQueryKey,
-      projectId,
-      page,
-      limit,
-      search ?? '',
-      statusKey ?? 'all',
-      priorityKey ?? 'all',
-      kanban,
-    ],
+  ...projectTicketsQueryKey,
+  projectId,
+  page,
+  limit,
+  search ?? '',
+  statusKey ?? 'all',
+  priorityKey ?? 'all',
+  ticketType ?? 'all',
+  kanban,
+],
 
     queryFn: () =>
       kanban
@@ -311,6 +314,7 @@ export function useProjectTicketsQuery(
             search,
             statusKey,
             priorityKey,
+            ticketType,
           }),
 
     enabled: Boolean(projectId && enabled),
@@ -1213,6 +1217,7 @@ type ApiProjectTicket = {
   priorityKey?: string | null;
   reporterId?: string | null;
   assigneeId?: string | null;
+  ticketType?: string | null;
   dueDate?: string | null;
   project?: {
     id?: string;
@@ -1431,7 +1436,14 @@ async function fetchProjectThreadDetail(
 
 async function fetchProjectTickets(
   projectId: string,
-  { page, limit, search, statusKey, priorityKey }: ProjectTicketsQueryOptions,
+  {
+    page,
+    limit,
+    search,
+    statusKey,
+    priorityKey,
+    ticketType,
+  }: ProjectTicketsQueryOptions,
 ): Promise<ProjectTicketsResponse> {
   const searchParams = new URLSearchParams({
     page: String(page),
@@ -1450,6 +1462,10 @@ async function fetchProjectTickets(
     searchParams.set('priorityKey', priorityKey);
   }
 
+  if (ticketType) {
+    searchParams.set('ticketType', ticketType);
+  }
+
   const response = await fetch(
     `/api/projects/${projectId}/tickets?${searchParams.toString()}`,
     {
@@ -1466,16 +1482,22 @@ async function fetchProjectTickets(
     | { message?: string }
     | null;
 
-  if (!response.ok || !isApiProjectTicketsResponse(payload)) {
+  if (
+    !response.ok ||
+    !isApiProjectTicketsResponse(payload)
+  ) {
     throw new Error(
       isProjectErrorPayload(payload)
-        ? payload.message || 'Failed to fetch project tickets.'
+        ? payload.message ||
+            'Failed to fetch project tickets.'
         : 'Failed to fetch project tickets.',
     );
   }
 
   return {
-    items: payload.items.map(mapApiProjectTicketToRecentTicket),
+    items: payload.items.map(
+      mapApiProjectTicketToRecentTicket,
+    ),
     countPerStatus: {},
     meta: payload.meta,
   };
@@ -1536,7 +1558,193 @@ async function fetchProjectTicketsKanban(
     },
   };
 }
+export type ProjectKanbanBoardData = {
+  items: Record<string, RecentTicket[]>;
+  hasMore: Record<string, boolean>;
+  pageByStatus: Record<string, number>;
+};
 
+export type ApiProjectKanbanBoardResponse = {
+  items:
+    | Record<string, ApiProjectTicket[]>
+    | ApiProjectTicket[];
+  hasMore?: Record<string, boolean> | boolean;
+  statusKey?: string;
+};
+
+export type ApiProjectKanbanCountsResponse = {
+  countPerStatus: Record<string, number>;
+};
+export async function fetchProjectKanbanCounts({
+  projectId,
+  priorityKey,
+  ticketType,
+  search,
+}: {
+  projectId: string;
+  priorityKey?: string;
+  ticketType?: string;
+  search?: string;
+}) {
+  const searchParams = new URLSearchParams();
+
+  // Single project bhi array query ke format mein jayega
+  searchParams.append('projectIds', projectId);
+
+  if (priorityKey?.trim()) {
+    searchParams.set('priorityKey', priorityKey.trim());
+  }
+if (ticketType?.trim()) {
+  searchParams.set(
+    'ticketType',
+    ticketType.trim(),
+  );
+}
+  if (search?.trim()) {
+    searchParams.set('search', search.trim());
+  }
+
+  const response = await fetch(
+    `/api/dashboard/kanban-ticket-counts?${searchParams.toString()}`,
+    {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+    },
+  );
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiProjectKanbanCountsResponse
+    | { message?: string }
+    | null;
+
+  if (
+    !response.ok ||
+    !payload ||
+    !('countPerStatus' in payload)
+  ) {
+    throw new Error(
+      payload && 'message' in payload
+        ? payload.message ||
+            'Failed to fetch project Kanban counts.'
+        : 'Failed to fetch project Kanban counts.',
+    );
+  }
+
+  return payload.countPerStatus;
+}
+export async function fetchProjectKanbanBoard({
+  projectId,
+  priorityKey,
+  ticketType,
+  search,
+  statusKey,
+  page = 1,
+  limit = 20,
+}: {
+  projectId: string;
+  priorityKey?: string;
+  ticketType?: string;
+  search?: string;
+  statusKey?: string;
+  page?: number;
+  limit?: number;
+}): Promise<ProjectKanbanBoardData> {
+  const searchParams = new URLSearchParams({
+    limit: String(limit),
+  });
+
+  searchParams.append('projectIds', projectId);
+
+  if (priorityKey?.trim()) {
+    searchParams.set('priorityKey', priorityKey.trim());
+  }
+if (ticketType?.trim()) {
+  searchParams.set(
+    'ticketType',
+    ticketType.trim(),
+  );
+}
+  if (search?.trim()) {
+    searchParams.set('search', search.trim());
+  }
+
+  // Initial request mein statusKey/page nahi jayega
+  if (statusKey) {
+    searchParams.set('statusKey', statusKey);
+    searchParams.set('page', String(page));
+  }
+
+  const response = await fetch(
+    `/api/dashboard/kanban-board?${searchParams.toString()}`,
+    {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+    },
+  );
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiProjectKanbanBoardResponse
+    | { message?: string }
+    | null;
+
+  if (
+    !response.ok ||
+    !payload ||
+    !('items' in payload) ||
+    !payload.items
+  ) {
+    throw new Error(
+      payload && 'message' in payload
+        ? payload.message ||
+            'Failed to fetch project Kanban board.'
+        : 'Failed to fetch project Kanban board.',
+    );
+  }
+
+  const normalizedItems: Record<string, ApiProjectTicket[]> =
+    Array.isArray(payload.items)
+      ? {
+          [statusKey ?? payload.statusKey ?? 'Unknown']:
+            payload.items,
+        }
+      : payload.items;
+
+  const mappedItems = Object.fromEntries(
+    Object.entries(normalizedItems).map(
+      ([currentStatusKey, tickets]) => [
+        currentStatusKey,
+        Array.isArray(tickets)
+          ? tickets.map(mapApiProjectTicketToRecentTicket)
+          : [],
+      ],
+    ),
+  );
+
+  const normalizedHasMore =
+    typeof payload.hasMore === 'boolean'
+      ? {
+          [statusKey ?? payload.statusKey ?? 'Unknown']:
+            payload.hasMore,
+        }
+      : (payload.hasMore ?? {});
+
+  return {
+    items: mappedItems,
+    hasMore: normalizedHasMore,
+    pageByStatus: Object.fromEntries(
+      Object.keys(mappedItems).map((key) => [
+        key,
+        statusKey ? page : 1,
+      ]),
+    ),
+  };
+}
 async function fetchProjectFiles(projectId: string) {
   const response = await fetch(`/api/projects/${projectId}/files`, {
     method: 'GET',
@@ -1825,6 +2033,8 @@ function mapApiProjectTicketToRecentTicket(
     id: ticket.id,
     ticketRefNo: ticket.ticketRefNo,
     title: ticket.title,
+    ticketType: ticket.ticketType ?? null,
+
     project: {
       id: ticket.project?.id ?? ticket.projectId,
       initials: getInitials(projectName),

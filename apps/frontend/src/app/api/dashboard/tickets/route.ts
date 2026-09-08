@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
       'assigneeId',
       'page',
       'limit',
+      'ticketType',
     ]) {
       const value = requestUrl.searchParams.get(key);
 

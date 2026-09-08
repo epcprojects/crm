@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     const requestUrl = new URL(request.url);
     const upstreamUrl = new URL(`${apiBaseUrl}/dashboard/kanban-ticket-counts`);
 
-    for (const key of ['search', 'priorityKey']) {
+    for (const key of ['search', 'priorityKey','ticketType',]) {
       const value = requestUrl.searchParams.get(key);
 
       if (value) {

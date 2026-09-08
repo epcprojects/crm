@@ -96,6 +96,9 @@ import {
   useUpdateProjectNoteMutation,
   useUploadProjectFilesMutation,
   projectFilesQueryKey,
+  fetchProjectKanbanBoard,
+  fetchProjectKanbanCounts,
+  ProjectKanbanBoardData,
 } from '../projects.queries';
 import {
   PermissionGuard,
@@ -134,6 +137,8 @@ const PROJECT_TICKETS_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 const PROJECT_TICKETS_VIEW_QUERY_PARAM = 'ticketView';
 const PROJECT_NOTES_LIMIT = 50;
 const MAX_PROJECT_NOTE_DESCRIPTION_LENGTH = 4000;
+const PROJECT_KANBAN_PAGE_SIZE = 20;
+const PROJECT_TICKETS_TYPE_QUERY_PARAM = 'ticketType';
 
 type SocketTokenResponse = {
   accessToken: string;
@@ -186,6 +191,10 @@ export default function ProjectDetailPage() {
   const [fileSearchValue, setFileSearchValue] = useState('');
   const [notesSearchValue, setNotesSearchValue] = useState('');
   const debouncedNotesSearchValue = useDebouncedValue(notesSearchValue);
+  const [loadingProjectKanbanStatuses, setLoadingProjectKanbanStatuses] =
+    useState<Record<string, boolean>>({});
+
+  const loadingProjectKanbanStatusesRef = useRef<Record<string, boolean>>({});
   const [uploadedFilesState, setUploadedFilesState] = useState<
     ProjectFileRecord[]
   >([]);
@@ -248,6 +257,15 @@ export default function ProjectDetailPage() {
   const selectedPriority = getProjectTicketFilterValue(
     searchParams.get(PROJECT_TICKETS_PRIORITY_QUERY_PARAM),
   );
+  const selectedTicketType = getProjectTicketTypeFilterValue(
+    searchParams.get(PROJECT_TICKETS_TYPE_QUERY_PARAM),
+  );
+
+  const ticketTypeFilterOptions = [
+    { label: 'All Types', value: 'all' },
+    { label: 'Bug', value: 'bug' },
+    { label: 'Feature', value: 'feature_request' },
+  ];
   const projectTicketsViewMode =
     searchParams.get(PROJECT_TICKETS_VIEW_QUERY_PARAM) === 'kanban'
       ? 'kanban'
@@ -326,19 +344,207 @@ export default function ProjectDetailPage() {
   const projectTicketsQuery = useProjectTicketsQuery(
     projectId,
     {
-      page:
-        projectTicketsViewMode === 'kanban'
-          ? 1
-          : ticketsPagination.pageIndex + 1,
-      limit:
-        projectTicketsViewMode === 'kanban' ? 100 : ticketsPagination.pageSize,
+      page: ticketsPagination.pageIndex + 1,
+      limit: ticketsPagination.pageSize,
       search: debouncedSearchValue.trim() || undefined,
       statusKey: selectedStatus === 'all' ? undefined : selectedStatus,
       priorityKey: selectedPriority === 'all' ? undefined : selectedPriority,
-      kanban: projectTicketsViewMode === 'kanban',
+      ticketType: selectedTicketType === 'all' ? undefined : selectedTicketType,
     },
-    canViewTickets,
+    canViewTickets && projectTicketsViewMode === 'table',
   );
+  const projectKanbanPriorityKey =
+    selectedPriority === 'all' ? undefined : selectedPriority;
+
+  const projectKanbanTicketType =
+    selectedTicketType === 'all' ? undefined : selectedTicketType;
+
+  const projectKanbanSearch = debouncedSearchValue.trim() || undefined;
+
+  const projectKanbanBoardQueryKey = [
+    'project-kanban-board',
+    projectId,
+    projectKanbanPriorityKey ?? 'all',
+    projectKanbanTicketType ?? 'all',
+    projectKanbanSearch ?? '',
+  ] as const;
+
+  const projectKanbanBoardQuery = useQuery({
+    queryKey: projectKanbanBoardQueryKey,
+    queryFn: () =>
+      fetchProjectKanbanBoard({
+        projectId,
+        priorityKey: projectKanbanPriorityKey,
+        ticketType: projectKanbanTicketType,
+        search: projectKanbanSearch,
+        limit: PROJECT_KANBAN_PAGE_SIZE,
+      }),
+    enabled:
+      Boolean(projectId) &&
+      canViewTickets &&
+      projectTicketsViewMode === 'kanban',
+  });
+
+  const projectKanbanCountsQuery = useQuery({
+    queryKey: [
+      'project-kanban-counts',
+      projectId,
+      projectKanbanPriorityKey ?? 'all',
+      projectKanbanTicketType ?? 'all',
+      projectKanbanSearch ?? '',
+    ],
+    queryFn: () =>
+      fetchProjectKanbanCounts({
+        projectId,
+        priorityKey: projectKanbanPriorityKey,
+        ticketType: projectKanbanTicketType,
+        search: projectKanbanSearch,
+      }),
+    enabled:
+      Boolean(projectId) &&
+      canViewTickets &&
+      projectTicketsViewMode === 'kanban',
+  });
+  const projectKanbanTickets = useMemo(
+    () => Object.values(projectKanbanBoardQuery.data?.items ?? {}).flat(),
+    [projectKanbanBoardQuery.data?.items],
+  );
+  const handleLoadMoreProjectKanbanStatus = async (statusKey: string) => {
+    const currentBoard = queryClient.getQueryData<ProjectKanbanBoardData>(
+      projectKanbanBoardQueryKey,
+    );
+
+    if (!currentBoard) {
+      return;
+    }
+
+    const existingTickets = currentBoard.items[statusKey] ?? [];
+
+    const loadedCount = existingTickets.length;
+
+    const totalCount = projectKanbanCountsQuery.data?.[statusKey] ?? 0;
+
+    const backendHasMore =
+      currentBoard.hasMore[statusKey] ?? loadedCount < totalCount;
+
+    if (
+      loadedCount >= totalCount ||
+      !backendHasMore ||
+      loadingProjectKanbanStatusesRef.current[statusKey]
+    ) {
+      return;
+    }
+
+    loadingProjectKanbanStatusesRef.current[statusKey] = true;
+
+    const nextPage = (currentBoard.pageByStatus[statusKey] ?? 1) + 1;
+
+    setLoadingProjectKanbanStatuses((current) => ({
+      ...current,
+      [statusKey]: true,
+    }));
+
+    try {
+      const nextPageData = await queryClient.fetchQuery({
+        queryKey: [
+          'project-kanban-board-page',
+          projectId,
+          statusKey,
+          nextPage,
+          PROJECT_KANBAN_PAGE_SIZE,
+          projectKanbanPriorityKey ?? 'all',
+          projectKanbanTicketType ?? 'all',
+          projectKanbanSearch ?? '',
+        ],
+        queryFn: () =>
+          fetchProjectKanbanBoard({
+            projectId,
+            statusKey,
+            page: nextPage,
+            limit: PROJECT_KANBAN_PAGE_SIZE,
+            priorityKey: projectKanbanPriorityKey,
+            ticketType: projectKanbanTicketType,
+            search: projectKanbanSearch,
+          }),
+      });
+
+      queryClient.setQueryData<ProjectKanbanBoardData>(
+        projectKanbanBoardQueryKey,
+        (current) => {
+          if (!current) {
+            return current;
+          }
+
+          const currentTickets = current.items[statusKey] ?? [];
+
+          const targetStatus = statusMetadataByKey.get(statusKey);
+
+          const incomingTickets = (nextPageData.items[statusKey] ?? []).map(
+            (ticket) => ({
+              ...ticket,
+              status: targetStatus?.label ?? ticket.status ?? statusKey,
+              statusColor: targetStatus?.color ?? ticket.statusColor,
+            }),
+          );
+
+          const existingIds = new Set(
+            currentTickets.map((ticket) => ticket.id).filter(Boolean),
+          );
+
+          const uniqueIncomingTickets = incomingTickets.filter((ticket) => {
+            if (!ticket.id || existingIds.has(ticket.id)) {
+              return false;
+            }
+
+            existingIds.add(ticket.id);
+            return true;
+          });
+
+          const nextLoadedCount =
+            currentTickets.length + uniqueIncomingTickets.length;
+
+          const statusTotalCount =
+            projectKanbanCountsQuery.data?.[statusKey] ?? 0;
+
+          const responseHasMore = nextPageData.hasMore[statusKey] ?? false;
+
+          const shouldLoadMore =
+            uniqueIncomingTickets.length > 0 &&
+            nextLoadedCount < statusTotalCount &&
+            responseHasMore;
+
+          return {
+            ...current,
+            items: {
+              ...current.items,
+              [statusKey]: [...currentTickets, ...uniqueIncomingTickets],
+            },
+            hasMore: {
+              ...current.hasMore,
+              [statusKey]: shouldLoadMore,
+            },
+            pageByStatus: {
+              ...current.pageByStatus,
+              [statusKey]: nextPage,
+            },
+          };
+        },
+      );
+    } catch (error) {
+      appToast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to load more project tickets.',
+      );
+    } finally {
+      loadingProjectKanbanStatusesRef.current[statusKey] = false;
+
+      setLoadingProjectKanbanStatuses((current) => ({
+        ...current,
+        [statusKey]: false,
+      }));
+    }
+  };
   const uploadProjectFilesMutation = useUploadProjectFilesMutation();
   const deleteProjectFileMutation = useDeleteProjectFileMutation();
   const toggleProjectThreadReactionMutation = useMutation({
@@ -539,6 +745,17 @@ export default function ProjectDetailPage() {
         queryClient.invalidateQueries({
           queryKey: ['dashboard-project-tickets'],
           refetchType: 'all',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['project-kanban-board', projectId],
+        }),
+
+        queryClient.invalidateQueries({
+          queryKey: ['project-kanban-counts', projectId],
+        }),
+
+        queryClient.invalidateQueries({
+          queryKey: [...projectTicketsQueryKey, projectId],
         }),
 
         queryClient.invalidateQueries({
@@ -981,13 +1198,17 @@ export default function ProjectDetailPage() {
   const updateProjectTicketFilters = ({
     status,
     priority,
+    ticketType,
   }: {
     status?: string;
     priority?: string;
+    ticketType?: string;
   }) => {
     const nextSearchParams = new URLSearchParams(searchParams.toString());
+
     const nextStatus = status ?? selectedStatus;
     const nextPriority = priority ?? selectedPriority;
+    const nextTicketType = ticketType ?? selectedTicketType;
 
     nextSearchParams.set(PROJECT_TICKETS_STATUS_QUERY_PARAM, nextStatus);
 
@@ -997,7 +1218,14 @@ export default function ProjectDetailPage() {
       nextSearchParams.set(PROJECT_TICKETS_PRIORITY_QUERY_PARAM, nextPriority);
     }
 
+    if (nextTicketType === 'all') {
+      nextSearchParams.delete(PROJECT_TICKETS_TYPE_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(PROJECT_TICKETS_TYPE_QUERY_PARAM, nextTicketType);
+    }
+
     const nextQueryString = nextSearchParams.toString();
+
     const currentQueryString = searchParams.toString();
 
     if (nextQueryString === currentQueryString) {
@@ -1006,6 +1234,22 @@ export default function ProjectDetailPage() {
 
     router.push(nextQueryString ? `${pathname}?${nextQueryString}` : pathname, {
       scroll: false,
+    });
+  };
+
+  const hasActiveProjectTicketFilters =
+    Boolean(searchValue.trim()) ||
+    selectedStatus !== 'all' ||
+    selectedPriority !== 'all' ||
+    selectedTicketType !== 'all';
+
+  const clearProjectTicketFilters = () => {
+    setSearchValue('');
+
+    updateProjectTicketFilters({
+      status: 'all',
+      priority: 'all',
+      ticketType: 'all',
     });
   };
   const handleProjectTicketsViewChange = (nextViewMode: 'table' | 'kanban') => {
@@ -1032,19 +1276,6 @@ export default function ProjectDetailPage() {
         scroll: false,
       },
     );
-  };
-
-  const hasActiveProjectTicketFilters =
-    Boolean(searchValue.trim()) ||
-    selectedStatus !== 'all' ||
-    selectedPriority !== 'all';
-
-  const clearProjectTicketFilters = () => {
-    setSearchValue('');
-    updateProjectTicketFilters({
-      status: 'all',
-      priority: 'all',
-    });
   };
 
   useEffect(() => {
@@ -1238,7 +1469,12 @@ export default function ProjectDetailPage() {
     pendingProjectNoteEditId,
     selectedProjectNote,
   ]);
-
+  const isProjectTicketsLoading =
+    projectTicketsViewMode === 'kanban'
+      ? projectKanbanBoardQuery.isLoading ||
+        projectKanbanCountsQuery.isLoading ||
+        ticketStatusesQuery.isLoading
+      : projectTicketsQuery.isLoading;
   const handleStartCreatingProjectNote = () => {
     if (isMobile) {
       setIsProjectNoteMobileModalOpen(true);
@@ -1459,6 +1695,7 @@ export default function ProjectDetailPage() {
         description: values.description,
         statusKey: values.status,
         priorityKey: values.priority,
+        ticketType: values.ticketType,
         dueDate: values.dueDate,
         attachments: values.attachments,
       });
@@ -1876,13 +2113,9 @@ export default function ProjectDetailPage() {
   // if (projectDetailQuery.isLoading) {
   //   return <ProjectDetailSkeleton onBack={() => router.back()} />;
   // }
- if (projectDetailQuery.isLoading) {
-  return (
-    <ProjectDetailSkeleton
-      activeTab={searchParams.get('t')}
-    />
-  );
-}
+  if (projectDetailQuery.isLoading) {
+    return <ProjectDetailSkeleton activeTab={searchParams.get('t')} />;
+  }
 
   if (shouldRedirectToNotFound) {
     return null;
@@ -2082,6 +2315,19 @@ export default function ProjectDetailPage() {
                                         maxMenuHeight={150}
                                       />
                                     </div>
+                                    <div className="relative w-full overflow-visible">
+                                      <Dropdown
+                                        options={ticketTypeFilterOptions}
+                                        value={selectedTicketType}
+                                        onChange={(value) =>
+                                          updateProjectTicketFilters({
+                                            ticketType: value,
+                                          })
+                                        }
+                                        placeholder="All Types"
+                                        maxMenuHeight={150}
+                                      />
+                                    </div>
 
                                     <button
                                       type="button"
@@ -2157,6 +2403,18 @@ export default function ProjectDetailPage() {
                                   placeholder="All Priority"
                                 />
                               </div>
+                              <div className="hidden w-55 xl:block">
+                                <Dropdown
+                                  options={ticketTypeFilterOptions}
+                                  value={selectedTicketType}
+                                  onChange={(value) =>
+                                    updateProjectTicketFilters({
+                                      ticketType: value,
+                                    })
+                                  }
+                                  placeholder="All Types"
+                                />
+                              </div>
                               <ThemeButton
                                 type="button"
                                 variant="secondary"
@@ -2195,7 +2453,7 @@ export default function ProjectDetailPage() {
                       ) : null}
                     </div>
                     <div className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden">
-                      {projectTicketsQuery.isLoading ? (
+                      {isProjectTicketsLoading ? (
                         projectTicketsViewMode === 'kanban' ? (
                           <TicketsKanbanSkeleton />
                         ) : (
@@ -2203,11 +2461,18 @@ export default function ProjectDetailPage() {
                         )
                       ) : projectTicketsViewMode === 'kanban' ? (
                         <TicketsKanbanView
-                          tickets={projectTickets}
+                          tickets={projectKanbanTickets}
                           statusOptions={kanbanStatusOptions}
                           statusCountsByKey={
-                            projectTicketsQuery.data?.countPerStatus ?? {}
+                            projectKanbanCountsQuery.data ?? {}
                           }
+                          hasMoreByStatus={
+                            projectKanbanBoardQuery.data?.hasMore ?? {}
+                          }
+                          loadingByStatus={loadingProjectKanbanStatuses}
+                          onLoadMoreStatus={(statusKey) => {
+                            void handleLoadMoreProjectKanbanStatus(statusKey);
+                          }}
                           onTicketClick={
                             canViewTicketDetail
                               ? (ticket) =>
@@ -3776,25 +4041,15 @@ function CloseCrossIcon() {
 //     </div>
 //   );
 // }
-function SkeletonBlock({
-  className,
-}: {
-  className: string;
-}) {
-  return (
-    <div
-      className={`animate-pulse rounded bg-gray-200 ${className}`}
-    />
-  );
+function SkeletonBlock({ className }: { className: string }) {
+  return <div className={`animate-pulse rounded bg-gray-200 ${className}`} />;
 }
 
 type ProjectDetailSkeletonProps = {
   activeTab: string | null;
 };
 
-function ProjectDetailSkeleton({
-  activeTab,
-}: ProjectDetailSkeletonProps) {
+function ProjectDetailSkeleton({ activeTab }: ProjectDetailSkeletonProps) {
   return (
     <div
       className="
@@ -3822,7 +4077,7 @@ function ProjectDetailSkeleton({
             xl:h-full xl:flex-1 xl:overflow-hidden
           "
         >
-          <ProjectTabsSkeleton  />
+          <ProjectTabsSkeleton />
 
           <div className="min-h-0 flex-1">
             <ProjectActiveTabSkeleton activeTab={activeTab} />
@@ -3832,11 +4087,7 @@ function ProjectDetailSkeleton({
     </div>
   );
 }
-function ProjectActiveTabSkeleton({
-  activeTab,
-}: {
-  activeTab: string | null;
-}) {
+function ProjectActiveTabSkeleton({ activeTab }: { activeTab: string | null }) {
   switch (activeTab) {
     case '1':
       return <ProjectThreadSkeleton />;
@@ -4008,10 +4259,7 @@ function ProjectSummarySkeleton() {
           "
         >
           {Array.from({ length: 3 }).map((_, index) => (
-            <div
-              key={index}
-              className="contents"
-            >
+            <div key={index} className="contents">
               {index > 0 ? (
                 <div
                   className="
@@ -4067,17 +4315,11 @@ function ProjectTabsSkeleton() {
             flex shrink-0 items-center gap-2
             border-b-2 px-2 pt-3 pb-2
             xl:px-4
-            ${
-              index === 0
-                ? 'border-gray-300'
-                : 'border-transparent'
-            }
+            ${index === 0 ? 'border-gray-300' : 'border-transparent'}
           `}
         >
           <SkeletonBlock className="h-4 w-4 rounded-sm" />
-          <SkeletonBlock
-            className={index === 3 ? 'h-4 w-16' : 'h-4 w-12'}
-          />
+          <SkeletonBlock className={index === 3 ? 'h-4 w-16' : 'h-4 w-12'} />
         </div>
       ))}
     </div>
@@ -4129,11 +4371,7 @@ function ProjectThreadSkeleton() {
           <div key={index} className="flex items-start gap-3">
             <SkeletonBlock className="h-8 w-8 shrink-0 rounded-full" />
 
-            <div
-              className={`min-w-0 ${
-                index % 2 === 0 ? 'w-3/4' : 'w-1/2'
-              }`}
-            >
+            <div className={`min-w-0 ${index % 2 === 0 ? 'w-3/4' : 'w-1/2'}`}>
               <div className="flex items-center gap-2">
                 <SkeletonBlock className="h-3.5 w-24" />
                 <SkeletonBlock className="h-3 w-20" />
@@ -4188,10 +4426,7 @@ function ProjectFilesSkeleton() {
         {/* File rows */}
         <div className="min-h-0 flex-1 overflow-hidden">
           {Array.from({ length: 5 }).map((_, index) => (
-            <ProjectFileRowSkeleton
-              key={index}
-              index={index}
-            />
+            <ProjectFileRowSkeleton key={index} index={index} />
           ))}
         </div>
       </div>
@@ -4199,11 +4434,7 @@ function ProjectFilesSkeleton() {
   );
 }
 
-function ProjectFileRowSkeleton({
-  index,
-}: {
-  index: number;
-}) {
+function ProjectFileRowSkeleton({ index }: { index: number }) {
   return (
     <div className="border-b border-gray-200 px-3 py-4 last:border-b-0 sm:px-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -4216,9 +4447,7 @@ function ProjectFileRowSkeleton({
             {/* File name */}
             <SkeletonBlock
               className={`h-4 ${
-                index % 2 === 0
-                  ? 'w-48 max-w-full'
-                  : 'w-36 max-w-full'
+                index % 2 === 0 ? 'w-48 max-w-full' : 'w-36 max-w-full'
               }`}
             />
 
@@ -4254,10 +4483,7 @@ function ProjectFileRowSkeleton({
 
 function ProjectNotesListSkeleton() {
   return (
-    <div
-      className="animate-pulse divide-y divide-gray-200"
-      aria-hidden="true"
-    >
+    <div className="animate-pulse divide-y divide-gray-200" aria-hidden="true">
       {Array.from({ length: 5 }).map((_, index) => (
         <div key={index} className="px-3 py-3">
           <div className="flex items-start justify-between gap-3">
@@ -4273,4 +4499,11 @@ function ProjectNotesListSkeleton() {
       ))}
     </div>
   );
+}
+function getProjectTicketTypeFilterValue(value: string | null) {
+  if (value === 'bug' || value === 'feature_request') {
+    return value;
+  }
+
+  return 'all';
 }

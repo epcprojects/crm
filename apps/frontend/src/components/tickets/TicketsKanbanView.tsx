@@ -630,6 +630,15 @@ export default function TicketsKanbanView({
                                   {renderPriorityBadge(ticket)}
                                 </div>
                               </div>
+                              <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+                                <span className="text-sm text-gray-900">
+                                  Type:
+                                </span>
+
+                                <div className="flex justify-end">
+                                  {renderTicketTypeBadge(ticket)}
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </button>
@@ -664,7 +673,7 @@ export function TicketsKanbanSkeleton() {
       aria-hidden="true"
     >
       <div className="flex h-auto min-h-0 min-w-max items-stretch gap-3 pb-2 xl:h-full">
-        {Array.from({ length: 4 }).map((_, columnIndex) => (
+        {Array.from({ length: 7 }).map((_, columnIndex) => (
           <section
             key={columnIndex}
             className="flex h-auto min-h-0 w-[280px] shrink-0 flex-col rounded-2xl bg-gray-100/80 p-2 sm:w-[320px] xl:h-full xl:w-[350px]"
@@ -675,9 +684,7 @@ export function TicketsKanbanSkeleton() {
 
               <div
                 className={`h-4 rounded bg-gray-300 ${
-                  columnIndex % 2 === 0
-                    ? 'w-24'
-                    : 'w-20'
+                  columnIndex % 2 === 0 ? 'w-24' : 'w-20'
                 }`}
               />
 
@@ -694,9 +701,7 @@ export function TicketsKanbanSkeleton() {
                   {/* Title */}
                   <div
                     className={`h-4 rounded bg-gray-200 ${
-                      cardIndex % 2 === 0
-                        ? 'w-4/5'
-                        : 'w-2/3'
+                      cardIndex % 2 === 0 ? 'w-4/5' : 'w-2/3'
                     }`}
                   />
 
@@ -815,6 +820,41 @@ function renderPriorityBadge(ticket: RecentTicket) {
       />
 
       {ticket.priority ?? 'No Priority'}
+    </span>
+  );
+}
+
+function renderTicketTypeBadge(ticket: RecentTicket) {
+  const ticketType = ticket.ticketType;
+
+  if (
+    ticketType !== 'bug' &&
+    ticketType !== 'feature_request'
+  ) {
+    return <span className="text-sm text-gray-500">--</span>;
+  }
+
+ function formatTicketType(ticketType?: string | null) {
+  if (ticketType === 'feature_request') {
+    return 'Feature';
+  }
+
+  if (ticketType === 'bug') {
+    return 'Bug';
+  }
+
+  return '--';
+}
+
+  return (
+    <span
+      className={`inline-flex items-center whitespace-nowrap rounded-full border px-2 py-1 text-xs font-medium ${
+        ticketType === 'bug'
+          ? 'border-red-200 bg-red-50 text-red-600'
+          : 'border-blue-200 bg-blue-50 text-blue-600'
+      }`}
+    >
+      {formatTicketType(ticketType)}
     </span>
   );
 }

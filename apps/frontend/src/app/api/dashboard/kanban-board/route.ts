@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
     for (const key of [
       'search',
       'priorityKey',
+      'ticketType',
       'limit',
       'page',
       'statusKey',
