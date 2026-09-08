@@ -1374,6 +1374,10 @@ export class TicketsService {
       });
     }
 
+    if (query.type) {
+      qb.andWhere('t.type = :type', { type: query.type });
+    }
+
     const search = query.search?.trim();
     if (search) {
       qb.andWhere(
@@ -1568,6 +1572,10 @@ export class TicketsService {
       });
     }
 
+    if (query.type) {
+      baseQb.andWhere('t.type = :type', { type: query.type });
+    }
+
     const search = query.search?.trim();
     if (search) {
       baseQb.andWhere(
@@ -1589,6 +1597,7 @@ export class TicketsService {
       't.dueDate',
       't.createdAt',
       't.statusKey',
+      't.type',
       'p.id',
       'p.name',
       'p.brandColor',

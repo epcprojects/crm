@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsEnum,
   IsInt,
   IsOptional,
   IsString,
@@ -8,6 +9,8 @@ import {
   Max,
   Min,
 } from 'class-validator';
+import { TicketType } from '../enum/ticket-type.enum';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class KanbanBoardQueryDto {
   @IsOptional()
@@ -26,6 +29,11 @@ export class KanbanBoardQueryDto {
   @Min(1)
   @Max(100)
   limit?: number = 20;
+
+  @ApiPropertyOptional({ enum: TicketType })
+  @IsOptional()
+  @IsEnum(TicketType)
+  type?: TicketType;
 
   @IsOptional()
   @IsString()
