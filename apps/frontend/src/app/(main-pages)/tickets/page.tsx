@@ -128,7 +128,7 @@ export default function Page() {
     searchParams.get(TICKETS_TYPE_QUERY_PARAM),
   );
   const ticketTypeFilterOptions = [
-    { label: 'All Types', value: 'all' },
+    { label: 'All', value: 'all' },
     { label: 'Bug', value: 'bug' },
     { label: 'Feature', value: 'feature_request' },
   ];
@@ -975,46 +975,39 @@ export default function Page() {
     }));
 
     try {
-  const activePriorityKey =
-    selectedPriority === 'all'
-      ? undefined
-      : selectedPriority;
+      const activePriorityKey =
+        selectedPriority === 'all' ? undefined : selectedPriority;
 
-  const activeTicketType =
-    selectedTicketType === 'all'
-      ? undefined
-      : selectedTicketType;
+      const activeTicketType =
+        selectedTicketType === 'all' ? undefined : selectedTicketType;
 
-  const activeProjectIds =
-    selectedProjectIds.length > 0
-      ? [...selectedProjectIds]
-      : undefined;
+      const activeProjectIds =
+        selectedProjectIds.length > 0 ? [...selectedProjectIds] : undefined;
 
-  const activeSearch =
-    debouncedSearchValue.trim() || undefined;
+      const activeSearch = debouncedSearchValue.trim() || undefined;
 
-  const nextPageData = await queryClient.fetchQuery({
-    queryKey: [
-      'dashboard-kanban-board-page',
-      statusKey,
-      nextPage,
-      KANBAN_PAGE_SIZE,
-      activePriorityKey ?? 'all',
-      activeTicketType ?? 'all',
-      selectedProjectIdsKey,
-      activeSearch ?? '',
-    ],
-    queryFn: () =>
-      fetchDashboardKanbanBoard({
-        statusKey,
-        page: nextPage,
-        limit: KANBAN_PAGE_SIZE,
-        priorityKey: activePriorityKey,
-        ticketType: activeTicketType,
-        projectIds: activeProjectIds,
-        search: activeSearch,
-      }),
-  });
+      const nextPageData = await queryClient.fetchQuery({
+        queryKey: [
+          'dashboard-kanban-board-page',
+          statusKey,
+          nextPage,
+          KANBAN_PAGE_SIZE,
+          activePriorityKey ?? 'all',
+          activeTicketType ?? 'all',
+          selectedProjectIdsKey,
+          activeSearch ?? '',
+        ],
+        queryFn: () =>
+          fetchDashboardKanbanBoard({
+            statusKey,
+            page: nextPage,
+            limit: KANBAN_PAGE_SIZE,
+            priorityKey: activePriorityKey,
+            ticketType: activeTicketType,
+            projectIds: activeProjectIds,
+            search: activeSearch,
+          }),
+      });
 
       queryClient.setQueryData<KanbanBoardData>(
         kanbanBoardQueryKey,
@@ -1094,8 +1087,7 @@ export default function Page() {
           };
         },
       );
-    } 
-    catch (error) {
+    } catch (error) {
       appToast.error(
         error instanceof Error ? error.message : 'Failed to load more tickets.',
       );
@@ -2067,9 +2059,9 @@ async function fetchDashboardKanbanTicketCounts({
   if (priorityKey) {
     searchParams.set('priorityKey', priorityKey);
   }
-if (ticketType) {
-  searchParams.set('ticketType', ticketType);
-}
+  if (ticketType) {
+    searchParams.set('ticketType', ticketType);
+  }
   if (search) {
     searchParams.set('search', search);
   }
@@ -2108,7 +2100,7 @@ if (ticketType) {
 }
 
 async function fetchDashboardKanbanBoard({
-   priorityKey,
+  priorityKey,
   ticketType,
   projectIds,
   search,
@@ -2143,9 +2135,9 @@ async function fetchDashboardKanbanBoard({
   if (priorityKey) {
     searchParams.set('priorityKey', priorityKey);
   }
-if (ticketType) {
-  searchParams.set('ticketType', ticketType);
-}
+  if (ticketType) {
+    searchParams.set('ticketType', ticketType);
+  }
   if (search) {
     searchParams.set('search', search);
   }

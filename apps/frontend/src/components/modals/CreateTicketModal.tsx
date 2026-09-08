@@ -113,7 +113,7 @@ export default function CreateTicketModal({
         ticketType: yup
           .string()
           .oneOf(['feature_request', 'bug'], 'Please select a valid type')
-          .required('Type is required'),
+          .required('Ticket type is required'),
         priority: yup.string().optional(),
         dueDate: yup
           .string()
@@ -415,8 +415,12 @@ export default function CreateTicketModal({
                       value as CreateTicketFormValues['ticketType'],
                     )
                   }
-                  error={Boolean(formik.touched.ticketType && formik.errors.ticketType)}
-                  errorMessage={formik.touched.ticketType ? formik.errors.ticketType : ''}
+                  error={Boolean(
+                    formik.touched.ticketType && formik.errors.ticketType,
+                  )}
+                  errorMessage={
+                    formik.touched.ticketType ? formik.errors.ticketType : ''
+                  }
                   placeholder="Select type"
                 />
               </div>

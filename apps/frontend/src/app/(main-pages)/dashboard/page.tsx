@@ -345,7 +345,7 @@ export default function Page() {
   );
   const ticketTypeFilterOptions = [
     {
-      label: 'All Types',
+      label: 'All',
       value: 'all',
     },
     {
@@ -1259,14 +1259,14 @@ export default function Page() {
                             selectedProjectIds.length === 0 &&
                             selectedStatus === 'all' &&
                             selectedPriority === 'all' &&
-                              selectedTicketType === 'all'
+                            selectedTicketType === 'all'
                           }
                           onClick={() => {
                             updateRecentTicketsFilters({
                               project: [],
                               status: 'all',
                               priority: 'all',
-                                ticketType: 'all',
+                              ticketType: 'all',
                             });
                           }}
                           className="disabled:cursor-not-allowed disabled:opacity-50"
@@ -2294,7 +2294,7 @@ async function fetchDashboardActivity(
 }
 
 async function fetchDashboardTickets({
- page,
+  page,
   limit,
   statusKey,
   priorityKey,
@@ -2326,8 +2326,8 @@ async function fetchDashboardTickets({
     searchParams.set('statusKey', statusKey);
   }
   if (ticketType) {
-  searchParams.set('ticketType', ticketType);
-}
+    searchParams.set('ticketType', ticketType);
+  }
   projectIds?.forEach((projectId) => {
     if (projectId) {
       searchParams.append('projectIds', projectId);
@@ -2774,13 +2774,8 @@ function formatTicketDate(value: string) {
     year: 'numeric',
   }).format(date);
 }
-function getDashboardTicketTypeFilterValue(
-  value: string | null,
-) {
-  if (
-    value === 'bug' ||
-    value === 'feature_request'
-  ) {
+function getDashboardTicketTypeFilterValue(value: string | null) {
+  if (value === 'bug' || value === 'feature_request') {
     return value;
   }
 

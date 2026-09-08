@@ -27,7 +27,10 @@ type UploadFileModalProps = {
 const uploadFileSchema = yup.object({
   name: yup.string().required('File name is required'),
   size: yup.string(),
-  type: yup.string().oneOf(['pdf', 'docx', 'file']).required('Type is required'),
+  type: yup
+    .string()
+    .oneOf(['pdf', 'docx', 'file'])
+    .required('File type is required'),
   attachments: yup
     .array()
     .of(yup.mixed<File>().required())
@@ -233,9 +236,7 @@ function stripFileExtension(fileName: string) {
   return fileName.slice(0, extensionIndex);
 }
 
-function getFileTypeFromName(
-  fileName: string,
-): UploadFileFormValues['type'] {
+function getFileTypeFromName(fileName: string): UploadFileFormValues['type'] {
   const extension = fileName.split('.').pop()?.toLowerCase();
   if (extension === 'pdf') return 'pdf';
   if (extension === 'doc' || extension === 'docx') return 'docx';
