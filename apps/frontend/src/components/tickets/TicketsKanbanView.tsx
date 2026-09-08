@@ -657,6 +657,87 @@ export default function TicketsKanbanView({
   );
 }
 
+export function TicketsKanbanSkeleton() {
+  return (
+    <div
+      className="h-auto min-h-0 w-full min-w-0 animate-pulse overflow-x-auto overflow-y-hidden scrollbar-thin xl:h-full xl:max-h-full"
+      aria-hidden="true"
+    >
+      <div className="flex h-auto min-h-0 min-w-max items-stretch gap-3 pb-2 xl:h-full">
+        {Array.from({ length: 4 }).map((_, columnIndex) => (
+          <section
+            key={columnIndex}
+            className="flex h-auto min-h-0 w-[280px] shrink-0 flex-col rounded-2xl bg-gray-100/80 p-2 sm:w-[320px] xl:h-full xl:w-[350px]"
+          >
+            {/* Column heading */}
+            <div className="flex shrink-0 items-center gap-2 rounded-lg px-3 py-3">
+              <div className="h-2 w-2 rounded-full bg-gray-300" />
+
+              <div
+                className={`h-4 rounded bg-gray-300 ${
+                  columnIndex % 2 === 0
+                    ? 'w-24'
+                    : 'w-20'
+                }`}
+              />
+
+              <div className="ml-auto h-4 w-6 rounded bg-gray-300" />
+            </div>
+
+            {/* Cards */}
+            <div className="mt-3.5 flex min-h-0 flex-1 flex-col gap-2 overflow-hidden rounded-xl">
+              {Array.from({ length: 3 }).map((_, cardIndex) => (
+                <div
+                  key={cardIndex}
+                  className="shrink-0 rounded-xl border border-gray-200 bg-white p-3 shadow-xs"
+                >
+                  {/* Title */}
+                  <div
+                    className={`h-4 rounded bg-gray-200 ${
+                      cardIndex % 2 === 0
+                        ? 'w-4/5'
+                        : 'w-2/3'
+                    }`}
+                  />
+
+                  <div className="mt-3 space-y-2.5">
+                    {/* Reference */}
+                    <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+                      <div className="h-3 w-20 rounded bg-gray-100" />
+                      <div className="ml-auto h-3 w-16 rounded bg-gray-200" />
+                    </div>
+
+                    {/* Date */}
+                    <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+                      <div className="h-3 w-10 rounded bg-gray-100" />
+                      <div className="ml-auto h-3 w-20 rounded bg-gray-200" />
+                    </div>
+
+                    {/* Project */}
+                    <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+                      <div className="h-3 w-12 rounded bg-gray-100" />
+
+                      <div className="ml-auto flex h-7 w-28 items-center gap-2 rounded-full bg-purple-50 p-0.5">
+                        <div className="h-6 w-6 shrink-0 rounded-full bg-white" />
+                        <div className="h-3 w-16 rounded bg-purple-100" />
+                      </div>
+                    </div>
+
+                    {/* Priority */}
+                    <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+                      <div className="h-3 w-12 rounded bg-gray-100" />
+                      <div className="ml-auto h-6 w-20 rounded-lg bg-gray-200" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
 function KanbanLoadMoreTrigger({
   hasMore,
   isLoading,

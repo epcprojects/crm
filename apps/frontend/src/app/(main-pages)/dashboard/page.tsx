@@ -1597,41 +1597,43 @@ function DashboardThreadRowSkeleton() {
   );
 }
 
+
 function DashboardStatsSkeleton() {
   return (
-    <div className="flex w-full animate-pulse flex-col justify-between gap-6 rounded-[10px] bg-[linear-gradient(to_right,#335C94_0%,#665932_25%,#7B398E_50%,#003F89_75%,#070922_100%)] p-4 sm:p-5 xl:gap-8.5 xl:rounded-[20px] xl:p-7.5">
+    <div
+      className="flex w-full animate-pulse flex-col justify-between gap-2 rounded-[10px] bg-[linear-gradient(to_right,#335C94_0%,#665932_25%,#7B398E_50%,#003F89_75%,#070922_100%)] p-4 sm:p-5 xl:gap-8.5 xl:rounded-xl xl:p-7.5"
+      aria-hidden="true"
+    >
       {/* Header */}
-      <div className="flex flex-col items-stretch gap-4 xl:flex-row xl:items-start xl:gap-6">
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <div className="h-7 w-52 max-w-full rounded-lg bg-white/20 sm:w-64 xl:h-9 xl:w-72" />
+      <div className="flex flex-col items-start gap-2 xl:flex-row xl:gap-6">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <div className="h-7 w-52 max-w-full rounded-lg bg-white/20 sm:h-9 sm:w-64 xl:w-72" />
 
-          <div className="h-4 w-full max-w-80 rounded bg-white/10 xl:h-5 xl:max-w-96" />
+          <div className="h-4 w-full max-w-80 rounded bg-white/10 sm:h-5 xl:max-w-96" />
         </div>
 
-        {/* New Ticket button */}
-        <div className="h-10 w-full shrink-0 rounded-full bg-white/20 xl:w-32" />
+        {/* Actual New Ticket button mobile par hidden hai */}
+        <div className="hidden h-10 w-32 shrink-0 rounded-full bg-white/20 xl:block" />
       </div>
 
       {/* Status cards */}
-      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4 xl:gap-5">
+      <div className="grid grid-cols-2 gap-1.5 xl:grid-cols-4 xl:gap-5">
         {Array.from({ length: 4 }).map((_, index) => (
           <div
             key={index}
-            className="min-w-0 rounded-xl border border-white/6 px-2 py-2 shadow-[0_14px_44px_0_rgb(0_0_0/20%)] sm:px-3 xl:rounded-full xl:py-2 xl:pr-4 xl:pl-2"
+            className="min-w-0 rounded-full border border-white/20 py-1 pr-4 pl-2 shadow-[0_14px_44px_0_rgb(0_0_0/20%)] xl:py-2"
           >
-            <div className="flex min-w-0 items-center gap-2 xl:gap-3">
-              {/* Icon */}
-              <div className="h-9 w-9 shrink-0 rounded-full bg-white/20 sm:h-10 sm:w-10 xl:h-12 xl:w-12" />
+            <div className="flex min-w-0 items-center gap-1 2xl:gap-3">
+              <div className="h-6 w-6 shrink-0 rounded-full bg-white/20 xl:h-9 xl:w-9 2xl:h-12 2xl:w-12" />
 
-              {/* Label and count */}
-              <div className="flex min-w-0 flex-1 flex-col gap-1.5 xl:flex-row xl:items-center xl:justify-between xl:gap-3">
+              <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
                 <div
-                  className={`h-3 rounded bg-white/15 xl:h-4 ${
-                    index === 1 ? 'w-16 xl:w-20' : 'w-11 xl:w-14'
+                  className={`h-3 rounded bg-white/15 2xl:h-4 ${
+                    index === 1 ? 'w-14 2xl:w-20' : 'w-10 2xl:w-14'
                   }`}
                 />
 
-                <div className="h-5 w-7 rounded bg-white/25 xl:h-7 xl:w-8" />
+                <div className="h-5 w-7 shrink-0 rounded bg-white/25 2xl:h-7 2xl:w-8" />
               </div>
             </div>
           </div>
@@ -1644,79 +1646,91 @@ function DashboardStatsSkeleton() {
 export function RecentTicketsTableSkeleton() {
   return (
     <div
-      className="flex h-full min-h-0 animate-pulse flex-col overflow-hidden rounded-xl bg-white xl:w-full xl:border xl:border-gray-200"
+      className="flex h-auto min-h-0 animate-pulse flex-col overflow-visible rounded-xl bg-white xl:h-full xl:w-full xl:overflow-hidden xl:border xl:border-gray-200"
       aria-hidden="true"
     >
-      {/* Mobile skeleton cards */}
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain scrollbar-hide xl:hidden">
+      {/* Mobile: current TicketMobileCard layout */}
+      <div className="flex-none space-y-3 overflow-visible xl:hidden xl:p-3">
         {Array.from({ length: 4 }).map((_, index) => (
           <div
             key={index}
-            className="w-full rounded-xl border border-gray-200 bg-white p-3"
+            className="w-full overflow-hidden rounded-lg border border-gray-200 bg-white"
           >
-            {/* Assignee, status and priority */}
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="h-9 w-9 shrink-0 rounded-full bg-gray-200" />
+            <div className="flex flex-col gap-2 bg-gray-50 p-2.5">
+              {/* Title */}
+              <div
+                className={`h-4 rounded bg-gray-200 ${
+                  index % 2 === 0 ? 'w-2/3' : 'w-3/4'
+                }`}
+              />
 
-                <div className="min-w-0 space-y-2">
-                  <div
-                    className={`h-4 rounded bg-gray-200 ${
-                      index % 2 === 0 ? 'w-28' : 'w-24'
-                    }`}
-                  />
-                  <div className="h-3 w-16 rounded bg-gray-100" />
+              {/* Reference, status and priority */}
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-14 rounded bg-gray-200" />
+
+                <div className="ml-auto h-5 w-14 rounded-full bg-gray-200" />
+                <div className="h-5 w-16 rounded-[5px] bg-gray-200" />
+              </div>
+            </div>
+
+            {/* Project, creator and dates */}
+            <div className="grid grid-cols-2 gap-2.5 p-2.5">
+              <div className="space-y-1.5">
+                <div className="h-2.5 w-10 rounded bg-gray-100" />
+                <div className="flex h-6 w-28 items-center gap-1 rounded-full bg-gray-100 p-0.5">
+                  <div className="h-5 w-5 shrink-0 rounded-full bg-gray-200" />
+                  <div className="h-3 w-18 rounded bg-gray-200" />
                 </div>
               </div>
 
-              <div className="flex shrink-0 items-center gap-2">
-                <div className="h-7 w-16 rounded-full bg-gray-100" />
-                <div className="h-7 w-18 rounded-md bg-gray-100" />
+              <div className="space-y-1.5">
+                <div className="h-2.5 w-14 rounded bg-gray-100" />
+                <div className="flex h-6 items-center gap-1">
+                  <div className="h-5 w-5 shrink-0 rounded-full bg-gray-200" />
+                  <div className="h-3 w-20 rounded bg-gray-200" />
+                </div>
               </div>
-            </div>
 
-            <div className="my-3 h-px bg-gray-200" />
+              <div className="space-y-1.5">
+                <div className="h-2.5 w-14 rounded bg-gray-100" />
+                <div className="h-3 w-20 rounded bg-gray-200" />
+              </div>
 
-            {/* Ticket reference and title */}
-            <div className="flex items-center gap-3">
-              <div className="h-5 w-16 shrink-0 rounded-full bg-gray-100" />
-
-              <div
-                className={`h-4 rounded bg-gray-100 ${
-                  index % 2 === 0 ? 'w-40' : 'w-32'
-                }`}
-              />
-            </div>
-
-            {/* Project */}
-            <div className="mt-2">
-              <div className="flex h-7 w-32 items-center gap-2 rounded-full bg-purple-50 p-0.5 pr-3">
-                <div className="h-6 w-6 shrink-0 rounded-full bg-white" />
-                <div className="h-3 w-20 rounded bg-purple-100" />
+              <div className="space-y-1.5">
+                <div className="h-2.5 w-12 rounded bg-gray-100" />
+                <div className="h-3 w-20 rounded bg-gray-200" />
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* XL desktop table skeleton */}
+      {/* Desktop: actual 8-column table */}
       <div className="hidden min-h-0 flex-1 overflow-hidden xl:block">
-        <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
-          <div className="grid grid-cols-5 gap-4">
-            {Array.from({ length: 5 }).map((_, index) => (
-              <div key={index} className="h-4 rounded bg-gray-200" />
-            ))}
-          </div>
+        <div className="grid grid-cols-[110px_1.5fr_1.2fr_100px_100px_1.2fr_110px_110px] gap-4 border-b border-gray-200 bg-gray-50 px-4 py-3">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <div
+              key={index}
+              className="h-4 rounded bg-gray-200"
+            />
+          ))}
         </div>
 
         <div>
           {Array.from({ length: 6 }).map((_, rowIndex) => (
             <div
               key={rowIndex}
-              className="grid grid-cols-5 gap-4 border-b border-gray-200 px-4 py-4 last:border-b-0"
+              className="grid grid-cols-[110px_1.5fr_1.2fr_100px_100px_1.2fr_110px_110px] items-center gap-4 border-b border-gray-200 px-4 py-4 last:border-b-0"
             >
-              {Array.from({ length: 5 }).map((_, cellIndex) => (
-                <div key={cellIndex} className="h-5 rounded bg-gray-100" />
+              {Array.from({ length: 8 }).map((_, cellIndex) => (
+                <div
+                  key={cellIndex}
+                  className={`rounded bg-gray-100 ${
+                    cellIndex === 2 || cellIndex === 5
+                      ? 'h-7'
+                      : 'h-5'
+                  }`}
+                />
               ))}
             </div>
           ))}

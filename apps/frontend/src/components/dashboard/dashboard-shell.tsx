@@ -1089,7 +1089,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                           fill="#111827"
                         />
                       </svg>
-                      Profiles
+                      Profile
                     </button>
                   </MenuItem>
 

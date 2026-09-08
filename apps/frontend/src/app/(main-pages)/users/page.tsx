@@ -34,6 +34,8 @@ import ThemeButton from '../../../components/ui/ThemeButton';
 import EmptyState from '../../../components/EmptyState';
 import Dropdown from '../../../components/ui/ThemeDropDown';
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import DashboardSummaryBannerSkeleton from 'apps/frontend/src/components/ui/DashboardSummaryBannerSkeleton';
 
 const USERS_INVITATION_STATUS_QUERY_PARAM = 'invitationStatus';
 const USERS_PROJECT_QUERY_PARAM = 'project';
@@ -167,6 +169,8 @@ export default function Page() {
   const isUsersLoading =
     projectsQuery.isPending ||
     (projectsQuery.isSuccess && membersQuery.isPending);
+  const isUserSummaryLoading =
+    canViewUsers && isUsersLoading && !membersQuery.data;
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
@@ -438,12 +442,19 @@ export default function Page() {
       <div className="relative z-100 h-full overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 xl:h-dvh">
         <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <div className="shrink-0">
-            <DashboardSummaryBanner
-              imageSrc="/images/UsersIcon.svg"
-              imageAlt="Users"
-              title="Users"
-              stats={userStats}
-            />
+            {isUserSummaryLoading ? (
+              <DashboardSummaryBannerSkeleton
+                statsCount={4}
+                titleWidthClass="w-24"
+              />
+            ) : (
+              <DashboardSummaryBanner
+                imageSrc="/images/UsersIcon.svg"
+                imageAlt="Users"
+                title="Users"
+                stats={userStats}
+              />
+            )}
           </div>
 
           <div className="flex h-auto min-h-0 flex-none flex-col gap-4 overflow-visible rounded-xl bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5 xl:h-full xl:flex-1 xl:overflow-hidden">

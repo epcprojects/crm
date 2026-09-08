@@ -4043,121 +4043,283 @@ function MetaItem({
   );
 }
 
+
+function TicketDetailHeaderSkeleton() {
+  return (
+    <div className="relative flex w-full shrink-0 flex-col gap-2 overflow-hidden rounded-xl bg-[linear-gradient(to_right,#335C94_0%,#665932_25%,#7B398E_50%,#003F89_75%,#070922_100%)] px-4 pt-4 pb-2 xl:flex-row xl:items-center xl:gap-4 xl:px-7.5 xl:py-6">
+      <div className="relative z-20 flex w-full min-w-0 flex-col items-start gap-3 xl:flex-row xl:items-center">
+        <div className="h-10 w-10 shrink-0 rounded-full bg-white/20 xl:h-12 xl:w-12" />
+
+        <div className="hidden w-full grid-cols-5 gap-4 xl:grid">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <TicketMetaItemSkeleton key={index} />
+          ))}
+        </div>
+
+        <div className="flex w-full flex-col gap-4 xl:hidden">
+          <div className="grid grid-cols-3 gap-4">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <TicketMetaItemSkeleton key={index} />
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            {Array.from({ length: 2 }).map((_, index) => (
+              <TicketMetaItemSkeleton key={index} />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TicketMetaItemSkeleton() {
+  return (
+    <div className="min-w-0 space-y-2">
+      <div className="h-3 w-14 rounded bg-white/15" />
+      <div className="h-4 w-24 max-w-full rounded bg-white/25" />
+    </div>
+  );
+}
+function TicketContentSkeleton() {
+  return (
+    <section className="rounded-xl border border-gray-200 bg-white p-3 md:p-5">
+      <div className="relative">
+        {/* Edit icon */}
+        <div className="absolute top-0 right-0 h-9 w-9 rounded-full bg-gray-100" />
+
+        {/* Title */}
+        <div className="h-6 w-2/3 max-w-xl rounded bg-gray-200 md:h-7" />
+
+        {/* Description */}
+        <div className="mt-3 space-y-2">
+          <div className="h-3.5 w-full rounded bg-gray-100" />
+          <div className="h-3.5 w-5/6 rounded bg-gray-100" />
+        </div>
+      </div>
+    </section>
+  );
+}
+function TicketRepliesSkeleton() {
+  return (
+    <section className="flex min-h-96 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white xl:h-full xl:min-h-0">
+      {/* Panel header */}
+      <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 py-3">
+        <div className="h-5 w-20 rounded bg-gray-200" />
+
+        <div className="flex items-center gap-2">
+          <div className="h-3 w-20 rounded bg-gray-100" />
+          <div className="h-6 w-10 rounded-full bg-gray-200" />
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div className="min-h-0 flex-1 space-y-5 overflow-hidden p-4">
+        <TicketReplyBubbleSkeleton align="left" />
+        <TicketReplyBubbleSkeleton align="right" />
+        <TicketReplyBubbleSkeleton align="left" />
+      </div>
+
+      {/* Composer */}
+      <div className="shrink-0 border-t border-gray-200 p-3 md:p-4">
+        <div className="h-16 w-full rounded-xl bg-gray-100" />
+
+        <div className="mt-2 flex items-center justify-end gap-2">
+          <div className="h-9 w-9 rounded-full bg-gray-100" />
+          <div className="h-9 w-9 rounded-full bg-gray-100" />
+          <div className="h-9 w-9 rounded-full bg-gray-200" />
+        </div>
+      </div>
+    </section>
+  );
+}
+function TicketActionsSkeleton() {
+  return (
+    <section className="rounded-xl border border-gray-200 bg-white">
+      <div className="border-b border-gray-200 px-3 py-3">
+        <div className="h-5 w-16 rounded bg-gray-200" />
+      </div>
+
+      <div className="space-y-2 p-3 sm:p-4">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div
+            key={index}
+            className="grid grid-cols-[60px_minmax(0,1fr)] items-center gap-2 2xl:grid-cols-2 2xl:gap-4"
+          >
+            <div
+              className={`h-3.5 rounded bg-gray-200 ${
+                index === 1
+                  ? 'w-12'
+                  : index === 2
+                    ? 'w-14'
+                    : 'w-11'
+              }`}
+            />
+
+            <div className="h-9 min-w-0 rounded-lg border border-gray-200 bg-gray-100" />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+function TicketQuickLinksSkeleton() {
+  return (
+    <section className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+      {/* Quick Links / Timeline tabs */}
+      <div className="px-3 py-3">
+        <div className="grid w-full grid-cols-2 gap-1 rounded-full border border-gray-200 bg-gray-50 p-1">
+          <div className="h-8 rounded-full bg-white shadow-sm" />
+          <div className="h-8 rounded-full bg-gray-100" />
+        </div>
+      </div>
+
+      {/* Quick-link rows */}
+      <div>
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div
+            key={index}
+            className="flex items-center gap-3 border-t border-gray-200 px-4 py-3"
+          >
+            <div className="h-8 w-8 shrink-0 rounded-full bg-gray-200" />
+            <div
+              className={`h-4 rounded bg-gray-100 ${
+                index % 2 === 0 ? 'w-24' : 'w-16'
+              }`}
+            />
+            <div className="ml-auto h-4 w-4 rounded bg-gray-100" />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+function TicketAttachmentsSkeleton() {
+  return (
+    <section className="rounded-xl border border-gray-200 bg-white">
+      <div className="border-b border-gray-200 px-3 py-3 sm:px-4">
+        <div className="h-5 w-24 rounded bg-gray-200" />
+      </div>
+
+      <div>
+        {Array.from({ length: 2 }).map((_, index) => (
+          <div
+            key={index}
+            className="flex items-center gap-3 border-b border-gray-200 px-4 py-3 last:border-b-0"
+          >
+            <div className="h-10 w-10 shrink-0 rounded bg-gray-200" />
+
+            <div className="min-w-0 flex-1 space-y-2">
+              <div
+                className={`h-3.5 rounded bg-gray-200 ${
+                  index === 0 ? 'w-32' : 'w-24'
+                }`}
+              />
+              <div className="h-3 w-14 rounded bg-gray-100" />
+            </div>
+
+            <div className="h-8 w-8 shrink-0 rounded-lg bg-gray-100" />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+function TicketPeopleSkeleton() {
+  return (
+    <section className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+      <div className="border-b border-gray-200 px-3 py-3 sm:px-4">
+        <div className="h-5 w-16 rounded bg-gray-200" />
+      </div>
+
+      <div>
+        {Array.from({ length: 2 }).map((_, index) => (
+          <div
+            key={index}
+            className="flex items-center gap-3 border-b border-gray-200 px-4 py-3 last:border-b-0"
+          >
+            <div className="h-10 w-10 shrink-0 rounded-full bg-gray-200 sm:h-12 sm:w-12" />
+
+            <div className="min-w-0 space-y-2">
+              <div className="h-3 w-16 rounded bg-gray-100" />
+              <div
+                className={`h-4 rounded bg-gray-200 ${
+                  index === 0 ? 'w-28' : 'w-24'
+                }`}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TicketReplyBubbleSkeleton({
+  align,
+}: {
+  align: 'left' | 'right';
+}) {
+  const isRight = align === 'right';
+
+  return (
+    <div
+      className={`flex items-start gap-3 ${
+        isRight ? 'flex-row-reverse' : ''
+      }`}
+    >
+      <div className="h-8 w-8 shrink-0 rounded-full bg-gray-200" />
+
+      <div
+        className={`w-full max-w-[75%] space-y-2 ${
+          isRight ? 'items-end' : 'items-start'
+        }`}
+      >
+        <div
+          className={`flex items-center gap-2 ${
+            isRight ? 'justify-end' : ''
+          }`}
+        >
+          <div className="h-3.5 w-24 rounded bg-gray-200" />
+          <div className="h-3 w-16 rounded bg-gray-100" />
+        </div>
+
+        <div className="rounded-xl border border-gray-200 p-3">
+          <div className="h-3.5 w-56 max-w-full rounded bg-gray-100" />
+          <div className="mt-2 h-3.5 w-40 max-w-full rounded bg-gray-100" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TicketDetailSkeleton() {
   return (
     <div
-      className="relative z-100 h-dvh overflow-hidden py-5 pr-5"
+      className="relative z-100 h-full overflow-hidden px-3 pt-2 pb-0 xl:h-dvh xl:px-0 xl:py-5 xl:pr-5"
       aria-hidden="true"
     >
-      <div className="flex h-full min-h-0 min-w-0 animate-pulse flex-col gap-3 overflow-hidden rounded-3xl border border-white bg-white/40 p-3">
-        {/* Back button */}
-        <div className="shrink-0">
-          <div className="h-10 w-24 rounded-lg border border-gray-200 bg-white" />
-        </div>
+      <div className="flex h-full min-h-0 min-w-0 animate-pulse flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
+        <TicketDetailHeaderSkeleton />
 
-        <div className="min-h-0 min-w-0 flex-1">
-          <div className="grid h-full min-h-0 min-w-0 grid-cols-1 gap-4 overflow-hidden xl:grid-cols-12 xl:grid-rows-[minmax(0,1fr)]">
+        <div className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden">
+          <div className="grid h-auto min-h-0 min-w-0 grid-cols-1 gap-4 overflow-visible xl:h-full xl:grid-cols-12 xl:grid-rows-[minmax(0,1fr)] xl:overflow-hidden">
             {/* Main content */}
-            <div className="flex min-w-0 flex-col space-y-4 xl:col-span-9">
-              {/* Ticket information */}
-              <section className="rounded-xl border border-gray-200 bg-white p-3 sm:rounded-2xl md:p-5">
-                <div className="flex flex-wrap gap-4 border-b border-gray-200 pb-5 sm:grid sm:grid-cols-4">
-                  {Array.from({ length: 4 }).map((_, index) => (
-                    <div key={index} className="space-y-2">
-                      <div className="h-3.5 w-16 rounded bg-gray-200" />
+            <div className="flex h-auto min-w-0 flex-col space-y-4 overflow-visible xl:col-span-9 xl:h-full xl:min-h-0 xl:overflow-hidden">
+              <TicketContentSkeleton />
 
-                      {index === 2 ? (
-                        <div className="flex h-7 w-28 items-center gap-2 rounded-full bg-gray-100 px-1">
-                          <div className="h-6 w-6 rounded-full bg-gray-200" />
-                          <div className="h-3 w-16 rounded bg-gray-200" />
-                        </div>
-                      ) : (
-                        <div className="h-4 w-24 rounded bg-gray-200" />
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="space-y-3 pt-5">
-                  <div className="h-6 w-2/3 rounded bg-gray-200" />
-                  <div className="h-4 w-full rounded bg-gray-100" />
-                  <div className="h-4 w-5/6 rounded bg-gray-100" />
-                </div>
-              </section>
-
-              {/* Replies panel */}
-              <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white sm:rounded-2xl">
-                <div className="border-b border-gray-200 px-4 py-3">
-                  <div className="h-5 w-28 rounded bg-gray-200" />
-                </div>
-
-                <div className="min-h-0 flex-1 space-y-5 overflow-hidden p-4">
-                  {Array.from({ length: 2 }).map((_, index) => (
-                    <div key={index} className="flex gap-3">
-                      <div className="h-10 w-10 shrink-0 rounded-full bg-gray-200" />
-
-                      <div className="flex-1 space-y-2">
-                        <div className="h-4 w-36 rounded bg-gray-200" />
-                        <div className="h-4 w-full rounded bg-gray-100" />
-                        <div className="h-4 w-4/5 rounded bg-gray-100" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="border-t border-gray-200 p-4">
-                  <div className="h-20 w-full rounded-xl border border-gray-200 bg-gray-100" />
-                </div>
-              </section>
+              <div className="h-auto min-h-0 flex-none overflow-visible xl:h-full xl:flex-1 xl:overflow-hidden">
+                <TicketRepliesSkeleton />
+              </div>
             </div>
 
             {/* Sidebar */}
-            <aside className="min-h-0 min-w-0 space-y-4 overflow-hidden rounded-2xl bg-white p-5 xl:col-span-3 xl:h-full">
-              {/* Status and priority */}
-              <SkeletonSidebarSection fields={3} />
-
-              {/* Attachments */}
-              <section className="rounded-xl border border-gray-200 bg-white sm:rounded-2xl">
-                <div className="border-b border-gray-200 px-4 py-3">
-                  <div className="h-5 w-24 rounded bg-gray-200" />
-                </div>
-
-                <div className="p-4">
-                  <div className="flex items-center gap-3 rounded-xl border border-gray-200 p-2.5">
-                    <div className="h-10 w-10 rounded bg-gray-200" />
-                    <div className="flex-1 space-y-2">
-                      <div className="h-3.5 w-28 rounded bg-gray-200" />
-                      <div className="h-3 w-16 rounded bg-gray-100" />
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              {/* Due date */}
-              <SkeletonSidebarSection fields={1} />
-
-              {/* People */}
-              <section className="rounded-xl border border-gray-200 bg-white sm:rounded-2xl">
-                <div className="border-b border-gray-200 px-4 py-3">
-                  <div className="h-5 w-16 rounded bg-gray-200" />
-                </div>
-
-                <div className="space-y-4 p-4">
-                  {Array.from({ length: 2 }).map((_, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center gap-3 border-b border-purple-200 pb-4 last:border-b-0 last:pb-0"
-                    >
-                      <div className="h-12 w-12 shrink-0 rounded-full bg-gray-200" />
-
-                      <div className="space-y-2">
-                        <div className="h-3 w-16 rounded bg-gray-200" />
-                        <div className="h-4 w-28 rounded bg-gray-200" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
+            <aside className="h-auto min-h-0 min-w-0 space-y-4 overflow-visible scrollbar-hide xl:col-span-3 xl:h-full xl:overflow-y-auto">
+              <TicketActionsSkeleton />
+              <TicketQuickLinksSkeleton />
+              <TicketAttachmentsSkeleton />
+              <TicketPeopleSkeleton />
             </aside>
           </div>
         </div>
@@ -4166,24 +4328,6 @@ function TicketDetailSkeleton() {
   );
 }
 
-function SkeletonSidebarSection({ fields }: { fields: number }) {
-  return (
-    <section className="rounded-xl border border-gray-200 bg-white sm:rounded-2xl">
-      <div className="border-b border-gray-200 px-4 py-3">
-        <div className="h-5 w-32 rounded bg-gray-200" />
-      </div>
-
-      <div className="space-y-4 p-4">
-        {Array.from({ length: fields }).map((_, index) => (
-          <div key={index} className="space-y-2">
-            <div className="h-3 w-16 rounded bg-gray-200" />
-            <div className="h-10 w-full rounded-lg border border-gray-200 bg-gray-100" />
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
 
 function PersonCard({ person }: { person: TicketPerson }) {
   return (

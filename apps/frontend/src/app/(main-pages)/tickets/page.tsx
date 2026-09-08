@@ -14,7 +14,9 @@ import RecentTicketsTable, {
   type RecentTicket,
   type RecentTicketQuickLinkItem,
 } from '../../../components/tables/RecentTicketsTable';
-import TicketsKanbanView from '../../../components/tickets/TicketsKanbanView';
+import TicketsKanbanView, {
+  TicketsKanbanSkeleton,
+} from '../../../components/tickets/TicketsKanbanView';
 import { appToast } from '../../../components/toast/AppToast';
 import Dropdown from '../../../components/ui/ThemeDropDown';
 import {
@@ -42,6 +44,8 @@ import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 import { eventEmitter } from '../../../lib/event-emitter';
 import { NotificationItem } from '@harperhelp/interfaces';
 import { NotificationEntityType } from '@harperhelp/types';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import DashboardSummaryBannerSkeleton from 'apps/frontend/src/components/ui/DashboardSummaryBannerSkeleton';
 
 type TicketSummary = {
   open: number | null;
@@ -201,7 +205,7 @@ export default function Page() {
         limit: pagination.pageSize,
       });
     },
-    enabled: hasPermission('tickets.view_list') && viewMode === 'table',
+    enabled: hasPermission('tickets.view_list') ,
   });
   const kanbanFilters = {
     priorityKey: selectedPriority === 'all' ? undefined : selectedPriority,
@@ -1088,18 +1092,31 @@ export default function Page() {
       status: nextViewMode === 'kanban' ? 'all' : undefined,
     });
   };
+  const isTicketsContentLoading =
+    viewMode === 'kanban'
+      ? kanbanBoardQuery.isLoading || ticketStatusesQuery.isLoading
+      : ticketsQuery.isLoading;
+  const isTicketSummaryLoading =
+    viewMode === 'table' && ticketsQuery.isLoading && !ticketsQuery.data;
 
   return (
     <>
       <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 py-4">
         <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden overflow-y-auto overscroll-contain scrollbar-hide xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <div className="shrink-0">
-            <DashboardSummaryBanner
-              imageSrc="/images/TicketsIcon.svg"
-              imageAlt="Tickets"
-              title="Tickets"
-              stats={ticketSummaryStats}
-            />
+            {isTicketSummaryLoading ? (
+              <DashboardSummaryBannerSkeleton
+                statsCount={4}
+                titleWidthClass="w-28"
+              />
+            ) : (
+              <DashboardSummaryBanner
+                imageSrc="/images/TicketsIcon.svg"
+                imageAlt="Tickets"
+                title="Tickets"
+                stats={ticketSummaryStats}
+              />
+            )}
           </div>
           <div className="flex h-auto min-h-0 min-w-0 flex-none flex-col overflow-visible rounded-xl bg-white p-3 md:p-4 xl:h-full xl:flex-1 xl:overflow-hidden">
             <PermissionGuard
@@ -1503,8 +1520,12 @@ export default function Page() {
                 </div>
 
                 <div className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden">
-                  {ticketsQuery.isLoading ? (
-                    <RecentTicketsTableSkeleton />
+                  {isTicketsContentLoading ? (
+                    viewMode === 'kanban' ? (
+                      <TicketsKanbanSkeleton />
+                    ) : (
+                      <RecentTicketsTableSkeleton />
+                    )
                   ) : viewMode === 'kanban' ? (
                     <TicketsKanbanView
                       tickets={kanbanTickets}

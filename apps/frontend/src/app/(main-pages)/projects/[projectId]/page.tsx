@@ -53,7 +53,9 @@ import { createTicketProjectOptions } from '../../../../components/modals/create
 import RecentTicketsTable, {
   type RecentTicket,
 } from '../../../../components/tables/RecentTicketsTable';
-import TicketsKanbanView from '../../../../components/tickets/TicketsKanbanView';
+import TicketsKanbanView, {
+  TicketsKanbanSkeleton,
+} from '../../../../components/tickets/TicketsKanbanView';
 import { appToast } from '../../../../components/toast/AppToast';
 import {
   EditIcon,
@@ -1871,9 +1873,16 @@ export default function ProjectDetailPage() {
     [pathname, router, searchParams, visibleProjectTabs],
   );
 
-  if (projectDetailQuery.isLoading) {
-    return <ProjectDetailSkeleton onBack={() => router.back()} />;
-  }
+  // if (projectDetailQuery.isLoading) {
+  //   return <ProjectDetailSkeleton onBack={() => router.back()} />;
+  // }
+ if (projectDetailQuery.isLoading) {
+  return (
+    <ProjectDetailSkeleton
+      activeTab={searchParams.get('t')}
+    />
+  );
+}
 
   if (shouldRedirectToNotFound) {
     return null;
@@ -2187,7 +2196,11 @@ export default function ProjectDetailPage() {
                     </div>
                     <div className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden">
                       {projectTicketsQuery.isLoading ? (
-                        <RecentTicketsTableSkeleton />
+                        projectTicketsViewMode === 'kanban' ? (
+                          <TicketsKanbanSkeleton />
+                        ) : (
+                          <RecentTicketsTableSkeleton />
+                        )
                       ) : projectTicketsViewMode === 'kanban' ? (
                         <TicketsKanbanView
                           tickets={projectTickets}
@@ -2259,73 +2272,71 @@ export default function ProjectDetailPage() {
                     >
                       {(!isMobile || !selectedThreadMessageId) && (
                         <div className="h-auto min-h-0 min-w-0 overflow-visible xl:h-full xl:overflow-hidden">
-                          <ProjectThreadPanel
-                            title="Discussion"
-                            replies={projectThreadReplies}
-                            hasMoreReplies={Boolean(
-                              projectThreadQuery.hasNextPage,
-                            )}
-                            isLoadingMoreReplies={
-                              projectThreadQuery.isFetchingNextPage
-                            }
-                            onLoadMoreReplies={
-                              projectThreadQuery.hasNextPage
-                                ? async () => {
-                                    await projectThreadQuery.fetchNextPage();
-                                  }
-                                : undefined
-                            }
-                            mentionMembers={projectMembersQuery.data ?? []}
-                            emptyTitle={
-                              projectThreadQuery.isLoading
-                                ? 'Loading discussion...'
-                                : 'No Threads yet.'
-                            }
-                            emptyDescription={
-                              projectThreadQuery.isLoading
-                                ? 'Fetching project discussion messages.'
-                                : 'No Threads messages have been added to this project yet.'
-                            }
-                            composerPlaceholder="Post the project thread..."
-                            onSubmitReply={
-                              canPostThreadMessage
-                                ? handleSubmitReply
-                                : undefined
-                            }
-                            onEditReply={
-                              canEditThread
-                                ? handleEditProjectThreadReply
-                                : undefined
-                            }
-                            onDeleteReply={
-                              canDeleteThread
-                                ? handleDeleteProjectThreadReply
-                                : undefined
-                            }
-                            isSubmittingReply={
-                              createProjectThreadMutation.isPending &&
-                              !selectedThreadMessageId
-                            }
-                            deletingReplyId={deletingThreadReplyId}
-                            editingReplyId={editingThreadReplyId}
-                            canCompose={canPostThreadMessage}
-                            canAttachFile={canAttachThreadFile}
-                            requireMessage={false}
-                            currentUserId={currentUserId}
-                            showReplyMeta={
-                              canViewThreadReplies || canPostThreadReply
-                            }
-                            onReplyClick={(reply) =>
-                              setSelectedThreadMessageId(reply.id)
-                            }
-                            onDeleteAttachment={handleDeleteThreadAttachment}
-                            onToggleReaction={handleToggleProjectThreadReaction}
-                            deletingAttachmentId={
-                              deleteProjectFileMutation.isPending
-                                ? deleteProjectFileMutation.variables?.fileId
-                                : undefined
-                            }
-                          />
+                          {projectThreadQuery.isLoading ? (
+                            <ProjectThreadSkeleton />
+                          ) : (
+                            <ProjectThreadPanel
+                              title="Discussion"
+                              replies={projectThreadReplies}
+                              hasMoreReplies={Boolean(
+                                projectThreadQuery.hasNextPage,
+                              )}
+                              isLoadingMoreReplies={
+                                projectThreadQuery.isFetchingNextPage
+                              }
+                              onLoadMoreReplies={
+                                projectThreadQuery.hasNextPage
+                                  ? async () => {
+                                      await projectThreadQuery.fetchNextPage();
+                                    }
+                                  : undefined
+                              }
+                              mentionMembers={projectMembersQuery.data ?? []}
+                              emptyTitle="No Threads yet."
+                              emptyDescription="No Threads messages have been added to this project yet."
+                              composerPlaceholder="Post the project thread..."
+                              onSubmitReply={
+                                canPostThreadMessage
+                                  ? handleSubmitReply
+                                  : undefined
+                              }
+                              onEditReply={
+                                canEditThread
+                                  ? handleEditProjectThreadReply
+                                  : undefined
+                              }
+                              onDeleteReply={
+                                canDeleteThread
+                                  ? handleDeleteProjectThreadReply
+                                  : undefined
+                              }
+                              isSubmittingReply={
+                                createProjectThreadMutation.isPending &&
+                                !selectedThreadMessageId
+                              }
+                              deletingReplyId={deletingThreadReplyId}
+                              editingReplyId={editingThreadReplyId}
+                              canCompose={canPostThreadMessage}
+                              canAttachFile={canAttachThreadFile}
+                              requireMessage={false}
+                              currentUserId={currentUserId}
+                              showReplyMeta={
+                                canViewThreadReplies || canPostThreadReply
+                              }
+                              onReplyClick={(reply) =>
+                                setSelectedThreadMessageId(reply.id)
+                              }
+                              onDeleteAttachment={handleDeleteThreadAttachment}
+                              onToggleReaction={
+                                handleToggleProjectThreadReaction
+                              }
+                              deletingAttachmentId={
+                                deleteProjectFileMutation.isPending
+                                  ? deleteProjectFileMutation.variables?.fileId
+                                  : undefined
+                              }
+                            />
+                          )}
                         </div>
                       )}
 
@@ -2404,31 +2415,31 @@ export default function ProjectDetailPage() {
 
                 <PermissionGuard permission="files.view">
                   <TabPanel className="h-auto min-h-0 min-w-0 overflow-visible xl:h-full xl:overflow-hidden">
-                    <ProjectFilesPanel
-                      files={projectFiles}
-                      searchValue={fileSearchValue}
-                      onSearchChange={setFileSearchValue}
-                      onUploadClick={
-                        canUploadFiles
-                          ? () => setUploadFileOpen(true)
-                          : undefined
-                      }
-                      onDeleteFile={setFileToDelete}
-                      canDownloadFile={canDownloadFiles}
-                      deletingFileId={
-                        deleteProjectFileMutation.isPending
-                          ? deleteProjectFileMutation.variables?.fileId
-                          : undefined
-                      }
-                      subtitle={
-                        projectFilesQuery.isLoading
-                          ? 'Loading files...'
-                          : `${
-                              uploadedFilesState.length +
-                              (projectFilesQuery.data?.length ?? 0)
-                            } files`
-                      }
-                    />
+                    {projectFilesQuery.isLoading ? (
+                      <ProjectFilesSkeleton />
+                    ) : (
+                      <ProjectFilesPanel
+                        files={projectFiles}
+                        searchValue={fileSearchValue}
+                        onSearchChange={setFileSearchValue}
+                        onUploadClick={
+                          canUploadFiles
+                            ? () => setUploadFileOpen(true)
+                            : undefined
+                        }
+                        onDeleteFile={setFileToDelete}
+                        canDownloadFile={canDownloadFiles}
+                        deletingFileId={
+                          deleteProjectFileMutation.isPending
+                            ? deleteProjectFileMutation.variables?.fileId
+                            : undefined
+                        }
+                        subtitle={`${
+                          uploadedFilesState.length +
+                          (projectFilesQuery.data?.length ?? 0)
+                        } files`}
+                      />
+                    )}
                   </TabPanel>
                 </PermissionGuard>
 
@@ -2486,18 +2497,7 @@ export default function ProjectDetailPage() {
 
                         <div className="min-h-0 flex-1 scrollbar-thin overflow-y-auto bg-white">
                           {projectNotesQuery.isLoading ? (
-                            <div className="space-y-3 p-4">
-                              {Array.from({ length: 5 }).map((_, index) => (
-                                <div
-                                  key={index}
-                                  className="rounded-2xl border border-gray-200 px-4 py-3"
-                                >
-                                  <div className="h-4 w-2/3 animate-pulse rounded bg-gray-200" />
-                                  <div className="mt-3 h-3 w-full animate-pulse rounded bg-gray-100" />
-                                  <div className="mt-2 h-3 w-1/2 animate-pulse rounded bg-gray-100" />
-                                </div>
-                              ))}
-                            </div>
+                            <ProjectNotesListSkeleton />
                           ) : projectNotes.length ? (
                             <div>
                               {projectNotes.map((note) => {
@@ -3658,121 +3658,619 @@ function CloseCrossIcon() {
   );
 }
 
-function ProjectDetailSkeleton({ onBack }: { onBack: () => void }) {
+// function ProjectDetailSkeleton({ onBack }: { onBack: () => void }) {
+//   return (
+//     <div
+//       className="relative z-100 h-dvh overflow-hidden py-5 pr-5"
+//       aria-hidden="true"
+//     >
+//       <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden rounded-3xl border border-white bg-white/40 p-3">
+//         <div className="flex min-h-0 min-w-0 flex-1 animate-pulse flex-col gap-4 overflow-hidden rounded-3xl bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
+//           {/* Project summary */}
+//           <section className="w-full shrink-0">
+//             <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
+//               <div className="h-12 w-12 shrink-0 rounded-full bg-gray-200 sm:h-19 sm:w-19" />
+
+//               <div className="min-w-0 flex-1">
+//                 {/* Name and category */}
+//                 <div className="flex flex-wrap items-center gap-3">
+//                   <div className="h-5 w-40 rounded bg-gray-200" />
+//                   <div className="h-6 w-24 rounded-full bg-gray-100" />
+//                 </div>
+
+//                 {/* Summary metrics */}
+//                 <div className="mt-3 flex max-w-full flex-wrap items-center gap-x-5 gap-y-2">
+//                   {Array.from({ length: 3 }).map((_, index) => (
+//                     <div key={index} className="flex items-center gap-2">
+//                       <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-gray-200" />
+//                       <div
+//                         className={`h-3.5 rounded bg-gray-200 ${
+//                           index === 1 ? 'w-20' : 'w-12'
+//                         }`}
+//                       />
+//                       <div className="h-4 w-6 rounded bg-gray-200" />
+//                     </div>
+//                   ))}
+//                 </div>
+//               </div>
+//             </div>
+//           </section>
+
+//           {/* Tabs */}
+//           <div className="flex shrink-0 overflow-hidden border-y border-gray-200">
+//             {Array.from({ length: 4 }).map((_, index) => (
+//               <div
+//                 key={index}
+//                 className={`border-b-2 px-4 py-3 ${
+//                   index === 0 ? 'border-gray-300' : 'border-transparent'
+//                 }`}
+//               >
+//                 <div
+//                   className={`h-4 rounded bg-gray-200 ${
+//                     index === 3 ? 'w-16' : 'w-12'
+//                   }`}
+//                 />
+//               </div>
+//             ))}
+//           </div>
+
+//           {/* Active tab content */}
+//           <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
+//             {/* Search/filter row */}
+//             <div className="flex shrink-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
+//               <div className="h-10 w-full rounded-lg border border-gray-200 bg-gray-100 md:max-w-xs" />
+
+//               <div className="flex items-center gap-3">
+//                 <div className="h-10 w-36 rounded-lg border border-gray-200 bg-gray-100" />
+//                 <div className="h-10 w-36 rounded-lg border border-gray-200 bg-gray-100" />
+//                 <div className="h-10 w-28 rounded-full bg-gray-200" />
+//               </div>
+//             </div>
+
+//             {/* Tickets table */}
+//             <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white">
+//               {/* Table header */}
+//               <div className="grid grid-cols-6 gap-4 border-b border-gray-200 bg-gray-50 px-4 py-4">
+//                 {Array.from({ length: 6 }).map((_, index) => (
+//                   <div key={index} className="h-4 rounded bg-gray-200" />
+//                 ))}
+//               </div>
+
+//               {/* Table rows */}
+//               <div className="min-h-0 flex-1 overflow-hidden">
+//                 {Array.from({ length: 6 }).map((_, rowIndex) => (
+//                   <div
+//                     key={rowIndex}
+//                     className="grid grid-cols-6 gap-4 border-b border-gray-200 px-4 py-4 last:border-b-0"
+//                   >
+//                     {Array.from({ length: 6 }).map((_, cellIndex) => (
+//                       <div
+//                         key={cellIndex}
+//                         className={`h-4 rounded ${
+//                           cellIndex === 3 || cellIndex === 4
+//                             ? 'bg-gray-200'
+//                             : 'bg-gray-100'
+//                         }`}
+//                       />
+//                     ))}
+//                   </div>
+//                 ))}
+//               </div>
+
+//               {/* Pagination */}
+//               <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3">
+//                 <div className="h-8 w-32 rounded bg-gray-100" />
+//                 <div className="flex gap-2">
+//                   {Array.from({ length: 4 }).map((_, index) => (
+//                     <div
+//                       key={index}
+//                       className="h-8 w-8 rounded-md bg-gray-100"
+//                     />
+//                   ))}
+//                 </div>
+//               </div>
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }
+function SkeletonBlock({
+  className,
+}: {
+  className: string;
+}) {
   return (
     <div
-      className="relative z-100 h-dvh overflow-hidden py-5 pr-5"
+      className={`animate-pulse rounded bg-gray-200 ${className}`}
+    />
+  );
+}
+
+type ProjectDetailSkeletonProps = {
+  activeTab: string | null;
+};
+
+function ProjectDetailSkeleton({
+  activeTab,
+}: ProjectDetailSkeletonProps) {
+  return (
+    <div
+      className="
+        relative z-100 h-auto min-h-dvh overflow-visible
+        px-4 pt-2 pb-4
+        xl:h-dvh xl:overflow-hidden xl:px-0 xl:py-5 xl:pr-5
+      "
       aria-hidden="true"
     >
-      <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden rounded-3xl border border-white bg-white/40 p-3">
-        <div className="flex min-h-0 min-w-0 flex-1 animate-pulse flex-col gap-4 overflow-hidden rounded-3xl bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5">
-          {/* Project summary */}
-          <section className="w-full shrink-0">
-            <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
-              <div className="h-12 w-12 shrink-0 rounded-full bg-gray-200 sm:h-19 sm:w-19" />
+      <div
+        className="
+          flex h-auto min-h-0 min-w-0 flex-col gap-3 overflow-visible
+          xl:h-full xl:overflow-hidden xl:rounded-2xl
+          xl:border xl:border-white xl:bg-white/40 xl:p-3
+        "
+      >
+        <ProjectSummarySkeleton />
 
-              <div className="min-w-0 flex-1">
-                {/* Name and category */}
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="h-5 w-40 rounded bg-gray-200" />
-                  <div className="h-6 w-24 rounded-full bg-gray-100" />
-                </div>
+        <div
+          className="
+            flex h-auto min-h-0 min-w-0 flex-none flex-col gap-4
+            overflow-visible rounded-xl bg-white p-3
+            shadow-[0_0_35px_0_rgb(0_0_0/0.04)]
+            md:px-5 md:pt-4
+            xl:h-full xl:flex-1 xl:overflow-hidden
+          "
+        >
+          <ProjectTabsSkeleton  />
 
-                {/* Summary metrics */}
-                <div className="mt-3 flex max-w-full flex-wrap items-center gap-x-5 gap-y-2">
-                  {Array.from({ length: 3 }).map((_, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-gray-200" />
-                      <div
-                        className={`h-3.5 rounded bg-gray-200 ${
-                          index === 1 ? 'w-20' : 'w-12'
-                        }`}
-                      />
-                      <div className="h-4 w-6 rounded bg-gray-200" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Tabs */}
-          <div className="flex shrink-0 overflow-hidden border-y border-gray-200">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div
-                key={index}
-                className={`border-b-2 px-4 py-3 ${
-                  index === 0 ? 'border-gray-300' : 'border-transparent'
-                }`}
-              >
-                <div
-                  className={`h-4 rounded bg-gray-200 ${
-                    index === 3 ? 'w-16' : 'w-12'
-                  }`}
-                />
-              </div>
-            ))}
-          </div>
-
-          {/* Active tab content */}
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
-            {/* Search/filter row */}
-            <div className="flex shrink-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="h-10 w-full rounded-lg border border-gray-200 bg-gray-100 md:max-w-xs" />
-
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-36 rounded-lg border border-gray-200 bg-gray-100" />
-                <div className="h-10 w-36 rounded-lg border border-gray-200 bg-gray-100" />
-                <div className="h-10 w-28 rounded-full bg-gray-200" />
-              </div>
-            </div>
-
-            {/* Tickets table */}
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white">
-              {/* Table header */}
-              <div className="grid grid-cols-6 gap-4 border-b border-gray-200 bg-gray-50 px-4 py-4">
-                {Array.from({ length: 6 }).map((_, index) => (
-                  <div key={index} className="h-4 rounded bg-gray-200" />
-                ))}
-              </div>
-
-              {/* Table rows */}
-              <div className="min-h-0 flex-1 overflow-hidden">
-                {Array.from({ length: 6 }).map((_, rowIndex) => (
-                  <div
-                    key={rowIndex}
-                    className="grid grid-cols-6 gap-4 border-b border-gray-200 px-4 py-4 last:border-b-0"
-                  >
-                    {Array.from({ length: 6 }).map((_, cellIndex) => (
-                      <div
-                        key={cellIndex}
-                        className={`h-4 rounded ${
-                          cellIndex === 3 || cellIndex === 4
-                            ? 'bg-gray-200'
-                            : 'bg-gray-100'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                ))}
-              </div>
-
-              {/* Pagination */}
-              <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3">
-                <div className="h-8 w-32 rounded bg-gray-100" />
-                <div className="flex gap-2">
-                  {Array.from({ length: 4 }).map((_, index) => (
-                    <div
-                      key={index}
-                      className="h-8 w-8 rounded-md bg-gray-100"
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
+          <div className="min-h-0 flex-1">
+            <ProjectActiveTabSkeleton activeTab={activeTab} />
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+function ProjectActiveTabSkeleton({
+  activeTab,
+}: {
+  activeTab: string | null;
+}) {
+  switch (activeTab) {
+    case '1':
+      return <ProjectThreadSkeleton />;
+
+    case '2':
+      return <ProjectFilesSkeleton />;
+
+    case '3':
+      return <ProjectCalendarSkeleton />;
+
+    case '4':
+      return <ProjectNotesSkeleton />;
+
+    default:
+      return (
+        <div className="flex min-h-0 flex-col gap-4 xl:h-full">
+          <ProjectTicketFiltersSkeleton />
+
+          <div className="min-h-0 xl:flex-1 xl:overflow-hidden">
+            <RecentTicketsTableSkeleton />
+          </div>
+        </div>
+      );
+  }
+}
+
+function ProjectNotesSkeleton() {
+  return (
+    <div
+      className="
+        grid h-auto min-h-0 animate-pulse
+        overflow-hidden rounded-sm border border-gray-200
+        xl:h-full xl:grid-cols-[340px_minmax(0,1fr)]
+        xl:rounded-2xl
+      "
+    >
+      <section className="flex min-h-96 flex-col border-e border-gray-200 bg-white">
+        <div className="border-b border-gray-200 bg-gray-50 px-3.5 py-3.5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <SkeletonBlock className="h-5 w-14" />
+              <SkeletonBlock className="h-5 w-14 rounded-full" />
+            </div>
+
+            <SkeletonBlock className="h-9 w-20 rounded-lg" />
+          </div>
+
+          <SkeletonBlock className="mt-4 h-10 w-full rounded-lg" />
+        </div>
+
+        <ProjectNotesListSkeleton />
+      </section>
+
+      <section className="hidden min-h-96 bg-white p-5 xl:block">
+        <SkeletonBlock className="h-6 w-40" />
+
+        <div className="mt-5 space-y-3">
+          <SkeletonBlock className="h-4 w-full bg-gray-100" />
+          <SkeletonBlock className="h-4 w-5/6 bg-gray-100" />
+          <SkeletonBlock className="h-4 w-2/3 bg-gray-100" />
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ProjectCalendarSkeleton() {
+  return (
+    <div
+      className="h-auto min-h-[500px] animate-pulse rounded-xl border border-gray-200 bg-white p-4 xl:h-full"
+      aria-hidden="true"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <SkeletonBlock className="h-8 w-40" />
+
+        <div className="flex items-center gap-2">
+          <SkeletonBlock className="h-9 w-9 rounded-lg" />
+          <SkeletonBlock className="h-9 w-24 rounded-lg" />
+          <SkeletonBlock className="h-9 w-9 rounded-lg" />
+        </div>
+      </div>
+
+      <div className="mt-5 grid grid-cols-7 border-t border-l border-gray-200">
+        {Array.from({ length: 42 }).map((_, index) => (
+          <div
+            key={index}
+            className="min-h-20 border-r border-b border-gray-200 p-2 md:min-h-24"
+          >
+            <SkeletonBlock className="h-3 w-5 bg-gray-100" />
+
+            {index % 5 === 0 ? (
+              <SkeletonBlock className="mt-3 h-5 w-full rounded-md" />
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProjectSummarySkeleton() {
+  return (
+    <div
+      className="
+        relative flex w-full shrink-0 animate-pulse
+        flex-col items-start gap-2 overflow-hidden
+        rounded-xl px-4 py-4
+        xl:flex-row xl:items-start xl:gap-4
+        xl:px-7.5 xl:py-6
+      "
+      style={{
+        backgroundImage: `
+          url('/images/DashboardComponentBgImage.jpg'),
+          linear-gradient(
+            to right,
+            #335C94 0%,
+            #665932 25%,
+            #7B398E 50%,
+            #003F89 75%,
+            #070922 100%
+          )
+        `,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
+      aria-hidden="true"
+    >
+      {/* Same dark overlay as actual banner */}
+      <div className="absolute inset-0 bg-black/30" />
+
+      {/* Back button, mobile title and category */}
+      <div className="relative flex min-w-0 items-center gap-3 xl:contents">
+        <div className="h-10 w-10 shrink-0 rounded-full bg-white/15 backdrop-blur-3xl xl:h-12 xl:w-12">
+          <div className="flex h-full w-full items-center justify-center">
+            <div className="h-3 w-3 rotate-45 border-b-2 border-l-2 border-white/60" />
+          </div>
+        </div>
+
+        <div className="h-6 w-40 rounded bg-white/25 xl:hidden" />
+
+        <div className="h-6 w-12 rounded-full bg-white/20 xl:hidden" />
+      </div>
+
+      <div
+        className="
+          relative flex min-w-0 w-full flex-1
+          flex-col gap-3
+          md:flex-row
+          xl:items-center xl:justify-between xl:gap-4
+        "
+      >
+        {/* Desktop project name and category */}
+        <div className="hidden min-w-0 items-center gap-4 xl:flex">
+          <div className="h-9 w-60 rounded bg-white/25" />
+          <div className="h-6 w-12 rounded-full bg-white/20" />
+        </div>
+
+        {/* Stats box */}
+        <div
+          className="
+            grid w-full grid-cols-2 gap-2
+            rounded-xl border border-white/12
+            bg-white/10 p-2
+            backdrop-blur-3xl
+            drop-shadow-[0_14px_44px_0_rgb(0_0_0/0.45)]
+            sm:w-fit
+            xl:flex xl:max-w-full xl:flex-row
+            xl:items-center xl:gap-5.5 xl:px-4
+          "
+        >
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div
+              key={index}
+              className="contents"
+            >
+              {index > 0 ? (
+                <div
+                  className="
+                    hidden h-5.25 w-0.5 shrink-0
+                    bg-linear-to-b
+                    from-white/0 via-white/60 to-white/0
+                    xl:block
+                  "
+                />
+              ) : null}
+
+              <div
+                className="
+                  flex min-w-0 items-center
+                  justify-between gap-2
+                  xl:shrink-0 xl:justify-start xl:gap-4
+                "
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <div className="relative flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-white/40">
+                    <div className="h-2.5 w-2.5 rounded-full bg-white/30" />
+                  </div>
+
+                  <div
+                    className={`h-4 rounded bg-white/25 ${
+                      index === 1 ? 'w-24' : 'w-14'
+                    }`}
+                  />
+                </div>
+
+                <div className="h-5 w-6 shrink-0 rounded bg-white/30" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProjectTabsSkeleton() {
+  return (
+    <div
+      className="
+        flex shrink-0 animate-pulse
+        overflow-x-hidden border-b border-gray-200
+      "
+    >
+      {Array.from({ length: 5 }).map((_, index) => (
+        <div
+          key={index}
+          className={`
+            flex shrink-0 items-center gap-2
+            border-b-2 px-2 pt-3 pb-2
+            xl:px-4
+            ${
+              index === 0
+                ? 'border-gray-300'
+                : 'border-transparent'
+            }
+          `}
+        >
+          <SkeletonBlock className="h-4 w-4 rounded-sm" />
+          <SkeletonBlock
+            className={index === 3 ? 'h-4 w-16' : 'h-4 w-12'}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ProjectTicketFiltersSkeleton() {
+  return (
+    <div
+      className="
+        flex shrink-0 animate-pulse
+        flex-col gap-3
+        md:flex-row md:items-center md:justify-between
+      "
+    >
+      <div className="flex items-center gap-3">
+        <SkeletonBlock className="h-10 w-full min-w-0 rounded-lg md:w-72" />
+        <SkeletonBlock className="h-10 w-10 shrink-0 rounded-lg xl:hidden" />
+      </div>
+
+      <div className="hidden items-center gap-3 xl:flex">
+        <SkeletonBlock className="h-10 w-20 rounded-lg" />
+        <SkeletonBlock className="h-10 w-55 rounded-lg" />
+        <SkeletonBlock className="h-10 w-28 rounded-lg" />
+        <SkeletonBlock className="h-10 w-32 rounded-full" />
+      </div>
+    </div>
+  );
+}
+
+function ProjectThreadSkeleton() {
+  return (
+    <div
+      className="
+        flex min-h-[calc(100dvh-260px)] flex-col
+        overflow-hidden rounded-xl border border-gray-200
+        bg-white animate-pulse
+        xl:h-full xl:min-h-0
+      "
+      aria-hidden="true"
+    >
+      <div className="flex h-14 shrink-0 items-center justify-between border-b border-gray-200 px-4">
+        <SkeletonBlock className="h-5 w-24" />
+        <SkeletonBlock className="h-8 w-8 rounded-full" />
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col justify-end gap-5 overflow-hidden p-4">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="flex items-start gap-3">
+            <SkeletonBlock className="h-8 w-8 shrink-0 rounded-full" />
+
+            <div
+              className={`min-w-0 ${
+                index % 2 === 0 ? 'w-3/4' : 'w-1/2'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <SkeletonBlock className="h-3.5 w-24" />
+                <SkeletonBlock className="h-3 w-20" />
+              </div>
+
+              <div className="mt-2 rounded-xl border border-gray-200 p-3">
+                <SkeletonBlock className="h-3.5 w-full" />
+                {index % 2 === 0 ? (
+                  <SkeletonBlock className="mt-2 h-3.5 w-2/3" />
+                ) : null}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="shrink-0 border-t border-gray-200 p-4">
+        <SkeletonBlock className="h-20 w-full rounded-xl" />
+      </div>
+    </div>
+  );
+}
+
+function ProjectFilesSkeleton() {
+  return (
+    <div
+      className="flex h-auto min-h-0 flex-col space-y-4 animate-pulse xl:h-full"
+      aria-hidden="true"
+    >
+      {/* Search and upload button */}
+      <div className="flex flex-col gap-3 rounded-2xl md:flex-row md:items-center md:justify-between">
+        <div className="h-10.5 w-full rounded-lg border border-gray-200 bg-gray-100 md:max-w-xs" />
+
+        <div className="h-10 w-full rounded-lg bg-gray-200 md:w-32" />
+      </div>
+
+      {/* Files container */}
+      <div
+        className="
+          flex max-h-none min-h-0 flex-none flex-col
+          overflow-visible rounded-xl border border-gray-200 bg-white
+          sm:rounded-2xl
+          xl:max-h-[calc(100dvh-360px)] xl:flex-1 xl:overflow-hidden
+        "
+      >
+        {/* Files container header */}
+        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-3 py-3 sm:px-4">
+          <SkeletonBlock className="h-4 w-24" />
+          <SkeletonBlock className="h-4 w-14" />
+        </div>
+
+        {/* File rows */}
+        <div className="min-h-0 flex-1 overflow-hidden">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <ProjectFileRowSkeleton
+              key={index}
+              index={index}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProjectFileRowSkeleton({
+  index,
+}: {
+  index: number;
+}) {
+  return (
+    <div className="border-b border-gray-200 px-3 py-4 last:border-b-0 sm:px-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {/* File information */}
+        <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
+          {/* File icon */}
+          <SkeletonBlock className="h-10 w-10 shrink-0 rounded-sm" />
+
+          <div className="min-w-0 flex-1">
+            {/* File name */}
+            <SkeletonBlock
+              className={`h-4 ${
+                index % 2 === 0
+                  ? 'w-48 max-w-full'
+                  : 'w-36 max-w-full'
+              }`}
+            />
+
+            {/* Size and uploaded date */}
+            <div className="mt-2 flex items-center gap-2">
+              <SkeletonBlock className="h-3 w-10 bg-gray-100" />
+
+              <div className="h-1 w-1 shrink-0 rounded-full bg-gray-200" />
+
+              <SkeletonBlock className="h-3 w-20 bg-gray-100" />
+            </div>
+
+            {/* Source pill */}
+            <div className="mt-2">
+              <SkeletonBlock className="h-6 w-24 rounded-full bg-gray-100" />
+            </div>
+          </div>
+        </div>
+
+        {/* File actions */}
+        <div className="flex items-center justify-end gap-2 sm:justify-start">
+          {Array.from({ length: 3 }).map((_, actionIndex) => (
+            <SkeletonBlock
+              key={actionIndex}
+              className="h-9 w-9 shrink-0 rounded-lg"
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProjectNotesListSkeleton() {
+  return (
+    <div
+      className="animate-pulse divide-y divide-gray-200"
+      aria-hidden="true"
+    >
+      {Array.from({ length: 5 }).map((_, index) => (
+        <div key={index} className="px-3 py-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <SkeletonBlock className="h-4 w-2/3" />
+              <SkeletonBlock className="mt-2 h-3.5 w-full bg-gray-100" />
+              <SkeletonBlock className="mt-2 h-3 w-28 bg-gray-100" />
+            </div>
+
+            <SkeletonBlock className="h-7 w-7 shrink-0 rounded-md" />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
