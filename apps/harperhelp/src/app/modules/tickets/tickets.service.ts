@@ -31,6 +31,7 @@ import { UploadedFileDto } from '../files/dto/uploaded-file.dto';
 import { KanbanQueryDto } from './dto/kanban-query.dto';
 import { GetKanbanTicketCountsDto } from './dto/get-kanban-ticket-counts.dto';
 import { KanbanBoardQueryDto } from './dto/kanban-board-query.dto';
+import { getTicketTypeLabel } from './enum/ticket-type.enum';
 
 @Injectable()
 export class TicketsService {
@@ -198,6 +199,7 @@ export class TicketsService {
           description: saved.description || '',
           priority: saved.priorityKey || '',
           status: saved.statusKey || '',
+          ticketType: getTicketTypeLabel(saved.ticketType),
           projectId: ticket.project?.id || '',
           projectName: ticket.project?.name || '',
           createdBy: {
@@ -1065,7 +1067,41 @@ export class TicketsService {
         },
       });
     }
-
+    // TYPE CHANGED
+    if (
+      dto.ticketType !== undefined &&
+      dto.ticketType !== oldTicket.ticketType
+    ) {
+      const filteredParticipants =
+        await this.notificationsService.filterEmailRecipients(
+          participants,
+          EmailEventType.TICKET_TYPE_UPDATED,
+        );
+      await this.notificationsService.notifyProjectMembers({
+        projectId: ticket.projectId,
+        actorId: userId,
+        type: NotificationType.TICKET_TYPE_CHANGED,
+        entityType: NotificationEntityType.TICKET,
+        entityId: ticket.id,
+        ticketId: ticket.id,
+        title: `Ticket: "${ticket.ticketRefNo}" type changed to ${getTicketTypeLabel(ticket.ticketType)} by ${fullname}`,
+        message: `${getTicketTypeLabel(oldTicket.ticketType)} to ${getTicketTypeLabel(dto.ticketType)}`,
+      });
+      await this.notificationsService.dispatch({
+        type: EmailEventType.TICKET_TYPE_UPDATED,
+        payload: {
+          ticketId: updatedTicket.id,
+          ticketNumber: updatedTicket.ticketRefNo,
+          ticketTitle: updatedTicket.title,
+          projectName: updatedTicket.project.name,
+          projectId: updatedTicket.projectId,
+          previousTicketType: getTicketTypeLabel(oldTicket.ticketType),
+          newTicketType: getTicketTypeLabel(updatedTicket.ticketType),
+          updatedBy: updatedByRecipient,
+          participants: filteredParticipants,
+        },
+      });
+    }
     // PERSON ASSIGNED
     if (
       dto.assigneeId !== undefined &&

@@ -17,6 +17,7 @@ import {
   buildProjectUnassignedEmail,
   buildProjectAssignedEmail,
   buildDueDateUpdatedEmail,
+  buildTypeUpdatedEmail,
 } from '../../templates/common';
 import {
   EmailEventType,
@@ -96,6 +97,8 @@ function buildEmailForEvent(event: EmailNotificationEvent) {
       return buildTicketInternalMessageMentionedEmail(event.payload, appUrl);
     case EmailEventType.TICKET_STATUS_UPDATED:
       return buildStatusUpdatedEmail(event.payload, appUrl);
+    case EmailEventType.TICKET_TYPE_UPDATED:
+      return buildTypeUpdatedEmail(event.payload, appUrl);
     case EmailEventType.TICKET_DUE_DATE_UPDATED:
       return buildDueDateUpdatedEmail(event.payload, appUrl);
     case EmailEventType.TICKET_PRIORITY_UPDATED:
@@ -150,6 +153,10 @@ function resolveRecipients(event: EmailNotificationEvent) {
     case EmailEventType.MENTIONED_IN_TICKET_INTERNAL_MESSAGE:
       return [event.payload.mentionedUser];
     case EmailEventType.TICKET_STATUS_UPDATED:
+      return event.payload.participants.filter(
+        (recipient) => recipient.email !== event.payload.updatedBy.email,
+      );
+    case EmailEventType.TICKET_TYPE_UPDATED:
       return event.payload.participants.filter(
         (recipient) => recipient.email !== event.payload.updatedBy.email,
       );
