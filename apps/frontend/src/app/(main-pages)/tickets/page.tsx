@@ -1,3 +1,5 @@
+/* eslint-disable @nx/enforce-module-boundaries */
+
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -29,6 +31,7 @@ import {
 import { createTicket } from '../../../lib/tickets';
 import {
   projectsQueryKey,
+  useDeleteTicketMutation,
   useProjectNamesQuery,
 } from '../projects/projects.queries';
 import {
@@ -44,8 +47,8 @@ import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 import { eventEmitter } from '../../../lib/event-emitter';
 import { NotificationItem } from '@harperhelp/interfaces';
 import { NotificationEntityType } from '@harperhelp/types';
-// eslint-disable-next-line @nx/enforce-module-boundaries
 import DashboardSummaryBannerSkeleton from 'apps/frontend/src/components/ui/DashboardSummaryBannerSkeleton';
+import ConfirmActionModal from 'apps/frontend/src/components/modals/ConfirmActionModal';
 
 type TicketSummary = {
   open: number | null;
@@ -72,6 +75,11 @@ export default function Page() {
   const { setHeaderActionOverride } = useDashboardHeaderAction();
   const [isExportingTickets, setIsExportingTickets] = useState(false);
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
+  const [ticketToDelete, setTicketToDelete] = useState<{
+    projectId: string;
+    ticketId: string;
+    name: string;
+  } | null>(null);
   const [searchValue, setSearchValue] = useState('');
   const debouncedSearchValue = useDebouncedValue(searchValue);
   const [pagination, setPagination] = useState<PaginationState>(() => {
@@ -110,6 +118,7 @@ export default function Page() {
   const canViewProjectDetail = hasPermission('projects.view_detail');
   const canViewProjectThread = hasPermission('thread.view');
   const canViewProjectFiles = hasPermission('files.view');
+  const canDeleteTicket = true;
   const canViewProjectCalendar = hasPermission('calendar.view_grid');
   const canViewProjectNotes = hasPermission('projects_notes.view_list');
   const viewMode = getTicketsViewMode(
@@ -153,37 +162,7 @@ export default function Page() {
     queryFn: fetchTicketPriorities,
     enabled: canFilterTickets,
   });
-  // const ticketsQuery = useQuery({
-  //   queryKey: [
-  //     'dashboard-project-tickets',
-  //     selectedStatus,
-  //     selectedPriority,
-  //     selectedProjectIdsKey,
-  //     debouncedSearchValue.trim(),
-  //     viewMode,
-  //     pagination.pageIndex,
-  //     pagination.pageSize,
-  //   ],
-  //   queryFn: () => {
-  //     const filters = {
-  //       priorityKey: selectedPriority === 'all' ? undefined : selectedPriority,
-  //       projectIds: selectedProjectIds.length ? selectedProjectIds : undefined,
-  //       search: debouncedSearchValue.trim(),
-  //     };
 
-  //     if (viewMode === 'kanban') {
-  //       return fetchDashboardTicketsKanban(filters);
-  //     }
-
-  //     return fetchDashboardTickets({
-  //       ...filters,
-  //       statusKey: selectedStatus === 'all' ? undefined : selectedStatus,
-  //       page: pagination.pageIndex + 1,
-  //       limit: pagination.pageSize,
-  //     });
-  //   },
-  //   enabled: hasPermission('tickets.view_list'),
-  // });
   const ticketsQuery = useQuery({
     queryKey: [
       'dashboard-project-tickets',
@@ -615,6 +594,8 @@ export default function Page() {
     },
   });
 
+  const deleteTicketMutation = useDeleteTicketMutation();
+
   const reorderStatusMutation = useMutation({
     mutationFn: async ({
       statusId,
@@ -747,6 +728,28 @@ export default function Page() {
         error instanceof Error ? error.message : 'Failed to create ticket.',
       );
       throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteTicket = async () => {
+    if (!ticketToDelete || !hasPermission('tickets.delete')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await deleteTicketMutation.mutateAsync({
+        projectId: ticketToDelete.projectId,
+        ticketId: ticketToDelete.ticketId,
+      });
+      appToast.success('Ticket deleted successfully.');
+      setTicketToDelete(null);
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to delete ticket.',
+      );
     } finally {
       setLoading(false);
     }
@@ -1752,6 +1755,16 @@ export default function Page() {
                       onRowClick={
                         canViewTicketDetail ? handleTicketClick : undefined
                       }
+                      onDeleteTickets={(val) => {
+                        // alert('ticket to be delete is' + val.id);
+                        if (canDeleteTicket) {
+                          setTicketToDelete({
+                            projectId: val.project.id ?? '',
+                            ticketId: val.id,
+                            name: val.title,
+                          });
+                        }
+                      }}
                     />
                   )}
                 </div>
@@ -1776,6 +1789,25 @@ export default function Page() {
         onClose={() => setCreateTicketOpen(false)}
         onConfirm={handleCreateTicket}
         projectOptions={projectOptions}
+      />
+      <ConfirmActionModal
+        isOpen={Boolean(ticketToDelete) && canDeleteTicket}
+        onClose={() => setTicketToDelete(null)}
+        title="Delete Ticket?"
+        message={
+          <>
+            Are you sure you want to delete{' '}
+            <span className="font-semibold">
+              “{ticketToDelete?.name ?? 'this ticket'}”
+            </span>
+            ? This action cannot be undone.
+          </>
+        }
+        confirmLabel="Yes, Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isSubmitting={deleteTicketMutation.isPending}
+        onConfirm={handleDeleteTicket}
       />
     </>
   );

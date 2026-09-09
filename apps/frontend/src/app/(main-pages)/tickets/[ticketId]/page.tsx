@@ -132,6 +132,7 @@ export default function TicketDetailPage() {
   const canEditAssignee = hasPermission('tickets.edit_assignee');
   const canAttachReplyFiles = hasPermission('ticket_replies.attach_file');
   const canEditStatus = hasPermission('tickets.edit_status');
+  const canEditTicketType = hasPermission('tickets.edit_type');
   const canEditPriority = hasPermission('tickets.edit_priority');
   const canEditDueDate = hasPermission('tickets.edit_due_date');
   const canViewInternalChatBtn = hasPermission('tickets.internal_chat');
@@ -547,6 +548,7 @@ export default function TicketDetailPage() {
     ticketDetailQuery.isLoading &&
     !ticket;
   const [selectedStatus, setSelectedStatus] = useState('Open');
+  const [selectedTicketType, setSelectedTicketType] = useState('Open');
   const [selectedPriority, setSelectedPriority] = useState('');
   const [selectedAssignee, setSelectedAssignee] = useState('');
   const [selectedDueDate, setSelectedDueDate] = useState('');
@@ -669,6 +671,11 @@ export default function TicketDetailPage() {
       })),
     [statusListQuery.data],
   );
+
+  const ticketTypesOptions = [
+    { label: 'Bug', value: 'bug' },
+    { label: 'Feature', value: 'feature_request' },
+  ];
 
   const assigneeOptions = useMemo(
     () =>
@@ -802,6 +809,7 @@ export default function TicketDetailPage() {
     }
 
     setSelectedStatus(ticket.status);
+    setSelectedTicketType(ticket.ticketType ?? '');
     setSelectedPriority(ticket.priorityKey ?? '');
     setSelectedAssignee(ticket.assigneeDetail?.name ?? '');
     setSelectedDueDate(toDateInputValue(ticket.dueDateValue ?? ''));
@@ -1133,6 +1141,27 @@ export default function TicketDetailPage() {
         title: ticket.title,
         description: ticket.description,
         statusKey: value,
+        ticketType: selectedTicketType,
+        priorityKey: selectedPriority,
+        assigneeId: selectedAssigneeId,
+        dueDate: selectedDueDate,
+      }),
+    );
+  };
+
+  const handleTicketTypeChange = async (value: string) => {
+    if (!canEditTicketType) {
+      return;
+    }
+
+    setSelectedStatus(value);
+
+    await updateTicketMutation.mutateAsync(
+      buildUpdateTicketPayload({
+        title: ticket.title,
+        description: ticket.description,
+        statusKey: selectedStatus,
+        ticketType: value,
         priorityKey: selectedPriority,
         assigneeId: selectedAssigneeId,
         dueDate: selectedDueDate,
@@ -1152,6 +1181,7 @@ export default function TicketDetailPage() {
         title: ticket.title,
         description: ticket.description,
         statusKey: selectedStatus,
+        ticketType: selectedTicketType,
         priorityKey: value,
         assigneeId: selectedAssigneeId,
         dueDate: selectedDueDate,
@@ -1174,6 +1204,7 @@ export default function TicketDetailPage() {
         title: ticket.title,
         description: ticket.description,
         statusKey: selectedStatus,
+        ticketType: selectedTicketType,
         priorityKey: selectedPriority,
         assigneeId: value,
         dueDate: selectedDueDate,
@@ -1197,6 +1228,7 @@ export default function TicketDetailPage() {
         title: ticket.title,
         description: ticket.description,
         statusKey: selectedStatus,
+        ticketType: selectedTicketType,
         priorityKey: selectedPriority,
         assigneeId: selectedAssigneeId,
         dueDate: value,
@@ -1403,6 +1435,7 @@ export default function TicketDetailPage() {
         title: nextTitle,
         description: nextDescription,
         statusKey: selectedStatus,
+        ticketType: selectedTicketType,
         priorityKey: selectedPriority,
         assigneeId: selectedAssigneeId,
         dueDate: selectedDueDate,
@@ -2050,6 +2083,20 @@ export default function TicketDetailPage() {
                         updateTicketMutation.isPending || !canEditStatus
                       }
                       onChange={handleStatusChange}
+                      applyHeight={false}
+                    />
+                  </div>
+                  <div className="grid items-center grid-cols-[60px_minmax(0,1fr)] 2xl:grid-cols-2 gap-2 2xl:gap-4">
+                    <span className="text-sm text-black font-normal">
+                      Ticket Type
+                    </span>
+                    <Dropdown
+                      options={ticketTypesOptions}
+                      value={selectedTicketType}
+                      disabled={
+                        updateTicketMutation.isPending || !canEditTicketType
+                      }
+                      onChange={handleTicketTypeChange}
                       applyHeight={false}
                     />
                   </div>
@@ -3169,6 +3216,7 @@ type ApiTicketDetail = {
   title: string;
   description: string;
   statusKey: string | null;
+  ticketType: string;
   priorityKey: string | null;
   reporterId: string | null;
   assigneeId: string | null;
@@ -3188,6 +3236,7 @@ type UpdateTicketRequest = Partial<{
   description: string;
   statusKey: string;
   priorityKey: string;
+  ticketType: string;
   assigneeId: string;
   dueDate: string;
 }>;
@@ -3198,6 +3247,7 @@ type UpdateTicketPayloadInput = {
   statusKey?: string | null;
   priorityKey?: string | null;
   assigneeId?: string | null;
+  ticketType: string;
   reporterId?: string | null;
   dueDate?: string | null;
 };
@@ -3245,6 +3295,7 @@ function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
       name: projectName,
     },
     status: ticket.statusKey ?? '',
+    ticketType: ticket.ticketType,
     priority: ticket.priorityKey ?? null,
     assignee: {
       name: assigneeName,
@@ -4043,7 +4094,6 @@ function MetaItem({
   );
 }
 
-
 function TicketDetailHeaderSkeleton() {
   return (
     <div className="relative flex w-full shrink-0 flex-col gap-2 overflow-hidden rounded-xl bg-[linear-gradient(to_right,#335C94_0%,#665932_25%,#7B398E_50%,#003F89_75%,#070922_100%)] px-4 pt-4 pb-2 xl:flex-row xl:items-center xl:gap-4 xl:px-7.5 xl:py-6">
@@ -4149,11 +4199,7 @@ function TicketActionsSkeleton() {
           >
             <div
               className={`h-3.5 rounded bg-gray-200 ${
-                index === 1
-                  ? 'w-12'
-                  : index === 2
-                    ? 'w-14'
-                    : 'w-11'
+                index === 1 ? 'w-12' : index === 2 ? 'w-14' : 'w-11'
               }`}
             />
 
@@ -4256,18 +4302,12 @@ function TicketPeopleSkeleton() {
   );
 }
 
-function TicketReplyBubbleSkeleton({
-  align,
-}: {
-  align: 'left' | 'right';
-}) {
+function TicketReplyBubbleSkeleton({ align }: { align: 'left' | 'right' }) {
   const isRight = align === 'right';
 
   return (
     <div
-      className={`flex items-start gap-3 ${
-        isRight ? 'flex-row-reverse' : ''
-      }`}
+      className={`flex items-start gap-3 ${isRight ? 'flex-row-reverse' : ''}`}
     >
       <div className="h-8 w-8 shrink-0 rounded-full bg-gray-200" />
 
@@ -4277,9 +4317,7 @@ function TicketReplyBubbleSkeleton({
         }`}
       >
         <div
-          className={`flex items-center gap-2 ${
-            isRight ? 'justify-end' : ''
-          }`}
+          className={`flex items-center gap-2 ${isRight ? 'justify-end' : ''}`}
         >
           <div className="h-3.5 w-24 rounded bg-gray-200" />
           <div className="h-3 w-16 rounded bg-gray-100" />
@@ -4327,7 +4365,6 @@ function TicketDetailSkeleton() {
     </div>
   );
 }
-
 
 function PersonCard({ person }: { person: TicketPerson }) {
   return (

@@ -18,6 +18,7 @@ import {
   ChatIcon,
   ProjectsIcon,
   ThreedotIcon,
+  TrashIcon,
 } from '../../../public/icons';
 import { useAppSelector } from '../../app/Redux/store';
 import EmptyState from '../EmptyState';
@@ -272,6 +273,7 @@ type RecentTicketsTableProps = {
   onSortChange?: (sortState: TicketSortState) => void;
   onEmptyButtonClick?: () => void;
   getQuickLinkItems?: (ticket: RecentTicket) => RecentTicketQuickLinkItem[];
+  onDeleteTickets?: (ticket: RecentTicket) => void;
   // internalScrollEnabled?: boolean;
 };
 
@@ -292,6 +294,7 @@ export default function RecentTicketsTable({
   sortState,
   onSortChange,
   getQuickLinkItems,
+  onDeleteTickets,
   // internalScrollEnabled = true,
 }: RecentTicketsTableProps) {
   const userType = useAppSelector((state) => state.auth.user?.userType);
@@ -516,6 +519,7 @@ export default function RecentTicketsTable({
                         <TicketQuickLinksPopover
                           ticket={row.original}
                           getQuickLinkItems={getQuickLinkItems}
+                          deleteTicket={onDeleteTickets}
                         />
                       </div>
                     </td>
@@ -620,82 +624,6 @@ export default function RecentTicketsTable({
   );
 }
 
-// function TicketMobileCard({
-//   ticket,
-//   onClick,
-//   showAssignee = true,
-// }: {
-//   ticket: RecentTicket;
-//   onClick?: (ticket: RecentTicket) => void;
-//   showAssignee?: boolean;
-// }) {
-//   return (
-//     <button
-//       type="button"
-//       onClick={() => onClick?.(ticket)}
-//       className={`w-full rounded-xl border border-gray-200 bg-white p-3 text-left transition ${
-//         onClick ? 'hover:border-gray-300' : ''
-//       }`}
-//     >
-//       <div className="flex items-start justify-between gap-3">
-//         {showAssignee ? (
-//           <div className="flex min-w-0 items-center gap-3">
-//             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-orange-200 to-slate-800 text-base font-medium text-white">
-//               {ticket.assignee.initials}
-//             </span>
-//             <div className="min-w-0">
-//               <p className="truncate text-base font-semibold text-gray-900">
-//                 {ticket.assignee.name}
-//               </p>
-//               <p className=" text-xs text-gray-600">{ticket.date}</p>
-//             </div>
-//           </div>
-//         ) : (
-//           <div className="min-w-0">
-//             <p className="text-xs text-gray-600">{ticket.date}</p>
-//           </div>
-//         )}
-
-//         <div className="flex shrink-0 items-center gap-2">
-//           {renderStatusBadge(ticket)}
-//           <span className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2 py-1 text-sm font-semibold text-gray-700 shadow-xs">
-//             <span
-//               className={`h-2 w-2 rounded-full ${
-//                 ticket.priorityColor
-//                   ? ''
-//                   : (priorityStyles[ticket.priority ?? ''] ?? 'bg-gray-400')
-//               }`}
-//               style={
-//                 ticket.priorityColor
-//                   ? { backgroundColor: ticket.priorityColor }
-//                   : undefined
-//               }
-//             />
-//             {ticket.priority ?? 'No Priority'}
-//           </span>
-//         </div>
-//       </div>
-
-//       <div className="my-3 h-px bg-gray-200" />
-
-//       <div className="flex items-center flex-wrap gap-3">
-//         <span className="flex px-2 shrink-0 items-center justify-center rounded-full  text-sm font-semibold text-gray-900">
-//           {ticket.ticketRefNo ?? ticket.id}
-//         </span>
-//         <p className="truncate text-sm text-gray-800">{ticket.title}</p>
-//       </div>
-
-//       <div className="mt-2">
-//         <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-purple-100 py-0.5 pr-3 pl-0.5 text-sm font-medium text-purple-700">
-//           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-medium">
-//             {ticket.project.initials}
-//           </span>
-//           {ticket.project.name}
-//         </span>
-//       </div>
-//     </button>
-//   );
-// }
 function TicketMobileCard({
   ticket,
   onClick,
@@ -880,9 +808,11 @@ function renderStatusBadge(ticket: RecentTicket) {
 function TicketQuickLinksPopover({
   ticket,
   getQuickLinkItems,
+  deleteTicket,
 }: {
   ticket: RecentTicket;
   getQuickLinkItems?: (ticket: RecentTicket) => RecentTicketQuickLinkItem[];
+  deleteTicket?: (ticket: RecentTicket) => void;
 }) {
   const quickLinkItems = getQuickLinkItems?.(ticket) ?? [];
 
@@ -927,6 +857,16 @@ function TicketQuickLinksPopover({
                 </Link>
               </MenuItem>
             ))}
+            {deleteTicket && (
+              <MenuItem>
+                <button
+                  className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm font-medium text-red-500 outline-none transition data-focus:bg-gray-100"
+                  onClick={() => deleteTicket(ticket)}
+                >
+                  <TrashIcon width="16" height="16" /> Delete Ticket
+                </button>
+              </MenuItem>
+            )}
           </MenuItems>
         </>
       )}
