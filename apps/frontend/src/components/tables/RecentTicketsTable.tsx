@@ -28,6 +28,7 @@ import {
   FilesTabIcon,
   NotesTabIcon,
 } from '../../app/(main-pages)/projects/[projectId]/page';
+import { usePermissions } from '../../app/providers/PermissionProvider';
 
 export type TicketStatus = string;
 export type TicketPriority = string;
@@ -318,6 +319,7 @@ export default function RecentTicketsTable({
   });
   const TICKETS_PAGE_SIZE_QUERY_PARAM = 'pageSize';
   const ALLOWED_TICKETS_PAGE_SIZES = [10, 25, 50, 100];
+  const { hasPermission } = usePermissions();
   const activePagination = controlledPagination ?? pagination;
   const totalRows = controlledTotalRows ?? tickets.length;
   const pageCount = Math.max(
@@ -519,7 +521,11 @@ export default function RecentTicketsTable({
                         <TicketQuickLinksPopover
                           ticket={row.original}
                           getQuickLinkItems={getQuickLinkItems}
-                          deleteTicket={onDeleteTickets}
+                          deleteTicket={
+                            hasPermission('tickets.delete')
+                              ? onDeleteTickets
+                              : undefined
+                          }
                         />
                       </div>
                     </td>
