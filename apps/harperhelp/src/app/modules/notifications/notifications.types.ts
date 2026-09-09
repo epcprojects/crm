@@ -166,6 +166,7 @@ export interface TicketCreatedPayload {
   description: string;
   priority: string;
   status: string;
+  ticketType: string;
   projectId: string;
   projectName: string;
   createdBy: EmailRecipient;

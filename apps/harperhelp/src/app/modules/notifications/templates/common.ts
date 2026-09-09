@@ -1375,6 +1375,7 @@ export function buildTicketCreatedEmail(
       value: p.status,
       badgeColor: STATUS_COLOR[p.status.toLowerCase()] ?? '#6B7280',
     },
+    {label: 'Type', value: p.ticketType},
     ...(p.priority
       ? [
           {

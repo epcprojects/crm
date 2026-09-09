@@ -198,6 +198,7 @@ export class TicketsService {
           description: saved.description || '',
           priority: saved.priorityKey || '',
           status: saved.statusKey || '',
+          ticketType: saved.ticketType || '',
           projectId: ticket.project?.id || '',
           projectName: ticket.project?.name || '',
           createdBy: {
