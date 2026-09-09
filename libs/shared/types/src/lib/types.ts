@@ -55,6 +55,7 @@ export enum NotificationType {
   THREAD_MESSAGE_REACTION = 'thread_message_reaction',
   THREAD_REPLY_REACTION = 'thread_reply_reaction',
   TICKET_STATUS_CHANGED = 'ticket_status_changed',
+  TICKET_TYPE_CHANGED = 'ticket_type_changed',
   TICKET_PRIORITY_CHANGED = 'ticket_priority_changed',
   TICKET_ASSIGNEE_CHANGED = 'ticket_assignee_changed',
   TICKET_TITLE_CHANGED = 'ticket_title_changed',

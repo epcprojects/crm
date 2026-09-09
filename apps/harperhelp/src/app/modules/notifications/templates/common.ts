@@ -16,6 +16,7 @@ import {
   ThreadReplyMentionedPayload,
   ThreadMessageMentionedPayload,
   TicketInternalMessageMentionedPayload,
+  TicketTypeUpdatedPayload,
   // EmailAttachmentLink,
 } from '../notifications.types';
 
@@ -32,6 +33,11 @@ const STATUS_COLOR: Record<string, string> = {
   resolved: '#10B981',
   closed: '#6B7280',
   on_hold: '#F59E0B',
+};
+
+const TICKET_TYPE_COLOR: Record<string, string> = {
+  bug: '#e01515',
+  feature: '#28b0e6',
 };
 
 const EXTENSION_ICON_MAP: Record<string, string> = {
@@ -394,6 +400,16 @@ function getStatusPillColors(status: string): {
 } {
   return pillColorsFromHex(
     STATUS_COLOR_HEX[normalizeKey(status)] ?? DEFAULT_COLOR_HEX,
+  );
+}
+
+function getTypePillColors(status: string): {
+  border: string;
+  bg: string;
+  text: string;
+} {
+  return pillColorsFromHex(
+    TICKET_TYPE_COLOR[normalizeKey(status)] ?? DEFAULT_COLOR_HEX,
   );
 }
 
@@ -1375,7 +1391,7 @@ export function buildTicketCreatedEmail(
       value: p.status,
       badgeColor: STATUS_COLOR[p.status.toLowerCase()] ?? '#6B7280',
     },
-    {label: 'Type', value: p.ticketType},
+    {label: 'Type', value: p.ticketType, badgeColor: TICKET_TYPE_COLOR[p.ticketType.toLowerCase()] ?? '#6B7280'},
     ...(p.priority
       ? [
           {
@@ -1442,6 +1458,42 @@ export function buildStatusUpdatedEmail(
 
   return {
     subject: `[${p.ticketNumber}] Status changed to ${p.newStatus}`,
+    html,
+  };
+}
+
+export function buildTypeUpdatedEmail(
+  p: TicketTypeUpdatedPayload,
+  appUrl: string,
+): { subject: string; html: string } {
+  const rows: DataRow[] = [
+    { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
+    { label: 'Project', value: p.projectName },
+    { label: 'Updated by', value: p.updatedBy.name },
+    {
+      label: 'Update',
+      value: '',
+      compound: {
+        prefix: 'Type changed to',
+        badgeText: p.newTicketType,
+        colors: getTypePillColors(p.newTicketType),
+      },
+    },
+  ];
+
+  const html = renderNotificationEmail({
+    appUrl,
+    iconFileName: 'TicketUpdatedIcon.png',
+    title: 'Ticket Updated',
+    subheading: `Ticket ${p.ticketNumber} has been updated.`,
+    rows,
+    buttonText: 'View Ticket',
+    buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}`,
+    showReplyCallout: false,
+  });
+
+  return {
+    subject: `[${p.ticketNumber}] Type changed to ${p.newTicketType}`,
     html,
   };
 }
