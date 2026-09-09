@@ -41,6 +41,7 @@ export const MODULE_DEFINITIONS: {
       'create',
       'delete',
       'edit_status',
+      'edit_type',
       'edit_priority',
       'edit_assignee',
       'edit_due_date',
