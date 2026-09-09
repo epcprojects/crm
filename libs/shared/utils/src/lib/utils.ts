@@ -39,6 +39,7 @@ export const MODULE_DEFINITIONS: {
       'view_list',
       'view_detail',
       'create',
+      'delete',
       'edit_status',
       'edit_priority',
       'edit_assignee',
