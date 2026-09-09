@@ -337,7 +337,9 @@ export class TicketsService {
     }
 
     if (query.ticketType) {
-      qb.andWhere('t.ticketType = :ticketType', { ticketType: query.ticketType });
+      qb.andWhere('t.ticketType = :ticketType', {
+        ticketType: query.ticketType,
+      });
     }
 
     if (query.assigneeId) {
@@ -463,7 +465,9 @@ export class TicketsService {
     }
 
     if (query.ticketType) {
-      qb.andWhere('t.ticketType = :ticketType', { ticketType: query.ticketType });
+      qb.andWhere('t.ticketType = :ticketType', {
+        ticketType: query.ticketType,
+      });
     }
 
     if (query.priorityKey) {
@@ -593,7 +597,7 @@ export class TicketsService {
       't.createdAt',
       't.ticketRefNo',
       't.dueDate',
-      't.ticketType', 
+      't.ticketType',
 
       'p.id',
       'p.name',
@@ -1168,12 +1172,17 @@ export class TicketsService {
 
   // ---------------- DELETE (SOFT) ----------------
   async remove(projectId: string, ticketId: string, userId: string) {
-    const ticket = await this.findEntity(projectId, ticketId);
-
-    ticket.updatedBy = userId;
+    const ticket = await this.findEntity(projectId, ticketId, userId);
 
     await this.ticketRepo.softRemove(ticket);
+
+    await this.ticketRepo.update(ticket.id, {
+      isActive: false,
+      updatedBy: userId,
+    });
+
     const fullname = await this.usersService.getFullName(userId);
+
     await this.notificationsService.notifyProjectMembers({
       projectId: ticket.projectId,
       actorId: userId,
@@ -1272,7 +1281,7 @@ export class TicketsService {
       't.createdAt',
       't.ticketRefNo',
       't.dueDate',
-      't.ticketType', 
+      't.ticketType',
 
       'p.id',
       'p.name',
@@ -1338,7 +1347,21 @@ export class TicketsService {
     }
   }
 
-  private async findEntity(projectId: string, ticketId: string) {
+  private async findEntity(
+    projectId: string,
+    ticketId: string,
+    userId: string,
+  ) {
+    const isMember = await this.projectRepo
+      .createQueryBuilder('p')
+      .innerJoin('p.members', 'm', 'm.id = :userId', { userId })
+      .where('p.id = :projectId', { projectId })
+      .getExists();
+
+    if (!isMember) {
+      throw new ForbiddenException('You do not have access to this ticket');
+    }
+
     const ticket = await this.ticketRepo.findOne({
       where: { id: ticketId, projectId },
       relations: {
@@ -1375,7 +1398,9 @@ export class TicketsService {
     }
 
     if (query.ticketType) {
-      qb.andWhere('t.ticketType = :ticketType', { ticketType: query.ticketType });
+      qb.andWhere('t.ticketType = :ticketType', {
+        ticketType: query.ticketType,
+      });
     }
 
     const search = query.search?.trim();
@@ -1455,7 +1480,9 @@ export class TicketsService {
     }
 
     if (query.ticketType) {
-      qb.andWhere('t.ticketType = :ticketType', { ticketType: query.ticketType });
+      qb.andWhere('t.ticketType = :ticketType', {
+        ticketType: query.ticketType,
+      });
     }
 
     // Count per status — clone BEFORE select/order so it reflects all matching tickets,
@@ -1494,7 +1521,7 @@ export class TicketsService {
       't.dueDate',
       't.createdAt',
       't.statusKey',
-      't.ticketType', 
+      't.ticketType',
 
       'p.id',
       'p.name',
@@ -1597,7 +1624,7 @@ export class TicketsService {
   //     't.dueDate',
   //     't.createdAt',
   //     't.statusKey',
-  //     't.ticketType', 
+  //     't.ticketType',
   //     'p.id',
   //     'p.name',
   //     'p.brandColor',
@@ -1773,7 +1800,9 @@ export class TicketsService {
     }
 
     if (query.ticketType) {
-      baseQb.andWhere('t.ticketType = :ticketType', { ticketType: query.ticketType });
+      baseQb.andWhere('t.ticketType = :ticketType', {
+        ticketType: query.ticketType,
+      });
     }
 
     const search = query.search?.trim();
