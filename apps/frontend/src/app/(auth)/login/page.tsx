@@ -62,8 +62,8 @@ export default async function Page({ searchParams }: PageProps) {
       redirect(RETURN_URL_FALLBACK_PATH);
     }
 
-    return <LoginPageClient />;
+    return <LoginPageClient hasSessionCookie={true} />;
   }
 
-  return <LoginPageClient />;
+  return <LoginPageClient hasSessionCookie={false} />;
 }

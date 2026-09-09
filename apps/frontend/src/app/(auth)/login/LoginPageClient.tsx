@@ -22,6 +22,7 @@ import ThemeInput from '../../../components/ui/ThemeInput';
 import ForgotPasswordModal from '../../../components/modals/ForgotPasswordModal';
 import ThemeButton from '../../../components/ui/ThemeButton';
 import { resolveAuthorizedReturnUrl } from '../../../lib/auth/return-url';
+import { clearAuthState } from '../../Redux/slices/auth/authSlice';
 
 type LoginFormValues = {
   email: string;
@@ -40,20 +41,43 @@ const loginSchema = yup.object({
     .required('Password is required'),
 });
 
-export default function LoginPageClient() {
+export default function LoginPageClient({
+  hasSessionCookie,
+}: {
+  hasSessionCookie: boolean;
+}) {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get('returnurl');
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
   const hasRedirectedRef = useRef(false);
+  const [reconciledCookieState, setReconciledCookieState] = useState<
+    boolean | null
+  >(null);
+  const isSessionReconciled = reconciledCookieState === hasSessionCookie;
   const authStatus = useAppSelector(selectAuthStatus);
   const authError = useAppSelector(selectAuthError);
   const authProfile = useAppSelector(selectAuthProfile);
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
 
   useEffect(() => {
-    if (!isAuthenticated || !authProfile || hasRedirectedRef.current) {
+    // The root layout survives client navigation. A server redirect to login
+    // must invalidate its in-memory user when the session cookie is gone.
+    if (!hasSessionCookie) {
+      dispatch(clearAuthState());
+      hasRedirectedRef.current = false;
+    }
+    setReconciledCookieState(hasSessionCookie);
+  }, [dispatch, hasSessionCookie]);
+
+  useEffect(() => {
+    if (
+      !isSessionReconciled ||
+      !isAuthenticated ||
+      !authProfile ||
+      hasRedirectedRef.current
+    ) {
       return;
     }
 
@@ -69,7 +93,7 @@ export default function LoginPageClient() {
     };
 
     void redirectAuthenticatedUser();
-  }, [authProfile, isAuthenticated, router, searchParams]);
+  }, [authProfile, isAuthenticated, isSessionReconciled, router, searchParams]);
 
   const formik = useFormik<LoginFormValues>({
     initialValues: {
@@ -101,8 +125,16 @@ export default function LoginPageClient() {
 
   const shouldHideLoginUi = Boolean(returnUrl) && authStatus === 'loading';
 
-  if (shouldHideLoginUi || isAuthenticated) {
+  if (!isSessionReconciled || shouldHideLoginUi || isAuthenticated) {
     return null;
+    // (
+    //   <div
+    //     role="status"
+    //     className="flex flex-1 items-center justify-center p-8"
+    //   >
+    //     Checking your session…
+    //   </div>
+    // );
   }
 
   return (

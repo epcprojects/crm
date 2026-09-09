@@ -165,6 +165,7 @@ export const fetchMyProfileThunk = createAsyncThunk<
   try {
     const res = await fetch('/api/auth/user', {
       method: 'GET',
+      cache: 'no-store',
       credentials: 'include',
       headers: {
         Accept: 'application/json',
@@ -176,6 +177,10 @@ export const fetchMyProfileThunk = createAsyncThunk<
     if (!res.ok) {
       if (res.status === 401) return rejectWithValue('Unauthorized');
       return rejectWithValue(data?.message || 'Unable to fetch profile.');
+    }
+
+    if (data?.authenticated === false) {
+      return rejectWithValue('Unauthorized');
     }
 
     const profile = toUserProfile(data);
