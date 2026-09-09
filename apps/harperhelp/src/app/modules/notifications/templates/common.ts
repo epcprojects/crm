@@ -1435,7 +1435,7 @@ export function buildStatusUpdatedEmail(
     { label: 'Project', value: p.projectName },
     { label: 'Updated by', value: p.updatedBy.name },
     {
-      label: 'Update',
+      label: 'Updated Status',
       value: '',
       compound: {
         prefix: 'Status changed to',
@@ -1449,7 +1449,7 @@ export function buildStatusUpdatedEmail(
     appUrl,
     iconFileName: 'TicketUpdatedIcon.png',
     title: 'Ticket Updated',
-    subheading: `Ticket ${p.ticketNumber} has been updated.`,
+    subheading: `Ticket ${p.ticketNumber} Status has been updated.`,
     rows,
     buttonText: 'View Ticket',
     buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}`,
@@ -1471,7 +1471,7 @@ export function buildTypeUpdatedEmail(
     { label: 'Project', value: p.projectName },
     { label: 'Updated by', value: p.updatedBy.name },
     {
-      label: 'Update',
+      label: 'Updated Type',
       value: '',
       compound: {
         prefix: 'Type changed to',
@@ -1485,7 +1485,7 @@ export function buildTypeUpdatedEmail(
     appUrl,
     iconFileName: 'TicketUpdatedIcon.png',
     title: 'Ticket Updated',
-    subheading: `Ticket ${p.ticketNumber} has been updated.`,
+    subheading: `Ticket ${p.ticketNumber} Type has been updated.`,
     rows,
     buttonText: 'View Ticket',
     buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}`,
@@ -1509,7 +1509,7 @@ export function buildDueDateUpdatedEmail(
     { label: 'Project', value: p.projectName },
     { label: 'Updated by', value: p.updatedBy.name },
     {
-      label: 'Update',
+      label: 'Updated Due Date',
       value: '',
       compound: {
         prefix: 'Due date changed to',
@@ -1523,7 +1523,7 @@ export function buildDueDateUpdatedEmail(
     appUrl,
     iconFileName: 'TicketUpdatedIcon.png',
     title: 'Ticket Updated',
-    subheading: `Ticket ${p.ticketNumber} has been updated.`,
+    subheading: `Ticket ${p.ticketNumber} Due Date has been updated.`,
     rows,
     buttonText: 'View Ticket',
     buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}`,
@@ -1545,7 +1545,7 @@ export function buildPriorityUpdatedEmail(
     { label: 'Project', value: p.projectName },
     { label: 'Updated by', value: p.updatedBy.name },
     {
-      label: 'Update',
+      label: 'Updated Priority',
       value: '',
       compound: {
         prefix: 'Priority changed to',
