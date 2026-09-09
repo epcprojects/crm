@@ -4097,7 +4097,7 @@ function MetaItem({
         content={''}
         hide={hideTooltip}
       >
-        <p className="sm:mt-1 flex items-center gap-1 text-sm whitespace-break-spaces sm:text-base font-semibold  text-white">
+        <p className="sm:mt-1 flex items-center gap-1  text-sm whitespace-break-spaces sm:text-base font-semibold  text-white">
           {value === 'bug' ? (
             <BugIcon />
           ) : value === 'feature_request' ? (
@@ -4105,11 +4105,13 @@ function MetaItem({
           ) : (
             ''
           )}
-          {value === 'feature_request'
-            ? 'Feature'
-            : value === 'bug'
-              ? 'Bug'
-              : value}
+          <span className="line-clamp-1!">
+            {value === 'feature_request'
+              ? 'Feature'
+              : value === 'bug'
+                ? 'Bug'
+                : value}
+          </span>
         </p>
       </Tooltip>
     </div>
