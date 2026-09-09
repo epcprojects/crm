@@ -15,7 +15,9 @@ import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import ThemeButton from '../ui/ThemeButton';
 import {
   ArrowUpRightIcon,
+  BugIcon,
   ChatIcon,
+  FeatureIcon,
   ProjectsIcon,
   ThreedotIcon,
   TrashIcon,
@@ -89,11 +91,19 @@ function formatTicketType(ticketType?: string | null) {
   }
 
   if (ticketType === 'feature_request') {
-    return 'Feature';
+    return (
+      <span className="flex items-center gap-1">
+        <FeatureIcon /> Feature
+      </span>
+    );
   }
 
   if (ticketType === 'bug') {
-    return 'Bug';
+    return (
+      <span className="flex items-center gap-1">
+        <BugIcon /> Bug
+      </span>
+    );
   }
 
   return ticketType
@@ -121,10 +131,30 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     accessorKey: 'id',
     header: 'Reference No',
     cell: ({ row }) => (
-      <span className="font-normal text-gray-900 text-sm">
+      <span className="font-normal whitespace-nowrap text-gray-900 text-sm">
         {row.original.ticketRefNo ?? row.original.id}
       </span>
     ),
+  },
+  {
+    id: 'ticketType',
+    accessorKey: 'ticketType',
+    header: 'Type',
+    cell: ({ row }) => {
+      const ticketType = row.original.ticketType;
+
+      if (ticketType !== 'bug' && ticketType !== 'feature_request') {
+        return <span className="text-sm text-gray-500">--</span>;
+      }
+
+      return (
+        <span
+          className={`inline-flex items-center whitespace-nowrap px-2 py-1 text-xs text-center font-medium`}
+        >
+          {formatTicketType(ticketType)}
+        </span>
+      );
+    },
   },
   {
     id: 'title',
@@ -198,30 +228,7 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
       </span>
     ),
   },
-  {
-    id: 'ticketType',
-    accessorKey: 'ticketType',
-    header: 'Type',
-    cell: ({ row }) => {
-      const ticketType = row.original.ticketType;
 
-      if (ticketType !== 'bug' && ticketType !== 'feature_request') {
-        return <span className="text-sm text-gray-500">--</span>;
-      }
-
-      return (
-        <span
-          className={`inline-flex items-center whitespace-nowrap rounded-full border px-2 py-1 text-xs font-medium ${
-            ticketType === 'bug'
-              ? 'border-red-200 bg-red-50 text-red-600'
-              : 'border-blue-200 bg-blue-50 text-blue-600'
-          }`}
-        >
-          {formatTicketType(ticketType)}
-        </span>
-      );
-    },
-  },
   {
     id: 'Creater',
     accessorKey: 'reporter.fullname',
@@ -311,7 +318,6 @@ export default function RecentTicketsTable({
 
     return true;
   });
-  const shouldShowQuickLinks = Boolean(getQuickLinkItems);
 
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -320,6 +326,9 @@ export default function RecentTicketsTable({
   const TICKETS_PAGE_SIZE_QUERY_PARAM = 'pageSize';
   const ALLOWED_TICKETS_PAGE_SIZES = [10, 25, 50, 100];
   const { hasPermission } = usePermissions();
+  const shouldShowQuickLinks = Boolean(
+    getQuickLinkItems || (onDeleteTickets && hasPermission('tickets.delete')),
+  );
   const activePagination = controlledPagination ?? pagination;
   const totalRows = controlledTotalRows ?? tickets.length;
   const pageCount = Math.max(
@@ -446,7 +455,7 @@ export default function RecentTicketsTable({
         )}
       </div>
 
-      <div className="hidden min-h-0 flex-1 overflow-x-auto overflow-y-auto scrollbar-hide xl:block">
+      <div className="hidden min-h-0 flex-1 overflow-x-auto overflow-y-auto scrollbar-thin xl:block">
         <table className="w-full  min-w-220 text-left">
           <thead className="bg-gray-50">
             {table.getHeaderGroups().map((headerGroup) => (
@@ -822,7 +831,7 @@ function TicketQuickLinksPopover({
 }) {
   const quickLinkItems = getQuickLinkItems?.(ticket) ?? [];
 
-  if (!quickLinkItems.length) {
+  if (!quickLinkItems.length && !deleteTicket) {
     return null;
   }
 

@@ -38,10 +38,12 @@ import {
 import { usePermissions } from '../../../providers/PermissionProvider';
 import { useAppSelector } from '../../../Redux/store';
 import {
+  BugIcon,
   ChatIcon,
   DownloadIcon,
   EditIcon,
   EyeOpenedIcon,
+  FeatureIcon,
   FileTypePlaceholder,
   ProjectsIcon,
   ThreedotIcon,
@@ -70,6 +72,7 @@ import {
 } from '../../projects/[projectId]/page';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import TicketDescriptionModal from 'apps/frontend/src/components/modals/TicketDescriptionModal';
+import { Span } from 'next/dist/trace';
 const MAX_DESCRIPTION_LENGTH = 4000;
 const TICKET_REPLIES_PAGE_SIZE = 30;
 
@@ -664,7 +667,7 @@ export default function TicketDetailPage() {
         value: status.key,
         icon: (
           <span
-            className="inline-block h-2.25 w-2.5 rounded-full"
+            className="inline-block h-2.5 w-2.5 rounded-full"
             style={{ backgroundColor: status.color }}
           />
         ),
@@ -673,8 +676,8 @@ export default function TicketDetailPage() {
   );
 
   const ticketTypesOptions = [
-    { label: 'Bug', value: 'bug' },
-    { label: 'Feature', value: 'feature_request' },
+    { label: 'Bug', value: 'bug', icon: <BugIcon /> },
+    { label: 'Feature', value: 'feature_request', icon: <FeatureIcon /> },
   ];
 
   const assigneeOptions = useMemo(
@@ -692,7 +695,7 @@ export default function TicketDetailPage() {
         value: priority.key,
         icon: (
           <span
-            className="inline-block h-2.25 w-2.5 rounded-full"
+            className="inline-block h-2.5 w-2.5 rounded-full"
             style={{ backgroundColor: priority.color }}
           />
         ),
@@ -1739,7 +1742,7 @@ export default function TicketDetailPage() {
               />
             </button>
 
-            <div className="hidden  gap-4 w-full xl:grid sm:grid-cols-5">
+            <div className="hidden  gap-4 w-full xl:grid sm:grid-cols-6">
               <MetaItem
                 label="Ticket ID"
                 value={`${ticket.ticketRefNo ?? ticket.id}`}
@@ -1756,6 +1759,14 @@ export default function TicketDetailPage() {
                 hideTooltip={false}
                 value={ticket.project.name}
               />
+
+              {ticket.ticketType && (
+                <MetaItem
+                  label="Ticket Type"
+                  hideTooltip={false}
+                  value={ticket.ticketType}
+                />
+              )}
 
               {ticket.dueDate ? (
                 <div>
@@ -4086,8 +4097,19 @@ function MetaItem({
         content={''}
         hide={hideTooltip}
       >
-        <p className="sm:mt-1 text-sm whitespace-break-spaces sm:text-base font-semibold  text-white">
-          {value}
+        <p className="sm:mt-1 flex items-center gap-1 text-sm whitespace-break-spaces sm:text-base font-semibold  text-white">
+          {value === 'bug' ? (
+            <BugIcon />
+          ) : value === 'feature_request' ? (
+            <FeatureIcon />
+          ) : (
+            ''
+          )}
+          {value === 'feature_request'
+            ? 'Feature'
+            : value === 'bug'
+              ? 'Bug'
+              : value}
         </p>
       </Tooltip>
     </div>

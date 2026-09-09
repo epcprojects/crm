@@ -2033,7 +2033,7 @@ function mapTicketSettingToDropdownOption(setting: ApiTicketSetting) {
     value: setting.key,
     icon: (
       <span
-        className="inline-block h-2.25 w-2.5 rounded-full"
+        className="inline-block h-2.5 w-2.5 rounded-full"
         style={{
           backgroundColor: setting.color,
         }}
@@ -2393,6 +2393,7 @@ function mapApiDashboardTicketToTicketListItem(
       ? ticket.project.brandColor
       : '#df169c',
     tag: priorityLabel,
+    ticketType: ticket.ticketType ?? '',
     tagClassName: getPriorityTagClassName(priorityLabel),
     icon: getInitials(projectName),
     iconClassName: 'border-purple-200 bg-purple-50 text-purple-700',
@@ -2409,6 +2410,7 @@ function mapRecentTicketToTicketListItem(
     projectId: ticket.project.id,
     title: ticket.title,
     date: ticket.date,
+    ticketType: ticket.ticketType ?? '',
     owner: ticket.project.name,
     ownerColor: 'border-purple-200 bg-purple-50 text-purple-700',
     tag: priorityLabel,

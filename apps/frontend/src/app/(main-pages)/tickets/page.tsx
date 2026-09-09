@@ -22,8 +22,10 @@ import TicketsKanbanView, {
 import { appToast } from '../../../components/toast/AppToast';
 import Dropdown from '../../../components/ui/ThemeDropDown';
 import {
+  BugIcon,
   CloseIcon,
   DownloadIcon,
+  FeatureIcon,
   FiltersIcon,
   PlusIcon,
   SearchIcon,
@@ -138,8 +140,8 @@ export default function Page() {
   );
   const ticketTypeFilterOptions = [
     { label: 'All Types', value: 'all' },
-    { label: 'Bug', value: 'bug' },
-    { label: 'Feature', value: 'feature_request' },
+    { label: 'Bug', value: 'bug', icon: <BugIcon /> },
+    { label: 'Feature', value: 'feature_request', icon: <FeatureIcon /> },
   ];
   const selectedProjectIds = getTicketsProjectFilterValues(
     searchParams.getAll(TICKETS_PROJECT_QUERY_PARAM),
@@ -744,6 +746,12 @@ export default function Page() {
         projectId: ticketToDelete.projectId,
         ticketId: ticketToDelete.ticketId,
       });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['dashboard-kanban-board'] }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard-kanban-ticket-counts'],
+        }),
+      ]);
       appToast.success('Ticket deleted successfully.');
       setTicketToDelete(null);
     } catch (error) {
@@ -1711,6 +1719,15 @@ export default function Page() {
                   ) : viewMode === 'kanban' ? (
                     <TicketsKanbanView
                       tickets={kanbanTickets}
+                      onDeleteTicket={
+                        canDeleteTicket
+                          ? (ticket) => setTicketToDelete({
+                              projectId: ticket.project.id ?? '',
+                              ticketId: ticket.id,
+                              name: ticket.title,
+                            })
+                          : undefined
+                      }
                       statusOptions={kanbanStatusOptions}
                       statusCountsByKey={kanbanCountsQuery.data ?? {}}
                       hasMoreByStatus={kanbanHasMoreByStatus}
@@ -2416,7 +2433,7 @@ function mapTicketSettingToDropdownOption(setting: ApiTicketSetting) {
     value: setting.key,
     icon: (
       <span
-        className="inline-block h-2.25 w-2.5 rounded-full"
+        className="inline-block h-2.5 w-2.5 rounded-full"
         style={{ backgroundColor: setting.color }}
       />
     ),

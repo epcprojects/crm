@@ -67,6 +67,8 @@ import {
   TrashIcon,
   CloseIcon,
   ThreadIcon,
+  FeatureIcon,
+  BugIcon,
 } from '../../../../../public/icons';
 import Dropdown from '../../../../components/ui/ThemeDropDown';
 import ThemeButton from '../../../../components/ui/ThemeButton';
@@ -85,6 +87,7 @@ import {
   useCreateProjectNoteMutation,
   useDeleteProjectNoteMutation,
   useDeleteProjectFileMutation,
+  useDeleteTicketMutation,
   useProjectDetailQuery,
   useProjectFilesQuery,
   useProjectNamesQuery,
@@ -166,6 +169,7 @@ export default function ProjectDetailPage() {
   const canViewTickets = hasPermission('tickets.view_list');
   const canViewTicketDetail = hasPermission('tickets.view_detail');
   const canCreateTicket = hasPermission('tickets.create');
+  const canDeleteTicket = hasPermission('tickets.delete');
   const canFilterTickets = hasPermission('tickets.filter');
   const canViewThread = hasPermission('thread.view');
   const canEditThread = hasPermission('thread.edit');
@@ -187,6 +191,9 @@ export default function ProjectDetailPage() {
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [uploadFileOpen, setUploadFileOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
+  const [ticketToDelete, setTicketToDelete] = useState<RecentTicket | null>(
+    null,
+  );
   const debouncedSearchValue = useDebouncedValue(searchValue);
   const [fileSearchValue, setFileSearchValue] = useState('');
   const [notesSearchValue, setNotesSearchValue] = useState('');
@@ -263,8 +270,8 @@ export default function ProjectDetailPage() {
 
   const ticketTypeFilterOptions = [
     { label: 'All Types', value: 'all' },
-    { label: 'Bug', value: 'bug' },
-    { label: 'Feature', value: 'feature_request' },
+    { label: 'Bug', value: 'bug', icon: <BugIcon /> },
+    { label: 'Feature', value: 'feature_request', icon: <FeatureIcon /> },
   ];
   const projectTicketsViewMode =
     searchParams.get(PROJECT_TICKETS_VIEW_QUERY_PARAM) === 'kanban'
@@ -327,6 +334,7 @@ export default function ProjectDetailPage() {
   const createProjectNoteMutation = useCreateProjectNoteMutation();
   const updateProjectNoteMutation = useUpdateProjectNoteMutation();
   const deleteProjectNoteMutation = useDeleteProjectNoteMutation();
+  const deleteTicketMutation = useDeleteTicketMutation();
   const projectNotesQuery = useProjectNotesQuery(
     projectId,
     {
@@ -1758,6 +1766,39 @@ export default function ProjectDetailPage() {
     }
   };
 
+  const handleDeleteTicket = async () => {
+    if (!ticketToDelete || !canDeleteTicket) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await deleteTicketMutation.mutateAsync({
+        projectId,
+        ticketId: ticketToDelete.id,
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: [...projectTicketsQueryKey, projectId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['project-kanban-board', projectId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['project-kanban-counts', projectId],
+        }),
+      ]);
+      appToast.success('Ticket deleted successfully.');
+      setTicketToDelete(null);
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to delete ticket.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDeleteFile = async () => {
     if (!fileToDelete) {
       return;
@@ -2462,6 +2503,9 @@ export default function ProjectDetailPage() {
                       ) : projectTicketsViewMode === 'kanban' ? (
                         <TicketsKanbanView
                           tickets={projectKanbanTickets}
+                          onDeleteTicket={
+                            canDeleteTicket ? setTicketToDelete : undefined
+                          }
                           statusOptions={kanbanStatusOptions}
                           statusCountsByKey={
                             projectKanbanCountsQuery.data ?? {}
@@ -2497,6 +2541,9 @@ export default function ProjectDetailPage() {
                       ) : (
                         <RecentTicketsTable
                           tickets={projectTickets}
+                          onDeleteTickets={
+                            canDeleteTicket ? setTicketToDelete : undefined
+                          }
                           enablePagination
                           pageSizeOptions={[10, 25, 50, 100]}
                           pagination={ticketsPagination}
@@ -3413,6 +3460,26 @@ export default function ProjectDetailPage() {
         disableProjectSelection
       />
 
+      <ConfirmActionModal
+        isOpen={Boolean(ticketToDelete) && canDeleteTicket}
+        onClose={() => setTicketToDelete(null)}
+        title="Delete Ticket?"
+        message={
+          <>
+            Are you sure you want to delete{' '}
+            <span className="font-semibold">
+              “{ticketToDelete?.title ?? 'this ticket'}”
+            </span>
+            ? This action cannot be undone.
+          </>
+        }
+        confirmLabel="Yes, Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isSubmitting={deleteTicketMutation.isPending}
+        onConfirm={handleDeleteTicket}
+      />
+
       <UploadFileModal
         isOpen={uploadFileOpen && canUploadFiles}
         onClose={() => setUploadFileOpen(false)}
@@ -3771,7 +3838,7 @@ function mapTicketSettingToDropdownOption(setting: ApiTicketSetting) {
     value: setting.key,
     icon: (
       <span
-        className="inline-block h-2.25 w-2.5 rounded-full"
+        className="inline-block h-2.5 w-2.5 rounded-full"
         style={{
           backgroundColor: setting.color,
         }}

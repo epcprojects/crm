@@ -8,7 +8,12 @@ import AppModal from './AppModal';
 import ThemeInput from '../ui/ThemeInput';
 import Dropdown from '../ui/ThemeDropDown';
 import { type CreateTicketDropdownOption } from './create-ticket-modal.data';
-import { CloseIcon, FileTypePlaceholder } from '../../../public/icons';
+import {
+  BugIcon,
+  CloseIcon,
+  FeatureIcon,
+  FileTypePlaceholder,
+} from '../../../public/icons';
 import { useAppSelector } from '../../app/Redux/store';
 import { appToast } from '../toast/AppToast';
 import {
@@ -33,14 +38,8 @@ export type CreateTicketFormValues = {
 const MAX_TITLE_LENGTH = 250;
 const MAX_DESCRIPTION_LENGTH = 4000;
 const ticketTypeOptions = [
-  {
-    label: 'Feature',
-    value: 'feature_request',
-  },
-  {
-    label: 'Bug',
-    value: 'bug',
-  },
+  { label: 'Bug', value: 'bug', icon: <BugIcon /> },
+  { label: 'Feature', value: 'feature_request', icon: <FeatureIcon /> },
 ];
 function getRichTextPlainText(value?: string) {
   if (!value) {
@@ -163,7 +162,7 @@ export default function CreateTicketModal({
         value: status.key,
         icon: (
           <span
-            className="inline-block h-2.25 w-2.5 rounded-full"
+            className="inline-block h-2.5 w-2.5 rounded-full"
             style={{ backgroundColor: status.color }}
           />
         ),
@@ -189,7 +188,7 @@ export default function CreateTicketModal({
         value: priority.key,
         icon: (
           <span
-            className="inline-block h-2.25 w-2.5 rounded-full"
+            className="inline-block h-2.5 w-2.5 rounded-full"
             style={{ backgroundColor: priority.color }}
           />
         ),
@@ -293,6 +292,27 @@ export default function CreateTicketModal({
       {/* space-y-4 p-4 md:p-5 */}
       <div className="grid grid-cols-1 xl:grid-cols-2 divide-x divide-gray-200">
         <div className="space-y-4 p-4 md:p-5">
+          <div className="min-w-0 w-full">
+            <Dropdown
+              label="Ticket Type"
+              required
+              options={ticketTypeOptions}
+              value={formik.values.ticketType}
+              onChange={(value) =>
+                void formik.setFieldValue(
+                  'ticketType',
+                  value as CreateTicketFormValues['ticketType'],
+                )
+              }
+              error={Boolean(
+                formik.touched.ticketType && formik.errors.ticketType,
+              )}
+              errorMessage={
+                formik.touched.ticketType ? formik.errors.ticketType : ''
+              }
+              placeholder="Select type"
+            />
+          </div>
           <Dropdown
             label="Project"
             required
@@ -322,7 +342,7 @@ export default function CreateTicketModal({
             errorText={formik.touched.title ? formik.errors.title : ''}
             placeholder="Enter ticket title"
           />
-          <div className="-mt-2 flex items-center justify-end">
+          <div className="-mt-8 flex items-center justify-end">
             <p className="shrink-0 text-xs text-gray-500">
               {formik.values.title.length}/{MAX_TITLE_LENGTH}
             </p>
@@ -402,8 +422,8 @@ export default function CreateTicketModal({
             />
             {/* )} */}
 
-            <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 col-span-2">
-              <div className="min-w-0 w-full">
+            <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-1 col-span-2">
+              {/* <div className="min-w-0 w-full">
                 <Dropdown
                   label="Ticket Type"
                   required
@@ -423,7 +443,7 @@ export default function CreateTicketModal({
                   }
                   placeholder="Select type"
                 />
-              </div>
+              </div> */}
               <div className="min-w-0 w-full">
                 <ThemeInput
                   label="Due Date (optional)"
