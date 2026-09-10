@@ -569,6 +569,18 @@ export class TicketsService {
       COALESCE(
         SUM(
           CASE
+            WHEN UPPER(t.statusKey) = 'CLOSED'
+            THEN 1
+            ELSE 0
+          END
+        ),
+        0
+      ) AS closed
+      `,
+        `
+      COALESCE(
+        SUM(
+          CASE
             WHEN UPPER(t.statusKey) = 'RESOLVED'
             THEN 1
             ELSE 0
@@ -658,8 +670,10 @@ export class TicketsService {
       summary: {
         open: Number(summaryResult?.open ?? 0),
         inProgress: Number(summaryResult?.inprogress ?? 0),
+        closed: Number(summaryResult?.closed ?? 0),
         resolved: Number(summaryResult?.resolved ?? 0),
         critical: Number(summaryResult?.critical ?? 0),
+
       },
       countPerStatus,
       meta: {
