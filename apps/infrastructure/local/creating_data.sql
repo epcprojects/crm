@@ -6,43 +6,30 @@
 -- priority keys dynamically from the current database — no hardcoded IDs,
 -- safe to run on any environment (local, staging) as-is.
 --
+-- Works in pgAdmin / DBeaver / psql — no client-specific meta-commands used.
+--
+-- TO CHANGE SETTINGS: edit the two lines marked "-- <<< EDIT" below.
+--
 -- WHAT IT DOES:
 --   1. Builds temp tables of real (projectId, memberId) pairs, distinct
 --      project IDs, and per-project member arrays.
 --   2. Inserts N tickets, round-robin distributed evenly across all real
 --      projects (deterministic, not random — guarantees even spread and
---      avoids the "LATERAL silently flattens to one value" bug).
+--      avoids "LATERAL silently flattens to one value" issues).
 --   3. reporterId / assigneeId are drawn ONLY from users who are actual
---      members of that specific ticket's project (respects real
---      user_projects_join data, so membership-filtered routes behave
---      correctly against this data).
+--      members of that specific ticket's project.
 --   4. statusKey / priorityKey are drawn from real ticket_statuses /
 --      ticket_priorities rows that exist right now.
---   5. Seeds ~2% of rows with the word "bug" and "description" so search
---      testing has real matches to find.
---
--- USAGE:
---   1. Adjust :rows_to_insert and :created_by below.
---   2. Run this whole file against staging.
---   3. Run ANALYZE tickets; afterward (included at the end).
---   4. Use cleanup_synthetic_tickets.sql to remove this batch when done.
---
--- SAFE TO RE-RUN: each run is tagged with a unique batch marker in the
--- title/description so cleanup can target exactly this batch and nothing
--- pre-existing.
+--   5. Seeds ~2% of rows with "bug"/"description" so search testing has
+--      real matches to find.
+--   6. Every row is tagged with the 'SYNTH_TEST_BATCH' title prefix, so
+--      cleanup_synthetic_tickets.sql can remove exactly this batch safely.
 -- =============================================================================
-
-\set rows_to_insert 5000
-\set created_by '00000000-0000-0000-0000-000000000002'
-
--- Unique tag for this run, so cleanup only removes rows THIS script created.
--- Change this per run if you want to keep multiple batches distinguishable.
-\set batch_tag 'SYNTH_TEST_BATCH'
 
 BEGIN;
 
 -- -----------------------------------------------------------------------
--- Step 1: Pull real project-membership pairs (respects actual access rules)
+-- Step 1: Pull real project-membership pairs
 -- -----------------------------------------------------------------------
 DROP TABLE IF EXISTS tmp_project_members;
 CREATE TEMP TABLE tmp_project_members AS
@@ -52,8 +39,6 @@ JOIN user_projects_join upj ON upj."projectsId" = p.id
 JOIN users u ON u.id = upj."usersId" AND u."deletedAt" IS NULL
 WHERE p."deletedAt" IS NULL;
 
--- Sanity guard: fail loudly rather than silently inserting garbage
--- if staging has no projects/members at all.
 DO $$
 BEGIN
   IF (SELECT count(*) FROM tmp_project_members) = 0 THEN
@@ -98,10 +83,11 @@ END $$;
 
 -- -----------------------------------------------------------------------
 -- Step 3: Insert synthetic tickets
+-- Edit the two literals below to change row count / createdBy user.
 -- -----------------------------------------------------------------------
 INSERT INTO tickets (
   id, "projectId", "ticketRefNo", title, description,
-  "statusKey", "priorityKey", "reporterId", "assigneeId", "createdBy",
+  "statusKey", "priorityKey", "reporterId", "assigneeId", "createdBy",  "ticketType",
   "createdAt", "updatedAt"
 )
 SELECT
@@ -110,8 +96,8 @@ SELECT
   'HH-' || LPAD(seq_val::text, GREATEST(3, length(seq_val::text)), '0'),
 
   CASE
-    WHEN s % 50 = 0 THEN :'batch_tag' || ' Bug: application crashes on ' || md5(random()::text)
-    ELSE :'batch_tag' || ' ' || initcap(md5(random()::text)) || ' ' || initcap(md5((random()*2)::text))
+    WHEN s % 50 = 0 THEN 'SYNTH_TEST_BATCH Bug: application crashes on ' || md5(random()::text)
+    ELSE 'SYNTH_TEST_BATCH ' || initcap(md5(random()::text)) || ' ' || initcap(md5((random()*2)::text))
   END,
 
   CASE
@@ -127,19 +113,18 @@ SELECT
   CASE WHEN random() < 0.7
        THEN members[1 + floor(random() * array_length(members, 1))]
        ELSE NULL END,
-  :'created_by',
+  '00000000-0000-0000-0000-000000000002',  -- <<< EDIT: createdBy user ID
+   (ARRAY['bug', 'feature_request', NULL])[1 + floor(random() * 3)]::tickets_tickettype_enum,
   now() - (random() * interval '180 days'),
   now()
 FROM (
   SELECT
     s,
     nextval('ticket_number_seq') AS seq_val,
-    -- Deterministic round-robin across real project IDs (not random —
-    -- guarantees even distribution, avoids planner-flattening issues).
     (SELECT project_ids FROM tmp_projects_arr)[
       1 + (s % (SELECT array_length(project_ids, 1) FROM tmp_projects_arr))
     ] AS proj_id
-  FROM generate_series(1, :rows_to_insert) AS s
+  FROM generate_series(1, 10000) AS s  -- <<< EDIT: row count (currently 5000)
 ) sub
 JOIN tmp_members_by_project mbp ON mbp.project_id = sub.proj_id
 CROSS JOIN LATERAL (SELECT mbp.member_ids AS members) m
@@ -173,3 +158,10 @@ JOIN projects p ON p.id = t."projectId"
 WHERE t.title LIKE 'SYNTH_TEST_BATCH%'
 GROUP BY p.name, p.id
 ORDER BY ticket_count DESC;
+
+
+SELECT t.typname
+FROM pg_type t
+JOIN pg_attribute a ON a.atttypid = t.oid
+JOIN pg_class c ON c.oid = a.attrelid
+WHERE c.relname = 'tickets' AND a.attname = 'ticketType';

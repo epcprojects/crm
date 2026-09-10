@@ -28,6 +28,7 @@ import {
   ThreadReplyMentionedPayload,
   TicketReplyMentionedPayload,
   TicketInternalMessageMentionedPayload,
+  TicketTypeUpdatedPayload,
 } from './notifications.types';
 import {
   // buildProjectCreatedEmail,
@@ -47,6 +48,7 @@ import {
   buildThreadReplyMentionedEmail,
   buildTicketReplyMentionedEmail,
   buildTicketInternalMessageMentionedEmail,
+  buildTypeUpdatedEmail,
 } from './templates/common';
 import { SqsNotificationQueueService } from './queue/sqs-notification-queue.service';
 import { Brackets, DataSource, Repository, SelectQueryBuilder } from 'typeorm';
@@ -288,6 +290,8 @@ export class NotificationsService {
         return this.onTicketInternalMessageMentioned(event.payload);
       case EmailEventType.TICKET_STATUS_UPDATED:
         return this.onTicketStatusUpdated(event.payload);
+      case EmailEventType.TICKET_TYPE_UPDATED:
+        return this.onTicketTypeUpdated(event.payload);
       case EmailEventType.TICKET_DUE_DATE_UPDATED:
         return this.onTicketDueDateUpdated(event.payload);
       case EmailEventType.TICKET_PRIORITY_UPDATED:
@@ -422,6 +426,20 @@ export class NotificationsService {
     p: TicketStatusUpdatedPayload,
   ): Promise<void> {
     const { subject, html } = buildStatusUpdatedEmail(
+      p,
+      this.appUrl,
+      // this.appName,
+    );
+    const recipients = p.participants.filter(
+      (r) => r.email !== p.updatedBy.email && r.isInvitationAccepted === true,
+    );
+    await this.sendBulk(recipients, subject, html);
+  }
+  
+  private async onTicketTypeUpdated(
+    p: TicketTypeUpdatedPayload,
+  ): Promise<void> {
+    const { subject, html } = buildTypeUpdatedEmail(
       p,
       this.appUrl,
       // this.appName,
@@ -1263,6 +1281,7 @@ export class NotificationsService {
       eventTypes: [
         EmailEventType.TICKET_CREATED,
         EmailEventType.TICKET_STATUS_UPDATED,
+        EmailEventType.TICKET_TYPE_UPDATED,
         EmailEventType.TICKET_PRIORITY_UPDATED,
         EmailEventType.TICKET_ASSIGNEE_UPDATED,
         EmailEventType.TICKET_DUE_DATE_UPDATED,
