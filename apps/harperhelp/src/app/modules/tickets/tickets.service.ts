@@ -1259,6 +1259,7 @@ export class TicketsService {
       .select([
         `SUM(CASE WHEN UPPER(t.statusKey) = 'OPEN' THEN 1 ELSE 0 END) AS open`,
         `SUM(CASE WHEN UPPER(t.statusKey) = 'INPROGRESS' THEN 1 ELSE 0 END) AS inprogress`,
+        `SUM(CASE WHEN UPPER(t.statusKey) = 'CLOSED' THEN 1 ELSE 0 END) AS closed`,
         `SUM(CASE WHEN UPPER(t.statusKey) = 'RESOLVED' THEN 1 ELSE 0 END) AS resolved`,
         `SUM(CASE WHEN UPPER(t.priorityKey) = 'CRITICAL' THEN 1 ELSE 0 END) AS critical`,
       ])
@@ -1268,6 +1269,7 @@ export class TicketsService {
     return {
       open: Number(result.open),
       inProgress: Number(result.inProgress),
+      closed: Number(result.closed),
       resolved: Number(result.resolved),
       critical: Number(result.critical),
     };
@@ -1283,6 +1285,8 @@ export class TicketsService {
       .select([
         `SUM(CASE WHEN UPPER(t.statusKey) = 'OPEN' THEN 1 ELSE 0 END) AS open`,
         `SUM(CASE WHEN UPPER(t.statusKey) = 'INPROGRESS' THEN 1 ELSE 0 END) AS inprogress`,
+        `SUM(CASE WHEN UPPER(t.statusKey) = 'CLOSED' THEN 1 ELSE 0 END) AS closed`,
+
         `SUM(CASE WHEN UPPER(t.statusKey) = 'RESOLVED' THEN 1 ELSE 0 END) AS resolved`,
         `SUM(CASE WHEN UPPER(t.priorityKey) = 'CRITICAL' THEN 1 ELSE 0 END) AS critical`,
       ])
@@ -1291,6 +1295,7 @@ export class TicketsService {
     return {
       open: Number(result.open),
       inProgress: Number(result.inprogress),
+      closed: Number(result.closed),
       resolved: Number(result.resolved),
       critical: Number(result.critical),
     };

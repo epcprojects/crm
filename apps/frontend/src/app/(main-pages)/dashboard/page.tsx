@@ -37,6 +37,7 @@ import CreateProjectModal, {
 import { createTicketProjectOptions } from '../../../components/modals/create-ticket-modal.data';
 import ProjectCard from '../../../components/projects/ProjectCard';
 import RecentTicketsTable, {
+  RecentTicketQuickLinkItem,
   type RecentTicket,
 } from '../../../components/tables/RecentTicketsTable';
 import { appToast } from '../../../components/toast/AppToast';
@@ -75,6 +76,7 @@ type TicketSummary = {
   inProgress: number | null;
   resolved: number | null;
   critical: number | null;
+  closed: number | null;
 };
 
 type DashboardProjectPanelTabKey = 'projects' | 'threads' | 'activity';
@@ -815,7 +817,72 @@ export default function Page() {
       ),
     [activityQuery.data, currentUserId],
   );
+    const canViewProjectThread = hasPermission('thread.view');
+     const canViewProjectFiles = hasPermission('files.view');
+  const canViewProjectCalendar = hasPermission('calendar.view_grid');
+  const canViewProjectNotes = hasPermission('projects_notes.view_list');
   const [filtersOpen, setFiltersOpen] = useState(false);
+    const ticketQuickLinkItems = useMemo(
+      () =>
+        canViewProjectDetail
+          ? (ticket: RecentTicket): RecentTicketQuickLinkItem[] => {
+              const projectId = ticket.project.id;
+  
+              if (!projectId) {
+                return [];
+              }
+  
+              const items: RecentTicketQuickLinkItem[] = [
+                {
+                  key: 'project',
+                  label: 'Go to Project',
+                  href: `/projects/${projectId}`,
+                },
+              ];
+  
+              if (canViewProjectThread) {
+                items.push({
+                  key: 'thread',
+                  label: 'Thread',
+                  href: `/projects/${projectId}?t=1`,
+                });
+              }
+  
+              if (canViewProjectFiles) {
+                items.push({
+                  key: 'files',
+                  label: 'Files',
+                  href: `/projects/${projectId}?t=2`,
+                });
+              }
+  
+              if (canViewProjectCalendar) {
+                items.push({
+                  key: 'calendar',
+                  label: 'Calendar',
+                  href: `/projects/${projectId}?t=3`,
+                });
+              }
+  
+              if (canViewProjectNotes) {
+                items.push({
+                  key: 'notes',
+                  label: 'Notes',
+                  href: `/projects/${projectId}?t=4`,
+                });
+              }
+  
+              return items;
+            }
+          : undefined,
+      [
+        canViewProjectCalendar,
+        canViewProjectDetail,
+        canViewProjectFiles,
+        canViewProjectNotes,
+        canViewProjectThread,
+      ],
+    );
 
   return (
     <div className="xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 z-100 h-full xl:h-dvh relative">
@@ -904,7 +971,7 @@ export default function Page() {
                   ) : null}
                 </div>
 
-                <div className="grid grid-cols-2 gap-1.5 xl:grid-cols-4 xl:gap-5">
+                <div className="grid grid-cols-2 gap-1.5 xl:grid-cols-3 2xl:grid-cols-5 xl:gap-5">
                   <StatusCard
                     title="Open"
                     count={formatSummaryCount(ticketSummary?.open)}
@@ -946,6 +1013,17 @@ export default function Page() {
                     count={formatSummaryCount(ticketSummary?.critical)}
                     icon={
                       <AlertIcon
+                        width={isMobile ? '12' : '20'}
+                        height={isMobile ? '12' : '20'}
+                        fill="white"
+                      />
+                    }
+                  />
+                  <StatusCard
+                    title="Closed"
+                    count={formatSummaryCount(ticketSummary?.closed)}
+                    icon={
+                      <CheckMarkCircleIcon
                         width={isMobile ? '12' : '20'}
                         height={isMobile ? '12' : '20'}
                         fill="white"
@@ -1239,6 +1317,7 @@ export default function Page() {
                             )
                         : undefined
                     }
+                      getQuickLinkItems={ticketQuickLinkItems}
                   />
                 )}
               </div>
@@ -1613,8 +1692,8 @@ function DashboardStatsSkeleton() {
       </div>
 
       {/* Status cards */}
-      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4 xl:gap-5">
-        {Array.from({ length: 4 }).map((_, index) => (
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 2xl:grid-cols-5 xl:grid-cols-3 xl:gap-5">
+        {Array.from({ length: 5 }).map((_, index) => (
           <div
             key={index}
             className="min-w-0 rounded-xl border border-white/6 px-2 py-2 shadow-[0_14px_44px_0_rgb(0_0_0/20%)] sm:px-3 xl:rounded-full xl:py-2 xl:pr-4 xl:pl-2"
