@@ -180,15 +180,22 @@ const Dropdown = ({
             ${disabled ? 'cursor-not-allowed bg-gray-200! opacity-60' : ''}
           `}
         >
-          <span className="truncate text-sm">
-            {isMulti
-              ? selectedLabels.length > 0
-                ? selectedLabels.join(', ')
-                : placeholder
-              : selectedOption?.label || placeholder}
+          <span className="flex min-w-0 items-center gap-2 text-sm">
+            {selectedOption?.icon ? (
+              <span className="shrink-0" aria-hidden="true">
+                {selectedOption.icon}
+              </span>
+            ) : null}
+            <span className="truncate">
+              {isMulti
+                ? selectedLabels.length > 0
+                  ? selectedLabels.join(', ')
+                  : placeholder
+                : selectedOption?.label || placeholder}
+            </span>
           </span>
 
-          <span className={disabled ? 'opacity-60' : ''}>
+          <span className={`shrink-0 ${disabled ? 'opacity-60' : ''}`}>
             <ArrowDownIcon />
           </span>
         </MenuButton>

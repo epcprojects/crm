@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { clearPersistedSession, useAppDispatch } from '../Redux/store';
 import { fetchMyProfileThunk } from '../Redux/slices/auth/authThunks';
 import {
@@ -19,30 +19,35 @@ function isAuthFailure(message?: string) {
   );
 }
 
-export default function AuthBootstrap() {
+export default function AuthBootstrap({ children }: { children: ReactNode }) {
   const dispatch = useAppDispatch();
   const hasRunRef = useRef(false);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     if (hasRunRef.current) return;
     hasRunRef.current = true;
 
     const syncSession = async () => {
+      // Persisted user data is not proof that the session cookie is still valid.
+      dispatch(clearAuthState());
       const result = await dispatch(fetchMyProfileThunk());
 
       if (fetchMyProfileThunk.fulfilled.match(result)) {
         dispatch(hydrateAuthFromProfile(result.payload));
+        setIsReady(true);
         return;
       }
 
       if (isAuthFailure(result.payload)) {
         dispatch(clearAuthState());
-        await clearPersistedSession();
+        await clearPersistedSession().catch(() => undefined);
       }
+      setIsReady(true);
     };
 
     void syncSession();
   }, [dispatch]);
 
-  return null;
+  return isReady ? <>{children}</> : null;
 }

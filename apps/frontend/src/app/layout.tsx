@@ -51,18 +51,19 @@ export default function RootLayout({
       </head>
       <body className={`${poppins.variable} bg-white min-h-dvh`}>
         <StoreProvider>
-          <QueryProvider>
-            <AppLoaderProvider>
-              <PermissionProvider>
-                <AuthBootstrap />
-                <IdleLogout />
-                <NotificationsSocketProvider>
-                  {children}
-                </NotificationsSocketProvider>
-                <AppToastProvider />
-              </PermissionProvider>
-            </AppLoaderProvider>
-          </QueryProvider>
+          <AuthBootstrap>
+            <QueryProvider>
+              <AppLoaderProvider>
+                <PermissionProvider>
+                  <IdleLogout />
+                  <NotificationsSocketProvider>
+                    {children}
+                  </NotificationsSocketProvider>
+                  <AppToastProvider />
+                </PermissionProvider>
+              </AppLoaderProvider>
+            </QueryProvider>
+          </AuthBootstrap>
         </StoreProvider>
       </body>
     </html>

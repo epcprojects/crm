@@ -30,17 +30,9 @@ export async function GET(request: NextRequest) {
     }
 
     const requestUrl = new URL(request.url);
-    const upstreamUrl = new URL(`${apiBaseUrl}/dashboard/tickets`);
+    const upstreamUrl = new URL(`${apiBaseUrl}/dashboard/kanban-ticket-counts`);
 
-    for (const key of [
-      'statusKey',
-      'priorityKey',
-      'search',
-      'assigneeId',
-      'page',
-      'limit',
-      'ticketType',
-    ]) {
+    for (const key of ['search', 'priorityKey','ticketType',]) {
       const value = requestUrl.searchParams.get(key);
 
       if (value) {
@@ -48,11 +40,22 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    requestUrl.searchParams.getAll('projectIds').forEach((projectId) => {
-      if (projectId) {
-        upstreamUrl.searchParams.append('projectIds', projectId);
-      }
+    // requestUrl.searchParams.getAll('projectIds').forEach((projectId) => {
+    //   if (projectId) {
+    //     upstreamUrl.searchParams.append('projectIds', projectId);
+    //   }
+    // });
+    const projectIds = requestUrl.searchParams
+      .getAll('projectIds')
+      .filter(Boolean);
+
+    projectIds.forEach((projectId) => {
+      upstreamUrl.searchParams.append('projectIds', projectId);
     });
+
+    if (projectIds.length === 1) {
+      upstreamUrl.searchParams.append('projectIds', projectIds[0]);
+    }
 
     const response = await fetch(upstreamUrl.toString(), {
       method: 'GET',
@@ -67,7 +70,9 @@ export async function GET(request: NextRequest) {
 
     if (!response.ok) {
       return NextResponse.json(
-        { message: data?.message || 'Failed to fetch tickets.' },
+        {
+          message: data?.message || 'Failed to fetch Kanban ticket counts.',
+        },
         { status: response.status },
       );
     }
@@ -75,7 +80,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(data, { status: 200 });
   } catch {
     return NextResponse.json(
-      { message: 'Something went wrong while fetching tickets.' },
+      { message: 'Something went wrong while fetching Kanban counts.' },
       { status: 500 },
     );
   }

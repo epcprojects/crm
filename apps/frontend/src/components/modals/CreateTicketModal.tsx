@@ -8,7 +8,12 @@ import AppModal from './AppModal';
 import ThemeInput from '../ui/ThemeInput';
 import Dropdown from '../ui/ThemeDropDown';
 import { type CreateTicketDropdownOption } from './create-ticket-modal.data';
-import { CloseIcon, FileTypePlaceholder } from '../../../public/icons';
+import {
+  BugIcon,
+  CloseIcon,
+  FeatureIcon,
+  FileTypePlaceholder,
+} from '../../../public/icons';
 import { useAppSelector } from '../../app/Redux/store';
 import { appToast } from '../toast/AppToast';
 import {
@@ -25,12 +30,17 @@ export type CreateTicketFormValues = {
   description: string;
   status: string;
   priority: string;
+  ticketType: 'feature_request' | 'bug' | '';
   dueDate: string;
   attachments: File[];
 };
 
 const MAX_TITLE_LENGTH = 250;
 const MAX_DESCRIPTION_LENGTH = 4000;
+const ticketTypeOptions = [
+  { label: 'Bug', value: 'bug', icon: <BugIcon /> },
+  { label: 'Feature', value: 'feature_request', icon: <FeatureIcon /> },
+];
 function getRichTextPlainText(value?: string) {
   if (!value) {
     return '';
@@ -99,6 +109,10 @@ export default function CreateTicketModal({
               getRichTextPlainText(value).length <= MAX_DESCRIPTION_LENGTH,
           ),
         status: yup.string().required('Status is required'),
+        ticketType: yup
+          .string()
+          .oneOf(['feature_request', 'bug'], 'Please select a valid type')
+          .required('Ticket type is required'),
         priority: yup.string().optional(),
         dueDate: yup
           .string()
@@ -119,6 +133,7 @@ export default function CreateTicketModal({
       description: '',
       status: '',
       priority: '',
+      ticketType: '',
       dueDate: '',
       attachments: [],
     },
@@ -147,7 +162,7 @@ export default function CreateTicketModal({
         value: status.key,
         icon: (
           <span
-            className="inline-block h-2.25 w-2.5 rounded-full"
+            className="inline-block h-2.5 w-2.5 rounded-full"
             style={{ backgroundColor: status.color }}
           />
         ),
@@ -173,7 +188,7 @@ export default function CreateTicketModal({
         value: priority.key,
         icon: (
           <span
-            className="inline-block h-2.25 w-2.5 rounded-full"
+            className="inline-block h-2.5 w-2.5 rounded-full"
             style={{ backgroundColor: priority.color }}
           />
         ),
@@ -277,6 +292,27 @@ export default function CreateTicketModal({
       {/* space-y-4 p-4 md:p-5 */}
       <div className="grid grid-cols-1 xl:grid-cols-2 divide-x divide-gray-200">
         <div className="space-y-4 p-4 md:p-5">
+          <div className="min-w-0 w-full">
+            <Dropdown
+              label="Ticket Type"
+              required
+              options={ticketTypeOptions}
+              value={formik.values.ticketType}
+              onChange={(value) =>
+                void formik.setFieldValue(
+                  'ticketType',
+                  value as CreateTicketFormValues['ticketType'],
+                )
+              }
+              error={Boolean(
+                formik.touched.ticketType && formik.errors.ticketType,
+              )}
+              errorMessage={
+                formik.touched.ticketType ? formik.errors.ticketType : ''
+              }
+              placeholder="Select type"
+            />
+          </div>
           <Dropdown
             label="Project"
             required
@@ -306,7 +342,7 @@ export default function CreateTicketModal({
             errorText={formik.touched.title ? formik.errors.title : ''}
             placeholder="Enter ticket title"
           />
-          <div className="-mt-2 flex items-center justify-end">
+          <div className="-mt-8 flex items-center justify-end">
             <p className="shrink-0 text-xs text-gray-500">
               {formik.values.title.length}/{MAX_TITLE_LENGTH}
             </p>
@@ -385,17 +421,44 @@ export default function CreateTicketModal({
               placeholder="Select priority"
             />
             {/* )} */}
-            <div className={`${isExternalUser ? 'col-span-1' : 'col-span-2'}`}>
-              <ThemeInput
-                label="Due Date (optional)"
-                type="date"
-                name="dueDate"
-                value={formik.values.dueDate}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                min={getTodayInputValue()}
-                errorText={formik.touched.dueDate ? formik.errors.dueDate : ''}
-              />
+
+            <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-1 col-span-2">
+              {/* <div className="min-w-0 w-full">
+                <Dropdown
+                  label="Ticket Type"
+                  required
+                  options={ticketTypeOptions}
+                  value={formik.values.ticketType}
+                  onChange={(value) =>
+                    void formik.setFieldValue(
+                      'ticketType',
+                      value as CreateTicketFormValues['ticketType'],
+                    )
+                  }
+                  error={Boolean(
+                    formik.touched.ticketType && formik.errors.ticketType,
+                  )}
+                  errorMessage={
+                    formik.touched.ticketType ? formik.errors.ticketType : ''
+                  }
+                  placeholder="Select type"
+                />
+              </div> */}
+              <div className="min-w-0 w-full">
+                <ThemeInput
+                  label="Due Date (optional)"
+                  type="date"
+                  name="dueDate"
+                  value={formik.values.dueDate}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  min={getTodayInputValue()}
+                  errorText={
+                    formik.touched.dueDate ? formik.errors.dueDate : ''
+                  }
+                  className="w-full"
+                />
+              </div>
             </div>
           </div>
         </div>

@@ -15,9 +15,12 @@ import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import ThemeButton from '../ui/ThemeButton';
 import {
   ArrowUpRightIcon,
+  BugIcon,
   ChatIcon,
+  FeatureIcon,
   ProjectsIcon,
   ThreedotIcon,
+  TrashIcon,
 } from '../../../public/icons';
 import { useAppSelector } from '../../app/Redux/store';
 import EmptyState from '../EmptyState';
@@ -27,6 +30,7 @@ import {
   FilesTabIcon,
   NotesTabIcon,
 } from '../../app/(main-pages)/projects/[projectId]/page';
+import { usePermissions } from '../../app/providers/PermissionProvider';
 
 export type TicketStatus = string;
 export type TicketPriority = string;
@@ -50,6 +54,7 @@ export type RecentTicket = {
     name: string;
     initials: string;
   };
+  ticketType?: string | null;
   date: string;
   sortDate?: string;
   reporter: {
@@ -80,6 +85,31 @@ export type RecentTicketQuickLinkItem = {
   label: string;
   href: string;
 };
+function formatTicketType(ticketType?: string | null) {
+  if (!ticketType) {
+    return 'No Type';
+  }
+
+  if (ticketType === 'feature_request') {
+    return (
+      <span className="flex items-center gap-1">
+        <FeatureIcon /> Feature
+      </span>
+    );
+  }
+
+  if (ticketType === 'bug') {
+    return (
+      <span className="flex items-center gap-1">
+        <BugIcon /> Bug
+      </span>
+    );
+  }
+
+  return ticketType
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
 
 const statusStyles: Record<string, string> = {
   Open: 'border-red-200 bg-red-50 text-red-500',
@@ -101,10 +131,30 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     accessorKey: 'id',
     header: 'Reference No',
     cell: ({ row }) => (
-      <span className="font-normal text-gray-900 text-sm">
+      <span className="font-normal whitespace-nowrap text-gray-900 text-sm">
         {row.original.ticketRefNo ?? row.original.id}
       </span>
     ),
+  },
+  {
+    id: 'ticketType',
+    accessorKey: 'ticketType',
+    header: 'Type',
+    cell: ({ row }) => {
+      const ticketType = row.original.ticketType;
+
+      if (ticketType !== 'bug' && ticketType !== 'feature_request') {
+        return <span className="text-sm text-gray-500">--</span>;
+      }
+
+      return (
+        <span
+          className={`inline-flex items-center whitespace-nowrap px-2 py-1 text-xs text-center font-medium`}
+        >
+          {formatTicketType(ticketType)}
+        </span>
+      );
+    },
   },
   {
     id: 'title',
@@ -178,6 +228,7 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
       </span>
     ),
   },
+
   {
     id: 'Creater',
     accessorKey: 'reporter.fullname',
@@ -230,6 +281,7 @@ type RecentTicketsTableProps = {
   onSortChange?: (sortState: TicketSortState) => void;
   onEmptyButtonClick?: () => void;
   getQuickLinkItems?: (ticket: RecentTicket) => RecentTicketQuickLinkItem[];
+  onDeleteTickets?: (ticket: RecentTicket) => void;
   // internalScrollEnabled?: boolean;
 };
 
@@ -250,6 +302,7 @@ export default function RecentTicketsTable({
   sortState,
   onSortChange,
   getQuickLinkItems,
+  onDeleteTickets,
   // internalScrollEnabled = true,
 }: RecentTicketsTableProps) {
   const userType = useAppSelector((state) => state.auth.user?.userType);
@@ -265,14 +318,17 @@ export default function RecentTicketsTable({
 
     return true;
   });
-  const shouldShowQuickLinks = Boolean(getQuickLinkItems);
 
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: initialPageSize,
   });
   const TICKETS_PAGE_SIZE_QUERY_PARAM = 'pageSize';
-const ALLOWED_TICKETS_PAGE_SIZES = [10, 25, 50, 100];
+  const ALLOWED_TICKETS_PAGE_SIZES = [10, 25, 50, 100];
+  const { hasPermission } = usePermissions();
+  const shouldShowQuickLinks = Boolean(
+    getQuickLinkItems || (onDeleteTickets && hasPermission('tickets.delete')),
+  );
   const activePagination = controlledPagination ?? pagination;
   const totalRows = controlledTotalRows ?? tickets.length;
   const pageCount = Math.max(
@@ -399,7 +455,7 @@ const ALLOWED_TICKETS_PAGE_SIZES = [10, 25, 50, 100];
         )}
       </div>
 
-      <div className="hidden min-h-0 flex-1 overflow-x-auto overflow-y-auto scrollbar-hide xl:block">
+      <div className="hidden min-h-0 flex-1 overflow-x-auto overflow-y-auto scrollbar-thin xl:block">
         <table className="w-full  min-w-220 text-left">
           <thead className="bg-gray-50">
             {table.getHeaderGroups().map((headerGroup) => (
@@ -474,6 +530,11 @@ const ALLOWED_TICKETS_PAGE_SIZES = [10, 25, 50, 100];
                         <TicketQuickLinksPopover
                           ticket={row.original}
                           getQuickLinkItems={getQuickLinkItems}
+                          deleteTicket={
+                            hasPermission('tickets.delete')
+                              ? onDeleteTickets
+                              : undefined
+                          }
                         />
                       </div>
                     </td>
@@ -578,82 +639,6 @@ const ALLOWED_TICKETS_PAGE_SIZES = [10, 25, 50, 100];
   );
 }
 
-// function TicketMobileCard({
-//   ticket,
-//   onClick,
-//   showAssignee = true,
-// }: {
-//   ticket: RecentTicket;
-//   onClick?: (ticket: RecentTicket) => void;
-//   showAssignee?: boolean;
-// }) {
-//   return (
-//     <button
-//       type="button"
-//       onClick={() => onClick?.(ticket)}
-//       className={`w-full rounded-xl border border-gray-200 bg-white p-3 text-left transition ${
-//         onClick ? 'hover:border-gray-300' : ''
-//       }`}
-//     >
-//       <div className="flex items-start justify-between gap-3">
-//         {showAssignee ? (
-//           <div className="flex min-w-0 items-center gap-3">
-//             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-orange-200 to-slate-800 text-base font-medium text-white">
-//               {ticket.assignee.initials}
-//             </span>
-//             <div className="min-w-0">
-//               <p className="truncate text-base font-semibold text-gray-900">
-//                 {ticket.assignee.name}
-//               </p>
-//               <p className=" text-xs text-gray-600">{ticket.date}</p>
-//             </div>
-//           </div>
-//         ) : (
-//           <div className="min-w-0">
-//             <p className="text-xs text-gray-600">{ticket.date}</p>
-//           </div>
-//         )}
-
-//         <div className="flex shrink-0 items-center gap-2">
-//           {renderStatusBadge(ticket)}
-//           <span className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2 py-1 text-sm font-semibold text-gray-700 shadow-xs">
-//             <span
-//               className={`h-2 w-2 rounded-full ${
-//                 ticket.priorityColor
-//                   ? ''
-//                   : (priorityStyles[ticket.priority ?? ''] ?? 'bg-gray-400')
-//               }`}
-//               style={
-//                 ticket.priorityColor
-//                   ? { backgroundColor: ticket.priorityColor }
-//                   : undefined
-//               }
-//             />
-//             {ticket.priority ?? 'No Priority'}
-//           </span>
-//         </div>
-//       </div>
-
-//       <div className="my-3 h-px bg-gray-200" />
-
-//       <div className="flex items-center flex-wrap gap-3">
-//         <span className="flex px-2 shrink-0 items-center justify-center rounded-full  text-sm font-semibold text-gray-900">
-//           {ticket.ticketRefNo ?? ticket.id}
-//         </span>
-//         <p className="truncate text-sm text-gray-800">{ticket.title}</p>
-//       </div>
-
-//       <div className="mt-2">
-//         <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-purple-100 py-0.5 pr-3 pl-0.5 text-sm font-medium text-purple-700">
-//           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-medium">
-//             {ticket.project.initials}
-//           </span>
-//           {ticket.project.name}
-//         </span>
-//       </div>
-//     </button>
-//   );
-// }
 function TicketMobileCard({
   ticket,
   onClick,
@@ -710,6 +695,18 @@ function TicketMobileCard({
             >
               {ticket.priority ?? 'No Priority'}
             </span>
+            {ticket.ticketType === 'bug' ||
+            ticket.ticketType === 'feature_request' ? (
+              <span
+                className={`inline-flex items-center whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-medium ${
+                  ticket.ticketType === 'bug'
+                    ? 'border-red-200 bg-red-50 text-red-600'
+                    : 'border-blue-200 bg-blue-50 text-blue-600'
+                }`}
+              >
+                {formatTicketType(ticket.ticketType)}
+              </span>
+            ) : null}
           </div>
         </div>
       </div>
@@ -826,13 +823,15 @@ function renderStatusBadge(ticket: RecentTicket) {
 function TicketQuickLinksPopover({
   ticket,
   getQuickLinkItems,
+  deleteTicket,
 }: {
   ticket: RecentTicket;
   getQuickLinkItems?: (ticket: RecentTicket) => RecentTicketQuickLinkItem[];
+  deleteTicket?: (ticket: RecentTicket) => void;
 }) {
   const quickLinkItems = getQuickLinkItems?.(ticket) ?? [];
 
-  if (!quickLinkItems.length) {
+  if (!quickLinkItems.length && !deleteTicket) {
     return null;
   }
 
@@ -873,6 +872,16 @@ function TicketQuickLinksPopover({
                 </Link>
               </MenuItem>
             ))}
+            {deleteTicket && (
+              <MenuItem>
+                <button
+                  className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm font-medium text-red-500 outline-none transition data-focus:bg-gray-100"
+                  onClick={() => deleteTicket(ticket)}
+                >
+                  <TrashIcon width="16" height="16" /> Delete Ticket
+                </button>
+              </MenuItem>
+            )}
           </MenuItems>
         </>
       )}

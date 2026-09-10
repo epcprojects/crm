@@ -272,13 +272,6 @@ export default function DaySidebar({
                             >
                               {ticket.title}
                             </button>
-                            {/* <button
-                          className="delete-btn"
-                          onClick={() => onDeleteTicket(ticket.id)}
-                          aria-label="Delete ticket"
-                        >
-                          x
-                        </button> */}
                           </div>
                           {ticket.description ? (
                             <div className="sec-desc">{ticket.description}</div>

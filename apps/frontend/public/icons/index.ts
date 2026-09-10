@@ -53,8 +53,12 @@ import OrderedListIcon from './OrderedListIcon';
 import UnorderedListIcon from './UnorderedListIcon';
 import LinkIcon from './LinkIcon';
 import UserAdd from './UserAdd';
+import BugIcon from './BugIcon';
+import FeatureIcon from './FeatureIcon';
 export {
   BoldIcon,
+  FeatureIcon,
+  BugIcon,
   UserAdd,
   ItalicIcon,
   StrokeIcon,

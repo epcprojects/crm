@@ -1,7 +1,10 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 'use client';
 
-import { useMemo, useState, type DragEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import type { RecentTicket } from '../tables/RecentTicketsTable';
+import Tooltip from '../tooltip';
+import { BugIcon, FeatureIcon, TrashIcon } from 'apps/frontend/public/icons';
 
 type TicketStatusOption = {
   id: string;
@@ -14,7 +17,13 @@ type TicketsKanbanViewProps = {
   tickets: RecentTicket[];
   statusOptions: TicketStatusOption[];
   statusCountsByKey?: Record<string, number>;
+
+  hasMoreByStatus?: Record<string, boolean>;
+  loadingByStatus?: Record<string, boolean>;
+  onLoadMoreStatus?: (statusKey: string) => void;
+
   onTicketClick?: (ticket: RecentTicket) => void;
+  onDeleteTicket?: (ticket: RecentTicket) => void;
   onMoveTicket?: (ticket: RecentTicket, nextStatusKey: string) => void;
   onReorderColumn?: (statusId: string, newIndex: number) => void;
   canDragTickets?: boolean;
@@ -35,7 +44,13 @@ export default function TicketsKanbanView({
   tickets,
   statusOptions,
   statusCountsByKey = {},
+
+  hasMoreByStatus = {},
+  loadingByStatus = {},
+  onLoadMoreStatus,
+
   onTicketClick,
+  onDeleteTicket,
   onMoveTicket,
   onReorderColumn,
   canDragTickets = false,
@@ -524,111 +539,163 @@ export default function TicketsKanbanView({
                   >
                     {column.tickets.length ? (
                       column.tickets.map((ticket) => (
-                        <button
+                        <div
                           key={ticket.id}
-                          data-ticket-card="true"
-                          type="button"
-                          draggable={
-                            canDragTickets && movingTicketId !== ticket.id
-                          }
-                          onDragStart={(event) => {
-                            if (!canDragTickets) {
-                              return;
-                            }
-
-                            event.stopPropagation();
-
-                            event.dataTransfer.effectAllowed = 'move';
-
-                            event.dataTransfer.setData(
-                              'application/x-ticket-id',
-                              ticket.id,
-                            );
-
-                            setDraggingTicketId(ticket.id);
-
-                            setDraggingColumnKey(null);
-                            setPreviewColumnOrder(null);
-                          }}
-                          onDragEnd={() => {
-                            setDraggingTicketId(null);
-                            setHoveredColumnKey(null);
-                          }}
-                          onClick={() => onTicketClick?.(ticket)}
-                          className={`rounded-xl border border-gray-200 bg-white p-3 text-left shadow-xs transition hover:border-gray-300 hover:shadow-sm ${
-                            draggingTicketId === ticket.id
-                              ? 'opacity-60 ring-2 ring-primary/20'
-                              : ''
-                          } ${
-                            movingTicketId === ticket.id
-                              ? 'cursor-wait opacity-70'
-                              : ''
-                          } ${
-                            canDragTickets
-                              ? 'cursor-grab active:cursor-grabbing'
-                              : ''
-                          }`}
+                          className="group/ticket relative shrink-0"
                         >
-                          <div className="space-y-2.5">
-                            <p className="line-clamp-2 text-base font-semibold text-gray-900">
-                              {ticket.title}
-                            </p>
+                          <button
+                            data-ticket-card="true"
+                            type="button"
+                            draggable={
+                              canDragTickets && movingTicketId !== ticket.id
+                            }
+                            onDragStart={(event) => {
+                              if (!canDragTickets) {
+                                return;
+                              }
 
-                            <div className="space-y-1.5 text-sm text-gray-700">
-                              <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
-                                <span className="text-sm text-gray-900">
-                                  Reference No:
-                                </span>
+                              event.stopPropagation();
 
-                                <span className="truncate text-right text-sm text-gray-900">
-                                  {ticket.ticketRefNo ?? ticket.id}
-                                </span>
-                              </div>
+                              event.dataTransfer.effectAllowed = 'move';
 
-                              <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
-                                <span className="text-sm text-gray-900">
-                                  Date:
-                                </span>
+                              event.dataTransfer.setData(
+                                'application/x-ticket-id',
+                                ticket.id,
+                              );
 
-                                <span className="text-right text-sm text-gray-900">
-                                  {ticket.date}
-                                </span>
-                              </div>
+                              setDraggingTicketId(ticket.id);
 
-                              <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
-                                <span className="text-sm text-gray-900">
-                                  Project:
-                                </span>
+                              setDraggingColumnKey(null);
+                              setPreviewColumnOrder(null);
+                            }}
+                            onDragEnd={() => {
+                              setDraggingTicketId(null);
+                              setHoveredColumnKey(null);
+                            }}
+                            onClick={() => onTicketClick?.(ticket)}
+                            className={`w-full rounded-xl border shrink-0 border-gray-200 bg-white p-3 text-left shadow-xs transition hover:border-gray-300 hover:shadow-sm ${
+                              draggingTicketId === ticket.id
+                                ? 'opacity-60 ring-2 ring-primary/20'
+                                : ''
+                            } ${
+                              movingTicketId === ticket.id
+                                ? 'cursor-wait opacity-70'
+                                : ''
+                            } ${
+                              canDragTickets
+                                ? 'cursor-grab active:cursor-grabbing'
+                                : ''
+                            }`}
+                          >
+                            <div className="space-y-2.5">
+                              <p
+                                className={`line-clamp-2 text-base font-semibold text-gray-900 ${onDeleteTicket ? 'pr-8' : ''}`}
+                              >
+                                {ticket.title}
+                              </p>
 
-                                <div className="flex justify-end">
-                                  <span className="flex w-fit items-center justify-end gap-2 whitespace-nowrap rounded-full bg-purple-100 py-0.75 pr-2.5 pl-0.75 text-xs font-medium text-purple-700">
-                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-medium">
-                                      {ticket.project.initials}
-                                    </span>
+                              <div className="space-y-1.5 text-sm text-gray-700">
+                                <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+                                  <span className="text-sm text-gray-900">
+                                    Reference No:
+                                  </span>
 
-                                    {ticket.project.name}
+                                  <span className="truncate text-right text-sm text-gray-900">
+                                    {ticket.ticketRefNo ?? ticket.id}
                                   </span>
                                 </div>
-                              </div>
 
-                              <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
-                                <span className="text-sm text-gray-900">
-                                  Priority:
-                                </span>
+                                <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+                                  <span className="text-sm text-gray-900">
+                                    Date:
+                                  </span>
 
-                                <div className="flex justify-end">
-                                  {renderPriorityBadge(ticket)}
+                                  <span className="text-right text-sm text-gray-900">
+                                    {ticket.date}
+                                  </span>
                                 </div>
+
+                                <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+                                  <span className="text-sm text-gray-900">
+                                    Project:
+                                  </span>
+
+                                  <Tooltip
+                                    content={''}
+                                    heading={ticket.project.name}
+                                  >
+                                    <div className="flex justify-end w-full max-w-56">
+                                      <span className="flex w-fit  truncate text-ellipsis items-center justify-start gap-2 whitespace-nowrap rounded-full bg-purple-100 py-0.75 pr-2.5 pl-0.75 text-xs font-medium text-purple-700">
+                                        <span className="flex shrink-0 h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-medium">
+                                          {ticket.project.initials}
+                                        </span>
+
+                                        <span className="truncate">
+                                          {' '}
+                                          {ticket.project.name}
+                                        </span>
+                                      </span>
+                                    </div>
+                                  </Tooltip>
+                                </div>
+
+                                <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+                                  <span className="text-sm text-gray-900">
+                                    Priority:
+                                  </span>
+
+                                  <div className="flex justify-end">
+                                    {renderPriorityBadge(ticket)}
+                                  </div>
+                                </div>
+                                {ticket.ticketType && (
+                                  <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+                                    <span className="text-sm text-gray-900">
+                                      Type:
+                                    </span>
+
+                                    <div className="flex justify-end">
+                                      {renderTicketTypeBadge(ticket)}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
-                          </div>
-                        </button>
+                          </button>
+                          {onDeleteTicket ? (
+                            <button
+                              type="button"
+                              aria-label={`Delete ticket ${ticket.title}`}
+                              disabled={movingTicketId === ticket.id}
+                              draggable={false}
+                              onPointerDown={(event) => event.stopPropagation()}
+                              onDragStart={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                              }}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                onDeleteTicket(ticket);
+                              }}
+                              className="pointer-events-none absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-md opacity-0 transition group-hover/ticket:pointer-events-auto group-hover/ticket:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100 hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-red-500 disabled:cursor-wait disabled:opacity-50"
+                            >
+                              <TrashIcon width="16" height="16" />
+                            </button>
+                          ) : null}
+                        </div>
                       ))
                     ) : (
                       <div className="flex min-h-40 items-center justify-center rounded-xl border border-dashed border-gray-200 bg-white p-5 text-center text-sm text-gray-400">
                         No tickets
                       </div>
                     )}
+                    <KanbanLoadMoreTrigger
+                      hasMore={Boolean(hasMoreByStatus[column.key])}
+                      isLoading={Boolean(loadingByStatus[column.key])}
+                      onLoadMore={() => {
+                        onLoadMoreStatus?.(column.key);
+                      }}
+                    />
                   </div>
                 </>
               )}
@@ -640,6 +707,149 @@ export default function TicketsKanbanView({
   );
 }
 
+export function TicketsKanbanSkeleton() {
+  return (
+    <div
+      className="h-auto min-h-0 w-full min-w-0 animate-pulse overflow-x-auto overflow-y-hidden scrollbar-thin xl:h-full xl:max-h-full"
+      aria-hidden="true"
+    >
+      <div className="flex h-auto min-h-0 min-w-max items-stretch gap-3 pb-2 xl:h-full">
+        {Array.from({ length: 7 }).map((_, columnIndex) => (
+          <section
+            key={columnIndex}
+            className="flex h-auto min-h-0 w-[280px] shrink-0 flex-col rounded-2xl bg-gray-100/80 p-2 sm:w-[320px] xl:h-full xl:w-[350px]"
+          >
+            {/* Column heading */}
+            <div className="flex shrink-0 items-center gap-2 rounded-lg px-3 py-3">
+              <div className="h-2 w-2 rounded-full bg-gray-300" />
+
+              <div
+                className={`h-4 rounded bg-gray-300 ${
+                  columnIndex % 2 === 0 ? 'w-24' : 'w-20'
+                }`}
+              />
+
+              <div className="ml-auto h-4 w-6 rounded bg-gray-300" />
+            </div>
+
+            {/* Cards */}
+            <div className="mt-3.5 flex min-h-0 flex-1 flex-col gap-2 overflow-hidden rounded-xl">
+              {Array.from({ length: 3 }).map((_, cardIndex) => (
+                <div
+                  key={cardIndex}
+                  className="shrink-0 rounded-xl border border-gray-200 bg-white p-3 shadow-xs"
+                >
+                  {/* Title */}
+                  <div
+                    className={`h-4 rounded bg-gray-200 ${
+                      cardIndex % 2 === 0 ? 'w-4/5' : 'w-2/3'
+                    }`}
+                  />
+
+                  <div className="mt-3 space-y-2.5">
+                    {/* Reference */}
+                    <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+                      <div className="h-3 w-20 rounded bg-gray-100" />
+                      <div className="ml-auto h-3 w-16 rounded bg-gray-200" />
+                    </div>
+
+                    {/* Date */}
+                    <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+                      <div className="h-3 w-10 rounded bg-gray-100" />
+                      <div className="ml-auto h-3 w-20 rounded bg-gray-200" />
+                    </div>
+
+                    {/* Project */}
+                    <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+                      <div className="h-3 w-12 rounded bg-gray-100" />
+
+                      <div className="ml-auto flex h-7 w-28 items-center gap-2 rounded-full bg-purple-50 p-0.5">
+                        <div className="h-6 w-6 shrink-0 rounded-full bg-white" />
+                        <div className="h-3 w-16 rounded bg-purple-100" />
+                      </div>
+                    </div>
+
+                    {/* Priority */}
+                    <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+                      <div className="h-3 w-12 rounded bg-gray-100" />
+                      <div className="ml-auto h-6 w-20 rounded-lg bg-gray-200" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
+function KanbanLoadMoreTrigger({
+  hasMore,
+  isLoading,
+  onLoadMore,
+}: {
+  hasMore: boolean;
+  isLoading: boolean;
+  onLoadMore: () => void;
+}) {
+  const triggerRef = useRef<HTMLDivElement | null>(null);
+  const onLoadMoreRef = useRef(onLoadMore);
+
+  /*
+   * Latest callback ref mein rakhein taa-ke observer har parent
+   * render par recreate na ho.
+   */
+  useEffect(() => {
+    onLoadMoreRef.current = onLoadMore;
+  }, [onLoadMore]);
+
+  useEffect(() => {
+    const triggerElement = triggerRef.current;
+
+    if (!triggerElement || !hasMore || isLoading) {
+      return;
+    }
+
+    const scrollContainer = triggerElement.parentElement;
+
+    if (!scrollContainer) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          onLoadMoreRef.current();
+        }
+      },
+      {
+        root: scrollContainer,
+        rootMargin: '0px 0px 100px 0px',
+        threshold: 0,
+      },
+    );
+
+    observer.observe(triggerElement);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasMore, isLoading]);
+
+  if (!hasMore && !isLoading) {
+    return null;
+  }
+
+  return (
+    <div
+      ref={triggerRef}
+      className="flex min-h-8 shrink-0 items-center justify-center py-2 text-xs text-gray-500"
+    >
+      {isLoading ? 'Loading more tickets...' : null}
+    </div>
+  );
+}
 function renderPriorityBadge(ticket: RecentTicket) {
   return (
     <span className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-2 py-0.5 text-sm font-medium text-gray-700 shadow-xs">
@@ -651,6 +861,41 @@ function renderPriorityBadge(ticket: RecentTicket) {
       />
 
       {ticket.priority ?? 'No Priority'}
+    </span>
+  );
+}
+
+function renderTicketTypeBadge(ticket: RecentTicket) {
+  const ticketType = ticket.ticketType;
+
+  if (ticketType !== 'bug' && ticketType !== 'feature_request') {
+    return <span className="text-sm text-gray-500">--</span>;
+  }
+
+  function formatTicketType(ticketType?: string | null) {
+    if (ticketType === 'feature_request') {
+      return 'Feature';
+    }
+
+    if (ticketType === 'bug') {
+      return 'Bug';
+    }
+
+    return '--';
+  }
+
+  return (
+    <span
+      className={`inline-flex gap-1.5 items-center whitespace-nowrap  text-xs font-medium `}
+    >
+      {ticketType === 'bug' ? (
+        <BugIcon />
+      ) : ticketType === 'feature_request' ? (
+        <FeatureIcon />
+      ) : (
+        ''
+      )}{' '}
+      {formatTicketType(ticketType)}
     </span>
   );
 }
