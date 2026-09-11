@@ -1,5 +1,7 @@
 'use client';
 
+import { useLayoutEffect, useRef, useState } from 'react';
+
 import {
   AcceptedEmailIcon,
   SentEmailIcon,
@@ -8,6 +10,7 @@ import {
 import { useIsMobile } from '../hooks/useIsMobile';
 import Tooltip from '../tooltip';
 import ThemeButton from '../ui/ThemeButton';
+import UserProjectsModal from '../modals/UserProjectsModal';
 
 export type UserCardProject = {
   id: string;
@@ -52,7 +55,7 @@ export default function UserCard({
   const isMobile = useIsMobile();
 
   return (
-    <article className="border border-gray-200 bg-gray-50 rounded-2xl flex flex-col">
+    <article className="min-w-0 border border-gray-200 bg-gray-50 rounded-2xl flex flex-col">
       <div className="p-2.5 flex flex-col flex-1 gap-4 rounded-t-2xl bg-gray-50">
         <div className="flex flex-row gap-4">
           <Avatar user={user} />
@@ -94,11 +97,7 @@ export default function UserCard({
             </div>
           )}
         </div>
-        <div className="flex  flex-wrap gap-2">
-          {user.projects.map((project) => (
-            <ProjectPill key={project.id} project={project} />
-          ))}
-        </div>
+        <ProjectPillRow projects={user.projects} />
       </div>
       <div className="bg-white rounded-b-2xl p-2.5">
         {onResendInvite || onEdit || onDelete ? (
@@ -272,10 +271,112 @@ function Pill({ label, tone }: { label: string; tone: UserCardRole['tone'] }) {
   );
 }
 
+function ProjectPillRow({ projects }: { projects: UserCardProject[] }) {
+  const [projectsOpen, setProjectsOpen] = useState(false);
+  const countButtonRef = useRef<HTMLButtonElement>(null);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
+  const [visibleCount, setVisibleCount] = useState(0);
+  const countClass =
+    'inline-flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white px-1.5 text-xs font-semibold text-gray-700';
+
+  useLayoutEffect(() => {
+    const row = rowRef.current;
+    const measure = measureRef.current;
+    if (!row || !measure) return;
+
+    const update = () => {
+      const widths = Array.from(
+        measure.querySelectorAll<HTMLElement>('[data-project-width]'),
+        (item) => item.getBoundingClientRect().width,
+      );
+      const counters =
+        measure.querySelectorAll<HTMLElement>('[data-count-width]');
+      const available = row.getBoundingClientRect().width;
+      const gap = parseFloat(getComputedStyle(row).columnGap) || 0;
+      let used = 0;
+      let fit = 0;
+      for (let count = 0; count <= widths.length; count++) {
+        if (count > 0) used += widths[count - 1] + (count > 1 ? gap : 0);
+        const remaining = widths.length - count;
+        const required =
+          used +
+          (remaining
+            ? (count ? gap : 0) +
+              counters[remaining - 1].getBoundingClientRect().width
+            : 0);
+        if (required <= available) fit = count;
+      }
+      setVisibleCount(fit);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(row);
+    observer.observe(measure);
+    return () => observer.disconnect();
+  }, [projects]);
+
+  const visible = Math.min(visibleCount, projects.length);
+  const hidden = projects.slice(visible);
+  return (
+    <div className="relative min-w-0">
+      <div ref={rowRef} className="flex min-w-0 items-center gap-2">
+        {projects.slice(0, visible).map((project) => (
+          <ProjectPill key={project.id} project={project} />
+        ))}
+        {hidden.length > 0 ? (
+          <Tooltip
+            content=""
+            heading={hidden.map((project) => project.name).join(', ')}
+          >
+            <button
+              type="button"
+              ref={countButtonRef}
+              onClick={() => setProjectsOpen(true)}
+              aria-haspopup="dialog"
+              className={countClass}
+              aria-label={`${hidden.length} more projects: ${hidden.map((project) => project.name).join(', ')}`}
+            >
+              +{hidden.length}
+            </button>
+          </Tooltip>
+        ) : null}
+      </div>
+      {projectsOpen ? (
+        <UserProjectsModal
+          projects={projects}
+          onClose={() => {
+            setProjectsOpen(false);
+            countButtonRef.current?.focus();
+          }}
+        />
+      ) : null}
+      <div
+        className="pointer-events-none invisible absolute inset-x-0 top-0 h-0 overflow-hidden"
+        aria-hidden="true"
+        inert
+      >
+        <div ref={measureRef} className="flex w-max items-center gap-2">
+          {projects.map((project) => (
+            <span key={project.id} data-project-width className="flex shrink-0">
+              <ProjectPill project={project} />
+            </span>
+          ))}
+          {projects.map((project, index) => (
+            <span key={project.id} data-count-width className={countClass}>
+              +{index + 1}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ProjectPill({ project }: { project: UserCardProject }) {
   return (
     <span
-      className="inline-flex w-fit items-center gap-2 rounded-full bg-white border border-gray-200 pe-2.5 ps-0.5 py-0.5  text-xs md:text-sm font-medium"
+      className="inline-flex w-fit shrink-0 whitespace-nowrap items-center gap-2 rounded-full bg-white border border-gray-200 pe-2.5 ps-0.5 py-0.5  text-xs md:text-sm font-medium"
       style={{
         color: project.colorHex,
         // backgroundColor: `${project.colorHex}1A`,
