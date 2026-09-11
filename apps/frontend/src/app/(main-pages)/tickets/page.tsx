@@ -57,6 +57,7 @@ type TicketSummary = {
   inProgress: number | null;
   resolved: number | null;
   critical: number | null;
+  closed: number | null;
 };
 
 const TICKETS_VIEW_QUERY_PARAM = 'view';
@@ -255,6 +256,11 @@ export default function Page() {
         title: 'Critical',
         count: ticketsQuery.data?.summary?.critical ?? 0,
         color: '#7A5AF8',
+      },
+      {
+        title: 'Closed',
+        count: ticketsQuery.data?.summary?.closed ?? 0,
+        color: 'gray',
       },
     ],
     [ticketsQuery.data],
@@ -1721,11 +1727,12 @@ export default function Page() {
                       tickets={kanbanTickets}
                       onDeleteTicket={
                         canDeleteTicket
-                          ? (ticket) => setTicketToDelete({
-                              projectId: ticket.project.id ?? '',
-                              ticketId: ticket.id,
-                              name: ticket.title,
-                            })
+                          ? (ticket) =>
+                              setTicketToDelete({
+                                projectId: ticket.project.id ?? '',
+                                ticketId: ticket.id,
+                                name: ticket.title,
+                              })
                           : undefined
                       }
                       statusOptions={kanbanStatusOptions}
@@ -2472,6 +2479,7 @@ function createKanbanTicketSummary(
     inProgress: number;
     resolved: number;
     critical: number;
+    closed: number;
   }>(
     (summary, ticket) => {
       switch (ticket.status?.key.toLowerCase()) {
@@ -2492,7 +2500,7 @@ function createKanbanTicketSummary(
 
       return summary;
     },
-    { open: 0, inProgress: 0, resolved: 0, critical: 0 },
+    { open: 0, inProgress: 0, resolved: 0, critical: 0, closed: 0 },
   );
 }
 
