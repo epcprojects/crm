@@ -1874,6 +1874,10 @@ export class TicketsService {
       );
     }
 
+    // baseQb never has statusKey applied (that only happens inside
+    // fetchStatusColumn), so cloning it here gives "all filters, status ignored".
+    const summary = await this.computeSummary(baseQb.clone());
+
     // ---- Single column pagination (statusKey provided) ----
     if (query.statusKey) {
       const { items, hasMore } = await this.fetchStatusColumn(
@@ -1882,7 +1886,7 @@ export class TicketsService {
         limit,
         page,
       );
-      return { statusKey: query.statusKey, items, hasMore };
+      return { statusKey: query.statusKey, items, hasMore, summary };
     }
 
     // ---- Initial load: every status column, in parallel ----
@@ -1908,7 +1912,26 @@ export class TicketsService {
       hasMore[key] = result.hasMore;
     }
 
-    return { items, hasMore };
+    return { items, hasMore, summary };
+  }
+  private async computeSummary(qb: SelectQueryBuilder<Ticket>) {
+    const summaryResult = await qb
+      .select([
+        `COALESCE(SUM(CASE WHEN UPPER(t.statusKey) = 'OPEN' THEN 1 ELSE 0 END), 0) AS open`,
+        `COALESCE(SUM(CASE WHEN UPPER(t.statusKey) = 'INPROGRESS' THEN 1 ELSE 0 END), 0) AS inprogress`,
+        `COALESCE(SUM(CASE WHEN UPPER(t.statusKey) = 'CLOSED' THEN 1 ELSE 0 END), 0) AS closed`,
+        `COALESCE(SUM(CASE WHEN UPPER(t.statusKey) = 'RESOLVED' THEN 1 ELSE 0 END), 0) AS resolved`,
+        `COALESCE(SUM(CASE WHEN UPPER(t.priorityKey) = 'CRITICAL' THEN 1 ELSE 0 END), 0) AS critical`,
+      ])
+      .getRawOne();
+
+    return {
+      open: Number(summaryResult?.open ?? 0),
+      inProgress: Number(summaryResult?.inprogress ?? 0),
+      closed: Number(summaryResult?.closed ?? 0),
+      resolved: Number(summaryResult?.resolved ?? 0),
+      critical: Number(summaryResult?.critical ?? 0),
+    };
   }
 }
 
