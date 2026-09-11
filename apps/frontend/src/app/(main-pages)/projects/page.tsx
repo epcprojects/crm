@@ -416,6 +416,11 @@ export default function ProjectsPage() {
         count: projectSummary?.criticalIssues ?? 0,
         color: '#7A5AF8',
       },
+      {
+        title: 'Closed Tickets',
+        count: projectSummary?.closedTickets ?? 0,
+        color: 'gray',
+      },
     ],
     [projectSummary],
   );
@@ -545,7 +550,8 @@ export default function ProjectsPage() {
                 </div>
 
                 <div className="flex-none overflow-visible pr-1 scrollbar-hide xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain">
-                  {projectsQuery.isLoading || projectsQuery.isPlaceholderData ? (
+                  {projectsQuery.isLoading ||
+                  projectsQuery.isPlaceholderData ? (
                     <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                       {Array.from({ length: 6 }).map((_, index) => (
                         <ProjectCardSkeleton key={index} />

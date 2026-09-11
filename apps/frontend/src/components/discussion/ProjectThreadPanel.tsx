@@ -22,7 +22,9 @@ import {
 } from '../../../public/icons';
 import { getFileUrl } from '../projects/ProjectFilesPanel';
 import ConfirmActionModal from '../modals/ConfirmActionModal';
-import ImageGalleryLightbox from '../ui/ImageGalleryLightbox';
+import ImageGalleryLightbox, { VideoThumbnail } from '../ui/ImageGalleryLightbox';
+import AttachmentCollage, { getCollageType } from './AttachmentCollage';
+import MediaAttachmentPreview, { getAttachmentMediaType, hasOnlyAudioAttachments } from './MediaAttachmentPreview';
 import type { DiscussionAttachment, DiscussionReply } from './types';
 import EmojiPickerButton from './EmojiPickerButton';
 import MessageReactionBar from './MessageReactionBar';
@@ -87,6 +89,7 @@ type DiscussionPanelProps = {
 };
 
 type GalleryImage = {
+  mediaType?: 'image' | 'video';
   attachmentId: string;
   storageKey?: string;
   fileName?: string;
@@ -667,7 +670,7 @@ export default function ProjectThreadPanel({
                               rel="noreferrer"
                               className="flex min-w-0 flex-1 items-start gap-3"
                               onClick={(event) => {
-                                if (!isImageAttachment(attachment.extension)) {
+                                if (!isImageAttachment(attachment.extension) && getAttachmentMediaType(attachment.extension) !== 'video') {
                                   return;
                                 }
 
@@ -686,7 +689,7 @@ export default function ProjectThreadPanel({
                                 />
                               ) : (
                                 <AttachmentFileIcon
-                                  extension={attachment.extension}
+                                  extension={attachment.extension} storageKey={attachment.storageKey} name={attachment.name}
                                 />
                               )}
                               <div className="min-w-0 flex-1">
@@ -834,9 +837,17 @@ export default function ProjectThreadPanel({
                               </div>
                             ) : null}
 
-                            {reply.attachments?.length ? (
+                              {reply.attachments?.length && getCollageType(reply.attachments) ? (
+                                <AttachmentCollage
+                                  attachments={reply.attachments}
+                                  onOpen={(attachment) => openGallery(
+                                    conversationImages,
+                                    conversationImages.findIndex((item) => item.attachmentId === attachment.id),
+                                  )}
+                                />
+                              ) : reply.attachments?.length ? (
                               <div
-                                className={`flex flex-wrap gap-2 ${
+                                className={`flex gap-2 ${hasOnlyAudioAttachments(reply.attachments) ? 'flex-col' : 'flex-wrap'} ${
                                   reply.attachments.length > 1
                                     ? 'md:grid-cols-3 2xl:grid-cols-6'
                                     : ''
@@ -857,7 +868,7 @@ export default function ProjectThreadPanel({
                                     key={attachment.id}
                                     className={`flex min-w-0 w-full items-start gap-3 ${
                                       reply.attachments &&
-                                      reply.attachments.length > 1
+                                      reply.attachments.length > 1 && !hasOnlyAudioAttachments(reply.attachments)
                                         ? 'md:min-w-60 max-w-40'
                                         : ''
                                     } rounded-lg ${
@@ -869,6 +880,15 @@ export default function ProjectThreadPanel({
                                         'p-0.5 w-full')
                                     } transition`}
                                   >
+                                      {(reply.attachments?.length === 1 || hasOnlyAudioAttachments(reply.attachments)) && getAttachmentMediaType(attachment.extension) ? (
+                                      <MediaAttachmentPreview
+                                        attachment={attachment}
+                                        onOpenVideo={() => openGallery(
+                                          conversationImages,
+                                          conversationImages.findIndex((item) => item.attachmentId === attachment.id),
+                                        )}
+                                      />
+                                    ) : (
                                     <a
                                       href={getAttachmentUrl(
                                         attachment.storageKey,
@@ -878,9 +898,9 @@ export default function ProjectThreadPanel({
                                       className="flex min-w-0 flex-1 items-start gap-3"
                                       onClick={(event) => {
                                         if (
-                                          !isImageAttachment(
-                                            attachment.extension,
-                                          )
+                                            !isImageAttachment(
+                                              attachment.extension,
+                                            ) && getAttachmentMediaType(attachment.extension) !== 'video'
                                         ) {
                                           return;
                                         }
@@ -920,7 +940,7 @@ export default function ProjectThreadPanel({
                                         />
                                       ) : (
                                         <AttachmentFileIcon
-                                          extension={attachment.extension}
+                                          extension={attachment.extension} storageKey={attachment.storageKey} name={attachment.name}
                                         />
                                       )}
 
@@ -942,6 +962,7 @@ export default function ProjectThreadPanel({
                                         </div>
                                       )}
                                     </a>
+                                    )}
                                   </div>
                                 ))}
                               </div>
@@ -1658,9 +1679,14 @@ function getGalleryImagesFromAttachments(
   authorName: string,
 ) {
   return attachments
-    .filter((attachment) => isImageAttachment(attachment.extension))
+    .filter((attachment) =>
+      isImageAttachment(attachment.extension) ||
+      getAttachmentMediaType(attachment.extension) === 'video',
+    )
     .map((attachment, index) => ({
       attachmentId: attachment.id,
+      mediaType: getAttachmentMediaType(attachment.extension) === 'video'
+        ? 'video' as const : 'image' as const,
       storageKey: attachment.storageKey,
       fileName: attachment.name,
       src: getFileUrl(attachment.storageKey),
@@ -1696,7 +1722,14 @@ function getGalleryImagesFromDiscussion(
   return images;
 }
 
-function AttachmentFileIcon({ extension }: { extension?: string }) {
+function AttachmentFileIcon({ extension, storageKey, name }: { extension?: string; storageKey?: string; name?: string }) {
+  if (storageKey && getAttachmentMediaType(extension) === 'video') {
+    return (
+      <span className="block h-10 w-10 shrink-0 overflow-hidden rounded-sm border border-gray-200">
+        <VideoThumbnail src={getFileUrl(storageKey)} label={name || 'Video'} />
+      </span>
+    );
+  }
   const label = normalizeAttachmentExtension(extension);
   const badgeClassName = getAttachmentBadgeClassName(label);
 
