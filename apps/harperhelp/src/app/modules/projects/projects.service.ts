@@ -158,6 +158,14 @@ export class ProjectsService {
         END
       ) AS open
       `,
+              `
+      COUNT(
+        CASE
+          WHEN UPPER(t.statusKey) = 'CLOSED' THEN 1
+        END
+      ) AS closed
+      `
+      ,
         `
       COUNT(
         CASE
@@ -170,6 +178,7 @@ export class ProjectsService {
         total: string;
         active: string;
         open: string;
+        closed: string;
         critical: string;
       }>();
 
@@ -240,6 +249,7 @@ export class ProjectsService {
         totalProjects: total,
         activeProjects: Number(summaryResult?.active ?? 0),
         openTickets: Number(summaryResult?.open ?? 0),
+        closedTickets: Number(summaryResult?.closed ?? 0),
         criticalIssues: Number(summaryResult?.critical ?? 0),
       },
 
