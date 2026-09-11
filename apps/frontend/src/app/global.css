@@ -28,6 +28,7 @@
    --color-cyan-blue: #1175F9;
    --color-violet-blue: #5906CE;
    --color-science-blue: #0060DE;
+   --breakpoint-3xl: 125rem;
 }
 
 html {
@@ -74,7 +75,7 @@ button[aria-disabled='true'] {
 }
 
 .hide-scrollbar {
-  -ms-overflow-style: none; /* IE and Edge */
+  -ms-overflow-style: none; /* IE and Edge. */
   scrollbar-width: none; /* Firefox */
 }
 

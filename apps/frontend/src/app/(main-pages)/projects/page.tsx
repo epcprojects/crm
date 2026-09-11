@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useDashboardHeaderAction } from '../../../components/dashboard/dashboard-shell';
 import CreateProjectModal, {
   type CreateProjectFormValues,
@@ -47,6 +47,8 @@ import {
   fetchProjectUsers,
   removeProjectUser,
 } from '../../../lib/project-users';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import DashboardSummaryBannerSkeleton from 'apps/frontend/src/components/ui/DashboardSummaryBannerSkeleton';
 
 type ProjectUsersModalState = {
   projectId: string;
@@ -56,13 +58,29 @@ type ProjectUsersModalState = {
   mode: 'view' | 'assign';
 };
 
+const PROJECTS_SEARCH_QUERY_PARAM = 'search';
+
 export default function ProjectsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { setHeaderActionOverride } = useDashboardHeaderAction();
   const { setLoading } = useAppLoader();
   const { hasPermission } = usePermissions();
-  const [searchValue, setSearchValue] = useState('');
+  const searchValue = searchParams.get(PROJECTS_SEARCH_QUERY_PARAM) ?? '';
+  const setSearchValue = (value: string) => {
+    const url = new URL(window.location.href);
+
+    if (value) {
+      url.searchParams.set(PROJECTS_SEARCH_QUERY_PARAM, value);
+    } else {
+      url.searchParams.delete(PROJECTS_SEARCH_QUERY_PARAM);
+    }
+
+    // Persist immediately so opening a project before the debounce finishes
+    // still preserves the search when navigating back.
+    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+  };
   const debouncedSearchValue = useDebouncedValue(searchValue);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
@@ -211,7 +229,11 @@ export default function ProjectsPage() {
   useEffect(() => {
     const loadMoreElement = loadMoreRef.current;
 
-    if (!loadMoreElement || !projectsQuery.hasNextPage) {
+    if (
+      !loadMoreElement ||
+      !projectsQuery.hasNextPage ||
+      projectsQuery.isPlaceholderData
+    ) {
       return;
     }
 
@@ -235,6 +257,7 @@ export default function ProjectsPage() {
     projectsQuery.fetchNextPage,
     projectsQuery.hasNextPage,
     projectsQuery.isFetchingNextPage,
+    projectsQuery.isPlaceholderData,
   ]);
 
   const handleCreateProject = async (values: CreateProjectFormValues) => {
@@ -278,6 +301,7 @@ export default function ProjectsPage() {
         description: values.description,
         statusKey: values.status,
         priorityKey: values.priority,
+        ticketType: values.ticketType,
         dueDate: values.dueDate,
         attachments: values.attachments,
       });
@@ -392,9 +416,16 @@ export default function ProjectsPage() {
         count: projectSummary?.criticalIssues ?? 0,
         color: '#7A5AF8',
       },
+      {
+        title: 'Closed Tickets',
+        count: projectSummary?.closedTickets ?? 0,
+        color: 'gray',
+      },
     ],
     [projectSummary],
   );
+  const isProjectSummaryLoading =
+    canViewProjectList && projectsQuery.isLoading && !projectsQuery.data;
 
   const invalidateProjectRelated = async () => {
     await Promise.all([
@@ -445,12 +476,19 @@ export default function ProjectsPage() {
       <div className="relative z-100 h-full xl:h-dvh xl:py-5 px-4 xl:px-0 pt-2 pb-0 xl:pr-5">
         <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <div className="shrink-0">
-            <DashboardSummaryBanner
-              imageSrc="/images/ProjectsIcon.svg"
-              imageAlt="Projects"
-              title="Projects"
-              stats={projectSummaryStats}
-            />
+            {isProjectSummaryLoading ? (
+              <DashboardSummaryBannerSkeleton
+                statsCount={4}
+                titleWidthClass="w-32"
+              />
+            ) : (
+              <DashboardSummaryBanner
+                imageSrc="/images/ProjectsIcon.svg"
+                imageAlt="Projects"
+                title="Projects"
+                stats={projectSummaryStats}
+              />
+            )}
           </div>
 
           <div className="flex h-auto min-h-0 flex-none flex-col gap-4 overflow-visible rounded-xl bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5 xl:h-full xl:flex-1 xl:overflow-hidden">
@@ -512,8 +550,9 @@ export default function ProjectsPage() {
                 </div>
 
                 <div className="flex-none overflow-visible pr-1 scrollbar-hide xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain">
-                  {projectsQuery.isLoading ? (
-                    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-4">
+                  {projectsQuery.isLoading ||
+                  projectsQuery.isPlaceholderData ? (
+                    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                       {Array.from({ length: 6 }).map((_, index) => (
                         <ProjectCardSkeleton key={index} />
                       ))}
@@ -624,7 +663,7 @@ export default function ProjectsPage() {
                   {projectsQuery.hasNextPage ? (
                     <div ref={loadMoreRef} className="py-6">
                       {projectsQuery.isFetchingNextPage ? (
-                        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                           {Array.from({ length: 3 }).map((_, index) => (
                             <ProjectCardSkeleton key={`next-page-${index}`} />
                           ))}

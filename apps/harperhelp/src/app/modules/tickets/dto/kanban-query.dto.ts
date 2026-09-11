@@ -1,15 +1,21 @@
 // dto/kanban-query.dto.ts
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsArray, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsArray, IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
+import { TicketType } from '../enum/ticket-type.enum';
 
 export class KanbanQueryDto {
-  @ApiPropertyOptional({ description: 'Search title, description, ticketRefNo' })
+  @ApiPropertyOptional({
+    description: 'Search title, description, ticketRefNo',
+  })
   @IsOptional()
   @IsString()
   search?: string;
 
-  @ApiPropertyOptional({ type: [String], description: 'Filter to specific project IDs' })
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Filter to specific project IDs',
+  })
   @IsOptional()
   @IsArray()
   @Transform(({ value }) => (Array.isArray(value) ? value : [value]))
@@ -20,4 +26,9 @@ export class KanbanQueryDto {
   @IsOptional()
   @IsString()
   priorityKey?: string;
+  
+  @ApiPropertyOptional({ enum: TicketType })
+  @IsOptional()
+  @IsEnum(TicketType)
+  ticketType?: TicketType;
 }

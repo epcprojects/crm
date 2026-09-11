@@ -5,6 +5,7 @@ import { DownloadIcon } from 'apps/frontend/public/icons';
 import { useEffect, useState } from 'react';
 
 type GalleryImage = {
+  mediaType?: 'image' | 'video';
   storageKey?: string;
   fileName?: string;
   src: string;
@@ -39,6 +40,8 @@ export default function ImageGalleryLightbox({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
+      // Let the video controls handle arrow keys for seeking and volume.
+      if (event.target instanceof HTMLVideoElement) return;
       if (event.key === 'ArrowLeft') onPrevious();
       if (event.key === 'ArrowRight') onNext();
     };
@@ -100,7 +103,7 @@ export default function ImageGalleryLightbox({
       className="fixed  flex flex-col inset-0 z-60  items-center justify-center bg-black/90 px-4 py-6"
       role="dialog"
       aria-modal="true"
-      aria-label={`${title} image gallery`}
+      aria-label={`${title} media gallery`}
       onClick={onClose}
     >
       <div
@@ -138,7 +141,7 @@ export default function ImageGalleryLightbox({
           void handleDownload();
         }}
         className="absolute top-4 right-18 gap-2 hover:bg-gray-300 flex h-11 items-center justify-center rounded-full bg-white px-4 text-sm font-medium text-black"
-        aria-label="Download image"
+        aria-label="Download file"
         disabled={isDownloading}
       >
         <DownloadIcon /> {isDownloading ? 'Downloading...' : 'Download'}
@@ -154,7 +157,7 @@ export default function ImageGalleryLightbox({
                 onPrevious();
               }}
               className="absolute top-1/2 left-0 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white text-black md:left-4 md:h-11 md:w-11"
-              aria-label="Previous image"
+              aria-label="Previous media"
             >
               <svg
                 width="20"
@@ -177,7 +180,7 @@ export default function ImageGalleryLightbox({
                 onNext();
               }}
               className="absolute top-1/2 right-0 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white text-black md:right-4 md:h-11 md:w-11"
-              aria-label="Next image"
+              aria-label="Next media"
             >
               <svg
                 width="20"
@@ -199,11 +202,18 @@ export default function ImageGalleryLightbox({
           className="flex max-h-full w-full items-center justify-center"
           onClick={(event) => event.stopPropagation()}
         >
-          <img
-            src={images[activeIndex].src}
-            alt={images[activeIndex].alt}
-            className="max-h-[65vh] w-auto max-w-full object-contain"
-          />
+          {images[activeIndex].mediaType === 'video' ? (
+            <GalleryVideo
+              key={images[activeIndex].src}
+              item={images[activeIndex]}
+            />
+          ) : (
+            <img
+              src={images[activeIndex].src}
+              alt={images[activeIndex].alt}
+              className="max-h-[65vh] w-auto max-w-full object-contain"
+            />
+          )}
         </div>
       </div>
 
@@ -224,16 +234,83 @@ export default function ImageGalleryLightbox({
                     : 'border-transparent opacity-70 hover:opacity-100'
                 }`}
               >
-                <img
-                  src={image.src}
-                  alt={image.alt}
-                  className="h-full w-full object-cover"
-                />
+                {image.mediaType === 'video' ? (
+                  <VideoThumbnail
+                    src={image.src}
+                    label={image.fileName || image.alt}
+                  />
+                ) : (
+                  <img
+                    src={image.src}
+                    alt={image.alt}
+                    className="h-full w-full object-cover"
+                  />
+                )}
               </button>
             ))}
           </div>
         </div>
       ) : null}
     </div>
+  );
+}
+
+export function VideoThumbnail({ src, label }: { src: string; label: string }) {
+  const [failed, setFailed] = useState(false);
+
+  return (
+    <span
+      className="relative flex h-full w-full items-center justify-center bg-black text-white"
+      aria-label={label}
+    >
+      {!failed ? (
+        <video
+          src={src}
+          muted
+          playsInline
+          preload="metadata"
+          aria-hidden="true"
+          className="pointer-events-none h-full w-full object-cover"
+          onLoadedMetadata={(event) => {
+            const video = event.currentTarget;
+            // Seek into the clip to display a decoded frame without playing it.
+            if (Number.isFinite(video.duration) && video.duration > 0) {
+              video.currentTime = Math.min(1, video.duration / 2);
+            }
+          }}
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <span className="pt-8 text-xs">Video</span>
+      )}
+      <span
+        aria-hidden="true"
+        className="absolute inset-0 flex items-center justify-center"
+      >
+        <span className="rounded-full bg-black/60 px-2 py-1 text-sm">▶</span>
+      </span>
+    </span>
+  );
+}
+
+function GalleryVideo({ item }: { item: GalleryImage }) {
+  const [failed, setFailed] = useState(false);
+  return failed ? (
+    <div className="p-12 text-center text-white">
+      <p>This video could not be played in your browser.</p>
+      <a href={item.src} target="_blank" rel="noreferrer" className="underline">
+        Open video
+      </a>
+    </div>
+  ) : (
+    <video
+      controls
+      playsInline
+      preload="metadata"
+      src={item.src}
+      aria-label={item.fileName || item.alt}
+      className="max-h-[65vh] w-full max-w-full object-contain"
+      onError={() => setFailed(true)}
+    />
   );
 }

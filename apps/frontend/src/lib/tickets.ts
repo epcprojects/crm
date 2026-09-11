@@ -6,6 +6,7 @@ export type CreateTicketPayload = {
   description?: string;
   statusKey: string;
   priorityKey?: string;
+  ticketType: 'feature_request' | 'bug' | '';
   assigneeId?: string;
   dueDate?: string;
   attachments?: File[];
@@ -23,6 +24,7 @@ export async function createTicket(payload: CreateTicketPayload) {
   const body: Record<string, unknown> = {
     title: payload.title,
     statusKey: payload.statusKey,
+    ticketType: payload.ticketType,
   };
 
   if (payload.description?.trim()) {

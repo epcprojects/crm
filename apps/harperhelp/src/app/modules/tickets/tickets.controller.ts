@@ -33,6 +33,8 @@ import { CalendarQueryDto } from '../calendar/dto/calendar-query.dto';
 import { FileSizeGuard } from '../../../common/guards/file-size.guard';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
 import { KanbanQueryDto } from './dto/kanban-query.dto';
+import { GetKanbanTicketCountsDto } from './dto/get-kanban-ticket-counts.dto';
+import { KanbanBoardQueryDto } from './dto/kanban-board-query.dto';
 
 @Controller('projects/:pid/tickets')
 @ApiBearerAuth('JWT-auth')
@@ -108,8 +110,8 @@ View ranges:
 
   // ---------------- CREATE ----------------
   @Post()
-  @UseGuards(FileSizeGuard)
-  @ApiConsumes('multipart/form-data')
+  // @UseGuards(FileSizeGuard)
+  // @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
       type: 'object',
@@ -123,6 +125,10 @@ View ranges:
         statusKey: {
           type: 'string',
         },
+        ticketType: {
+          type: 'string',
+          enum: ['feature_request','bug'],
+        },
         priorityKey: {
           type: 'string',
         },
@@ -131,15 +137,9 @@ View ranges:
           format: 'date-time',
           nullable: true,
         },
-        attachments: {
-          type: 'array',
-          items: {
-            type: 'string',
-            format: 'binary',
-          },
-        },
+
       },
-      required: ['title'],
+      required: ['title', 'ticketType'],
     },
   })
   @ApiOperation({
@@ -239,6 +239,143 @@ export class DashboardController {
       'Get Kanban board — tickets grouped by status, with per-status counts',
   })
   getKanbanBoard(@Query() query: KanbanQueryDto, @GetUser() user) {
+    return this.ticketsService.getKanbanBoards(query, user);
+  }
+
+  @Get('kanban-ticket-counts')
+  @ApiOperation({
+    summary: 'Overall ticket counts per status',
+    description:
+      'Returns the total ticket count for every status, based on all matching tickets ' +
+      '(pagination is not applied — this always reflects the full filtered set).',
+  })
+  @ApiQuery({
+    name: 'priorityKey',
+    required: false,
+    type: String,
+    description: 'Filter counts to tickets with this priority key.',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description:
+      'Filter counts to tickets matching this search term (title, description, ticketRefNo).',
+  })
+  @ApiQuery({
+    name: 'projectIds',
+    required: false,
+    type: [String],
+    description: 'Filter counts to tickets within these project IDs.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Ticket counts per status retrieved successfully.',
+    schema: {
+      example: {
+        countPerStatus: {
+          Open: 14,
+          InProgress: 6,
+          Resolved: 3,
+          Closed: 5,
+        },
+      },
+    },
+  })
+  // @Get('kanban-ticket-counts')
+  async getKanbanTicketCounts(
+    @Query() query: GetKanbanTicketCountsDto,
+    @GetUser() user,
+  ) {
+    return this.ticketsService.getKanbanTicketCounts(query, user);
+  }
+
+  @Get('kanban-board')
+  @ApiOperation({
+    summary: 'Kanban board tickets',
+    description:
+      'No `statusKey` param → returns the first page (default 20) of tickets for every status column, keyed by status, plus `hasMore` per column. ' +
+      'With `statusKey` param → returns the next page (default 20) for that column only, using `page`/`limit`.',
+  })
+  @ApiQuery({
+    name: 'statusKey',
+    required: false,
+    type: String,
+    description:
+      'Fetch only this status column, paginated. Omit to get the initial per-column snapshot.',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description:
+      'Page number (only used together with `statusKey`). Defaults to 1.',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page/column (max 100). Defaults to 20.',
+    example: 20,
+  })
+  @ApiQuery({
+    name: 'priorityKey',
+    required: false,
+    type: String,
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+  })
+  @ApiQuery({
+    name: 'projectIds',
+    required: false,
+    type: [String],
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Kanban board tickets retrieved successfully.',
+    schema: {
+      oneOf: [
+        {
+          title: 'Initial load (no statusKey param)',
+          example: {
+            items: {
+              Open: [
+                {
+                  id: 'a1b2c3d4-...',
+                  title: 'Fix login bug',
+                  statusKey: 'Open',
+                },
+              ],
+              InProgress: [],
+              Resolved: [],
+              Closed: [],
+            },
+            hasMore: {
+              Open: true,
+              InProgress: false,
+              Resolved: false,
+              Closed: false,
+            },
+          },
+        },
+        {
+          title: 'Single column page (statusKey param present)',
+          example: {
+            statusKey: 'Open',
+            items: [
+              { id: 'a1b2c3d4-...', title: 'Fix login bug', statusKey: 'Open' },
+            ],
+            hasMore: true,
+          },
+        },
+      ],
+    },
+  })
+  getKanbanBoard2(@GetUser() user, @Query() query: KanbanBoardQueryDto) {
     return this.ticketsService.getKanbanBoard(query, user);
   }
 }

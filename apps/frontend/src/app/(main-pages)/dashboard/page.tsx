@@ -37,6 +37,7 @@ import CreateProjectModal, {
 import { createTicketProjectOptions } from '../../../components/modals/create-ticket-modal.data';
 import ProjectCard from '../../../components/projects/ProjectCard';
 import RecentTicketsTable, {
+  RecentTicketQuickLinkItem,
   type RecentTicket,
 } from '../../../components/tables/RecentTicketsTable';
 import { appToast } from '../../../components/toast/AppToast';
@@ -75,6 +76,7 @@ type TicketSummary = {
   inProgress: number | null;
   resolved: number | null;
   critical: number | null;
+  closed: number | null;
 };
 
 type DashboardProjectPanelTabKey = 'projects' | 'threads' | 'activity';
@@ -178,7 +180,9 @@ type ApiTicketSetting = {
 };
 
 const RECENT_TICKETS_STATUS_QUERY_PARAM = 'status';
+const RECENT_TICKETS_SEARCH_QUERY_PARAM = 'search';
 const RECENT_TICKETS_PRIORITY_QUERY_PARAM = 'priority';
+const RECENT_TICKETS_TYPE_QUERY_PARAM = 'ticketType';
 const TICKETS_PROJECT_QUERY_PARAM = 'project';
 const DASHBOARD_TABS_QUERY_PARAM = 'dashboardTab';
 const DASHBOARD_ACTIVITY_PAGE_SIZE = 20;
@@ -223,7 +227,20 @@ export default function Page() {
   const canViewProjectDetail = hasPermission('projects.view_detail');
   const canEditProject = hasPermission('projects.edit');
   const canDeleteProject = hasPermission('projects.delete');
-  const [searchValue, setSearchValue] = useState('');
+  const searchValue = searchParams.get(RECENT_TICKETS_SEARCH_QUERY_PARAM) ?? '';
+  const setSearchValue = (value: string) => {
+    const url = new URL(window.location.href);
+
+    if (value) {
+      url.searchParams.set(RECENT_TICKETS_SEARCH_QUERY_PARAM, value);
+    } else {
+      url.searchParams.delete(RECENT_TICKETS_SEARCH_QUERY_PARAM);
+    }
+
+    // Persist immediately so opening a ticket before the debounce finishes
+    // still preserves the search when navigating back.
+    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+  };
   const debouncedSearchValue = useDebouncedValue(searchValue);
   const [projectPanelTab, setProjectPanelTab] =
     useState<DashboardProjectPanelTabKey>(
@@ -261,6 +278,9 @@ export default function Page() {
   );
   const selectedPriority = getDashboardPriorityFilterValue(
     searchParams.get(RECENT_TICKETS_PRIORITY_QUERY_PARAM),
+  );
+  const selectedTicketType = getDashboardTicketTypeFilterValue(
+    searchParams.get(RECENT_TICKETS_TYPE_QUERY_PARAM),
   );
   const selectedDashboardTab = getDashboardTabValue(
     searchParams.get(DASHBOARD_TABS_QUERY_PARAM),
@@ -339,6 +359,20 @@ export default function Page() {
     ],
     [ticketPrioritiesQuery.data],
   );
+  const ticketTypeFilterOptions = [
+    {
+      label: 'All Types',
+      value: 'all',
+    },
+    {
+      label: 'Bug',
+      value: 'bug',
+    },
+    {
+      label: 'Feature',
+      value: 'feature_request',
+    },
+  ];
   const projectFilterOptions = useMemo(
     () =>
       (projectNamesQuery.data ?? []).map((project) => ({
@@ -382,6 +416,7 @@ export default function Page() {
       selectedProjectIdsKey,
       selectedStatus,
       selectedPriority,
+      selectedTicketType,
     ],
 
     queryFn: () =>
@@ -395,6 +430,8 @@ export default function Page() {
         statusKey: selectedStatus === 'all' ? undefined : selectedStatus,
 
         priorityKey: selectedPriority === 'all' ? undefined : selectedPriority,
+        ticketType:
+          selectedTicketType === 'all' ? undefined : selectedTicketType,
       }),
 
     enabled: canViewRecentTickets,
@@ -467,15 +504,19 @@ export default function Page() {
     status,
     priority,
     project,
+    ticketType,
   }: {
     status?: string;
     priority?: string;
     project?: string[];
+    ticketType?: string;
   }) => {
     const nextSearchParams = new URLSearchParams(searchParams.toString());
+
     const nextStatus = status ?? selectedStatus;
     const nextPriority = priority ?? selectedPriority;
     const nextProjectIds = project ?? selectedProjectIds;
+    const nextTicketType = ticketType ?? selectedTicketType;
 
     if (nextStatus === 'Open') {
       nextSearchParams.delete(RECENT_TICKETS_STATUS_QUERY_PARAM);
@@ -489,12 +530,20 @@ export default function Page() {
       nextSearchParams.set(RECENT_TICKETS_PRIORITY_QUERY_PARAM, nextPriority);
     }
 
+    if (nextTicketType === 'all') {
+      nextSearchParams.delete(RECENT_TICKETS_TYPE_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(RECENT_TICKETS_TYPE_QUERY_PARAM, nextTicketType);
+    }
+
     nextSearchParams.delete(TICKETS_PROJECT_QUERY_PARAM);
+
     nextProjectIds.forEach((projectId) => {
       nextSearchParams.append(TICKETS_PROJECT_QUERY_PARAM, projectId);
     });
 
     const nextQueryString = nextSearchParams.toString();
+
     const currentQueryString = searchParams.toString();
 
     if (nextQueryString === currentQueryString) {
@@ -680,6 +729,7 @@ export default function Page() {
         description: values.description,
         statusKey: values.status,
         priorityKey: values.priority,
+        ticketType: values.ticketType,
         dueDate: values.dueDate,
         attachments: values.attachments,
       });
@@ -815,7 +865,72 @@ export default function Page() {
       ),
     [activityQuery.data, currentUserId],
   );
+    const canViewProjectThread = hasPermission('thread.view');
+     const canViewProjectFiles = hasPermission('files.view');
+  const canViewProjectCalendar = hasPermission('calendar.view_grid');
+  const canViewProjectNotes = hasPermission('projects_notes.view_list');
   const [filtersOpen, setFiltersOpen] = useState(false);
+    const ticketQuickLinkItems = useMemo(
+      () =>
+        canViewProjectDetail
+          ? (ticket: RecentTicket): RecentTicketQuickLinkItem[] => {
+              const projectId = ticket.project.id;
+  
+              if (!projectId) {
+                return [];
+              }
+  
+              const items: RecentTicketQuickLinkItem[] = [
+                {
+                  key: 'project',
+                  label: 'Go to Project',
+                  href: `/projects/${projectId}`,
+                },
+              ];
+  
+              if (canViewProjectThread) {
+                items.push({
+                  key: 'thread',
+                  label: 'Thread',
+                  href: `/projects/${projectId}?t=1`,
+                });
+              }
+  
+              if (canViewProjectFiles) {
+                items.push({
+                  key: 'files',
+                  label: 'Files',
+                  href: `/projects/${projectId}?t=2`,
+                });
+              }
+  
+              if (canViewProjectCalendar) {
+                items.push({
+                  key: 'calendar',
+                  label: 'Calendar',
+                  href: `/projects/${projectId}?t=3`,
+                });
+              }
+  
+              if (canViewProjectNotes) {
+                items.push({
+                  key: 'notes',
+                  label: 'Notes',
+                  href: `/projects/${projectId}?t=4`,
+                });
+              }
+  
+              return items;
+            }
+          : undefined,
+      [
+        canViewProjectCalendar,
+        canViewProjectDetail,
+        canViewProjectFiles,
+        canViewProjectNotes,
+        canViewProjectThread,
+      ],
+    );
 
   return (
     <div className="xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 z-100 h-full xl:h-dvh relative">
@@ -904,7 +1019,7 @@ export default function Page() {
                   ) : null}
                 </div>
 
-                <div className="grid grid-cols-2 gap-1.5 xl:grid-cols-4 xl:gap-5">
+                <div className="grid grid-cols-2 gap-1.5 xl:grid-cols-3 2xl:grid-cols-5 xl:gap-5">
                   <StatusCard
                     title="Open"
                     count={formatSummaryCount(ticketSummary?.open)}
@@ -946,6 +1061,17 @@ export default function Page() {
                     count={formatSummaryCount(ticketSummary?.critical)}
                     icon={
                       <AlertIcon
+                        width={isMobile ? '12' : '20'}
+                        height={isMobile ? '12' : '20'}
+                        fill="white"
+                      />
+                    }
+                  />
+                  <StatusCard
+                    title="Closed"
+                    count={formatSummaryCount(ticketSummary?.closed)}
+                    icon={
+                      <CheckMarkCircleIcon
                         width={isMobile ? '12' : '20'}
                         height={isMobile ? '12' : '20'}
                         fill="white"
@@ -1023,7 +1149,8 @@ export default function Page() {
                               className={`ring text-sm gap-1  hover:bg-linear-to-l from-royal-blue/80  to-crystal-blue/80 hover:text-white  font-semibold bg-white rounded-lg py-2 px-4 flex items-center justify-center ${
                                 open ||
                                 selectedStatus !== 'Open' ||
-                                selectedPriority !== 'all'
+                                selectedPriority !== 'all' ||
+                                selectedTicketType !== 'all'
                                   ? 'border-primary bg-primary/5 text-primary'
                                   : 'border-gray-200 bg-white text-gray-600'
                               }`}
@@ -1081,8 +1208,22 @@ export default function Page() {
                                   maxMenuHeight={150}
                                 />
                               </div>
+                              <div className="relative w-full overflow-visible">
+                                <Dropdown
+                                  options={ticketTypeFilterOptions}
+                                  value={selectedTicketType}
+                                  onChange={(value) =>
+                                    updateRecentTicketsFilters({
+                                      ticketType: value,
+                                    })
+                                  }
+                                  placeholder="All Types"
+                                  maxMenuHeight={150}
+                                />
+                              </div>
                               {selectedStatus !== 'all' ||
                               selectedPriority !== 'all' ||
+                              selectedTicketType !== 'all' ||
                               selectedProjectIds.length > 0 ? (
                                 <button
                                   type="button"
@@ -1091,6 +1232,7 @@ export default function Page() {
                                       project: [],
                                       status: 'all',
                                       priority: 'all',
+                                      ticketType: 'all',
                                     });
                                   }}
                                   className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50"
@@ -1189,6 +1331,18 @@ export default function Page() {
                             placeholder="All Priority"
                           />
                         </div>
+                        <div className="w-full">
+                          <Dropdown
+                            options={ticketTypeFilterOptions}
+                            value={selectedTicketType}
+                            onChange={(value) =>
+                              updateRecentTicketsFilters({
+                                ticketType: value,
+                              })
+                            }
+                            placeholder="All Types"
+                          />
+                        </div>
                         <ThemeButton
                           type="button"
                           variant="secondary"
@@ -1196,13 +1350,15 @@ export default function Page() {
                           disabled={
                             selectedProjectIds.length === 0 &&
                             selectedStatus === 'all' &&
-                            selectedPriority === 'all'
+                            selectedPriority === 'all' &&
+                            selectedTicketType === 'all'
                           }
                           onClick={() => {
                             updateRecentTicketsFilters({
                               project: [],
                               status: 'all',
                               priority: 'all',
+                              ticketType: 'all',
                             });
                           }}
                           className="disabled:cursor-not-allowed disabled:opacity-50"
@@ -1239,6 +1395,7 @@ export default function Page() {
                             )
                         : undefined
                     }
+                      getQuickLinkItems={ticketQuickLinkItems}
                   />
                 )}
               </div>
@@ -1599,39 +1756,40 @@ function DashboardThreadRowSkeleton() {
 
 function DashboardStatsSkeleton() {
   return (
-    <div className="flex w-full animate-pulse flex-col justify-between gap-6 rounded-[10px] bg-[linear-gradient(to_right,#335C94_0%,#665932_25%,#7B398E_50%,#003F89_75%,#070922_100%)] p-4 sm:p-5 xl:gap-8.5 xl:rounded-[20px] xl:p-7.5">
+    <div
+      className="flex w-full animate-pulse flex-col justify-between gap-2 rounded-[10px] bg-[linear-gradient(to_right,#335C94_0%,#665932_25%,#7B398E_50%,#003F89_75%,#070922_100%)] p-4 sm:p-5 xl:gap-8.5 xl:rounded-xl xl:p-7.5"
+      aria-hidden="true"
+    >
       {/* Header */}
-      <div className="flex flex-col items-stretch gap-4 xl:flex-row xl:items-start xl:gap-6">
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <div className="h-7 w-52 max-w-full rounded-lg bg-white/20 sm:w-64 xl:h-9 xl:w-72" />
+      <div className="flex flex-col items-start gap-2 xl:flex-row xl:gap-6">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <div className="h-7 w-52 max-w-full rounded-lg bg-white/20 sm:h-9 sm:w-64 xl:w-72" />
 
-          <div className="h-4 w-full max-w-80 rounded bg-white/10 xl:h-5 xl:max-w-96" />
+          <div className="h-4 w-full max-w-80 rounded bg-white/10 sm:h-5 xl:max-w-96" />
         </div>
 
-        {/* New Ticket button */}
-        <div className="h-10 w-full shrink-0 rounded-full bg-white/20 xl:w-32" />
+        {/* Actual New Ticket button mobile par hidden hai */}
+        <div className="hidden h-10 w-32 shrink-0 rounded-full bg-white/20 xl:block" />
       </div>
 
       {/* Status cards */}
-      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4 xl:gap-5">
-        {Array.from({ length: 4 }).map((_, index) => (
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 2xl:grid-cols-5 xl:grid-cols-3 xl:gap-5">
+        {Array.from({ length: 5 }).map((_, index) => (
           <div
             key={index}
-            className="min-w-0 rounded-xl border border-white/6 px-2 py-2 shadow-[0_14px_44px_0_rgb(0_0_0/20%)] sm:px-3 xl:rounded-full xl:py-2 xl:pr-4 xl:pl-2"
+            className="min-w-0 rounded-full border border-white/20 py-1 pr-4 pl-2 shadow-[0_14px_44px_0_rgb(0_0_0/20%)] xl:py-2"
           >
-            <div className="flex min-w-0 items-center gap-2 xl:gap-3">
-              {/* Icon */}
-              <div className="h-9 w-9 shrink-0 rounded-full bg-white/20 sm:h-10 sm:w-10 xl:h-12 xl:w-12" />
+            <div className="flex min-w-0 items-center gap-1 2xl:gap-3">
+              <div className="h-6 w-6 shrink-0 rounded-full bg-white/20 xl:h-9 xl:w-9 2xl:h-12 2xl:w-12" />
 
-              {/* Label and count */}
-              <div className="flex min-w-0 flex-1 flex-col gap-1.5 xl:flex-row xl:items-center xl:justify-between xl:gap-3">
+              <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
                 <div
-                  className={`h-3 rounded bg-white/15 xl:h-4 ${
-                    index === 1 ? 'w-16 xl:w-20' : 'w-11 xl:w-14'
+                  className={`h-3 rounded bg-white/15 2xl:h-4 ${
+                    index === 1 ? 'w-14 2xl:w-20' : 'w-10 2xl:w-14'
                   }`}
                 />
 
-                <div className="h-5 w-7 rounded bg-white/25 xl:h-7 xl:w-8" />
+                <div className="h-5 w-7 shrink-0 rounded bg-white/25 2xl:h-7 2xl:w-8" />
               </div>
             </div>
           </div>
@@ -1644,79 +1802,86 @@ function DashboardStatsSkeleton() {
 export function RecentTicketsTableSkeleton() {
   return (
     <div
-      className="flex h-full min-h-0 animate-pulse flex-col overflow-hidden rounded-xl bg-white xl:w-full xl:border xl:border-gray-200"
+      className="flex h-auto min-h-0 animate-pulse flex-col overflow-visible rounded-xl bg-white xl:h-full xl:w-full xl:overflow-hidden xl:border xl:border-gray-200"
       aria-hidden="true"
     >
-      {/* Mobile skeleton cards */}
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain scrollbar-hide xl:hidden">
+      {/* Mobile: current TicketMobileCard layout */}
+      <div className="flex-none space-y-3 overflow-visible xl:hidden xl:p-3">
         {Array.from({ length: 4 }).map((_, index) => (
           <div
             key={index}
-            className="w-full rounded-xl border border-gray-200 bg-white p-3"
+            className="w-full overflow-hidden rounded-lg border border-gray-200 bg-white"
           >
-            {/* Assignee, status and priority */}
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="h-9 w-9 shrink-0 rounded-full bg-gray-200" />
+            <div className="flex flex-col gap-2 bg-gray-50 p-2.5">
+              {/* Title */}
+              <div
+                className={`h-4 rounded bg-gray-200 ${
+                  index % 2 === 0 ? 'w-2/3' : 'w-3/4'
+                }`}
+              />
 
-                <div className="min-w-0 space-y-2">
-                  <div
-                    className={`h-4 rounded bg-gray-200 ${
-                      index % 2 === 0 ? 'w-28' : 'w-24'
-                    }`}
-                  />
-                  <div className="h-3 w-16 rounded bg-gray-100" />
+              {/* Reference, status and priority */}
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-14 rounded bg-gray-200" />
+
+                <div className="ml-auto h-5 w-14 rounded-full bg-gray-200" />
+                <div className="h-5 w-16 rounded-[5px] bg-gray-200" />
+              </div>
+            </div>
+
+            {/* Project, creator and dates */}
+            <div className="grid grid-cols-2 gap-2.5 p-2.5">
+              <div className="space-y-1.5">
+                <div className="h-2.5 w-10 rounded bg-gray-100" />
+                <div className="flex h-6 w-28 items-center gap-1 rounded-full bg-gray-100 p-0.5">
+                  <div className="h-5 w-5 shrink-0 rounded-full bg-gray-200" />
+                  <div className="h-3 w-18 rounded bg-gray-200" />
                 </div>
               </div>
 
-              <div className="flex shrink-0 items-center gap-2">
-                <div className="h-7 w-16 rounded-full bg-gray-100" />
-                <div className="h-7 w-18 rounded-md bg-gray-100" />
+              <div className="space-y-1.5">
+                <div className="h-2.5 w-14 rounded bg-gray-100" />
+                <div className="flex h-6 items-center gap-1">
+                  <div className="h-5 w-5 shrink-0 rounded-full bg-gray-200" />
+                  <div className="h-3 w-20 rounded bg-gray-200" />
+                </div>
               </div>
-            </div>
 
-            <div className="my-3 h-px bg-gray-200" />
+              <div className="space-y-1.5">
+                <div className="h-2.5 w-14 rounded bg-gray-100" />
+                <div className="h-3 w-20 rounded bg-gray-200" />
+              </div>
 
-            {/* Ticket reference and title */}
-            <div className="flex items-center gap-3">
-              <div className="h-5 w-16 shrink-0 rounded-full bg-gray-100" />
-
-              <div
-                className={`h-4 rounded bg-gray-100 ${
-                  index % 2 === 0 ? 'w-40' : 'w-32'
-                }`}
-              />
-            </div>
-
-            {/* Project */}
-            <div className="mt-2">
-              <div className="flex h-7 w-32 items-center gap-2 rounded-full bg-purple-50 p-0.5 pr-3">
-                <div className="h-6 w-6 shrink-0 rounded-full bg-white" />
-                <div className="h-3 w-20 rounded bg-purple-100" />
+              <div className="space-y-1.5">
+                <div className="h-2.5 w-12 rounded bg-gray-100" />
+                <div className="h-3 w-20 rounded bg-gray-200" />
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* XL desktop table skeleton */}
+      {/* Desktop: actual 8-column table */}
       <div className="hidden min-h-0 flex-1 overflow-hidden xl:block">
-        <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
-          <div className="grid grid-cols-5 gap-4">
-            {Array.from({ length: 5 }).map((_, index) => (
-              <div key={index} className="h-4 rounded bg-gray-200" />
-            ))}
-          </div>
+        <div className="grid grid-cols-[110px_1.5fr_1.2fr_100px_100px_1.2fr_110px_110px] gap-4 border-b border-gray-200 bg-gray-50 px-4 py-3">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <div key={index} className="h-4 rounded bg-gray-200" />
+          ))}
         </div>
 
         <div>
           {Array.from({ length: 6 }).map((_, rowIndex) => (
             <div
               key={rowIndex}
-              className="grid grid-cols-5 gap-4 border-b border-gray-200 px-4 py-4 last:border-b-0"
+              className="grid grid-cols-[110px_1.5fr_1.2fr_100px_100px_1.2fr_110px_110px] items-center gap-4 border-b border-gray-200 px-4 py-4 last:border-b-0"
             >
-              {Array.from({ length: 5 }).map((_, cellIndex) => (
-                <div key={cellIndex} className="h-5 rounded bg-gray-100" />
+              {Array.from({ length: 8 }).map((_, cellIndex) => (
+                <div
+                  key={cellIndex}
+                  className={`rounded bg-gray-100 ${
+                    cellIndex === 2 || cellIndex === 5 ? 'h-7' : 'h-5'
+                  }`}
+                />
               ))}
             </div>
           ))}
@@ -1961,7 +2126,7 @@ function mapTicketSettingToDropdownOption(setting: ApiTicketSetting) {
     value: setting.key,
     icon: (
       <span
-        className="inline-block h-2.25 w-2.5 rounded-full"
+        className="inline-block h-2.5 w-2.5 rounded-full"
         style={{
           backgroundColor: setting.color,
         }}
@@ -2076,6 +2241,7 @@ type ApiDashboardTicket = {
   ticketRefNo?: string;
   createdAt: string;
   title: string;
+  ticketType?: string | null;
   project: {
     id: string;
     name: string;
@@ -2100,7 +2266,7 @@ type ApiDashboardTicket = {
     id: string;
     email: string;
     fullName: string;
-  };
+  } | null;
   dueDate: string;
 };
 
@@ -2225,6 +2391,7 @@ async function fetchDashboardTickets({
   limit,
   statusKey,
   priorityKey,
+  ticketType,
   search,
   projectIds,
 }: {
@@ -2232,6 +2399,7 @@ async function fetchDashboardTickets({
   limit: number;
   statusKey?: string;
   priorityKey?: string;
+  ticketType?: string;
   search?: string;
   projectIds?: string[];
 }): Promise<DashboardTicketsResponse> {
@@ -2249,6 +2417,9 @@ async function fetchDashboardTickets({
   }
   if (statusKey) {
     searchParams.set('statusKey', statusKey);
+  }
+  if (ticketType) {
+    searchParams.set('ticketType', ticketType);
   }
   projectIds?.forEach((projectId) => {
     if (projectId) {
@@ -2315,6 +2486,7 @@ function mapApiDashboardTicketToTicketListItem(
       ? ticket.project.brandColor
       : '#df169c',
     tag: priorityLabel,
+    ticketType: ticket.ticketType ?? '',
     tagClassName: getPriorityTagClassName(priorityLabel),
     icon: getInitials(projectName),
     iconClassName: 'border-purple-200 bg-purple-50 text-purple-700',
@@ -2331,6 +2503,7 @@ function mapRecentTicketToTicketListItem(
     projectId: ticket.project.id,
     title: ticket.title,
     date: ticket.date,
+    ticketType: ticket.ticketType ?? '',
     owner: ticket.project.name,
     ownerColor: 'border-purple-200 bg-purple-50 text-purple-700',
     tag: priorityLabel,
@@ -2405,6 +2578,7 @@ function mapApiDashboardTicketToRecentTicket(
     id: ticket.id,
     ticketRefNo: ticket.ticketRefNo,
     title: ticket.title,
+    ticketType: ticket.ticketType ?? null,
     project: {
       id: ticket.project?.id,
       name: ticket.project?.name ?? 'No Project',
@@ -2425,9 +2599,9 @@ function mapApiDashboardTicketToRecentTicket(
       : '--',
     sortDate: ticket.createdAt,
     reporter: {
-      id: ticket.reporter.id ?? '',
-      email: ticket.reporter.email,
-      fullName: ticket.reporter.fullName,
+      id: ticket.reporter?.id ?? '',
+      email: ticket.reporter?.email ?? '',
+      fullName: ticket.reporter?.fullName ?? '',
     },
   };
 }
@@ -2694,4 +2868,11 @@ function formatTicketDate(value: string) {
     day: 'numeric',
     year: 'numeric',
   }).format(date);
+}
+function getDashboardTicketTypeFilterValue(value: string | null) {
+  if (value === 'bug' || value === 'feature_request') {
+    return value;
+  }
+
+  return 'all';
 }

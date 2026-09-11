@@ -61,22 +61,20 @@ export const ticketStatusDropdownOptions = [
   {
     label: 'Open',
     value: 'Open',
-    icon: (
-      <span className="inline-block h-2.25 w-2.5 rounded-full bg-red-500" />
-    ),
+    icon: <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" />,
   },
   {
     label: 'In Progress',
     value: 'In Progress',
     icon: (
-      <span className="inline-block h-2.25 w-2.5 rounded-full bg-warning-500" />
+      <span className="inline-block h-2.5 w-2.5 rounded-full bg-warning-500" />
     ),
   },
   {
     label: 'Resolved',
     value: 'Resolved',
     icon: (
-      <span className="inline-block h-2.25 w-2.5 rounded-full bg-green-500" />
+      <span className="inline-block h-2.5 w-2.5 rounded-full bg-green-500" />
     ),
   },
 ];
@@ -86,28 +84,26 @@ export const ticketPriorityDropdownOptions = [
     label: 'Critical',
     value: 'Critical',
     icon: (
-      <span className="inline-block h-2.25 w-2.5 rounded-full bg-purple-500" />
+      <span className="inline-block h-2.5 w-2.5 rounded-full bg-purple-500" />
     ),
   },
   {
     label: 'High',
     value: 'High',
-    icon: (
-      <span className="inline-block h-2.25 w-2.5 rounded-full bg-red-500" />
-    ),
+    icon: <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" />,
   },
   {
     label: 'Medium',
     value: 'Medium',
     icon: (
-      <span className="inline-block h-2.25 w-2.5 rounded-full bg-warning-500" />
+      <span className="inline-block h-2.5 w-2.5 rounded-full bg-warning-500" />
     ),
   },
   {
     label: 'Low',
     value: 'Low',
     icon: (
-      <span className="inline-block h-2.25 w-2.5 rounded-full bg-green-500" />
+      <span className="inline-block h-2.5 w-2.5 rounded-full bg-green-500" />
     ),
   },
 ];

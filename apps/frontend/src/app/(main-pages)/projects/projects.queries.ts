@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  keepPreviousData,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -27,6 +28,7 @@ import type {
 import { uploadFilesDirectly } from '../../../lib/attachments';
 
 export const projectsQueryKey = ['projects'];
+export const dashboardTicketsQueryKey = ['dashboard-project-tickets'];
 export const projectNamesQueryKey = ['project-names'];
 export const projectThreadQueryKey = ['project-thread'];
 export const projectThreadDetailQueryKey = ['project-thread-detail'];
@@ -64,6 +66,7 @@ type ProjectSummary = {
   activeProjects: number | null;
   openTickets: number | null;
   criticalIssues: number | null;
+  closedTickets: number | null;
 };
 
 type ProjectsPaginationMeta = {
@@ -133,6 +136,8 @@ export function useProjectsInfiniteQuery(
       }),
     enabled,
     initialPageParam: 1,
+    // Keep the summary visible while the next search request loads.
+    placeholderData: keepPreviousData,
     getNextPageParam: (lastPage) =>
       lastPage.meta.hasNext ? lastPage.meta.page + 1 : undefined,
   });
@@ -208,6 +213,26 @@ export function useDeleteProjectMutation() {
   });
 }
 
+export function useDeleteTicketMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      projectId,
+      ticketId,
+    }: {
+      projectId: string;
+      ticketId: string;
+    }) => deleteTicket(projectId, ticketId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: dashboardTicketsQueryKey }),
+        // queryClient.invalidateQueries({ queryKey: projectNamesQueryKey }),
+      ]);
+    },
+  });
+}
+
 export function useProjectThreadQuery(
   projectId: string,
   currentUserId = '',
@@ -265,6 +290,7 @@ type ProjectTicketsQueryOptions = {
   search?: string;
   statusKey?: string;
   priorityKey?: string;
+  ticketType?: string;
   kanban?: boolean;
 };
 
@@ -286,6 +312,7 @@ export function useProjectTicketsQuery(
     search,
     statusKey,
     priorityKey,
+    ticketType,
     kanban = false,
   }: ProjectTicketsQueryOptions,
   enabled = true,
@@ -299,6 +326,7 @@ export function useProjectTicketsQuery(
       search ?? '',
       statusKey ?? 'all',
       priorityKey ?? 'all',
+      ticketType ?? 'all',
       kanban,
     ],
 
@@ -311,6 +339,7 @@ export function useProjectTicketsQuery(
             search,
             statusKey,
             priorityKey,
+            ticketType,
           }),
 
     enabled: Boolean(projectId && enabled),
@@ -627,6 +656,7 @@ function normalizeProjectsResponse(
         activeProjects: payload.length,
         openTickets: 0,
         criticalIssues: 0,
+        closedTickets: 0,
       },
       meta: {
         page,
@@ -660,6 +690,7 @@ function normalizeProjectsResponse(
       openTickets: payload.summary?.openTickets ?? 0,
 
       criticalIssues: payload.summary?.criticalIssues ?? 0,
+      closedTickets: payload.summary?.closedTickets ?? 0,
     },
     meta: {
       page: payload.meta?.page ?? page,
@@ -1118,6 +1149,26 @@ async function deleteProject(projectId: string) {
   return payload;
 }
 
+async function deleteTicket(projectId: string, ticketId: string) {
+  const response = await fetch(
+    `/api/projects/${projectId}/tickets/${ticketId}`,
+    {
+      method: 'DELETE',
+      headers: {
+        Accept: 'application/json',
+      },
+    },
+  );
+
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(payload?.message || 'Failed to delete ticket.');
+  }
+
+  return payload;
+}
+
 function getProjectLogoLetter(name: string) {
   return name.replace(/\s+/g, '').slice(0, 2).toLowerCase();
 }
@@ -1213,6 +1264,7 @@ type ApiProjectTicket = {
   priorityKey?: string | null;
   reporterId?: string | null;
   assigneeId?: string | null;
+  ticketType?: string | null;
   dueDate?: string | null;
   project?: {
     id?: string;
@@ -1431,7 +1483,14 @@ async function fetchProjectThreadDetail(
 
 async function fetchProjectTickets(
   projectId: string,
-  { page, limit, search, statusKey, priorityKey }: ProjectTicketsQueryOptions,
+  {
+    page,
+    limit,
+    search,
+    statusKey,
+    priorityKey,
+    ticketType,
+  }: ProjectTicketsQueryOptions,
 ): Promise<ProjectTicketsResponse> {
   const searchParams = new URLSearchParams({
     page: String(page),
@@ -1448,6 +1507,10 @@ async function fetchProjectTickets(
 
   if (priorityKey) {
     searchParams.set('priorityKey', priorityKey);
+  }
+
+  if (ticketType) {
+    searchParams.set('ticketType', ticketType);
   }
 
   const response = await fetch(
@@ -1536,7 +1599,168 @@ async function fetchProjectTicketsKanban(
     },
   };
 }
+export type ProjectKanbanBoardData = {
+  items: Record<string, RecentTicket[]>;
+  hasMore: Record<string, boolean>;
+  pageByStatus: Record<string, number>;
+};
 
+export type ApiProjectKanbanBoardResponse = {
+  items: Record<string, ApiProjectTicket[]> | ApiProjectTicket[];
+  hasMore?: Record<string, boolean> | boolean;
+  statusKey?: string;
+};
+
+export type ApiProjectKanbanCountsResponse = {
+  countPerStatus: Record<string, number>;
+};
+export async function fetchProjectKanbanCounts({
+  projectId,
+  priorityKey,
+  ticketType,
+  search,
+}: {
+  projectId: string;
+  priorityKey?: string;
+  ticketType?: string;
+  search?: string;
+}) {
+  const searchParams = new URLSearchParams();
+
+  // Single project bhi array query ke format mein jayega
+  searchParams.append('projectIds', projectId);
+
+  if (priorityKey?.trim()) {
+    searchParams.set('priorityKey', priorityKey.trim());
+  }
+  if (ticketType?.trim()) {
+    searchParams.set('ticketType', ticketType.trim());
+  }
+  if (search?.trim()) {
+    searchParams.set('search', search.trim());
+  }
+
+  const response = await fetch(
+    `/api/dashboard/kanban-ticket-counts?${searchParams.toString()}`,
+    {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+    },
+  );
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiProjectKanbanCountsResponse
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !payload || !('countPerStatus' in payload)) {
+    throw new Error(
+      payload && 'message' in payload
+        ? payload.message || 'Failed to fetch project Kanban counts.'
+        : 'Failed to fetch project Kanban counts.',
+    );
+  }
+
+  return payload.countPerStatus;
+}
+export async function fetchProjectKanbanBoard({
+  projectId,
+  priorityKey,
+  ticketType,
+  search,
+  statusKey,
+  page = 1,
+  limit = 20,
+}: {
+  projectId: string;
+  priorityKey?: string;
+  ticketType?: string;
+  search?: string;
+  statusKey?: string;
+  page?: number;
+  limit?: number;
+}): Promise<ProjectKanbanBoardData> {
+  const searchParams = new URLSearchParams({
+    limit: String(limit),
+  });
+
+  searchParams.append('projectIds', projectId);
+
+  if (priorityKey?.trim()) {
+    searchParams.set('priorityKey', priorityKey.trim());
+  }
+  if (ticketType?.trim()) {
+    searchParams.set('ticketType', ticketType.trim());
+  }
+  if (search?.trim()) {
+    searchParams.set('search', search.trim());
+  }
+
+  // Initial request mein statusKey/page nahi jayega
+  if (statusKey) {
+    searchParams.set('statusKey', statusKey);
+    searchParams.set('page', String(page));
+  }
+
+  const response = await fetch(
+    `/api/dashboard/kanban-board?${searchParams.toString()}`,
+    {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+    },
+  );
+
+  const payload = (await response.json().catch(() => null)) as
+    | ApiProjectKanbanBoardResponse
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !payload || !('items' in payload) || !payload.items) {
+    throw new Error(
+      payload && 'message' in payload
+        ? payload.message || 'Failed to fetch project Kanban board.'
+        : 'Failed to fetch project Kanban board.',
+    );
+  }
+
+  const normalizedItems: Record<string, ApiProjectTicket[]> = Array.isArray(
+    payload.items,
+  )
+    ? {
+        [statusKey ?? payload.statusKey ?? 'Unknown']: payload.items,
+      }
+    : payload.items;
+
+  const mappedItems = Object.fromEntries(
+    Object.entries(normalizedItems).map(([currentStatusKey, tickets]) => [
+      currentStatusKey,
+      Array.isArray(tickets)
+        ? tickets.map(mapApiProjectTicketToRecentTicket)
+        : [],
+    ]),
+  );
+
+  const normalizedHasMore =
+    typeof payload.hasMore === 'boolean'
+      ? {
+          [statusKey ?? payload.statusKey ?? 'Unknown']: payload.hasMore,
+        }
+      : (payload.hasMore ?? {});
+
+  return {
+    items: mappedItems,
+    hasMore: normalizedHasMore,
+    pageByStatus: Object.fromEntries(
+      Object.keys(mappedItems).map((key) => [key, statusKey ? page : 1]),
+    ),
+  };
+}
 async function fetchProjectFiles(projectId: string) {
   const response = await fetch(`/api/projects/${projectId}/files`, {
     method: 'GET',
@@ -1825,6 +2049,8 @@ function mapApiProjectTicketToRecentTicket(
     id: ticket.id,
     ticketRefNo: ticket.ticketRefNo,
     title: ticket.title,
+    ticketType: ticket.ticketType ?? null,
+
     project: {
       id: ticket.project?.id ?? ticket.projectId,
       initials: getInitials(projectName),

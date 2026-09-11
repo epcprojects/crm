@@ -1,8 +1,10 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 'use client';
 
 import clsx from 'clsx';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import EmptyState from '../EmptyState';
+import { BugIcon, FeatureIcon } from 'apps/frontend/public/icons';
 
 export type TicketTabKey = 'upcoming' | 'critical';
 
@@ -46,6 +48,7 @@ export type TicketListItem = {
   tag: string;
   tagClassName: string;
   icon: ReactNode;
+  ticketType?: string;
   iconClassName: string;
 };
 
@@ -111,19 +114,13 @@ export default function TicketsTabs({
   useEffect(() => {
     const loadMoreElement = loadMoreRef.current;
 
-    if (
-      !loadMoreElement ||
-      !hasNextPage ||
-      !onLoadMore ||
-      isFetchingNextPage
-    ) {
+    if (!loadMoreElement || !hasNextPage || !onLoadMore || isFetchingNextPage) {
       return;
     }
 
     const listContainer = listContainerRef.current;
     const shouldUseContainerRoot = Boolean(
-      listContainer &&
-        listContainer.scrollHeight > listContainer.clientHeight,
+      listContainer && listContainer.scrollHeight > listContainer.clientHeight,
     );
 
     const observer = new IntersectionObserver(
@@ -238,7 +235,16 @@ export default function TicketsTabs({
                     </div>
 
                     <div className="min-w-0 flex flex-col gap-1">
-                      <p className="truncate text-gray-900  font-medium text-sm">
+                      <p className="truncate flex items-center gap-1 text-gray-900  font-medium text-sm">
+                        <span className="shrink-0 mb-0.5">
+                          {ticket.ticketType === 'bug' ? (
+                            <BugIcon />
+                          ) : ticket.ticketType === 'feature_request' ? (
+                            <FeatureIcon />
+                          ) : (
+                            ''
+                          )}
+                        </span>{' '}
                         {ticket.title}
                       </p>
 
@@ -279,8 +285,13 @@ export default function TicketsTabs({
               );
             })}
             {(hasNextPage || isFetchingNextPage) && (
-              <div ref={loadMoreRef} className="px-4.5 py-4 text-center text-xs text-gray-500">
-                {isFetchingNextPage ? 'Loading more tickets...' : 'Scroll to load more'}
+              <div
+                ref={loadMoreRef}
+                className="px-4.5 py-4 text-center text-xs text-gray-500"
+              >
+                {isFetchingNextPage
+                  ? 'Loading more tickets...'
+                  : 'Scroll to load more'}
               </div>
             )}
           </>

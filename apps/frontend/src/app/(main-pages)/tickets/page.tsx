@@ -1,7 +1,14 @@
+/* eslint-disable @nx/enforce-module-boundaries */
+
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import type { PaginationState } from '@tanstack/react-table';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useDashboardHeaderAction } from '../../../components/dashboard/dashboard-shell';
@@ -14,12 +21,16 @@ import RecentTicketsTable, {
   type RecentTicket,
   type RecentTicketQuickLinkItem,
 } from '../../../components/tables/RecentTicketsTable';
-import TicketsKanbanView from '../../../components/tickets/TicketsKanbanView';
+import TicketsKanbanView, {
+  TicketsKanbanSkeleton,
+} from '../../../components/tickets/TicketsKanbanView';
 import { appToast } from '../../../components/toast/AppToast';
 import Dropdown from '../../../components/ui/ThemeDropDown';
 import {
+  BugIcon,
   CloseIcon,
   DownloadIcon,
+  FeatureIcon,
   FiltersIcon,
   PlusIcon,
   SearchIcon,
@@ -27,6 +38,7 @@ import {
 import { createTicket } from '../../../lib/tickets';
 import {
   projectsQueryKey,
+  useDeleteTicketMutation,
   useProjectNamesQuery,
 } from '../projects/projects.queries';
 import {
@@ -42,22 +54,27 @@ import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 import { eventEmitter } from '../../../lib/event-emitter';
 import { NotificationItem } from '@harperhelp/interfaces';
 import { NotificationEntityType } from '@harperhelp/types';
+import DashboardSummaryBannerSkeleton from 'apps/frontend/src/components/ui/DashboardSummaryBannerSkeleton';
+import ConfirmActionModal from 'apps/frontend/src/components/modals/ConfirmActionModal';
 
 type TicketSummary = {
   open: number | null;
   inProgress: number | null;
   resolved: number | null;
   critical: number | null;
+  closed: number | null;
 };
 
 const TICKETS_VIEW_QUERY_PARAM = 'view';
+const TICKETS_SEARCH_QUERY_PARAM = 'search';
 const TICKETS_STATUS_QUERY_PARAM = 'status';
 const TICKETS_PRIORITY_QUERY_PARAM = 'priority';
 const TICKETS_PROJECT_QUERY_PARAM = 'project';
 const DEFAULT_TICKETS_STATUS_FILTER = 'Active';
+const TICKETS_TYPE_QUERY_PARAM = 'ticketType';
 const TICKETS_PAGE_SIZE_QUERY_PARAM = 'size';
 const ALLOWED_TICKETS_PAGE_SIZES = [10, 25, 50, 100];
-
+const KANBAN_PAGE_SIZE = 20;
 export default function Page() {
   const router = useRouter();
   const pathname = usePathname();
@@ -67,7 +84,25 @@ export default function Page() {
   const { setHeaderActionOverride } = useDashboardHeaderAction();
   const [isExportingTickets, setIsExportingTickets] = useState(false);
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
-  const [searchValue, setSearchValue] = useState('');
+  const [ticketToDelete, setTicketToDelete] = useState<{
+    projectId: string;
+    ticketId: string;
+    name: string;
+  } | null>(null);
+  const searchValue = searchParams.get(TICKETS_SEARCH_QUERY_PARAM) ?? '';
+  const setSearchValue = (value: string) => {
+    const url = new URL(window.location.href);
+
+    if (value) {
+      url.searchParams.set(TICKETS_SEARCH_QUERY_PARAM, value);
+    } else {
+      url.searchParams.delete(TICKETS_SEARCH_QUERY_PARAM);
+    }
+
+    // Persist immediately so opening a ticket before the debounce finishes
+    // still preserves the search when navigating back.
+    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+  };
   const debouncedSearchValue = useDebouncedValue(searchValue);
   const [pagination, setPagination] = useState<PaginationState>(() => {
     const requestedPageSize = Number(
@@ -105,6 +140,7 @@ export default function Page() {
   const canViewProjectDetail = hasPermission('projects.view_detail');
   const canViewProjectThread = hasPermission('thread.view');
   const canViewProjectFiles = hasPermission('files.view');
+  const canDeleteTicket = true;
   const canViewProjectCalendar = hasPermission('calendar.view_grid');
   const canViewProjectNotes = hasPermission('projects_notes.view_list');
   const viewMode = getTicketsViewMode(
@@ -119,11 +155,23 @@ export default function Page() {
   const selectedPriority = getTicketsFilterValue(
     searchParams.get(TICKETS_PRIORITY_QUERY_PARAM),
   );
+  const selectedTicketType = getTicketsTypeFilterValue(
+    searchParams.get(TICKETS_TYPE_QUERY_PARAM),
+  );
+  const ticketTypeFilterOptions = [
+    { label: 'All Types', value: 'all' },
+    { label: 'Bug', value: 'bug', icon: <BugIcon /> },
+    { label: 'Feature', value: 'feature_request', icon: <FeatureIcon /> },
+  ];
   const selectedProjectIds = getTicketsProjectFilterValues(
     searchParams.getAll(TICKETS_PROJECT_QUERY_PARAM),
     searchParams.get(TICKETS_PROJECT_QUERY_PARAM),
   );
   const selectedProjectIdsKey = selectedProjectIds.join(',');
+  const [loadingKanbanStatuses, setLoadingKanbanStatuses] = useState<
+    Record<string, boolean>
+  >({});
+  const loadingKanbanStatusesRef = useRef<Record<string, boolean>>({});
 
   const ticketStatusesQuery = useQuery({
     queryKey: ['ticket-statuses'],
@@ -136,37 +184,78 @@ export default function Page() {
     queryFn: fetchTicketPriorities,
     enabled: canFilterTickets,
   });
+
   const ticketsQuery = useQuery({
     queryKey: [
       'dashboard-project-tickets',
       selectedStatus,
       selectedPriority,
+      selectedTicketType,
       selectedProjectIdsKey,
       debouncedSearchValue.trim(),
-      viewMode,
       pagination.pageIndex,
       pagination.pageSize,
     ],
-    queryFn: () => {
-      const filters = {
+    queryFn: () =>
+      fetchDashboardTickets({
+        statusKey: selectedStatus === 'all' ? undefined : selectedStatus,
         priorityKey: selectedPriority === 'all' ? undefined : selectedPriority,
+        ticketType:
+          selectedTicketType === 'all' ? undefined : selectedTicketType,
         projectIds: selectedProjectIds.length ? selectedProjectIds : undefined,
         search: debouncedSearchValue.trim(),
-      };
-
-      if (viewMode === 'kanban') {
-        return fetchDashboardTicketsKanban(filters);
-      }
-
-      return fetchDashboardTickets({
-        ...filters,
-        statusKey: selectedStatus === 'all' ? undefined : selectedStatus,
         page: pagination.pageIndex + 1,
         limit: pagination.pageSize,
-      });
-    },
-    enabled: hasPermission('tickets.view_list'),
+      }),
+    enabled: hasPermission('tickets.view_list') && viewMode === 'table',
+    // Keep the summary visible while the next search or filter request loads.
+    placeholderData: keepPreviousData,
   });
+  const kanbanFilters = {
+    priorityKey: selectedPriority === 'all' ? undefined : selectedPriority,
+
+    ticketType: selectedTicketType === 'all' ? undefined : selectedTicketType,
+
+    projectIds: selectedProjectIds.length ? selectedProjectIds : undefined,
+
+    search: debouncedSearchValue.trim() || undefined,
+  };
+
+  const kanbanBoardQueryKey = [
+    'dashboard-kanban-board',
+    selectedPriority,
+    selectedTicketType,
+    selectedProjectIdsKey,
+    debouncedSearchValue.trim(),
+  ] as const;
+
+  const kanbanBoardQuery = useQuery({
+    queryKey: kanbanBoardQueryKey,
+    queryFn: () =>
+      fetchDashboardKanbanBoard({
+        ...kanbanFilters,
+        limit: KANBAN_PAGE_SIZE,
+      }),
+    enabled: hasPermission('tickets.view_list') && viewMode === 'kanban',
+  });
+
+  const kanbanCountsQuery = useQuery({
+    queryKey: [
+      'dashboard-kanban-ticket-counts',
+      selectedPriority,
+      selectedTicketType,
+      selectedProjectIdsKey,
+      debouncedSearchValue.trim(),
+    ],
+    queryFn: () => fetchDashboardKanbanTicketCounts(kanbanFilters),
+    enabled: hasPermission('tickets.view_list') && viewMode === 'kanban',
+  });
+
+  const kanbanTickets = useMemo(
+    () => Object.values(kanbanBoardQuery.data?.items ?? {}).flat(),
+    [kanbanBoardQuery.data?.items],
+  );
+
   const ticketSummaryStats = useMemo(
     () => [
       {
@@ -188,6 +277,11 @@ export default function Page() {
         title: 'Critical',
         count: ticketsQuery.data?.summary?.critical ?? 0,
         color: '#7A5AF8',
+      },
+      {
+        title: 'Closed',
+        count: ticketsQuery.data?.summary?.closed ?? 0,
+        color: 'gray',
       },
     ],
     [ticketsQuery.data],
@@ -232,6 +326,27 @@ export default function Page() {
       })),
     [ticketStatusesQuery.data],
   );
+  const kanbanHasMoreByStatus = useMemo(() => {
+    const boardData = kanbanBoardQuery.data;
+    const counts = kanbanCountsQuery.data ?? {};
+
+    return Object.fromEntries(
+      kanbanStatusOptions.map((status) => {
+        const loadedCount = boardData?.items[status.value]?.length ?? 0;
+
+        const totalCount = counts[status.value] ?? 0;
+
+        /*
+         * Counts API batati hai total kitne tickets hain.
+         * Board API batati hai next page available hai ya nahi.
+         */
+        const backendHasMore =
+          boardData?.hasMore[status.value] ?? loadedCount < totalCount;
+
+        return [status.value, loadedCount < totalCount && backendHasMore];
+      }),
+    );
+  }, [kanbanBoardQuery.data, kanbanCountsQuery.data, kanbanStatusOptions]);
 
   const sortedTickets = useMemo(
     () => sortTicketsLocally(ticketsQuery.data?.items ?? [], sortState),
@@ -363,6 +478,7 @@ export default function Page() {
 
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
+
         throw new Error(
           payload?.message ||
             'No tickets found to export with the current filters.',
@@ -499,9 +615,15 @@ export default function Page() {
           queryKey: ['dashboard', 'ticket-summary'],
           refetchType: 'all',
         }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard-kanban-ticket-counts'],
+          refetchType: 'all',
+        }),
       ]);
     },
   });
+
+  const deleteTicketMutation = useDeleteTicketMutation();
 
   const reorderStatusMutation = useMutation({
     mutationFn: async ({
@@ -599,6 +721,7 @@ export default function Page() {
         description: values.description,
         statusKey: values.status,
         priorityKey: values.priority,
+        ticketType: values.ticketType,
         dueDate: values.dueDate,
         attachments: values.attachments,
       });
@@ -639,6 +762,34 @@ export default function Page() {
     }
   };
 
+  const handleDeleteTicket = async () => {
+    if (!ticketToDelete || !hasPermission('tickets.delete')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await deleteTicketMutation.mutateAsync({
+        projectId: ticketToDelete.projectId,
+        ticketId: ticketToDelete.ticketId,
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['dashboard-kanban-board'] }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard-kanban-ticket-counts'],
+        }),
+      ]);
+      appToast.success('Ticket deleted successfully.');
+      setTicketToDelete(null);
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to delete ticket.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (canCreateTicket) {
       setHeaderActionOverride(() => setCreateTicketOpen(true));
@@ -656,29 +807,50 @@ export default function Page() {
       ...current,
       pageIndex: 0,
     }));
-  }, [searchValue, selectedPriority, selectedProjectIdsKey, selectedStatus]);
+  }, [
+    searchValue,
+    selectedPriority,
+    selectedTicketType,
+    selectedProjectIdsKey,
+    selectedStatus,
+  ]);
 
   const hasActiveTicketFilters =
     Boolean(searchValue.trim()) ||
     selectedStatus !== DEFAULT_TICKETS_STATUS_FILTER ||
     selectedPriority !== 'all' ||
+    selectedTicketType !== 'all' ||
     selectedProjectIds.length > 0;
 
   const updateTicketsPageFilters = ({
+    search,
     view,
     status,
     priority,
+    ticketType,
     project,
   }: {
+    search?: string;
     view?: 'table' | 'kanban';
     status?: string;
     priority?: string;
+    ticketType?: string;
     project?: string[];
   }) => {
     const nextSearchParams = new URLSearchParams(searchParams.toString());
+
+    if (search !== undefined) {
+      if (search) {
+        nextSearchParams.set(TICKETS_SEARCH_QUERY_PARAM, search);
+      } else {
+        nextSearchParams.delete(TICKETS_SEARCH_QUERY_PARAM);
+      }
+    }
+
     const nextViewMode = view ?? viewMode;
     const nextStatus = status ?? selectedStatus;
     const nextPriority = priority ?? selectedPriority;
+    const nextTicketType = ticketType ?? selectedTicketType;
     const nextProjectIds = project ?? selectedProjectIds;
 
     if (nextViewMode === 'table') {
@@ -702,12 +874,20 @@ export default function Page() {
       nextSearchParams.set(TICKETS_PRIORITY_QUERY_PARAM, nextPriority);
     }
 
+    if (nextTicketType === 'all') {
+      nextSearchParams.delete(TICKETS_TYPE_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(TICKETS_TYPE_QUERY_PARAM, nextTicketType);
+    }
+
     nextSearchParams.delete(TICKETS_PROJECT_QUERY_PARAM);
+
     nextProjectIds.forEach((projectId) => {
       nextSearchParams.append(TICKETS_PROJECT_QUERY_PARAM, projectId);
     });
 
     const nextQueryString = nextSearchParams.toString();
+
     const currentQueryString = searchParams.toString();
 
     if (nextQueryString === currentQueryString) {
@@ -720,10 +900,11 @@ export default function Page() {
   };
 
   const clearTicketFilters = () => {
-    setSearchValue('');
     updateTicketsPageFilters({
+      search: '',
       status: DEFAULT_TICKETS_STATUS_FILTER,
       priority: 'all',
+      ticketType: 'all',
       project: [],
     });
   };
@@ -806,7 +987,166 @@ export default function Page() {
 
     router.push(`/tickets/${ticket.id}?projectId=${ticket.project.id}`);
   };
+  const handleLoadMoreKanbanStatus = async (statusKey: string) => {
+    const currentBoard =
+      queryClient.getQueryData<KanbanBoardData>(kanbanBoardQueryKey);
 
+    if (!currentBoard) {
+      return;
+    }
+
+    const currentTickets = currentBoard.items[statusKey] ?? [];
+
+    const loadedCount = currentTickets.length;
+
+    const totalCount = kanbanCountsQuery.data?.[statusKey] ?? 0;
+
+    const backendHasMore =
+      currentBoard.hasMore[statusKey] ?? loadedCount < totalCount;
+
+    if (
+      loadedCount >= totalCount ||
+      !backendHasMore ||
+      loadingKanbanStatusesRef.current[statusKey]
+    ) {
+      return;
+    }
+
+    loadingKanbanStatusesRef.current[statusKey] = true;
+
+    const nextPage = (currentBoard.pageByStatus[statusKey] ?? 1) + 1;
+
+    setLoadingKanbanStatuses((current) => ({
+      ...current,
+      [statusKey]: true,
+    }));
+
+    try {
+      const activePriorityKey =
+        selectedPriority === 'all' ? undefined : selectedPriority;
+
+      const activeTicketType =
+        selectedTicketType === 'all' ? undefined : selectedTicketType;
+
+      const activeProjectIds =
+        selectedProjectIds.length > 0 ? [...selectedProjectIds] : undefined;
+
+      const activeSearch = debouncedSearchValue.trim() || undefined;
+
+      const nextPageData = await queryClient.fetchQuery({
+        queryKey: [
+          'dashboard-kanban-board-page',
+          statusKey,
+          nextPage,
+          KANBAN_PAGE_SIZE,
+          activePriorityKey ?? 'all',
+          activeTicketType ?? 'all',
+          selectedProjectIdsKey,
+          activeSearch ?? '',
+        ],
+        queryFn: () =>
+          fetchDashboardKanbanBoard({
+            statusKey,
+            page: nextPage,
+            limit: KANBAN_PAGE_SIZE,
+            priorityKey: activePriorityKey,
+            ticketType: activeTicketType,
+            projectIds: activeProjectIds,
+            search: activeSearch,
+          }),
+      });
+
+      queryClient.setQueryData<KanbanBoardData>(
+        kanbanBoardQueryKey,
+        (current) => {
+          if (!current) {
+            return current;
+          }
+
+          const existingTickets = current.items[statusKey] ?? [];
+
+          /*
+           * Paginated response ke tickets ko requested column ka
+           * exact display label dein.
+           *
+           * Example:
+           * statusKey: UnderReview
+           * display label: Under Review
+           */
+          const targetStatus = statusMetadataByKey.get(statusKey);
+
+          const normalizedIncomingTickets = (
+            nextPageData.items[statusKey] ?? []
+          ).map((ticket) => ({
+            ...ticket,
+            status: targetStatus?.label ?? ticket.status ?? statusKey,
+            statusColor: targetStatus?.color ?? ticket.statusColor,
+          }));
+
+          const seenTicketIds = new Set(
+            existingTickets.map((ticket) => ticket.id).filter(Boolean),
+          );
+
+          const uniqueIncomingTickets = normalizedIncomingTickets.filter(
+            (ticket) => {
+              if (!ticket.id || seenTicketIds.has(ticket.id)) {
+                return false;
+              }
+
+              seenTicketIds.add(ticket.id);
+              return true;
+            },
+          );
+
+          const nextLoadedCount =
+            existingTickets.length + uniqueIncomingTickets.length;
+
+          const statusTotalCount = kanbanCountsQuery.data?.[statusKey] ?? 0;
+
+          /*
+           * Normally backend hasMore source of truth hai.
+           * Count comparison additional safety provide karti hai.
+           *
+           * Agar response mein koi naya valid ticket nahi aya,
+           * repeated observer/API loop rok diya jayega.
+           */
+          const responseHasMore = nextPageData.hasMore[statusKey] ?? false;
+
+          const shouldLoadMore =
+            uniqueIncomingTickets.length > 0 &&
+            nextLoadedCount < statusTotalCount &&
+            responseHasMore;
+
+          return {
+            ...current,
+            items: {
+              ...current.items,
+              [statusKey]: [...existingTickets, ...uniqueIncomingTickets],
+            },
+            hasMore: {
+              ...current.hasMore,
+              [statusKey]: shouldLoadMore,
+            },
+            pageByStatus: {
+              ...current.pageByStatus,
+              [statusKey]: nextPage,
+            },
+          };
+        },
+      );
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to load more tickets.',
+      );
+    } finally {
+      loadingKanbanStatusesRef.current[statusKey] = false;
+
+      setLoadingKanbanStatuses((current) => ({
+        ...current,
+        [statusKey]: false,
+      }));
+    }
+  };
   const handleMoveTicket = async (
     ticket: RecentTicket,
     nextStatusKey: string,
@@ -833,18 +1173,31 @@ export default function Page() {
       status: nextViewMode === 'kanban' ? 'all' : undefined,
     });
   };
-
+  const isTicketsContentLoading =
+    viewMode === 'kanban'
+      ? kanbanBoardQuery.isLoading || ticketStatusesQuery.isLoading
+      : ticketsQuery.isLoading || ticketsQuery.isPlaceholderData;
+  const isTicketSummaryLoading =
+    viewMode === 'table' && ticketsQuery.isLoading && !ticketsQuery.data;
+  const [filtersOpen, setFiltersOpen] = useState(false);
   return (
     <>
       <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 py-4">
         <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 xl:overflow-hidden overflow-y-auto overscroll-contain scrollbar-hide xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <div className="shrink-0">
-            <DashboardSummaryBanner
-              imageSrc="/images/TicketsIcon.svg"
-              imageAlt="Tickets"
-              title="Tickets"
-              stats={ticketSummaryStats}
-            />
+            {isTicketSummaryLoading ? (
+              <DashboardSummaryBannerSkeleton
+                statsCount={4}
+                titleWidthClass="w-28"
+              />
+            ) : (
+              <DashboardSummaryBanner
+                imageSrc="/images/TicketsIcon.svg"
+                imageAlt="Tickets"
+                title="Tickets"
+                stats={ticketSummaryStats}
+              />
+            )}
           </div>
           <div className="flex h-auto min-h-0 min-w-0 flex-none flex-col overflow-visible rounded-xl bg-white p-3 md:p-4 xl:h-full xl:flex-1 xl:overflow-hidden">
             <PermissionGuard
@@ -926,20 +1279,22 @@ export default function Page() {
                                   />
                                 </div>
 
-                                <div className="relative w-full overflow-visible">
-                                  <Dropdown
-                                    options={statusFilterOptions}
-                                    value={selectedStatus}
-                                    onChange={(value) =>
-                                      updateTicketsPageFilters({
-                                        status: value,
-                                      })
-                                    }
-                                    showSearch={true}
-                                    placeholder="All Status"
-                                    maxMenuHeight={150}
-                                  />
-                                </div>
+                                {viewMode === 'table' ? (
+                                  <div className="relative w-full overflow-visible">
+                                    <Dropdown
+                                      options={statusFilterOptions}
+                                      value={selectedStatus}
+                                      onChange={(value) =>
+                                        updateTicketsPageFilters({
+                                          status: value,
+                                        })
+                                      }
+                                      showSearch={true}
+                                      placeholder="All Status"
+                                      maxMenuHeight={150}
+                                    />
+                                  </div>
+                                ) : null}
 
                                 <div className="relative w-full overflow-visible">
                                   <Dropdown
@@ -952,6 +1307,19 @@ export default function Page() {
                                     }
                                     showSearch={true}
                                     placeholder="All Priority"
+                                    maxMenuHeight={150}
+                                  />
+                                </div>
+                                <div className="relative  overflow-visible">
+                                  <Dropdown
+                                    options={ticketTypeFilterOptions}
+                                    value={selectedTicketType}
+                                    onChange={(value) =>
+                                      updateTicketsPageFilters({
+                                        ticketType: value,
+                                      })
+                                    }
+                                    placeholder="All Types"
                                     maxMenuHeight={150}
                                   />
                                 </div>
@@ -1009,20 +1377,22 @@ export default function Page() {
                                   />
                                 </div>
 
-                                <div className="relative w-full overflow-visible">
-                                  <Dropdown
-                                    options={statusFilterOptions}
-                                    value={selectedStatus}
-                                    onChange={(value) =>
-                                      updateTicketsPageFilters({
-                                        status: value,
-                                      })
-                                    }
-                                    showSearch={true}
-                                    placeholder="All Status"
-                                    maxMenuHeight={150}
-                                  />
-                                </div>
+                                {viewMode === 'table' ? (
+                                  <div className="relative w-full overflow-visible">
+                                    <Dropdown
+                                      options={statusFilterOptions}
+                                      value={selectedStatus}
+                                      onChange={(value) =>
+                                        updateTicketsPageFilters({
+                                          status: value,
+                                        })
+                                      }
+                                      showSearch={true}
+                                      placeholder="All Status"
+                                      maxMenuHeight={150}
+                                    />
+                                  </div>
+                                ) : null}
 
                                 <div className="relative w-full overflow-visible">
                                   <Dropdown
@@ -1035,6 +1405,19 @@ export default function Page() {
                                     }
                                     showSearch={true}
                                     placeholder="All Priority"
+                                    maxMenuHeight={150}
+                                  />
+                                </div>
+                                <div className="relative  overflow-visible">
+                                  <Dropdown
+                                    options={ticketTypeFilterOptions}
+                                    value={selectedTicketType}
+                                    onChange={(value) =>
+                                      updateTicketsPageFilters({
+                                        ticketType: value,
+                                      })
+                                    }
+                                    placeholder="All Types"
                                     maxMenuHeight={150}
                                   />
                                 </div>
@@ -1078,8 +1461,27 @@ export default function Page() {
                             <KanbanViewIcon />
                           </button>
                         </div>
-
-                        <div className="w-full hidden 2xl:block 2xl:w-55">
+                        <div className="2xl:block  3xl:hidden hidden">
+                          <ThemeButton
+                            type="button"
+                            variant="secondary"
+                            icon={<FiltersIcon fill="currentColor" />}
+                            onClick={() =>
+                              setFiltersOpen((current) => !current)
+                            }
+                            aria-label="Open ticket filters"
+                            aria-expanded={filtersOpen}
+                            aria-controls="recent-ticket-filters"
+                            className={
+                              filtersOpen
+                                ? 'border-primary! bg-primary/5! text-primary! shadow-sm'
+                                : ''
+                            }
+                          >
+                            Filter
+                          </ThemeButton>
+                        </div>
+                        <div className="w-full hidden 3xl:block 2xl:w-55">
                           <Dropdown
                             options={projectFilterOptions}
                             isMulti
@@ -1092,9 +1494,8 @@ export default function Page() {
                             showSearch={true}
                           />
                         </div>
-
                         {viewMode === 'table' && (
-                          <div className="w-full hidden 2xl:block 2xl:w-55">
+                          <div className="w-full hidden 3xl:block 2xl:w-55">
                             <Dropdown
                               options={statusFilterOptions}
                               value={selectedStatus}
@@ -1109,7 +1510,7 @@ export default function Page() {
                           </div>
                         )}
 
-                        <div className="w-full  gap-3 hidden 2xl:flex 2xl:w-55">
+                        <div className="w-full  gap-3 hidden 3xl:flex 2xl:w-55">
                           <Dropdown
                             options={priorityFilterOptions}
                             value={selectedPriority}
@@ -1120,6 +1521,18 @@ export default function Page() {
                             placeholder="All Priority"
                           />
                         </div>
+                        <div className="hidden w-full 3xl:block 2xl:w-55">
+                          <Dropdown
+                            options={ticketTypeFilterOptions}
+                            value={selectedTicketType}
+                            onChange={(value) =>
+                              updateTicketsPageFilters({
+                                ticketType: value,
+                              })
+                            }
+                            placeholder="All Types"
+                          />
+                        </div>
 
                         <ThemeButton
                           type="button"
@@ -1127,11 +1540,10 @@ export default function Page() {
                           size="md"
                           onClick={clearTicketFilters}
                           disabled={!hasActiveTicketFilters}
-                          className="hidden h-10 shrink-0 disabled:cursor-not-allowed disabled:opacity-50 2xl:inline-flex"
+                          className="hidden h-10 shrink-0 disabled:cursor-not-allowed disabled:opacity-50 3xl:inline-flex"
                         >
                           Clear Filters
                         </ThemeButton>
-
                         <div className="flex flex-row gap-3 ">
                           <Popover
                             as="div"
@@ -1171,20 +1583,22 @@ export default function Page() {
                                     />
                                   </div>
 
-                                  <div className="relative w-full overflow-visible">
-                                    <Dropdown
-                                      options={statusFilterOptions}
-                                      value={selectedStatus}
-                                      onChange={(value) =>
-                                        updateTicketsPageFilters({
-                                          status: value,
-                                        })
-                                      }
-                                      placeholder="All Status"
-                                      maxMenuHeight={150}
-                                      showSearch={true}
-                                    />
-                                  </div>
+                                  {viewMode === 'table' ? (
+                                    <div className="relative w-full overflow-visible">
+                                      <Dropdown
+                                        options={statusFilterOptions}
+                                        value={selectedStatus}
+                                        onChange={(value) =>
+                                          updateTicketsPageFilters({
+                                            status: value,
+                                          })
+                                        }
+                                        showSearch={true}
+                                        placeholder="All Status"
+                                        maxMenuHeight={150}
+                                      />
+                                    </div>
+                                  ) : null}
 
                                   <div className="relative w-full overflow-visible">
                                     <Dropdown
@@ -1198,6 +1612,19 @@ export default function Page() {
                                       placeholder="All Priority"
                                       maxMenuHeight={150}
                                       showSearch={true}
+                                    />
+                                  </div>
+                                  <div className="relative  overflow-visible">
+                                    <Dropdown
+                                      options={ticketTypeFilterOptions}
+                                      value={selectedTicketType}
+                                      onChange={(value) =>
+                                        updateTicketsPageFilters({
+                                          ticketType: value,
+                                        })
+                                      }
+                                      placeholder="All Types"
+                                      maxMenuHeight={150}
                                     />
                                   </div>
 
@@ -1240,17 +1667,111 @@ export default function Page() {
                     </div>
                   ) : null}
                 </div>
+                <div
+                  className={`hidden w-full justify-end transition-[grid-template-rows,opacity,transform] duration-300 ease-out xl:grid ${
+                    filtersOpen
+                      ? 'grid-rows-[1fr]  translate-y-0 opacity-100'
+                      : 'pointer-events-none grid-rows-[0fr] -translate-y-2 opacity-0'
+                  }`}
+                >
+                  <div className="min-h-0 overflow-hidden">
+                    <div
+                      id="recent-ticket-filters"
+                      className="flex w-full items-center gap-2 pt-1"
+                    >
+                      <div className="w-full hidden 2xl:block 2xl:w-55">
+                        <Dropdown
+                          options={projectFilterOptions}
+                          isMulti
+                          value={selectedProjectIds}
+                          onChange={(value) =>
+                            updateTicketsPageFilters({ project: value })
+                          }
+                          placeholder="All Projects"
+                          maxMenuHeight={320}
+                          showSearch={true}
+                        />
+                      </div>
+                      {viewMode === 'table' && (
+                        <div className="w-full hidden 2xl:block 2xl:w-55">
+                          <Dropdown
+                            options={statusFilterOptions}
+                            value={selectedStatus}
+                            onChange={(value) =>
+                              updateTicketsPageFilters({ status: value })
+                            }
+                            placeholder="All Status"
+                            minHeight="min-h-70"
+                            menuScrollable={false}
+                            showSearch={true}
+                          />
+                        </div>
+                      )}
 
+                      <div className="w-full  gap-3 hidden 2xl:flex 2xl:w-55">
+                        <Dropdown
+                          options={priorityFilterOptions}
+                          value={selectedPriority}
+                          onChange={(value) =>
+                            updateTicketsPageFilters({ priority: value })
+                          }
+                          showSearch={true}
+                          placeholder="All Priority"
+                        />
+                      </div>
+                      <div className="hidden w-full 2xl:block 2xl:w-55">
+                        <Dropdown
+                          options={ticketTypeFilterOptions}
+                          value={selectedTicketType}
+                          onChange={(value) =>
+                            updateTicketsPageFilters({
+                              ticketType: value,
+                            })
+                          }
+                          placeholder="All Types"
+                        />
+                      </div>
+
+                      <ThemeButton
+                        type="button"
+                        variant="secondary"
+                        size="md"
+                        onClick={clearTicketFilters}
+                        disabled={!hasActiveTicketFilters}
+                        className="hidden h-10 shrink-0 disabled:cursor-not-allowed disabled:opacity-50 2xl:inline-flex"
+                      >
+                        Clear Filters
+                      </ThemeButton>
+                    </div>
+                  </div>
+                </div>
                 <div className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden">
-                  {ticketsQuery.isLoading ? (
-                    <RecentTicketsTableSkeleton />
+                  {isTicketsContentLoading ? (
+                    viewMode === 'kanban' ? (
+                      <TicketsKanbanSkeleton />
+                    ) : (
+                      <RecentTicketsTableSkeleton />
+                    )
                   ) : viewMode === 'kanban' ? (
                     <TicketsKanbanView
-                      tickets={sortedTickets}
-                      statusOptions={kanbanStatusOptions}
-                      statusCountsByKey={
-                        ticketsQuery.data?.countPerStatus ?? {}
+                      tickets={kanbanTickets}
+                      onDeleteTicket={
+                        canDeleteTicket
+                          ? (ticket) =>
+                              setTicketToDelete({
+                                projectId: ticket.project.id ?? '',
+                                ticketId: ticket.id,
+                                name: ticket.title,
+                              })
+                          : undefined
                       }
+                      statusOptions={kanbanStatusOptions}
+                      statusCountsByKey={kanbanCountsQuery.data ?? {}}
+                      hasMoreByStatus={kanbanHasMoreByStatus}
+                      loadingByStatus={loadingKanbanStatuses}
+                      onLoadMoreStatus={(statusKey) => {
+                        void handleLoadMoreKanbanStatus(statusKey);
+                      }}
                       onTicketClick={
                         canViewTicketDetail ? handleTicketClick : undefined
                       }
@@ -1288,6 +1809,16 @@ export default function Page() {
                       onRowClick={
                         canViewTicketDetail ? handleTicketClick : undefined
                       }
+                      onDeleteTickets={(val) => {
+                        // alert('ticket to be delete is' + val.id);
+                        if (canDeleteTicket) {
+                          setTicketToDelete({
+                            projectId: val.project.id ?? '',
+                            ticketId: val.id,
+                            name: val.title,
+                          });
+                        }
+                      }}
                     />
                   )}
                 </div>
@@ -1312,6 +1843,25 @@ export default function Page() {
         onClose={() => setCreateTicketOpen(false)}
         onConfirm={handleCreateTicket}
         projectOptions={projectOptions}
+      />
+      <ConfirmActionModal
+        isOpen={Boolean(ticketToDelete) && canDeleteTicket}
+        onClose={() => setTicketToDelete(null)}
+        title="Delete Ticket?"
+        message={
+          <>
+            Are you sure you want to delete{' '}
+            <span className="font-semibold">
+              “{ticketToDelete?.name ?? 'this ticket'}”
+            </span>
+            ? This action cannot be undone.
+          </>
+        }
+        confirmLabel="Yes, Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isSubmitting={deleteTicketMutation.isPending}
+        onConfirm={handleDeleteTicket}
       />
     </>
   );
@@ -1360,6 +1910,7 @@ type ApiDashboardTicket = {
     label: string;
     color?: string;
   } | null;
+  ticketType?: string | null;
   assignee: {
     id?: string;
     fullName?: string;
@@ -1379,14 +1930,163 @@ type ApiDashboardTicketsResponse = {
   meta: DashboardTicketsResponse['meta'];
 };
 
-type ApiDashboardKanbanResponse = {
-  items: Record<string, ApiDashboardTicket[]>;
-  countPerStatus?: Record<string, number>;
+type ApiKanbanBoardTicket = {
+  /*
+   * Initial Kanban response raw fields
+   */
+  t_id?: string;
+  t_title?: string;
+  t_ticketRefNo?: string;
+  t_dueDate?: string | null;
+  t_createdAt?: string;
+  t_statusKey?: string;
+
+  p_id?: string;
+  p_name?: string;
+  p_brandColor?: string | null;
+
+  s_key?: string;
+  s_label?: string;
+  s_color?: string | null;
+
+  pr_key?: string | null;
+  pr_label?: string | null;
+  pr_color?: string | null;
+
+  a_id?: string | null;
+  a_fullName?: string | null;
+  a_email?: string | null;
+
+  rn?: string;
+
+  /*
+   * Paginated Kanban response entity fields
+   */
+  id?: string;
+  title?: string;
+  ticketRefNo?: string;
+  dueDate?: string | null;
+  createdAt?: string;
+  statusKey?: string;
+  projectId?: string;
+  priorityKey?: string | null;
+  assigneeId?: string | null;
+  ticketType?: string | null;
+
+  project?: {
+    id?: string;
+    name?: string;
+    brandColor?: string | null;
+  } | null;
+
+  status?: {
+    key?: string;
+    label?: string;
+    color?: string | null;
+  } | null;
+
+  priority?: {
+    key?: string;
+    label?: string;
+    color?: string | null;
+  } | null;
+
+  assignee?: {
+    id?: string;
+    fullName?: string;
+    name?: string;
+    email?: string;
+  } | null;
 };
+
+type ApiKanbanBoardResponse = {
+  items: Record<string, ApiKanbanBoardTicket[]> | ApiKanbanBoardTicket[];
+  hasMore: Record<string, boolean> | boolean;
+};
+
+type KanbanBoardData = {
+  items: Record<string, RecentTicket[]>;
+  hasMore: Record<string, boolean>;
+  pageByStatus: Record<string, number>;
+};
+
+type ApiKanbanTicketCountsResponse = {
+  countPerStatus: Record<string, number>;
+};
+function mapApiKanbanTicketToRecentTicket(
+  ticket: ApiKanbanBoardTicket,
+): RecentTicket {
+  const ticketId = ticket.t_id ?? ticket.id ?? '';
+
+  const projectId = ticket.p_id ?? ticket.project?.id ?? ticket.projectId ?? '';
+
+  const projectName =
+    ticket.p_name?.trim() || ticket.project?.name?.trim() || 'Unknown Project';
+
+  const assigneeName =
+    ticket.a_fullName?.trim() ||
+    ticket.assignee?.fullName?.trim() ||
+    ticket.assignee?.name?.trim() ||
+    'Unassigned';
+
+  const statusLabel =
+    ticket.s_label?.trim() ||
+    ticket.status?.label?.trim() ||
+    ticket.s_key?.trim() ||
+    ticket.status?.key?.trim() ||
+    ticket.t_statusKey?.trim() ||
+    ticket.statusKey?.trim() ||
+    'Unknown';
+
+  const priorityLabel =
+    ticket.pr_label?.trim() ||
+    ticket.priority?.label?.trim() ||
+    ticket.pr_key?.trim() ||
+    ticket.priority?.key?.trim() ||
+    ticket.priorityKey?.trim() ||
+    null;
+
+  const dueDate = ticket.t_dueDate ?? ticket.dueDate ?? null;
+
+  const createdAt = ticket.t_createdAt ?? ticket.createdAt ?? '';
+
+  return {
+    id: ticketId,
+    ticketRefNo: ticket.t_ticketRefNo ?? ticket.ticketRefNo,
+    title: ticket.t_title ?? ticket.title ?? 'Untitled Ticket',
+    ticketType: ticket.ticketType ?? null,
+    project: {
+      id: projectId,
+      name: projectName,
+      initials: getInitials(projectName),
+      brandColor:
+        ticket.p_brandColor ?? ticket.project?.brandColor ?? '#31d81b',
+    },
+    dueDate: dueDate
+      ? formatTicketDate(dueDate.split('T')[0] ?? dueDate)
+      : '--',
+    status: statusLabel,
+    statusColor: ticket.s_color ?? ticket.status?.color ?? undefined,
+    priority: priorityLabel,
+    priorityColor: ticket.pr_color ?? ticket.priority?.color ?? undefined,
+    assignee: {
+      name: assigneeName,
+      initials: getInitials(assigneeName),
+    },
+    reporter: {
+      id: '',
+      email: '',
+      fullName: 'Unknown',
+    },
+    date: createdAt ? formatTicketDate(createdAt) : '--',
+    sortDate: createdAt,
+  };
+}
 
 async function fetchDashboardTickets({
   statusKey,
   priorityKey,
+  ticketType,
   projectIds,
   search,
   page,
@@ -1394,6 +2094,7 @@ async function fetchDashboardTickets({
 }: {
   statusKey?: string;
   priorityKey?: string;
+  ticketType?: string;
   projectIds?: string[];
   search?: string;
   page: number;
@@ -1410,6 +2111,9 @@ async function fetchDashboardTickets({
 
   if (priorityKey) {
     searchParams.set('priorityKey', priorityKey);
+  }
+  if (ticketType) {
+    searchParams.set('ticketType', ticketType);
   }
 
   projectIds?.forEach((projectId) => {
@@ -1454,19 +2158,92 @@ async function fetchDashboardTickets({
   };
 }
 
-async function fetchDashboardTicketsKanban({
+// async function fetchDashboardTicketsKanban({
+//   priorityKey,
+//   projectIds,
+//   search,
+// }: {
+//   priorityKey?: string;
+//   projectIds?: string[];
+//   search?: string;
+// }): Promise<DashboardTicketsResponse> {
+//   const searchParams = new URLSearchParams();
+
+//   if (priorityKey) {
+//     searchParams.set('priorityKey', priorityKey);
+//   }
+
+//   projectIds?.forEach((projectId) => {
+//     if (projectId) {
+//       searchParams.append('projectIds', projectId);
+//     }
+//   });
+
+//   if (search) {
+//     searchParams.set('search', search);
+//   }
+
+//   const response = await fetch(
+//     `/api/dashboard/tickets/kanban?${searchParams.toString()}`,
+//     {
+//       method: 'GET',
+//       headers: {
+//         Accept: 'application/json',
+//       },
+//       cache: 'no-store',
+//     },
+//   );
+
+//   const payload = (await response.json().catch(() => null)) as
+//     | ApiDashboardKanbanResponse
+//     | { message?: string }
+//     | null;
+
+//   if (!response.ok || !isApiDashboardKanbanResponse(payload)) {
+//     throw new Error(
+//       payload && typeof payload === 'object' && 'message' in payload
+//         ? payload.message || 'Failed to fetch Kanban tickets.'
+//         : 'Failed to fetch Kanban tickets.',
+//     );
+//   }
+
+//   const kanbanTickets = Object.values(payload.items).flat();
+
+//   return {
+//     items: kanbanTickets.map(mapApiDashboardTicketToRecentTicket),
+//     summary: createKanbanTicketSummary(kanbanTickets),
+//     countPerStatus: payload.countPerStatus ?? {},
+//     meta: {
+//       page: 1,
+//       limit: kanbanTickets.length,
+//       total: kanbanTickets.length,
+//       totalPages: 1,
+//       hasNext: false,
+//       hasPrevious: false,
+//     },
+//   };
+// }
+async function fetchDashboardKanbanTicketCounts({
   priorityKey,
+  ticketType,
   projectIds,
   search,
 }: {
   priorityKey?: string;
+  ticketType?: string;
   projectIds?: string[];
   search?: string;
-}): Promise<DashboardTicketsResponse> {
+}): Promise<Record<string, number>> {
   const searchParams = new URLSearchParams();
 
   if (priorityKey) {
     searchParams.set('priorityKey', priorityKey);
+  }
+  if (ticketType) {
+    searchParams.set('ticketType', ticketType);
+  }
+  if (search) {
+    searchParams.set('search', search);
   }
 
   projectIds?.forEach((projectId) => {
@@ -1475,12 +2252,8 @@ async function fetchDashboardTicketsKanban({
     }
   });
 
-  if (search) {
-    searchParams.set('search', search);
-  }
-
   const response = await fetch(
-    `/api/dashboard/tickets/kanban?${searchParams.toString()}`,
+    `/api/dashboard/kanban-ticket-counts?${searchParams.toString()}`,
     {
       method: 'GET',
       headers: {
@@ -1491,35 +2264,151 @@ async function fetchDashboardTicketsKanban({
   );
 
   const payload = (await response.json().catch(() => null)) as
-    | ApiDashboardKanbanResponse
+    | ApiKanbanTicketCountsResponse
     | { message?: string }
     | null;
 
-  if (!response.ok || !isApiDashboardKanbanResponse(payload)) {
+  if (!response.ok || !payload || !('countPerStatus' in payload)) {
     throw new Error(
-      payload && typeof payload === 'object' && 'message' in payload
-        ? payload.message || 'Failed to fetch Kanban tickets.'
-        : 'Failed to fetch Kanban tickets.',
+      payload && 'message' in payload
+        ? payload.message || 'Failed to fetch Kanban counts.'
+        : 'Failed to fetch Kanban counts.',
     );
   }
 
-  const kanbanTickets = Object.values(payload.items).flat();
-
-  return {
-    items: kanbanTickets.map(mapApiDashboardTicketToRecentTicket),
-    summary: createKanbanTicketSummary(kanbanTickets),
-    countPerStatus: payload.countPerStatus ?? {},
-    meta: {
-      page: 1,
-      limit: kanbanTickets.length,
-      total: kanbanTickets.length,
-      totalPages: 1,
-      hasNext: false,
-      hasPrevious: false,
-    },
-  };
+  return payload.countPerStatus;
 }
 
+async function fetchDashboardKanbanBoard({
+  priorityKey,
+  ticketType,
+  projectIds,
+  search,
+  statusKey,
+  page = 1,
+  limit = KANBAN_PAGE_SIZE,
+}: {
+  priorityKey?: string;
+  ticketType?: string;
+  projectIds?: string[];
+  search?: string;
+  statusKey?: string;
+  page?: number;
+  limit?: number;
+}): Promise<KanbanBoardData> {
+  const searchParams = new URLSearchParams({
+    limit: String(limit),
+  });
+
+  /*
+   * Initial request:
+   * statusKey aur page send nahi honge.
+   *
+   * Column pagination:
+   * statusKey aur page dono send honge.
+   */
+  if (statusKey) {
+    searchParams.set('statusKey', statusKey);
+    searchParams.set('page', String(page));
+  }
+
+  if (priorityKey) {
+    searchParams.set('priorityKey', priorityKey);
+  }
+  if (ticketType) {
+    searchParams.set('ticketType', ticketType);
+  }
+  if (search) {
+    searchParams.set('search', search);
+  }
+
+  projectIds?.forEach((projectId) => {
+    if (projectId) {
+      searchParams.append('projectIds', projectId);
+    }
+  });
+
+  const requestUrl = `/api/dashboard/kanban-board?${searchParams.toString()}`;
+
+  const response = await fetch(requestUrl, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message =
+      payload && typeof payload === 'object' && 'message' in payload
+        ? Array.isArray(payload.message)
+          ? payload.message.join(', ')
+          : String(payload.message || '')
+        : '';
+
+    throw new Error(
+      message || `Failed to fetch Kanban board (${response.status}).`,
+    );
+  }
+
+  const responseData =
+    payload && typeof payload === 'object' && 'data' in payload
+      ? payload.data
+      : payload;
+
+  if (
+    !responseData ||
+    typeof responseData !== 'object' ||
+    !('items' in responseData)
+  ) {
+    console.error('Invalid Kanban board response:', {
+      requestUrl,
+      statusKey,
+      page,
+      payload,
+    });
+
+    throw new Error('Kanban board returned an invalid response.');
+  }
+
+  const kanbanPayload = responseData as ApiKanbanBoardResponse;
+  const normalizedItems: Record<string, ApiKanbanBoardTicket[]> = Array.isArray(
+    kanbanPayload.items,
+  )
+    ? {
+        [statusKey ?? 'Unknown']: kanbanPayload.items,
+      }
+    : kanbanPayload.items;
+
+  const mappedItems = Object.fromEntries(
+    Object.entries(normalizedItems).map(([currentStatusKey, tickets]) => [
+      currentStatusKey,
+      Array.isArray(tickets)
+        ? tickets.map(mapApiKanbanTicketToRecentTicket)
+        : [],
+    ]),
+  ) as Record<string, RecentTicket[]>;
+
+  const normalizedHasMore: Record<string, boolean> =
+    typeof kanbanPayload.hasMore === 'boolean'
+      ? {
+          [statusKey ?? 'Unknown']: kanbanPayload.hasMore,
+        }
+      : (kanbanPayload.hasMore ?? {});
+
+  return {
+    items: mappedItems,
+    hasMore: normalizedHasMore,
+    pageByStatus: Object.fromEntries(
+      Object.keys(mappedItems).map((currentStatusKey) => [
+        currentStatusKey,
+        statusKey ? page : 1,
+      ]),
+    ),
+  };
+}
 async function fetchTicketStatuses() {
   const response = await fetch('/api/ticket-statuses', {
     method: 'GET',
@@ -1581,7 +2470,7 @@ function mapTicketSettingToDropdownOption(setting: ApiTicketSetting) {
     value: setting.key,
     icon: (
       <span
-        className="inline-block h-2.25 w-2.5 rounded-full"
+        className="inline-block h-2.5 w-2.5 rounded-full"
         style={{ backgroundColor: setting.color }}
       />
     ),
@@ -1600,17 +2489,17 @@ function isApiDashboardTicketsResponse(
   );
 }
 
-function isApiDashboardKanbanResponse(
-  value: unknown,
-): value is ApiDashboardKanbanResponse {
-  return Boolean(
-    value &&
-      typeof value === 'object' &&
-      (value as ApiDashboardKanbanResponse).items &&
-      !Array.isArray((value as ApiDashboardKanbanResponse).items) &&
-      typeof (value as ApiDashboardKanbanResponse).items === 'object',
-  );
-}
+// function isApiDashboardKanbanResponse(
+//   value: unknown,
+// ): value is ApiDashboardKanbanResponse {
+//   return Boolean(
+//     value &&
+//       typeof value === 'object' &&
+//       (value as ApiDashboardKanbanResponse).items &&
+//       !Array.isArray((value as ApiDashboardKanbanResponse).items) &&
+//       typeof (value as ApiDashboardKanbanResponse).items === 'object',
+//   );
+// }
 
 function createKanbanTicketSummary(
   tickets: ApiDashboardTicket[],
@@ -1620,6 +2509,7 @@ function createKanbanTicketSummary(
     inProgress: number;
     resolved: number;
     critical: number;
+    closed: number;
   }>(
     (summary, ticket) => {
       switch (ticket.status?.key.toLowerCase()) {
@@ -1640,7 +2530,7 @@ function createKanbanTicketSummary(
 
       return summary;
     },
-    { open: 0, inProgress: 0, resolved: 0, critical: 0 },
+    { open: 0, inProgress: 0, resolved: 0, critical: 0, closed: 0 },
   );
 }
 
@@ -1668,6 +2558,7 @@ function mapApiDashboardTicketToRecentTicket(
     status: statusLabel,
     statusColor: ticket.status?.color,
     priority: priorityLabel,
+    ticketType: ticket.ticketType ?? null,
     priorityColor: ticket.priority?.color,
     assignee: {
       name: assigneeName,
@@ -1744,8 +2635,11 @@ function getTicketSortValue(
   }
 }
 
-function getInitials(value: string) {
-  const words = value.trim().split(/\s+/).filter(Boolean);
+function getInitials(value?: string | null) {
+  const words = String(value ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
 
   if (!words.length) {
     return 'NA';
@@ -1757,7 +2651,6 @@ function getInitials(value: string) {
     .join('')
     .toUpperCase();
 }
-
 function getTicketsViewMode(value: string | null): 'table' | 'kanban' {
   if (value === 'kanban') {
     return 'kanban';
@@ -1877,4 +2770,11 @@ export function KanbanViewIcon() {
       />
     </svg>
   );
+}
+function getTicketsTypeFilterValue(value: string | null) {
+  if (value === 'bug' || value === 'feature_request') {
+    return value;
+  }
+
+  return 'all';
 }

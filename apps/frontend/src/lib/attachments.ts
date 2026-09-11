@@ -1,4 +1,4 @@
-export const MAX_TOTAL_ATTACHMENT_SIZE_BYTES = 15 * 1024 * 1024;
+export const MAX_TOTAL_ATTACHMENT_SIZE_BYTES = 50 * 1024 * 1024;
 
 export const ALLOWED_ATTACHMENT_EXTENSIONS = [
   '.jpg',
@@ -17,6 +17,7 @@ export const ALLOWED_ATTACHMENT_EXTENSIONS = [
   '.txt',
   '.mp4',
   '.mp3',
+  '.wav',
   '.mov',
   '.fig',
 ];
@@ -25,12 +26,12 @@ export const ALLOWED_ATTACHMENT_ACCEPT =
   ALLOWED_ATTACHMENT_EXTENSIONS.join(',');
 
 export const ALLOWED_ATTACHMENT_HELPER_TEXT =
-  'JPG, PNG, SVG, Word, Excel, PDF, WEBP, TXT, ,MP4 ,MP3 ,MOV ,FIG, HTML, or ZIP up to 15 MB total';
+  'JPG, PNG, SVG, Word, Excel, PDF, WEBP, TXT, ,MP4 ,MP3 ,WAV  ,MOV ,FIG, HTML, or ZIP up to 50 MB total';
 
 export const ALLOWED_ATTACHMENT_ERROR_TEXT = `Allowed file types: ${ALLOWED_ATTACHMENT_EXTENSIONS.join(', ')}`;
 
 export const MAX_ATTACHMENT_SIZE_ERROR_TEXT =
-  'Total attachment size must be 15 MB or less.';
+  'Total attachment size must be 50 MB or less.';
 
 export function isAllowedAttachmentFile(file: File) {
   const lowerCaseName = file.name.toLowerCase();
