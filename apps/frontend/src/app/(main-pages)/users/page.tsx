@@ -1,7 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useDashboardHeaderAction } from '../../../components/dashboard/dashboard-shell';
 import AddUserModal, {
@@ -102,6 +107,8 @@ export default function Page() {
       }),
 
     enabled: projectsQuery.isSuccess && canViewUsers,
+    // Keep the summary visible while the next search or filter request loads.
+    placeholderData: keepPreviousData,
   });
 
   const rolesQuery = useQuery({
@@ -168,7 +175,8 @@ export default function Page() {
 
   const isUsersLoading =
     projectsQuery.isPending ||
-    (projectsQuery.isSuccess && membersQuery.isPending);
+    (projectsQuery.isSuccess &&
+      (membersQuery.isPending || membersQuery.isPlaceholderData));
   const isUserSummaryLoading =
     canViewUsers && isUsersLoading && !membersQuery.data;
 

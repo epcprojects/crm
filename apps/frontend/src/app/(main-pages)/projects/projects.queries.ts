@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  keepPreviousData,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -134,6 +135,8 @@ export function useProjectsInfiniteQuery(
       }),
     enabled,
     initialPageParam: 1,
+    // Keep the summary visible while the next search request loads.
+    placeholderData: keepPreviousData,
     getNextPageParam: (lastPage) =>
       lastPage.meta.hasNext ? lastPage.meta.page + 1 : undefined,
   });

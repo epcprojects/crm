@@ -180,6 +180,7 @@ type ApiTicketSetting = {
 };
 
 const RECENT_TICKETS_STATUS_QUERY_PARAM = 'status';
+const RECENT_TICKETS_SEARCH_QUERY_PARAM = 'search';
 const RECENT_TICKETS_PRIORITY_QUERY_PARAM = 'priority';
 const RECENT_TICKETS_TYPE_QUERY_PARAM = 'ticketType';
 const TICKETS_PROJECT_QUERY_PARAM = 'project';
@@ -226,7 +227,20 @@ export default function Page() {
   const canViewProjectDetail = hasPermission('projects.view_detail');
   const canEditProject = hasPermission('projects.edit');
   const canDeleteProject = hasPermission('projects.delete');
-  const [searchValue, setSearchValue] = useState('');
+  const searchValue = searchParams.get(RECENT_TICKETS_SEARCH_QUERY_PARAM) ?? '';
+  const setSearchValue = (value: string) => {
+    const url = new URL(window.location.href);
+
+    if (value) {
+      url.searchParams.set(RECENT_TICKETS_SEARCH_QUERY_PARAM, value);
+    } else {
+      url.searchParams.delete(RECENT_TICKETS_SEARCH_QUERY_PARAM);
+    }
+
+    // Persist immediately so opening a ticket before the debounce finishes
+    // still preserves the search when navigating back.
+    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+  };
   const debouncedSearchValue = useDebouncedValue(searchValue);
   const [projectPanelTab, setProjectPanelTab] =
     useState<DashboardProjectPanelTabKey>(

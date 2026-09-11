@@ -3,7 +3,12 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import type { PaginationState } from '@tanstack/react-table';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useDashboardHeaderAction } from '../../../components/dashboard/dashboard-shell';
@@ -61,6 +66,7 @@ type TicketSummary = {
 };
 
 const TICKETS_VIEW_QUERY_PARAM = 'view';
+const TICKETS_SEARCH_QUERY_PARAM = 'search';
 const TICKETS_STATUS_QUERY_PARAM = 'status';
 const TICKETS_PRIORITY_QUERY_PARAM = 'priority';
 const TICKETS_PROJECT_QUERY_PARAM = 'project';
@@ -83,7 +89,20 @@ export default function Page() {
     ticketId: string;
     name: string;
   } | null>(null);
-  const [searchValue, setSearchValue] = useState('');
+  const searchValue = searchParams.get(TICKETS_SEARCH_QUERY_PARAM) ?? '';
+  const setSearchValue = (value: string) => {
+    const url = new URL(window.location.href);
+
+    if (value) {
+      url.searchParams.set(TICKETS_SEARCH_QUERY_PARAM, value);
+    } else {
+      url.searchParams.delete(TICKETS_SEARCH_QUERY_PARAM);
+    }
+
+    // Persist immediately so opening a ticket before the debounce finishes
+    // still preserves the search when navigating back.
+    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+  };
   const debouncedSearchValue = useDebouncedValue(searchValue);
   const [pagination, setPagination] = useState<PaginationState>(() => {
     const requestedPageSize = Number(
@@ -189,6 +208,8 @@ export default function Page() {
         limit: pagination.pageSize,
       }),
     enabled: hasPermission('tickets.view_list') && viewMode === 'table',
+    // Keep the summary visible while the next search or filter request loads.
+    placeholderData: keepPreviousData,
   });
   const kanbanFilters = {
     priorityKey: selectedPriority === 'all' ? undefined : selectedPriority,
@@ -802,12 +823,14 @@ export default function Page() {
     selectedProjectIds.length > 0;
 
   const updateTicketsPageFilters = ({
+    search,
     view,
     status,
     priority,
     ticketType,
     project,
   }: {
+    search?: string;
     view?: 'table' | 'kanban';
     status?: string;
     priority?: string;
@@ -815,6 +838,14 @@ export default function Page() {
     project?: string[];
   }) => {
     const nextSearchParams = new URLSearchParams(searchParams.toString());
+
+    if (search !== undefined) {
+      if (search) {
+        nextSearchParams.set(TICKETS_SEARCH_QUERY_PARAM, search);
+      } else {
+        nextSearchParams.delete(TICKETS_SEARCH_QUERY_PARAM);
+      }
+    }
 
     const nextViewMode = view ?? viewMode;
     const nextStatus = status ?? selectedStatus;
@@ -869,9 +900,8 @@ export default function Page() {
   };
 
   const clearTicketFilters = () => {
-    setSearchValue('');
-
     updateTicketsPageFilters({
+      search: '',
       status: DEFAULT_TICKETS_STATUS_FILTER,
       priority: 'all',
       ticketType: 'all',
@@ -1146,7 +1176,7 @@ export default function Page() {
   const isTicketsContentLoading =
     viewMode === 'kanban'
       ? kanbanBoardQuery.isLoading || ticketStatusesQuery.isLoading
-      : ticketsQuery.isLoading;
+      : ticketsQuery.isLoading || ticketsQuery.isPlaceholderData;
   const isTicketSummaryLoading =
     viewMode === 'table' && ticketsQuery.isLoading && !ticketsQuery.data;
   const [filtersOpen, setFiltersOpen] = useState(false);

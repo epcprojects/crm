@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useDashboardHeaderAction } from '../../../components/dashboard/dashboard-shell';
 import CreateProjectModal, {
   type CreateProjectFormValues,
@@ -58,13 +58,29 @@ type ProjectUsersModalState = {
   mode: 'view' | 'assign';
 };
 
+const PROJECTS_SEARCH_QUERY_PARAM = 'search';
+
 export default function ProjectsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { setHeaderActionOverride } = useDashboardHeaderAction();
   const { setLoading } = useAppLoader();
   const { hasPermission } = usePermissions();
-  const [searchValue, setSearchValue] = useState('');
+  const searchValue = searchParams.get(PROJECTS_SEARCH_QUERY_PARAM) ?? '';
+  const setSearchValue = (value: string) => {
+    const url = new URL(window.location.href);
+
+    if (value) {
+      url.searchParams.set(PROJECTS_SEARCH_QUERY_PARAM, value);
+    } else {
+      url.searchParams.delete(PROJECTS_SEARCH_QUERY_PARAM);
+    }
+
+    // Persist immediately so opening a project before the debounce finishes
+    // still preserves the search when navigating back.
+    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+  };
   const debouncedSearchValue = useDebouncedValue(searchValue);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
@@ -213,7 +229,11 @@ export default function ProjectsPage() {
   useEffect(() => {
     const loadMoreElement = loadMoreRef.current;
 
-    if (!loadMoreElement || !projectsQuery.hasNextPage) {
+    if (
+      !loadMoreElement ||
+      !projectsQuery.hasNextPage ||
+      projectsQuery.isPlaceholderData
+    ) {
       return;
     }
 
@@ -237,6 +257,7 @@ export default function ProjectsPage() {
     projectsQuery.fetchNextPage,
     projectsQuery.hasNextPage,
     projectsQuery.isFetchingNextPage,
+    projectsQuery.isPlaceholderData,
   ]);
 
   const handleCreateProject = async (values: CreateProjectFormValues) => {
@@ -524,7 +545,7 @@ export default function ProjectsPage() {
                 </div>
 
                 <div className="flex-none overflow-visible pr-1 scrollbar-hide xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain">
-                  {projectsQuery.isLoading ? (
+                  {projectsQuery.isLoading || projectsQuery.isPlaceholderData ? (
                     <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                       {Array.from({ length: 6 }).map((_, index) => (
                         <ProjectCardSkeleton key={index} />
