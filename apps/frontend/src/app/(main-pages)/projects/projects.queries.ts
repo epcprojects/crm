@@ -66,6 +66,7 @@ type ProjectSummary = {
   activeProjects: number | null;
   openTickets: number | null;
   criticalIssues: number | null;
+  closedTickets: number | null;
 };
 
 type ProjectsPaginationMeta = {
@@ -655,6 +656,7 @@ function normalizeProjectsResponse(
         activeProjects: payload.length,
         openTickets: 0,
         criticalIssues: 0,
+        closedTickets: 0,
       },
       meta: {
         page,
@@ -688,6 +690,7 @@ function normalizeProjectsResponse(
       openTickets: payload.summary?.openTickets ?? 0,
 
       criticalIssues: payload.summary?.criticalIssues ?? 0,
+      closedTickets: payload.summary?.closedTickets ?? 0,
     },
     meta: {
       page: payload.meta?.page ?? page,

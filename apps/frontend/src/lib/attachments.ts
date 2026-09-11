@@ -17,6 +17,7 @@ export const ALLOWED_ATTACHMENT_EXTENSIONS = [
   '.txt',
   '.mp4',
   '.mp3',
+  '.wav',
   '.mov',
   '.fig',
 ];
@@ -25,7 +26,7 @@ export const ALLOWED_ATTACHMENT_ACCEPT =
   ALLOWED_ATTACHMENT_EXTENSIONS.join(',');
 
 export const ALLOWED_ATTACHMENT_HELPER_TEXT =
-  'JPG, PNG, SVG, Word, Excel, PDF, WEBP, TXT, ,MP4 ,MP3 ,MOV ,FIG, HTML, or ZIP up to 50 MB total';
+  'JPG, PNG, SVG, Word, Excel, PDF, WEBP, TXT, ,MP4 ,MP3 ,WAV  ,MOV ,FIG, HTML, or ZIP up to 50 MB total';
 
 export const ALLOWED_ATTACHMENT_ERROR_TEXT = `Allowed file types: ${ALLOWED_ATTACHMENT_EXTENSIONS.join(', ')}`;
 

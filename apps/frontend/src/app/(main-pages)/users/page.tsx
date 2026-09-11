@@ -887,6 +887,7 @@ type ApiProjectMember = {
   projects: Array<{
     id: string;
     name: string;
+    brandColor: string;
   }>;
   userRoles?: Array<{
     id: string;
@@ -954,7 +955,7 @@ function mapApiMemberToUserCard(
       id: project.id,
       initials: getProjectInitials(project.name),
       name: project.name,
-      colorHex: '#6172F3',
+      colorHex: project.brandColor ?? '#6172F3',
     };
   });
 

@@ -21,7 +21,14 @@ import {
 } from '../../../public/icons';
 import { getFileUrl } from '../projects/ProjectFilesPanel';
 import ConfirmActionModal from '../modals/ConfirmActionModal';
-import ImageGalleryLightbox from '../ui/ImageGalleryLightbox';
+import ImageGalleryLightbox, {
+  VideoThumbnail,
+} from '../ui/ImageGalleryLightbox';
+import AttachmentCollage, { getCollageType } from './AttachmentCollage';
+import MediaAttachmentPreview, {
+  getAttachmentMediaType,
+  hasOnlyAudioAttachments,
+} from './MediaAttachmentPreview';
 import type { DiscussionAttachment, DiscussionReply } from './types';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import EmojiPickerButton from './EmojiPickerButton';
@@ -90,6 +97,7 @@ type DiscussionPanelProps = {
 };
 
 type GalleryImage = {
+  mediaType?: 'image' | 'video';
   attachmentId: string;
   storageKey?: string;
   fileName?: string;
@@ -619,7 +627,12 @@ export default function TicketRepliesPanel({
                               rel="noreferrer"
                               className="flex min-w-0 flex-1 items-start gap-3"
                               onClick={(event) => {
-                                if (!isImageAttachment(attachment.extension)) {
+                                if (
+                                  !isImageAttachment(attachment.extension) &&
+                                  getAttachmentMediaType(
+                                    attachment.extension,
+                                  ) !== 'video'
+                                ) {
                                   return;
                                 }
 
@@ -639,6 +652,8 @@ export default function TicketRepliesPanel({
                               ) : (
                                 <AttachmentFileIcon
                                   extension={attachment.extension}
+                                  storageKey={attachment.storageKey}
+                                  name={attachment.name}
                                 />
                               )}
                               <div className="min-w-0 flex-1">
@@ -740,7 +755,8 @@ export default function TicketRepliesPanel({
                               className={
                                 (onDeleteReply || onEditReply) &&
                                 isCurrentUserReply &&
-                                editingMessageId !== reply.id
+                                editingMessageId !== reply.id &&
+                                !getCollageType(reply.attachments ?? [])
                                   ? 'pr-7'
                                   : ''
                               }
@@ -857,27 +873,73 @@ export default function TicketRepliesPanel({
                                   </div>
                                 </div>
                               ) : reply.message ? (
-                                <ExpandableMessageText
-                                  message={reply.message}
-                                  mentionedUserIds={
-                                    reply.mentionedUserIds ?? []
+                                <div
+                                  className={
+                                    getCollageType(reply.attachments ?? []) &&
+                                    (onDeleteReply || onEditReply) &&
+                                    isCurrentUserReply
+                                      ? 'pr-7'
+                                      : undefined
                                   }
-                                  mentionMembers={mentionMembers}
-                                  isEdited={reply.isEdited}
-                                />
+                                >
+                                  <ExpandableMessageText
+                                    message={reply.message}
+                                    mentionedUserIds={
+                                      reply.mentionedUserIds ?? []
+                                    }
+                                    mentionMembers={mentionMembers}
+                                    isEdited={reply.isEdited}
+                                  />
+                                </div>
                               ) : null}
 
-                              {reply.attachments?.length ? (
+                              {reply.attachments?.length &&
+                              getCollageType(reply.attachments) ? (
+                                <AttachmentCollage
+                                  attachments={reply.attachments}
+                                  onOpen={(attachment) =>
+                                    openGallery(
+                                      conversationImages,
+                                      conversationImages.findIndex(
+                                        (item) =>
+                                          item.attachmentId === attachment.id,
+                                      ),
+                                    )
+                                  }
+                                  renderAction={
+                                    onDeleteAttachment
+                                      ? (attachment) => (
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setAttachmentToDelete(attachment)
+                                            }
+                                            disabled={
+                                              deletingAttachmentId ===
+                                              attachment.id
+                                            }
+                                            aria-label={`Delete ${attachment.name}`}
+                                            className="text-gray-400 hover:text-red-500 disabled:opacity-50"
+                                          >
+                                            <AttachmentTrashIcon />
+                                          </button>
+                                        )
+                                      : undefined
+                                  }
+                                />
+                              ) : reply.attachments?.length ? (
                                 <div
                                   className={`grid gap-2 ${
-                                    reply.attachments.length > 1
+                                    reply.attachments.length > 1 &&
+                                    !hasOnlyAudioAttachments(reply.attachments)
                                       ? 'md:grid-cols-3'
                                       : ''
                                   } ${
                                     !reply.message &&
-                                    reply.attachments.length > 1
+                                    reply.attachments.length > 1 &&
+                                    !hasOnlyAudioAttachments(reply.attachments)
                                       ? 'rounded-xl  p-2'
-                                      : ''
+                                      : 'p-2'
                                   } ${
                                     isCurrentUserReply
                                       ? 'rounded-tr-none'
@@ -887,68 +949,110 @@ export default function TicketRepliesPanel({
                                   {reply.attachments.map((attachment) => (
                                     <div
                                       key={attachment.id}
-                                      className="flex min-w-0 w-full items-start gap-3 rounded-xl  bg-white p-2.5 transition hover:bg-gray-50"
+                                      className={`flex min-w-0 w-full items-start gap-3 ${
+                                        hasOnlyAudioAttachments(
+                                          reply.attachments,
+                                        )
+                                          ? ''
+                                          : 'rounded-xl bg-white p-2.5 transition hover:bg-gray-50'
+                                      }`}
                                     >
-                                      <a
-                                        href={getAttachmentUrl(
-                                          attachment.storageKey,
-                                        )}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="flex min-w-0 flex-1 items-start gap-3"
-                                        onClick={(event) => {
-                                          if (
-                                            !isImageAttachment(
-                                              attachment.extension,
+                                      {(reply.attachments?.length === 1 ||
+                                        hasOnlyAudioAttachments(
+                                          reply.attachments,
+                                        )) &&
+                                      getAttachmentMediaType(
+                                        attachment.extension,
+                                      ) ? (
+                                        <MediaAttachmentPreview
+                                          attachment={attachment}
+                                          onOpenVideo={() =>
+                                            openGallery(
+                                              conversationImages,
+                                              conversationImages.findIndex(
+                                                (item) =>
+                                                  item.attachmentId ===
+                                                  attachment.id,
+                                              ),
                                             )
-                                          ) {
-                                            return;
                                           }
+                                        />
+                                      ) : (
+                                        <a
+                                          href={getAttachmentUrl(
+                                            attachment.storageKey,
+                                          )}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="flex min-w-0 flex-1 items-start gap-3"
+                                          onClick={(event) => {
+                                            if (
+                                              !isImageAttachment(
+                                                attachment.extension,
+                                              ) &&
+                                              getAttachmentMediaType(
+                                                attachment.extension,
+                                              ) !== 'video'
+                                            ) {
+                                              return;
+                                            }
 
-                                          event.preventDefault();
+                                            event.preventDefault();
 
-                                          const index =
-                                            conversationImages.findIndex(
-                                              (image) =>
-                                                image.attachmentId ===
-                                                attachment.id,
+                                            const index =
+                                              conversationImages.findIndex(
+                                                (image) =>
+                                                  image.attachmentId ===
+                                                  attachment.id,
+                                              );
+
+                                            openGallery(
+                                              conversationImages,
+                                              index,
                                             );
+                                          }}
+                                        >
+                                          {isImageAttachment(
+                                            attachment.extension,
+                                          ) ? (
+                                            <img
+                                              alt={attachment.name}
+                                              className={
+                                                reply.attachments?.length === 1
+                                                  ? 'h-64 w-87.5 max-w-full rounded-sm border border-gray-200 object-contain'
+                                                  : 'h-10 w-10 rounded-sm border border-gray-200 object-cover'
+                                              }
+                                              src={getFileUrl(
+                                                attachment.storageKey,
+                                              )}
+                                            />
+                                          ) : (
+                                            <AttachmentFileIcon
+                                              extension={attachment.extension}
+                                              storageKey={attachment.storageKey}
+                                              name={attachment.name}
+                                            />
+                                          )}
 
-                                          openGallery(
-                                            conversationImages,
-                                            index,
-                                          );
-                                        }}
-                                      >
-                                        {isImageAttachment(
-                                          attachment.extension,
-                                        ) ? (
-                                          <img
-                                            alt={attachment.name}
-                                            className="h-10 w-10 rounded-sm border border-gray-200 object-cover"
-                                            src={getFileUrl(
-                                              attachment.storageKey,
-                                            )}
-                                          />
-                                        ) : (
-                                          <AttachmentFileIcon
-                                            extension={attachment.extension}
-                                          />
-                                        )}
+                                          {(!isImageAttachment(
+                                            attachment.extension,
+                                          ) ||
+                                            (reply.attachments?.length ?? 0) >
+                                              1) && (
+                                            <div className="min-w-0 flex-1">
+                                              <p className="truncate text-sm font-medium text-gray-700">
+                                                {attachment.name}
+                                              </p>
 
-                                        <div className="min-w-0 flex-1">
-                                          <p className="truncate text-sm font-medium text-gray-700">
-                                            {attachment.name}
-                                          </p>
-
-                                          {attachment.sizeLabel ? (
-                                            <p className="text-sm text-gray-500">
-                                              {attachment.sizeLabel}
-                                            </p>
-                                          ) : null}
-                                        </div>
-                                      </a>
-
+                                              {attachment.sizeLabel ? (
+                                                <p className="text-sm text-gray-500">
+                                                  {attachment.sizeLabel}
+                                                </p>
+                                              ) : null}
+                                            </div>
+                                          )}
+                                        </a>
+                                      )}
                                       {onDeleteAttachment ? (
                                         <button
                                           type="button"
@@ -1600,9 +1704,17 @@ function getGalleryImagesFromAttachments(
   authorName: string,
 ) {
   return attachments
-    .filter((attachment) => isImageAttachment(attachment.extension))
+    .filter(
+      (attachment) =>
+        isImageAttachment(attachment.extension) ||
+        getAttachmentMediaType(attachment.extension) === 'video',
+    )
     .map((attachment, index) => ({
       attachmentId: attachment.id,
+      mediaType:
+        getAttachmentMediaType(attachment.extension) === 'video'
+          ? ('video' as const)
+          : ('image' as const),
       storageKey: attachment.storageKey,
       fileName: attachment.name,
       src: getFileUrl(attachment.storageKey),
@@ -1638,7 +1750,22 @@ function getGalleryImagesFromDiscussion(
   return images;
 }
 
-function AttachmentFileIcon({ extension }: { extension?: string }) {
+function AttachmentFileIcon({
+  extension,
+  storageKey,
+  name,
+}: {
+  extension?: string;
+  storageKey?: string;
+  name?: string;
+}) {
+  if (storageKey && getAttachmentMediaType(extension) === 'video') {
+    return (
+      <span className="block h-10 w-10 shrink-0 overflow-hidden rounded-sm border border-gray-200">
+        <VideoThumbnail src={getFileUrl(storageKey)} label={name || 'Video'} />
+      </span>
+    );
+  }
   const label = normalizeAttachmentExtension(extension);
   const badgeClassName = getAttachmentBadgeClassName(label);
 
