@@ -135,7 +135,6 @@ export default function Page() {
   const { hasPermission } = usePermissions();
   const canCreateTicket = hasPermission('tickets.create');
   const canExportTickets = hasPermission('tickets.export_tickets');
-  const canFilterTickets = hasPermission('tickets.filter');
   const canViewTicketDetail = hasPermission('tickets.view_detail');
   const canEditTicketStatus = hasPermission('tickets.edit_status');
   const canViewProjectDetail = hasPermission('projects.view_detail');
@@ -177,13 +176,13 @@ export default function Page() {
   const ticketStatusesQuery = useQuery({
     queryKey: ['ticket-statuses'],
     queryFn: fetchTicketStatuses,
-    enabled: canFilterTickets,
+    enabled: hasPermission('tickets.view_list'),
   });
 
   const ticketPrioritiesQuery = useQuery({
     queryKey: ['ticket-priorities'],
     queryFn: fetchTicketPriorities,
-    enabled: canFilterTickets,
+    enabled: hasPermission('tickets.view_list'),
   });
 
   const ticketsQuery = useQuery({
@@ -727,7 +726,7 @@ export default function Page() {
   });
 
   const handleReorderStatusColumn = (statusId: string, newIndex: number) => {
-    if (!canFilterTickets || reorderStatusMutation.isPending) {
+    if (reorderStatusMutation.isPending) {
       return;
     }
 
@@ -1243,7 +1242,7 @@ export default function Page() {
             >
               <div className="flex h-auto min-h-0 min-w-0 flex-col gap-4 overflow-visible xl:h-full xl:overflow-hidden">
                 <div className="flex flex-col gap-3 rounded-xl md:flex-row justify-end items-end">
-                  {canFilterTickets ? (
+                  <>
                     <div className="flex w-full md:flex-row flex-col gap-2 justify-between">
                       <div className="flex flex-row justify-between w-full sm:w-fit gap-3">
                         <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 md:max-w-100 md:min-w-80">
@@ -1700,7 +1699,7 @@ export default function Page() {
                         </div>
                       </div>
                     </div>
-                  ) : null}
+                  </>
                 </div>
                 <div
                   className={`hidden w-full justify-end transition-[grid-template-rows,opacity,transform] duration-300 ease-out xl:grid ${
@@ -1815,7 +1814,7 @@ export default function Page() {
                       }}
                       onReorderColumn={handleReorderStatusColumn}
                       canDragTickets={canEditTicketStatus}
-                      canDragColumns={canFilterTickets}
+                      canDragColumns
                       movingTicketId={
                         moveTicketMutation.isPending
                           ? (moveTicketMutation.variables?.ticket.id ?? null)

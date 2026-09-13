@@ -163,9 +163,9 @@ export default function ProjectUsersModal({
                       <p className="truncate text-sm font-semibold text-gray-900">
                         {user.fullName}{' '}
                         {user.roleName ? (
-                          <p className=" text-[10px] inline-block w-fit capitalize px-1.5 py-0.25 font-medium text-gray-700 rounded-full bg-gray-50 border border-gray-200">
+                          <span className="inline-block text-[10px] inline-block w-fit capitalize px-1.5 py-0.25 font-medium text-gray-700 rounded-full bg-gray-50 border border-gray-200">
                             {formatProjectUserRoleName(user.roleName)}
-                          </p>
+                          </span>
                         ) : null}
                       </p>
                       <p className="truncate text-xs text-gray-600">
