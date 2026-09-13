@@ -282,26 +282,26 @@ export class ProjectsService {
     });
   }
 
-  async findOne(id: string, members = false, user?: any) {
-    const query = this.projectRepo
-      .createQueryBuilder('p')
-      .innerJoin('p.members', 'u', 'u.id = :userId', {
-        userId: user?.id,
-      })
-      .where('p.id = :id', { id });
+    async findOne(id: string, members = false, user?: any) {
+      const query = this.projectRepo
+        .createQueryBuilder('p')
+        .innerJoin('p.members', 'u', 'u.id = :userId', {
+          userId: user?.id,
+        })
+        .where('p.id = :id', { id });
 
-    if (members) {
-      query.leftJoinAndSelect('p.members', 'members');
+      if (members) {
+        query.leftJoinAndSelect('p.members', 'members');
+      }
+
+      const project = await query.getOne();
+
+      if (!project) {
+        throw new NotFoundException('Project not found');
+      }
+
+      return project;
     }
-
-    const project = await query.getOne();
-
-    if (!project) {
-      throw new NotFoundException('Project not found');
-    }
-
-    return project;
-  }
   // function for having summary of project section, return total project, active proejcts, open tickets and critical issues:
 
   async getGlobalProjectSummary(user) {
@@ -863,7 +863,7 @@ export class ProjectsService {
   // }
 
   async softRemove(id: string, user) {
-    const proj = await this.findOne(id);
+    const proj = await this.findOne(id, true, user);
 
     await this.projectRepo.softDelete(id);
 
