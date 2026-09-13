@@ -134,6 +134,7 @@ export default function Page() {
   const projectsQuery = useProjectNamesQuery();
   const { hasPermission } = usePermissions();
   const canCreateTicket = hasPermission('tickets.create');
+  const canExportTickets = hasPermission('tickets.export_tickets');
   const canFilterTickets = hasPermission('tickets.filter');
   const canViewTicketDetail = hasPermission('tickets.view_detail');
   const canEditTicketStatus = hasPermission('tickets.edit_status');
@@ -444,6 +445,10 @@ export default function Page() {
   );
 
   const handleExportTickets = async () => {
+    if (!canExportTickets || isExportingTickets) {
+      return;
+    }
+
     try {
       setIsExportingTickets(true);
 
@@ -1679,17 +1684,19 @@ export default function Page() {
                             </ThemeButton>
                           ) : null}
 
-                          <ThemeButton
-                            className="rounded-full w-full"
-                            variant="primaryGradient"
-                            icon={<DownloadIcon fill="#ffffff" />}
-                            onClick={handleExportTickets}
-                            disabled={isExportingTickets}
-                          >
-                            {isExportingTickets
-                              ? 'Exporting...'
-                              : 'Export Tickets'}
-                          </ThemeButton>
+                          {canExportTickets ? (
+                            <ThemeButton
+                              className="rounded-full w-full"
+                              variant="primaryGradient"
+                              icon={<DownloadIcon fill="#ffffff" />}
+                              onClick={handleExportTickets}
+                              disabled={isExportingTickets}
+                            >
+                              {isExportingTickets
+                                ? 'Exporting...'
+                                : 'Export Tickets'}
+                            </ThemeButton>
+                          ) : null}
                         </div>
                       </div>
                     </div>
@@ -1818,6 +1825,11 @@ export default function Page() {
                   ) : (
                     <RecentTicketsTable
                       tickets={sortedTickets}
+                      onEmptyButtonClick={
+                        canCreateTicket
+                          ? () => setCreateTicketOpen(true)
+                          : undefined
+                      }
                       enablePagination
                       initialPageSize={10}
                       pageSizeOptions={[10, 25, 50, 100]}

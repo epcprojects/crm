@@ -222,6 +222,7 @@ export default function Page() {
   const canViewUpcoming = hasPermission('dashboard.view_upcoming');
   const canViewRecentTickets = hasPermission('dashboard.view_recent_tickets');
   const canCreateTicket = hasPermission('tickets.create');
+  const canExportTickets = hasPermission('tickets.export_tickets');
   const canViewTicketsList = hasPermission('tickets.view_list');
   const canViewTicketDetail = hasPermission('tickets.view_detail');
   const canViewThreads = hasPermission('thread.view');
@@ -262,7 +263,9 @@ export default function Page() {
   });
   const [isExportingTickets, setIsExportingTickets] = useState(false);
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
-  const [ticketToDelete, setTicketToDelete] = useState<RecentTicket | null>(null);
+  const [ticketToDelete, setTicketToDelete] = useState<RecentTicket | null>(
+    null,
+  );
   const [projectToEdit, setProjectToEdit] = useState<ProjectRecord | null>(
     null,
   );
@@ -581,6 +584,10 @@ export default function Page() {
   };
 
   const handleExportTickets = async () => {
+    if (!canExportTickets || isExportingTickets) {
+      return;
+    }
+
     try {
       setIsExportingTickets(true);
 
@@ -898,72 +905,72 @@ export default function Page() {
       ),
     [activityQuery.data, currentUserId],
   );
-    const canViewProjectThread = hasPermission('thread.view');
-     const canViewProjectFiles = hasPermission('files.view');
+  const canViewProjectThread = hasPermission('thread.view');
+  const canViewProjectFiles = hasPermission('files.view');
   const canViewProjectCalendar = hasPermission('calendar.view_grid');
   const canViewProjectNotes = hasPermission('projects_notes.view_list');
   const [filtersOpen, setFiltersOpen] = useState(false);
-    const ticketQuickLinkItems = useMemo(
-      () =>
-        canViewProjectDetail
-          ? (ticket: RecentTicket): RecentTicketQuickLinkItem[] => {
-              const projectId = ticket.project.id;
-  
-              if (!projectId) {
-                return [];
-              }
-  
-              const items: RecentTicketQuickLinkItem[] = [
-                {
-                  key: 'project',
-                  label: 'Go to Project',
-                  href: `/projects/${projectId}`,
-                },
-              ];
-  
-              if (canViewProjectThread) {
-                items.push({
-                  key: 'thread',
-                  label: 'Thread',
-                  href: `/projects/${projectId}?t=1`,
-                });
-              }
-  
-              if (canViewProjectFiles) {
-                items.push({
-                  key: 'files',
-                  label: 'Files',
-                  href: `/projects/${projectId}?t=2`,
-                });
-              }
-  
-              if (canViewProjectCalendar) {
-                items.push({
-                  key: 'calendar',
-                  label: 'Calendar',
-                  href: `/projects/${projectId}?t=3`,
-                });
-              }
-  
-              if (canViewProjectNotes) {
-                items.push({
-                  key: 'notes',
-                  label: 'Notes',
-                  href: `/projects/${projectId}?t=4`,
-                });
-              }
-  
-              return items;
+  const ticketQuickLinkItems = useMemo(
+    () =>
+      canViewProjectDetail
+        ? (ticket: RecentTicket): RecentTicketQuickLinkItem[] => {
+            const projectId = ticket.project.id;
+
+            if (!projectId) {
+              return [];
             }
-          : undefined,
-      [
-        canViewProjectCalendar,
-        canViewProjectDetail,
-        canViewProjectFiles,
-        canViewProjectNotes,
-        canViewProjectThread,
-      ],
-    );
+
+            const items: RecentTicketQuickLinkItem[] = [
+              {
+                key: 'project',
+                label: 'Go to Project',
+                href: `/projects/${projectId}`,
+              },
+            ];
+
+            if (canViewProjectThread) {
+              items.push({
+                key: 'thread',
+                label: 'Thread',
+                href: `/projects/${projectId}?t=1`,
+              });
+            }
+
+            if (canViewProjectFiles) {
+              items.push({
+                key: 'files',
+                label: 'Files',
+                href: `/projects/${projectId}?t=2`,
+              });
+            }
+
+            if (canViewProjectCalendar) {
+              items.push({
+                key: 'calendar',
+                label: 'Calendar',
+                href: `/projects/${projectId}?t=3`,
+              });
+            }
+
+            if (canViewProjectNotes) {
+              items.push({
+                key: 'notes',
+                label: 'Notes',
+                href: `/projects/${projectId}?t=4`,
+              });
+            }
+
+            return items;
+          }
+        : undefined,
+    [
+      canViewProjectCalendar,
+      canViewProjectDetail,
+      canViewProjectFiles,
+      canViewProjectNotes,
+      canViewProjectThread,
+    ],
+  );
 
   return (
     <div className="xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 z-100 h-full xl:h-dvh relative">
@@ -1164,15 +1171,19 @@ export default function Page() {
                   <div className="flex items-center gap-3">
                     <div className="flex flex-wrap gap-2">
                       {/* Desktop filters: xl and above */}
-                      <ThemeButton
-                        className="shrink-0 rounded-full"
-                        variant="primaryGradient"
-                        icon={<DownloadIcon fill="white" />}
-                        onClick={handleExportTickets}
-                        disabled={isExportingTickets}
-                      >
-                        {isExportingTickets ? 'Exporting...' : 'Export Tickets'}
-                      </ThemeButton>
+                      {canExportTickets ? (
+                        <ThemeButton
+                          className="shrink-0 rounded-full"
+                          variant="primaryGradient"
+                          icon={<DownloadIcon fill="white" />}
+                          onClick={handleExportTickets}
+                          disabled={isExportingTickets}
+                        >
+                          {isExportingTickets
+                            ? 'Exporting...'
+                            : 'Export Tickets'}
+                        </ThemeButton>
+                      ) : null}
 
                       {/* Compact filters: below xl only */}
                       <Popover as="div" className="relative xl:hidden block ">
@@ -1429,7 +1440,9 @@ export default function Page() {
                         : undefined
                     }
                     getQuickLinkItems={ticketQuickLinkItems}
-                    onDeleteTickets={canDeleteTicket ? setTicketToDelete : undefined}
+                    onDeleteTickets={
+                      canDeleteTicket ? setTicketToDelete : undefined
+                    }
                   />
                 )}
               </div>
