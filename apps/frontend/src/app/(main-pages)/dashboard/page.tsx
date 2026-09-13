@@ -46,6 +46,7 @@ import { createTicket } from '../../../lib/tickets';
 import type { ProjectRecord } from '../projects/projects.data';
 import {
   useDeleteProjectMutation,
+  useDeleteTicketMutation,
   projectsQueryKey,
   useProjectNamesQuery,
   useProjectsQuery,
@@ -227,6 +228,7 @@ export default function Page() {
   const canViewProjectDetail = hasPermission('projects.view_detail');
   const canEditProject = hasPermission('projects.edit');
   const canDeleteProject = hasPermission('projects.delete');
+  const canDeleteTicket = hasPermission('tickets.delete');
   const searchValue = searchParams.get(RECENT_TICKETS_SEARCH_QUERY_PARAM) ?? '';
   const setSearchValue = (value: string) => {
     const url = new URL(window.location.href);
@@ -260,6 +262,7 @@ export default function Page() {
   });
   const [isExportingTickets, setIsExportingTickets] = useState(false);
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
+  const [ticketToDelete, setTicketToDelete] = useState<RecentTicket | null>(null);
   const [projectToEdit, setProjectToEdit] = useState<ProjectRecord | null>(
     null,
   );
@@ -464,6 +467,7 @@ export default function Page() {
   });
   const updateProjectMutation = useUpdateProjectMutation();
   const deleteProjectMutation = useDeleteProjectMutation();
+  const deleteTicketMutation = useDeleteTicketMutation();
 
   const projectOptions = useMemo(
     () => createTicketProjectOptions(projectNamesQuery.data ?? []),
@@ -763,6 +767,35 @@ export default function Page() {
         error instanceof Error ? error.message : 'Failed to update project.',
       );
       throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteTicket = async () => {
+    if (!ticketToDelete || !canDeleteTicket || deleteTicketMutation.isPending) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await deleteTicketMutation.mutateAsync({
+        projectId: ticketToDelete.project.id ?? '',
+        ticketId: ticketToDelete.id,
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard-kanban-board'] }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard-kanban-ticket-counts'],
+        }),
+      ]);
+      appToast.success('Ticket deleted successfully.');
+      setTicketToDelete(null);
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to delete ticket.',
+      );
     } finally {
       setLoading(false);
     }
@@ -1395,7 +1428,8 @@ export default function Page() {
                             )
                         : undefined
                     }
-                      getQuickLinkItems={ticketQuickLinkItems}
+                    getQuickLinkItems={ticketQuickLinkItems}
+                    onDeleteTickets={canDeleteTicket ? setTicketToDelete : undefined}
                   />
                 )}
               </div>
@@ -1631,6 +1665,26 @@ export default function Page() {
         }
         title="Edit Project"
         confirmLabel="Update Project"
+      />
+
+      <ConfirmActionModal
+        isOpen={Boolean(ticketToDelete) && canDeleteTicket}
+        onClose={() => setTicketToDelete(null)}
+        title="Delete Ticket?"
+        message={
+          <>
+            Are you sure you want to delete{' '}
+            <span className="font-semibold">
+              “{ticketToDelete?.title ?? 'this ticket'}”
+            </span>
+            ? This action cannot be undone.
+          </>
+        }
+        confirmLabel="Yes, Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isSubmitting={deleteTicketMutation.isPending}
+        onConfirm={handleDeleteTicket}
       />
 
       <ConfirmActionModal

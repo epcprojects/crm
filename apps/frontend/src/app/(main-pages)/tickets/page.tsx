@@ -635,6 +635,10 @@ export default function Page() {
           queryKey: ['dashboard-kanban-ticket-counts'],
           refetchType: 'all',
         }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard-kanban-board'],
+          refetchType: 'all',
+        }),
       ]);
     },
   });
@@ -927,6 +931,14 @@ export default function Page() {
 
   const invalidateTicketRelated = async () => {
     await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard-kanban-board'],
+        refetchType: 'all',
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard-kanban-ticket-counts'],
+        refetchType: 'all',
+      }),
       queryClient.invalidateQueries({
         queryKey: ['dashboard', 'recent-tickets'],
         refetchType: 'all',
