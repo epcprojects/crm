@@ -899,10 +899,7 @@ export default function Page() {
   const displayedProjects = projectsQuery.data ?? [];
   const displayedProjectThreads = projectThreadsQuery.data ?? [];
   const dashboardActivityItems = useMemo(
-    () =>
-      (activityQuery.data?.pages.flatMap((page) => page.items) ?? []).filter(
-        (item) => item.actorId !== currentUserId,
-      ),
+    () => activityQuery.data?.pages.flatMap((page) => page.items) ?? [],
     [activityQuery.data, currentUserId],
   );
   const canViewProjectThread = hasPermission('thread.view');
