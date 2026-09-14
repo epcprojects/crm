@@ -90,6 +90,11 @@ export const MODULE_DEFINITIONS: {
     actions: ['view_list', 'create', 'edit_permissions', 'delete'],
   },
   {
+    key: 'contacts',
+    label: 'Contacts',
+    actions: ['view_list', 'view_detail', 'create', 'edit', 'delete'],
+  },
+  {
     key: 'settings',
     label: 'Settings',
     actions: [

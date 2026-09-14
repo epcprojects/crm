@@ -10,6 +10,8 @@ import { RolesModule } from './modules/roles/roles.module';
 import { TicketsModule } from './modules/tickets/tickets.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { ProjectNotesModule } from './modules/project-notes/project-notes.module';
+import { ContactsModule } from './modules/contacts/contacts.module';
+import { TerritoriesModule } from './modules/territories/territories.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { UtilityModule } from './modules/utility/utility.module';
 import { FilesModule } from './modules/files/files.module';
@@ -42,6 +44,8 @@ import { ActivityModule } from './modules/activity/activity-log.module';
     NotificationsModule,
     ProjectsModule,
     ProjectNotesModule,
+    ContactsModule,
+    TerritoriesModule,
     TicketsModule,
     UtilityModule,
     FilesModule,

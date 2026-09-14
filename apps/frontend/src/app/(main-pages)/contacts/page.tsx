@@ -1,0 +1,470 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useDashboardHeaderAction } from '../../../components/dashboard/dashboard-shell';
+import AddContactModal, {
+  type AddContactFormValues,
+} from '../../../components/modals/AddContactModal';
+import DeleteContactModal from '../../../components/modals/DeleteContactModal';
+import ContactsTable, {
+  ContactsTableSkeleton,
+  type ContactRecord,
+  type ContactsMeta,
+} from '../../../components/tables/ContactsTable';
+import { CloseIcon, PlusIcon, SearchIcon } from '../../../../public/icons';
+import { appToast } from '../../../components/toast/AppToast';
+import {
+  PermissionGuard,
+  usePermissions,
+} from '../../providers/PermissionProvider';
+import ThemeButton from '../../../components/ui/ThemeButton';
+import Dropdown from '../../../components/ui/ThemeDropDown';
+import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
+import { useDebouncedValue } from '../../../components/hooks/useDebouncedValue';
+import { fetchCitiesByProvince, fetchProvinces } from '../../../lib/territories';
+
+const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+
+export default function ContactsPage() {
+  const { setHeaderActionOverride } = useDashboardHeaderAction();
+  const queryClient = useQueryClient();
+  const { hasPermission } = usePermissions();
+  const canViewContacts = hasPermission('contacts.view_list');
+  const canCreateContact = hasPermission('contacts.create');
+  const canEditContact = hasPermission('contacts.edit');
+  const canDeleteContact = hasPermission('contacts.delete');
+
+  const [addContactOpen, setAddContactOpen] = useState(false);
+  const [editingContact, setEditingContact] = useState<ContactRecord | null>(
+    null,
+  );
+  const [deletingContact, setDeletingContact] = useState<ContactRecord | null>(
+    null,
+  );
+  const [searchValue, setSearchValue] = useState('');
+  const debouncedSearchValue = useDebouncedValue(searchValue);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [filterProvinceId, setFilterProvinceId] = useState('');
+  const [filterTerritoryId, setFilterTerritoryId] = useState('');
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearchValue, filterProvinceId, filterTerritoryId, pageSize]);
+
+  const provincesQuery = useQuery({
+    queryKey: ['territories', 'provinces'],
+    queryFn: fetchProvinces,
+    enabled: canViewContacts,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const filterCitiesQuery = useQuery({
+    queryKey: ['territories', 'cities', filterProvinceId],
+    queryFn: () => fetchCitiesByProvince(filterProvinceId),
+    enabled: canViewContacts && Boolean(filterProvinceId),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const contactsQuery = useQuery({
+    queryKey: [
+      'contacts',
+      page,
+      pageSize,
+      debouncedSearchValue.trim(),
+      filterProvinceId,
+      filterTerritoryId,
+    ],
+    queryFn: () =>
+      fetchContacts(page, pageSize, debouncedSearchValue.trim(), {
+        provinceId: filterProvinceId,
+        territoryId: filterTerritoryId,
+      }),
+    enabled: canViewContacts,
+  });
+
+  const createContactMutation = useMutation({
+    mutationFn: async (values: AddContactFormValues) => {
+      const response = await fetch('/api/contacts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(toContactPayload(values)),
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to create contact.');
+      }
+
+      return payload;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['contacts'] });
+    },
+  });
+
+  const updateContactMutation = useMutation({
+    mutationFn: async ({
+      contactId,
+      values,
+    }: {
+      contactId: string;
+      values: AddContactFormValues;
+    }) => {
+      const response = await fetch(`/api/contacts/${contactId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(toContactPayload(values)),
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to update contact.');
+      }
+
+      return payload;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['contacts'] });
+    },
+  });
+
+  const deleteContactMutation = useMutation({
+    mutationFn: async (contactId: string) => {
+      const response = await fetch(`/api/contacts/${contactId}`, {
+        method: 'DELETE',
+        headers: { Accept: 'application/json' },
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to delete contact.');
+      }
+
+      return payload;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['contacts'] });
+    },
+  });
+
+  useEffect(() => {
+    if (canCreateContact) {
+      setHeaderActionOverride(() => setAddContactOpen(true));
+    } else {
+      setHeaderActionOverride(null);
+    }
+
+    return () => {
+      setHeaderActionOverride(null);
+    };
+  }, [canCreateContact, setHeaderActionOverride]);
+
+  const handleCreateContact = async (values: AddContactFormValues) => {
+    if (!canCreateContact) return;
+
+    await createContactMutation.mutateAsync(values);
+    appToast.success('Contact created successfully.');
+  };
+
+  const handleEditContact = async (values: AddContactFormValues) => {
+    if (!editingContact || !canEditContact) return;
+
+    await updateContactMutation.mutateAsync({
+      contactId: editingContact.id,
+      values,
+    });
+    setEditingContact(null);
+    appToast.success('Contact updated successfully.');
+  };
+
+  const handleDeleteContact = async () => {
+    if (!deletingContact || !canDeleteContact) return;
+
+    await deleteContactMutation.mutateAsync(deletingContact.id);
+    setDeletingContact(null);
+    appToast.success('Contact deleted successfully.');
+  };
+
+  const contacts = contactsQuery.data?.items ?? [];
+  const meta: ContactsMeta = contactsQuery.data?.meta ?? {
+    page: 1,
+    limit: pageSize,
+    total: 0,
+    totalPages: 0,
+    hasNext: false,
+    hasPrevious: false,
+  };
+
+  const provinceFilterOptions = [
+    { label: 'All Provinces', value: '' },
+    ...(provincesQuery.data ?? []).map((province) => ({
+      label: province.name,
+      value: province.id,
+    })),
+  ];
+  const cityFilterOptions = [
+    { label: 'All Cities', value: '' },
+    ...(filterCitiesQuery.data ?? []).map((city) => ({
+      label: city.name,
+      value: city.id,
+    })),
+  ];
+
+  const editInitialValues = editingContact
+    ? {
+        fullName: editingContact.fullName ?? '',
+        phone: editingContact.phone,
+        email: editingContact.email ?? '',
+        provinceId: editingContact.territory?.parent?.id ?? '',
+        territoryId: editingContact.territoryId ?? '',
+        source: editingContact.source ?? '',
+        notes: editingContact.notes ?? '',
+      }
+    : undefined;
+
+  return (
+    <>
+      <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 px-4 xl:px-0 pt-2 pb-0 xl:pr-5">
+        <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
+          <div className="shrink-0">
+            <DashboardSummaryBanner
+              imageSrc="/images/ContactsIconImage.svg"
+              imageAlt="Contacts"
+              title="Contacts"
+              stats={[]}
+            />
+          </div>
+
+          <div className="flex h-auto min-h-0 flex-none flex-col gap-4 overflow-visible rounded-xl bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5 xl:h-full xl:flex-1 xl:overflow-hidden">
+            <PermissionGuard
+              permission="contacts.view_list"
+              fallback={
+                <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
+                  You do not have permission to view contacts.
+                </div>
+              }
+            >
+              <div className="flex h-auto min-h-0 flex-none flex-col gap-4 overflow-visible xl:h-full xl:flex-1 xl:overflow-hidden">
+                <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                  <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                    <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 sm:max-w-80">
+                      <div className="flex items-center gap-2">
+                        <span className="shrink-0">
+                          <SearchIcon fill="#374151" />
+                        </span>
+
+                        <input
+                          type="text"
+                          value={searchValue}
+                          onChange={(event) => setSearchValue(event.target.value)}
+                          placeholder="Search by name, phone, or email"
+                          className="min-w-0 flex-1 bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => setSearchValue('')}
+                          disabled={!searchValue}
+                          tabIndex={searchValue ? 0 : -1}
+                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
+                            searchValue
+                              ? 'visible hover:bg-gray-100'
+                              : 'pointer-events-none invisible'
+                          }`}
+                          aria-label="Clear search"
+                        >
+                          <CloseIcon width="15" height="15" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="w-full sm:w-44">
+                      <Dropdown
+                        options={provinceFilterOptions}
+                        value={filterProvinceId}
+                        onChange={(value) => {
+                          setFilterProvinceId(value);
+                          setFilterTerritoryId('');
+                        }}
+                        placeholder="All Provinces"
+                        showSearch
+                        applyHeight={false}
+                      />
+                    </div>
+
+                    <div className="w-full sm:w-44">
+                      <Dropdown
+                        options={cityFilterOptions}
+                        value={filterTerritoryId}
+                        onChange={setFilterTerritoryId}
+                        placeholder="All Cities"
+                        disabled={!filterProvinceId}
+                        showSearch
+                        applyHeight={false}
+                      />
+                    </div>
+                  </div>
+
+                  {canCreateContact ? (
+                    <ThemeButton
+                      className="shrink-0 rounded-full hidden xl:flex"
+                      variant="primaryGradient"
+                      icon={<PlusIcon width="20" height="20" />}
+                      onClick={() => setAddContactOpen(true)}
+                    >
+                      Add Contact
+                    </ThemeButton>
+                  ) : null}
+                </div>
+
+                <div className="min-h-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden">
+                  {contactsQuery.isLoading ? (
+                    <ContactsTableSkeleton />
+                  ) : (
+                    <ContactsTable
+                      contacts={contacts}
+                      meta={meta}
+                      onPageChange={setPage}
+                      pageSizeOptions={PAGE_SIZE_OPTIONS}
+                      onPageSizeChange={setPageSize}
+                      searchActive={Boolean(
+                        debouncedSearchValue.trim() ||
+                          filterProvinceId ||
+                          filterTerritoryId,
+                      )}
+                      onEdit={
+                        canEditContact
+                          ? (contact) => setEditingContact(contact)
+                          : undefined
+                      }
+                      onDelete={
+                        canDeleteContact
+                          ? (contact) => setDeletingContact(contact)
+                          : undefined
+                      }
+                      onAddContact={
+                        canCreateContact
+                          ? () => setAddContactOpen(true)
+                          : undefined
+                      }
+                    />
+                  )}
+                </div>
+              </div>
+            </PermissionGuard>
+          </div>
+        </div>
+
+        {canCreateContact ? (
+          <button
+            type="button"
+            onClick={() => setAddContactOpen(true)}
+            aria-label="Add contact"
+            className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-l from-royal-blue to-crystal-blue text-white shadow-[0_10px_30px_rgb(48_79_253/0.35)] transition hover:opacity-90 active:scale-95 xl:hidden"
+          >
+            <PlusIcon fill="#FFFFFF" width="24" height="24" />
+          </button>
+        ) : null}
+      </div>
+
+      <AddContactModal
+        key="create-contact-modal"
+        isOpen={addContactOpen && canCreateContact}
+        onClose={() => setAddContactOpen(false)}
+        onConfirm={handleCreateContact}
+      />
+
+      {editingContact ? (
+        <AddContactModal
+          key={`edit-contact-${editingContact.id}`}
+          isOpen={Boolean(editingContact) && canEditContact}
+          onClose={() => setEditingContact(null)}
+          onConfirm={handleEditContact}
+          mode="edit"
+          initialValues={editInitialValues}
+        />
+      ) : null}
+
+      <DeleteContactModal
+        isOpen={Boolean(deletingContact) && canDeleteContact}
+        onClose={() => setDeletingContact(null)}
+        onConfirm={handleDeleteContact}
+        contactName={deletingContact?.fullName ?? deletingContact?.phone}
+      />
+    </>
+  );
+}
+
+function toContactPayload(values: AddContactFormValues) {
+  return {
+    fullName: values.fullName?.trim() || undefined,
+    phone: values.phone.trim(),
+    email: values.email?.trim() || undefined,
+    territoryId: values.territoryId || undefined,
+    source: values.source?.trim() || undefined,
+    notes: values.notes?.trim() || undefined,
+  };
+}
+
+async function fetchContacts(
+  page: number,
+  limit: number,
+  search?: string,
+  filters?: { provinceId?: string; territoryId?: string },
+) {
+  const searchParams = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+
+  if (search) {
+    searchParams.set('search', search);
+  }
+
+  if (filters?.territoryId) {
+    searchParams.set('territoryId', filters.territoryId);
+  } else if (filters?.provinceId) {
+    searchParams.set('provinceId', filters.provinceId);
+  }
+
+  const response = await fetch(`/api/contacts?${searchParams}`, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as {
+    items?: ContactRecord[];
+    meta?: ContactsMeta;
+    message?: string;
+  } | null;
+
+  if (!response.ok) {
+    throw new Error(payload?.message || 'Failed to fetch contacts.');
+  }
+
+  return {
+    items: payload?.items ?? [],
+    meta:
+      payload?.meta ?? {
+        page,
+        limit,
+        total: 0,
+        totalPages: 0,
+        hasNext: false,
+        hasPrevious: false,
+      },
+  };
+}

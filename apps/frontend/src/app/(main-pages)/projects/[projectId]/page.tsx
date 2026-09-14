@@ -67,8 +67,6 @@ import {
   TrashIcon,
   CloseIcon,
   ThreadIcon,
-  FeatureIcon,
-  BugIcon,
 } from '../../../../../public/icons';
 import Dropdown from '../../../../components/ui/ThemeDropDown';
 import ThemeButton from '../../../../components/ui/ThemeButton';
@@ -268,11 +266,6 @@ export default function ProjectDetailPage() {
     searchParams.get(PROJECT_TICKETS_TYPE_QUERY_PARAM),
   );
 
-  const ticketTypeFilterOptions = [
-    { label: 'All Types', value: 'all' },
-    { label: 'Bug', value: 'bug', icon: <BugIcon /> },
-    { label: 'Feature', value: 'feature_request', icon: <FeatureIcon /> },
-  ];
   const projectTicketsViewMode =
     searchParams.get(PROJECT_TICKETS_VIEW_QUERY_PARAM) === 'kanban'
       ? 'kanban'
@@ -2356,19 +2349,6 @@ export default function ProjectDetailPage() {
                                         maxMenuHeight={150}
                                       />
                                     </div>
-                                    <div className="relative w-full overflow-visible">
-                                      <Dropdown
-                                        options={ticketTypeFilterOptions}
-                                        value={selectedTicketType}
-                                        onChange={(value) =>
-                                          updateProjectTicketFilters({
-                                            ticketType: value,
-                                          })
-                                        }
-                                        placeholder="All Types"
-                                        maxMenuHeight={150}
-                                      />
-                                    </div>
 
                                     <button
                                       type="button"
@@ -2442,18 +2422,6 @@ export default function ProjectDetailPage() {
                                     })
                                   }
                                   placeholder="All Priority"
-                                />
-                              </div>
-                              <div className="hidden w-55 xl:block">
-                                <Dropdown
-                                  options={ticketTypeFilterOptions}
-                                  value={selectedTicketType}
-                                  onChange={(value) =>
-                                    updateProjectTicketFilters({
-                                      ticketType: value,
-                                    })
-                                  }
-                                  placeholder="All Types"
                                 />
                               </div>
                               <ThemeButton

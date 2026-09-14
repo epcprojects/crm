@@ -359,20 +359,6 @@ export default function Page() {
     ],
     [ticketPrioritiesQuery.data],
   );
-  const ticketTypeFilterOptions = [
-    {
-      label: 'All Types',
-      value: 'all',
-    },
-    {
-      label: 'Bug',
-      value: 'bug',
-    },
-    {
-      label: 'Feature',
-      value: 'feature_request',
-    },
-  ];
   const projectFilterOptions = useMemo(
     () =>
       (projectNamesQuery.data ?? []).map((project) => ({
@@ -1208,19 +1194,6 @@ export default function Page() {
                                   maxMenuHeight={150}
                                 />
                               </div>
-                              <div className="relative w-full overflow-visible">
-                                <Dropdown
-                                  options={ticketTypeFilterOptions}
-                                  value={selectedTicketType}
-                                  onChange={(value) =>
-                                    updateRecentTicketsFilters({
-                                      ticketType: value,
-                                    })
-                                  }
-                                  placeholder="All Types"
-                                  maxMenuHeight={150}
-                                />
-                              </div>
                               {selectedStatus !== 'all' ||
                               selectedPriority !== 'all' ||
                               selectedTicketType !== 'all' ||
@@ -1329,18 +1302,6 @@ export default function Page() {
                               })
                             }
                             placeholder="All Priority"
-                          />
-                        </div>
-                        <div className="w-full">
-                          <Dropdown
-                            options={ticketTypeFilterOptions}
-                            value={selectedTicketType}
-                            onChange={(value) =>
-                              updateRecentTicketsFilters({
-                                ticketType: value,
-                              })
-                            }
-                            placeholder="All Types"
                           />
                         </div>
                         <ThemeButton

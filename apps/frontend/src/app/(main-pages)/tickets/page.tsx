@@ -27,10 +27,8 @@ import TicketsKanbanView, {
 import { appToast } from '../../../components/toast/AppToast';
 import Dropdown from '../../../components/ui/ThemeDropDown';
 import {
-  BugIcon,
   CloseIcon,
   DownloadIcon,
-  FeatureIcon,
   FiltersIcon,
   PlusIcon,
   SearchIcon,
@@ -158,11 +156,6 @@ export default function Page() {
   const selectedTicketType = getTicketsTypeFilterValue(
     searchParams.get(TICKETS_TYPE_QUERY_PARAM),
   );
-  const ticketTypeFilterOptions = [
-    { label: 'All Types', value: 'all' },
-    { label: 'Bug', value: 'bug', icon: <BugIcon /> },
-    { label: 'Feature', value: 'feature_request', icon: <FeatureIcon /> },
-  ];
   const selectedProjectIds = getTicketsProjectFilterValues(
     searchParams.getAll(TICKETS_PROJECT_QUERY_PARAM),
     searchParams.get(TICKETS_PROJECT_QUERY_PARAM),
@@ -1310,19 +1303,6 @@ export default function Page() {
                                     maxMenuHeight={150}
                                   />
                                 </div>
-                                <div className="relative  overflow-visible">
-                                  <Dropdown
-                                    options={ticketTypeFilterOptions}
-                                    value={selectedTicketType}
-                                    onChange={(value) =>
-                                      updateTicketsPageFilters({
-                                        ticketType: value,
-                                      })
-                                    }
-                                    placeholder="All Types"
-                                    maxMenuHeight={150}
-                                  />
-                                </div>
 
                                 <button
                                   type="button"
@@ -1405,19 +1385,6 @@ export default function Page() {
                                     }
                                     showSearch={true}
                                     placeholder="All Priority"
-                                    maxMenuHeight={150}
-                                  />
-                                </div>
-                                <div className="relative  overflow-visible">
-                                  <Dropdown
-                                    options={ticketTypeFilterOptions}
-                                    value={selectedTicketType}
-                                    onChange={(value) =>
-                                      updateTicketsPageFilters({
-                                        ticketType: value,
-                                      })
-                                    }
-                                    placeholder="All Types"
                                     maxMenuHeight={150}
                                   />
                                 </div>
@@ -1521,18 +1488,6 @@ export default function Page() {
                             placeholder="All Priority"
                           />
                         </div>
-                        <div className="hidden w-full 3xl:block 2xl:w-55">
-                          <Dropdown
-                            options={ticketTypeFilterOptions}
-                            value={selectedTicketType}
-                            onChange={(value) =>
-                              updateTicketsPageFilters({
-                                ticketType: value,
-                              })
-                            }
-                            placeholder="All Types"
-                          />
-                        </div>
 
                         <ThemeButton
                           type="button"
@@ -1612,19 +1567,6 @@ export default function Page() {
                                       placeholder="All Priority"
                                       maxMenuHeight={150}
                                       showSearch={true}
-                                    />
-                                  </div>
-                                  <div className="relative  overflow-visible">
-                                    <Dropdown
-                                      options={ticketTypeFilterOptions}
-                                      value={selectedTicketType}
-                                      onChange={(value) =>
-                                        updateTicketsPageFilters({
-                                          ticketType: value,
-                                        })
-                                      }
-                                      placeholder="All Types"
-                                      maxMenuHeight={150}
                                     />
                                   </div>
 
@@ -1717,18 +1659,6 @@ export default function Page() {
                           }
                           showSearch={true}
                           placeholder="All Priority"
-                        />
-                      </div>
-                      <div className="hidden w-full 2xl:block 2xl:w-55">
-                        <Dropdown
-                          options={ticketTypeFilterOptions}
-                          value={selectedTicketType}
-                          onChange={(value) =>
-                            updateTicketsPageFilters({
-                              ticketType: value,
-                            })
-                          }
-                          placeholder="All Types"
                         />
                       </div>
 

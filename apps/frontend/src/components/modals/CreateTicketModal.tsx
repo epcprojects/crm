@@ -8,12 +8,7 @@ import AppModal from './AppModal';
 import ThemeInput from '../ui/ThemeInput';
 import Dropdown from '../ui/ThemeDropDown';
 import { type CreateTicketDropdownOption } from './create-ticket-modal.data';
-import {
-  BugIcon,
-  CloseIcon,
-  FeatureIcon,
-  FileTypePlaceholder,
-} from '../../../public/icons';
+import { CloseIcon, FileTypePlaceholder } from '../../../public/icons';
 import { useAppSelector } from '../../app/Redux/store';
 import { appToast } from '../toast/AppToast';
 import {
@@ -37,10 +32,10 @@ export type CreateTicketFormValues = {
 
 const MAX_TITLE_LENGTH = 250;
 const MAX_DESCRIPTION_LENGTH = 4000;
-const ticketTypeOptions = [
-  { label: 'Bug', value: 'bug', icon: <BugIcon /> },
-  { label: 'Feature', value: 'feature_request', icon: <FeatureIcon /> },
-];
+// The Ticket Type picker is hidden from the create form; every ticket is
+// created with this default and can no longer be chosen by the user.
+const DEFAULT_TICKET_TYPE: CreateTicketFormValues['ticketType'] =
+  'feature_request';
 function getRichTextPlainText(value?: string) {
   if (!value) {
     return '';
@@ -109,10 +104,6 @@ export default function CreateTicketModal({
               getRichTextPlainText(value).length <= MAX_DESCRIPTION_LENGTH,
           ),
         status: yup.string().required('Status is required'),
-        ticketType: yup
-          .string()
-          .oneOf(['feature_request', 'bug'], 'Please select a valid type')
-          .required('Ticket type is required'),
         priority: yup.string().optional(),
         dueDate: yup
           .string()
@@ -133,7 +124,7 @@ export default function CreateTicketModal({
       description: '',
       status: '',
       priority: '',
-      ticketType: '',
+      ticketType: DEFAULT_TICKET_TYPE,
       dueDate: '',
       attachments: [],
     },
@@ -292,27 +283,6 @@ export default function CreateTicketModal({
       {/* space-y-4 p-4 md:p-5 */}
       <div className="grid grid-cols-1 xl:grid-cols-2 divide-x divide-gray-200">
         <div className="space-y-4 p-4 md:p-5">
-          <div className="min-w-0 w-full">
-            <Dropdown
-              label="Ticket Type"
-              required
-              options={ticketTypeOptions}
-              value={formik.values.ticketType}
-              onChange={(value) =>
-                void formik.setFieldValue(
-                  'ticketType',
-                  value as CreateTicketFormValues['ticketType'],
-                )
-              }
-              error={Boolean(
-                formik.touched.ticketType && formik.errors.ticketType,
-              )}
-              errorMessage={
-                formik.touched.ticketType ? formik.errors.ticketType : ''
-              }
-              placeholder="Select type"
-            />
-          </div>
           <Dropdown
             label="Project"
             required

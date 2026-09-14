@@ -22,6 +22,7 @@ import {
   SettingsIcon,
   RolesIcon,
   ProfileIcon,
+  UserAdd,
 } from '../../../public/icons/index';
 import { logoutThunk } from '../../app/Redux/slices/auth/authThunks';
 import {
@@ -157,6 +158,13 @@ const navigationItems: NavItem[] = [
     anyPermissions: ['roles.view_list'],
   },
   {
+    href: '/contacts',
+    label: 'Contacts',
+    icon: (isActive) => <UserAdd fill="currentColor" opacity="1" />,
+    roles: ['admin'],
+    anyPermissions: ['contacts.view_list'],
+  },
+  {
     href: '/settings',
     label: 'Settings',
     icon: (isActive) => <SettingsIcon fill="currentColor" />,
@@ -216,6 +224,16 @@ const pageHeaderConfigs: PageHeaderConfig[] = [
       label: 'Add Role',
       onClick: () => console.log('Add role'),
       permission: 'roles.create',
+    },
+  },
+  {
+    href: '/contacts',
+    title: 'Contacts',
+    subtitle: 'Manage leads and contacts across all your projects.',
+    action: {
+      label: 'Add Contact',
+      onClick: () => console.log('Add contact'),
+      permission: 'contacts.create',
     },
   },
   {
@@ -552,6 +570,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     pathname?.startsWith('/profile') ||
     pathname?.startsWith('/users') ||
     pathname?.startsWith('/roles') ||
+    pathname?.startsWith('/contacts') ||
     pathname?.startsWith('/page-not-found') ||
     pathname?.startsWith('/projects');
   const canUseCurrentHeaderAction = currentHeader.action?.permission
