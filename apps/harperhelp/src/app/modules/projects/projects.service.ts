@@ -43,7 +43,7 @@ export class ProjectsService {
     @InjectRepository(Ticket)
     private readonly ticketRepo: Repository<Ticket>,
     private readonly notificationsService: NotificationsService,
-    private readonly projectFilesService: ProjectsFilesService
+    private readonly projectFilesService: ProjectsFilesService,
   ) {}
 
   async createProject(
@@ -80,7 +80,11 @@ export class ProjectsService {
     const savedProject = await this.projectRepo.save(project);
 
     if (attachments?.length) {
-      await this.projectFilesService.uploadProjectAttachments(savedProject.id, attachments, currentUser.id);
+      await this.projectFilesService.uploadProjectAttachments(
+        savedProject.id,
+        attachments,
+        currentUser.id,
+      );
     }
     // get all super admins
     const superAdmins = await this.userRoleRepo
@@ -105,7 +109,16 @@ export class ProjectsService {
       .add([...memberIds]);
 
     delete savedProject['members'];
-
+    await this.notificationsService.notifyProjectMembers({
+      actorId: currentUser.id,
+      projectId: savedProject.id,
+      type: NotificationType.PROJECT_CREATED,
+      entityType: NotificationEntityType.PROJECT,
+      entityId: savedProject.id,
+      title: `New Project Created "${savedProject.name}" by ${currentUser.fullName}`,
+      message: `New project: ${savedProject.name}`,
+      // explicitRecipientIds: [addedUser.id],
+    });
     return {
       ...savedProject,
     };
@@ -158,14 +171,13 @@ export class ProjectsService {
         END
       ) AS open
       `,
-              `
+        `
       COUNT(
         CASE
           WHEN UPPER(t.statusKey) = 'CLOSED' THEN 1
         END
       ) AS closed
-      `
-      ,
+      `,
         `
       COUNT(
         CASE
@@ -536,12 +548,18 @@ export class ProjectsService {
 
       await this.notificationsService.notifyProjectMembers({
         actorId: user.id,
+        projectId: projectId,
         type: NotificationType.PROJECT_ASSIGNED,
         entityType: NotificationEntityType.PROJECT,
         entityId: projectId,
         title: `You have been granted access to "${project.name}" by ${user.fullName}`,
         message: `New project: ${project.name}`,
         explicitRecipientIds: [addedUser.id],
+        metadata: {
+          projectName: project.name,
+          actorName: user.fullName,
+          recipientName: addedUser.fullName,
+        },
       });
 
       const filtered = await this.notificationsService.filterEmailRecipients(
@@ -619,12 +637,18 @@ export class ProjectsService {
 
     await this.notificationsService.notifyProjectMembers({
       actorId: user.id,
+      projectId: projectId,
       type: NotificationType.PROJECT_UNASSIGNED,
       entityType: NotificationEntityType.PROJECT,
       entityId: projectId,
       title: `You have been removed from "${project.name}" by ${user.fullName}`,
       message: `Removed project: ${project.name}`,
       explicitRecipientIds: [userId],
+      metadata: {
+        projectName: project.name,
+        actorName: user.fullName,
+        recipientName: membership.fullName,
+      },
     });
 
     const filtered = await this.notificationsService.filterEmailRecipients(
@@ -863,7 +887,7 @@ export class ProjectsService {
   // }
 
   async softRemove(id: string, user) {
-    const proj = await this.findOne(id);
+    const proj = await this.findOne(id, true, user);
 
     await this.projectRepo.softDelete(id);
 

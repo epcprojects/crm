@@ -44,6 +44,7 @@ export enum CalendarView {
 }
 
 export enum NotificationType {
+  PROJECT_CREATED = 'project_created',
   PROJECT_ASSIGNED = 'project_assigned',
   PROJECT_UNASSIGNED = 'project_unassigned',
   PROJECT_UPDATED = 'project_updated',

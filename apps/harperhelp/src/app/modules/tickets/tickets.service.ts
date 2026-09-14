@@ -1196,7 +1196,7 @@ export class TicketsService {
       });
     }
 
-    if (oldTicket.description !== dto.description) {
+    if (dto.title !== undefined &&oldTicket.description !== dto.description) {
       await this.notificationsService.notifyProjectMembers({
         projectId: ticket.projectId,
         actorId: userId,

@@ -312,7 +312,9 @@ export default function CreateTicketModal({
             errorText={formik.touched.title ? formik.errors.title : ''}
             placeholder="Enter ticket title"
           />
-          <div className="-mt-8 flex items-center justify-end">
+          <div
+            className={`${formik.touched.title ? '-mt-8' : '-mt-3'} flex items-center justify-end`}
+          >
             <p className="shrink-0 text-xs text-gray-500">
               {formik.values.title.length}/{MAX_TITLE_LENGTH}
             </p>

@@ -57,12 +57,6 @@ export default function AssignProjectUsersModal({
     }
   }, [isOpen, onSearchChange]);
 
-  useEffect(() => {
-    setSelectedUserIds((current) =>
-      current.filter((userId) => users.some((user) => user.id === userId)),
-    );
-  }, [users]);
-
   const hasSearch = Boolean(searchValue.trim());
   const selectedCount = selectedUserIds.length;
   const assignLabel =

@@ -168,7 +168,6 @@ export default function ProjectDetailPage() {
   const canViewTicketDetail = hasPermission('tickets.view_detail');
   const canCreateTicket = hasPermission('tickets.create');
   const canDeleteTicket = hasPermission('tickets.delete');
-  const canFilterTickets = hasPermission('tickets.filter');
   const canViewThread = hasPermission('thread.view');
   const canEditThread = hasPermission('thread.edit');
   const canViewThreadReplies = hasPermission('thread.view_replies');
@@ -900,7 +899,7 @@ export default function ProjectDetailPage() {
     statusId: string,
     newIndex: number,
   ) => {
-    if (!canFilterTickets || reorderProjectStatusMutation.isPending) {
+    if (reorderProjectStatusMutation.isPending) {
       return;
     }
 
@@ -2266,7 +2265,6 @@ export default function ProjectDetailPage() {
                 <PermissionGuard permission="tickets.view_list">
                   <TabPanel className="flex h-auto min-h-0 min-w-0 flex-none flex-col gap-4 overflow-visible xl:h-full xl:flex-1 xl:overflow-hidden">
                     <div className="flex shrink-0 flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
-                      {canFilterTickets ? (
                         <>
                           <div className="flex items-center gap-3">
                             <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 md:max-w-xs">
@@ -2448,18 +2446,6 @@ export default function ProjectDetailPage() {
                             </div>
                           </div>
                         </>
-                      ) : canCreateTicket ? (
-                        <div className="ml-auto">
-                          <ThemeButton
-                            className="shrink-0 rounded-full"
-                            variant="primaryGradient"
-                            icon={<PlusIcon width="20" height="20" />}
-                            onClick={() => setCreateTicketOpen(true)}
-                          >
-                            New Ticket
-                          </ThemeButton>
-                        </div>
-                      ) : null}
                     </div>
                     <div className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden">
                       {isProjectTicketsLoading ? (
@@ -2498,7 +2484,7 @@ export default function ProjectDetailPage() {
                           }}
                           onReorderColumn={handleReorderProjectStatusColumn}
                           canDragTickets={canEditTicketStatus}
-                          canDragColumns={canFilterTickets}
+                          canDragColumns
                           movingTicketId={
                             moveProjectTicketMutation.isPending
                               ? (moveProjectTicketMutation.variables?.ticket

@@ -46,6 +46,7 @@ import { createTicket } from '../../../lib/tickets';
 import type { ProjectRecord } from '../projects/projects.data';
 import {
   useDeleteProjectMutation,
+  useDeleteTicketMutation,
   projectsQueryKey,
   useProjectNamesQuery,
   useProjectsQuery,
@@ -221,12 +222,14 @@ export default function Page() {
   const canViewUpcoming = hasPermission('dashboard.view_upcoming');
   const canViewRecentTickets = hasPermission('dashboard.view_recent_tickets');
   const canCreateTicket = hasPermission('tickets.create');
+  const canExportTickets = hasPermission('tickets.export_tickets');
   const canViewTicketsList = hasPermission('tickets.view_list');
   const canViewTicketDetail = hasPermission('tickets.view_detail');
   const canViewThreads = hasPermission('thread.view');
   const canViewProjectDetail = hasPermission('projects.view_detail');
   const canEditProject = hasPermission('projects.edit');
   const canDeleteProject = hasPermission('projects.delete');
+  const canDeleteTicket = hasPermission('tickets.delete');
   const searchValue = searchParams.get(RECENT_TICKETS_SEARCH_QUERY_PARAM) ?? '';
   const setSearchValue = (value: string) => {
     const url = new URL(window.location.href);
@@ -260,6 +263,9 @@ export default function Page() {
   });
   const [isExportingTickets, setIsExportingTickets] = useState(false);
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
+  const [ticketToDelete, setTicketToDelete] = useState<RecentTicket | null>(
+    null,
+  );
   const [projectToEdit, setProjectToEdit] = useState<ProjectRecord | null>(
     null,
   );
@@ -450,6 +456,7 @@ export default function Page() {
   });
   const updateProjectMutation = useUpdateProjectMutation();
   const deleteProjectMutation = useDeleteProjectMutation();
+  const deleteTicketMutation = useDeleteTicketMutation();
 
   const projectOptions = useMemo(
     () => createTicketProjectOptions(projectNamesQuery.data ?? []),
@@ -563,6 +570,10 @@ export default function Page() {
   };
 
   const handleExportTickets = async () => {
+    if (!canExportTickets || isExportingTickets) {
+      return;
+    }
+
     try {
       setIsExportingTickets(true);
 
@@ -754,6 +765,35 @@ export default function Page() {
     }
   };
 
+  const handleDeleteTicket = async () => {
+    if (!ticketToDelete || !canDeleteTicket || deleteTicketMutation.isPending) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await deleteTicketMutation.mutateAsync({
+        projectId: ticketToDelete.project.id ?? '',
+        ticketId: ticketToDelete.id,
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard-kanban-board'] }),
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard-kanban-ticket-counts'],
+        }),
+      ]);
+      appToast.success('Ticket deleted successfully.');
+      setTicketToDelete(null);
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to delete ticket.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDeleteProject = async () => {
     if (!projectToDelete || !hasPermission('projects.delete')) {
       return;
@@ -845,78 +885,75 @@ export default function Page() {
   const displayedProjects = projectsQuery.data ?? [];
   const displayedProjectThreads = projectThreadsQuery.data ?? [];
   const dashboardActivityItems = useMemo(
-    () =>
-      (activityQuery.data?.pages.flatMap((page) => page.items) ?? []).filter(
-        (item) => item.actorId !== currentUserId,
-      ),
+    () => activityQuery.data?.pages.flatMap((page) => page.items) ?? [],
     [activityQuery.data, currentUserId],
   );
-    const canViewProjectThread = hasPermission('thread.view');
-     const canViewProjectFiles = hasPermission('files.view');
+  const canViewProjectThread = hasPermission('thread.view');
+  const canViewProjectFiles = hasPermission('files.view');
   const canViewProjectCalendar = hasPermission('calendar.view_grid');
   const canViewProjectNotes = hasPermission('projects_notes.view_list');
   const [filtersOpen, setFiltersOpen] = useState(false);
-    const ticketQuickLinkItems = useMemo(
-      () =>
-        canViewProjectDetail
-          ? (ticket: RecentTicket): RecentTicketQuickLinkItem[] => {
-              const projectId = ticket.project.id;
-  
-              if (!projectId) {
-                return [];
-              }
-  
-              const items: RecentTicketQuickLinkItem[] = [
-                {
-                  key: 'project',
-                  label: 'Go to Project',
-                  href: `/projects/${projectId}`,
-                },
-              ];
-  
-              if (canViewProjectThread) {
-                items.push({
-                  key: 'thread',
-                  label: 'Thread',
-                  href: `/projects/${projectId}?t=1`,
-                });
-              }
-  
-              if (canViewProjectFiles) {
-                items.push({
-                  key: 'files',
-                  label: 'Files',
-                  href: `/projects/${projectId}?t=2`,
-                });
-              }
-  
-              if (canViewProjectCalendar) {
-                items.push({
-                  key: 'calendar',
-                  label: 'Calendar',
-                  href: `/projects/${projectId}?t=3`,
-                });
-              }
-  
-              if (canViewProjectNotes) {
-                items.push({
-                  key: 'notes',
-                  label: 'Notes',
-                  href: `/projects/${projectId}?t=4`,
-                });
-              }
-  
-              return items;
+  const ticketQuickLinkItems = useMemo(
+    () =>
+      canViewProjectDetail
+        ? (ticket: RecentTicket): RecentTicketQuickLinkItem[] => {
+            const projectId = ticket.project.id;
+
+            if (!projectId) {
+              return [];
             }
-          : undefined,
-      [
-        canViewProjectCalendar,
-        canViewProjectDetail,
-        canViewProjectFiles,
-        canViewProjectNotes,
-        canViewProjectThread,
-      ],
-    );
+
+            const items: RecentTicketQuickLinkItem[] = [
+              {
+                key: 'project',
+                label: 'Go to Project',
+                href: `/projects/${projectId}`,
+              },
+            ];
+
+            if (canViewProjectThread) {
+              items.push({
+                key: 'thread',
+                label: 'Thread',
+                href: `/projects/${projectId}?t=1`,
+              });
+            }
+
+            if (canViewProjectFiles) {
+              items.push({
+                key: 'files',
+                label: 'Files',
+                href: `/projects/${projectId}?t=2`,
+              });
+            }
+
+            if (canViewProjectCalendar) {
+              items.push({
+                key: 'calendar',
+                label: 'Calendar',
+                href: `/projects/${projectId}?t=3`,
+              });
+            }
+
+            if (canViewProjectNotes) {
+              items.push({
+                key: 'notes',
+                label: 'Notes',
+                href: `/projects/${projectId}?t=4`,
+              });
+            }
+
+            return items;
+          }
+        : undefined,
+    [
+      canViewProjectCalendar,
+      canViewProjectDetail,
+      canViewProjectFiles,
+      canViewProjectNotes,
+      canViewProjectThread,
+    ],
+  );
 
   return (
     <div className="xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 z-100 h-full xl:h-dvh relative">
@@ -1117,15 +1154,19 @@ export default function Page() {
                   <div className="flex items-center gap-3">
                     <div className="flex flex-wrap gap-2">
                       {/* Desktop filters: xl and above */}
-                      <ThemeButton
-                        className="shrink-0 rounded-full"
-                        variant="primaryGradient"
-                        icon={<DownloadIcon fill="white" />}
-                        onClick={handleExportTickets}
-                        disabled={isExportingTickets}
-                      >
-                        {isExportingTickets ? 'Exporting...' : 'Export Tickets'}
-                      </ThemeButton>
+                      {canExportTickets ? (
+                        <ThemeButton
+                          className="shrink-0 rounded-full"
+                          variant="primaryGradient"
+                          icon={<DownloadIcon fill="white" />}
+                          onClick={handleExportTickets}
+                          disabled={isExportingTickets}
+                        >
+                          {isExportingTickets
+                            ? 'Exporting...'
+                            : 'Export Tickets'}
+                        </ThemeButton>
+                      ) : null}
 
                       {/* Compact filters: below xl only */}
                       <Popover as="div" className="relative xl:hidden block ">
@@ -1356,7 +1397,10 @@ export default function Page() {
                             )
                         : undefined
                     }
-                      getQuickLinkItems={ticketQuickLinkItems}
+                    getQuickLinkItems={ticketQuickLinkItems}
+                    onDeleteTickets={
+                      canDeleteTicket ? setTicketToDelete : undefined
+                    }
                   />
                 )}
               </div>
@@ -1592,6 +1636,26 @@ export default function Page() {
         }
         title="Edit Project"
         confirmLabel="Update Project"
+      />
+
+      <ConfirmActionModal
+        isOpen={Boolean(ticketToDelete) && canDeleteTicket}
+        onClose={() => setTicketToDelete(null)}
+        title="Delete Ticket?"
+        message={
+          <>
+            Are you sure you want to delete{' '}
+            <span className="font-semibold">
+              “{ticketToDelete?.title ?? 'this ticket'}”
+            </span>
+            ? This action cannot be undone.
+          </>
+        }
+        confirmLabel="Yes, Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isSubmitting={deleteTicketMutation.isPending}
+        onConfirm={handleDeleteTicket}
       />
 
       <ConfirmActionModal
