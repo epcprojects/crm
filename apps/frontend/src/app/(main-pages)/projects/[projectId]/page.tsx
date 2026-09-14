@@ -115,7 +115,7 @@ import { RecentTicketsTableSkeleton } from '../../dashboard/page';
 import { KanbanViewIcon, TableViewIcon } from '../../tickets/page';
 
 const projectTabs = [
-  'Tickets',
+  'Leads',
   'Thread',
   'Files',
   'Calendar',
@@ -125,7 +125,7 @@ const projectTabQueryParamMap: Record<
   (typeof projectTabs)[number],
   string | null
 > = {
-  Tickets: null,
+  Leads: null,
   Thread: '1',
   Files: '2',
   Calendar: '3',
@@ -534,7 +534,7 @@ export default function ProjectDetailPage() {
       appToast.error(
         error instanceof Error
           ? error.message
-          : 'Failed to load more project tickets.',
+          : 'Failed to load more project leads.',
       );
     } finally {
       loadingProjectKanbanStatusesRef.current[statusKey] = false;
@@ -666,7 +666,7 @@ export default function ProjectDetailPage() {
         const message =
           Array.isArray(data?.message) && data.message.length
             ? data.message.join(', ')
-            : data?.message || 'Failed to update ticket status.';
+            : data?.message || 'Failed to update lead status.';
 
         throw new Error(message);
       }
@@ -728,12 +728,12 @@ export default function ProjectDetailPage() {
       appToast.error(
         error instanceof Error
           ? error.message
-          : 'Failed to update ticket status.',
+          : 'Failed to update lead status.',
       );
     },
 
     onSuccess: () => {
-      appToast.success('Ticket status updated successfully.');
+      appToast.success('Lead status updated successfully.');
     },
 
     onSettled: async () => {
@@ -822,7 +822,7 @@ export default function ProjectDetailPage() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(data?.message || 'Failed to reorder ticket statuses.');
+        throw new Error(data?.message || 'Failed to reorder lead statuses.');
       }
 
       return {
@@ -881,12 +881,12 @@ export default function ProjectDetailPage() {
       appToast.error(
         error instanceof Error
           ? error.message
-          : 'Failed to reorder ticket statuses.',
+          : 'Failed to reorder lead statuses.',
       );
     },
 
     onSuccess: () => {
-      appToast.success('Ticket statuses reordered successfully.');
+      appToast.success('Lead statuses reordered successfully.');
     },
 
     onSettled: async () => {
@@ -1697,6 +1697,7 @@ export default function ProjectDetailPage() {
         priorityKey: values.priority,
         ticketType: values.ticketType,
         dueDate: values.dueDate,
+        contactId: values.contactId || undefined,
         attachments: values.attachments,
       });
       await queryClient.invalidateQueries({
@@ -1728,10 +1729,10 @@ export default function ProjectDetailPage() {
           refetchType: 'all',
         }),
       ]);
-      appToast.success('Ticket created successfully.');
+      appToast.success('Lead created successfully.');
     } catch (error) {
       appToast.error(
-        error instanceof Error ? error.message : 'Failed to create ticket.',
+        error instanceof Error ? error.message : 'Failed to create lead.',
       );
       throw error;
     } finally {
@@ -1780,11 +1781,11 @@ export default function ProjectDetailPage() {
           queryKey: ['project-kanban-counts', projectId],
         }),
       ]);
-      appToast.success('Ticket deleted successfully.');
+      appToast.success('Lead deleted successfully.');
       setTicketToDelete(null);
     } catch (error) {
       appToast.error(
-        error instanceof Error ? error.message : 'Failed to delete ticket.',
+        error instanceof Error ? error.message : 'Failed to delete lead.',
       );
     } finally {
       setLoading(false);
@@ -2079,7 +2080,7 @@ export default function ProjectDetailPage() {
   };
 
   const visibleProjectTabs = projectTabs.filter((tab) => {
-    if (tab === 'Tickets') return canViewTickets;
+    if (tab === 'Leads') return canViewTickets;
     if (tab === 'Thread') return canViewThread;
     if (tab === 'Files') return canViewFiles;
     if (tab === 'Calendar') return canViewCalendar;
@@ -2189,7 +2190,7 @@ export default function ProjectDetailPage() {
     ...(canViewTickets
       ? [
           {
-            title: 'Tickets',
+            title: 'Leads',
             count: projectTicketsQuery.data?.meta.total ?? 0,
             color: '#17B26A',
           },
@@ -2223,7 +2224,7 @@ export default function ProjectDetailPage() {
             <DashboardSummaryBanner
               imageSrc="/images/bannerBackBtn.svg"
               onBack={() => router.back()}
-              imageAlt="Tickets"
+              imageAlt="Leads"
               title={project.name}
               badge={project.category}
               stats={projectSummaryStats}
@@ -2310,7 +2311,7 @@ export default function ProjectDetailPage() {
                                         ? 'border-primary bg-primary/5 text-primary'
                                         : 'border-gray-200 bg-white text-gray-700'
                                     }`}
-                                    aria-label="Open ticket filters"
+                                    aria-label="Open lead filters"
                                   >
                                     <FiltersIcon />
                                   </PopoverButton>
@@ -2440,7 +2441,7 @@ export default function ProjectDetailPage() {
                                   icon={<PlusIcon width="20" height="20" />}
                                   onClick={() => setCreateTicketOpen(true)}
                                 >
-                                  New Ticket
+                                  New Lead
                                 </ThemeButton>
                               ) : null}
                             </div>
@@ -3417,12 +3418,12 @@ export default function ProjectDetailPage() {
       <ConfirmActionModal
         isOpen={Boolean(ticketToDelete) && canDeleteTicket}
         onClose={() => setTicketToDelete(null)}
-        title="Delete Ticket?"
+        title="Delete Lead?"
         message={
           <>
             Are you sure you want to delete{' '}
             <span className="font-semibold">
-              “{ticketToDelete?.title ?? 'this ticket'}”
+              “{ticketToDelete?.title ?? 'this lead'}”
             </span>
             ? This action cannot be undone.
           </>
@@ -3606,7 +3607,7 @@ function decrementProjectThreadReaction(
 }
 
 function renderProjectTabIcon(tab: (typeof projectTabs)[number]) {
-  if (tab === 'Tickets') {
+  if (tab === 'Leads') {
     return (
       <TicketsIcon width="20" height="20" fill="currentColor" opacity="0" />
     );

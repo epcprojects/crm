@@ -170,7 +170,7 @@ export default function AddUserModal({
             {(mode === 'create' || formik.values.userType === 'external') && (
               <UserTypeCard
                 title="External"
-                description="Clients — limited to their tickets + calendar"
+                description="Clients — limited to their leads + calendar"
                 isSelected={formik.values.userType === 'external'}
                 disabled={mode === 'edit'}
                 onClick={() => {

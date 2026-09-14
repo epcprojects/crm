@@ -134,7 +134,7 @@ export default function NotificationTray({
               type="text"
               value={searchValue}
               onChange={(event) => onChangeSearch(event.target.value)}
-              placeholder="Search projects, messages, or tickets"
+              placeholder="Search projects, messages, or leads"
               className="min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400"
             />
 

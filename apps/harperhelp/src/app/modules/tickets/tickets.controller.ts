@@ -137,9 +137,13 @@ View ranges:
           format: 'date-time',
           nullable: true,
         },
+        contactId: {
+          type: 'string',
+          format: 'uuid',
+        },
 
       },
-      required: ['title', 'ticketType'],
+      required: ['title', 'ticketType', 'contactId'],
     },
   })
   @ApiOperation({

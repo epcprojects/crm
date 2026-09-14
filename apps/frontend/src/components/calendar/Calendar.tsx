@@ -216,7 +216,7 @@ export default function Calendar({ projectId }: CalendarProps) {
 
       {!isProjectCalendar ? (
         <div className="priority-legend">
-          <span className="pri-label">Ticket priority:</span>
+          <span className="pri-label">Lead priority:</span>
           {[
             { label: 'Critical', color: '#ef4444' },
             { label: 'High', color: '#f97316' },

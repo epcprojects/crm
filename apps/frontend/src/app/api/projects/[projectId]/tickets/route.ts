@@ -113,6 +113,7 @@ export async function POST(
     const assigneeId = body.assigneeId;
     const ticketType = body.ticketType;
     const dueDate = body.dueDate;
+    const contactId = body.contactId;
     const attachments = Array.isArray(body.attachments) ? body.attachments : [];
 
     if (typeof title !== 'string' || !title.trim()) {
@@ -152,6 +153,10 @@ export async function POST(
 
     if (typeof dueDate === 'string' && dueDate.trim()) {
       upstreamBody.dueDate = dueDate.trim();
+    }
+
+    if (typeof contactId === 'string' && contactId.trim()) {
+      upstreamBody.contactId = contactId.trim();
     }
 
     if (attachments.length) {

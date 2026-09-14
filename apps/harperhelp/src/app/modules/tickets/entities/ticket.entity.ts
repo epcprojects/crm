@@ -2,6 +2,7 @@ import { BaseEntity } from '@harperhelp/interfaces';
 import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { Project } from '../../projects/entities/project.entity';
 import { User } from '../../users/entities/user.entity';
+import { Contact } from '../../contacts/entities/contact.entity';
 import { TicketStatus } from './ticket.statuses.entity';
 import { TicketPriority } from './ticket.priority.entity';
 import { SYSTEM_TICKET_STATUS } from '@harperhelp/types';
@@ -13,6 +14,7 @@ import { TicketType } from '../enum/ticket-type.enum';
 @Index('IDX_TICKET_ASSIGNEE_ID', ['assigneeId'])
 @Index('IDX_TICKET_STATUS_KEY', ['statusKey'])
 @Index('IDX_TICKET_PRIORITY_KEY', ['priorityKey'])
+@Index('IDX_TICKET_CONTACT_ID', ['contactId'])
 @Index('IDX_TICKET_PROJECT_STATUS_CREATED', ['projectId', 'statusKey', 'createdAt', 'id'])
 export class Ticket extends BaseEntity {
   @Column({
@@ -121,4 +123,17 @@ export class Ticket extends BaseEntity {
     nullable: true,
   })
   dueDate?: string;
+
+  @Column({
+    type: 'uuid',
+    nullable: true,
+  })
+  contactId?: string | null;
+
+  @ManyToOne(() => Contact, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'contactId' })
+  contact?: Contact | null;
 }

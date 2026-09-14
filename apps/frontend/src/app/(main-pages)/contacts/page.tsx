@@ -7,6 +7,10 @@ import AddContactModal, {
   type AddContactFormValues,
 } from '../../../components/modals/AddContactModal';
 import DeleteContactModal from '../../../components/modals/DeleteContactModal';
+import CreateTicketModal, {
+  type CreateTicketFormValues,
+} from '../../../components/modals/CreateTicketModal';
+import { createTicketProjectOptions } from '../../../components/modals/create-ticket-modal.data';
 import ContactsTable, {
   ContactsTableSkeleton,
   type ContactRecord,
@@ -23,6 +27,8 @@ import Dropdown from '../../../components/ui/ThemeDropDown';
 import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
 import { useDebouncedValue } from '../../../components/hooks/useDebouncedValue';
 import { fetchCitiesByProvince, fetchProvinces } from '../../../lib/territories';
+import { createTicket } from '../../../lib/tickets';
+import { useProjectNamesQuery } from '../projects/projects.queries';
 
 const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
@@ -35,6 +41,7 @@ export default function ContactsPage() {
   const canCreateContact = hasPermission('contacts.create');
   const canEditContact = hasPermission('contacts.edit');
   const canDeleteContact = hasPermission('contacts.delete');
+  const canCreateLeadFromContact = hasPermission('tickets.create');
 
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<ContactRecord | null>(
@@ -43,6 +50,8 @@ export default function ContactsPage() {
   const [deletingContact, setDeletingContact] = useState<ContactRecord | null>(
     null,
   );
+  const [creatingLeadForContact, setCreatingLeadForContact] =
+    useState<ContactRecord | null>(null);
   const [searchValue, setSearchValue] = useState('');
   const debouncedSearchValue = useDebouncedValue(searchValue);
   const [page, setPage] = useState(1);
@@ -139,6 +148,11 @@ export default function ContactsPage() {
     },
   });
 
+  const projectNamesQuery = useProjectNamesQuery(canCreateLeadFromContact);
+  const leadProjectOptions = createTicketProjectOptions(
+    projectNamesQuery.data ?? [],
+  );
+
   const deleteContactMutation = useMutation({
     mutationFn: async (contactId: string) => {
       const response = await fetch(`/api/contacts/${contactId}`, {
@@ -195,6 +209,30 @@ export default function ContactsPage() {
     await deleteContactMutation.mutateAsync(deletingContact.id);
     setDeletingContact(null);
     appToast.success('Contact deleted successfully.');
+  };
+
+  const handleCreateLeadForContact = async (values: CreateTicketFormValues) => {
+    if (!creatingLeadForContact || !canCreateLeadFromContact) return;
+
+    try {
+      await createTicket({
+        projectId: values.project,
+        title: values.title,
+        description: values.description,
+        statusKey: values.status,
+        priorityKey: values.priority,
+        ticketType: values.ticketType,
+        dueDate: values.dueDate,
+        contactId: creatingLeadForContact.id,
+        attachments: values.attachments,
+      });
+      appToast.success('Lead created successfully.');
+      setCreatingLeadForContact(null);
+    } catch (error) {
+      appToast.error(
+        error instanceof Error ? error.message : 'Failed to create lead.',
+      );
+    }
   };
 
   const contacts = contactsQuery.data?.items ?? [];
@@ -354,6 +392,11 @@ export default function ContactsPage() {
                           ? (contact) => setDeletingContact(contact)
                           : undefined
                       }
+                      onCreateLead={
+                        canCreateLeadFromContact
+                          ? (contact) => setCreatingLeadForContact(contact)
+                          : undefined
+                      }
                       onAddContact={
                         canCreateContact
                           ? () => setAddContactOpen(true)
@@ -403,6 +446,23 @@ export default function ContactsPage() {
         onConfirm={handleDeleteContact}
         contactName={deletingContact?.fullName ?? deletingContact?.phone}
       />
+
+      {creatingLeadForContact ? (
+        <CreateTicketModal
+          key={`create-lead-${creatingLeadForContact.id}`}
+          isOpen={Boolean(creatingLeadForContact) && canCreateLeadFromContact}
+          onClose={() => setCreatingLeadForContact(null)}
+          onConfirm={handleCreateLeadForContact}
+          projectOptions={leadProjectOptions}
+          preselectedContactId={creatingLeadForContact.id}
+          preselectedContactLabel={
+            creatingLeadForContact.fullName
+              ? `${creatingLeadForContact.fullName} (${creatingLeadForContact.phone})`
+              : creatingLeadForContact.phone
+          }
+          disableContactSelection
+        />
+      ) : null}
     </>
   );
 }

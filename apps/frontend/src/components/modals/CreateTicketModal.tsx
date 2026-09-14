@@ -21,6 +21,7 @@ import RichTextEditor from '../RichTextEditor';
 
 export type CreateTicketFormValues = {
   project: string;
+  contactId: string;
   title: string;
   description: string;
   status: string;
@@ -64,6 +65,9 @@ type CreateTicketModalProps = {
   projectOptions: CreateTicketDropdownOption[];
   preselectedProjectId?: string;
   disableProjectSelection?: boolean;
+  preselectedContactId?: string;
+  preselectedContactLabel?: string;
+  disableContactSelection?: boolean;
 };
 
 export default function CreateTicketModal({
@@ -73,6 +77,9 @@ export default function CreateTicketModal({
   projectOptions,
   preselectedProjectId,
   disableProjectSelection = false,
+  preselectedContactId,
+  preselectedContactLabel,
+  disableContactSelection = false,
 }: CreateTicketModalProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const userType = useAppSelector((state) => state.auth.user?.userType);
@@ -83,6 +90,7 @@ export default function CreateTicketModal({
     () =>
       yup.object({
         project: yup.string().required('Project is required'),
+        contactId: yup.string().required('Contact is required'),
         title: yup
           .string()
           .max(
@@ -120,6 +128,7 @@ export default function CreateTicketModal({
   const formik = useFormik<CreateTicketFormValues>({
     initialValues: {
       project: preselectedProjectId ?? projectOptions[0]?.value ?? '',
+      contactId: preselectedContactId ?? '',
       title: '',
       description: '',
       status: '',
@@ -145,6 +154,33 @@ export default function CreateTicketModal({
     queryKey: ['ticket-priorities'],
     queryFn: fetchTicketPriorities,
   });
+  const contactsQuery = useQuery({
+    queryKey: ['contacts', 'picker'],
+    queryFn: fetchContactOptions,
+    enabled: isOpen,
+    staleTime: 60 * 1000,
+  });
+
+  const contactOptions = useMemo(() => {
+    const options = (contactsQuery.data ?? []).map((contact) => ({
+      label: contact.fullName
+        ? `${contact.fullName} (${contact.phone})`
+        : contact.phone,
+      value: contact.id,
+    }));
+
+    if (
+      preselectedContactId &&
+      !options.some((option) => option.value === preselectedContactId)
+    ) {
+      options.unshift({
+        label: preselectedContactLabel ?? 'Selected contact',
+        value: preselectedContactId,
+      });
+    }
+
+    return options;
+  }, [contactsQuery.data, preselectedContactId, preselectedContactLabel]);
 
   const statusOptions = useMemo(
     () =>
@@ -200,6 +236,12 @@ export default function CreateTicketModal({
       formik.setFieldValue('project', preselectedProjectId);
     }
   }, [preselectedProjectId]);
+
+  useEffect(() => {
+    if (preselectedContactId) {
+      formik.setFieldValue('contactId', preselectedContactId);
+    }
+  }, [preselectedContactId]);
 
   useEffect(() => {
     if (isExternalUser) {
@@ -268,9 +310,9 @@ export default function CreateTicketModal({
     <AppModal
       isOpen={isOpen}
       onClose={onClose}
-      title="Create Ticket"
+      title="Create Lead"
       showFooter
-      confirmLabel="Create Ticket"
+      confirmLabel="Create Lead"
       cancelLabel="Cancel"
       onCancel={onClose}
       onConfirm={() => formik.submitForm()}
@@ -295,6 +337,21 @@ export default function CreateTicketModal({
             disabled={disableProjectSelection}
           />
 
+          <Dropdown
+            label="Contact"
+            required
+            options={contactOptions}
+            showSearch={true}
+            value={formik.values.contactId}
+            onChange={(value) => formik.setFieldValue('contactId', value)}
+            error={Boolean(formik.touched.contactId && formik.errors.contactId)}
+            errorMessage={
+              formik.touched.contactId ? formik.errors.contactId : ''
+            }
+            placeholder={contactsQuery.isLoading ? 'Loading...' : 'Select contact'}
+            disabled={disableContactSelection}
+          />
+
           <ThemeInput
             label="Title"
             required
@@ -310,7 +367,7 @@ export default function CreateTicketModal({
             }}
             onBlur={formik.handleBlur}
             errorText={formik.touched.title ? formik.errors.title : ''}
-            placeholder="Enter ticket title"
+            placeholder="Enter lead title"
           />
           <div
             className={`${formik.touched.title ? '-mt-8' : '-mt-3'} flex items-center justify-end`}
@@ -664,6 +721,33 @@ function LocalAttachmentPreview({ file }: { file: File }) {
     <AttachmentFileIcon extension={getFileExtension(file.name, file.type)} />
   );
 }
+type ApiContactOption = {
+  id: string;
+  fullName: string | null;
+  phone: string;
+};
+
+async function fetchContactOptions() {
+  const response = await fetch('/api/contacts?limit=200', {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as {
+    items?: ApiContactOption[];
+    message?: string;
+  } | null;
+
+  if (!response.ok || !Array.isArray(payload?.items)) {
+    throw new Error(payload?.message || 'Failed to fetch contacts.');
+  }
+
+  return payload.items;
+}
+
 async function fetchTicketStatuses() {
   const response = await fetch('/api/ticket-statuses', {
     method: 'GET',

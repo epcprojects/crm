@@ -86,7 +86,7 @@ export default function Page() {
   const categoryOptions: CategoryOption[] = [
     {
       key: 'tickets',
-      label: 'Tickets',
+      label: 'Leads',
       icon: <TicketsIcon fill="currentColor" opacity="0" />,
     },
     {
@@ -96,7 +96,7 @@ export default function Page() {
     },
     {
       key: 'ticket_replies',
-      label: 'Ticket Replies',
+      label: 'Lead Replies',
       icon: <ChatIcon />,
     },
     {

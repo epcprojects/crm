@@ -225,7 +225,7 @@ export default function LoginPageClient({
               Streamline Support Operations
             </h2>
             <h3 className="text-center text-white text-base md:text-lg">
-              A smarter way to manage tickets, projects, and team collaboration
+              A smarter way to manage leads, projects, and team collaboration
               across organizations.
             </h3>
           </div>

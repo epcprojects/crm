@@ -135,7 +135,6 @@ export default function TicketDetailPage() {
   const canEditAssignee = hasPermission('tickets.edit_assignee');
   const canAttachReplyFiles = hasPermission('ticket_replies.attach_file');
   const canEditStatus = hasPermission('tickets.edit_status');
-  const canEditTicketType = hasPermission('tickets.edit_type');
   const canEditPriority = hasPermission('tickets.edit_priority');
   const canEditDueDate = hasPermission('tickets.edit_due_date');
   const canViewInternalChatBtn = hasPermission('tickets.internal_chat');
@@ -215,7 +214,7 @@ export default function TicketDetailPage() {
         const message =
           Array.isArray(data?.message) && data.message.length
             ? data.message.join(', ')
-            : data?.message || 'Failed to update ticket.';
+            : data?.message || 'Failed to update lead.';
         throw new Error(message);
       }
 
@@ -252,11 +251,11 @@ export default function TicketDetailPage() {
           refetchType: 'all',
         }),
       ]);
-      appToast.success('Ticket updated successfully.');
+      appToast.success('Lead updated successfully.');
     },
     onError: (error) => {
       appToast.error(
-        error instanceof Error ? error.message : 'Failed to update ticket.',
+        error instanceof Error ? error.message : 'Failed to update lead.',
       );
     },
   });
@@ -674,11 +673,6 @@ export default function TicketDetailPage() {
       })),
     [statusListQuery.data],
   );
-
-  const ticketTypesOptions = [
-    { label: 'Bug', value: 'bug', icon: <BugIcon /> },
-    { label: 'Feature', value: 'feature_request', icon: <FeatureIcon /> },
-  ];
 
   const assigneeOptions = useMemo(
     () =>
@@ -1101,8 +1095,8 @@ export default function TicketDetailPage() {
         <div className="rounded-3xl border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
           <EmptyState
             imageUrl="/images/RecentTicketEmpty.svg"
-            imageAlt="Tickets detail not found"
-            title="You do not have permission to view ticket details."
+            imageAlt="Leads detail not found"
+            title="You do not have permission to view lead details."
             // description="Recent tickets will appear here once they are created."
             buttonLabel="Go Back"
             onButtonClick={() => router.back()}
@@ -1122,8 +1116,8 @@ export default function TicketDetailPage() {
         <div className="rounded-3xl h-full border border-gray-200 bg-white px-6 py-10 shadow-[0_0_35px_0_rgb(0_0_0/0.04)]">
           <EmptyState
             imageUrl="/images/RecentTicketEmpty.svg"
-            imageAlt="Tickets detail not found "
-            title="Tickets detail not found"
+            imageAlt="Leads detail not found "
+            title="Leads detail not found"
             buttonLabel="Go Back"
             onButtonClick={() => router.back()}
           />
@@ -1145,26 +1139,6 @@ export default function TicketDetailPage() {
         description: ticket.description,
         statusKey: value,
         ticketType: selectedTicketType,
-        priorityKey: selectedPriority,
-        assigneeId: selectedAssigneeId,
-        dueDate: selectedDueDate,
-      }),
-    );
-  };
-
-  const handleTicketTypeChange = async (value: string) => {
-    if (!canEditTicketType) {
-      return;
-    }
-
-    setSelectedStatus(value);
-
-    await updateTicketMutation.mutateAsync(
-      buildUpdateTicketPayload({
-        title: ticket.title,
-        description: ticket.description,
-        statusKey: selectedStatus,
-        ticketType: value,
         priorityKey: selectedPriority,
         assigneeId: selectedAssigneeId,
         dueDate: selectedDueDate,
@@ -1744,7 +1718,7 @@ export default function TicketDetailPage() {
 
             <div className="hidden  gap-4 w-full xl:grid sm:grid-cols-6">
               <MetaItem
-                label="Ticket ID"
+                label="Lead ID"
                 value={`${ticket.ticketRefNo ?? ticket.id}`}
               />
 
@@ -1759,14 +1733,6 @@ export default function TicketDetailPage() {
                 hideTooltip={false}
                 value={ticket.project.name}
               />
-
-              {ticket.ticketType && (
-                <MetaItem
-                  label="Ticket Type"
-                  hideTooltip={false}
-                  value={ticket.ticketType}
-                />
-              )}
 
               {ticket.dueDate ? (
                 <div>
@@ -1793,7 +1759,7 @@ export default function TicketDetailPage() {
             <div className="xl:hidden  flex flex-col gap-4 w-full">
               <div className="grid grid-cols-3 gap-4">
                 <MetaItem
-                  label="Ticket ID"
+                  label="Lead ID"
                   value={`${ticket.ticketRefNo ?? ticket.id}`}
                 />
 
@@ -1849,7 +1815,7 @@ export default function TicketDetailPage() {
                         type="button"
                         onClick={handleStartEditingContent}
                         className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-gray-700 transition hover:bg-gray-50"
-                        aria-label="Edit ticket content"
+                        aria-label="Edit lead content"
                       >
                         <EditIcon />
                       </button>
@@ -1987,10 +1953,10 @@ export default function TicketDetailPage() {
                       isInternalChatActive && canViewInternalChatBtn
                         ? internalChatLoading
                           ? 'Fetching internal chat history.'
-                          : 'Start the internal conversation on this ticket.'
+                          : 'Start the internal conversation on this lead.'
                         : ticketRepliesQuery.isLoading
-                          ? 'Fetching ticket replies.'
-                          : 'No responses have been added to this ticket yet.'
+                          ? 'Fetching lead replies.'
+                          : 'No responses have been added to this lead yet.'
                     }
                     canCompose={
                       isInternalChatActive && canViewInternalChatBtn
@@ -2099,20 +2065,6 @@ export default function TicketDetailPage() {
                   </div>
                   <div className="grid items-center grid-cols-[60px_minmax(0,1fr)] 2xl:grid-cols-2 gap-2 2xl:gap-4">
                     <span className="text-sm text-black font-normal">
-                      Ticket Type
-                    </span>
-                    <Dropdown
-                      options={ticketTypesOptions}
-                      value={selectedTicketType}
-                      disabled={
-                        updateTicketMutation.isPending || !canEditTicketType
-                      }
-                      onChange={handleTicketTypeChange}
-                      applyHeight={false}
-                    />
-                  </div>
-                  <div className="grid items-center grid-cols-[60px_minmax(0,1fr)] 2xl:grid-cols-2 gap-2 2xl:gap-4">
-                    <span className="text-sm text-black font-normal">
                       Priority
                     </span>
                     <Dropdown
@@ -2198,7 +2150,7 @@ export default function TicketDetailPage() {
                             : 'text-gray-500 hover:text-gray-800'
                         }`}
                       >
-                        Ticket Timeline
+                        Lead Timeline
                       </button>
                     </div>
                   </div>
@@ -2286,7 +2238,7 @@ export default function TicketDetailPage() {
                   <div className="border-b border-gray-200 px-3 py-3">
                     <div className="flex items-center rounded-full border border-gray-200 bg-gray-50 p-1 shadow-[inset_0_1px_3px_rgba(15,23,42,0.06)]">
                       <span className="w-full rounded-full bg-white px-4 py-1.5 text-center text-sm font-medium text-gray-950 shadow-[0_0_20px_rgba(15,23,42,0.08)]">
-                        Ticket Timeline
+                        Lead Timeline
                       </span>
                     </div>
                   </div>
@@ -2428,7 +2380,7 @@ export default function TicketDetailPage() {
                         imageUrl="/images/EmptyProjectIcon.svg"
                         imageAlt="No attachments"
                         title="No Attachments"
-                        description="No attachments have been added to this ticket yet."
+                        description="No attachments have been added to this lead yet."
                       />
                     </div>
                   )}
@@ -2488,7 +2440,7 @@ export default function TicketDetailPage() {
               emptyDescription={
                 externalChatLoading
                   ? 'Fetching message history.'
-                  : 'Start the conversation on this ticket.'
+                  : 'Start the conversation on this lead.'
               }
               canCompose={canPostReplies}
               canAttachFile={canAttachReplyFiles}
@@ -2527,7 +2479,7 @@ export default function TicketDetailPage() {
         onClose={handleCancelEditingContent}
         onCancel={handleCancelEditingContent}
         onConfirm={() => void handleSaveTicketContent()}
-        title="Edit Ticket"
+        title="Edit Lead"
         size="large"
         showFooter
         confirmLabel={updateTicketMutation.isPending ? 'Updating...' : 'Update'}
@@ -2560,7 +2512,7 @@ export default function TicketDetailPage() {
                     handleCancelEditingContent();
                   }
                 }}
-                placeholder="Enter ticket title"
+                placeholder="Enter lead title"
                 className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 outline-none placeholder:text-gray-300 focus:border-gray-400 md:text-base"
               />
             </div>
@@ -2713,10 +2665,10 @@ export default function TicketDetailPage() {
                 isInternalChatActive && canViewInternalChatBtn
                   ? internalChatLoading
                     ? 'Fetching internal chat history.'
-                    : 'Start the internal conversation on this ticket.'
+                    : 'Start the internal conversation on this lead.'
                   : ticketRepliesQuery.isLoading
-                    ? 'Fetching ticket replies.'
-                    : 'No responses have been added to this ticket yet.'
+                    ? 'Fetching lead replies.'
+                    : 'No responses have been added to this lead yet.'
               }
               canCompose={canPostReplies}
               canAttachFile={canAttachReplyFiles}
@@ -2844,7 +2796,7 @@ export default function TicketDetailPage() {
       <ImageGalleryLightbox
         images={galleryImages}
         activeIndex={activeGalleryIndex}
-        title="Ticket attachments"
+        title="Lead attachments"
         onClose={closeGallery}
         onSelect={selectGalleryImage}
         onPrevious={showPreviousGalleryImage}
@@ -3429,7 +3381,7 @@ function getTicketTimelineMeta(
       showStatusBadge: false,
       statusClassName: 'text-white',
       statusStyle: statusColor ? { backgroundColor: statusColor } : undefined,
-      description: normalizedTitle || 'Ticket created.',
+      description: normalizedTitle || 'Lead created.',
     };
   }
 
@@ -3437,7 +3389,7 @@ function getTicketTimelineMeta(
     status: 'Updated',
     showStatusBadge: false,
     statusClassName: 'bg-gray-500 text-white',
-    description: normalizedTitle || 'Ticket updated.',
+    description: normalizedTitle || 'Lead updated.',
   };
 }
 
@@ -4461,7 +4413,7 @@ function TicketTimeline({ items }: { items: TicketTimelineItem[] }) {
         imageUrl="/images/NotificationEmptyState.svg"
         imageAlt="No timeline activity"
         title="No Activity"
-        description="Timeline activity will appear here once updates happen on this ticket."
+        description="Timeline activity will appear here once updates happen on this lead."
       />
     );
   }

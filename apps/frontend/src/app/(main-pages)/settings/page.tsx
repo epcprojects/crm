@@ -155,7 +155,7 @@ export default function Page() {
 
       if (!response.ok) {
         throw new Error(
-          payload?.message || 'Failed to create ticket priority.',
+          payload?.message || 'Failed to create lead priority.',
         );
       }
 
@@ -189,7 +189,7 @@ export default function Page() {
 
       if (!response.ok) {
         throw new Error(
-          payload?.message || 'Failed to update ticket priority.',
+          payload?.message || 'Failed to update lead priority.',
         );
       }
 
@@ -215,7 +215,7 @@ export default function Page() {
 
       if (!response.ok) {
         throw new Error(
-          payload?.message || 'Failed to delete ticket priority.',
+          payload?.message || 'Failed to delete lead priority.',
         );
       }
     },
@@ -244,7 +244,7 @@ export default function Page() {
       const payload = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(payload?.message || 'Failed to create ticket status.');
+        throw new Error(payload?.message || 'Failed to create lead status.');
       }
 
       return payload;
@@ -268,7 +268,7 @@ export default function Page() {
       const payload = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(payload?.message || 'Failed to delete ticket status.');
+        throw new Error(payload?.message || 'Failed to delete lead status.');
       }
     },
     onSuccess: async () => {
@@ -298,7 +298,7 @@ export default function Page() {
       const payload = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(payload?.message || 'Failed to update ticket status.');
+        throw new Error(payload?.message || 'Failed to update lead status.');
       }
 
       return payload;
@@ -427,7 +427,7 @@ export default function Page() {
       appToast.error(
         error instanceof Error
           ? error.message
-          : 'Failed to delete ticket status.',
+          : 'Failed to delete lead status.',
       );
     } finally {
       setStatusToDelete(null);
@@ -494,7 +494,7 @@ export default function Page() {
       appToast.error(
         error instanceof Error
           ? error.message
-          : 'Failed to delete ticket priority.',
+          : 'Failed to delete lead priority.',
       );
     } finally {
       setPriorityToDelete(null);
@@ -603,9 +603,9 @@ export default function Page() {
             </span>
             <span className="font-semibold text-gray-900">Tip:</span> Statuses
             and priorities defined here appear in every dropdown across the app
-            — new tickets, ticket detail editors, and list filters. You
-            can&apos;t delete one that&apos;s currently assigned to a ticket;
-            reassign those tickets first.
+            — new leads, lead detail editors, and list filters. You
+            can&apos;t delete one that&apos;s currently assigned to a lead;
+            reassign those leads first.
           </p>
         </div>
         <div
@@ -613,13 +613,13 @@ export default function Page() {
         >
           {canAccessStatuses ? (
             <SettingsConfigCard
-              title="Ticket Statuses"
+              title="Lead Statuses"
               subtitle={`${statusItems.length} statuses · used across all projects`}
               buttonLabel="Add Status"
               emptyImageUrl="/images/EmptyStatusIcon.svg"
-              emptyImageAlt="No ticket statuses"
+              emptyImageAlt="No lead statuses"
               emptyTitle="No Statuses Yet"
-              emptyDescription="Create your first ticket status to get started."
+              emptyDescription="Create your first lead status to get started."
               items={statusItems}
               badgeVariant="status"
               isLoading={ticketStatusesQuery.isLoading}
@@ -1147,7 +1147,7 @@ function formatEntityTypeTitle(entityType: string) {
 
   if (normalized === 'project') return 'Projects';
   if (normalized === 'thread') return 'Threads';
-  if (normalized === 'ticket') return 'Tickets';
+  if (normalized === 'ticket') return 'Leads';
 
   return toTitleCase(normalized.replace(/[_-]+/g, ' '));
 }

@@ -373,8 +373,8 @@ const MobileNavigationLink = forwardRef<
 });
 
 function getMobileLabel(label: string) {
-  if (label === 'All Tickets') {
-    return 'Tickets';
+  if (label === 'All Leads') {
+    return 'Leads';
   }
 
   return label;

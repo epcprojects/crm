@@ -1,5 +1,11 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, MaxLength, IsOptional, IsEnum } from 'class-validator';
+import {
+  IsString,
+  MaxLength,
+  IsOptional,
+  IsEnum,
+  IsUUID,
+} from 'class-validator';
 import { TicketType } from '../enum/ticket-type.enum';
 
 export class UpdateTicketDto {
@@ -37,4 +43,9 @@ export class UpdateTicketDto {
   @ApiPropertyOptional()
   @IsOptional()
   dueDate?: string;
+
+  @ApiPropertyOptional({ description: 'Contact (lead) this ticket is for' })
+  @IsOptional()
+  @IsUUID()
+  contactId?: string;
 }

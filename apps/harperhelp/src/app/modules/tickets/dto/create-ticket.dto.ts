@@ -46,6 +46,11 @@ export class CreateTicketDto {
   @IsDateString()
   dueDate?: string;
 
+  @ApiProperty({ description: 'Contact (lead) this ticket is for' })
+  @IsNotEmpty()
+  @IsUUID()
+  contactId: string;
+
   @ApiPropertyOptional({
     description: 'Metadata for files already uploaded directly to S3',
     type: [UploadedFileDto],

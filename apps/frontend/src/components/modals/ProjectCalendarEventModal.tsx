@@ -35,7 +35,7 @@ const schema = yup.object({
   type: yup
     .string<ProjectCalendarEventType>()
     .oneOf(['due_date', 'launch', 'meeting', 'milestone'])
-    .required('Ticket type is required'),
+    .required('Lead type is required'),
 });
 
 export default function ProjectCalendarEventModal({

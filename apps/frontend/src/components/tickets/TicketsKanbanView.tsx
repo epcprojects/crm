@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import type { RecentTicket } from '../tables/RecentTicketsTable';
 import Tooltip from '../tooltip';
-import { BugIcon, FeatureIcon, TrashIcon } from 'apps/frontend/public/icons';
+import { TrashIcon } from 'apps/frontend/public/icons';
 import { usePermissions } from '../../app/providers/PermissionProvider';
 
 type TicketStatusOption = {
@@ -652,24 +652,13 @@ export default function TicketsKanbanView({
                                     {renderPriorityBadge(ticket)}
                                   </div>
                                 </div>
-                                {ticket.ticketType && (
-                                  <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
-                                    <span className="text-sm text-gray-900">
-                                      Type:
-                                    </span>
-
-                                    <div className="flex justify-end">
-                                      {renderTicketTypeBadge(ticket)}
-                                    </div>
-                                  </div>
-                                )}
                               </div>
                             </div>
                           </button>
                           {onDeleteTicket && canDeleteTicket ? (
                             <button
                               type="button"
-                              aria-label={`Delete ticket ${ticket.title}`}
+                              aria-label={`Delete lead ${ticket.title}`}
                               disabled={movingTicketId === ticket.id}
                               draggable={false}
                               onPointerDown={(event) => event.stopPropagation()}
@@ -690,7 +679,7 @@ export default function TicketsKanbanView({
                       ))
                     ) : (
                       <div className="flex min-h-40 items-center justify-center rounded-xl border border-dashed border-gray-200 bg-white p-5 text-center text-sm text-gray-400">
-                        No tickets
+                        No leads
                       </div>
                     )}
                     <KanbanLoadMoreTrigger
@@ -850,7 +839,7 @@ function KanbanLoadMoreTrigger({
       ref={triggerRef}
       className="flex min-h-8 shrink-0 items-center justify-center py-2 text-xs text-gray-500"
     >
-      {isLoading ? 'Loading more tickets...' : null}
+      {isLoading ? 'Loading more leads...' : null}
     </div>
   );
 }
@@ -865,41 +854,6 @@ function renderPriorityBadge(ticket: RecentTicket) {
       />
 
       {ticket.priority ?? 'No Priority'}
-    </span>
-  );
-}
-
-function renderTicketTypeBadge(ticket: RecentTicket) {
-  const ticketType = ticket.ticketType;
-
-  if (ticketType !== 'bug' && ticketType !== 'feature_request') {
-    return <span className="text-sm text-gray-500">--</span>;
-  }
-
-  function formatTicketType(ticketType?: string | null) {
-    if (ticketType === 'feature_request') {
-      return 'Feature';
-    }
-
-    if (ticketType === 'bug') {
-      return 'Bug';
-    }
-
-    return '--';
-  }
-
-  return (
-    <span
-      className={`inline-flex gap-1.5 items-center whitespace-nowrap  text-xs font-medium `}
-    >
-      {ticketType === 'bug' ? (
-        <BugIcon />
-      ) : ticketType === 'feature_request' ? (
-        <FeatureIcon />
-      ) : (
-        ''
-      )}{' '}
-      {formatTicketType(ticketType)}
     </span>
   );
 }

@@ -96,7 +96,7 @@ export default function DaySidebar({
                   className="sb-action-btn ticket"
                   onClick={onAddTicket}
                 >
-                  + Ticket
+                  + Lead
                 </ThemeButton>
               ) : null}
             </div>
@@ -220,7 +220,7 @@ export default function DaySidebar({
           {showTicketsSection ? (
             <section className="sidebar-section">
               <h3 className="section-label">
-                Tickets Due
+                Leads Due
                 <span className="rounded-full h-5 min-w-5 flex items-center leading-none justify-center text-gray-900 bg-gray-100 border border-gray-200">
                   {tickets.length}
                 </span>
@@ -248,7 +248,7 @@ export default function DaySidebar({
                     />
                   </svg>
 
-                  <p className="empty-section">Tickets not found</p>
+                  <p className="empty-section">Leads not found</p>
                 </div>
               ) : (
                 <div className="item-list border border-gray-200 rounded-xl ps-3 p-2">

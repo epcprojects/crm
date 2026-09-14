@@ -331,10 +331,10 @@ export default function ProjectsPage() {
           refetchType: 'all',
         }),
       ]);
-      appToast.success('Ticket created successfully.');
+      appToast.success('Lead created successfully.');
     } catch (error) {
       appToast.error(
-        error instanceof Error ? error.message : 'Failed to create ticket.',
+        error instanceof Error ? error.message : 'Failed to create lead.',
       );
       throw error;
     } finally {
@@ -407,7 +407,7 @@ export default function ProjectsPage() {
         color: '#F79009',
       },
       {
-        title: 'Open Tickets',
+        title: 'Open Leads',
         count: projectSummary?.openTickets ?? 0,
         color: '#17B26A',
       },
@@ -417,7 +417,7 @@ export default function ProjectsPage() {
         color: '#7A5AF8',
       },
       {
-        title: 'Closed Tickets',
+        title: 'Closed Leads',
         count: projectSummary?.closedTickets ?? 0,
         color: 'gray',
       },

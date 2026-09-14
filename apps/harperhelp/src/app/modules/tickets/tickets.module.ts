@@ -17,6 +17,7 @@ import { TicketPrioritiesController } from './ticket.priorities.controller';
 import { TicketPrioritiesService } from './services/ticket.priorities.service';
 import { TicketSequence } from './entities/ticket.sequence.entity';
 import { Project } from '../projects/entities/project.entity';
+import { Contact } from '../contacts/entities/contact.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { TicketsKanbanView } from './entities/tickets-kanban-view.entity';
 import { User } from '../users/entities/user.entity';
@@ -39,6 +40,7 @@ import { ProjectsModule } from '../projects/projects.module';
       TicketSequence,
       Project,
       User,
+      Contact,
     ]),
     ReactionsModule,
     ProjectsModule,

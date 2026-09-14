@@ -9,6 +9,7 @@ export type CreateTicketPayload = {
   ticketType: 'feature_request' | 'bug' | '';
   assigneeId?: string;
   dueDate?: string;
+  contactId?: string;
   attachments?: File[];
 };
 
@@ -37,6 +38,10 @@ export async function createTicket(payload: CreateTicketPayload) {
 
   if (payload.assigneeId?.trim()) {
     body.assigneeId = payload.assigneeId.trim();
+  }
+
+  if (payload.contactId?.trim()) {
+    body.contactId = payload.contactId.trim();
   }
 
   if (payload.dueDate?.trim()) {

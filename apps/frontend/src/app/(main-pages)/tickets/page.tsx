@@ -494,7 +494,7 @@ export default function Page() {
 
         throw new Error(
           payload?.message ||
-            'No tickets found to export with the current filters.',
+            'No leads found to export with the current filters.',
         );
       }
 
@@ -510,10 +510,10 @@ export default function Page() {
       link.remove();
       window.URL.revokeObjectURL(downloadUrl);
 
-      appToast.success('Tickets exported successfully.');
+      appToast.success('Leads exported successfully.');
     } catch (error) {
       appToast.error(
-        error instanceof Error ? error.message : 'Failed to export tickets.',
+        error instanceof Error ? error.message : 'Failed to export leads.',
       );
     } finally {
       setIsExportingTickets(false);
@@ -530,7 +530,7 @@ export default function Page() {
       const projectId = ticket.project.id;
 
       if (!projectId) {
-        throw new Error('Project id is required to update ticket status.');
+        throw new Error('Project id is required to update lead status.');
       }
 
       const response = await fetch(
@@ -551,7 +551,7 @@ export default function Page() {
         const message =
           Array.isArray(data?.message) && data.message.length
             ? data.message.join(', ')
-            : data?.message || 'Failed to update ticket status.';
+            : data?.message || 'Failed to update lead status.';
         throw new Error(message);
       }
 
@@ -600,11 +600,11 @@ export default function Page() {
       appToast.error(
         error instanceof Error
           ? error.message
-          : 'Failed to update ticket status.',
+          : 'Failed to update lead status.',
       );
     },
     onSuccess: () => {
-      appToast.success('Ticket status updated successfully.');
+      appToast.success('Lead status updated successfully.');
     },
     onSettled: async () => {
       await Promise.all([
@@ -662,7 +662,7 @@ export default function Page() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(data?.message || 'Failed to reorder ticket statuses.');
+        throw new Error(data?.message || 'Failed to reorder lead statuses.');
       }
 
       return { statusId, newIndex };
@@ -707,11 +707,11 @@ export default function Page() {
       appToast.error(
         error instanceof Error
           ? error.message
-          : 'Failed to reorder ticket statuses.',
+          : 'Failed to reorder lead statuses.',
       );
     },
     onSuccess: () => {
-      appToast.success('Ticket statuses reordered successfully.');
+      appToast.success('Lead statuses reordered successfully.');
     },
     onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: ['ticket-statuses'] });
@@ -740,6 +740,7 @@ export default function Page() {
         priorityKey: values.priority,
         ticketType: values.ticketType,
         dueDate: values.dueDate,
+        contactId: values.contactId || undefined,
         attachments: values.attachments,
       });
       await Promise.all([
@@ -768,10 +769,10 @@ export default function Page() {
           refetchType: 'all',
         }),
       ]);
-      appToast.success('Ticket created successfully.');
+      appToast.success('Lead created successfully.');
     } catch (error) {
       appToast.error(
-        error instanceof Error ? error.message : 'Failed to create ticket.',
+        error instanceof Error ? error.message : 'Failed to create lead.',
       );
       throw error;
     } finally {
@@ -796,11 +797,11 @@ export default function Page() {
           queryKey: ['dashboard-kanban-ticket-counts'],
         }),
       ]);
-      appToast.success('Ticket deleted successfully.');
+      appToast.success('Lead deleted successfully.');
       setTicketToDelete(null);
     } catch (error) {
       appToast.error(
-        error instanceof Error ? error.message : 'Failed to delete ticket.',
+        error instanceof Error ? error.message : 'Failed to delete lead.',
       );
     } finally {
       setLoading(false);
@@ -1161,7 +1162,7 @@ export default function Page() {
       );
     } catch (error) {
       appToast.error(
-        error instanceof Error ? error.message : 'Failed to load more tickets.',
+        error instanceof Error ? error.message : 'Failed to load more leads.',
       );
     } finally {
       loadingKanbanStatusesRef.current[statusKey] = false;
@@ -1218,8 +1219,8 @@ export default function Page() {
             ) : (
               <DashboardSummaryBanner
                 imageSrc="/images/TicketsIcon.svg"
-                imageAlt="Tickets"
-                title="Tickets"
+                imageAlt="Leads"
+                title="Leads"
                 stats={ticketSummaryStats}
               />
             )}
@@ -1229,7 +1230,7 @@ export default function Page() {
               permission="tickets.view_list"
               fallback={
                 <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">
-                  You do not have permission to view tickets.
+                  You do not have permission to view leads.
                 </div>
               }
             >
@@ -1468,7 +1469,7 @@ export default function Page() {
                             onClick={() =>
                               setFiltersOpen((current) => !current)
                             }
-                            aria-label="Open ticket filters"
+                            aria-label="Open lead filters"
                             aria-expanded={filtersOpen}
                             aria-controls="recent-ticket-filters"
                             className={
@@ -1621,7 +1622,7 @@ export default function Page() {
                               icon={<PlusIcon width="20" height="20" />}
                               onClick={() => setCreateTicketOpen(true)}
                             >
-                              New Ticket
+                              New Lead
                             </ThemeButton>
                           ) : null}
 
@@ -1635,7 +1636,7 @@ export default function Page() {
                             >
                               {isExportingTickets
                                 ? 'Exporting...'
-                                : 'Export Tickets'}
+                                : 'Export Leads'}
                             </ThemeButton>
                           ) : null}
                         </div>
@@ -1800,7 +1801,7 @@ export default function Page() {
             type="button"
             onClick={() => setCreateTicketOpen(true)}
             className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-l from-royal-blue to-crystal-blue text-white shadow-[0_10px_30px_rgb(48_79_253/0.35)] transition hover:opacity-90 active:scale-95 xl:hidden"
-            aria-label="Create new ticket"
+            aria-label="Create new lead"
           >
             <PlusIcon fill="#ffffff" width="24" height="24" />
           </button>
@@ -1816,12 +1817,12 @@ export default function Page() {
       <ConfirmActionModal
         isOpen={Boolean(ticketToDelete) && canDeleteTicket}
         onClose={() => setTicketToDelete(null)}
-        title="Delete Ticket?"
+        title="Delete Lead?"
         message={
           <>
             Are you sure you want to delete{' '}
             <span className="font-semibold">
-              “{ticketToDelete?.name ?? 'this ticket'}”
+              “{ticketToDelete?.name ?? 'this lead'}”
             </span>
             ? This action cannot be undone.
           </>

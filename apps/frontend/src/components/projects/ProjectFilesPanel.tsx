@@ -339,8 +339,8 @@ function formatFileSource(source?: string) {
   const sourceLabels: Record<string, string> = {
     project: 'Project',
     thread: 'Thread',
-    ticket: 'Ticket',
-    ticket_reply: 'Ticket Reply',
+    ticket: 'Lead',
+    ticket_reply: 'Lead Reply',
   };
 
   return source ? (sourceLabels[source] ?? source) : undefined;

@@ -623,7 +623,7 @@ export default function Page() {
         const payload = await response.json().catch(() => null);
         throw new Error(
           payload?.message ||
-            'No tickets found to export with the current filters.',
+            'No leads found to export with the current filters.',
         );
       }
 
@@ -639,10 +639,10 @@ export default function Page() {
       link.remove();
       window.URL.revokeObjectURL(downloadUrl);
 
-      appToast.success('Tickets exported successfully.');
+      appToast.success('Leads exported successfully.');
     } catch (error) {
       appToast.error(
-        error instanceof Error ? error.message : 'Failed to export tickets.',
+        error instanceof Error ? error.message : 'Failed to export leads.',
       );
     } finally {
       setIsExportingTickets(false);
@@ -728,13 +728,14 @@ export default function Page() {
         priorityKey: values.priority,
         ticketType: values.ticketType,
         dueDate: values.dueDate,
+        contactId: values.contactId || undefined,
         attachments: values.attachments,
       });
       await invalidateTicketRelated();
-      appToast.success('Ticket created successfully.');
+      appToast.success('Lead created successfully.');
     } catch (error) {
       appToast.error(
-        error instanceof Error ? error.message : 'Failed to create ticket.',
+        error instanceof Error ? error.message : 'Failed to create lead.',
       );
       throw error;
     } finally {
@@ -783,11 +784,11 @@ export default function Page() {
           queryKey: ['dashboard-kanban-ticket-counts'],
         }),
       ]);
-      appToast.success('Ticket deleted successfully.');
+      appToast.success('Lead deleted successfully.');
       setTicketToDelete(null);
     } catch (error) {
       appToast.error(
-        error instanceof Error ? error.message : 'Failed to delete ticket.',
+        error instanceof Error ? error.message : 'Failed to delete lead.',
       );
     } finally {
       setLoading(false);
@@ -1037,7 +1038,7 @@ export default function Page() {
                       icon={<PlusIcon width="20" height="20" />}
                       onClick={() => setCreateTicketOpen(true)}
                     >
-                      New Ticket
+                      New Lead
                     </ThemeButton>
                   ) : null}
                 </div>
@@ -1114,7 +1115,7 @@ export default function Page() {
                   <div className="flex items-center flex-wrap gap-3">
                     <div className="flex flex-row gap-2.5 items-center">
                       <p className="text-lg whitespace-nowrap font-bold text-black">
-                        Recent Tickets
+                        Recent Leads
                       </p>
 
                       <div className="min-w-7.5 min-h-7.5 py-1 px-2 flex items-center justify-center text-sm text-bright-gray rounded-full bg-gray-100">
@@ -1164,7 +1165,7 @@ export default function Page() {
                         >
                           {isExportingTickets
                             ? 'Exporting...'
-                            : 'Export Tickets'}
+                            : 'Export Leads'}
                         </ThemeButton>
                       ) : null}
 
@@ -1181,7 +1182,7 @@ export default function Page() {
                                   ? 'border-primary bg-primary/5 text-primary'
                                   : 'border-gray-200 bg-white text-gray-600'
                               }`}
-                              aria-label="Open ticket filters"
+                              aria-label="Open lead filters"
                             >
                               <FiltersIcon fill="currentColor" />
                               <span>Filter</span>
@@ -1264,7 +1265,7 @@ export default function Page() {
                         variant="secondary"
                         icon={<FiltersIcon fill="currentColor" />}
                         onClick={() => setFiltersOpen((current) => !current)}
-                        aria-label="Open ticket filters"
+                        aria-label="Open lead filters"
                         aria-expanded={filtersOpen}
                         aria-controls="recent-ticket-filters"
                         className={
@@ -1570,7 +1571,7 @@ export default function Page() {
                         imageUrl="/images/NotificationEmptyState.svg"
                         imageAlt="No activity"
                         title="No Activity"
-                        description="Activity will appear here as work happens across projects and tickets."
+                        description="Activity will appear here as work happens across projects and leads."
                       />
                     ) : (
                       <>
@@ -1599,7 +1600,7 @@ export default function Page() {
           <button
             type="button"
             onClick={() => setCreateTicketOpen(true)}
-            aria-label="Create new ticket"
+            aria-label="Create new lead"
             className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-l from-royal-blue to-crystal-blue text-white shadow-[0_10px_30px_rgb(48_79_253/0.35)] transition hover:opacity-90 active:scale-95 xl:hidden"
           >
             <PlusIcon fill="#FFFFFF" width="24" height="24" />
@@ -1641,12 +1642,12 @@ export default function Page() {
       <ConfirmActionModal
         isOpen={Boolean(ticketToDelete) && canDeleteTicket}
         onClose={() => setTicketToDelete(null)}
-        title="Delete Ticket?"
+        title="Delete Lead?"
         message={
           <>
             Are you sure you want to delete{' '}
             <span className="font-semibold">
-              “{ticketToDelete?.title ?? 'this ticket'}”
+              “{ticketToDelete?.title ?? 'this lead'}”
             </span>
             ? This action cannot be undone.
           </>
@@ -2720,7 +2721,7 @@ function getActivityActionLabel(
     case 'ticket_reply':
       return 'commented on';
     case 'ticket_created':
-      return 'created a new ticket';
+      return 'created a new lead';
     case 'ticket_status_changed':
       return 'changed the status of';
     case 'thread_reply':

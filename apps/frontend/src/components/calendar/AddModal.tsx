@@ -219,7 +219,7 @@ export default function AddModal({
               ? isEditingEvent
                 ? 'Edit Event'
                 : 'Add Event'
-              : 'Add Ticket'
+              : 'Add Lead'
         }
         subtitle={
           readOnly && mode === 'event'
@@ -228,7 +228,7 @@ export default function AddModal({
               ? isEditingEvent
                 ? 'Update the selected calendar event.'
                 : 'Add a calendar event for the selected date.'
-              : 'Add a ticket with date, priority, and status.'
+              : 'Add a lead with date, priority, and status.'
         }
         showFooter={!readOnly}
         onCancel={onClose}
@@ -248,7 +248,7 @@ export default function AddModal({
               ? isEditingEvent
                 ? 'Save Event'
                 : 'Add Event'
-              : 'Add Ticket'
+              : 'Add Lead'
         }
         confimBtnDisable={isSubmitting || isDeleting}
         outSideClickClose={false}
@@ -276,7 +276,7 @@ export default function AddModal({
                   disabled={readOnly}
                   readOnly={readOnly}
                   placeholder={
-                    mode === 'event' ? 'Sprint planning' : 'Ticket summary'
+                    mode === 'event' ? 'Sprint planning' : 'Lead summary'
                   }
                   className={`h-11 w-full rounded-lg border px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400 ${
                     eventErrors.title ? 'border-red-300' : 'border-gray-200'

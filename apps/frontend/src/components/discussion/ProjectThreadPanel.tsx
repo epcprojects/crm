@@ -105,7 +105,7 @@ export default function ProjectThreadPanel({
   replies,
   mentionMembers = [],
   emptyTitle = 'No replies yet.',
-  emptyDescription = 'No responses have been added to this ticket yet.',
+  emptyDescription = 'No responses have been added to this lead yet.',
   composerPlaceholder = 'Write a reply...',
   onSubmitReply,
   isSubmittingReply = false,

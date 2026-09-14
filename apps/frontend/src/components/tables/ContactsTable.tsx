@@ -1,7 +1,12 @@
 'use client';
 
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
-import { EditIcon, ThreedotIcon, TrashIcon } from '../../../public/icons';
+import {
+  EditIcon,
+  PlusIcon,
+  ThreedotIcon,
+  TrashIcon,
+} from '../../../public/icons';
 import EmptyState from '../EmptyState';
 
 export type TerritoryRef = {
@@ -50,6 +55,7 @@ type ContactsTableProps = {
   onPageSizeChange?: (pageSize: number) => void;
   onEdit?: (contact: ContactRecord) => void;
   onDelete?: (contact: ContactRecord) => void;
+  onCreateLead?: (contact: ContactRecord) => void;
   onAddContact?: () => void;
   searchActive?: boolean;
 };
@@ -58,8 +64,9 @@ function renderContactActions(
   contact: ContactRecord,
   onEdit?: (contact: ContactRecord) => void,
   onDelete?: (contact: ContactRecord) => void,
+  onCreateLead?: (contact: ContactRecord) => void,
 ) {
-  if (!onEdit && !onDelete) {
+  if (!onEdit && !onDelete && !onCreateLead) {
     return null;
   }
 
@@ -79,6 +86,18 @@ function renderContactActions(
         transition
         className="z-100 mt-1 w-44 origin-top-right rounded-lg border border-gray-200 bg-white p-1 shadow-[0_10px_30px_rgb(0_0_0/0.12)] outline-none transition duration-150 data-closed:-translate-y-1 data-closed:scale-95 data-closed:opacity-0"
       >
+        {onCreateLead ? (
+          <MenuItem>
+            <button
+              type="button"
+              onClick={() => onCreateLead(contact)}
+              className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm font-medium text-gray-700 outline-none transition data-focus:bg-gray-100"
+            >
+              <PlusIcon fill="currentColor" width="16" height="16" /> Create Lead
+            </button>
+          </MenuItem>
+        ) : null}
+
         {onEdit ? (
           <MenuItem>
             <button
@@ -115,6 +134,7 @@ export default function ContactsTable({
   onPageSizeChange,
   onEdit,
   onDelete,
+  onCreateLead,
   onAddContact,
   searchActive,
 }: ContactsTableProps) {
@@ -176,7 +196,7 @@ export default function ContactsTable({
                   </p>
                 </div>
 
-                {renderContactActions(contact, onEdit, onDelete)}
+                {renderContactActions(contact, onEdit, onDelete, onCreateLead)}
               </div>
             </div>
           </article>
@@ -218,7 +238,7 @@ export default function ContactsTable({
                   {contact.source || '—'}
                 </td>
                 <td className="px-4 py-3 text-sm">
-                  {renderContactActions(contact, onEdit, onDelete)}
+                  {renderContactActions(contact, onEdit, onDelete, onCreateLead)}
                 </td>
               </tr>
             ))}

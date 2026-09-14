@@ -124,13 +124,20 @@ const navigationItems: NavItem[] = [
     ],
   },
   {
+    href: '/contacts',
+    label: 'Contacts',
+    icon: (isActive) => <UserAdd fill="currentColor" opacity="1" />,
+    roles: ['admin'],
+    anyPermissions: ['contacts.view_list'],
+  },
+  {
     href: '/tickets',
-    label: 'All Tickets',
+    label: 'All Leads',
     icon: (isActive) => <TicketsIcon fill="currentColor" />,
     roles: ['admin', 'developer', 'pm', 'external'],
     anyPermissions: ['tickets.view_list'],
     roleLabels: {
-      external: 'My Tickets',
+      external: 'My Leads',
     },
   },
   {
@@ -158,13 +165,6 @@ const navigationItems: NavItem[] = [
     anyPermissions: ['roles.view_list'],
   },
   {
-    href: '/contacts',
-    label: 'Contacts',
-    icon: (isActive) => <UserAdd fill="currentColor" opacity="1" />,
-    roles: ['admin'],
-    anyPermissions: ['contacts.view_list'],
-  },
-  {
     href: '/settings',
     label: 'Settings',
     icon: (isActive) => <SettingsIcon fill="currentColor" />,
@@ -179,17 +179,17 @@ const pageHeaderConfigs: PageHeaderConfig[] = [
 
     subtitle: "Here's what's happening across your companies",
     action: {
-      label: 'New Ticket',
+      label: 'New Lead',
       onClick: () => console.log('Create ticket from dashboard'),
       permission: 'tickets.create',
     },
   },
   {
     href: '/tickets',
-    title: 'All Tickets',
-    subtitle: 'View and manage all support tickets in one place.',
+    title: 'All Leads',
+    subtitle: 'View and manage all support leads in one place.',
     action: {
-      label: 'New Ticket',
+      label: 'New Lead',
       onClick: () => console.log('Create ticket from tickets'),
       permission: 'tickets.create',
     },
@@ -239,7 +239,7 @@ const pageHeaderConfigs: PageHeaderConfig[] = [
   {
     href: '/settings',
     title: 'Settings',
-    subtitle: 'Manage ticket statuses and priority levels.',
+    subtitle: 'Manage lead statuses and priority levels.',
   },
   {
     href: '/profile',
@@ -254,8 +254,8 @@ const fallbackAccount = {
 };
 
 const notificationCategoryLabels: Record<NotificationGroupCategory, string> = {
-  tickets: 'Tickets',
-  ticket_replies: 'Ticket Replies',
+  tickets: 'Leads',
+  ticket_replies: 'Lead Replies',
   threads: 'Threads',
   mentions: 'Mentions',
   projects: 'Projects',

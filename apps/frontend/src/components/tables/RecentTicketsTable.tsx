@@ -15,9 +15,7 @@ import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import ThemeButton from '../ui/ThemeButton';
 import {
   ArrowUpRightIcon,
-  BugIcon,
   ChatIcon,
-  FeatureIcon,
   ProjectsIcon,
   ThreedotIcon,
   TrashIcon,
@@ -85,32 +83,6 @@ export type RecentTicketQuickLinkItem = {
   label: string;
   href: string;
 };
-function formatTicketType(ticketType?: string | null) {
-  if (!ticketType) {
-    return 'No Type';
-  }
-
-  if (ticketType === 'feature_request') {
-    return (
-      <span className="flex items-center gap-1">
-        <FeatureIcon /> Feature
-      </span>
-    );
-  }
-
-  if (ticketType === 'bug') {
-    return (
-      <span className="flex items-center gap-1">
-        <BugIcon /> Bug
-      </span>
-    );
-  }
-
-  return ticketType
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
 const statusStyles: Record<string, string> = {
   Open: 'border-red-200 bg-red-50 text-red-500',
   'In Progress': 'border-warning-200 bg-warning-50 text-warning-500',
@@ -135,26 +107,6 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
         {row.original.ticketRefNo ?? row.original.id}
       </span>
     ),
-  },
-  {
-    id: 'ticketType',
-    accessorKey: 'ticketType',
-    header: 'Type',
-    cell: ({ row }) => {
-      const ticketType = row.original.ticketType;
-
-      if (ticketType !== 'bug' && ticketType !== 'feature_request') {
-        return <span className="text-sm text-gray-500">--</span>;
-      }
-
-      return (
-        <span
-          className={`inline-flex items-center whitespace-nowrap px-2 py-1 text-xs text-center font-medium`}
-        >
-          {formatTicketType(ticketType)}
-        </span>
-      );
-    },
   },
   {
     id: 'title',
@@ -385,14 +337,14 @@ export default function RecentTicketsTable({
     return (
       <EmptyState
         imageUrl="/images/RecentTicketEmpty.svg"
-        imageAlt="No recent tickets"
-        title={manualPagination ? 'No Tickets Found' : 'No Recent Tickets'}
+        imageAlt="No recent leads"
+        title={manualPagination ? 'No Leads Found' : 'No Recent Leads'}
         description={
           manualPagination
-            ? 'Tickets will appear here once they are created.'
-            : 'Recent tickets will appear here once they are created.'
+            ? 'Leads will appear here once they are created.'
+            : 'Recent leads will appear here once they are created.'
         }
-        buttonLabel="New Ticket"
+        buttonLabel="New Lead"
         onButtonClick={onEmptyButtonClick}
       />
     );
@@ -446,10 +398,10 @@ export default function RecentTicketsTable({
         ) : (
           <EmptyState
             imageUrl="/images/RecentTicketEmpty.svg"
-            imageAlt="No recent tickets"
-            title="No Recent Tickets"
-            description="Recent tickets will appear here once they are created."
-            buttonLabel="New Ticket"
+            imageAlt="No recent leads"
+            title="No Recent Leads"
+            description="Recent leads will appear here once they are created."
+            buttonLabel="New Lead"
             onButtonClick={onEmptyButtonClick}
           />
         )}
@@ -547,7 +499,7 @@ export default function RecentTicketsTable({
                   colSpan={columns.length + (shouldShowQuickLinks ? 1 : 0)}
                   className="px-4 py-8 text-center text-sm text-gray-500"
                 >
-                  No tickets found.
+                  No leads found.
                 </td>
               </tr>
             )}
@@ -695,18 +647,6 @@ function TicketMobileCard({
             >
               {ticket.priority ?? 'No Priority'}
             </span>
-            {ticket.ticketType === 'bug' ||
-            ticket.ticketType === 'feature_request' ? (
-              <span
-                className={`inline-flex items-center whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-medium ${
-                  ticket.ticketType === 'bug'
-                    ? 'border-red-200 bg-red-50 text-red-600'
-                    : 'border-blue-200 bg-blue-50 text-blue-600'
-                }`}
-              >
-                {formatTicketType(ticket.ticketType)}
-              </span>
-            ) : null}
           </div>
         </div>
       </div>
@@ -878,7 +818,7 @@ function TicketQuickLinksPopover({
                   className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm font-medium text-red-500 outline-none transition data-focus:bg-gray-100"
                   onClick={() => deleteTicket(ticket)}
                 >
-                  <TrashIcon width="16" height="16" /> Delete Ticket
+                  <TrashIcon width="16" height="16" /> Delete Lead
                 </button>
               </MenuItem>
             )}

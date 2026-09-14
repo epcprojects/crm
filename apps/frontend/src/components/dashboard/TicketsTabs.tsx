@@ -4,7 +4,6 @@
 import clsx from 'clsx';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import EmptyState from '../EmptyState';
-import { BugIcon, FeatureIcon } from 'apps/frontend/public/icons';
 
 export type TicketTabKey = 'upcoming' | 'critical';
 
@@ -236,15 +235,6 @@ export default function TicketsTabs({
 
                     <div className="min-w-0 flex flex-col gap-1">
                       <p className="truncate flex items-center gap-1 text-gray-900  font-medium text-sm">
-                        <span className="shrink-0 mb-0.5">
-                          {ticket.ticketType === 'bug' ? (
-                            <BugIcon />
-                          ) : ticket.ticketType === 'feature_request' ? (
-                            <FeatureIcon />
-                          ) : (
-                            ''
-                          )}
-                        </span>{' '}
                         {ticket.title}
                       </p>
 
@@ -290,7 +280,7 @@ export default function TicketsTabs({
                 className="px-4.5 py-4 text-center text-xs text-gray-500"
               >
                 {isFetchingNextPage
-                  ? 'Loading more tickets...'
+                  ? 'Loading more leads...'
                   : 'Scroll to load more'}
               </div>
             )}
@@ -299,7 +289,7 @@ export default function TicketsTabs({
           <EmptyState
             imageUrl="/images/EmptyCalendar.svg"
             imageAlt="Empty calendar"
-            title={`No ${activeTab?.label ?? 'Ticket'} Items`}
+            title={`No ${activeTab?.label ?? 'Lead'} Items`}
             description="There’s nothing scheduled for the upcoming days."
           />
         )}

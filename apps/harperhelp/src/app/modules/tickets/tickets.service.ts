@@ -14,6 +14,7 @@ import { UtilityService } from '../utility/utility.service';
 import { FileSource, FileStatus } from '@harperhelp/types';
 import { GetTicketsQueryDto } from './dto/get-tickets-query.dto';
 import { Project } from '../projects/entities/project.entity';
+import { Contact } from '../contacts/entities/contact.entity';
 
 import { format } from 'date-fns';
 import { CalendarQueryDto } from '../calendar/dto/calendar-query.dto';
@@ -49,6 +50,9 @@ export class TicketsService {
     @InjectRepository(Project)
     private readonly projectRepo: Repository<Project>,
 
+    @InjectRepository(Contact)
+    private readonly contactRepo: Repository<Contact>,
+
     @InjectDataSource()
     private readonly dataSource: DataSource,
 
@@ -57,6 +61,16 @@ export class TicketsService {
     private readonly notificationsService: NotificationsService,
     private readonly usersService: UsersService,
   ) {}
+
+  private async ensureContactExists(contactId: string): Promise<void> {
+    const exists = await this.contactRepo.exists({
+      where: { id: contactId, isActive: true },
+    });
+
+    if (!exists) {
+      throw new NotFoundException('Contact not found');
+    }
+  }
 
   // ---------------- CREATE ----------------
   async createTicket(
@@ -75,6 +89,10 @@ export class TicketsService {
 
     if (!project || !project.projectCode) {
       throw new NotFoundException('Project not found');
+    }
+
+    if (dto.contactId) {
+      await this.ensureContactExists(dto.contactId);
     }
 
     const saved = await this.dataSource
@@ -810,6 +828,11 @@ export class TicketsService {
     if (!ticket) {
       throw new NotFoundException('Ticket not found');
     }
+
+    if (dto.contactId) {
+      await this.ensureContactExists(dto.contactId);
+    }
+
     const oldTicket = { ...ticket };
     const oldStatus = ticket.status;
     const oldPriority = ticket.priority;
