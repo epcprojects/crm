@@ -569,7 +569,6 @@ export default function Page() {
       hasPermission('tickets.view_list') ||
       hasPermission('tickets.view_detail') ||
       hasPermission('tickets.create') ||
-      hasPermission('tickets.filter') ||
       hasPermission('tickets.edit_status') ||
       hasPermission('tickets.edit_priority') ||
       hasPermission('tickets.edit_assignee') ||

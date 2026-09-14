@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import type { RecentTicket } from '../tables/RecentTicketsTable';
 import Tooltip from '../tooltip';
 import { BugIcon, FeatureIcon, TrashIcon } from 'apps/frontend/public/icons';
+import { usePermissions } from '../../app/providers/PermissionProvider';
 
 type TicketStatusOption = {
   id: string;
@@ -57,6 +58,7 @@ export default function TicketsKanbanView({
   movingTicketId = null,
   canDragColumns = true,
 }: TicketsKanbanViewProps) {
+  const { hasPermission } = usePermissions();
   const [draggingTicketId, setDraggingTicketId] = useState<string | null>(null);
 
   const [hoveredColumnKey, setHoveredColumnKey] = useState<string | null>(null);
@@ -64,6 +66,8 @@ export default function TicketsKanbanView({
   const [draggingColumnKey, setDraggingColumnKey] = useState<string | null>(
     null,
   );
+
+  const canDeleteTicket = hasPermission('tickets.delete');
 
   /*
    * Null means column has been picked up, but the user has not
@@ -662,7 +666,7 @@ export default function TicketsKanbanView({
                               </div>
                             </div>
                           </button>
-                          {onDeleteTicket ? (
+                          {onDeleteTicket && canDeleteTicket ? (
                             <button
                               type="button"
                               aria-label={`Delete ticket ${ticket.title}`}
