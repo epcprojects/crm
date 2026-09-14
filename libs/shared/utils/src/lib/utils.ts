@@ -47,7 +47,7 @@ export const MODULE_DEFINITIONS: {
       'edit_due_date',
       'edit_title_description',
       'internal_chat',
-      'filter',
+      'export_tickets',
     ],
   },
   {
