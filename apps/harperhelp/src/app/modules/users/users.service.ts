@@ -529,6 +529,11 @@ export class UsersService {
             title: `You have been granted access to "${project.name}" by ${loggedInUser.fullName}`,
             message: `New project: ${project.name}`,
             explicitRecipientIds: [userId],
+            metadata: {
+              projectName: project.name,
+              actorName: loggedInUser.fullName,
+              recipientName: affectedUser.name
+            },
           });
         }
         if (filtered.length > 0) {
@@ -562,6 +567,12 @@ export class UsersService {
             title: `You have been removed from "${project.name}" by ${loggedInUser.fullName}`,
             message: `Removed project: ${project.name}`,
             explicitRecipientIds: [userId],
+            metadata: {
+              projectName: project.name,
+              actorName: loggedInUser.fullName,
+              recipientName: affectedUser.name
+
+            },
           });
         }
 
