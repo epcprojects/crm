@@ -435,7 +435,7 @@ export class NotificationsService {
     );
     await this.sendBulk(recipients, subject, html);
   }
-  
+
   private async onTicketTypeUpdated(
     p: TicketTypeUpdatedPayload,
   ): Promise<void> {
@@ -615,15 +615,24 @@ export class NotificationsService {
         NotificationType.PROJECT_UNASSIGNED,
       ].includes(dto.type)
     ) {
+      const projectName = dto.metadata?.projectName ?? 'the project';
+      const actorName = dto.metadata?.actorName ?? 'someone';
+      const verb =
+        dto.type === NotificationType.PROJECT_ASSIGNED
+          ? 'assigned to'
+          : 'removed from';
+
       // One activity per affected recipient
       for (const notification of saved) {
+        const recipientName = dto.metadata?.recipientName ?? 'User';
+
         await this.activityLogService.createActivity({
           recipientId: notification.recipientId,
           actorId: dto.actorId,
           projectId: dto.projectId ?? null,
           ticketId: dto.ticketId ?? null,
           type: dto.type,
-          title: dto.title,
+          title: `${recipientName} has been ${verb} ${projectName} by ${actorName}`,
           entityType: dto.entityType,
           entityId: dto.entityId ?? null,
           metadata: dto.metadata ?? {},
