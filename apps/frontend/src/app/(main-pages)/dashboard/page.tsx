@@ -10,11 +10,13 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import StatusCard from '../../../components/dashboard/StatusCard';
 import {
   AlertIcon,
+  BugIcon,
   ChatIcon,
   CheckMarkCircleIcon,
   ClockIcon,
   CloseIcon,
   DownloadIcon,
+  FeatureIcon,
   FiltersIcon,
   FolderIcon,
   PlusIcon,
@@ -370,14 +372,8 @@ export default function Page() {
       label: 'All Types',
       value: 'all',
     },
-    {
-      label: 'Bug',
-      value: 'bug',
-    },
-    {
-      label: 'Feature',
-      value: 'feature_request',
-    },
+    { label: 'Bug', value: 'bug', icon: <BugIcon /> },
+    { label: 'Feature', value: 'feature_request', icon: <FeatureIcon /> },
   ];
   const projectFilterOptions = useMemo(
     () =>
