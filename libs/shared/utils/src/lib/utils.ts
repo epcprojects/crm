@@ -48,7 +48,6 @@ export const MODULE_DEFINITIONS: {
       'edit_title_description',
       'internal_chat',
       'export_tickets',
-      'filter',
     ],
   },
   {
