@@ -105,7 +105,16 @@ export class ProjectsService {
       .add([...memberIds]);
 
     delete savedProject['members'];
-
+      await this.notificationsService.notifyProjectMembers({
+        actorId: currentUser.id,
+        projectId: savedProject.id,
+        type: NotificationType.PROJECT_CREATED,
+        entityType: NotificationEntityType.PROJECT,
+        entityId: savedProject.id,
+        title: `New Project Created "${savedProject.name}" by ${currentUser.fullName}`,
+        message: `New project: ${savedProject.name}`,
+        // explicitRecipientIds: [addedUser.id],
+      });
     return {
       ...savedProject,
     };
