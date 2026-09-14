@@ -545,6 +545,7 @@ export class ProjectsService {
 
       await this.notificationsService.notifyProjectMembers({
         actorId: user.id,
+        projectId: projectId,
         type: NotificationType.PROJECT_ASSIGNED,
         entityType: NotificationEntityType.PROJECT,
         entityId: projectId,
@@ -628,6 +629,7 @@ export class ProjectsService {
 
     await this.notificationsService.notifyProjectMembers({
       actorId: user.id,
+      projectId: projectId,
       type: NotificationType.PROJECT_UNASSIGNED,
       entityType: NotificationEntityType.PROJECT,
       entityId: projectId,

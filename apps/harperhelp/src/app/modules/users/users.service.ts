@@ -298,7 +298,6 @@ export class UsersService {
         userType: dto.userType,
       }),
     );
-    
 
     await this.userRoleRepo.save({
       userId: newUser.id,
@@ -505,11 +504,6 @@ export class UsersService {
         isInvitationAccepted: user.isInvitationAccepted,
       };
 
-      const filtered = await this.notificationsService.filterEmailRecipients(
-        [affectedUser],
-        EmailEventType.PROJECT_ASSIGNED,
-      );
-
       const updatedBy: EmailRecipient = {
         userId: loggedInUser.id,
         name: loggedInUser.fullName,
@@ -519,16 +513,24 @@ export class UsersService {
 
       // Notify about newly added projects, if any.
       if (addedProjects.length > 0) {
-        const addedNames = addedProjects.map((p) => p.name).join(', ');
+        const filtered = await this.notificationsService.filterEmailRecipients(
+          [affectedUser],
+          EmailEventType.PROJECT_ASSIGNED,
+        );
 
-        await this.notificationsService.notifyProjectMembers({
-          actorId: loggedInUser.id,
-          type: NotificationType.PROJECT_ASSIGNED,
-          entityType: NotificationEntityType.PROJECT,
-          title: `You have been granted access to "${addedNames}" by ${loggedInUser.fullName}`,
-          message: `New project${addedProjects.length === 1 ? '' : 's'}: ${addedNames}`,
-          explicitRecipientIds: [userId],
-        });
+        // const addedNames = addedProjects.map((p) => p.name).join(', ');
+        for (const project of addedProjects) {
+          await this.notificationsService.notifyProjectMembers({
+            actorId: loggedInUser.id,
+            projectId: project.id,
+            entityId: project.id,
+            type: NotificationType.PROJECT_ASSIGNED,
+            entityType: NotificationEntityType.PROJECT,
+            title: `You have been granted access to "${project.name}" by ${loggedInUser.fullName}`,
+            message: `New project: ${project.name}`,
+            explicitRecipientIds: [userId],
+          });
+        }
         if (filtered.length > 0) {
           for (const project of addedProjects) {
             await this.notificationsService.dispatch({
@@ -543,22 +545,26 @@ export class UsersService {
           }
         }
       }
-      // Notify about removed projects, if any.
+      // Notify about removed projects, if any — one notification/activity per project.
       if (removedProjects.length > 0) {
         const filtered = await this.notificationsService.filterEmailRecipients(
           [affectedUser],
           EmailEventType.PROJECT_UNASSIGNED,
         );
-        const removedNames = removedProjects.map((p) => p.name).join(', ');
 
-        await this.notificationsService.notifyProjectMembers({
-          actorId: loggedInUser.id,
-          type: NotificationType.PROJECT_UNASSIGNED,
-          entityType: NotificationEntityType.PROJECT,
-          title: `You have been removed from "${removedNames}" by ${loggedInUser.fullName}`,
-          message: `Removed project${removedProjects.length === 1 ? '' : 's'}: ${removedNames}`,
-          explicitRecipientIds: [userId],
-        });
+        for (const project of removedProjects) {
+          await this.notificationsService.notifyProjectMembers({
+            actorId: loggedInUser.id,
+            projectId: project.id,
+            entityId: project.id,
+            type: NotificationType.PROJECT_UNASSIGNED,
+            entityType: NotificationEntityType.PROJECT,
+            title: `You have been removed from "${project.name}" by ${loggedInUser.fullName}`,
+            message: `Removed project: ${project.name}`,
+            explicitRecipientIds: [userId],
+          });
+        }
+
         if (filtered.length > 0) {
           for (const project of removedProjects) {
             await this.notificationsService.dispatch({
