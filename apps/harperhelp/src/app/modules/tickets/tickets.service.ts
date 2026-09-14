@@ -333,6 +333,7 @@ export class TicketsService {
       .leftJoin('t.priority', 'pr')
       .leftJoin('t.assignee', 'a')
       .leftJoin('t.reporter', 'r')
+      .leftJoin('t.contact', 'c')
       .where('t.projectId = :projectId', { projectId });
 
     const ACTIVE_STATUS_SENTINEL = '00000000-0000-0000-0000-000000000100';
@@ -418,6 +419,10 @@ export class TicketsService {
       'r.id',
       'r.fullName',
       'r.email',
+
+      'c.id',
+      'c.fullName',
+      'c.phone',
     ]);
 
     // getSql-order note: TypeORM appends addSelect columns onto whatever .select()
@@ -468,7 +473,8 @@ export class TicketsService {
       .leftJoin('t.status', 's')
       .leftJoin('t.priority', 'pr')
       .leftJoin('t.assignee', 'a')
-      .leftJoin('t.reporter', 'r');
+      .leftJoin('t.reporter', 'r')
+      .leftJoin('t.contact', 'c');
     const ACTIVE_STATUS_SENTINEL = '00000000-0000-0000-0000-000000000100';
 
     if (query.statusKey) {
@@ -506,6 +512,23 @@ export class TicketsService {
       qb.andWhere('t.projectId IN (:...projectIds)', {
         projectIds: query.projectIds,
       });
+    }
+
+    if (query.contactId) {
+      qb.andWhere('t.contactId = :contactId', {
+        contactId: query.contactId,
+      });
+    }
+
+    if (query.dateFrom) {
+      const fromDate = new Date(`${query.dateFrom}T00:00:00.000Z`);
+      qb.andWhere('t.createdAt >= :dateFrom', { dateFrom: fromDate });
+    }
+
+    if (query.dateTo) {
+      const toDate = new Date(`${query.dateTo}T00:00:00.000Z`);
+      toDate.setUTCDate(toDate.getUTCDate() + 1);
+      qb.andWhere('t.createdAt < :dateTo', { dateTo: toDate });
     }
 
     const search = query.search?.trim();
@@ -650,6 +673,10 @@ export class TicketsService {
       'r.id',
       'r.fullName',
       'r.email',
+
+      'c.id',
+      'c.fullName',
+      'c.phone',
     ]);
 
     if (search) {
@@ -760,6 +787,7 @@ export class TicketsService {
       .leftJoinAndSelect('t.project', 'p')
       .leftJoinAndSelect('t.assignee', 'a')
       .leftJoinAndSelect('t.reporter', 'r')
+      .leftJoinAndSelect('t.contact', 'c')
       .where('t.id = :ticketId', { ticketId })
       .andWhere('t.projectId = :projectId', { projectId })
       .select([
@@ -774,6 +802,10 @@ export class TicketsService {
 
         'r.id',
         'r.fullName',
+
+        'c.id',
+        'c.fullName',
+        'c.phone',
       ])
       .getOne();
 
@@ -1529,7 +1561,8 @@ export class TicketsService {
       .leftJoin('t.status', 's')
       .leftJoin('t.priority', 'pr')
       .leftJoin('t.assignee', 'a')
-      .leftJoin('t.reporter', 'r');
+      .leftJoin('t.reporter', 'r')
+      .leftJoin('t.contact', 'c');
 
     if (query.projectIds?.length) {
       qb.andWhere('t.projectId IN (:...projectIds)', {
@@ -1616,6 +1649,10 @@ export class TicketsService {
       'a.id',
       'a.fullName',
       'a.email',
+
+      'c.id',
+      'c.fullName',
+      'c.phone',
     ]);
 
     if (search) {
@@ -1826,6 +1863,13 @@ export class TicketsService {
             email: t.reporter.email,
           }
         : null,
+      contact: t.contact
+        ? {
+            id: t.contact.id,
+            fullName: t.contact.fullName ?? null,
+            phone: t.contact.phone,
+          }
+        : null,
     };
   }
 
@@ -1863,7 +1907,8 @@ export class TicketsService {
       .leftJoinAndSelect('t.status', 's')
       .leftJoinAndSelect('t.priority', 'pr')
       .leftJoinAndSelect('t.assignee', 'a')
-      .leftJoinAndSelect('t.reporter', 'r');
+      .leftJoinAndSelect('t.reporter', 'r')
+      .leftJoinAndSelect('t.contact', 'c');
 
     if (query.projectIds?.length) {
       baseQb.andWhere('t.projectId IN (:...projectIds)', {

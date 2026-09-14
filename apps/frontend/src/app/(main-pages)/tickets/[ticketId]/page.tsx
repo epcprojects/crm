@@ -1734,6 +1734,18 @@ export default function TicketDetailPage() {
                 value={ticket.project.name}
               />
 
+              <MetaItem
+                label="Contact"
+                hideTooltip={false}
+                value={
+                  ticket.contact
+                    ? ticket.contact.fullName
+                      ? `${ticket.contact.fullName} (${ticket.contact.phone})`
+                      : ticket.contact.phone
+                    : '—'
+                }
+              />
+
               {ticket.dueDate ? (
                 <div>
                   <span className="block text-sm text-gray-300">Due Date</span>
@@ -1774,6 +1786,18 @@ export default function TicketDetailPage() {
                   label="Project"
                   hideTooltip={false}
                   value={ticket.project.name}
+                />
+
+                <MetaItem
+                  label="Contact"
+                  hideTooltip={false}
+                  value={
+                    ticket.contact
+                      ? ticket.contact.fullName
+                        ? `${ticket.contact.fullName} (${ticket.contact.phone})`
+                        : ticket.contact.phone
+                      : '—'
+                  }
                 />
 
                 {ticket.dueDate ? (
@@ -3191,6 +3215,11 @@ type ApiTicketDetail = {
   } | null;
   assignee?: ApiTicketPerson | null;
   reporter?: ApiTicketPerson | null;
+  contact?: {
+    id: string;
+    fullName: string | null;
+    phone: string;
+  } | null;
   attachments: ApiTicketAttachment[];
 };
 
@@ -3259,6 +3288,7 @@ function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
     },
     status: ticket.statusKey ?? '',
     ticketType: ticket.ticketType,
+    contact: ticket.contact ?? null,
     priority: ticket.priorityKey ?? null,
     assignee: {
       name: assigneeName,

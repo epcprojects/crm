@@ -60,6 +60,11 @@ export type RecentTicket = {
     email: string;
     fullName: string;
   };
+  contact?: {
+    id: string;
+    fullName: string | null;
+    phone: string;
+  } | null;
 };
 
 export type TicketSortBy =
@@ -136,6 +141,29 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
         <span className="truncate"> {row.original.project.name}</span>
       </span>
     ),
+  },
+  {
+    id: 'contact',
+    accessorKey: 'contact.fullName',
+    header: 'Contact',
+    cell: ({ row }) => {
+      const contact = row.original.contact;
+
+      if (!contact) {
+        return <span className="text-sm text-gray-500">—</span>;
+      }
+
+      return (
+        <span className="flex flex-col">
+          <span className="truncate text-sm text-gray-900">
+            {contact.fullName || 'Unknown'}
+          </span>
+          <span className="truncate text-xs text-gray-500">
+            {contact.phone}
+          </span>
+        </span>
+      );
+    },
   },
   {
     id: 'status',
@@ -669,6 +697,19 @@ function TicketMobileCard({
             <p className="truncate text-xs text-gray-800">
               {ticket.project.name}
             </p>
+          </div>
+        </div>
+        <div className="flex min-w-0 flex-col items-start gap-1">
+          <p className="text-[10px] text-gray-500">Contact</p>
+          <div className="min-w-0">
+            <p className="truncate text-xs text-gray-800">
+              {ticket.contact?.fullName || ticket.contact?.phone || '—'}
+            </p>
+            {ticket.contact?.fullName ? (
+              <p className="truncate text-[10px] text-gray-500">
+                {ticket.contact.phone}
+              </p>
+            ) : null}
           </div>
         </div>
         <div className="flex min-w-0 flex-col items-start gap-1">

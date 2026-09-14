@@ -8,6 +8,7 @@ import {
   Max,
   IsArray,
   IsEnum,
+  IsDateString,
 } from 'class-validator';
 import { TicketType } from '../enum/ticket-type.enum';
 
@@ -45,6 +46,25 @@ export class GetTicketsQueryDto {
   @IsArray()
   @IsUUID('loose', { each: true })
   projectIds?: string[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  contactId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter tickets created on or after this date (YYYY-MM-DD).',
+  })
+  @IsOptional()
+  @IsDateString()
+  dateFrom?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter tickets created on or before this date (YYYY-MM-DD).',
+  })
+  @IsOptional()
+  @IsDateString()
+  dateTo?: string;
 
   @ApiProperty()
   @Type(() => Number)

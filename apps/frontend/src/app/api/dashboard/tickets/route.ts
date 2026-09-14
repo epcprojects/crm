@@ -40,6 +40,9 @@ export async function GET(request: NextRequest) {
       'page',
       'limit',
       'ticketType',
+      'contactId',
+      'dateFrom',
+      'dateTo',
     ]) {
       const value = requestUrl.searchParams.get(key);
 

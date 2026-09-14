@@ -2293,6 +2293,11 @@ type ApiDashboardTicket = {
     email: string;
     fullName: string;
   } | null;
+  contact?: {
+    id: string;
+    fullName: string | null;
+    phone: string;
+  } | null;
   dueDate: string;
 };
 
@@ -2605,6 +2610,7 @@ function mapApiDashboardTicketToRecentTicket(
     ticketRefNo: ticket.ticketRefNo,
     title: ticket.title,
     ticketType: ticket.ticketType ?? null,
+    contact: ticket.contact ?? null,
     project: {
       id: ticket.project?.id,
       name: ticket.project?.name ?? 'No Project',

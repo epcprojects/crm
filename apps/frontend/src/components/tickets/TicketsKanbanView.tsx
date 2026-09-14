@@ -643,6 +643,19 @@ export default function TicketsKanbanView({
                                   </Tooltip>
                                 </div>
 
+                                {ticket.contact ? (
+                                  <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+                                    <span className="text-sm text-gray-900">
+                                      Contact:
+                                    </span>
+
+                                    <span className="truncate text-right text-sm text-gray-900">
+                                      {ticket.contact.fullName ||
+                                        ticket.contact.phone}
+                                    </span>
+                                  </div>
+                                ) : null}
+
                                 <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
                                   <span className="text-sm text-gray-900">
                                     Priority:

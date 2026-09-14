@@ -128,7 +128,14 @@ export async function GET(request: NextRequest) {
     const requestUrl = new URL(request.url);
     const filterParams = new URLSearchParams();
 
-    for (const key of ['statusKey', 'priorityKey', 'search']) {
+    for (const key of [
+      'statusKey',
+      'priorityKey',
+      'search',
+      'contactId',
+      'dateFrom',
+      'dateTo',
+    ]) {
       const value = requestUrl.searchParams.get(key);
 
       if (value) {

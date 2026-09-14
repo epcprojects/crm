@@ -1292,6 +1292,11 @@ type ApiProjectTicket = {
     email: string;
     fullName: string;
   };
+  contact?: {
+    id: string;
+    fullName: string | null;
+    phone: string;
+  } | null;
 };
 
 type ApiProjectFile = {
@@ -2050,6 +2055,7 @@ function mapApiProjectTicketToRecentTicket(
     ticketRefNo: ticket.ticketRefNo,
     title: ticket.title,
     ticketType: ticket.ticketType ?? null,
+    contact: ticket.contact ?? null,
 
     project: {
       id: ticket.project?.id ?? ticket.projectId,
