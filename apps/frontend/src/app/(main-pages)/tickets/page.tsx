@@ -1617,10 +1617,7 @@ export default function Page() {
                       </div>
 
                       <div className="flex  flex-col gap-3 md:flex-row xl:items-center  justify-end">
-                        <Popover
-                          as="div"
-                          className="hidden md:block  2xl:hidden"
-                        >
+                        <Popover as="div" className="hidden md:block xl:hidden">
                           {({ open }) => (
                             <>
                               <PopoverButton
@@ -1805,151 +1802,21 @@ export default function Page() {
                             <KanbanViewIcon />
                           </button>
                         </div>
-                        <div className="2xl:block  3xl:hidden hidden">
-                          <ThemeButton
-                            type="button"
-                            variant="secondary"
-                            icon={<FiltersIcon fill="currentColor" />}
-                            onClick={() =>
-                              setFiltersOpen((current) => !current)
-                            }
-                            aria-label="Open lead filters"
-                            aria-expanded={filtersOpen}
-                            aria-controls="recent-ticket-filters"
-                            className={
-                              filtersOpen
-                                ? 'border-primary! bg-primary/5! text-primary! shadow-sm'
-                                : ''
-                            }
-                          >
-                            Filter
-                          </ThemeButton>
-                        </div>
-                        <div className="w-full hidden 3xl:block 2xl:w-55">
-                          <Dropdown
-                            options={projectFilterOptions}
-                            isMulti
-                            value={selectedProjectIds}
-                            onChange={(value) =>
-                              updateTicketsPageFilters({ project: value })
-                            }
-                            placeholder="All Projects"
-                            maxMenuHeight={320}
-                            showSearch={true}
-                          />
-                        </div>
-                        {viewMode === 'table' && (
-                          <div className="w-full hidden 3xl:block 2xl:w-55">
-                            <Dropdown
-                              options={statusFilterOptions}
-                              value={selectedStatus}
-                              onChange={(value) =>
-                                updateTicketsPageFilters({ status: value })
-                              }
-                              placeholder="All Status"
-                              minHeight="min-h-70"
-                              menuScrollable={false}
-                              showSearch={true}
-                            />
-                          </div>
-                        )}
-
-                        <div className="w-full  gap-3 hidden 3xl:flex 2xl:w-55">
-                          <Dropdown
-                            options={priorityFilterOptions}
-                            value={selectedPriority}
-                            onChange={(value) =>
-                              updateTicketsPageFilters({ priority: value })
-                            }
-                            showSearch={true}
-                            placeholder="All Priority"
-                          />
-                        </div>
-
-                        <div className="w-full hidden 3xl:block 2xl:w-55">
-                          <Dropdown
-                            options={contactFilterOptions}
-                            value={selectedContactId}
-                            onChange={(value) =>
-                              updateTicketsPageFilters({ contactId: value })
-                            }
-                            showSearch={true}
-                            placeholder="All Contacts"
-                            maxMenuHeight={320}
-                          />
-                        </div>
-
-                        {viewMode === 'table' && (
-                          <div className="w-full hidden 3xl:block 2xl:w-55">
-                            <Dropdown
-                              options={createdByFilterOptions}
-                              value={selectedCreatedBy}
-                              onChange={(value) =>
-                                updateTicketsPageFilters({ createdBy: value })
-                              }
-                              showSearch={true}
-                              placeholder="All Creators"
-                              maxMenuHeight={320}
-                            />
-                          </div>
-                        )}
-
-                        {viewMode === 'table' && (
-                          <div className="w-full hidden 3xl:block 2xl:w-55">
-                            <Dropdown
-                              options={assignedToFilterOptions}
-                              value={selectedAssignedTo}
-                              onChange={(value) =>
-                                updateTicketsPageFilters({ assignedTo: value })
-                              }
-                              showSearch={true}
-                              placeholder="All Assignees"
-                              maxMenuHeight={320}
-                            />
-                          </div>
-                        )}
-
-                        {viewMode === 'table' && (
-                          <div className="hidden 3xl:flex items-center gap-2">
-                            <ThemeInput
-                              type="date"
-                              value={dateFromValue}
-                              onChange={(event) =>
-                                updateTicketsPageFilters({
-                                  dateFrom: event.target.value,
-                                })
-                              }
-                              max={dateToValue || undefined}
-                              wrapperClassName="w-full"
-                              aria-label="From date"
-                            />
-                            <span className="shrink-0 text-xs text-gray-400">
-                              to
-                            </span>
-                            <ThemeInput
-                              type="date"
-                              value={dateToValue}
-                              onChange={(event) =>
-                                updateTicketsPageFilters({
-                                  dateTo: event.target.value,
-                                })
-                              }
-                              min={dateFromValue || undefined}
-                              wrapperClassName="w-full"
-                              aria-label="To date"
-                            />
-                          </div>
-                        )}
-
                         <ThemeButton
                           type="button"
                           variant="secondary"
-                          size="md"
-                          onClick={clearTicketFilters}
-                          disabled={!hasActiveTicketFilters}
-                          className="hidden h-10 shrink-0 disabled:cursor-not-allowed disabled:opacity-50 3xl:inline-flex"
+                          icon={<FiltersIcon fill="currentColor" />}
+                          onClick={() => setFiltersOpen((current) => !current)}
+                          aria-label="Open lead filters"
+                          aria-expanded={filtersOpen}
+                          aria-controls="tickets-page-filters"
+                          className={`hidden xl:inline-flex ${
+                            filtersOpen || hasActiveTicketFilters
+                              ? 'border-primary! bg-primary/5! text-primary! shadow-sm'
+                              : ''
+                          }`}
                         >
-                          Clear Filters
+                          Filter
                         </ThemeButton>
                         <div className="flex flex-row gap-3 ">
                           <Popover
@@ -2064,18 +1931,18 @@ export default function Page() {
                   </>
                 </div>
                 <div
-                  className={`hidden w-full justify-end transition-[grid-template-rows,opacity,transform] duration-300 ease-out xl:grid ${
+                  className={`hidden w-full  transition-[grid-template-rows,opacity,transform] duration-300 ease-out xl:grid ${
                     filtersOpen
                       ? 'grid-rows-[1fr]  translate-y-0 opacity-100'
                       : 'pointer-events-none grid-rows-[0fr] -translate-y-2 opacity-0'
                   }`}
                 >
-                  <div className="min-h-0 overflow-hidden">
+                  <div className="min-h-0 w-full  overflow-hidden">
                     <div
-                      id="recent-ticket-filters"
-                      className="flex w-full items-center gap-2 pt-1"
+                      id="tickets-page-filters"
+                      className="flex w-full flex-wrap items-center justify-end gap-2 pt-1"
                     >
-                      <div className="w-full hidden 2xl:block 2xl:w-55">
+                      <div className="w-full max-w-52">
                         <Dropdown
                           options={projectFilterOptions}
                           isMulti
@@ -2089,7 +1956,7 @@ export default function Page() {
                         />
                       </div>
                       {viewMode === 'table' && (
-                        <div className="w-full hidden 2xl:block 2xl:w-55">
+                        <div className="w-full max-w-52">
                           <Dropdown
                             options={statusFilterOptions}
                             value={selectedStatus}
@@ -2104,7 +1971,7 @@ export default function Page() {
                         </div>
                       )}
 
-                      <div className="w-full  gap-3 hidden 2xl:flex 2xl:w-55">
+                      <div className="w-full max-w-52">
                         <Dropdown
                           options={priorityFilterOptions}
                           value={selectedPriority}
@@ -2116,7 +1983,7 @@ export default function Page() {
                         />
                       </div>
 
-                      <div className="w-full hidden 2xl:block 2xl:w-55">
+                      <div className="w-full max-w-52">
                         <Dropdown
                           options={contactFilterOptions}
                           value={selectedContactId}
@@ -2130,7 +1997,7 @@ export default function Page() {
                       </div>
 
                       {viewMode === 'table' && (
-                        <div className="w-full hidden 2xl:block 2xl:w-55">
+                        <div className="w-full max-w-52">
                           <Dropdown
                             options={createdByFilterOptions}
                             value={selectedCreatedBy}
@@ -2145,7 +2012,7 @@ export default function Page() {
                       )}
 
                       {viewMode === 'table' && (
-                        <div className="w-full hidden 2xl:block 2xl:w-55">
+                        <div className="w-full max-w-52">
                           <Dropdown
                             options={assignedToFilterOptions}
                             value={selectedAssignedTo}
@@ -2160,7 +2027,7 @@ export default function Page() {
                       )}
 
                       {viewMode === 'table' && (
-                        <div className="hidden 2xl:flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                           <ThemeInput
                             type="date"
                             value={dateFromValue}
@@ -2194,10 +2061,10 @@ export default function Page() {
                       <ThemeButton
                         type="button"
                         variant="secondary"
-                        size="md"
+                        size="xs"
                         onClick={clearTicketFilters}
                         disabled={!hasActiveTicketFilters}
-                        className="hidden h-10 shrink-0 disabled:cursor-not-allowed disabled:opacity-50 2xl:inline-flex"
+                        className="shrink-0 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         Clear Filters
                       </ThemeButton>

@@ -509,8 +509,7 @@ export default function Page() {
         contactId: selectedContactId === 'all' ? undefined : selectedContactId,
         dateFrom: dateFromValue || undefined,
         dateTo: dateToValue || undefined,
-        reporterId:
-          selectedCreatedBy === 'all' ? undefined : selectedCreatedBy,
+        reporterId: selectedCreatedBy === 'all' ? undefined : selectedCreatedBy,
         assigneeId:
           selectedAssignedTo === 'all' ? undefined : selectedAssignedTo,
       }),
@@ -654,7 +653,10 @@ export default function Page() {
     if (nextCreatedBy === 'all') {
       nextSearchParams.delete(RECENT_TICKETS_CREATED_BY_QUERY_PARAM);
     } else {
-      nextSearchParams.set(RECENT_TICKETS_CREATED_BY_QUERY_PARAM, nextCreatedBy);
+      nextSearchParams.set(
+        RECENT_TICKETS_CREATED_BY_QUERY_PARAM,
+        nextCreatedBy,
+      );
     }
 
     if (nextAssignedTo === 'all') {
@@ -756,7 +758,9 @@ export default function Page() {
         const contactLabel = contactFilterOptions.find(
           (option) => option.value === selectedContactId,
         )?.label;
-        filenameParts.push(`contact_${slugify(contactLabel ?? selectedContactId)}`);
+        filenameParts.push(
+          `contact_${slugify(contactLabel ?? selectedContactId)}`,
+        );
       }
 
       if (dateFromValue) {
@@ -1338,9 +1342,7 @@ export default function Page() {
                           onClick={handleExportTickets}
                           disabled={isExportingTickets}
                         >
-                          {isExportingTickets
-                            ? 'Exporting...'
-                            : 'Export Leads'}
+                          {isExportingTickets ? 'Exporting...' : 'Export Leads'}
                         </ThemeButton>
                       ) : null}
 
@@ -1559,12 +1561,12 @@ export default function Page() {
                         : 'pointer-events-none grid-rows-[0fr] -translate-y-2 opacity-0'
                     }`}
                   >
-                    <div className="min-h-0 overflow-hidden">
+                    <div className="min-h-0  overflow-hidden">
                       <div
                         id="recent-ticket-filters"
-                        className="flex w-full items-center gap-2 pt-1"
+                        className="flex w-full items-center justify-end flex-wrap flex-row gap-2 pt-1"
                       >
-                        <div className="relative w-full overflow-visible">
+                        <div className="relative w-full max-w-52 overflow-visible">
                           <Dropdown
                             options={projectFilterOptions}
                             isMulti
@@ -1580,7 +1582,7 @@ export default function Page() {
                           />
                         </div>
 
-                        <div className="w-full">
+                        <div className="w-full max-w-52 ">
                           <Dropdown
                             options={statusFilterOptions}
                             value={selectedStatus}
@@ -1594,7 +1596,7 @@ export default function Page() {
                           />
                         </div>
 
-                        <div className="w-full">
+                        <div className="w-full max-w-52 ">
                           <Dropdown
                             options={priorityFilterOptions}
                             value={selectedPriority}
@@ -1608,7 +1610,7 @@ export default function Page() {
                           />
                         </div>
 
-                        <div className="w-full">
+                        <div className="w-full max-w-52 ">
                           <Dropdown
                             options={contactFilterOptions}
                             value={selectedContactId}
@@ -1622,7 +1624,7 @@ export default function Page() {
                           />
                         </div>
 
-                        <div className="w-full">
+                        <div className="w-full max-w-52 ">
                           <Dropdown
                             options={createdByFilterOptions}
                             value={selectedCreatedBy}
@@ -1636,7 +1638,7 @@ export default function Page() {
                           />
                         </div>
 
-                        <div className="w-full">
+                        <div className="w-full max-w-52 ">
                           <Dropdown
                             options={assignedToFilterOptions}
                             value={selectedAssignedTo}

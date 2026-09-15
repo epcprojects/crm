@@ -192,6 +192,8 @@ export default function ProjectDetailPage() {
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [uploadFileOpen, setUploadFileOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
+  const [projectTicketFiltersOpen, setProjectTicketFiltersOpen] =
+    useState(false);
   const [ticketToDelete, setTicketToDelete] = useState<RecentTicket | null>(
     null,
   );
@@ -2400,8 +2402,8 @@ export default function ProjectDetailPage() {
               <TabPanels className="flex h-auto min-h-0 min-w-0 flex-none flex-col overflow-visible pb-2  xl:h-full xl:flex-1 xl:overflow-hidden">
                 <PermissionGuard permission="tickets.view_list">
                   <TabPanel className="flex h-auto min-h-0 min-w-0 flex-none flex-col gap-4 overflow-visible xl:h-full xl:flex-1 xl:overflow-hidden">
-                    <div className="flex shrink-0 flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
-                      <>
+                    <div className="flex shrink-0 flex-col gap-3 rounded-xl">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <div className="flex items-center gap-3">
                           <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 md:max-w-xs">
                             <div className="flex items-center gap-2">
@@ -2604,10 +2606,54 @@ export default function ProjectDetailPage() {
                               <KanbanViewIcon />
                             </button>
                           </div>
-                          <div className="flex items-center gap-3">
-                            {/* Desktop inline filters */}
+
+                          <ThemeButton
+                            type="button"
+                            variant="secondary"
+                            icon={<FiltersIcon fill="currentColor" />}
+                            onClick={() =>
+                              setProjectTicketFiltersOpen((current) => !current)
+                            }
+                            aria-label="Open lead filters"
+                            aria-expanded={projectTicketFiltersOpen}
+                            aria-controls="project-ticket-filters"
+                            className={`hidden xl:inline-flex ${
+                              projectTicketFiltersOpen ||
+                              hasActiveProjectTicketFilters
+                                ? 'border-primary! bg-primary/5! text-primary! shadow-sm'
+                                : ''
+                            }`}
+                          >
+                            Filter
+                          </ThemeButton>
+
+                          {canCreateTicket ? (
+                            <ThemeButton
+                              className="hidden shrink-0 rounded-full xl:flex"
+                              variant="primaryGradient"
+                              icon={<PlusIcon width="20" height="20" />}
+                              onClick={() => setCreateTicketOpen(true)}
+                            >
+                              New Lead
+                            </ThemeButton>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div
+                        className={`hidden w-full transition-[grid-template-rows,opacity,transform] duration-300 ease-out xl:grid ${
+                          projectTicketFiltersOpen
+                            ? 'grid-rows-[1fr] translate-y-0 opacity-100'
+                            : 'pointer-events-none grid-rows-[0fr] -translate-y-2 opacity-0'
+                        }`}
+                      >
+                        <div className="min-h-0 overflow-hidden">
+                          <div
+                            id="project-ticket-filters"
+                            className="flex w-full flex-row flex-wrap items-center justify-end gap-2 pt-1"
+                          >
                             {projectTicketsViewMode === 'table' ? (
-                              <div className="hidden w-55 xl:block">
+                              <div className="w-full max-w-52">
                                 <Dropdown
                                   options={statusFilterOptions}
                                   value={selectedStatus}
@@ -2621,7 +2667,7 @@ export default function ProjectDetailPage() {
                               </div>
                             ) : null}
 
-                            <div className="hidden w-55 xl:flex gap-3">
+                            <div className="w-full max-w-52">
                               <Dropdown
                                 options={priorityFilterOptions}
                                 value={selectedPriority}
@@ -2634,7 +2680,7 @@ export default function ProjectDetailPage() {
                               />
                             </div>
 
-                            <div className="hidden w-55 xl:block">
+                            <div className="w-full max-w-52">
                               <Dropdown
                                 options={contactFilterOptions}
                                 value={selectedContactId}
@@ -2650,7 +2696,7 @@ export default function ProjectDetailPage() {
                             </div>
 
                             {projectTicketsViewMode === 'table' ? (
-                              <div className="hidden w-55 xl:block">
+                              <div className="w-full max-w-52">
                                 <Dropdown
                                   options={createdByFilterOptions}
                                   value={selectedCreatedBy}
@@ -2667,7 +2713,7 @@ export default function ProjectDetailPage() {
                             ) : null}
 
                             {projectTicketsViewMode === 'table' ? (
-                              <div className="hidden w-55 xl:block">
+                              <div className="w-full max-w-52">
                                 <Dropdown
                                   options={assignedToFilterOptions}
                                   value={selectedAssignedTo}
@@ -2684,7 +2730,7 @@ export default function ProjectDetailPage() {
                             ) : null}
 
                             {projectTicketsViewMode === 'table' ? (
-                              <div className="hidden xl:flex items-center gap-2">
+                              <div className="flex items-center gap-2">
                                 <ThemeInput
                                   type="date"
                                   value={dateFromValue}
@@ -2714,30 +2760,20 @@ export default function ProjectDetailPage() {
                                 />
                               </div>
                             ) : null}
+
                             <ThemeButton
                               type="button"
                               variant="secondary"
-                              size="md"
+                              size="xs"
                               onClick={clearProjectTicketFilters}
                               disabled={!hasActiveProjectTicketFilters}
-                              className="hidden h-10 shrink-0 disabled:cursor-not-allowed disabled:opacity-50 xl:inline-flex"
+                              className="disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               Clear Filters
                             </ThemeButton>
-
-                            {canCreateTicket ? (
-                              <ThemeButton
-                                className="shrink-0 rounded-full hidden xl:flex"
-                                variant="primaryGradient"
-                                icon={<PlusIcon width="20" height="20" />}
-                                onClick={() => setCreateTicketOpen(true)}
-                              >
-                                New Lead
-                              </ThemeButton>
-                            ) : null}
                           </div>
                         </div>
-                      </>
+                      </div>
                     </div>
                     <div className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden">
                       {isProjectTicketsLoading ? (

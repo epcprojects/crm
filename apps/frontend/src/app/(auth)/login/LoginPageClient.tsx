@@ -217,11 +217,11 @@ export default function LoginPageClient({
         <div className="flex-1 flex items-center space-y-8 md:space-y-12 px-4  justify-center flex-col">
           <div className="max-w-160 w-full space-y-3">
             <h2 className="text-white font-bold text-4xl md:text-[36px] text-center">
-              Grow Your Business with Smarter CRM
+              Streamline your Lead Management
             </h2>
             <h3 className="text-center text-white text-base md:text-lg">
-              Manage leads, nurture customer relationships, track sales, and
-              empower your team with everything in one place.
+              A smarter way to manage leads, projects and team collaboration
+              across organizations
             </h3>
           </div>
 
