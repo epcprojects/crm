@@ -213,7 +213,7 @@ export default function LoginPageClient({
           </form>
         </div>
       </div>
-      <div className="bg-[url('/images/HarperLoginBg.jpg')] bg-center bg-no-repeat rounded-3xl hidden md:flex items-center justify-center backdrop-blur-3xl relative">
+      <div className="bg-[url('/images/EPC-CRMLoginBg.jpg')] bg-center bg-no-repeat rounded-3xl hidden md:flex items-center justify-center backdrop-blur-3xl relative">
         <div className="flex-1 flex items-center space-y-8 md:space-y-12 px-4  justify-center flex-col">
           <div className="max-w-160 w-full space-y-3">
             <h2 className="text-white font-bold text-4xl md:text-[36px] text-center">
