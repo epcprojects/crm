@@ -364,9 +364,13 @@ export class TicketsService {
     }
 
     if (query.assigneeId) {
-      qb.andWhere('t.assigneeId = :assigneeId', {
-        assigneeId: query.assigneeId,
-      });
+      if (query.assigneeId.toLowerCase() === 'unassigned') {
+        qb.andWhere('t.assigneeId IS NULL');
+      } else {
+        qb.andWhere('t.assigneeId = :assigneeId', {
+          assigneeId: query.assigneeId,
+        });
+      }
     }
 
     if (query.reporterId) {
@@ -527,9 +531,13 @@ export class TicketsService {
     }
 
     if (query.assigneeId) {
-      qb.andWhere('t.assigneeId = :assigneeId', {
-        assigneeId: query.assigneeId,
-      });
+      if (query.assigneeId.toLowerCase() === 'unassigned') {
+        qb.andWhere('t.assigneeId IS NULL');
+      } else {
+        qb.andWhere('t.assigneeId = :assigneeId', {
+          assigneeId: query.assigneeId,
+        });
+      }
     }
 
     if (query.reporterId) {

@@ -979,6 +979,7 @@ export default function ProjectDetailPage() {
   const assignedToFilterOptions = useMemo(
     () => [
       { label: 'All Assignees', value: 'all' },
+      { label: 'Unassigned', value: 'unassigned' },
       ...(projectMembersQuery.data ?? []).map((member) => ({
         label: member.fullName,
         value: member.id,

@@ -33,9 +33,12 @@ export class GetTicketsQueryDto {
   @IsString()
   search?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description:
+      'Filter tickets by assignee id, or "unassigned" for tickets with no assignee.',
+  })
   @IsOptional()
-  @IsUUID()
+  @IsString()
   assigneeId?: string;
 
   @ApiPropertyOptional({

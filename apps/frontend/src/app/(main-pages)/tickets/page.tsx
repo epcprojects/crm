@@ -202,9 +202,17 @@ export default function Page() {
     enabled: hasPermission('tickets.view_list'),
   });
 
+  const assignableMembersProjectIds = selectedProjectIds.length
+    ? selectedProjectIds
+    : (projectsQuery.data ?? []).map((project) => project.id);
+
   const ticketMembersQuery = useQuery({
-    queryKey: ['project-members', 'assignable'],
-    queryFn: fetchAssignableMembers,
+    queryKey: [
+      'project-members',
+      'assignable',
+      assignableMembersProjectIds.join(','),
+    ],
+    queryFn: () => fetchAssignableMembers(assignableMembersProjectIds),
     enabled: hasPermission('tickets.view_list'),
   });
 
@@ -391,6 +399,7 @@ export default function Page() {
   const assignedToFilterOptions = useMemo(
     () => [
       { label: 'All Assignees', value: 'all' },
+      { label: 'Unassigned', value: 'unassigned' },
       ...(ticketMembersQuery.data ?? []).map((member) => ({
         label: member.fullName,
         value: member.id,

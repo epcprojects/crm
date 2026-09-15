@@ -38,11 +38,26 @@ export type AssignableMember = {
   email?: string | null;
 };
 
-// Members across every project the current user is allowed to see, used to
-// power the Created By / Assigned To filters on multi-project ticket views
-// (Recent Tickets, All Tickets) — scoped the same way the Project filter is.
-export async function fetchAssignableMembers() {
-  const response = await fetch('/api/projects/members?sortBy=fullName', {
+// Members of the given projects, used to power the Created By / Assigned To
+// filters on multi-project ticket views (Recent Tickets, All Tickets) —
+// scoped to projects the current user can see, same as the Project filter.
+// Only users actually added to one of those projects are returned.
+export async function fetchAssignableMembers(projectIds: string[] = []) {
+  // Never call this unscoped — without projectIds the backend returns every
+  // org member regardless of project membership.
+  if (projectIds.length === 0) {
+    return [];
+  }
+
+  const searchParams = new URLSearchParams({ sortBy: 'fullName' });
+
+  projectIds.forEach((projectId) => {
+    if (projectId) {
+      searchParams.append('projectIds', projectId);
+    }
+  });
+
+  const response = await fetch(`/api/projects/members?${searchParams}`, {
     method: 'GET',
     headers: {
       Accept: 'application/json',
