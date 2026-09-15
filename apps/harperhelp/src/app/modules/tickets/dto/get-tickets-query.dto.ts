@@ -38,6 +38,13 @@ export class GetTicketsQueryDto {
   @IsUUID()
   assigneeId?: string;
 
+  @ApiPropertyOptional({
+    description: 'Filter tickets created by this user (the reporter).',
+  })
+  @IsOptional()
+  @IsUUID()
+  reporterId?: string;
+
   @ApiPropertyOptional({ type: [String], isArray: true })
   @IsOptional()
   @Transform(({ value }) =>

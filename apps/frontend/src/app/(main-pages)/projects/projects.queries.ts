@@ -294,6 +294,8 @@ type ProjectTicketsQueryOptions = {
   contactId?: string;
   dateFrom?: string;
   dateTo?: string;
+  reporterId?: string;
+  assigneeId?: string;
   kanban?: boolean;
 };
 
@@ -319,6 +321,8 @@ export function useProjectTicketsQuery(
     contactId,
     dateFrom,
     dateTo,
+    reporterId,
+    assigneeId,
     kanban = false,
   }: ProjectTicketsQueryOptions,
   enabled = true,
@@ -336,6 +340,8 @@ export function useProjectTicketsQuery(
       contactId ?? 'all',
       dateFrom ?? '',
       dateTo ?? '',
+      reporterId ?? 'all',
+      assigneeId ?? 'all',
       kanban,
     ],
 
@@ -352,6 +358,8 @@ export function useProjectTicketsQuery(
             contactId,
             dateFrom,
             dateTo,
+            reporterId,
+            assigneeId,
           }),
 
     enabled: Boolean(projectId && enabled),
@@ -1510,6 +1518,8 @@ async function fetchProjectTickets(
     contactId,
     dateFrom,
     dateTo,
+    reporterId,
+    assigneeId,
   }: ProjectTicketsQueryOptions,
 ): Promise<ProjectTicketsResponse> {
   const searchParams = new URLSearchParams({
@@ -1543,6 +1553,14 @@ async function fetchProjectTickets(
 
   if (dateTo) {
     searchParams.set('dateTo', dateTo);
+  }
+
+  if (reporterId) {
+    searchParams.set('reporterId', reporterId);
+  }
+
+  if (assigneeId) {
+    searchParams.set('assigneeId', assigneeId);
   }
 
   const response = await fetch(

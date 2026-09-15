@@ -144,6 +144,8 @@ const PROJECT_TICKETS_TYPE_QUERY_PARAM = 'ticketType';
 const PROJECT_TICKETS_CONTACT_QUERY_PARAM = 'contactId';
 const PROJECT_TICKETS_DATE_FROM_QUERY_PARAM = 'dateFrom';
 const PROJECT_TICKETS_DATE_TO_QUERY_PARAM = 'dateTo';
+const PROJECT_TICKETS_CREATED_BY_QUERY_PARAM = 'reporterId';
+const PROJECT_TICKETS_ASSIGNED_TO_QUERY_PARAM = 'assigneeId';
 
 type SocketTokenResponse = {
   accessToken: string;
@@ -275,6 +277,12 @@ export default function ProjectDetailPage() {
     searchParams.get(PROJECT_TICKETS_DATE_FROM_QUERY_PARAM) ?? '';
   const dateToValue =
     searchParams.get(PROJECT_TICKETS_DATE_TO_QUERY_PARAM) ?? '';
+  const selectedCreatedBy = getProjectTicketFilterValue(
+    searchParams.get(PROJECT_TICKETS_CREATED_BY_QUERY_PARAM),
+  );
+  const selectedAssignedTo = getProjectTicketFilterValue(
+    searchParams.get(PROJECT_TICKETS_ASSIGNED_TO_QUERY_PARAM),
+  );
 
   const projectTicketsViewMode =
     searchParams.get(PROJECT_TICKETS_VIEW_QUERY_PARAM) === 'kanban'
@@ -330,7 +338,10 @@ export default function ProjectDetailPage() {
   const projectMembersQuery = useQuery({
     queryKey: ['project-members', projectId],
     queryFn: () => fetchProjectMembers(projectId),
-    enabled: Boolean(projectId && (canPostThreadMessage || canPostThreadReply)),
+    enabled: Boolean(
+      projectId &&
+        (canPostThreadMessage || canPostThreadReply || canViewTickets),
+    ),
   });
 
   const projectFilesQuery = useProjectFilesQuery(projectId, canViewFiles);
@@ -364,6 +375,10 @@ export default function ProjectDetailPage() {
       contactId: selectedContactId === 'all' ? undefined : selectedContactId,
       dateFrom: dateFromValue || undefined,
       dateTo: dateToValue || undefined,
+      reporterId:
+        selectedCreatedBy === 'all' ? undefined : selectedCreatedBy,
+      assigneeId:
+        selectedAssignedTo === 'all' ? undefined : selectedAssignedTo,
     },
     canViewTickets && projectTicketsViewMode === 'table',
   );
@@ -951,6 +966,26 @@ export default function ProjectDetailPage() {
     ],
     [ticketContactsQuery.data],
   );
+  const createdByFilterOptions = useMemo(
+    () => [
+      { label: 'All Creators', value: 'all' },
+      ...(projectMembersQuery.data ?? []).map((member) => ({
+        label: member.fullName,
+        value: member.id,
+      })),
+    ],
+    [projectMembersQuery.data],
+  );
+  const assignedToFilterOptions = useMemo(
+    () => [
+      { label: 'All Assignees', value: 'all' },
+      ...(projectMembersQuery.data ?? []).map((member) => ({
+        label: member.fullName,
+        value: member.id,
+      })),
+    ],
+    [projectMembersQuery.data],
+  );
 
   const project = projectDetailQuery.data;
 
@@ -1233,6 +1268,8 @@ export default function ProjectDetailPage() {
     contactId,
     dateFrom,
     dateTo,
+    createdBy,
+    assignedTo,
   }: {
     status?: string;
     priority?: string;
@@ -1240,6 +1277,8 @@ export default function ProjectDetailPage() {
     contactId?: string;
     dateFrom?: string;
     dateTo?: string;
+    createdBy?: string;
+    assignedTo?: string;
   }) => {
     const nextSearchParams = new URLSearchParams(searchParams.toString());
 
@@ -1249,6 +1288,8 @@ export default function ProjectDetailPage() {
     const nextContactId = contactId ?? selectedContactId;
     const nextDateFrom = dateFrom ?? dateFromValue;
     const nextDateTo = dateTo ?? dateToValue;
+    const nextCreatedBy = createdBy ?? selectedCreatedBy;
+    const nextAssignedTo = assignedTo ?? selectedAssignedTo;
 
     nextSearchParams.set(PROJECT_TICKETS_STATUS_QUERY_PARAM, nextStatus);
 
@@ -1282,6 +1323,21 @@ export default function ProjectDetailPage() {
       nextSearchParams.delete(PROJECT_TICKETS_DATE_TO_QUERY_PARAM);
     }
 
+    if (nextCreatedBy === 'all') {
+      nextSearchParams.delete(PROJECT_TICKETS_CREATED_BY_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(PROJECT_TICKETS_CREATED_BY_QUERY_PARAM, nextCreatedBy);
+    }
+
+    if (nextAssignedTo === 'all') {
+      nextSearchParams.delete(PROJECT_TICKETS_ASSIGNED_TO_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(
+        PROJECT_TICKETS_ASSIGNED_TO_QUERY_PARAM,
+        nextAssignedTo,
+      );
+    }
+
     const nextQueryString = nextSearchParams.toString();
 
     const currentQueryString = searchParams.toString();
@@ -1302,7 +1358,9 @@ export default function ProjectDetailPage() {
     selectedTicketType !== 'all' ||
     selectedContactId !== 'all' ||
     Boolean(dateFromValue) ||
-    Boolean(dateToValue);
+    Boolean(dateToValue) ||
+    selectedCreatedBy !== 'all' ||
+    selectedAssignedTo !== 'all';
 
   const clearProjectTicketFilters = () => {
     setSearchValue('');
@@ -1314,6 +1372,8 @@ export default function ProjectDetailPage() {
       contactId: 'all',
       dateFrom: '',
       dateTo: '',
+      createdBy: 'all',
+      assignedTo: 'all',
     });
   };
   const handleProjectTicketsViewChange = (nextViewMode: 'table' | 'kanban') => {
@@ -2428,6 +2488,36 @@ export default function ProjectDetailPage() {
                                       />
                                     </div>
 
+                                    <div className="relative w-full overflow-visible">
+                                      <Dropdown
+                                        options={createdByFilterOptions}
+                                        value={selectedCreatedBy}
+                                        onChange={(value) =>
+                                          updateProjectTicketFilters({
+                                            createdBy: value,
+                                          })
+                                        }
+                                        showSearch={true}
+                                        placeholder="All Creators"
+                                        maxMenuHeight={150}
+                                      />
+                                    </div>
+
+                                    <div className="relative w-full overflow-visible">
+                                      <Dropdown
+                                        options={assignedToFilterOptions}
+                                        value={selectedAssignedTo}
+                                        onChange={(value) =>
+                                          updateProjectTicketFilters({
+                                            assignedTo: value,
+                                          })
+                                        }
+                                        showSearch={true}
+                                        placeholder="All Assignees"
+                                        maxMenuHeight={150}
+                                      />
+                                    </div>
+
                                     <div className="flex items-center gap-2">
                                       <ThemeInput
                                         type="date"
@@ -2547,6 +2637,40 @@ export default function ProjectDetailPage() {
                                   maxMenuHeight={320}
                                 />
                               </div>
+
+                              {projectTicketsViewMode === 'table' ? (
+                                <div className="hidden w-55 xl:block">
+                                  <Dropdown
+                                    options={createdByFilterOptions}
+                                    value={selectedCreatedBy}
+                                    onChange={(value) =>
+                                      updateProjectTicketFilters({
+                                        createdBy: value,
+                                      })
+                                    }
+                                    showSearch={true}
+                                    placeholder="All Creators"
+                                    maxMenuHeight={320}
+                                  />
+                                </div>
+                              ) : null}
+
+                              {projectTicketsViewMode === 'table' ? (
+                                <div className="hidden w-55 xl:block">
+                                  <Dropdown
+                                    options={assignedToFilterOptions}
+                                    value={selectedAssignedTo}
+                                    onChange={(value) =>
+                                      updateProjectTicketFilters({
+                                        assignedTo: value,
+                                      })
+                                    }
+                                    showSearch={true}
+                                    placeholder="All Assignees"
+                                    maxMenuHeight={320}
+                                  />
+                                </div>
+                              ) : null}
 
                               {projectTicketsViewMode === 'table' ? (
                                 <div className="hidden xl:flex items-center gap-2">

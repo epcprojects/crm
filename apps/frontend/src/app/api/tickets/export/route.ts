@@ -36,6 +36,7 @@ type ApiTicket = {
   status?: { key: string; label: string; color?: string } | null;
   priority?: { key: string; label: string; color?: string } | null;
   assignee?: { id?: string; fullName?: string; email?: string } | null;
+  reporter?: { id?: string; fullName?: string; email?: string } | null;
 };
 
 type ApiTicketsPage = {
@@ -70,6 +71,10 @@ const EXPORT_COLUMNS: {
   {
     header: 'Assignee',
     getValue: (t) => t.assignee?.fullName ?? 'Unassigned',
+  },
+  {
+    header: 'Created By',
+    getValue: (t) => t.reporter?.fullName ?? '',
   },
   {
     header: 'Project',
@@ -135,6 +140,8 @@ export async function GET(request: NextRequest) {
       'contactId',
       'dateFrom',
       'dateTo',
+      'assigneeId',
+      'reporterId',
     ]) {
       const value = requestUrl.searchParams.get(key);
 

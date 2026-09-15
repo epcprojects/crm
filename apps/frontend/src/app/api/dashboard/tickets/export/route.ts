@@ -36,6 +36,7 @@ type ApiDashboardTicket = {
   status: { key: string; label: string; color?: string } | null;
   priority: { key: string; label: string; color?: string } | null;
   assignee: { id?: string; fullName?: string; name?: string } | null;
+  reporter?: { id?: string; fullName?: string; email?: string } | null;
 };
 
 // Controls exactly what ends up in the CSV, in this order.
@@ -58,6 +59,10 @@ const EXPORT_COLUMNS: {
   {
     header: 'Assignee',
     getValue: (t) => t.assignee?.fullName ?? t.assignee?.name ?? 'Unassigned',
+  },
+  {
+    header: 'Created By',
+    getValue: (t) => t.reporter?.fullName ?? '',
   },
   { header: 'Project', getValue: (t) => t.project?.name ?? 'No Project' },
   { header: 'Due Date', getValue: (t) => t.dueDate ?? '' },
@@ -114,6 +119,8 @@ export async function GET(request: NextRequest) {
       'contactId',
       'dateFrom',
       'dateTo',
+      'assigneeId',
+      'reporterId',
     ]) {
       const value = requestUrl.searchParams.get(key);
 

@@ -35,6 +35,7 @@ import {
   SearchIcon,
 } from '../../../../public/icons';
 import { createTicket } from '../../../lib/tickets';
+import { fetchAssignableMembers } from '../../../lib/project-members';
 import {
   projectsQueryKey,
   useDeleteTicketMutation,
@@ -74,6 +75,8 @@ const TICKETS_TYPE_QUERY_PARAM = 'ticketType';
 const TICKETS_CONTACT_QUERY_PARAM = 'contactId';
 const TICKETS_DATE_FROM_QUERY_PARAM = 'dateFrom';
 const TICKETS_DATE_TO_QUERY_PARAM = 'dateTo';
+const TICKETS_CREATED_BY_QUERY_PARAM = 'reporterId';
+const TICKETS_ASSIGNED_TO_QUERY_PARAM = 'assigneeId';
 const TICKETS_PAGE_SIZE_QUERY_PARAM = 'size';
 const ALLOWED_TICKETS_PAGE_SIZES = [10, 25, 50, 100];
 const KANBAN_PAGE_SIZE = 20;
@@ -170,6 +173,12 @@ export default function Page() {
   );
   const dateFromValue = searchParams.get(TICKETS_DATE_FROM_QUERY_PARAM) ?? '';
   const dateToValue = searchParams.get(TICKETS_DATE_TO_QUERY_PARAM) ?? '';
+  const selectedCreatedBy = getTicketsFilterValue(
+    searchParams.get(TICKETS_CREATED_BY_QUERY_PARAM),
+  );
+  const selectedAssignedTo = getTicketsFilterValue(
+    searchParams.get(TICKETS_ASSIGNED_TO_QUERY_PARAM),
+  );
   const [loadingKanbanStatuses, setLoadingKanbanStatuses] = useState<
     Record<string, boolean>
   >({});
@@ -193,6 +202,12 @@ export default function Page() {
     enabled: hasPermission('tickets.view_list'),
   });
 
+  const ticketMembersQuery = useQuery({
+    queryKey: ['project-members', 'assignable'],
+    queryFn: fetchAssignableMembers,
+    enabled: hasPermission('tickets.view_list'),
+  });
+
   const ticketsQuery = useQuery({
     queryKey: [
       'dashboard-project-tickets',
@@ -203,6 +218,8 @@ export default function Page() {
       selectedContactId,
       dateFromValue,
       dateToValue,
+      selectedCreatedBy,
+      selectedAssignedTo,
       debouncedSearchValue.trim(),
       pagination.pageIndex,
       pagination.pageSize,
@@ -217,6 +234,10 @@ export default function Page() {
         contactId: selectedContactId === 'all' ? undefined : selectedContactId,
         dateFrom: dateFromValue || undefined,
         dateTo: dateToValue || undefined,
+        reporterId:
+          selectedCreatedBy === 'all' ? undefined : selectedCreatedBy,
+        assigneeId:
+          selectedAssignedTo === 'all' ? undefined : selectedAssignedTo,
         search: debouncedSearchValue.trim(),
         page: pagination.pageIndex + 1,
         limit: pagination.pageSize,
@@ -356,6 +377,26 @@ export default function Page() {
       })),
     ],
     [ticketContactsQuery.data],
+  );
+  const createdByFilterOptions = useMemo(
+    () => [
+      { label: 'All Creators', value: 'all' },
+      ...(ticketMembersQuery.data ?? []).map((member) => ({
+        label: member.fullName,
+        value: member.id,
+      })),
+    ],
+    [ticketMembersQuery.data],
+  );
+  const assignedToFilterOptions = useMemo(
+    () => [
+      { label: 'All Assignees', value: 'all' },
+      ...(ticketMembersQuery.data ?? []).map((member) => ({
+        label: member.fullName,
+        value: member.id,
+      })),
+    ],
+    [ticketMembersQuery.data],
   );
 
   const kanbanStatusOptions = useMemo(
@@ -533,6 +574,26 @@ export default function Page() {
       if (dateToValue) {
         exportParams.set('dateTo', dateToValue);
         filenameParts.push(`to_${slugify(dateToValue)}`);
+      }
+
+      if (selectedCreatedBy !== 'all') {
+        exportParams.set('reporterId', selectedCreatedBy);
+        const createdByLabel = createdByFilterOptions.find(
+          (option) => option.value === selectedCreatedBy,
+        )?.label;
+        filenameParts.push(
+          `createdby_${slugify(createdByLabel ?? selectedCreatedBy)}`,
+        );
+      }
+
+      if (selectedAssignedTo !== 'all') {
+        exportParams.set('assigneeId', selectedAssignedTo);
+        const assignedToLabel = assignedToFilterOptions.find(
+          (option) => option.value === selectedAssignedTo,
+        )?.label;
+        filenameParts.push(
+          `assignedto_${slugify(assignedToLabel ?? selectedAssignedTo)}`,
+        );
       }
 
       const response = await fetch(
@@ -885,6 +946,8 @@ export default function Page() {
     selectedContactId,
     dateFromValue,
     dateToValue,
+    selectedCreatedBy,
+    selectedAssignedTo,
   ]);
 
   const hasActiveTicketFilters =
@@ -895,7 +958,9 @@ export default function Page() {
     selectedProjectIds.length > 0 ||
     selectedContactId !== 'all' ||
     Boolean(dateFromValue) ||
-    Boolean(dateToValue);
+    Boolean(dateToValue) ||
+    selectedCreatedBy !== 'all' ||
+    selectedAssignedTo !== 'all';
 
   const updateTicketsPageFilters = ({
     search,
@@ -907,6 +972,8 @@ export default function Page() {
     contactId,
     dateFrom,
     dateTo,
+    createdBy,
+    assignedTo,
   }: {
     search?: string;
     view?: 'table' | 'kanban';
@@ -917,6 +984,8 @@ export default function Page() {
     contactId?: string;
     dateFrom?: string;
     dateTo?: string;
+    createdBy?: string;
+    assignedTo?: string;
   }) => {
     const nextSearchParams = new URLSearchParams(searchParams.toString());
 
@@ -936,6 +1005,8 @@ export default function Page() {
     const nextContactId = contactId ?? selectedContactId;
     const nextDateFrom = dateFrom ?? dateFromValue;
     const nextDateTo = dateTo ?? dateToValue;
+    const nextCreatedBy = createdBy ?? selectedCreatedBy;
+    const nextAssignedTo = assignedTo ?? selectedAssignedTo;
 
     if (nextViewMode === 'table') {
       nextSearchParams.delete(TICKETS_VIEW_QUERY_PARAM);
@@ -982,6 +1053,18 @@ export default function Page() {
       nextSearchParams.delete(TICKETS_DATE_TO_QUERY_PARAM);
     }
 
+    if (nextCreatedBy === 'all') {
+      nextSearchParams.delete(TICKETS_CREATED_BY_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(TICKETS_CREATED_BY_QUERY_PARAM, nextCreatedBy);
+    }
+
+    if (nextAssignedTo === 'all') {
+      nextSearchParams.delete(TICKETS_ASSIGNED_TO_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(TICKETS_ASSIGNED_TO_QUERY_PARAM, nextAssignedTo);
+    }
+
     nextSearchParams.delete(TICKETS_PROJECT_QUERY_PARAM);
 
     nextProjectIds.forEach((projectId) => {
@@ -1011,6 +1094,8 @@ export default function Page() {
       contactId: 'all',
       dateFrom: '',
       dateTo: '',
+      createdBy: 'all',
+      assignedTo: 'all',
     });
   };
 
@@ -1440,35 +1525,67 @@ export default function Page() {
                                 </div>
 
                                 {viewMode === 'table' ? (
-                                  <div className="flex items-center gap-2">
-                                    <ThemeInput
-                                      type="date"
-                                      value={dateFromValue}
-                                      onChange={(event) =>
-                                        updateTicketsPageFilters({
-                                          dateFrom: event.target.value,
-                                        })
-                                      }
-                                      max={dateToValue || undefined}
-                                      wrapperClassName="w-full"
-                                      aria-label="From date"
-                                    />
-                                    <span className="shrink-0 text-xs text-gray-400">
-                                      to
-                                    </span>
-                                    <ThemeInput
-                                      type="date"
-                                      value={dateToValue}
-                                      onChange={(event) =>
-                                        updateTicketsPageFilters({
-                                          dateTo: event.target.value,
-                                        })
-                                      }
-                                      min={dateFromValue || undefined}
-                                      wrapperClassName="w-full"
-                                      aria-label="To date"
-                                    />
-                                  </div>
+                                  <>
+                                    <div className="relative w-full overflow-visible">
+                                      <Dropdown
+                                        options={createdByFilterOptions}
+                                        value={selectedCreatedBy}
+                                        onChange={(value) =>
+                                          updateTicketsPageFilters({
+                                            createdBy: value,
+                                          })
+                                        }
+                                        showSearch={true}
+                                        placeholder="All Creators"
+                                        maxMenuHeight={150}
+                                      />
+                                    </div>
+
+                                    <div className="relative w-full overflow-visible">
+                                      <Dropdown
+                                        options={assignedToFilterOptions}
+                                        value={selectedAssignedTo}
+                                        onChange={(value) =>
+                                          updateTicketsPageFilters({
+                                            assignedTo: value,
+                                          })
+                                        }
+                                        showSearch={true}
+                                        placeholder="All Assignees"
+                                        maxMenuHeight={150}
+                                      />
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                      <ThemeInput
+                                        type="date"
+                                        value={dateFromValue}
+                                        onChange={(event) =>
+                                          updateTicketsPageFilters({
+                                            dateFrom: event.target.value,
+                                          })
+                                        }
+                                        max={dateToValue || undefined}
+                                        wrapperClassName="w-full"
+                                        aria-label="From date"
+                                      />
+                                      <span className="shrink-0 text-xs text-gray-400">
+                                        to
+                                      </span>
+                                      <ThemeInput
+                                        type="date"
+                                        value={dateToValue}
+                                        onChange={(event) =>
+                                          updateTicketsPageFilters({
+                                            dateTo: event.target.value,
+                                          })
+                                        }
+                                        min={dateFromValue || undefined}
+                                        wrapperClassName="w-full"
+                                        aria-label="To date"
+                                      />
+                                    </div>
+                                  </>
                                 ) : null}
 
                                 <button
@@ -1572,35 +1689,67 @@ export default function Page() {
                                 </div>
 
                                 {viewMode === 'table' ? (
-                                  <div className="flex items-center gap-2">
-                                    <ThemeInput
-                                      type="date"
-                                      value={dateFromValue}
-                                      onChange={(event) =>
-                                        updateTicketsPageFilters({
-                                          dateFrom: event.target.value,
-                                        })
-                                      }
-                                      max={dateToValue || undefined}
-                                      wrapperClassName="w-full"
-                                      aria-label="From date"
-                                    />
-                                    <span className="shrink-0 text-xs text-gray-400">
-                                      to
-                                    </span>
-                                    <ThemeInput
-                                      type="date"
-                                      value={dateToValue}
-                                      onChange={(event) =>
-                                        updateTicketsPageFilters({
-                                          dateTo: event.target.value,
-                                        })
-                                      }
-                                      min={dateFromValue || undefined}
-                                      wrapperClassName="w-full"
-                                      aria-label="To date"
-                                    />
-                                  </div>
+                                  <>
+                                    <div className="relative w-full overflow-visible">
+                                      <Dropdown
+                                        options={createdByFilterOptions}
+                                        value={selectedCreatedBy}
+                                        onChange={(value) =>
+                                          updateTicketsPageFilters({
+                                            createdBy: value,
+                                          })
+                                        }
+                                        showSearch={true}
+                                        placeholder="All Creators"
+                                        maxMenuHeight={150}
+                                      />
+                                    </div>
+
+                                    <div className="relative w-full overflow-visible">
+                                      <Dropdown
+                                        options={assignedToFilterOptions}
+                                        value={selectedAssignedTo}
+                                        onChange={(value) =>
+                                          updateTicketsPageFilters({
+                                            assignedTo: value,
+                                          })
+                                        }
+                                        showSearch={true}
+                                        placeholder="All Assignees"
+                                        maxMenuHeight={150}
+                                      />
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                      <ThemeInput
+                                        type="date"
+                                        value={dateFromValue}
+                                        onChange={(event) =>
+                                          updateTicketsPageFilters({
+                                            dateFrom: event.target.value,
+                                          })
+                                        }
+                                        max={dateToValue || undefined}
+                                        wrapperClassName="w-full"
+                                        aria-label="From date"
+                                      />
+                                      <span className="shrink-0 text-xs text-gray-400">
+                                        to
+                                      </span>
+                                      <ThemeInput
+                                        type="date"
+                                        value={dateToValue}
+                                        onChange={(event) =>
+                                          updateTicketsPageFilters({
+                                            dateTo: event.target.value,
+                                          })
+                                        }
+                                        min={dateFromValue || undefined}
+                                        wrapperClassName="w-full"
+                                        aria-label="To date"
+                                      />
+                                    </div>
+                                  </>
                                 ) : null}
 
                                 <button
@@ -1715,6 +1864,36 @@ export default function Page() {
                             maxMenuHeight={320}
                           />
                         </div>
+
+                        {viewMode === 'table' && (
+                          <div className="w-full hidden 3xl:block 2xl:w-55">
+                            <Dropdown
+                              options={createdByFilterOptions}
+                              value={selectedCreatedBy}
+                              onChange={(value) =>
+                                updateTicketsPageFilters({ createdBy: value })
+                              }
+                              showSearch={true}
+                              placeholder="All Creators"
+                              maxMenuHeight={320}
+                            />
+                          </div>
+                        )}
+
+                        {viewMode === 'table' && (
+                          <div className="w-full hidden 3xl:block 2xl:w-55">
+                            <Dropdown
+                              options={assignedToFilterOptions}
+                              value={selectedAssignedTo}
+                              onChange={(value) =>
+                                updateTicketsPageFilters({ assignedTo: value })
+                              }
+                              showSearch={true}
+                              placeholder="All Assignees"
+                              maxMenuHeight={320}
+                            />
+                          </div>
+                        )}
 
                         {viewMode === 'table' && (
                           <div className="hidden 3xl:flex items-center gap-2">
@@ -1935,6 +2114,36 @@ export default function Page() {
                           maxMenuHeight={320}
                         />
                       </div>
+
+                      {viewMode === 'table' && (
+                        <div className="w-full hidden 2xl:block 2xl:w-55">
+                          <Dropdown
+                            options={createdByFilterOptions}
+                            value={selectedCreatedBy}
+                            onChange={(value) =>
+                              updateTicketsPageFilters({ createdBy: value })
+                            }
+                            showSearch={true}
+                            placeholder="All Creators"
+                            maxMenuHeight={320}
+                          />
+                        </div>
+                      )}
+
+                      {viewMode === 'table' && (
+                        <div className="w-full hidden 2xl:block 2xl:w-55">
+                          <Dropdown
+                            options={assignedToFilterOptions}
+                            value={selectedAssignedTo}
+                            onChange={(value) =>
+                              updateTicketsPageFilters({ assignedTo: value })
+                            }
+                            showSearch={true}
+                            placeholder="All Assignees"
+                            maxMenuHeight={320}
+                          />
+                        </div>
+                      )}
 
                       {viewMode === 'table' && (
                         <div className="hidden 2xl:flex items-center gap-2">
@@ -2357,6 +2566,8 @@ async function fetchDashboardTickets({
   contactId,
   dateFrom,
   dateTo,
+  reporterId,
+  assigneeId,
   search,
   page,
   limit,
@@ -2368,6 +2579,8 @@ async function fetchDashboardTickets({
   contactId?: string;
   dateFrom?: string;
   dateTo?: string;
+  reporterId?: string;
+  assigneeId?: string;
   search?: string;
   page: number;
   limit: number;
@@ -2404,6 +2617,14 @@ async function fetchDashboardTickets({
 
   if (dateTo) {
     searchParams.set('dateTo', dateTo);
+  }
+
+  if (reporterId) {
+    searchParams.set('reporterId', reporterId);
+  }
+
+  if (assigneeId) {
+    searchParams.set('assigneeId', assigneeId);
   }
 
   if (search) {

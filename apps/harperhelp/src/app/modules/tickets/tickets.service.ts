@@ -369,6 +369,12 @@ export class TicketsService {
       });
     }
 
+    if (query.reporterId) {
+      qb.andWhere('t.reporterId = :reporterId', {
+        reporterId: query.reporterId,
+      });
+    }
+
     if (query.contactId) {
       qb.andWhere('t.contactId = :contactId', {
         contactId: query.contactId,
@@ -523,6 +529,12 @@ export class TicketsService {
     if (query.assigneeId) {
       qb.andWhere('t.assigneeId = :assigneeId', {
         assigneeId: query.assigneeId,
+      });
+    }
+
+    if (query.reporterId) {
+      qb.andWhere('t.reporterId = :reporterId', {
+        reporterId: query.reporterId,
       });
     }
 

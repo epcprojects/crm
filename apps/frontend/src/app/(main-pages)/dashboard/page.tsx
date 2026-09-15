@@ -43,6 +43,7 @@ import RecentTicketsTable, {
 import { appToast } from '../../../components/toast/AppToast';
 import { ALLOWED_ATTACHMENT_EXTENSIONS } from '../../../lib/attachments';
 import { createTicket } from '../../../lib/tickets';
+import { fetchAssignableMembers } from '../../../lib/project-members';
 import type { ProjectRecord } from '../projects/projects.data';
 import {
   useDeleteProjectMutation,
@@ -188,6 +189,8 @@ const RECENT_TICKETS_TYPE_QUERY_PARAM = 'ticketType';
 const RECENT_TICKETS_CONTACT_QUERY_PARAM = 'contactId';
 const RECENT_TICKETS_DATE_FROM_QUERY_PARAM = 'dateFrom';
 const RECENT_TICKETS_DATE_TO_QUERY_PARAM = 'dateTo';
+const RECENT_TICKETS_CREATED_BY_QUERY_PARAM = 'reporterId';
+const RECENT_TICKETS_ASSIGNED_TO_QUERY_PARAM = 'assigneeId';
 const TICKETS_PROJECT_QUERY_PARAM = 'project';
 const DASHBOARD_TABS_QUERY_PARAM = 'dashboardTab';
 const DASHBOARD_ACTIVITY_PAGE_SIZE = 20;
@@ -299,6 +302,12 @@ export default function Page() {
     searchParams.get(RECENT_TICKETS_DATE_FROM_QUERY_PARAM) ?? '';
   const dateToValue =
     searchParams.get(RECENT_TICKETS_DATE_TO_QUERY_PARAM) ?? '';
+  const selectedCreatedBy = getDashboardPriorityFilterValue(
+    searchParams.get(RECENT_TICKETS_CREATED_BY_QUERY_PARAM),
+  );
+  const selectedAssignedTo = getDashboardPriorityFilterValue(
+    searchParams.get(RECENT_TICKETS_ASSIGNED_TO_QUERY_PARAM),
+  );
   const selectedDashboardTab = getDashboardTabValue(
     searchParams.get(DASHBOARD_TABS_QUERY_PARAM),
   );
@@ -355,6 +364,12 @@ export default function Page() {
     enabled: canViewRecentTickets,
   });
 
+  const ticketMembersQuery = useQuery({
+    queryKey: ['project-members', 'assignable'],
+    queryFn: fetchAssignableMembers,
+    enabled: canViewRecentTickets,
+  });
+
   const statusFilterOptions = useMemo(
     () => [
       {
@@ -402,6 +417,26 @@ export default function Page() {
     ],
     [ticketContactsQuery.data],
   );
+  const createdByFilterOptions = useMemo(
+    () => [
+      { label: 'All Creators', value: 'all' },
+      ...(ticketMembersQuery.data ?? []).map((member) => ({
+        label: member.fullName,
+        value: member.id,
+      })),
+    ],
+    [ticketMembersQuery.data],
+  );
+  const assignedToFilterOptions = useMemo(
+    () => [
+      { label: 'All Assignees', value: 'all' },
+      ...(ticketMembersQuery.data ?? []).map((member) => ({
+        label: member.fullName,
+        value: member.id,
+      })),
+    ],
+    [ticketMembersQuery.data],
+  );
   const ticketSummaryQuery = useQuery({
     queryKey: ['dashboard', 'ticket-summary'],
     queryFn: fetchTicketSummary,
@@ -441,6 +476,8 @@ export default function Page() {
       selectedContactId,
       dateFromValue,
       dateToValue,
+      selectedCreatedBy,
+      selectedAssignedTo,
     ],
 
     queryFn: () =>
@@ -459,6 +496,10 @@ export default function Page() {
         contactId: selectedContactId === 'all' ? undefined : selectedContactId,
         dateFrom: dateFromValue || undefined,
         dateTo: dateToValue || undefined,
+        reporterId:
+          selectedCreatedBy === 'all' ? undefined : selectedCreatedBy,
+        assigneeId:
+          selectedAssignedTo === 'all' ? undefined : selectedAssignedTo,
       }),
 
     enabled: canViewRecentTickets,
@@ -536,6 +577,8 @@ export default function Page() {
     contactId,
     dateFrom,
     dateTo,
+    createdBy,
+    assignedTo,
   }: {
     status?: string;
     priority?: string;
@@ -544,6 +587,8 @@ export default function Page() {
     contactId?: string;
     dateFrom?: string;
     dateTo?: string;
+    createdBy?: string;
+    assignedTo?: string;
   }) => {
     const nextSearchParams = new URLSearchParams(searchParams.toString());
 
@@ -554,6 +599,8 @@ export default function Page() {
     const nextContactId = contactId ?? selectedContactId;
     const nextDateFrom = dateFrom ?? dateFromValue;
     const nextDateTo = dateTo ?? dateToValue;
+    const nextCreatedBy = createdBy ?? selectedCreatedBy;
+    const nextAssignedTo = assignedTo ?? selectedAssignedTo;
 
     if (nextStatus === 'Open') {
       nextSearchParams.delete(RECENT_TICKETS_STATUS_QUERY_PARAM);
@@ -589,6 +636,21 @@ export default function Page() {
       nextSearchParams.set(RECENT_TICKETS_DATE_TO_QUERY_PARAM, nextDateTo);
     } else {
       nextSearchParams.delete(RECENT_TICKETS_DATE_TO_QUERY_PARAM);
+    }
+
+    if (nextCreatedBy === 'all') {
+      nextSearchParams.delete(RECENT_TICKETS_CREATED_BY_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(RECENT_TICKETS_CREATED_BY_QUERY_PARAM, nextCreatedBy);
+    }
+
+    if (nextAssignedTo === 'all') {
+      nextSearchParams.delete(RECENT_TICKETS_ASSIGNED_TO_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(
+        RECENT_TICKETS_ASSIGNED_TO_QUERY_PARAM,
+        nextAssignedTo,
+      );
     }
 
     nextSearchParams.delete(TICKETS_PROJECT_QUERY_PARAM);
@@ -692,6 +754,26 @@ export default function Page() {
       if (dateToValue) {
         exportParams.set('dateTo', dateToValue);
         filenameParts.push(`to_${slugify(dateToValue)}`);
+      }
+
+      if (selectedCreatedBy !== 'all') {
+        exportParams.set('reporterId', selectedCreatedBy);
+        const createdByLabel = createdByFilterOptions.find(
+          (option) => option.value === selectedCreatedBy,
+        )?.label;
+        filenameParts.push(
+          `createdby_${slugify(createdByLabel ?? selectedCreatedBy)}`,
+        );
+      }
+
+      if (selectedAssignedTo !== 'all') {
+        exportParams.set('assigneeId', selectedAssignedTo);
+        const assignedToLabel = assignedToFilterOptions.find(
+          (option) => option.value === selectedAssignedTo,
+        )?.label;
+        filenameParts.push(
+          `assignedto_${slugify(assignedToLabel ?? selectedAssignedTo)}`,
+        );
       }
 
       const response = await fetch(
@@ -1261,7 +1343,9 @@ export default function Page() {
                                 selectedTicketType !== 'all' ||
                                 selectedContactId !== 'all' ||
                                 Boolean(dateFromValue) ||
-                                Boolean(dateToValue)
+                                Boolean(dateToValue) ||
+                                selectedCreatedBy !== 'all' ||
+                                selectedAssignedTo !== 'all'
                                   ? 'border-primary bg-primary/5 text-primary'
                                   : 'border-gray-200 bg-white text-gray-600'
                               }`}
@@ -1333,6 +1417,34 @@ export default function Page() {
                                   maxMenuHeight={150}
                                 />
                               </div>
+                              <div className="relative w-full overflow-visible">
+                                <Dropdown
+                                  options={createdByFilterOptions}
+                                  value={selectedCreatedBy}
+                                  onChange={(value) =>
+                                    updateRecentTicketsFilters({
+                                      createdBy: value,
+                                    })
+                                  }
+                                  showSearch={true}
+                                  placeholder="All Creators"
+                                  maxMenuHeight={150}
+                                />
+                              </div>
+                              <div className="relative w-full overflow-visible">
+                                <Dropdown
+                                  options={assignedToFilterOptions}
+                                  value={selectedAssignedTo}
+                                  onChange={(value) =>
+                                    updateRecentTicketsFilters({
+                                      assignedTo: value,
+                                    })
+                                  }
+                                  showSearch={true}
+                                  placeholder="All Assignees"
+                                  maxMenuHeight={150}
+                                />
+                              </div>
                               <div className="flex items-center gap-2">
                                 <ThemeInput
                                   type="date"
@@ -1368,7 +1480,9 @@ export default function Page() {
                               selectedProjectIds.length > 0 ||
                               selectedContactId !== 'all' ||
                               dateFromValue ||
-                              dateToValue ? (
+                              dateToValue ||
+                              selectedCreatedBy !== 'all' ||
+                              selectedAssignedTo !== 'all' ? (
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -1380,6 +1494,8 @@ export default function Page() {
                                       contactId: 'all',
                                       dateFrom: '',
                                       dateTo: '',
+                                      createdBy: 'all',
+                                      assignedTo: 'all',
                                     });
                                   }}
                                   className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50"
@@ -1493,6 +1609,34 @@ export default function Page() {
                           />
                         </div>
 
+                        <div className="w-full">
+                          <Dropdown
+                            options={createdByFilterOptions}
+                            value={selectedCreatedBy}
+                            showSearch={true}
+                            onChange={(value) =>
+                              updateRecentTicketsFilters({
+                                createdBy: value,
+                              })
+                            }
+                            placeholder="All Creators"
+                          />
+                        </div>
+
+                        <div className="w-full">
+                          <Dropdown
+                            options={assignedToFilterOptions}
+                            value={selectedAssignedTo}
+                            showSearch={true}
+                            onChange={(value) =>
+                              updateRecentTicketsFilters({
+                                assignedTo: value,
+                              })
+                            }
+                            placeholder="All Assignees"
+                          />
+                        </div>
+
                         <div className="flex items-center gap-2">
                           <ThemeInput
                             type="date"
@@ -1534,7 +1678,9 @@ export default function Page() {
                             selectedTicketType === 'all' &&
                             selectedContactId === 'all' &&
                             !dateFromValue &&
-                            !dateToValue
+                            !dateToValue &&
+                            selectedCreatedBy === 'all' &&
+                            selectedAssignedTo === 'all'
                           }
                           onClick={() => {
                             updateRecentTicketsFilters({
@@ -1545,6 +1691,8 @@ export default function Page() {
                               contactId: 'all',
                               dateFrom: '',
                               dateTo: '',
+                              createdBy: 'all',
+                              assignedTo: 'all',
                             });
                           }}
                           className="disabled:cursor-not-allowed disabled:opacity-50"
@@ -2638,6 +2786,8 @@ async function fetchDashboardTickets({
   contactId,
   dateFrom,
   dateTo,
+  reporterId,
+  assigneeId,
 }: {
   page: number;
   limit: number;
@@ -2649,6 +2799,8 @@ async function fetchDashboardTickets({
   contactId?: string;
   dateFrom?: string;
   dateTo?: string;
+  reporterId?: string;
+  assigneeId?: string;
 }): Promise<DashboardTicketsResponse> {
   const searchParams = new URLSearchParams({
     page: String(page),
@@ -2676,6 +2828,12 @@ async function fetchDashboardTickets({
   }
   if (dateTo) {
     searchParams.set('dateTo', dateTo);
+  }
+  if (reporterId) {
+    searchParams.set('reporterId', reporterId);
+  }
+  if (assigneeId) {
+    searchParams.set('assigneeId', assigneeId);
   }
   projectIds?.forEach((projectId) => {
     if (projectId) {
