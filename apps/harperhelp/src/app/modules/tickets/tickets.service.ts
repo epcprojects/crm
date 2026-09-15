@@ -368,6 +368,24 @@ export class TicketsService {
         assigneeId: query.assigneeId,
       });
     }
+
+    if (query.contactId) {
+      qb.andWhere('t.contactId = :contactId', {
+        contactId: query.contactId,
+      });
+    }
+
+    if (query.dateFrom) {
+      const fromDate = new Date(`${query.dateFrom}T00:00:00.000Z`);
+      qb.andWhere('t.createdAt >= :dateFrom', { dateFrom: fromDate });
+    }
+
+    if (query.dateTo) {
+      const toDate = new Date(`${query.dateTo}T00:00:00.000Z`);
+      toDate.setUTCDate(toDate.getUTCDate() + 1);
+      qb.andWhere('t.createdAt < :dateTo', { dateTo: toDate });
+    }
+
     const search = query.search?.trim();
     if (search) {
       qb.andWhere(

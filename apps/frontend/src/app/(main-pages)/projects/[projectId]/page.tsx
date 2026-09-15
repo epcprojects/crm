@@ -70,6 +70,7 @@ import {
 } from '../../../../../public/icons';
 import Dropdown from '../../../../components/ui/ThemeDropDown';
 import ThemeButton from '../../../../components/ui/ThemeButton';
+import ThemeInput from '../../../../components/ui/ThemeInput';
 import { useIsMobile } from '../../../../components/hooks/useIsMobile';
 import { useThread } from '../../../../components/hooks/useThread';
 import { useAppLoader } from '../../../providers/AppLoaderProvider';
@@ -140,6 +141,9 @@ const PROJECT_NOTES_LIMIT = 50;
 const MAX_PROJECT_NOTE_DESCRIPTION_LENGTH = 4000;
 const PROJECT_KANBAN_PAGE_SIZE = 20;
 const PROJECT_TICKETS_TYPE_QUERY_PARAM = 'ticketType';
+const PROJECT_TICKETS_CONTACT_QUERY_PARAM = 'contactId';
+const PROJECT_TICKETS_DATE_FROM_QUERY_PARAM = 'dateFrom';
+const PROJECT_TICKETS_DATE_TO_QUERY_PARAM = 'dateTo';
 
 type SocketTokenResponse = {
   accessToken: string;
@@ -264,6 +268,13 @@ export default function ProjectDetailPage() {
   const selectedTicketType = getProjectTicketTypeFilterValue(
     searchParams.get(PROJECT_TICKETS_TYPE_QUERY_PARAM),
   );
+  const selectedContactId = getProjectTicketFilterValue(
+    searchParams.get(PROJECT_TICKETS_CONTACT_QUERY_PARAM),
+  );
+  const dateFromValue =
+    searchParams.get(PROJECT_TICKETS_DATE_FROM_QUERY_PARAM) ?? '';
+  const dateToValue =
+    searchParams.get(PROJECT_TICKETS_DATE_TO_QUERY_PARAM) ?? '';
 
   const projectTicketsViewMode =
     searchParams.get(PROJECT_TICKETS_VIEW_QUERY_PARAM) === 'kanban'
@@ -350,6 +361,9 @@ export default function ProjectDetailPage() {
       statusKey: selectedStatus === 'all' ? undefined : selectedStatus,
       priorityKey: selectedPriority === 'all' ? undefined : selectedPriority,
       ticketType: selectedTicketType === 'all' ? undefined : selectedTicketType,
+      contactId: selectedContactId === 'all' ? undefined : selectedContactId,
+      dateFrom: dateFromValue || undefined,
+      dateTo: dateToValue || undefined,
     },
     canViewTickets && projectTicketsViewMode === 'table',
   );
@@ -598,6 +612,11 @@ export default function ProjectDetailPage() {
   const ticketPrioritiesQuery = useQuery({
     queryKey: ['ticket-priorities'],
     queryFn: fetchTicketPriorities,
+    enabled: canViewTickets,
+  });
+  const ticketContactsQuery = useQuery({
+    queryKey: ['contacts', 'ticket-filter'],
+    queryFn: fetchTicketContactOptions,
     enabled: canViewTickets,
   });
 
@@ -920,6 +939,18 @@ export default function ProjectDetailPage() {
     ],
     [ticketPrioritiesQuery.data],
   );
+  const contactFilterOptions = useMemo(
+    () => [
+      { label: 'All Contacts', value: 'all' },
+      ...(ticketContactsQuery.data ?? []).map((contact) => ({
+        label: contact.fullName
+          ? `${contact.fullName} (${contact.phone})`
+          : contact.phone,
+        value: contact.id,
+      })),
+    ],
+    [ticketContactsQuery.data],
+  );
 
   const project = projectDetailQuery.data;
 
@@ -1199,16 +1230,25 @@ export default function ProjectDetailPage() {
     status,
     priority,
     ticketType,
+    contactId,
+    dateFrom,
+    dateTo,
   }: {
     status?: string;
     priority?: string;
     ticketType?: string;
+    contactId?: string;
+    dateFrom?: string;
+    dateTo?: string;
   }) => {
     const nextSearchParams = new URLSearchParams(searchParams.toString());
 
     const nextStatus = status ?? selectedStatus;
     const nextPriority = priority ?? selectedPriority;
     const nextTicketType = ticketType ?? selectedTicketType;
+    const nextContactId = contactId ?? selectedContactId;
+    const nextDateFrom = dateFrom ?? dateFromValue;
+    const nextDateTo = dateTo ?? dateToValue;
 
     nextSearchParams.set(PROJECT_TICKETS_STATUS_QUERY_PARAM, nextStatus);
 
@@ -1222,6 +1262,24 @@ export default function ProjectDetailPage() {
       nextSearchParams.delete(PROJECT_TICKETS_TYPE_QUERY_PARAM);
     } else {
       nextSearchParams.set(PROJECT_TICKETS_TYPE_QUERY_PARAM, nextTicketType);
+    }
+
+    if (nextContactId === 'all') {
+      nextSearchParams.delete(PROJECT_TICKETS_CONTACT_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(PROJECT_TICKETS_CONTACT_QUERY_PARAM, nextContactId);
+    }
+
+    if (nextDateFrom) {
+      nextSearchParams.set(PROJECT_TICKETS_DATE_FROM_QUERY_PARAM, nextDateFrom);
+    } else {
+      nextSearchParams.delete(PROJECT_TICKETS_DATE_FROM_QUERY_PARAM);
+    }
+
+    if (nextDateTo) {
+      nextSearchParams.set(PROJECT_TICKETS_DATE_TO_QUERY_PARAM, nextDateTo);
+    } else {
+      nextSearchParams.delete(PROJECT_TICKETS_DATE_TO_QUERY_PARAM);
     }
 
     const nextQueryString = nextSearchParams.toString();
@@ -1241,7 +1299,10 @@ export default function ProjectDetailPage() {
     Boolean(searchValue.trim()) ||
     selectedStatus !== 'all' ||
     selectedPriority !== 'all' ||
-    selectedTicketType !== 'all';
+    selectedTicketType !== 'all' ||
+    selectedContactId !== 'all' ||
+    Boolean(dateFromValue) ||
+    Boolean(dateToValue);
 
   const clearProjectTicketFilters = () => {
     setSearchValue('');
@@ -1250,6 +1311,9 @@ export default function ProjectDetailPage() {
       status: 'all',
       priority: 'all',
       ticketType: 'all',
+      contactId: 'all',
+      dateFrom: '',
+      dateTo: '',
     });
   };
   const handleProjectTicketsViewChange = (nextViewMode: 'table' | 'kanban') => {
@@ -2349,6 +2413,51 @@ export default function ProjectDetailPage() {
                                       />
                                     </div>
 
+                                    <div className="relative w-full overflow-visible">
+                                      <Dropdown
+                                        options={contactFilterOptions}
+                                        value={selectedContactId}
+                                        onChange={(value) =>
+                                          updateProjectTicketFilters({
+                                            contactId: value,
+                                          })
+                                        }
+                                        showSearch={true}
+                                        placeholder="All Contacts"
+                                        maxMenuHeight={150}
+                                      />
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                      <ThemeInput
+                                        type="date"
+                                        value={dateFromValue}
+                                        onChange={(event) =>
+                                          updateProjectTicketFilters({
+                                            dateFrom: event.target.value,
+                                          })
+                                        }
+                                        max={dateToValue || undefined}
+                                        wrapperClassName="w-full"
+                                        aria-label="From date"
+                                      />
+                                      <span className="shrink-0 text-xs text-gray-400">
+                                        to
+                                      </span>
+                                      <ThemeInput
+                                        type="date"
+                                        value={dateToValue}
+                                        onChange={(event) =>
+                                          updateProjectTicketFilters({
+                                            dateTo: event.target.value,
+                                          })
+                                        }
+                                        min={dateFromValue || undefined}
+                                        wrapperClassName="w-full"
+                                        aria-label="To date"
+                                      />
+                                    </div>
+
                                     <button
                                       type="button"
                                       onClick={clearProjectTicketFilters}
@@ -2423,6 +2532,53 @@ export default function ProjectDetailPage() {
                                   placeholder="All Priority"
                                 />
                               </div>
+
+                              <div className="hidden w-55 xl:block">
+                                <Dropdown
+                                  options={contactFilterOptions}
+                                  value={selectedContactId}
+                                  onChange={(value) =>
+                                    updateProjectTicketFilters({
+                                      contactId: value,
+                                    })
+                                  }
+                                  showSearch={true}
+                                  placeholder="All Contacts"
+                                  maxMenuHeight={320}
+                                />
+                              </div>
+
+                              {projectTicketsViewMode === 'table' ? (
+                                <div className="hidden xl:flex items-center gap-2">
+                                  <ThemeInput
+                                    type="date"
+                                    value={dateFromValue}
+                                    onChange={(event) =>
+                                      updateProjectTicketFilters({
+                                        dateFrom: event.target.value,
+                                      })
+                                    }
+                                    max={dateToValue || undefined}
+                                    wrapperClassName="w-full"
+                                    aria-label="From date"
+                                  />
+                                  <span className="shrink-0 text-xs text-gray-400">
+                                    to
+                                  </span>
+                                  <ThemeInput
+                                    type="date"
+                                    value={dateToValue}
+                                    onChange={(event) =>
+                                      updateProjectTicketFilters({
+                                        dateTo: event.target.value,
+                                      })
+                                    }
+                                    min={dateFromValue || undefined}
+                                    wrapperClassName="w-full"
+                                    aria-label="To date"
+                                  />
+                                </div>
+                              ) : null}
                               <ThemeButton
                                 type="button"
                                 variant="secondary"
@@ -3849,6 +4005,33 @@ async function fetchTicketPriorities() {
   }
 
   return payload;
+}
+
+type ApiTicketContactOption = {
+  id: string;
+  fullName: string | null;
+  phone: string;
+};
+
+async function fetchTicketContactOptions() {
+  const response = await fetch('/api/contacts?limit=200', {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as {
+    items?: ApiTicketContactOption[];
+    message?: string;
+  } | null;
+
+  if (!response.ok || !Array.isArray(payload?.items)) {
+    throw new Error(payload?.message || 'Failed to fetch contacts.');
+  }
+
+  return payload.items;
 }
 
 async function fetchSocketToken(): Promise<SocketTokenResponse> {

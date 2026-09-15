@@ -61,6 +61,7 @@ import {
 } from '../../providers/PermissionProvider';
 import { useAppLoader } from '../../providers/AppLoaderProvider';
 import ThemeButton from '../../../components/ui/ThemeButton';
+import ThemeInput from '../../../components/ui/ThemeInput';
 import { useAppSelector } from '../../Redux/store';
 import EmptyState from '../../../components/EmptyState';
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
@@ -184,6 +185,9 @@ const RECENT_TICKETS_STATUS_QUERY_PARAM = 'status';
 const RECENT_TICKETS_SEARCH_QUERY_PARAM = 'search';
 const RECENT_TICKETS_PRIORITY_QUERY_PARAM = 'priority';
 const RECENT_TICKETS_TYPE_QUERY_PARAM = 'ticketType';
+const RECENT_TICKETS_CONTACT_QUERY_PARAM = 'contactId';
+const RECENT_TICKETS_DATE_FROM_QUERY_PARAM = 'dateFrom';
+const RECENT_TICKETS_DATE_TO_QUERY_PARAM = 'dateTo';
 const TICKETS_PROJECT_QUERY_PARAM = 'project';
 const DASHBOARD_TABS_QUERY_PARAM = 'dashboardTab';
 const DASHBOARD_ACTIVITY_PAGE_SIZE = 20;
@@ -288,6 +292,13 @@ export default function Page() {
   const selectedTicketType = getDashboardTicketTypeFilterValue(
     searchParams.get(RECENT_TICKETS_TYPE_QUERY_PARAM),
   );
+  const selectedContactId = getDashboardPriorityFilterValue(
+    searchParams.get(RECENT_TICKETS_CONTACT_QUERY_PARAM),
+  );
+  const dateFromValue =
+    searchParams.get(RECENT_TICKETS_DATE_FROM_QUERY_PARAM) ?? '';
+  const dateToValue =
+    searchParams.get(RECENT_TICKETS_DATE_TO_QUERY_PARAM) ?? '';
   const selectedDashboardTab = getDashboardTabValue(
     searchParams.get(DASHBOARD_TABS_QUERY_PARAM),
   );
@@ -338,6 +349,12 @@ export default function Page() {
     enabled: canViewRecentTickets,
   });
 
+  const ticketContactsQuery = useQuery({
+    queryKey: ['contacts', 'ticket-filter'],
+    queryFn: fetchTicketContactOptions,
+    enabled: canViewRecentTickets,
+  });
+
   const statusFilterOptions = useMemo(
     () => [
       {
@@ -372,6 +389,18 @@ export default function Page() {
         value: project.id,
       })),
     [projectNamesQuery.data],
+  );
+  const contactFilterOptions = useMemo(
+    () => [
+      { label: 'All Contacts', value: 'all' },
+      ...(ticketContactsQuery.data ?? []).map((contact) => ({
+        label: contact.fullName
+          ? `${contact.fullName} (${contact.phone})`
+          : contact.phone,
+        value: contact.id,
+      })),
+    ],
+    [ticketContactsQuery.data],
   );
   const ticketSummaryQuery = useQuery({
     queryKey: ['dashboard', 'ticket-summary'],
@@ -409,6 +438,9 @@ export default function Page() {
       selectedStatus,
       selectedPriority,
       selectedTicketType,
+      selectedContactId,
+      dateFromValue,
+      dateToValue,
     ],
 
     queryFn: () =>
@@ -424,6 +456,9 @@ export default function Page() {
         priorityKey: selectedPriority === 'all' ? undefined : selectedPriority,
         ticketType:
           selectedTicketType === 'all' ? undefined : selectedTicketType,
+        contactId: selectedContactId === 'all' ? undefined : selectedContactId,
+        dateFrom: dateFromValue || undefined,
+        dateTo: dateToValue || undefined,
       }),
 
     enabled: canViewRecentTickets,
@@ -498,11 +533,17 @@ export default function Page() {
     priority,
     project,
     ticketType,
+    contactId,
+    dateFrom,
+    dateTo,
   }: {
     status?: string;
     priority?: string;
     project?: string[];
     ticketType?: string;
+    contactId?: string;
+    dateFrom?: string;
+    dateTo?: string;
   }) => {
     const nextSearchParams = new URLSearchParams(searchParams.toString());
 
@@ -510,6 +551,9 @@ export default function Page() {
     const nextPriority = priority ?? selectedPriority;
     const nextProjectIds = project ?? selectedProjectIds;
     const nextTicketType = ticketType ?? selectedTicketType;
+    const nextContactId = contactId ?? selectedContactId;
+    const nextDateFrom = dateFrom ?? dateFromValue;
+    const nextDateTo = dateTo ?? dateToValue;
 
     if (nextStatus === 'Open') {
       nextSearchParams.delete(RECENT_TICKETS_STATUS_QUERY_PARAM);
@@ -527,6 +571,24 @@ export default function Page() {
       nextSearchParams.delete(RECENT_TICKETS_TYPE_QUERY_PARAM);
     } else {
       nextSearchParams.set(RECENT_TICKETS_TYPE_QUERY_PARAM, nextTicketType);
+    }
+
+    if (nextContactId === 'all') {
+      nextSearchParams.delete(RECENT_TICKETS_CONTACT_QUERY_PARAM);
+    } else {
+      nextSearchParams.set(RECENT_TICKETS_CONTACT_QUERY_PARAM, nextContactId);
+    }
+
+    if (nextDateFrom) {
+      nextSearchParams.set(RECENT_TICKETS_DATE_FROM_QUERY_PARAM, nextDateFrom);
+    } else {
+      nextSearchParams.delete(RECENT_TICKETS_DATE_FROM_QUERY_PARAM);
+    }
+
+    if (nextDateTo) {
+      nextSearchParams.set(RECENT_TICKETS_DATE_TO_QUERY_PARAM, nextDateTo);
+    } else {
+      nextSearchParams.delete(RECENT_TICKETS_DATE_TO_QUERY_PARAM);
     }
 
     nextSearchParams.delete(TICKETS_PROJECT_QUERY_PARAM);
@@ -612,6 +674,24 @@ export default function Page() {
           (option) => option.value === selectedPriority,
         )?.label;
         filenameParts.push(slugify(priorityLabel ?? selectedPriority));
+      }
+
+      if (selectedContactId !== 'all') {
+        exportParams.set('contactId', selectedContactId);
+        const contactLabel = contactFilterOptions.find(
+          (option) => option.value === selectedContactId,
+        )?.label;
+        filenameParts.push(`contact_${slugify(contactLabel ?? selectedContactId)}`);
+      }
+
+      if (dateFromValue) {
+        exportParams.set('dateFrom', dateFromValue);
+        filenameParts.push(`from_${slugify(dateFromValue)}`);
+      }
+
+      if (dateToValue) {
+        exportParams.set('dateTo', dateToValue);
+        filenameParts.push(`to_${slugify(dateToValue)}`);
       }
 
       const response = await fetch(
@@ -1178,7 +1258,10 @@ export default function Page() {
                                 open ||
                                 selectedStatus !== 'Open' ||
                                 selectedPriority !== 'all' ||
-                                selectedTicketType !== 'all'
+                                selectedTicketType !== 'all' ||
+                                selectedContactId !== 'all' ||
+                                Boolean(dateFromValue) ||
+                                Boolean(dateToValue)
                                   ? 'border-primary bg-primary/5 text-primary'
                                   : 'border-gray-200 bg-white text-gray-600'
                               }`}
@@ -1236,10 +1319,56 @@ export default function Page() {
                                   maxMenuHeight={150}
                                 />
                               </div>
+                              <div className="relative w-full overflow-visible">
+                                <Dropdown
+                                  options={contactFilterOptions}
+                                  value={selectedContactId}
+                                  onChange={(value) =>
+                                    updateRecentTicketsFilters({
+                                      contactId: value,
+                                    })
+                                  }
+                                  showSearch={true}
+                                  placeholder="All Contacts"
+                                  maxMenuHeight={150}
+                                />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <ThemeInput
+                                  type="date"
+                                  value={dateFromValue}
+                                  onChange={(event) =>
+                                    updateRecentTicketsFilters({
+                                      dateFrom: event.target.value,
+                                    })
+                                  }
+                                  max={dateToValue || undefined}
+                                  wrapperClassName="w-full"
+                                  aria-label="From date"
+                                />
+                                <span className="shrink-0 text-xs text-gray-400">
+                                  to
+                                </span>
+                                <ThemeInput
+                                  type="date"
+                                  value={dateToValue}
+                                  onChange={(event) =>
+                                    updateRecentTicketsFilters({
+                                      dateTo: event.target.value,
+                                    })
+                                  }
+                                  min={dateFromValue || undefined}
+                                  wrapperClassName="w-full"
+                                  aria-label="To date"
+                                />
+                              </div>
                               {selectedStatus !== 'all' ||
                               selectedPriority !== 'all' ||
                               selectedTicketType !== 'all' ||
-                              selectedProjectIds.length > 0 ? (
+                              selectedProjectIds.length > 0 ||
+                              selectedContactId !== 'all' ||
+                              dateFromValue ||
+                              dateToValue ? (
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -1248,6 +1377,9 @@ export default function Page() {
                                       status: 'all',
                                       priority: 'all',
                                       ticketType: 'all',
+                                      contactId: 'all',
+                                      dateFrom: '',
+                                      dateTo: '',
                                     });
                                   }}
                                   className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50"
@@ -1346,6 +1478,51 @@ export default function Page() {
                             placeholder="All Priority"
                           />
                         </div>
+
+                        <div className="w-full">
+                          <Dropdown
+                            options={contactFilterOptions}
+                            value={selectedContactId}
+                            showSearch={true}
+                            onChange={(value) =>
+                              updateRecentTicketsFilters({
+                                contactId: value,
+                              })
+                            }
+                            placeholder="All Contacts"
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <ThemeInput
+                            type="date"
+                            value={dateFromValue}
+                            onChange={(event) =>
+                              updateRecentTicketsFilters({
+                                dateFrom: event.target.value,
+                              })
+                            }
+                            max={dateToValue || undefined}
+                            wrapperClassName="w-full"
+                            aria-label="From date"
+                          />
+                          <span className="shrink-0 text-xs text-gray-400">
+                            to
+                          </span>
+                          <ThemeInput
+                            type="date"
+                            value={dateToValue}
+                            onChange={(event) =>
+                              updateRecentTicketsFilters({
+                                dateTo: event.target.value,
+                              })
+                            }
+                            min={dateFromValue || undefined}
+                            wrapperClassName="w-full"
+                            aria-label="To date"
+                          />
+                        </div>
+
                         <ThemeButton
                           type="button"
                           variant="secondary"
@@ -1354,7 +1531,10 @@ export default function Page() {
                             selectedProjectIds.length === 0 &&
                             selectedStatus === 'all' &&
                             selectedPriority === 'all' &&
-                            selectedTicketType === 'all'
+                            selectedTicketType === 'all' &&
+                            selectedContactId === 'all' &&
+                            !dateFromValue &&
+                            !dateToValue
                           }
                           onClick={() => {
                             updateRecentTicketsFilters({
@@ -1362,6 +1542,9 @@ export default function Page() {
                               status: 'all',
                               priority: 'all',
                               ticketType: 'all',
+                              contactId: 'all',
+                              dateFrom: '',
+                              dateTo: '',
                             });
                           }}
                           className="disabled:cursor-not-allowed disabled:opacity-50"
@@ -2210,6 +2393,33 @@ async function fetchTicketPriorities(): Promise<ApiTicketSetting[]> {
   return sortTicketSettings(payload);
 }
 
+type ApiTicketContactOption = {
+  id: string;
+  fullName: string | null;
+  phone: string;
+};
+
+async function fetchTicketContactOptions() {
+  const response = await fetch('/api/contacts?limit=200', {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as {
+    items?: ApiTicketContactOption[];
+    message?: string;
+  } | null;
+
+  if (!response.ok || !Array.isArray(payload?.items)) {
+    throw new Error(payload?.message || 'Failed to fetch contacts.');
+  }
+
+  return payload.items;
+}
+
 async function fetchTicketSummary(): Promise<TicketSummary> {
   const response = await fetch('/api/dashboard/ticket-summary', {
     method: 'GET',
@@ -2425,6 +2635,9 @@ async function fetchDashboardTickets({
   ticketType,
   search,
   projectIds,
+  contactId,
+  dateFrom,
+  dateTo,
 }: {
   page: number;
   limit: number;
@@ -2433,6 +2646,9 @@ async function fetchDashboardTickets({
   ticketType?: string;
   search?: string;
   projectIds?: string[];
+  contactId?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }): Promise<DashboardTicketsResponse> {
   const searchParams = new URLSearchParams({
     page: String(page),
@@ -2451,6 +2667,15 @@ async function fetchDashboardTickets({
   }
   if (ticketType) {
     searchParams.set('ticketType', ticketType);
+  }
+  if (contactId) {
+    searchParams.set('contactId', contactId);
+  }
+  if (dateFrom) {
+    searchParams.set('dateFrom', dateFrom);
+  }
+  if (dateTo) {
+    searchParams.set('dateTo', dateTo);
   }
   projectIds?.forEach((projectId) => {
     if (projectId) {

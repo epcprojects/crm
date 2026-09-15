@@ -291,6 +291,9 @@ type ProjectTicketsQueryOptions = {
   statusKey?: string;
   priorityKey?: string;
   ticketType?: string;
+  contactId?: string;
+  dateFrom?: string;
+  dateTo?: string;
   kanban?: boolean;
 };
 
@@ -313,6 +316,9 @@ export function useProjectTicketsQuery(
     statusKey,
     priorityKey,
     ticketType,
+    contactId,
+    dateFrom,
+    dateTo,
     kanban = false,
   }: ProjectTicketsQueryOptions,
   enabled = true,
@@ -327,6 +333,9 @@ export function useProjectTicketsQuery(
       statusKey ?? 'all',
       priorityKey ?? 'all',
       ticketType ?? 'all',
+      contactId ?? 'all',
+      dateFrom ?? '',
+      dateTo ?? '',
       kanban,
     ],
 
@@ -340,6 +349,9 @@ export function useProjectTicketsQuery(
             statusKey,
             priorityKey,
             ticketType,
+            contactId,
+            dateFrom,
+            dateTo,
           }),
 
     enabled: Boolean(projectId && enabled),
@@ -1495,6 +1507,9 @@ async function fetchProjectTickets(
     statusKey,
     priorityKey,
     ticketType,
+    contactId,
+    dateFrom,
+    dateTo,
   }: ProjectTicketsQueryOptions,
 ): Promise<ProjectTicketsResponse> {
   const searchParams = new URLSearchParams({
@@ -1516,6 +1531,18 @@ async function fetchProjectTickets(
 
   if (ticketType) {
     searchParams.set('ticketType', ticketType);
+  }
+
+  if (contactId) {
+    searchParams.set('contactId', contactId);
+  }
+
+  if (dateFrom) {
+    searchParams.set('dateFrom', dateFrom);
+  }
+
+  if (dateTo) {
+    searchParams.set('dateTo', dateTo);
   }
 
   const response = await fetch(
