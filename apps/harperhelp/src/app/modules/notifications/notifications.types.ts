@@ -65,17 +65,17 @@ export const EMAIL_NOTIFICATION_METADATA : Record<EmailEventType, { entityType: 
 
   [EmailEventType.TICKET_CREATED]: {
     entityType: EmailNotificationEntityType.TICKET,
-    label: 'Ticket created',
+    label: 'Lead created',
   },
 
   [EmailEventType.TICKET_REPLY_POSTED]: {
     entityType: EmailNotificationEntityType.TICKET,
-    label: 'Ticket reply',
+    label: 'Lead reply',
   },
 
   [EmailEventType.MENTIONED_IN_TICKET_REPLY]: {
     entityType: EmailNotificationEntityType.TICKET,
-    label: 'Ticket reply mention',
+    label: 'Lead reply mention',
   },
 
   [EmailEventType.TICKET_INTERNAL_MESSAGE]: {
