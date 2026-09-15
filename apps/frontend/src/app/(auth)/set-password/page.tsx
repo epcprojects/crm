@@ -101,7 +101,7 @@ const Page = () => {
     <div className="grid grid-cols-1 md:grid-cols-2 p-3 bg-white flex-1 md:min-h-[calc(100dvh-32px)] min-h-[calc(100dvh-16px)] rounded-3xl md:rounded-4xl">
       <div className="md:p-8 flex flex-col relative items-center justify-center w-full">
         <Image
-          alt="harper tech help logo"
+          alt="EPC CRM logo"
           className="md:absolute mb-4 top-2 left-2 md:left-4 md:top-4"
           src={Images.auth.NewLogo}
         />
@@ -166,19 +166,14 @@ const Page = () => {
       </div>
 
       <div className=" rounded-3xl hidden md:flex items-center justify-center bg-[url('/images/HarperLoginBg.jpg')] bg-center bg-no-repeat backdrop-blur-3xl relative">
-        <Image
-          alt="harper tech help logo"
-          className="top-0 end-0 w-80 absolute"
-          src={Images.auth.NewLogoTransparent2}
-        />
         <div className="flex-1 flex items-center space-y-8 md:space-y-12 px-4  justify-center flex-col">
           <div className="max-w-160 w-full space-y-3">
             <h2 className="text-white font-bold text-4xl md:text-[36px] text-center">
-              Streamline Support Operations
+              Streamline your Lead Management
             </h2>
             <h3 className="text-center text-white text-base md:text-lg">
-              A smarter way to manage leads, projects, and team collaboration
-              across organizations.
+              A smarter way to manage leads, projects and team collaboration
+              across organizations
             </h3>
           </div>
 

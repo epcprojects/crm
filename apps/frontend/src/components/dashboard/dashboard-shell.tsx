@@ -874,7 +874,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               >
                 <Image
                   src={Images.index.logoIconImage}
-                  className="2xl:h-8 h-6 w-6 2xl:w-8"
+                  className="2xl:h-9 h-6 w-6 "
                   alt={'LOGO'}
                 />
               </button>
@@ -918,7 +918,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       2xl:[&>svg]:h-6 2xl:[&>svg]:w-6
                               ${
                                 isActive
-                                  ? 'bg-linear-[271deg] from-aztec-purple  to-cyan-blue text-white'
+                                  ? 'bg-aztec-purple text-white'
                                   : 'bg-white text-gray-700 hover:bg-gray-100 hover:text-primary'
                               }`}
                             >

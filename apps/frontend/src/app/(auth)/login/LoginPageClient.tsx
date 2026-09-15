@@ -141,7 +141,7 @@ export default function LoginPageClient({
     <div className="grid h-full min-h-0 flex-1 grid-cols-1 gap-3 rounded-3xl xl:grid-cols-2 xl:rounded-4xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
       <div className="xl:p-8 p-4 flex flex-col relative items-center justify-center w-full bg-white rounded-[20px]">
         <Image
-          alt="harper tech help logo"
+          alt="EPC CRM logo"
           className="md:absolute mb-4 top-2 left-2 md:left-4 md:top-4"
           src={Images.auth.NewLogo}
         />
@@ -214,19 +214,14 @@ export default function LoginPageClient({
         </div>
       </div>
       <div className="bg-[url('/images/HarperLoginBg.jpg')] bg-center bg-no-repeat rounded-3xl hidden md:flex items-center justify-center backdrop-blur-3xl relative">
-        <Image
-          alt="harper tech help logo"
-          className="top-0 end-0 w-80 absolute"
-          src={Images.auth.NewLogoTransparent2}
-        />
         <div className="flex-1 flex items-center space-y-8 md:space-y-12 px-4  justify-center flex-col">
           <div className="max-w-160 w-full space-y-3">
             <h2 className="text-white font-bold text-4xl md:text-[36px] text-center">
-              Streamline Support Operations
+              Streamline your Lead Management
             </h2>
             <h3 className="text-center text-white text-base md:text-lg">
-              A smarter way to manage leads, projects, and team collaboration
-              across organizations.
+              A smarter way to manage leads, projects and team collaboration
+              across organizations
             </h3>
           </div>
 

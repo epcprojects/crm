@@ -25,7 +25,7 @@ export const mockNotifications: NotificationItem[] = [
     actorName: 'Sarah Jenkins',
     actorInitials: 'SJ',
     actorTone: 'from-violet-100 to-fuchsia-50 text-violet-600',
-    message: 'created a new project Harper Mobile App Redesign.',
+    message: 'created a new project EPC CRM Mobile App Redesign.',
     timeLabel: '10m ago',
     unread: true,
     kind: 'message',
@@ -48,8 +48,7 @@ export const mockNotifications: NotificationItem[] = [
     actorName: 'Emma Watson',
     actorInitials: 'EW',
     actorTone: 'from-indigo-100 to-sky-50 text-indigo-500',
-    message:
-      'changed your assignment from Nexus Website to Nexus Mobile App.',
+    message: 'changed your assignment from Nexus Website to Nexus Mobile App.',
     timeLabel: '25m ago',
     unread: false,
     kind: 'message',

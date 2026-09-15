@@ -1039,7 +1039,7 @@ ${brandHeaderHtml()}
         ">
                                                                                                                     <img src="${bannerIconUrl}"
                                                                                                                         width="80"
-                                                                                                                        alt="Harper Help Desk"
+                                                                                                                        alt="EPC CRM"
                                                                                                                         style="
                     
                     width: 80px;
@@ -1391,7 +1391,11 @@ export function buildTicketCreatedEmail(
       value: p.status,
       badgeColor: STATUS_COLOR[p.status.toLowerCase()] ?? '#6B7280',
     },
-    {label: 'Type', value: p.ticketType, badgeColor: TICKET_TYPE_COLOR[p.ticketType.toLowerCase()] ?? '#6B7280'},
+    {
+      label: 'Type',
+      value: p.ticketType,
+      badgeColor: TICKET_TYPE_COLOR[p.ticketType.toLowerCase()] ?? '#6B7280',
+    },
     ...(p.priority
       ? [
           {
@@ -1502,8 +1506,8 @@ export function buildDueDateUpdatedEmail(
   p: TicketDueDateUpdatedPayload,
   appUrl: string,
 ): { subject: string; html: string } {
-    console.debug('INSIDE BUILD DUE DATE UPDATED payload:', p);
-    const formattedDueDate = new Date(p.newDueDate).toDateString();
+  console.debug('INSIDE BUILD DUE DATE UPDATED payload:', p);
+  const formattedDueDate = new Date(p.newDueDate).toDateString();
   const rows: DataRow[] = [
     { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
     { label: 'Project', value: p.projectName },
@@ -1514,7 +1518,7 @@ export function buildDueDateUpdatedEmail(
       compound: {
         prefix: 'Due date changed to',
         badgeText: formattedDueDate,
-        colors: { bg: '#f0f0f0', text: '#333' ,border: '#ccc'},
+        colors: { bg: '#f0f0f0', text: '#333', border: '#ccc' },
       },
     },
   ];

@@ -2,12 +2,16 @@
 
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { clearPersistedSession, useAppDispatch, useAppSelector } from '../Redux/store';
+import {
+  clearPersistedSession,
+  useAppDispatch,
+  useAppSelector,
+} from '../Redux/store';
 import { selectIsAuthenticated } from '../Redux/slices/auth/authSelectors';
 import { clearAuthState } from '../Redux/slices/auth/authSlice';
 
 const DEFAULT_IDLE_TIMEOUT_HOURS = 3;
-const IDLE_ACTIVITY_STORAGE_KEY = 'harperhelp:last-activity-at';
+const IDLE_ACTIVITY_STORAGE_KEY = 'epc-crm:last-activity-at';
 const ACTIVITY_SYNC_INTERVAL_MS = 30 * 1000;
 
 function getIdleTimeoutMs() {

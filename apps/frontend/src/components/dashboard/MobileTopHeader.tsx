@@ -28,7 +28,7 @@ export default function MobileTopHeader({
       >
         <Image
           src={Images.auth.NewLogo}
-          alt="Harper Helpdesk"
+          alt="EPC CRM"
           priority
           className="h-8 w-auto"
         />
