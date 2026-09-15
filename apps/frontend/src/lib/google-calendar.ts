@@ -13,7 +13,10 @@ declare global {
           initTokenClient: (config: {
             client_id: string;
             scope: string;
-            callback: (response: { access_token?: string; error?: string }) => void;
+            callback: (response: {
+              access_token?: string;
+              error?: string;
+            }) => void;
           }) => {
             requestAccessToken: (options?: { prompt?: string }) => void;
           };
@@ -25,7 +28,7 @@ declare global {
 
 const GOOGLE_CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar';
 const GOOGLE_CALENDAR_BASE_URL = 'https://www.googleapis.com/calendar/v3';
-const PROJECT_PROPERTY_KEY = 'harperhelpProjectId';
+const PROJECT_PROPERTY_KEY = 'epccrmProjectId';
 
 type GoogleCalendarEvent = {
   id: string;
@@ -61,7 +64,9 @@ export function isGoogleCalendarConfigured() {
 
 export function loadGoogleIdentityScript() {
   if (typeof window === 'undefined') {
-    return Promise.reject(new Error('Google Calendar is only available in the browser.'));
+    return Promise.reject(
+      new Error('Google Calendar is only available in the browser.'),
+    );
   }
 
   if (window.google?.accounts?.oauth2) {
@@ -114,7 +119,9 @@ export async function requestGoogleCalendarAccessToken(
       scope: GOOGLE_CALENDAR_SCOPE,
       callback: (response) => {
         if (response.error || !response.access_token) {
-          reject(new Error(response.error || 'Failed to authorize Google Calendar.'));
+          reject(
+            new Error(response.error || 'Failed to authorize Google Calendar.'),
+          );
           return;
         }
 
@@ -132,18 +139,24 @@ export async function requestGoogleCalendarAccessToken(
 }
 
 export async function listGoogleCalendars(accessToken: string) {
-  const response = await fetch(`${GOOGLE_CALENDAR_BASE_URL}/users/me/calendarList`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
+  const response = await fetch(
+    `${GOOGLE_CALENDAR_BASE_URL}/users/me/calendarList`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
     },
-  });
+  );
 
-  const payload = (await response.json().catch(() => null)) as
-    | { items?: Array<Record<string, unknown>>; error?: { message?: string } }
-    | null;
+  const payload = (await response.json().catch(() => null)) as {
+    items?: Array<Record<string, unknown>>;
+    error?: { message?: string };
+  } | null;
 
   if (!response.ok || !Array.isArray(payload?.items)) {
-    throw new Error(payload?.error?.message || 'Failed to fetch Google calendars.');
+    throw new Error(
+      payload?.error?.message || 'Failed to fetch Google calendars.',
+    );
   }
 
   return payload.items.reduce<GoogleCalendarListItem[]>((result, item) => {
@@ -189,15 +202,20 @@ export async function fetchGoogleProjectEvents({
     },
   );
 
-  const payload = (await response.json().catch(() => null)) as
-    | { items?: GoogleCalendarEvent[]; error?: { message?: string } }
-    | null;
+  const payload = (await response.json().catch(() => null)) as {
+    items?: GoogleCalendarEvent[];
+    error?: { message?: string };
+  } | null;
 
   if (!response.ok || !Array.isArray(payload?.items)) {
-    throw new Error(payload?.error?.message || 'Failed to fetch Google events.');
+    throw new Error(
+      payload?.error?.message || 'Failed to fetch Google events.',
+    );
   }
 
-  return payload.items.map((event) => mapGoogleEventToProjectEvent(event, projectId));
+  return payload.items.map((event) =>
+    mapGoogleEventToProjectEvent(event, projectId),
+  );
 }
 
 export async function createGoogleCalendarEvent({
@@ -229,7 +247,9 @@ export async function createGoogleCalendarEvent({
     | null;
 
   if (!response.ok || !payload || 'error' in payload) {
-    throw new Error(getGoogleApiErrorMessage(payload) || 'Failed to create Google event.');
+    throw new Error(
+      getGoogleApiErrorMessage(payload) || 'Failed to create Google event.',
+    );
   }
 
   if (!isGoogleCalendarEventPayload(payload)) {
@@ -275,7 +295,9 @@ export async function updateGoogleCalendarEvent({
     | null;
 
   if (!response.ok || !payload || 'error' in payload) {
-    throw new Error(getGoogleApiErrorMessage(payload) || 'Failed to update Google event.');
+    throw new Error(
+      getGoogleApiErrorMessage(payload) || 'Failed to update Google event.',
+    );
   }
 
   if (!isGoogleCalendarEventPayload(payload)) {
@@ -308,10 +330,12 @@ export async function deleteGoogleCalendarEvent({
   );
 
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as
-      | { error?: { message?: string } }
-      | null;
-    throw new Error(getGoogleApiErrorMessage(payload) || 'Failed to delete Google event.');
+    const payload = (await response.json().catch(() => null)) as {
+      error?: { message?: string };
+    } | null;
+    throw new Error(
+      getGoogleApiErrorMessage(payload) || 'Failed to delete Google event.',
+    );
   }
 }
 
@@ -342,8 +366,11 @@ export function mapGoogleEventToProjectEvent(
   event: GoogleCalendarEvent,
   projectId: string,
 ): ProjectCalendarEvent {
-  const start = event.start?.dateTime ?? normalizeGoogleAllDayStart(event.start?.date);
-  const end = event.end?.dateTime ?? normalizeGoogleAllDayEnd(event.end?.date, event.start?.date);
+  const start =
+    event.start?.dateTime ?? normalizeGoogleAllDayStart(event.start?.date);
+  const end =
+    event.end?.dateTime ??
+    normalizeGoogleAllDayEnd(event.end?.date, event.start?.date);
   const type = mapGoogleColorToEventType(event.colorId);
 
   return {
@@ -447,6 +474,8 @@ function getGoogleApiErrorMessage(value: unknown) {
   return undefined;
 }
 
-function isGoogleCalendarEventPayload(value: unknown): value is GoogleCalendarEvent {
+function isGoogleCalendarEventPayload(
+  value: unknown,
+): value is GoogleCalendarEvent {
   return Boolean(value && typeof value === 'object' && 'id' in value);
 }

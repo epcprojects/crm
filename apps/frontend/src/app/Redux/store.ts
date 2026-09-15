@@ -20,7 +20,7 @@ const rootReducer = combineReducers({
 });
 
 const persistConfig = {
-  key: 'root',
+  key: 'epc-crm-root',
   storage,
   whitelist: ['auth'],
 };
