@@ -1,6 +1,6 @@
 {
-  "name": "Harper Help Desk",
-  "short_name": "HarperHelp",
+  "name": "EPC-CRM",
+  "short_name": "EPC-CRM",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",
