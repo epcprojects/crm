@@ -35,6 +35,8 @@ import { PaginationQueryDto } from './dto/pagination-query.dto';
 import { KanbanQueryDto } from './dto/kanban-query.dto';
 import { GetKanbanTicketCountsDto } from './dto/get-kanban-ticket-counts.dto';
 import { KanbanBoardQueryDto } from './dto/kanban-board-query.dto';
+import { GetTicketReportersQueryDto } from './dto/get-ticket-reporters-query.dto';
+import { GetTicketAssigneesQueryDto } from './dto/get-ticket-assignees-query.dto';
 
 @Controller('projects/:pid/tickets')
 @ApiBearerAuth('JWT-auth')
@@ -106,6 +108,26 @@ View ranges:
   })
   findByView(@Param('pid') pid: string, @Query() query: CalendarQueryDto) {
     return this.ticketsService.findByView(pid, query);
+  }
+
+  // ---------------- REPORTERS (CREATED BY FILTER) ----------------
+  @Get('reporters')
+  @ApiOperation({
+    summary:
+      'Get distinct users who have created a ticket in this project (for the Created By filter).',
+  })
+  getProjectReporters(@Param('pid', ParseUUIDPipe) pid: string) {
+    return this.ticketsService.getProjectReporters(pid);
+  }
+
+  // ---------------- ASSIGNEES (ASSIGNED TO FILTER) ----------------
+  @Get('assignees')
+  @ApiOperation({
+    summary:
+      'Get distinct users who have a ticket assigned to them in this project (for the Assigned To filter).',
+  })
+  getProjectAssignees(@Param('pid', ParseUUIDPipe) pid: string) {
+    return this.ticketsService.getProjectAssignees(pid);
   }
 
   // ---------------- CREATE ----------------
@@ -235,6 +257,30 @@ export class DashboardController {
   @ApiOperation({ summary: 'Get upcoming tickets' })
   getUpcomingTickets(@Query() query: PaginationQueryDto, @GetUser() user) {
     return this.ticketsService.getUpcomingTickets(query, user);
+  }
+
+  @Get('tickets/reporters')
+  @ApiOperation({
+    summary:
+      'Get distinct users who have created a ticket across the caller\'s accessible projects (for the Created By filter).',
+  })
+  getReporters(
+    @Query() query: GetTicketReportersQueryDto,
+    @GetUser() user,
+  ) {
+    return this.ticketsService.getReporters(query.projectIds, user);
+  }
+
+  @Get('tickets/assignees')
+  @ApiOperation({
+    summary:
+      'Get distinct users who have a ticket assigned to them across the caller\'s accessible projects (for the Assigned To filter).',
+  })
+  getAssignees(
+    @Query() query: GetTicketAssigneesQueryDto,
+    @GetUser() user,
+  ) {
+    return this.ticketsService.getAssignees(query.projectIds, user);
   }
 
   @Get('tickets/kanban')

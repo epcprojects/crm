@@ -34,8 +34,11 @@ import {
   PlusIcon,
   SearchIcon,
 } from '../../../../public/icons';
-import { createTicket } from '../../../lib/tickets';
-import { fetchAssignableMembers } from '../../../lib/project-members';
+import {
+  createTicket,
+  fetchTicketAssignees,
+  fetchTicketReporters,
+} from '../../../lib/tickets';
 import {
   projectsQueryKey,
   useDeleteTicketMutation,
@@ -206,13 +209,21 @@ export default function Page() {
     ? selectedProjectIds
     : (projectsQuery.data ?? []).map((project) => project.id);
 
-  const ticketMembersQuery = useQuery({
+  const ticketReportersQuery = useQuery({
     queryKey: [
-      'project-members',
-      'assignable',
+      'ticket-reporters',
       assignableMembersProjectIds.join(','),
     ],
-    queryFn: () => fetchAssignableMembers(assignableMembersProjectIds),
+    queryFn: () => fetchTicketReporters(assignableMembersProjectIds),
+    enabled: hasPermission('tickets.view_list'),
+  });
+
+  const ticketAssigneesQuery = useQuery({
+    queryKey: [
+      'ticket-assignees',
+      assignableMembersProjectIds.join(','),
+    ],
+    queryFn: () => fetchTicketAssignees(assignableMembersProjectIds),
     enabled: hasPermission('tickets.view_list'),
   });
 
@@ -389,23 +400,22 @@ export default function Page() {
   const createdByFilterOptions = useMemo(
     () => [
       { label: 'All Creators', value: 'all' },
-      ...(ticketMembersQuery.data ?? []).map((member) => ({
-        label: member.fullName,
-        value: member.id,
+      ...(ticketReportersQuery.data ?? []).map((reporter) => ({
+        label: reporter.fullName,
+        value: reporter.id,
       })),
     ],
-    [ticketMembersQuery.data],
+    [ticketReportersQuery.data],
   );
   const assignedToFilterOptions = useMemo(
     () => [
-      { label: 'All Assignees', value: 'all' },
       { label: 'Unassigned', value: 'unassigned' },
-      ...(ticketMembersQuery.data ?? []).map((member) => ({
-        label: member.fullName,
-        value: member.id,
+      ...(ticketAssigneesQuery.data ?? []).map((assignee) => ({
+        label: assignee.fullName,
+        value: assignee.id,
       })),
     ],
-    [ticketMembersQuery.data],
+    [ticketAssigneesQuery.data],
   );
 
   const kanbanStatusOptions = useMemo(

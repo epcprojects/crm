@@ -490,6 +490,48 @@ export class TicketsService {
     };
   }
 
+  // Distinct users who have actually created (reported) a ticket in this project —
+  // powers the Created By filter, as opposed to every project member.
+  async getProjectReporters(projectId: string) {
+    const project = await this.projectRepo.findOne({
+      where: { id: projectId },
+    });
+
+    if (!project) throw new NotFoundException('Project not found');
+
+    return this.ticketRepo
+      .createQueryBuilder('t')
+      .innerJoin('t.reporter', 'r')
+      .where('t.projectId = :projectId', { projectId })
+      .select('r.id', 'id')
+      .addSelect('r.fullName', 'fullName')
+      .groupBy('r.id')
+      .addGroupBy('r.fullName')
+      .orderBy('r.fullName', 'ASC')
+      .getRawMany<{ id: string; fullName: string }>();
+  }
+
+  // Distinct users who actually have a ticket assigned to them in this project —
+  // powers the Assigned To filter, as opposed to every project member.
+  async getProjectAssignees(projectId: string) {
+    const project = await this.projectRepo.findOne({
+      where: { id: projectId },
+    });
+
+    if (!project) throw new NotFoundException('Project not found');
+
+    return this.ticketRepo
+      .createQueryBuilder('t')
+      .innerJoin('t.assignee', 'a')
+      .where('t.projectId = :projectId', { projectId })
+      .select('a.id', 'id')
+      .addSelect('a.fullName', 'fullName')
+      .groupBy('a.id')
+      .addGroupBy('a.fullName')
+      .orderBy('a.fullName', 'ASC')
+      .getRawMany<{ id: string; fullName: string }>();
+  }
+
   //
   async findAllProjects(query: GetTicketsQueryDto, user) {
     const qb = this.ticketRepo
@@ -769,6 +811,51 @@ export class TicketsService {
       },
     };
   }
+
+  // Distinct users who have actually created (reported) a ticket across the
+  // caller's accessible projects — powers the Created By filter on the
+  // multi-project ticket views, as opposed to every member of those projects.
+  async getReporters(projectIds: string[] | undefined, user) {
+    const qb = this.ticketRepo
+      .createQueryBuilder('t')
+      .innerJoin('t.project', 'p')
+      .innerJoin('p.members', 'u', 'u.id = :userId', { userId: user.id })
+      .innerJoin('t.reporter', 'r')
+      .select('r.id', 'id')
+      .addSelect('r.fullName', 'fullName')
+      .groupBy('r.id')
+      .addGroupBy('r.fullName')
+      .orderBy('r.fullName', 'ASC');
+
+    if (projectIds?.length) {
+      qb.andWhere('t.projectId IN (:...projectIds)', { projectIds });
+    }
+
+    return qb.getRawMany<{ id: string; fullName: string }>();
+  }
+
+  // Distinct users who actually have a ticket assigned to them across the
+  // caller's accessible projects — powers the Assigned To filter on the
+  // multi-project ticket views, as opposed to every member of those projects.
+  async getAssignees(projectIds: string[] | undefined, user) {
+    const qb = this.ticketRepo
+      .createQueryBuilder('t')
+      .innerJoin('t.project', 'p')
+      .innerJoin('p.members', 'u', 'u.id = :userId', { userId: user.id })
+      .innerJoin('t.assignee', 'a')
+      .select('a.id', 'id')
+      .addSelect('a.fullName', 'fullName')
+      .groupBy('a.id')
+      .addGroupBy('a.fullName')
+      .orderBy('a.fullName', 'ASC');
+
+    if (projectIds?.length) {
+      qb.andWhere('t.projectId IN (:...projectIds)', { projectIds });
+    }
+
+    return qb.getRawMany<{ id: string; fullName: string }>();
+  }
+
   // ---------------- FIND ONE ----------------
   // async findOne(projectId: string, ticketId: string) {
   //   const ticket = await this.ticketRepo

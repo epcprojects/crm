@@ -74,7 +74,11 @@ import ThemeInput from '../../../../components/ui/ThemeInput';
 import { useIsMobile } from '../../../../components/hooks/useIsMobile';
 import { useThread } from '../../../../components/hooks/useThread';
 import { useAppLoader } from '../../../providers/AppLoaderProvider';
-import { createTicket } from '../../../../lib/tickets';
+import {
+  createTicket,
+  fetchProjectTicketAssignees,
+  fetchProjectTicketReporters,
+} from '../../../../lib/tickets';
 import {
   projectsQueryKey,
   projectTicketsQueryKey,
@@ -342,6 +346,18 @@ export default function ProjectDetailPage() {
       projectId &&
         (canPostThreadMessage || canPostThreadReply || canViewTickets),
     ),
+  });
+
+  const projectTicketReportersQuery = useQuery({
+    queryKey: ['ticket-reporters', projectId],
+    queryFn: () => fetchProjectTicketReporters(projectId),
+    enabled: Boolean(projectId && canViewTickets),
+  });
+
+  const projectTicketAssigneesQuery = useQuery({
+    queryKey: ['ticket-assignees', projectId],
+    queryFn: () => fetchProjectTicketAssignees(projectId),
+    enabled: Boolean(projectId && canViewTickets),
   });
 
   const projectFilesQuery = useProjectFilesQuery(projectId, canViewFiles);
@@ -969,23 +985,22 @@ export default function ProjectDetailPage() {
   const createdByFilterOptions = useMemo(
     () => [
       { label: 'All Creators', value: 'all' },
-      ...(projectMembersQuery.data ?? []).map((member) => ({
-        label: member.fullName,
-        value: member.id,
+      ...(projectTicketReportersQuery.data ?? []).map((reporter) => ({
+        label: reporter.fullName,
+        value: reporter.id,
       })),
     ],
-    [projectMembersQuery.data],
+    [projectTicketReportersQuery.data],
   );
   const assignedToFilterOptions = useMemo(
     () => [
-      { label: 'All Assignees', value: 'all' },
       { label: 'Unassigned', value: 'unassigned' },
-      ...(projectMembersQuery.data ?? []).map((member) => ({
-        label: member.fullName,
-        value: member.id,
+      ...(projectTicketAssigneesQuery.data ?? []).map((assignee) => ({
+        label: assignee.fullName,
+        value: assignee.id,
       })),
     ],
-    [projectMembersQuery.data],
+    [projectTicketAssigneesQuery.data],
   );
 
   const project = projectDetailQuery.data;

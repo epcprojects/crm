@@ -71,3 +71,157 @@ export async function createTicket(payload: CreateTicketPayload) {
 
   return data;
 }
+
+export type TicketReporter = {
+  id: string;
+  fullName: string;
+};
+
+// Distinct users who have actually created a ticket in the given projects —
+// used for the Created By filter, as opposed to every project member.
+export async function fetchTicketReporters(
+  projectIds: string[] = [],
+): Promise<TicketReporter[]> {
+  if (projectIds.length === 0) {
+    return [];
+  }
+
+  const searchParams = new URLSearchParams();
+
+  projectIds.forEach((projectId) => {
+    if (projectId) {
+      searchParams.append('projectIds', projectId);
+    }
+  });
+
+  const response = await fetch(
+    `/api/dashboard/tickets/reporters?${searchParams}`,
+    {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+    },
+  );
+
+  const payload = (await response.json().catch(() => null)) as
+    | TicketReporter[]
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !Array.isArray(payload)) {
+    throw new Error(
+      !Array.isArray(payload)
+        ? payload?.message || 'Failed to fetch ticket creators.'
+        : 'Failed to fetch ticket creators.',
+    );
+  }
+
+  return payload;
+}
+
+// Same as fetchTicketReporters, scoped to a single project's own tickets.
+export async function fetchProjectTicketReporters(
+  projectId: string,
+): Promise<TicketReporter[]> {
+  if (!projectId) {
+    return [];
+  }
+
+  const response = await fetch(`/api/projects/${projectId}/tickets/reporters`, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | TicketReporter[]
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !Array.isArray(payload)) {
+    throw new Error(
+      !Array.isArray(payload)
+        ? payload?.message || 'Failed to fetch ticket creators.'
+        : 'Failed to fetch ticket creators.',
+    );
+  }
+
+  return payload;
+}
+
+export type TicketAssignee = {
+  id: string;
+  fullName: string;
+};
+
+// Distinct users who actually have a ticket assigned to them in the given
+// projects — used for the Assigned To filter, as opposed to every member.
+export async function fetchTicketAssignees(
+  projectIds: string[] = [],
+): Promise<TicketAssignee[]> {
+  if (projectIds.length === 0) {
+    return [];
+  }
+
+  const searchParams = new URLSearchParams();
+
+  projectIds.forEach((projectId) => {
+    if (projectId) {
+      searchParams.append('projectIds', projectId);
+    }
+  });
+
+  const response = await fetch(
+    `/api/dashboard/tickets/assignees?${searchParams}`,
+    {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+    },
+  );
+
+  const payload = (await response.json().catch(() => null)) as
+    | TicketAssignee[]
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !Array.isArray(payload)) {
+    throw new Error(
+      !Array.isArray(payload)
+        ? payload?.message || 'Failed to fetch ticket assignees.'
+        : 'Failed to fetch ticket assignees.',
+    );
+  }
+
+  return payload;
+}
+
+// Same as fetchTicketAssignees, scoped to a single project's own tickets.
+export async function fetchProjectTicketAssignees(
+  projectId: string,
+): Promise<TicketAssignee[]> {
+  if (!projectId) {
+    return [];
+  }
+
+  const response = await fetch(`/api/projects/${projectId}/tickets/assignees`, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+    cache: 'no-store',
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | TicketAssignee[]
+    | { message?: string }
+    | null;
+
+  if (!response.ok || !Array.isArray(payload)) {
+    throw new Error(
+      !Array.isArray(payload)
+        ? payload?.message || 'Failed to fetch ticket assignees.'
+        : 'Failed to fetch ticket assignees.',
+    );
+  }
+
+  return payload;
+}

@@ -42,8 +42,11 @@ import RecentTicketsTable, {
 } from '../../../components/tables/RecentTicketsTable';
 import { appToast } from '../../../components/toast/AppToast';
 import { ALLOWED_ATTACHMENT_EXTENSIONS } from '../../../lib/attachments';
-import { createTicket } from '../../../lib/tickets';
-import { fetchAssignableMembers } from '../../../lib/project-members';
+import {
+  createTicket,
+  fetchTicketAssignees,
+  fetchTicketReporters,
+} from '../../../lib/tickets';
 import type { ProjectRecord } from '../projects/projects.data';
 import {
   useDeleteProjectMutation,
@@ -368,13 +371,15 @@ export default function Page() {
     ? selectedProjectIds
     : (projectNamesQuery.data ?? []).map((project) => project.id);
 
-  const ticketMembersQuery = useQuery({
-    queryKey: [
-      'project-members',
-      'assignable',
-      assignableMembersProjectIds.join(','),
-    ],
-    queryFn: () => fetchAssignableMembers(assignableMembersProjectIds),
+  const ticketReportersQuery = useQuery({
+    queryKey: ['ticket-reporters', assignableMembersProjectIds.join(',')],
+    queryFn: () => fetchTicketReporters(assignableMembersProjectIds),
+    enabled: canViewRecentTickets,
+  });
+
+  const ticketAssigneesQuery = useQuery({
+    queryKey: ['ticket-assignees', assignableMembersProjectIds.join(',')],
+    queryFn: () => fetchTicketAssignees(assignableMembersProjectIds),
     enabled: canViewRecentTickets,
   });
 
@@ -428,23 +433,22 @@ export default function Page() {
   const createdByFilterOptions = useMemo(
     () => [
       { label: 'All Creators', value: 'all' },
-      ...(ticketMembersQuery.data ?? []).map((member) => ({
-        label: member.fullName,
-        value: member.id,
+      ...(ticketReportersQuery.data ?? []).map((reporter) => ({
+        label: reporter.fullName,
+        value: reporter.id,
       })),
     ],
-    [ticketMembersQuery.data],
+    [ticketReportersQuery.data],
   );
   const assignedToFilterOptions = useMemo(
     () => [
-      { label: 'All Assignees', value: 'all' },
       { label: 'Unassigned', value: 'unassigned' },
-      ...(ticketMembersQuery.data ?? []).map((member) => ({
-        label: member.fullName,
-        value: member.id,
+      ...(ticketAssigneesQuery.data ?? []).map((assignee) => ({
+        label: assignee.fullName,
+        value: assignee.id,
       })),
     ],
-    [ticketMembersQuery.data],
+    [ticketAssigneesQuery.data],
   );
   const ticketSummaryQuery = useQuery({
     queryKey: ['dashboard', 'ticket-summary'],
