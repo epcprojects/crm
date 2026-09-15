@@ -1,5 +1,8 @@
 # Harperhelp
 
+<!-- test commit: verifying Vercel deployment -->
+
+
 ### Generate nest module
 
 npx nx generate @nx/nest:resource --path=apps/harperhelp/src/app/modules/chat/chat --crud
