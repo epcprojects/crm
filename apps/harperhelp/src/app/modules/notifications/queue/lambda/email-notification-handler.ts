@@ -40,7 +40,7 @@ interface SQSBatchResponse {
 const appUrl = process.env.FRONTEND_APP_URL || 'http://localhost:4200';
 const appName = process.env.APP_NAME || 'HarperHelpDesk';
 const fromEmail = process.env.SENDGRID_FROM_EMAIL || '';
-const fromName = 'HarperHelp';
+const fromName = 'End Point Clients';
 
 if (process.env.SENDGRID_API_KEY) {
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);

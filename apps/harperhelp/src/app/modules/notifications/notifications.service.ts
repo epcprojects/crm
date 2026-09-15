@@ -164,8 +164,8 @@ export class NotificationsService {
 
     this.appUrl = this.configService.get<string>('app.hostUrl');
     this.fromEmail = this.configService.get<string>('sendgrid.fromEmail');
-    this.fromName = 'HarperHelp';
-    this.appName = 'HarperHelpDesk';
+    this.fromName = 'EndPoint Client';
+    this.appName = 'EndPoint Client-CRM';
     this.queueUrl = this.configService.get<string>(
       'aws.sqs.notificationQueueUrl',
     );

@@ -12,7 +12,7 @@ async function bootstrap() {
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-  const globalPrefix = 'api-harper/v1';
+  const globalPrefix = 'api/v1';
   app.setGlobalPrefix(globalPrefix);
 
   app.useGlobalPipes(
@@ -24,8 +24,8 @@ async function bootstrap() {
   );
 
   const config = new DocumentBuilder()
-    .setTitle('HARPER-HELP API')
-    .setDescription('Backend API for HarperHelp')
+    .setTitle('EPC API')
+    .setDescription('Backend API for EPC CRM')
     .setVersion('1.0')
     .addBearerAuth(
       {
