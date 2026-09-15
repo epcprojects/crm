@@ -55,7 +55,11 @@ import LinkIcon from './LinkIcon';
 import UserAdd from './UserAdd';
 import BugIcon from './BugIcon';
 import FeatureIcon from './FeatureIcon';
+import CallIcon from './CallIcon';
+import WhatsAppIcon from './WhatsAppIcon';
 export {
+  CallIcon,
+  WhatsAppIcon,
   BoldIcon,
   FeatureIcon,
   BugIcon,

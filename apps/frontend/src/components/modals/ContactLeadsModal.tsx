@@ -5,6 +5,7 @@ import Link from 'next/link';
 import AppModal from './AppModal';
 import { SearchIcon } from '../../../public/icons';
 import EmptyState from '../EmptyState';
+import PhoneActions from '../ui/PhoneActions';
 import type { RecentTicket } from '../tables/RecentTicketsTable';
 
 type ContactLeadsModalProps = {
@@ -115,7 +116,16 @@ export default function ContactLeadsModal({
       isOpen={isOpen}
       onClose={onClose}
       title={contactName}
-      subtitle={contactSubtitle || 'View all leads for this contact.'}
+      subtitle={
+        contactSubtitle ? (
+          <span className="flex items-center gap-1">
+            <span>{contactSubtitle}</span>
+            <PhoneActions phone={contactSubtitle} size="sm" />
+          </span>
+        ) : (
+          'View all leads for this contact.'
+        )
+      }
       size="medium"
       showFooter={false}
       bodyPaddingClasses="p-0"

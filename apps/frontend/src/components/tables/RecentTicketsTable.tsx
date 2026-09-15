@@ -22,6 +22,7 @@ import {
 } from '../../../public/icons';
 import { useAppSelector } from '../../app/Redux/store';
 import EmptyState from '../EmptyState';
+import PhoneActions from '../ui/PhoneActions';
 import { getInitials } from '../../app/(main-pages)/dashboard/page';
 import {
   CalendarTabIcon,
@@ -158,8 +159,11 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
           <span className="truncate text-sm text-gray-900">
             {contact.fullName || 'Unknown'}
           </span>
-          <span className="truncate text-xs text-gray-500">
-            {contact.phone}
+          <span className="flex items-center gap-1">
+            <span className="truncate text-xs text-gray-500">
+              {contact.phone}
+            </span>
+            <PhoneActions phone={contact.phone} />
           </span>
         </span>
       );
@@ -705,10 +709,15 @@ function TicketMobileCard({
             <p className="truncate text-xs text-gray-800">
               {ticket.contact?.fullName || ticket.contact?.phone || '—'}
             </p>
-            {ticket.contact?.fullName ? (
-              <p className="truncate text-[10px] text-gray-500">
-                {ticket.contact.phone}
-              </p>
+            {ticket.contact ? (
+              <div className="flex items-center gap-1">
+                {ticket.contact.fullName ? (
+                  <p className="truncate text-[10px] text-gray-500">
+                    {ticket.contact.phone}
+                  </p>
+                ) : null}
+                <PhoneActions phone={ticket.contact.phone} />
+              </div>
             ) : null}
           </div>
         </div>

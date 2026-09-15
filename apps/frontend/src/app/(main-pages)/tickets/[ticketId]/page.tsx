@@ -7,7 +7,7 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   useParams,
   usePathname,
@@ -53,6 +53,7 @@ import { getFileUrl } from '../../../../components/projects/ProjectFilesPanel';
 import Tooltip from '../../../../components/tooltip';
 import Image from 'next/image';
 import EmptyState from '../../../../components/EmptyState';
+import PhoneActions from '../../../../components/ui/PhoneActions';
 import ImageGalleryLightbox from '../../../../components/ui/ImageGalleryLightbox';
 import type {
   DiscussionReaction,
@@ -1744,6 +1745,14 @@ export default function TicketDetailPage() {
                       : ticket.contact.phone
                     : '—'
                 }
+                actions={
+                  ticket.contact ? (
+                    <PhoneActions
+                      phone={ticket.contact.phone}
+                      variant="dark"
+                    />
+                  ) : undefined
+                }
               />
 
               {ticket.dueDate ? (
@@ -1797,6 +1806,14 @@ export default function TicketDetailPage() {
                         ? `${ticket.contact.fullName} (${ticket.contact.phone})`
                         : ticket.contact.phone
                       : '—'
+                  }
+                  actions={
+                    ticket.contact ? (
+                      <PhoneActions
+                        phone={ticket.contact.phone}
+                        variant="dark"
+                      />
+                    ) : undefined
                   }
                 />
 
@@ -4064,38 +4081,43 @@ function MetaItem({
   label,
   value,
   hideTooltip = true,
+  actions,
 }: {
   label: string;
   value: string;
   hideTooltip?: boolean;
+  actions?: ReactNode;
 }) {
   return (
     <div className="w-fit">
       <span className="block text-xs sm:text-sm text-gray-300">{label}</span>
-      <Tooltip
-        heading={value}
-        className="w-fit"
-        side="bottom"
-        content={''}
-        hide={hideTooltip}
-      >
-        <p className="sm:mt-1 flex items-center gap-1  text-sm whitespace-break-spaces sm:text-base font-semibold  text-white">
-          {value === 'bug' ? (
-            <BugIcon />
-          ) : value === 'feature_request' ? (
-            <FeatureIcon />
-          ) : (
-            ''
-          )}
-          <span className="line-clamp-1!">
-            {value === 'feature_request'
-              ? 'Feature'
-              : value === 'bug'
-                ? 'Bug'
-                : value}
-          </span>
-        </p>
-      </Tooltip>
+      <div className="flex items-center gap-1">
+        <Tooltip
+          heading={value}
+          className="w-fit"
+          side="bottom"
+          content={''}
+          hide={hideTooltip}
+        >
+          <p className="sm:mt-1 flex items-center gap-1  text-sm whitespace-break-spaces sm:text-base font-semibold  text-white">
+            {value === 'bug' ? (
+              <BugIcon />
+            ) : value === 'feature_request' ? (
+              <FeatureIcon />
+            ) : (
+              ''
+            )}
+            <span className="line-clamp-1!">
+              {value === 'feature_request'
+                ? 'Feature'
+                : value === 'bug'
+                  ? 'Bug'
+                  : value}
+            </span>
+          </p>
+        </Tooltip>
+        {actions}
+      </div>
     </div>
   );
 }

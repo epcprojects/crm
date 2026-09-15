@@ -6,6 +6,7 @@ import type { RecentTicket } from '../tables/RecentTicketsTable';
 import Tooltip from '../tooltip';
 import { TrashIcon } from 'apps/frontend/public/icons';
 import { usePermissions } from '../../app/providers/PermissionProvider';
+import PhoneActions from '../ui/PhoneActions';
 
 type TicketStatusOption = {
   id: string;
@@ -649,9 +650,12 @@ export default function TicketsKanbanView({
                                       Contact:
                                     </span>
 
-                                    <span className="truncate text-right text-sm text-gray-900">
-                                      {ticket.contact.fullName ||
-                                        ticket.contact.phone}
+                                    <span className="flex items-center justify-end gap-1">
+                                      <span className="truncate text-right text-sm text-gray-900">
+                                        {ticket.contact.fullName ||
+                                          ticket.contact.phone}
+                                      </span>
+                                      <PhoneActions phone={ticket.contact.phone} />
                                     </span>
                                   </div>
                                 ) : null}

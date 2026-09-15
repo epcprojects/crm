@@ -15,7 +15,7 @@ interface AppModalProps {
   isOpen: boolean;
   onClose: () => void;
   title?: string;
-  subtitle?: string;
+  subtitle?: React.ReactNode;
   icon?: React.ReactNode;
   children: React.ReactNode;
   onConfirm?: (e: React.MouseEvent<HTMLButtonElement>) => void;

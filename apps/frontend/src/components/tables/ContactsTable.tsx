@@ -9,6 +9,7 @@ import {
   TrashIcon,
 } from '../../../public/icons';
 import EmptyState from '../EmptyState';
+import PhoneActions from '../ui/PhoneActions';
 
 export type TerritoryRef = {
   id: string;
@@ -200,7 +201,10 @@ export default function ContactsTable({
                 <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
                   Phone
                 </p>
-                <p className="mt-1 text-sm text-gray-700">{contact.phone}</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <p className="text-sm text-gray-700">{contact.phone}</p>
+                  <PhoneActions phone={contact.phone} size="md" />
+                </div>
               </div>
 
               <div className="flex items-center justify-between gap-3">
@@ -243,7 +247,10 @@ export default function ContactsTable({
                   {contact.fullName || 'Unknown'}
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-800">
-                  {contact.phone}
+                  <div className="flex items-center gap-2">
+                    <span>{contact.phone}</span>
+                    <PhoneActions phone={contact.phone} size="md" />
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-800">
                   {contact.email || '—'}
