@@ -5,6 +5,7 @@ import {
   EditIcon,
   PlusIcon,
   ThreedotIcon,
+  TicketsIcon,
   TrashIcon,
 } from '../../../public/icons';
 import EmptyState from '../EmptyState';
@@ -56,6 +57,7 @@ type ContactsTableProps = {
   onEdit?: (contact: ContactRecord) => void;
   onDelete?: (contact: ContactRecord) => void;
   onCreateLead?: (contact: ContactRecord) => void;
+  onViewLeads?: (contact: ContactRecord) => void;
   onAddContact?: () => void;
   searchActive?: boolean;
 };
@@ -65,8 +67,9 @@ function renderContactActions(
   onEdit?: (contact: ContactRecord) => void,
   onDelete?: (contact: ContactRecord) => void,
   onCreateLead?: (contact: ContactRecord) => void,
+  onViewLeads?: (contact: ContactRecord) => void,
 ) {
-  if (!onEdit && !onDelete && !onCreateLead) {
+  if (!onEdit && !onDelete && !onCreateLead && !onViewLeads) {
     return null;
   }
 
@@ -94,6 +97,19 @@ function renderContactActions(
               className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm font-medium text-gray-700 outline-none transition data-focus:bg-gray-100"
             >
               <PlusIcon fill="currentColor" width="16" height="16" /> Create Lead
+            </button>
+          </MenuItem>
+        ) : null}
+
+        {onViewLeads ? (
+          <MenuItem>
+            <button
+              type="button"
+              onClick={() => onViewLeads(contact)}
+              className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm font-medium text-gray-700 outline-none transition data-focus:bg-gray-100"
+            >
+              <TicketsIcon opacity="1" fill="currentColor" width="16" height="16" />{' '}
+              View Leads
             </button>
           </MenuItem>
         ) : null}
@@ -135,6 +151,7 @@ export default function ContactsTable({
   onEdit,
   onDelete,
   onCreateLead,
+  onViewLeads,
   onAddContact,
   searchActive,
 }: ContactsTableProps) {
@@ -196,7 +213,7 @@ export default function ContactsTable({
                   </p>
                 </div>
 
-                {renderContactActions(contact, onEdit, onDelete, onCreateLead)}
+                {renderContactActions(contact, onEdit, onDelete, onCreateLead, onViewLeads)}
               </div>
             </div>
           </article>
@@ -238,7 +255,7 @@ export default function ContactsTable({
                   {contact.source || '—'}
                 </td>
                 <td className="px-4 py-3 text-sm">
-                  {renderContactActions(contact, onEdit, onDelete, onCreateLead)}
+                  {renderContactActions(contact, onEdit, onDelete, onCreateLead, onViewLeads)}
                 </td>
               </tr>
             ))}

@@ -11,6 +11,8 @@ import CreateTicketModal, {
   type CreateTicketFormValues,
 } from '../../../components/modals/CreateTicketModal';
 import { createTicketProjectOptions } from '../../../components/modals/create-ticket-modal.data';
+import ContactLeadsModal from '../../../components/modals/ContactLeadsModal';
+import type { RecentTicket } from '../../../components/tables/RecentTicketsTable';
 import ContactsTable, {
   ContactsTableSkeleton,
   type ContactRecord,
@@ -29,6 +31,7 @@ import { useDebouncedValue } from '../../../components/hooks/useDebouncedValue';
 import { fetchCitiesByProvince, fetchProvinces } from '../../../lib/territories';
 import { createTicket } from '../../../lib/tickets';
 import { useProjectNamesQuery } from '../projects/projects.queries';
+import { getInitials } from '../dashboard/page';
 
 const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
@@ -42,6 +45,8 @@ export default function ContactsPage() {
   const canEditContact = hasPermission('contacts.edit');
   const canDeleteContact = hasPermission('contacts.delete');
   const canCreateLeadFromContact = hasPermission('tickets.create');
+  const canViewContactLeads = hasPermission('tickets.view_list');
+  const canViewLeadDetail = hasPermission('tickets.view_detail');
 
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<ContactRecord | null>(
@@ -51,6 +56,8 @@ export default function ContactsPage() {
     null,
   );
   const [creatingLeadForContact, setCreatingLeadForContact] =
+    useState<ContactRecord | null>(null);
+  const [viewingLeadsForContact, setViewingLeadsForContact] =
     useState<ContactRecord | null>(null);
   const [searchValue, setSearchValue] = useState('');
   const debouncedSearchValue = useDebouncedValue(searchValue);
@@ -92,6 +99,12 @@ export default function ContactsPage() {
         territoryId: filterTerritoryId,
       }),
     enabled: canViewContacts,
+  });
+
+  const contactLeadsQuery = useQuery({
+    queryKey: ['contacts', 'leads', viewingLeadsForContact?.id],
+    queryFn: () => fetchContactLeads(viewingLeadsForContact?.id ?? ''),
+    enabled: Boolean(viewingLeadsForContact) && canViewContactLeads,
   });
 
   const createContactMutation = useMutation({
@@ -397,6 +410,11 @@ export default function ContactsPage() {
                           ? (contact) => setCreatingLeadForContact(contact)
                           : undefined
                       }
+                      onViewLeads={
+                        canViewContactLeads
+                          ? (contact) => setViewingLeadsForContact(contact)
+                          : undefined
+                      }
                       onAddContact={
                         canCreateContact
                           ? () => setAddContactOpen(true)
@@ -463,6 +481,22 @@ export default function ContactsPage() {
           disableContactSelection
         />
       ) : null}
+
+      <ContactLeadsModal
+        isOpen={Boolean(viewingLeadsForContact) && canViewContactLeads}
+        onClose={() => setViewingLeadsForContact(null)}
+        contactName={
+          viewingLeadsForContact?.fullName ||
+          viewingLeadsForContact?.phone ||
+          ''
+        }
+        contactSubtitle={
+          viewingLeadsForContact?.fullName ? viewingLeadsForContact.phone : undefined
+        }
+        leads={contactLeadsQuery.data ?? []}
+        isLoading={contactLeadsQuery.isLoading}
+        canViewLeadDetail={canViewLeadDetail}
+      />
     </>
   );
 }
@@ -527,4 +561,104 @@ async function fetchContacts(
         hasPrevious: false,
       },
   };
+}
+
+type ApiContactLeadTicket = {
+  id: string;
+  ticketRefNo?: string;
+  createdAt: string;
+  dueDate: string | null;
+  title: string;
+  project: {
+    id: string;
+    name: string;
+    brandColor?: string;
+  } | null;
+  status: {
+    key: string;
+    label: string;
+    color?: string;
+  } | null;
+  priority: {
+    key: string;
+    label: string;
+    color?: string;
+  } | null;
+  ticketType?: string | null;
+  assignee: {
+    id?: string;
+    fullName?: string;
+    name?: string;
+  } | null;
+  reporter?: {
+    id: string;
+    email: string;
+    fullName: string;
+  };
+};
+
+async function fetchContactLeads(contactId: string): Promise<RecentTicket[]> {
+  if (!contactId) {
+    return [];
+  }
+
+  const searchParams = new URLSearchParams({
+    contactId,
+    page: '1',
+    limit: '100',
+  });
+
+  const response = await fetch(
+    `/api/dashboard/tickets?${searchParams.toString()}`,
+    {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+    },
+  );
+
+  const payload = (await response.json().catch(() => null)) as {
+    items?: ApiContactLeadTicket[];
+    message?: string;
+  } | null;
+
+  if (!response.ok || !Array.isArray(payload?.items)) {
+    throw new Error(payload?.message || 'Failed to fetch leads for contact.');
+  }
+
+  return payload.items.map((ticket) => {
+    const assigneeName =
+      ticket.assignee?.fullName ?? ticket.assignee?.name ?? 'Unassigned';
+    const statusLabel = ticket.status?.label ?? ticket.status?.key ?? 'Unknown';
+    const priorityLabel = ticket.priority?.label ?? ticket.priority?.key ?? null;
+
+    return {
+      id: ticket.id,
+      ticketRefNo: ticket.ticketRefNo,
+      title: ticket.title,
+      ticketType: ticket.ticketType ?? null,
+      project: {
+        id: ticket.project?.id,
+        name: ticket.project?.name ?? 'No Project',
+        initials: getInitials(ticket.project?.name ?? 'No Project'),
+        brandColor: ticket.project?.brandColor ?? '#31d81b',
+      },
+      status: statusLabel,
+      statusColor: ticket.status?.color,
+      priority: priorityLabel,
+      priorityColor: ticket.priority?.color,
+      assignee: {
+        name: assigneeName,
+        initials: getInitials(assigneeName),
+      },
+      date: ticket.createdAt,
+      dueDate: ticket.dueDate ?? '--',
+      sortDate: ticket.createdAt,
+      reporter: {
+        id: ticket.reporter?.id ?? '',
+        email: ticket.reporter?.email ?? '',
+        fullName: ticket.reporter?.fullName ?? '',
+      },
+    };
+  });
 }
