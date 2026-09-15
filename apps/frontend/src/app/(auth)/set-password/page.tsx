@@ -169,11 +169,11 @@ const Page = () => {
         <div className="flex-1 flex items-center space-y-8 md:space-y-12 px-4  justify-center flex-col">
           <div className="max-w-160 w-full space-y-3">
             <h2 className="text-white font-bold text-4xl md:text-[36px] text-center">
-              Streamline Support Operations
+              Grow Your Business with Smarter CRM
             </h2>
             <h3 className="text-center text-white text-base md:text-lg">
-              A smarter way to manage leads, projects, and team collaboration
-              across organizations.
+              Manage leads, nurture customer relationships, track sales, and
+              empower your team with everything in one place.
             </h3>
           </div>
 
