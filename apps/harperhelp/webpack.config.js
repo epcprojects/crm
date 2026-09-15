@@ -30,6 +30,15 @@ module.exports = {
       outputHashing: 'none',
       generatePackageJson: true,
       sourceMap: true,
+      fileReplacements:
+        process.env.NODE_ENV === 'production'
+          ? [
+              {
+                replace: 'apps/harperhelp/environments/environment.ts',
+                with: 'apps/harperhelp/environments/environment.prod.ts',
+              },
+            ]
+          : [],
     }),
   ],
 };
