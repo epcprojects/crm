@@ -166,11 +166,11 @@ const Page = () => {
       </div>
 
       <div className=" rounded-3xl hidden md:flex items-center justify-center bg-[url('/images/HarperLoginBg.jpg')] bg-center bg-no-repeat backdrop-blur-3xl relative">
-        <Image
+        {/* <Image
           alt="harper tech help logo"
           className="top-0 end-0 w-80 absolute"
           src={Images.auth.NewLogoTransparent2}
-        />
+        /> */}
         <div className="flex-1 flex items-center space-y-8 md:space-y-12 px-4  justify-center flex-col">
           <div className="max-w-160 w-full space-y-3">
             <h2 className="text-white font-bold text-4xl md:text-[36px] text-center">

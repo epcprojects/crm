@@ -210,19 +210,13 @@ export default function Page() {
     : (projectsQuery.data ?? []).map((project) => project.id);
 
   const ticketReportersQuery = useQuery({
-    queryKey: [
-      'ticket-reporters',
-      assignableMembersProjectIds.join(','),
-    ],
+    queryKey: ['ticket-reporters', assignableMembersProjectIds.join(',')],
     queryFn: () => fetchTicketReporters(assignableMembersProjectIds),
     enabled: hasPermission('tickets.view_list'),
   });
 
   const ticketAssigneesQuery = useQuery({
-    queryKey: [
-      'ticket-assignees',
-      assignableMembersProjectIds.join(','),
-    ],
+    queryKey: ['ticket-assignees', assignableMembersProjectIds.join(',')],
     queryFn: () => fetchTicketAssignees(assignableMembersProjectIds),
     enabled: hasPermission('tickets.view_list'),
   });
@@ -253,8 +247,7 @@ export default function Page() {
         contactId: selectedContactId === 'all' ? undefined : selectedContactId,
         dateFrom: dateFromValue || undefined,
         dateTo: dateToValue || undefined,
-        reporterId:
-          selectedCreatedBy === 'all' ? undefined : selectedCreatedBy,
+        reporterId: selectedCreatedBy === 'all' ? undefined : selectedCreatedBy,
         assigneeId:
           selectedAssignedTo === 'all' ? undefined : selectedAssignedTo,
         search: debouncedSearchValue.trim(),
@@ -582,7 +575,9 @@ export default function Page() {
         const contactLabel = contactFilterOptions.find(
           (option) => option.value === selectedContactId,
         )?.label;
-        filenameParts.push(`contact_${slugify(contactLabel ?? selectedContactId)}`);
+        filenameParts.push(
+          `contact_${slugify(contactLabel ?? selectedContactId)}`,
+        );
       }
 
       if (dateFromValue) {
@@ -1789,7 +1784,7 @@ export default function Page() {
                             onClick={() => handleViewModeChange('table')}
                             className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
                               viewMode === 'table'
-                                ? 'bg-linear-[271deg] from-aztec-purple  to-cyan-blue text-white shadow-sm'
+                                ? 'bg-aztec-purple text-white shadow-sm'
                                 : 'text-gray-500 hover:bg-gray-50'
                             }`}
                             aria-label="Table view"
@@ -1802,7 +1797,7 @@ export default function Page() {
                             onClick={() => handleViewModeChange('kanban')}
                             className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
                               viewMode === 'kanban'
-                                ? 'bg-linear-[271deg] from-aztec-purple  to-cyan-blue text-white shadow-sm'
+                                ? 'bg-aztec-purple text-white shadow-sm'
                                 : 'text-gray-500 hover:bg-gray-50'
                             }`}
                             aria-label="Kanban view"

@@ -119,13 +119,7 @@ import { fetchProjectMembers } from '../../../../lib/project-members';
 import { RecentTicketsTableSkeleton } from '../../dashboard/page';
 import { KanbanViewIcon, TableViewIcon } from '../../tickets/page';
 
-const projectTabs = [
-  'Leads',
-  'Thread',
-  'Files',
-  'Calendar',
-  'Notes',
-] as const;
+const projectTabs = ['Leads', 'Thread', 'Files', 'Calendar', 'Notes'] as const;
 const projectTabQueryParamMap: Record<
   (typeof projectTabs)[number],
   string | null
@@ -391,10 +385,8 @@ export default function ProjectDetailPage() {
       contactId: selectedContactId === 'all' ? undefined : selectedContactId,
       dateFrom: dateFromValue || undefined,
       dateTo: dateToValue || undefined,
-      reporterId:
-        selectedCreatedBy === 'all' ? undefined : selectedCreatedBy,
-      assigneeId:
-        selectedAssignedTo === 'all' ? undefined : selectedAssignedTo,
+      reporterId: selectedCreatedBy === 'all' ? undefined : selectedCreatedBy,
+      assigneeId: selectedAssignedTo === 'all' ? undefined : selectedAssignedTo,
     },
     canViewTickets && projectTicketsViewMode === 'table',
   );
@@ -1342,7 +1334,10 @@ export default function ProjectDetailPage() {
     if (nextCreatedBy === 'all') {
       nextSearchParams.delete(PROJECT_TICKETS_CREATED_BY_QUERY_PARAM);
     } else {
-      nextSearchParams.set(PROJECT_TICKETS_CREATED_BY_QUERY_PARAM, nextCreatedBy);
+      nextSearchParams.set(
+        PROJECT_TICKETS_CREATED_BY_QUERY_PARAM,
+        nextCreatedBy,
+      );
     }
 
     if (nextAssignedTo === 'all') {
@@ -2406,343 +2401,343 @@ export default function ProjectDetailPage() {
                 <PermissionGuard permission="tickets.view_list">
                   <TabPanel className="flex h-auto min-h-0 min-w-0 flex-none flex-col gap-4 overflow-visible xl:h-full xl:flex-1 xl:overflow-hidden">
                     <div className="flex shrink-0 flex-col gap-3 rounded-xl md:flex-row md:items-center md:justify-between">
-                        <>
-                          <div className="flex items-center gap-3">
-                            <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 md:max-w-xs">
-                              <div className="flex items-center gap-2">
-                                <span className="shrink-0">
-                                  <SearchIcon fill="#374151" />
-                                </span>
+                      <>
+                        <div className="flex items-center gap-3">
+                          <div className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 md:max-w-xs">
+                            <div className="flex items-center gap-2">
+                              <span className="shrink-0">
+                                <SearchIcon fill="#374151" />
+                              </span>
 
-                                <input
-                                  type="text"
-                                  value={searchValue}
-                                  onChange={(event) =>
-                                    setSearchValue(event.target.value)
-                                  }
-                                  placeholder="Search"
-                                  className="min-w-0 flex-1 bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400"
-                                />
+                              <input
+                                type="text"
+                                value={searchValue}
+                                onChange={(event) =>
+                                  setSearchValue(event.target.value)
+                                }
+                                placeholder="Search"
+                                className="min-w-0 flex-1 bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400"
+                              />
 
-                                <button
-                                  type="button"
-                                  onClick={() => setSearchValue('')}
-                                  disabled={!searchValue}
-                                  tabIndex={searchValue ? 0 : -1}
-                                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
-                                    searchValue
-                                      ? 'visible hover:bg-gray-100'
-                                      : 'pointer-events-none invisible'
-                                  }`}
-                                  aria-label="Clear search"
-                                >
-                                  <CloseIcon width="15" height="15" />
-                                </button>
-                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setSearchValue('')}
+                                disabled={!searchValue}
+                                tabIndex={searchValue ? 0 : -1}
+                                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
+                                  searchValue
+                                    ? 'visible hover:bg-gray-100'
+                                    : 'pointer-events-none invisible'
+                                }`}
+                                aria-label="Clear search"
+                              >
+                                <CloseIcon width="15" height="15" />
+                              </button>
                             </div>
-
-                            {/* Mobile/tablet filter button */}
-                            <Popover as="div" className="relative xl:hidden">
-                              {({ open }) => (
-                                <>
-                                  <PopoverButton
-                                    className={`flex h-10 shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium outline-none ${
-                                      open || hasActiveProjectTicketFilters
-                                        ? 'border-primary bg-primary/5 text-primary'
-                                        : 'border-gray-200 bg-white text-gray-700'
-                                    }`}
-                                    aria-label="Open lead filters"
-                                  >
-                                    <FiltersIcon />
-                                  </PopoverButton>
-
-                                  <PopoverPanel
-                                    anchor="bottom end"
-                                    transition
-                                    className="z-100 mt-2 flex w-56 origin-top-right flex-col gap-3 overflow-visible! rounded-xl border border-gray-200 bg-white p-3 shadow-[0_14px_44px_rgb(0_0_0/0.14)] outline-none transition duration-150 data-closed:-translate-y-2 data-closed:scale-95 data-closed:opacity-0"
-                                  >
-                                    <div className="relative w-full overflow-visible">
-                                      <Dropdown
-                                        options={statusFilterOptions}
-                                        value={selectedStatus}
-                                        onChange={(value) =>
-                                          updateProjectTicketFilters({
-                                            status: value,
-                                          })
-                                        }
-                                        placeholder="All Status"
-                                        maxMenuHeight={150}
-                                      />
-                                    </div>
-
-                                    <div className="relative w-full overflow-visible">
-                                      <Dropdown
-                                        options={priorityFilterOptions}
-                                        value={selectedPriority}
-                                        onChange={(value) =>
-                                          updateProjectTicketFilters({
-                                            priority: value,
-                                          })
-                                        }
-                                        placeholder="All Priority"
-                                        maxMenuHeight={150}
-                                      />
-                                    </div>
-
-                                    <div className="relative w-full overflow-visible">
-                                      <Dropdown
-                                        options={contactFilterOptions}
-                                        value={selectedContactId}
-                                        onChange={(value) =>
-                                          updateProjectTicketFilters({
-                                            contactId: value,
-                                          })
-                                        }
-                                        showSearch={true}
-                                        placeholder="All Contacts"
-                                        maxMenuHeight={150}
-                                      />
-                                    </div>
-
-                                    <div className="relative w-full overflow-visible">
-                                      <Dropdown
-                                        options={createdByFilterOptions}
-                                        value={selectedCreatedBy}
-                                        onChange={(value) =>
-                                          updateProjectTicketFilters({
-                                            createdBy: value,
-                                          })
-                                        }
-                                        showSearch={true}
-                                        placeholder="All Creators"
-                                        maxMenuHeight={150}
-                                      />
-                                    </div>
-
-                                    <div className="relative w-full overflow-visible">
-                                      <Dropdown
-                                        options={assignedToFilterOptions}
-                                        value={selectedAssignedTo}
-                                        onChange={(value) =>
-                                          updateProjectTicketFilters({
-                                            assignedTo: value,
-                                          })
-                                        }
-                                        showSearch={true}
-                                        placeholder="All Assignees"
-                                        maxMenuHeight={150}
-                                      />
-                                    </div>
-
-                                    <div className="flex items-center gap-2">
-                                      <ThemeInput
-                                        type="date"
-                                        value={dateFromValue}
-                                        onChange={(event) =>
-                                          updateProjectTicketFilters({
-                                            dateFrom: event.target.value,
-                                          })
-                                        }
-                                        max={dateToValue || undefined}
-                                        wrapperClassName="w-full"
-                                        aria-label="From date"
-                                      />
-                                      <span className="shrink-0 text-xs text-gray-400">
-                                        to
-                                      </span>
-                                      <ThemeInput
-                                        type="date"
-                                        value={dateToValue}
-                                        onChange={(event) =>
-                                          updateProjectTicketFilters({
-                                            dateTo: event.target.value,
-                                          })
-                                        }
-                                        min={dateFromValue || undefined}
-                                        wrapperClassName="w-full"
-                                        aria-label="To date"
-                                      />
-                                    </div>
-
-                                    <button
-                                      type="button"
-                                      onClick={clearProjectTicketFilters}
-                                      disabled={!hasActiveProjectTicketFilters}
-                                      className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                      Clear Filters
-                                    </button>
-                                  </PopoverPanel>
-                                </>
-                              )}
-                            </Popover>
                           </div>
-                          <div className="flex flex-row items-center gap-3">
-                            <div className="hidden items-center rounded-lg border border-gray-200 bg-white xl:flex">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleProjectTicketsViewChange('table')
-                                }
-                                className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
-                                  projectTicketsViewMode === 'table'
-                                    ? 'bg-linear-[271deg] from-aztec-purple to-cyan-blue text-white shadow-sm'
-                                    : 'text-gray-500 hover:bg-gray-50'
-                                }`}
-                                aria-label="Table view"
-                              >
-                                <TableViewIcon />
-                              </button>
 
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleProjectTicketsViewChange('kanban')
-                                }
-                                className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
-                                  projectTicketsViewMode === 'kanban'
-                                    ? 'bg-linear-[271deg] from-aztec-purple to-cyan-blue text-white shadow-sm'
-                                    : 'text-gray-500 hover:bg-gray-50'
-                                }`}
-                                aria-label="Kanban view"
-                              >
-                                <KanbanViewIcon />
-                              </button>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              {/* Desktop inline filters */}
-                              {projectTicketsViewMode === 'table' ? (
-                                <div className="hidden w-55 xl:block">
-                                  <Dropdown
-                                    options={statusFilterOptions}
-                                    value={selectedStatus}
-                                    onChange={(value) =>
-                                      updateProjectTicketFilters({
-                                        status: value,
-                                      })
-                                    }
-                                    placeholder="All Status"
-                                  />
-                                </div>
-                              ) : null}
+                          {/* Mobile/tablet filter button */}
+                          <Popover as="div" className="relative xl:hidden">
+                            {({ open }) => (
+                              <>
+                                <PopoverButton
+                                  className={`flex h-10 shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium outline-none ${
+                                    open || hasActiveProjectTicketFilters
+                                      ? 'border-primary bg-primary/5 text-primary'
+                                      : 'border-gray-200 bg-white text-gray-700'
+                                  }`}
+                                  aria-label="Open lead filters"
+                                >
+                                  <FiltersIcon />
+                                </PopoverButton>
 
-                              <div className="hidden w-55 xl:flex gap-3">
-                                <Dropdown
-                                  options={priorityFilterOptions}
-                                  value={selectedPriority}
-                                  onChange={(value) =>
-                                    updateProjectTicketFilters({
-                                      priority: value,
-                                    })
-                                  }
-                                  placeholder="All Priority"
-                                />
-                              </div>
+                                <PopoverPanel
+                                  anchor="bottom end"
+                                  transition
+                                  className="z-100 mt-2 flex w-56 origin-top-right flex-col gap-3 overflow-visible! rounded-xl border border-gray-200 bg-white p-3 shadow-[0_14px_44px_rgb(0_0_0/0.14)] outline-none transition duration-150 data-closed:-translate-y-2 data-closed:scale-95 data-closed:opacity-0"
+                                >
+                                  <div className="relative w-full overflow-visible">
+                                    <Dropdown
+                                      options={statusFilterOptions}
+                                      value={selectedStatus}
+                                      onChange={(value) =>
+                                        updateProjectTicketFilters({
+                                          status: value,
+                                        })
+                                      }
+                                      placeholder="All Status"
+                                      maxMenuHeight={150}
+                                    />
+                                  </div>
 
+                                  <div className="relative w-full overflow-visible">
+                                    <Dropdown
+                                      options={priorityFilterOptions}
+                                      value={selectedPriority}
+                                      onChange={(value) =>
+                                        updateProjectTicketFilters({
+                                          priority: value,
+                                        })
+                                      }
+                                      placeholder="All Priority"
+                                      maxMenuHeight={150}
+                                    />
+                                  </div>
+
+                                  <div className="relative w-full overflow-visible">
+                                    <Dropdown
+                                      options={contactFilterOptions}
+                                      value={selectedContactId}
+                                      onChange={(value) =>
+                                        updateProjectTicketFilters({
+                                          contactId: value,
+                                        })
+                                      }
+                                      showSearch={true}
+                                      placeholder="All Contacts"
+                                      maxMenuHeight={150}
+                                    />
+                                  </div>
+
+                                  <div className="relative w-full overflow-visible">
+                                    <Dropdown
+                                      options={createdByFilterOptions}
+                                      value={selectedCreatedBy}
+                                      onChange={(value) =>
+                                        updateProjectTicketFilters({
+                                          createdBy: value,
+                                        })
+                                      }
+                                      showSearch={true}
+                                      placeholder="All Creators"
+                                      maxMenuHeight={150}
+                                    />
+                                  </div>
+
+                                  <div className="relative w-full overflow-visible">
+                                    <Dropdown
+                                      options={assignedToFilterOptions}
+                                      value={selectedAssignedTo}
+                                      onChange={(value) =>
+                                        updateProjectTicketFilters({
+                                          assignedTo: value,
+                                        })
+                                      }
+                                      showSearch={true}
+                                      placeholder="All Assignees"
+                                      maxMenuHeight={150}
+                                    />
+                                  </div>
+
+                                  <div className="flex items-center gap-2">
+                                    <ThemeInput
+                                      type="date"
+                                      value={dateFromValue}
+                                      onChange={(event) =>
+                                        updateProjectTicketFilters({
+                                          dateFrom: event.target.value,
+                                        })
+                                      }
+                                      max={dateToValue || undefined}
+                                      wrapperClassName="w-full"
+                                      aria-label="From date"
+                                    />
+                                    <span className="shrink-0 text-xs text-gray-400">
+                                      to
+                                    </span>
+                                    <ThemeInput
+                                      type="date"
+                                      value={dateToValue}
+                                      onChange={(event) =>
+                                        updateProjectTicketFilters({
+                                          dateTo: event.target.value,
+                                        })
+                                      }
+                                      min={dateFromValue || undefined}
+                                      wrapperClassName="w-full"
+                                      aria-label="To date"
+                                    />
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={clearProjectTicketFilters}
+                                    disabled={!hasActiveProjectTicketFilters}
+                                    className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    Clear Filters
+                                  </button>
+                                </PopoverPanel>
+                              </>
+                            )}
+                          </Popover>
+                        </div>
+                        <div className="flex flex-row items-center gap-3">
+                          <div className="hidden items-center rounded-lg border border-gray-200 bg-white xl:flex">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleProjectTicketsViewChange('table')
+                              }
+                              className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
+                                projectTicketsViewMode === 'table'
+                                  ? 'bg-aztec-purple  text-white shadow-sm'
+                                  : 'text-gray-500 hover:bg-gray-50'
+                              }`}
+                              aria-label="Table view"
+                            >
+                              <TableViewIcon />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleProjectTicketsViewChange('kanban')
+                              }
+                              className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
+                                projectTicketsViewMode === 'kanban'
+                                  ? 'bg-aztec-purple text-white shadow-sm'
+                                  : 'text-gray-500 hover:bg-gray-50'
+                              }`}
+                              aria-label="Kanban view"
+                            >
+                              <KanbanViewIcon />
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            {/* Desktop inline filters */}
+                            {projectTicketsViewMode === 'table' ? (
                               <div className="hidden w-55 xl:block">
                                 <Dropdown
-                                  options={contactFilterOptions}
-                                  value={selectedContactId}
+                                  options={statusFilterOptions}
+                                  value={selectedStatus}
                                   onChange={(value) =>
                                     updateProjectTicketFilters({
-                                      contactId: value,
+                                      status: value,
+                                    })
+                                  }
+                                  placeholder="All Status"
+                                />
+                              </div>
+                            ) : null}
+
+                            <div className="hidden w-55 xl:flex gap-3">
+                              <Dropdown
+                                options={priorityFilterOptions}
+                                value={selectedPriority}
+                                onChange={(value) =>
+                                  updateProjectTicketFilters({
+                                    priority: value,
+                                  })
+                                }
+                                placeholder="All Priority"
+                              />
+                            </div>
+
+                            <div className="hidden w-55 xl:block">
+                              <Dropdown
+                                options={contactFilterOptions}
+                                value={selectedContactId}
+                                onChange={(value) =>
+                                  updateProjectTicketFilters({
+                                    contactId: value,
+                                  })
+                                }
+                                showSearch={true}
+                                placeholder="All Contacts"
+                                maxMenuHeight={320}
+                              />
+                            </div>
+
+                            {projectTicketsViewMode === 'table' ? (
+                              <div className="hidden w-55 xl:block">
+                                <Dropdown
+                                  options={createdByFilterOptions}
+                                  value={selectedCreatedBy}
+                                  onChange={(value) =>
+                                    updateProjectTicketFilters({
+                                      createdBy: value,
                                     })
                                   }
                                   showSearch={true}
-                                  placeholder="All Contacts"
+                                  placeholder="All Creators"
                                   maxMenuHeight={320}
                                 />
                               </div>
+                            ) : null}
 
-                              {projectTicketsViewMode === 'table' ? (
-                                <div className="hidden w-55 xl:block">
-                                  <Dropdown
-                                    options={createdByFilterOptions}
-                                    value={selectedCreatedBy}
-                                    onChange={(value) =>
-                                      updateProjectTicketFilters({
-                                        createdBy: value,
-                                      })
-                                    }
-                                    showSearch={true}
-                                    placeholder="All Creators"
-                                    maxMenuHeight={320}
-                                  />
-                                </div>
-                              ) : null}
+                            {projectTicketsViewMode === 'table' ? (
+                              <div className="hidden w-55 xl:block">
+                                <Dropdown
+                                  options={assignedToFilterOptions}
+                                  value={selectedAssignedTo}
+                                  onChange={(value) =>
+                                    updateProjectTicketFilters({
+                                      assignedTo: value,
+                                    })
+                                  }
+                                  showSearch={true}
+                                  placeholder="All Assignees"
+                                  maxMenuHeight={320}
+                                />
+                              </div>
+                            ) : null}
 
-                              {projectTicketsViewMode === 'table' ? (
-                                <div className="hidden w-55 xl:block">
-                                  <Dropdown
-                                    options={assignedToFilterOptions}
-                                    value={selectedAssignedTo}
-                                    onChange={(value) =>
-                                      updateProjectTicketFilters({
-                                        assignedTo: value,
-                                      })
-                                    }
-                                    showSearch={true}
-                                    placeholder="All Assignees"
-                                    maxMenuHeight={320}
-                                  />
-                                </div>
-                              ) : null}
+                            {projectTicketsViewMode === 'table' ? (
+                              <div className="hidden xl:flex items-center gap-2">
+                                <ThemeInput
+                                  type="date"
+                                  value={dateFromValue}
+                                  onChange={(event) =>
+                                    updateProjectTicketFilters({
+                                      dateFrom: event.target.value,
+                                    })
+                                  }
+                                  max={dateToValue || undefined}
+                                  wrapperClassName="w-full"
+                                  aria-label="From date"
+                                />
+                                <span className="shrink-0 text-xs text-gray-400">
+                                  to
+                                </span>
+                                <ThemeInput
+                                  type="date"
+                                  value={dateToValue}
+                                  onChange={(event) =>
+                                    updateProjectTicketFilters({
+                                      dateTo: event.target.value,
+                                    })
+                                  }
+                                  min={dateFromValue || undefined}
+                                  wrapperClassName="w-full"
+                                  aria-label="To date"
+                                />
+                              </div>
+                            ) : null}
+                            <ThemeButton
+                              type="button"
+                              variant="secondary"
+                              size="md"
+                              onClick={clearProjectTicketFilters}
+                              disabled={!hasActiveProjectTicketFilters}
+                              className="hidden h-10 shrink-0 disabled:cursor-not-allowed disabled:opacity-50 xl:inline-flex"
+                            >
+                              Clear Filters
+                            </ThemeButton>
 
-                              {projectTicketsViewMode === 'table' ? (
-                                <div className="hidden xl:flex items-center gap-2">
-                                  <ThemeInput
-                                    type="date"
-                                    value={dateFromValue}
-                                    onChange={(event) =>
-                                      updateProjectTicketFilters({
-                                        dateFrom: event.target.value,
-                                      })
-                                    }
-                                    max={dateToValue || undefined}
-                                    wrapperClassName="w-full"
-                                    aria-label="From date"
-                                  />
-                                  <span className="shrink-0 text-xs text-gray-400">
-                                    to
-                                  </span>
-                                  <ThemeInput
-                                    type="date"
-                                    value={dateToValue}
-                                    onChange={(event) =>
-                                      updateProjectTicketFilters({
-                                        dateTo: event.target.value,
-                                      })
-                                    }
-                                    min={dateFromValue || undefined}
-                                    wrapperClassName="w-full"
-                                    aria-label="To date"
-                                  />
-                                </div>
-                              ) : null}
+                            {canCreateTicket ? (
                               <ThemeButton
-                                type="button"
-                                variant="secondary"
-                                size="md"
-                                onClick={clearProjectTicketFilters}
-                                disabled={!hasActiveProjectTicketFilters}
-                                className="hidden h-10 shrink-0 disabled:cursor-not-allowed disabled:opacity-50 xl:inline-flex"
+                                className="shrink-0 rounded-full hidden xl:flex"
+                                variant="primaryGradient"
+                                icon={<PlusIcon width="20" height="20" />}
+                                onClick={() => setCreateTicketOpen(true)}
                               >
-                                Clear Filters
+                                New Lead
                               </ThemeButton>
-
-                              {canCreateTicket ? (
-                                <ThemeButton
-                                  className="shrink-0 rounded-full hidden xl:flex"
-                                  variant="primaryGradient"
-                                  icon={<PlusIcon width="20" height="20" />}
-                                  onClick={() => setCreateTicketOpen(true)}
-                                >
-                                  New Lead
-                                </ThemeButton>
-                              ) : null}
-                            </div>
+                            ) : null}
                           </div>
-                        </>
+                        </div>
+                      </>
                     </div>
                     <div className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden">
                       {isProjectTicketsLoading ? (

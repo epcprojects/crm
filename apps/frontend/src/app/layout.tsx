@@ -10,8 +10,8 @@ import { AppToastProvider } from '../components/toast/AppToast';
 import { NotificationsSocketProvider } from './providers/NotificationsSocketProvider';
 
 export const metadata = {
-  title: 'Harper Help Desk',
-  description: 'Harper Help Desk',
+  title: 'EPC CRM',
+  description: 'EPC CRM',
 };
 
 const poppins = Nunito({

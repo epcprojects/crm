@@ -392,7 +392,7 @@ export function adminInviteTemplate({
                                                                                                                         style="display:inline-block; text-decoration:none;">
                                                                                                                         <img src="${appUrl}/images/Banners/InvitedToHarperIcon.png"
                                                                                                                             width="80"
-                                                                                                                            alt="Harper Help Desk"
+                                                                                                                            alt="EPC CRM"
                                                                                                                             style="
                     
                     width: 80px;

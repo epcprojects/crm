@@ -28,7 +28,7 @@ export default function ThemeButton({
       className={clsx(
         className,
         {
-          'bg-linear-[271deg] from-aztec-purple  to-cyan-blue text-white hover:from-violet-blue hover:to-science-blue':
+          'bg-[#673DE6] text-white hover:bg-[#542ad4]':
             variant === 'primaryGradient',
           'bg-white border border-[#D4D4D4] text-black hover:bg-gray-100 drop-shadow-xs':
             variant === 'secondary',

@@ -4,7 +4,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-primary: #304FFD;
+  --color-primary: #673DE6;
   --color-primary-dark: #304FFD;
   --color-primary-light: #40C3FF;
    --color-warning-200: #FEDF89;  
@@ -24,7 +24,7 @@
    --color-soft-peach: #EAEDE7;
    --color-error-100: #FEE4E2;
    --color-error-200: #FECDCA;
-   --color-aztec-purple: #8833FF;
+   --color-aztec-purple: #673DE6;
    --color-cyan-blue: #1175F9;
    --color-violet-blue: #5906CE;
    --color-science-blue: #0060DE;
