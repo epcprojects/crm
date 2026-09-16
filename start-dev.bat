@@ -18,5 +18,5 @@ REM PORT isn't set, so each one is pinned explicitly here to avoid a clash.
 start "HarperHelp Backend (3000)" cmd /k "set PORT=3000 && npx nx serve harperhelp"
 start "HarperHelp Frontend (4200)" cmd /k "set PORT=4200 && npx nx dev frontend"
 
-echo Backend:  http://localhost:3000/api-harper/v1
+echo Backend:  http://localhost:3000/api/v1
 echo Frontend: http://localhost:4200
