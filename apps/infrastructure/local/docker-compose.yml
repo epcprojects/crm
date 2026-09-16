@@ -1,11 +1,11 @@
 services:
   postgres:
     image: postgres:18
-    container_name: harperhelp_postgres
+    container_name: epc_crm_postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: harperhelp
+      POSTGRES_DB: epc_crm
     ports:
       - '5432:5432'
     volumes:

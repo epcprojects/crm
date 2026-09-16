@@ -14,7 +14,7 @@ import {
   TicketIcon2,
 } from '../../../public/icons';
 import EmptyState from '../EmptyState';
-import { NotificationItem } from '@harperhelp/interfaces';
+import { NotificationItem } from '@epc-crm/interfaces';
 import { getNotificationNavigationPath } from '../../lib/notification-navigation';
 
 export type NotificationGroupCategory =

@@ -18,7 +18,7 @@ import UserCard, {
   UserCardsSkeleton,
   type UserCardUser,
 } from '../../../components/users/UserCard';
-import type { NotificationItem } from '@harperhelp/interfaces';
+import type { NotificationItem } from '@epc-crm/interfaces';
 import type { ProjectNameRecord } from '../projects/projects.data';
 import { useProjectNamesQuery } from '../projects/projects.queries';
 import {

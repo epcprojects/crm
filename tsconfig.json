@@ -4,10 +4,10 @@
   "files": [],
   "references": [
     {
-      "path": "./apps/harperhelp-e2e"
+      "path": "./apps/epc-crm-e2e"
     },
     {
-      "path": "./apps/harperhelp"
+      "path": "./apps/epc-crm"
     },
     {
       "path": "./apps/frontend"

@@ -1,17 +1,17 @@
-# Harperhelp
+# EPC CRM
 
 <!-- test commit: verifying Vercel deployment -->
 
 
 ### Generate nest module
 
-npx nx generate @nx/nest:resource --path=apps/harperhelp/src/app/modules/chat/chat --crud
+npx nx generate @nx/nest:resource --path=apps/epc-crm/src/app/modules/chat/chat --crud
 
-Email: `superadmin@harperhelp.local`  
+Email: `superadmin@epc-crm.local`  
 Password: `SuperAdmin123!`
 
 `{
-    "email": "superadmin@harperhelp.local",
+    "email": "superadmin@epc-crm.local",
     "password": "SuperAdmin123!"
 }`
 <a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
@@ -25,19 +25,19 @@ Password: `SuperAdmin123!`
 To run the dev server for your app, use:
 
 ```sh
-npx nx serve harperhelp
+npx nx serve epc-crm
 ```
 
 To create a production bundle:
 
 ```sh
-npx nx build harperhelp
+npx nx build epc-crm
 ```
 
 To see all available targets to run for a project, run:
 
 ```sh
-npx nx show project harperhelp
+npx nx show project epc-crm
 ```
 
 These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.

@@ -7,7 +7,7 @@ import EmptyState from '../../../components/EmptyState';
 import { useIsMobile } from '../../../components/hooks/useIsMobile';
 import { useDebouncedValue } from '../../../components/hooks/useDebouncedValue';
 import { useNotificationsSocket } from '../../providers/NotificationsSocketProvider';
-import { NotificationItem } from '@harperhelp/interfaces';
+import { NotificationItem } from '@epc-crm/interfaces';
 import type { NotificationGroupCategory } from '../../../components/dashboard/NotificationTray';
 import {
   ChatIcon,

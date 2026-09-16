@@ -80,5 +80,5 @@ SET
 COMMIT;
 
 -- Run this script with psql or via Docker (after the app has synced the `territories` table at least once):
--- psql "postgresql://postgres:postgres@localhost:5432/harperhelp" -f apps/infrastructure/local/seed-territories-pakistan.sql
--- docker exec -i harperhelp_postgres psql -U postgres -d harperhelp < apps/infrastructure/local/seed-territories-pakistan.sql
+-- psql "postgresql://postgres:postgres@localhost:5432/epc_crm" -f apps/infrastructure/local/seed-territories-pakistan.sql
+-- docker exec -i epc_crm_postgres psql -U postgres -d epc_crm < apps/infrastructure/local/seed-territories-pakistan.sql

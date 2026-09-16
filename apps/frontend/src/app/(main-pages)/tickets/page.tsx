@@ -55,8 +55,8 @@ import ThemeButton from '../../../components/ui/ThemeButton';
 import { RecentTicketsTableSkeleton } from '../dashboard/page';
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 import { eventEmitter } from '../../../lib/event-emitter';
-import { NotificationItem } from '@harperhelp/interfaces';
-import { NotificationEntityType } from '@harperhelp/types';
+import { NotificationItem } from '@epc-crm/interfaces';
+import { NotificationEntityType } from '@epc-crm/types';
 import DashboardSummaryBannerSkeleton from 'apps/frontend/src/components/ui/DashboardSummaryBannerSkeleton';
 import ConfirmActionModal from 'apps/frontend/src/components/modals/ConfirmActionModal';
 

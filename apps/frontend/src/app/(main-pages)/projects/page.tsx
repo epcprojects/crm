@@ -39,8 +39,8 @@ import ThemeButton from '../../../components/ui/ThemeButton';
 import EmptyState from '../../../components/EmptyState';
 import { useDebouncedValue } from '../../../components/hooks/useDebouncedValue';
 import { eventEmitter } from '../../../lib/event-emitter';
-import { NotificationEntityType } from '@harperhelp/types';
-import { NotificationItem } from '@harperhelp/interfaces';
+import { NotificationEntityType } from '@epc-crm/types';
+import { NotificationItem } from '@epc-crm/interfaces';
 import {
   assignProjectUsers,
   fetchAvailableProjectUsers,

@@ -1,4 +1,4 @@
--- Seed initial auth data for HarperHelp
+-- Seed initial auth data for EPC CRM
 -- 1) insert roles first
 -- 2) insert the first super admin user
 -- 3) assign the super admin role via user_roles
@@ -49,8 +49,8 @@ WITH role_rows AS (
   )
   VALUES (
     '00000000-0000-0000-0000-000000000002',
-    'superadmin@harperhelp.local',
-    'SUPERADMIN@HARPERHELP.LOCAL',
+    'superadmin@epc-crm.local',
+    'SUPERADMIN@EPC-CRM.LOCAL',
     '$2b$10$muSm2nhOx3dJ/Ex2LrQAHuxkprGunZ.xyt8jKNog14XHDH4FlNd0a',
     'Super Admin',
     'SUPER ADMIN',
@@ -89,5 +89,5 @@ WHERE NOT EXISTS (
 COMMIT;
 
 -- Run this script with psql or via Docker:
--- psql "postgresql://postgres:postgres@localhost:5432/harperhelp" -f apps/infrastructure/local/seed-super-admin.sql
--- docker exec -i harperhelp_postgres psql -U postgres -d harperhelp < apps/infrastructure/local/seed-super-admin.sql
+-- psql "postgresql://postgres:postgres@localhost:5432/epc_crm" -f apps/infrastructure/local/seed-super-admin.sql
+-- docker exec -i epc_crm_postgres psql -U postgres -d epc_crm < apps/infrastructure/local/seed-super-admin.sql

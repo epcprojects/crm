@@ -1,4 +1,4 @@
-import { CalendarView } from '@harperhelp/types';
+import { CalendarView } from '@epc-crm/types';
 
 export interface DateRange {
   start: string; // YYYY-MM-DD

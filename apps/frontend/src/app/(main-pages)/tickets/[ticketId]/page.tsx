@@ -60,8 +60,8 @@ import type {
   DiscussionReply,
 } from '../../../../components/discussion/types';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
-import { NotificationItem } from '@harperhelp/interfaces';
-import { NotificationEntityType } from '@harperhelp/types';
+import { NotificationItem } from '@epc-crm/interfaces';
+import { NotificationEntityType } from '@epc-crm/types';
 import { eventEmitter } from '../../../../lib/event-emitter';
 import { uploadFilesDirectly } from '../../../../lib/attachments';
 // eslint-disable-next-line @nx/enforce-module-boundaries

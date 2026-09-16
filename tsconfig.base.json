@@ -15,9 +15,9 @@
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
     "paths": {
-      "@harperhelp/types": ["./libs/shared/types/src/index.ts"],
-      "@harperhelp/interfaces": ["./libs/shared/interfaces/src/index.ts"],
-      "@harperhelp/utils": ["./libs/shared/utils/src/index.ts"]
+      "@epc-crm/types": ["./libs/shared/types/src/index.ts"],
+      "@epc-crm/interfaces": ["./libs/shared/interfaces/src/index.ts"],
+      "@epc-crm/utils": ["./libs/shared/utils/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

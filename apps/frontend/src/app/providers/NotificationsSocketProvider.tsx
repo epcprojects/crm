@@ -12,7 +12,7 @@ import {
 import { io, Socket } from 'socket.io-client';
 import { useRouter } from 'next/navigation';
 
-import { NotificationItem } from '@harperhelp/interfaces';
+import { NotificationItem } from '@epc-crm/interfaces';
 
 import { useAppSelector } from '../Redux/store';
 import { eventEmitter } from '../../lib/event-emitter';

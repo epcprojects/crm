@@ -11,12 +11,12 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr /C:":4200 " ^| findstr "LISTE
   taskkill /F /PID %%a >nul 2>&1
 )
 
-echo Starting HarperHelp backend and frontend...
+echo Starting EPC CRM backend and frontend...
 
 REM Both the Nest backend and Next.js frontend default to port 3000 when
 REM PORT isn't set, so each one is pinned explicitly here to avoid a clash.
-start "HarperHelp Backend (3000)" cmd /k "set PORT=3000 && npx nx serve harperhelp"
-start "HarperHelp Frontend (4200)" cmd /k "set PORT=4200 && npx nx dev frontend"
+start "EPC CRM Backend (3000)" cmd /k "set PORT=3000 && npx nx serve epc-crm"
+start "EPC CRM Frontend (4200)" cmd /k "set PORT=4200 && npx nx dev frontend"
 
 echo Backend:  http://localhost:3000/api/v1
 echo Frontend: http://localhost:4200
