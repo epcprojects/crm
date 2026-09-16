@@ -12,7 +12,7 @@ import EmojiPicker, { Theme, type EmojiClickData } from 'emoji-picker-react';
 import clsx from 'clsx';
 import { useMemo, useState, type CSSProperties } from 'react';
 import type { DiscussionReaction } from './types';
-import { getInitials } from '../../app/(main-pages)/dashboard/page';
+import { getInitials } from '../../lib/format';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { CloseIcon } from 'apps/frontend/public/icons';
 

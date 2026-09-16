@@ -15,7 +15,10 @@ import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import ThemeButton from '../ui/ThemeButton';
 import {
   ArrowUpRightIcon,
+  CalendarTabIcon,
   ChatIcon,
+  FilesTabIcon,
+  NotesTabIcon,
   ProjectsIcon,
   ThreedotIcon,
   TrashIcon,
@@ -23,12 +26,7 @@ import {
 import { useAppSelector } from '../../app/Redux/store';
 import EmptyState from '../EmptyState';
 import PhoneActions from '../ui/PhoneActions';
-import { getInitials } from '../../app/(main-pages)/dashboard/page';
-import {
-  CalendarTabIcon,
-  FilesTabIcon,
-  NotesTabIcon,
-} from '../../app/(main-pages)/projects/[projectId]/page';
+import { getInitials } from '../../lib/format';
 import { usePermissions } from '../../app/providers/PermissionProvider';
 
 export type TicketStatus = string;

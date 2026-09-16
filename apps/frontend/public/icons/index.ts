@@ -57,6 +57,11 @@ import BugIcon from './BugIcon';
 import FeatureIcon from './FeatureIcon';
 import CallIcon from './CallIcon';
 import WhatsAppIcon from './WhatsAppIcon';
+import FilesTabIcon from './FilesTabIcon';
+import CalendarTabIcon from './CalendarTabIcon';
+import NotesTabIcon from './NotesTabIcon';
+import TableViewIcon from './TableViewIcon';
+import KanbanViewIcon from './KanbanViewIcon';
 export {
   CallIcon,
   WhatsAppIcon,
@@ -117,4 +122,9 @@ export {
   SettingsIcon,
   ClockIcon,
   ProfileIcon,
+  FilesTabIcon,
+  CalendarTabIcon,
+  NotesTabIcon,
+  TableViewIcon,
+  KanbanViewIcon,
 };

@@ -31,7 +31,7 @@ import { useDebouncedValue } from '../../../components/hooks/useDebouncedValue';
 import { fetchCitiesByProvince, fetchProvinces } from '../../../lib/territories';
 import { createTicket } from '../../../lib/tickets';
 import { useProjectNamesQuery } from '../projects/projects.queries';
-import { getInitials } from '../dashboard/page';
+import { getInitials } from '../../../lib/format';
 
 const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];

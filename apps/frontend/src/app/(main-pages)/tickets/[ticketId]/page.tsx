@@ -39,12 +39,15 @@ import { usePermissions } from '../../../providers/PermissionProvider';
 import { useAppSelector } from '../../../Redux/store';
 import {
   BugIcon,
+  CalendarTabIcon,
   ChatIcon,
   DownloadIcon,
   EditIcon,
   EyeOpenedIcon,
   FeatureIcon,
+  FilesTabIcon,
   FileTypePlaceholder,
+  NotesTabIcon,
   ProjectsIcon,
   ThreedotIcon,
   TrashIcon,
@@ -66,11 +69,6 @@ import { eventEmitter } from '../../../../lib/event-emitter';
 import { uploadFilesDirectly } from '../../../../lib/attachments';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import RichTextEditor from 'apps/frontend/src/components/RichTextEditor';
-import {
-  CalendarTabIcon,
-  FilesTabIcon,
-  NotesTabIcon,
-} from '../../projects/[projectId]/page';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import TicketDescriptionModal from 'apps/frontend/src/components/modals/TicketDescriptionModal';
 import { Span } from 'next/dist/trace';

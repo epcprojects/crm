@@ -14,6 +14,12 @@ export const metadata = {
   description: 'EPC CRM',
 };
 
+// Every page is already gated behind a client-side auth check
+// (AuthBootstrap renders nothing until it resolves), so static
+// prerendering has no benefit here and only trips up Next's static
+// export on thin/no-content routes (redirects, not-found, error).
+export const dynamic = 'force-dynamic';
+
 const poppins = Nunito({
   style: ['normal'],
   weight: ['200', '300', '400', '500', '600', '700', '800', '900'],
