@@ -714,7 +714,7 @@ export class TicketsService {
       COALESCE(
         SUM(
           CASE
-            WHEN UPPER(t.priorityKey) = 'CRITICAL'
+            WHEN UPPER(t.priorityKey) = 'CRITICAL' AND UPPER(t.statusKey) != 'CLOSED'
             THEN 1
             ELSE 0
           END
@@ -1441,7 +1441,7 @@ export class TicketsService {
         `SUM(CASE WHEN UPPER(t.statusKey) = 'INPROGRESS' THEN 1 ELSE 0 END) AS inprogress`,
         `SUM(CASE WHEN UPPER(t.statusKey) = 'CLOSED' THEN 1 ELSE 0 END) AS closed`,
         `SUM(CASE WHEN UPPER(t.statusKey) = 'RESOLVED' THEN 1 ELSE 0 END) AS resolved`,
-        `SUM(CASE WHEN UPPER(t.priorityKey) = 'CRITICAL' THEN 1 ELSE 0 END) AS critical`,
+        `SUM(CASE WHEN UPPER(t.priorityKey) = 'CRITICAL' AND UPPER(t.statusKey) != 'CLOSED' THEN 1 ELSE 0 END) AS critical`,
       ])
       .where('t.projectId = :projectId', { projectId })
       .getRawOne();
@@ -1468,7 +1468,7 @@ export class TicketsService {
         `SUM(CASE WHEN UPPER(t.statusKey) = 'CLOSED' THEN 1 ELSE 0 END) AS closed`,
 
         `SUM(CASE WHEN UPPER(t.statusKey) = 'RESOLVED' THEN 1 ELSE 0 END) AS resolved`,
-        `SUM(CASE WHEN UPPER(t.priorityKey) = 'CRITICAL' THEN 1 ELSE 0 END) AS critical`,
+        `SUM(CASE WHEN UPPER(t.priorityKey) = 'CRITICAL' AND UPPER(t.statusKey) != 'CLOSED' THEN 1 ELSE 0 END) AS critical`,
       ])
       .getRawOne();
 
@@ -2114,7 +2114,7 @@ export class TicketsService {
         `COALESCE(SUM(CASE WHEN UPPER(t.statusKey) = 'INPROGRESS' THEN 1 ELSE 0 END), 0) AS inprogress`,
         `COALESCE(SUM(CASE WHEN UPPER(t.statusKey) = 'CLOSED' THEN 1 ELSE 0 END), 0) AS closed`,
         `COALESCE(SUM(CASE WHEN UPPER(t.statusKey) = 'RESOLVED' THEN 1 ELSE 0 END), 0) AS resolved`,
-        `COALESCE(SUM(CASE WHEN UPPER(t.priorityKey) = 'CRITICAL' THEN 1 ELSE 0 END), 0) AS critical`,
+        `SUM(CASE WHEN UPPER(t.priorityKey) = 'CRITICAL' AND UPPER(t.statusKey) != 'CLOSED' THEN 1 ELSE 0 END) AS critical`,
       ])
       .getRawOne();
 
