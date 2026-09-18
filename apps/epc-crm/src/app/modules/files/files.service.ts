@@ -4,6 +4,8 @@ import { FileRecord } from './entities/file.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UtilityService } from '../utility/utility.service';
+import { UploadedFileDto } from './dto/uploaded-file.dto';
+import { extname } from 'path';
 
 @Injectable()
 export class FilesService {
@@ -58,6 +60,45 @@ export class FilesService {
     });
   }
 
+    async replaceAttachments(
+    source: FileSource,
+    sourceId: string,
+    files: UploadedFileDto[] | undefined,
+    extra: Partial<FileRecord>,
+  ): Promise<FileRecord[]> {
+    const existing = await this.fileRepository.find({
+      where: { source, sourceId, status: FileStatus.ACTIVE },
+    });
+
+    if (existing.length) {
+      // reuse the single-file delete so storage cleanup stays consistent
+      await Promise.all(existing.map((f) => this.delete(f.id)));
+    }
+
+    if (!files?.length) {
+      return [];
+    }
+
+    const records = files.map((file) => {
+      const rawExt = extname(file.originalName);
+      const extension = rawExt ? rawExt.slice(1).toLowerCase() : 'unknown';
+
+      return this.fileRepository.create({
+        ...extra,
+        originalName: file.originalName,
+        storageKey: file.storageKey,
+        sizeBytes: file.sizeBytes,
+        extension,
+        mimeType: file.mimeType,
+        source,
+        sourceId,
+        status: FileStatus.ACTIVE,
+      });
+    });
+
+    return this.fileRepository.save(records);
+  }
+  
   async delete(fileId: string) {
     const file = await this.fileRepository.findOneByOrFail({ id: fileId });
 
