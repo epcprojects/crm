@@ -2529,7 +2529,7 @@ export default function ProjectDetailPage() {
                                         })
                                       }
                                       showSearch={true}
-                                      placeholder="All Assignees"
+                                      placeholder="All Agents"
                                       maxMenuHeight={150}
                                     />
                                   </div>
@@ -2726,7 +2726,7 @@ export default function ProjectDetailPage() {
                                     })
                                   }
                                   showSearch={true}
-                                  placeholder="All Assignees"
+                                  placeholder="All Agents"
                                   maxMenuHeight={320}
                                 />
                               </div>

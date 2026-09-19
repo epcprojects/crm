@@ -608,7 +608,7 @@ export default function Page() {
           (option) => option.value === selectedAssignedTo,
         )?.label;
         filenameParts.push(
-          `assignedto_${slugify(assignedToLabel ?? selectedAssignedTo)}`,
+          `agent_${slugify(assignedToLabel ?? selectedAssignedTo)}`,
         );
       }
 
@@ -1566,7 +1566,7 @@ export default function Page() {
                                           })
                                         }
                                         showSearch={true}
-                                        placeholder="All Assignees"
+                                        placeholder="All Agents"
                                         maxMenuHeight={150}
                                       />
                                     </div>
@@ -1727,7 +1727,7 @@ export default function Page() {
                                           })
                                         }
                                         showSearch={true}
-                                        placeholder="All Assignees"
+                                        placeholder="All Agents"
                                         maxMenuHeight={150}
                                       />
                                     </div>
@@ -2021,7 +2021,7 @@ export default function Page() {
                               updateTicketsPageFilters({ assignedTo: value })
                             }
                             showSearch={true}
-                            placeholder="All Assignees"
+                            placeholder="All Agents"
                             maxMenuHeight={320}
                           />
                         </div>

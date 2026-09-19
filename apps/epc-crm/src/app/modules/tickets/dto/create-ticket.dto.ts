@@ -42,7 +42,7 @@ export class CreateTicketDto {
   priorityKey?: string;
 
   @Transform(({ value }) => (value === '' ? null : value))
-  @ApiPropertyOptional({ description: 'User the lead is assigned to' })
+  @ApiPropertyOptional({ description: 'Agent the lead is assigned to' })
   @IsOptional()
   @IsUUID()
   assigneeId?: string;

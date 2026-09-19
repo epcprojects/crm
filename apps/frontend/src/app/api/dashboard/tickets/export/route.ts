@@ -57,7 +57,7 @@ const EXPORT_COLUMNS: {
     getValue: (t) => t.priority?.label ?? t.priority?.key ?? '',
   },
   {
-    header: 'Assignee',
+    header: 'Agent',
     getValue: (t) => t.assignee?.fullName ?? t.assignee?.name ?? 'Unassigned',
   },
   {

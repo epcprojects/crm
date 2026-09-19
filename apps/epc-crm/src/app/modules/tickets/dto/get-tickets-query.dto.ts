@@ -35,7 +35,7 @@ export class GetTicketsQueryDto {
 
   @ApiPropertyOptional({
     description:
-      'Filter tickets by assignee id, or "unassigned" for tickets with no assignee.',
+      'Filter tickets by agent id, or "unassigned" for tickets with no agent.',
   })
   @IsOptional()
   @IsString()

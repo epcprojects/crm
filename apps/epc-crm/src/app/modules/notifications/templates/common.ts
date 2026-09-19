@@ -1583,7 +1583,7 @@ export function buildAssigneeUpdatedEmail(
   const rows: DataRow[] = [
     { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
     { label: 'Project', value: p.projectName },
-    { label: 'assigned to', value: p.newAssignee.name },
+    { label: 'Agent', value: p.newAssignee.name },
     // ...(p.priority
     //   ? [{
     //       label: 'Priority',

@@ -1978,7 +1978,7 @@ export default function TicketDetailPage() {
                   </div>
                   <div className="grid items-center grid-cols-[60px_minmax(0,1fr)] 2xl:grid-cols-2 gap-2 2xl:gap-4">
                     <span className="text-sm text-black font-normal">
-                      Assignee
+                      Agent
                     </span>
 
                     <Dropdown
@@ -3133,7 +3133,7 @@ function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
     },
     assigneeDetail: ticket.assignee
       ? {
-          role: 'Assignee',
+          role: 'Agent',
           name: assigneeName,
           initials: getInitials(assigneeName),
         }

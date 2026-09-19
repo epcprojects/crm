@@ -125,7 +125,7 @@ View ranges:
   @Get('assignees')
   @ApiOperation({
     summary:
-      'Get distinct users who have a ticket assigned to them in this project (for the Assigned To filter).',
+      'Get distinct users who have a ticket assigned to them in this project (for the Agent filter).',
   })
   getProjectAssignees(@Param('pid', ParseUUIDPipe) pid: string) {
     return this.ticketsService.getProjectAssignees(pid);
@@ -280,7 +280,7 @@ export class DashboardController {
   @Get('tickets/assignees')
   @ApiOperation({
     summary:
-      'Get distinct users who have a ticket assigned to them across the caller\'s accessible projects (for the Assigned To filter).',
+      'Get distinct users who have a ticket assigned to them across the caller\'s accessible projects (for the Agent filter).',
   })
   getAssignees(
     @Query() query: GetTicketAssigneesQueryDto,

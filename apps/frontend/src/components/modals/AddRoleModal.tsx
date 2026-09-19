@@ -349,6 +349,7 @@ function formatPermissionLabel(permission: string) {
 
   return permissionName
     .split('_')
+    .map((word) => (word === 'assignee' ? 'agent' : word))
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 }

@@ -116,7 +116,7 @@ export class TicketsService {
       });
 
       if (!assigneeExists) {
-        throw new NotFoundException('Assignee not found');
+        throw new NotFoundException('Agent not found');
       }
     }
 
@@ -544,7 +544,7 @@ export class TicketsService {
   }
 
   // Distinct users who actually have a ticket assigned to them in this project —
-  // powers the Assigned To filter, as opposed to every project member.
+  // powers the Agent filter, as opposed to every project member.
   async getProjectAssignees(projectId: string) {
     const project = await this.projectRepo.findOne({
       where: { id: projectId },
@@ -1063,7 +1063,7 @@ export class TicketsService {
           where: { id: dto.assigneeId },
         });
         if (!newAssigneeEntity)
-          throw new NotFoundException('Assignee not found');
+          throw new NotFoundException('Agent not found');
         ticket.assignee = newAssigneeEntity;
         ticket.assigneeId = dto.assigneeId;
       } else {

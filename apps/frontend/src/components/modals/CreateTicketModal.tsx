@@ -477,13 +477,13 @@ export default function CreateTicketModal({
               )}
 
               <Dropdown
-                label="Assignee"
+                label="Agent"
                 options={assigneeOptions}
                 showSearch
                 value={formik.values.assigneeId}
                 onChange={(value) => formik.setFieldValue('assigneeId', value)}
                 placeholder={
-                  membersQuery.isLoading ? 'Loading...' : 'Select assignee'
+                  membersQuery.isLoading ? 'Loading...' : 'Select agent'
                 }
                 disabled={!canEditAssignee}
               />

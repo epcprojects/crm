@@ -110,7 +110,9 @@ function formatModuleTitle(module: string) {
 function formatPermissionLabel(permission: string) {
   const permissionName = permission.split('.').slice(1).join(' ');
 
-  return toTitleCase(permissionName.replace(/_/g, ' '));
+  return toTitleCase(
+    permissionName.replace(/_/g, ' ').replace(/\bassignee\b/g, 'agent'),
+  );
 }
 
 function normalizePermission(permission: string) {

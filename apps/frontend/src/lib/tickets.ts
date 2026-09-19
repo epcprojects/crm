@@ -155,7 +155,7 @@ export type TicketAssignee = {
 };
 
 // Distinct users who actually have a ticket assigned to them in the given
-// projects — used for the Assigned To filter, as opposed to every member.
+// projects — used for the Agent filter, as opposed to every member.
 export async function fetchTicketAssignees(
   projectIds: string[] = [],
 ): Promise<TicketAssignee[]> {
@@ -188,8 +188,8 @@ export async function fetchTicketAssignees(
   if (!response.ok || !Array.isArray(payload)) {
     throw new Error(
       !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket assignees.'
-        : 'Failed to fetch ticket assignees.',
+        ? payload?.message || 'Failed to fetch ticket agents.'
+        : 'Failed to fetch ticket agents.',
     );
   }
 
@@ -218,8 +218,8 @@ export async function fetchProjectTicketAssignees(
   if (!response.ok || !Array.isArray(payload)) {
     throw new Error(
       !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket assignees.'
-        : 'Failed to fetch ticket assignees.',
+        ? payload?.message || 'Failed to fetch ticket agents.'
+        : 'Failed to fetch ticket agents.',
     );
   }
 
