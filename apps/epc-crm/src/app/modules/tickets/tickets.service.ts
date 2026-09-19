@@ -8,7 +8,13 @@ import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Ticket } from './entities/ticket.entity';
-import { Between, DataSource, Repository, SelectQueryBuilder } from 'typeorm';
+import {
+  Between,
+  DataSource,
+  ILike,
+  Repository,
+  SelectQueryBuilder,
+} from 'typeorm';
 import { FilesService } from '../files/files.service';
 import { UtilityService } from '../utility/utility.service';
 import { FileSource, FileStatus } from '@epc-crm/types';
@@ -72,6 +78,15 @@ export class TicketsService {
     }
   }
 
+  // Every new lead is created as Critical unless a priority is passed in.
+  private async getDefaultPriorityKey(): Promise<string | undefined> {
+    const priority = await this.priorityRepo.findOne({
+      where: [{ key: ILike('critical') }, { label: ILike('critical') }],
+    });
+
+    return priority?.key;
+  }
+
   // ---------------- CREATE ----------------
   async createTicket(
     projectId: string,
@@ -95,6 +110,18 @@ export class TicketsService {
       await this.ensureContactExists(dto.contactId);
     }
 
+    if (dto.assigneeId) {
+      const assigneeExists = await this.userRepo.exists({
+        where: { id: dto.assigneeId },
+      });
+
+      if (!assigneeExists) {
+        throw new NotFoundException('Assignee not found');
+      }
+    }
+
+    const priorityKey = dto.priorityKey ?? (await this.getDefaultPriorityKey());
+
     const saved = await this.dataSource
       .transaction(async (manager) => {
         const dateKey = format(new Date(), 'yyyyMMdd');
@@ -108,6 +135,7 @@ export class TicketsService {
 
         const ticket = manager.create(Ticket, {
           ...dto,
+          priorityKey,
           projectId,
           reporterId: userId,
           createdBy: userId,

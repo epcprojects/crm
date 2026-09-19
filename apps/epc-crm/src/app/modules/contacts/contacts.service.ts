@@ -33,9 +33,13 @@ export class ContactsService {
   }
 
   private async ensureUniquePhone(phone: string, excludeId?: string): Promise<void> {
+    // Compare with formatting stripped so "0300-1234567" and "03001234567"
+    // count as the same contact, including rows saved before phones were normalized.
     const qb = this.contactRepo
       .createQueryBuilder('c')
-      .where('c.phone = :phone', { phone });
+      .where("regexp_replace(c.phone, '[[:space:]()-]', '', 'g') = :phone", {
+        phone,
+      });
 
     if (excludeId) {
       qb.andWhere('c.id != :excludeId', { excludeId });
@@ -45,6 +49,21 @@ export class ContactsService {
 
     if (existing) {
       throw new ConflictException('A contact with this phone number already exists');
+    }
+  }
+
+  // The unique phone index also covers deleted contacts, which the lookup above skips.
+  private async saveContact(contact: Contact): Promise<Contact> {
+    try {
+      return await this.contactRepo.save(contact);
+    } catch (error) {
+      if ((error as { code?: string }).code === '23505') {
+        throw new ConflictException(
+          'A contact with this phone number already exists',
+        );
+      }
+
+      throw error;
     }
   }
 
@@ -67,7 +86,7 @@ export class ContactsService {
       createdBy: user.id,
     });
 
-    const saved = await this.contactRepo.save(contact);
+    const saved = await this.saveContact(contact);
 
     return this.findOne(saved.id);
   }
@@ -158,7 +177,7 @@ export class ContactsService {
     contact.updatedBy = user.id;
     contact.updatedAt = new Date();
 
-    await this.contactRepo.save(contact);
+    await this.saveContact(contact);
 
     return this.findOne(id);
   }

@@ -154,6 +154,11 @@ View ranges:
         priorityKey: {
           type: 'string',
         },
+        assigneeId: {
+          type: 'string',
+          format: 'uuid',
+          nullable: true,
+        },
         dueDate: {
           type: 'string',
           format: 'date-time',

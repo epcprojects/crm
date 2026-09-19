@@ -20,6 +20,7 @@ interface DropdownBaseProps {
   options: DropdownOption[];
   placeholder?: string;
   label?: string;
+  labelAction?: React.ReactNode;
   required?: boolean;
 
   showSearch?: boolean;
@@ -66,6 +67,7 @@ const Dropdown = ({
   onChange,
   isMulti = false,
   label,
+  labelAction,
   required,
   showSearch = false,
   searchPlaceholder = 'Search...',
@@ -147,17 +149,26 @@ const Dropdown = ({
   return (
     <div className={width}>
       {label ? (
-        <span
-          className={`block text-start ${
-            variant === 'input'
-              ? 'text-sm font-normal text-gray-800 md:text-base'
-              : 'mb-1 text-base font-normal text-gray-800'
-          }`}
+        <div
+          className={
+            labelAction ? 'flex items-end justify-between gap-2' : undefined
+          }
         >
-          {label}
+          <span
+            className={`block text-start ${
+              variant === 'input'
+                ? 'text-sm font-normal text-gray-800 md:text-base'
+                : 'mb-1 text-base font-normal text-gray-800'
+            }`}
+          >
+            {label}
 
-          {required ? <span className="text-red-500"> *</span> : null}
-        </span>
+            {required ? <span className="text-red-500"> *</span> : null}
+          </span>
+          {labelAction ? (
+            <span className="mb-1 shrink-0">{labelAction}</span>
+          ) : null}
+        </div>
       ) : null}
 
       <Menu as="div" className="relative flex w-full">

@@ -135,7 +135,6 @@ export default function TicketDetailPage() {
   const canAttachReplyFiles = hasPermission('ticket_replies.attach_file');
   const canEditStatus = hasPermission('tickets.edit_status');
   const canEditPriority = hasPermission('tickets.edit_priority');
-  const canEditDueDate = hasPermission('tickets.edit_due_date');
   const canViewInternalChatBtn = hasPermission('tickets.internal_chat');
   const canViewProjectDetail = hasPermission('projects.view_detail');
   const canViewProjectThread = hasPermission('thread.view');
@@ -552,7 +551,6 @@ export default function TicketDetailPage() {
   const [selectedTicketType, setSelectedTicketType] = useState('Open');
   const [selectedPriority, setSelectedPriority] = useState('');
   const [selectedAssignee, setSelectedAssignee] = useState('');
-  const [selectedDueDate, setSelectedDueDate] = useState('');
   const [ticketSidebarTab, setTicketSidebarTab] =
     useState<TicketSidebarTabKey>('quick-links');
   const [isEditContentModalOpen, setIsEditContentModalOpen] = useState(false);
@@ -585,11 +583,6 @@ export default function TicketDetailPage() {
 
   const [titleDraft, setTitleDraft] = useState('');
   const [descriptionDraft, setDescriptionDraft] = useState('');
-  const todayInputValue = getTodayInputValue();
-  const minimumDueDate = getTomorrowInputValue();
-  const isDueDateOverdue = Boolean(
-    selectedDueDate && selectedDueDate < todayInputValue,
-  );
 
   useEffect(() => {
     if (!canViewReplies || !projectId || !ticketId) {
@@ -808,7 +801,6 @@ export default function TicketDetailPage() {
     setSelectedTicketType(ticket.ticketType ?? '');
     setSelectedPriority(ticket.priorityKey ?? '');
     setSelectedAssignee(ticket.assigneeDetail?.name ?? '');
-    setSelectedDueDate(toDateInputValue(ticket.dueDateValue ?? ''));
     setTitleDraft(ticket.title);
     setDescriptionDraft(ticket.description ?? '');
   }, [ticket]);
@@ -1140,7 +1132,6 @@ export default function TicketDetailPage() {
         ticketType: selectedTicketType,
         priorityKey: selectedPriority,
         assigneeId: selectedAssigneeId,
-        dueDate: selectedDueDate,
       }),
     );
   };
@@ -1160,7 +1151,6 @@ export default function TicketDetailPage() {
         ticketType: selectedTicketType,
         priorityKey: value,
         assigneeId: selectedAssigneeId,
-        dueDate: selectedDueDate,
       }),
     );
   };
@@ -1183,31 +1173,6 @@ export default function TicketDetailPage() {
         ticketType: selectedTicketType,
         priorityKey: selectedPriority,
         assigneeId: value,
-        dueDate: selectedDueDate,
-      }),
-    );
-  };
-
-  const handleDueDateChange = async (value: string) => {
-    if (!canEditDueDate) {
-      return;
-    }
-
-    if (value && value < minimumDueDate) {
-      return;
-    }
-
-    setSelectedDueDate(value);
-
-    await updateTicketMutation.mutateAsync(
-      buildUpdateTicketPayload({
-        title: ticket.title,
-        description: ticket.description,
-        statusKey: selectedStatus,
-        ticketType: selectedTicketType,
-        priorityKey: selectedPriority,
-        assigneeId: selectedAssigneeId,
-        dueDate: value,
       }),
     );
   };
@@ -1414,7 +1379,6 @@ export default function TicketDetailPage() {
         ticketType: selectedTicketType,
         priorityKey: selectedPriority,
         assigneeId: selectedAssigneeId,
-        dueDate: selectedDueDate,
       }),
     );
 
@@ -1752,28 +1716,6 @@ export default function TicketDetailPage() {
                   ) : undefined
                 }
               />
-
-              {ticket.dueDate ? (
-                <div>
-                  <span className="block text-sm text-gray-300">Due Date</span>
-
-                  <div
-                    className={`flex h-fit items-start gap-2 rounded-lg pt-2 text-white`}
-                  >
-                    <div className="flex w-full items-center gap-3">
-                      <p className="pt-px text-sm font-medium">
-                        {ticket.dueDate}
-                      </p>
-
-                      {isDueDateOverdue ? (
-                        <p className="rounded-full bg-[#F04438] px-2.5 py-0.5 text-sm font-medium text-white">
-                          Overdue
-                        </p>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              ) : null}
             </div>
             <div className="xl:hidden  flex flex-col gap-4 w-full">
               <div className="grid grid-cols-3 gap-4">
@@ -1814,30 +1756,6 @@ export default function TicketDetailPage() {
                     ) : undefined
                   }
                 />
-
-                {ticket.dueDate ? (
-                  <div className="flex flex-col">
-                    <span className="block text-sm text-gray-300 leading-none">
-                      Due Date
-                    </span>
-
-                    <div
-                      className={`flex h-fit items-start gap-2 rounded-lg  text-white`}
-                    >
-                      <div className="flex w-full items-center gap-3">
-                        <p className="pt-px text-sm font-medium ">
-                          {ticket.dueDate}
-                        </p>
-
-                        {isDueDateOverdue ? (
-                          <p className="rounded-full bg-[#F04438] px-2.5 py-0.5 text-sm font-medium text-white">
-                            Overdue
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
               </div>
             </div>
           </div>
@@ -2130,28 +2048,6 @@ export default function TicketDetailPage() {
                       onChange={handleAssigneeChange}
                     />
                   </div>
-                  <section className="grid w-full grid-cols-[60px_minmax(0,1fr)] items-center gap-2 2xl:grid-cols-2 2xl:gap-4">
-                    <span className="whitespace-nowrap text-sm font-normal text-black">
-                      Due Date
-                    </span>
-
-                    <div className="min-w-0 xl:w-[calc(100%+0.5rem)] 2xl:w-full">
-                      <label className="flex w-full min-w-0 items-center justify-between rounded-lg border border-gray-200 px-3 py-1.5">
-                        <input
-                          type="date"
-                          value={selectedDueDate}
-                          min={minimumDueDate}
-                          disabled={
-                            updateTicketMutation.isPending || !canEditDueDate
-                          }
-                          onChange={(event) =>
-                            handleDueDateChange(event.target.value)
-                          }
-                          className="w-full min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:text-gray-400"
-                        />
-                      </label>
-                    </div>
-                  </section>
                 </div>
               </section>
               {projectId && canViewProjectDetail ? (
@@ -3245,7 +3141,6 @@ type UpdateTicketRequest = Partial<{
   priorityKey: string;
   ticketType: string;
   assigneeId: string;
-  dueDate: string;
 }>;
 
 type UpdateTicketPayloadInput = {
@@ -3256,7 +3151,6 @@ type UpdateTicketPayloadInput = {
   assigneeId?: string | null;
   ticketType: string;
   reporterId?: string | null;
-  dueDate?: string | null;
 };
 
 function buildUpdateTicketPayload(
@@ -3311,10 +3205,6 @@ function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
     },
     date: formatTicketDate(ticket.createdAt),
     description: ticket.description,
-    dueDate: ticket.dueDate
-      ? formatTicketDate(toDateInputValue(ticket.dueDate))
-      : null,
-    dueDateValue: ticket.dueDate ?? '',
     assigneeId: ticket.assigneeId ?? '',
     reporterId: ticket.reporterId ?? '',
     priorityKey: ticket.priorityKey,
@@ -3968,31 +3858,6 @@ async function fetchUnreadIndicator(
   }
 
   return false;
-}
-
-function toDateInputValue(value: string) {
-  if (!value) {
-    return '';
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toISOString().slice(0, 10);
-}
-
-function getTomorrowInputValue() {
-  const date = new Date();
-  date.setDate(date.getDate() + 1);
-
-  return date.toISOString().slice(0, 10);
-}
-
-function getTodayInputValue() {
-  return new Date().toISOString().slice(0, 10);
 }
 
 function formatReplyDate(value: string) {

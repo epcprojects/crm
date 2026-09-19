@@ -1835,9 +1835,8 @@ export default function ProjectDetailPage() {
         title: values.title,
         description: values.description,
         statusKey: values.status,
-        priorityKey: values.priority,
+        assigneeId: values.assigneeId || undefined,
         ticketType: values.ticketType,
-        dueDate: values.dueDate,
         contactId: values.contactId || undefined,
         attachments: values.attachments,
       });

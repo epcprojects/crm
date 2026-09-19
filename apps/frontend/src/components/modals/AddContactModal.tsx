@@ -2,20 +2,16 @@
 
 import { useEffect } from 'react';
 import { useFormik } from 'formik';
-import { useQuery } from '@tanstack/react-query';
 import * as yup from 'yup';
 import AppModal from './AppModal';
 import ThemeInput from '../ui/ThemeInput';
-import Dropdown from '../ui/ThemeDropDown';
 import { useAppLoader } from '../../app/providers/AppLoaderProvider';
-import { fetchCitiesByProvince, fetchProvinces } from '../../lib/territories';
+import { appToast } from '../toast/AppToast';
 
 export type AddContactFormValues = {
   fullName: string;
   phone: string;
   email: string;
-  provinceId: string;
-  territoryId: string;
   source: string;
   notes: string;
 };
@@ -32,8 +28,6 @@ const emptyValues: AddContactFormValues = {
   fullName: '',
   phone: '',
   email: '',
-  provinceId: '',
-  territoryId: '',
   source: '',
   notes: '',
 };
@@ -57,53 +51,37 @@ export default function AddContactModal({
         .required('Phone number is required')
         .matches(/^[0-9+\-\s()]{6,30}$/, 'Enter a valid phone number'),
       email: yup.string().email('Enter a valid email').optional(),
-      provinceId: yup.string().optional(),
-      territoryId: yup.string().optional(),
       source: yup.string().optional(),
       notes: yup.string().optional(),
     }),
-    onSubmit: async (values, { resetForm }) => {
+    onSubmit: async (values, { resetForm, setFieldError }) => {
       try {
         setLoading(true);
         await onConfirm?.(values);
         resetForm();
         onClose();
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Failed to save contact.';
+
+        if (/already exists/i.test(message)) {
+          setFieldError('phone', message);
+        } else {
+          appToast.error(message);
+        }
       } finally {
         setLoading(false);
       }
     },
   });
 
-  const { resetForm, setFieldValue } = formik;
+  const { resetForm } = formik;
 
   useEffect(() => {
     if (!isOpen) {
       resetForm();
     }
   }, [isOpen, resetForm]);
-
-  const provincesQuery = useQuery({
-    queryKey: ['territories', 'provinces'],
-    queryFn: fetchProvinces,
-    enabled: isOpen,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const citiesQuery = useQuery({
-    queryKey: ['territories', 'cities', formik.values.provinceId],
-    queryFn: () => fetchCitiesByProvince(formik.values.provinceId),
-    enabled: isOpen && Boolean(formik.values.provinceId),
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const provinceOptions = (provincesQuery.data ?? []).map((province) => ({
-    label: province.name,
-    value: province.id,
-  }));
-  const cityOptions = (citiesQuery.data ?? []).map((city) => ({
-    label: city.name,
-    value: city.id,
-  }));
 
   return (
     <AppModal
@@ -161,38 +139,6 @@ export default function AddContactModal({
           errorText={formik.touched.email ? formik.errors.email : ''}
           placeholder="Enter email address"
         />
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Dropdown
-            label="Province"
-            options={provinceOptions}
-            value={formik.values.provinceId}
-            onChange={(value) => {
-              setFieldValue('provinceId', value);
-              setFieldValue('territoryId', '');
-            }}
-            placeholder={
-              provincesQuery.isLoading ? 'Loading...' : 'Select province'
-            }
-            showSearch
-          />
-
-          <Dropdown
-            label="City"
-            options={cityOptions}
-            value={formik.values.territoryId}
-            onChange={(value) => setFieldValue('territoryId', value)}
-            placeholder={
-              !formik.values.provinceId
-                ? 'Select province first'
-                : citiesQuery.isLoading
-                  ? 'Loading...'
-                  : 'Select city'
-            }
-            disabled={!formik.values.provinceId}
-            showSearch
-          />
-        </div>
 
         <ThemeInput
           label="Source"
