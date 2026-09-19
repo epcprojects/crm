@@ -134,7 +134,6 @@ export default function TicketDetailPage() {
   const canEditAssignee = hasPermission('tickets.edit_assignee');
   const canAttachReplyFiles = hasPermission('ticket_replies.attach_file');
   const canEditStatus = hasPermission('tickets.edit_status');
-  const canEditPriority = hasPermission('tickets.edit_priority');
   const canViewInternalChatBtn = hasPermission('tickets.internal_chat');
   const canViewProjectDetail = hasPermission('projects.view_detail');
   const canViewProjectThread = hasPermission('thread.view');
@@ -184,11 +183,6 @@ export default function TicketDetailPage() {
   const statusListQuery = useQuery({
     queryKey: ['ticket-statuses'],
     queryFn: fetchTicketStatuses,
-    enabled: !isExternalUser,
-  });
-  const priorityListQuery = useQuery({
-    queryKey: ['ticket-priorities'],
-    queryFn: fetchTicketPriorities,
     enabled: !isExternalUser,
   });
 
@@ -549,7 +543,6 @@ export default function TicketDetailPage() {
     !ticket;
   const [selectedStatus, setSelectedStatus] = useState('Open');
   const [selectedTicketType, setSelectedTicketType] = useState('Open');
-  const [selectedPriority, setSelectedPriority] = useState('');
   const [selectedAssignee, setSelectedAssignee] = useState('');
   const [ticketSidebarTab, setTicketSidebarTab] =
     useState<TicketSidebarTabKey>('quick-links');
@@ -674,20 +667,6 @@ export default function TicketDetailPage() {
       })),
     [membersQuery.data],
   );
-  const priorityOptions = useMemo(
-    () =>
-      (priorityListQuery.data ?? []).map((priority) => ({
-        label: priority.label,
-        value: priority.key,
-        icon: (
-          <span
-            className="inline-block h-2.5 w-2.5 rounded-full"
-            style={{ backgroundColor: priority.color }}
-          />
-        ),
-      })),
-    [priorityListQuery.data],
-  );
 
   const selectedAssigneeId = useMemo(() => {
     if (!ticket) {
@@ -799,7 +778,6 @@ export default function TicketDetailPage() {
 
     setSelectedStatus(ticket.status);
     setSelectedTicketType(ticket.ticketType ?? '');
-    setSelectedPriority(ticket.priorityKey ?? '');
     setSelectedAssignee(ticket.assigneeDetail?.name ?? '');
     setTitleDraft(ticket.title);
     setDescriptionDraft(ticket.description ?? '');
@@ -1130,26 +1108,6 @@ export default function TicketDetailPage() {
         description: ticket.description,
         statusKey: value,
         ticketType: selectedTicketType,
-        priorityKey: selectedPriority,
-        assigneeId: selectedAssigneeId,
-      }),
-    );
-  };
-
-  const handlePriorityChange = async (value: string) => {
-    if (!canEditPriority) {
-      return;
-    }
-
-    setSelectedPriority(value);
-
-    await updateTicketMutation.mutateAsync(
-      buildUpdateTicketPayload({
-        title: ticket.title,
-        description: ticket.description,
-        statusKey: selectedStatus,
-        ticketType: selectedTicketType,
-        priorityKey: value,
         assigneeId: selectedAssigneeId,
       }),
     );
@@ -1171,7 +1129,6 @@ export default function TicketDetailPage() {
         description: ticket.description,
         statusKey: selectedStatus,
         ticketType: selectedTicketType,
-        priorityKey: selectedPriority,
         assigneeId: value,
       }),
     );
@@ -1377,7 +1334,6 @@ export default function TicketDetailPage() {
         description: nextDescription,
         statusKey: selectedStatus,
         ticketType: selectedTicketType,
-        priorityKey: selectedPriority,
         assigneeId: selectedAssigneeId,
       }),
     );
@@ -2017,20 +1973,6 @@ export default function TicketDetailPage() {
                         updateTicketMutation.isPending || !canEditStatus
                       }
                       onChange={handleStatusChange}
-                      applyHeight={false}
-                    />
-                  </div>
-                  <div className="grid items-center grid-cols-[60px_minmax(0,1fr)] 2xl:grid-cols-2 gap-2 2xl:gap-4">
-                    <span className="text-sm text-black font-normal">
-                      Priority
-                    </span>
-                    <Dropdown
-                      options={priorityOptions}
-                      value={selectedPriority}
-                      disabled={
-                        updateTicketMutation.isPending || !canEditPriority
-                      }
-                      onChange={handlePriorityChange}
                       applyHeight={false}
                     />
                   </div>
@@ -2819,33 +2761,6 @@ async function fetchTicketStatuses() {
   return payload;
 }
 
-async function fetchTicketPriorities() {
-  const response = await fetch('/api/ticket-priorities', {
-    method: 'GET',
-    headers: {
-      Accept: 'application/json',
-    },
-    cache: 'no-store',
-  });
-
-  const payload = (await response.json().catch(() => null)) as
-    | ApiTicketPriority[]
-    | { message?: string }
-    | null;
-
-  if (!response.ok || !Array.isArray(payload)) {
-    throw new Error(
-      !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket priorities.'
-        : 'Failed to fetch ticket priorities.',
-    );
-  }
-
-  return payload
-    .slice()
-    .sort((first, second) => first.sortOrder - second.sortOrder);
-}
-
 async function fetchTicketReplies(
   ticketId: string,
   currentUserId: string,
@@ -3037,10 +2952,6 @@ type ApiTicketStatus = {
   key: string;
   label: string;
   color: string;
-};
-
-type ApiTicketPriority = ApiTicketStatus & {
-  sortOrder: number;
 };
 
 type ApiTicketReply = {

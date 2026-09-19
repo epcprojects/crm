@@ -2395,7 +2395,6 @@ function mapApiKanbanTicketToRecentTicket(
     ticket.priorityKey?.trim() ||
     null;
 
-  const dueDate = ticket.t_dueDate ?? ticket.dueDate ?? null;
 
   const createdAt = ticket.t_createdAt ?? ticket.createdAt ?? '';
 
@@ -2419,9 +2418,6 @@ function mapApiKanbanTicketToRecentTicket(
       brandColor:
         ticket.p_brandColor ?? ticket.project?.brandColor ?? '#31d81b',
     },
-    dueDate: dueDate
-      ? formatTicketDate(dueDate.split('T')[0] ?? dueDate)
-      : '--',
     status: statusLabel,
     statusColor: ticket.s_color ?? ticket.status?.color ?? undefined,
     priority: priorityLabel,
@@ -2902,9 +2898,6 @@ function mapApiDashboardTicketToRecentTicket(
       initials: getInitials(ticket.project.name),
       brandColor: ticket.project?.brandColor ?? '#31d81b',
     },
-    dueDate: ticket.dueDate
-      ? formatTicketDate(ticket.dueDate.split('T')[0] ?? ticket.dueDate)
-      : '--',
     status: statusLabel,
     statusColor: ticket.status?.color,
     priority: priorityLabel,

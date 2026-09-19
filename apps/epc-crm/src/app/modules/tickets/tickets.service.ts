@@ -9,9 +9,9 @@ import { UpdateTicketDto } from './dto/update-ticket.dto';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Ticket } from './entities/ticket.entity';
 import {
-  Between,
   DataSource,
   ILike,
+  Raw,
   Repository,
   SelectQueryBuilder,
 } from 'typeorm';
@@ -296,8 +296,8 @@ export class TicketsService {
   // READ calendar view
 
   /**
-   * Returns tickets whose dueDate falls within the range for the given view.
-   * Only returns title and dueDate (as specified).
+   * Returns tickets created within the range for the given view, so leads
+   * appear on the calendar on the day they were created.
    *
    * GET /tickets?view=month&date=2026-06-01
    * GET /tickets?view=week&date=2026-06-16
@@ -310,14 +310,18 @@ export class TicketsService {
   ): Promise<
     Pick<
       Ticket,
-      'id' | 'title' | 'dueDate' | 'priority' | 'status' | 'ticketRefNo'
+      'id' | 'title' | 'createdAt' | 'priority' | 'status' | 'ticketRefNo'
     >[]
   > {
     const { start, end } = getDateRange(query.view, query.date);
 
     return this.ticketRepo.find({
       where: {
-        dueDate: Between(start, end),
+        createdAt: Raw(
+          (alias) =>
+            `${alias} >= CAST(:start AS date) AND ${alias} < (CAST(:end AS date) + 1)`,
+          { start, end },
+        ),
         projectId: pid,
       },
       relations: {
@@ -327,7 +331,7 @@ export class TicketsService {
       select: {
         id: true,
         title: true,
-        dueDate: true,
+        createdAt: true,
         ticketRefNo: true,
         status: {
           id: true,
@@ -343,7 +347,7 @@ export class TicketsService {
         },
       },
       order: {
-        dueDate: 'ASC',
+        createdAt: 'ASC',
       },
     });
   }

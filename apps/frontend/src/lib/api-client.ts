@@ -248,13 +248,10 @@ export async function fetchProjectTickets(
       : [];
 
   return items
-    .filter((ticket) => {
-      const dateValue =
-        (typeof ticket.dueDate === 'string' && ticket.dueDate.trim()) ||
-        (typeof ticket.createdAt === 'string' && ticket.createdAt.trim());
-
-      return Boolean(dateValue);
-    })
+    .filter(
+      (ticket) =>
+        typeof ticket.createdAt === 'string' && Boolean(ticket.createdAt.trim()),
+    )
     .map((ticket) => ({
       id: ticket.id,
       ticketRefNo:
@@ -265,10 +262,8 @@ export async function fetchProjectTickets(
           : undefined,
       title: ticket.title,
       description: ticket.description ?? undefined,
-      dueDate: toIsoDate(
-        (ticket.dueDate && ticket.dueDate.trim()) ||
-          (ticket.createdAt as string),
-      ),
+      // Leads sit on the calendar on the day they were created.
+      dueDate: toLocalIsoDate(ticket.createdAt as string),
       priority: normalizeTicketPriority(ticket.priority?.key),
       status: normalizeTicketStatus(ticket.status?.key),
     }));
@@ -296,6 +291,19 @@ function normalizeTicketStatus(value?: string | null): ApiTicket['status'] {
 
 function toIsoDate(value: string) {
   return value.split('T')[0];
+}
+
+function toLocalIsoDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return toIsoDate(value);
+  }
+
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${date.getFullYear()}-${month}-${day}`;
 }
 
 export async function createTicket(

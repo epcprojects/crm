@@ -42,7 +42,6 @@ export type RecentTicket = {
     name: string;
     brandColor: string;
   };
-  dueDate: string;
   status: TicketStatus;
   statusColor?: string;
   priority: TicketPriority | null;
@@ -231,16 +230,6 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     cell: ({ row }) => (
       <span className="text-gray-900 text-sm  whitespace-nowrap">
         {row.original.date !== null ? row.original.date : '-'}
-      </span>
-    ),
-  },
-  {
-    id: 'dueDate',
-    accessorKey: 'dueDate',
-    header: 'Due Date',
-    cell: ({ row }) => (
-      <span className="text-gray-900 text-sm  whitespace-nowrap">
-        {row.original.dueDate !== null ? row.original.dueDate : '-'}
       </span>
     ),
   },
@@ -736,12 +725,6 @@ function TicketMobileCard({
         <div className="flex flex-col items-start gap-1">
           <p className="text-[10px] text-gray-500">Created On</p>
           <p className="text-xs text-gray-800">{ticket.date}</p>
-        </div>
-        <div className="flex flex-col items-start gap-1">
-          <p className="text-[10px] text-gray-500">Due Date</p>
-          <p className="text-xs text-gray-800">
-            {ticket.dueDate || 'No due date'}
-          </p>
         </div>
       </div>
     </>

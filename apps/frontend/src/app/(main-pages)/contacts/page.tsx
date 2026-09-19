@@ -537,7 +537,6 @@ async function fetchContactLeads(contactId: string): Promise<RecentTicket[]> {
         initials: getInitials(assigneeName),
       },
       date: ticket.createdAt,
-      dueDate: ticket.dueDate ?? '--',
       sortDate: ticket.createdAt,
       reporter: {
         id: ticket.reporter?.id ?? '',

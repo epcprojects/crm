@@ -2933,9 +2933,6 @@ function mapApiDashboardTicketToRecentTicket(
       initials: getInitials(assigneeName),
     },
     date: formatTicketDate(ticket.createdAt),
-    dueDate: ticket.dueDate
-      ? formatTicketDate(ticket.dueDate.split('T')[0] ?? ticket.dueDate)
-      : '--',
     sortDate: ticket.createdAt,
     reporter: {
       id: ticket.reporter?.id ?? '',
