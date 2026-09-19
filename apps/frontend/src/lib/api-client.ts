@@ -213,7 +213,7 @@ export async function fetchTicketsByView(
   const res = await fetch(`${API_BASE}/tickets?view=${view}&date=${date}`, {
     cache: 'no-store',
   });
-  if (!res.ok) throw new Error(`Failed to fetch tickets: ${res.status}`);
+  if (!res.ok) throw new Error(`Failed to fetch leads: ${res.status}`);
   return res.json();
 }
 
@@ -237,7 +237,7 @@ export async function fetchProjectTickets(
     { cache: 'no-store' },
   );
   if (!res.ok) {
-    throw new Error(`Failed to fetch project calendar tickets: ${res.status}`);
+    throw new Error(`Failed to fetch project calendar leads: ${res.status}`);
   }
 
   const data = await res.json().catch(() => null);
@@ -320,7 +320,7 @@ export async function createTicket(
   });
   if (!res.ok) {
     const err = await res.json();
-    throw new Error(err.message || 'Failed to create ticket');
+    throw new Error(err.message || 'Failed to create lead');
   }
   return res.json();
 }
@@ -334,7 +334,7 @@ export async function updateTicket(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to update ticket');
+  if (!res.ok) throw new Error('Failed to update lead');
   return res.json();
 }
 
@@ -342,5 +342,5 @@ export async function deleteTicket(id: string): Promise<void> {
   const res = await fetch(`${API_BASE}/tickets/${id}`, {
     method: 'DELETE',
   });
-  if (!res.ok) throw new Error('Failed to delete ticket');
+  if (!res.ok) throw new Error('Failed to delete lead');
 }

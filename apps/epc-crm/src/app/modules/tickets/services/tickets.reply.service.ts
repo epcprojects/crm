@@ -58,7 +58,7 @@ export class TicketRepliesService {
     const ticket = await this.replyRepo.manager
       .getRepository(Ticket)
       .findOne({ where: { id: ticketId } });
-    if (!ticket) throw new NotFoundException('Ticket not found');
+    if (!ticket) throw new NotFoundException('Lead not found');
     await this.ensureProjectUserAccess(projectId, userId);
 
     const validMentionedUserIds =
@@ -228,7 +228,7 @@ export class TicketRepliesService {
       entityType: NotificationEntityType.TICKET_REPLY,
       entityId: reply.id,
       ticketId: ticket.id,
-      title: `New reply in ticket: "${ticket.ticketRefNo}" by ${fullname}`,
+      title: `New reply in lead: "${ticket.ticketRefNo}" by ${fullname}`,
       message: '',
       requiredClaimValue: dto.isInternal ? 'view_internal_replies' : undefined,
     });
@@ -242,7 +242,7 @@ export class TicketRepliesService {
         entityType: NotificationEntityType.TICKET_REPLY,
         entityId: reply.id,
         ticketId: ticket.id,
-        title: `You were mentioned in a reply in ticket: "${ticket.ticketRefNo}" by ${fullname}`,
+        title: `You were mentioned in a reply in lead: "${ticket.ticketRefNo}" by ${fullname}`,
         message: '',
         explicitRecipientIds: validMentionedUserIds,
       });
@@ -309,7 +309,7 @@ export class TicketRepliesService {
     });
 
     if (!ticket) {
-      throw new NotFoundException('Ticket not found');
+      throw new NotFoundException('Lead not found');
     }
 
     // Upload newly attached files
@@ -335,7 +335,7 @@ export class TicketRepliesService {
         entityType: NotificationEntityType.TICKET_REPLY,
         entityId: reply.id,
         ticketId: ticket.id,
-        title: `You were mentioned in a reply in ticket: "${ticket.ticketRefNo}" by ${fullname}`,
+        title: `You were mentioned in a reply in lead: "${ticket.ticketRefNo}" by ${fullname}`,
         message: '',
         explicitRecipientIds: newlyMentionedUserIds,
       });
@@ -396,7 +396,7 @@ export class TicketRepliesService {
     const ticket = await this.replyRepo.manager
       .getRepository(Ticket)
       .findOne({ where: { id: ticketId } });
-    if (!ticket) throw new NotFoundException('Ticket not found');
+    if (!ticket) throw new NotFoundException('Lead not found');
 
     const qb = this.replyRepo
       .createQueryBuilder('reply')
@@ -569,7 +569,7 @@ export class TicketRepliesService {
     });
 
     if (!ticket) {
-      throw new NotFoundException('Ticket not found');
+      throw new NotFoundException('Lead not found');
     }
 
     const reply = await this.replyRepo.findOne({
@@ -598,7 +598,7 @@ export class TicketRepliesService {
         entityType: NotificationEntityType.TICKET_REPLY,
         entityId: updated.id,
 
-        title: `${user.fullName} reacted to your reply in ticket "${ticket.ticketRefNo}"`,
+        title: `${user.fullName} reacted to your reply in lead "${ticket.ticketRefNo}"`,
         message: emoji,
       });
     }
@@ -624,7 +624,7 @@ export class TicketRepliesService {
     });
 
     if (!ticket) {
-      throw new NotFoundException('Ticket not found');
+      throw new NotFoundException('Lead not found');
     }
 
     const reply = await this.replyRepo.findOne({

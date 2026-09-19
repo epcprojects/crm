@@ -961,7 +961,7 @@ async function fetchTicketStatuses() {
     throw new Error(
       !Array.isArray(payload)
         ? payload?.message
-        : 'Failed to fetch ticket statuses.',
+        : 'Failed to fetch lead statuses.',
     );
   }
 
@@ -988,8 +988,8 @@ async function fetchTicketStatusDetail(statusId: string) {
   if (!response.ok || !isApiTicketStatus(payload)) {
     throw new Error(
       isErrorPayload(payload)
-        ? payload.message || 'Failed to fetch ticket status.'
-        : 'Failed to fetch ticket status.',
+        ? payload.message || 'Failed to fetch lead status.'
+        : 'Failed to fetch lead status.',
     );
   }
 
@@ -1014,7 +1014,7 @@ async function fetchTicketPriorities() {
     throw new Error(
       !Array.isArray(payload)
         ? payload?.message
-        : 'Failed to fetch ticket priorities.',
+        : 'Failed to fetch lead priorities.',
     );
   }
 
@@ -1041,8 +1041,8 @@ async function fetchTicketPriorityDetail(priorityId: string) {
   if (!response.ok || !isApiTicketPriority(payload)) {
     throw new Error(
       isErrorPayload(payload)
-        ? payload.message || 'Failed to fetch ticket priority.'
-        : 'Failed to fetch ticket priority.',
+        ? payload.message || 'Failed to fetch lead priority.'
+        : 'Failed to fetch lead priority.',
     );
   }
 

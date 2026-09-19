@@ -65,7 +65,7 @@ export async function GET(
 
     if (!response.ok) {
       return NextResponse.json(
-        { message: data?.message || 'Failed to fetch project calendar tickets.' },
+        { message: data?.message || 'Failed to fetch project calendar leads.' },
         { status: response.status },
       );
     }
@@ -74,7 +74,7 @@ export async function GET(
   } catch {
     return NextResponse.json(
       {
-        message: 'Something went wrong while fetching project calendar tickets.',
+        message: 'Something went wrong while fetching project calendar leads.',
       },
       { status: 500 },
     );

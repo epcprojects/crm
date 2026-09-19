@@ -2528,8 +2528,8 @@ async function fetchDashboardTickets({
   if (!response.ok || !isApiDashboardTicketsResponse(payload)) {
     throw new Error(
       payload && typeof payload === 'object' && 'message' in payload
-        ? payload.message || 'Failed to fetch tickets.'
-        : 'Failed to fetch tickets.',
+        ? payload.message || 'Failed to fetch leads.'
+        : 'Failed to fetch leads.',
     );
   }
 
@@ -2745,8 +2745,8 @@ async function fetchTicketStatuses() {
   if (!response.ok || !Array.isArray(payload)) {
     throw new Error(
       !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket statuses.'
-        : 'Failed to fetch ticket statuses.',
+        ? payload?.message || 'Failed to fetch lead statuses.'
+        : 'Failed to fetch lead statuses.',
     );
   }
 
@@ -2769,8 +2769,8 @@ async function fetchTicketPriorities() {
   if (!response.ok || !Array.isArray(payload)) {
     throw new Error(
       !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket priorities.'
-        : 'Failed to fetch ticket priorities.',
+        ? payload?.message || 'Failed to fetch lead priorities.'
+        : 'Failed to fetch lead priorities.',
     );
   }
 

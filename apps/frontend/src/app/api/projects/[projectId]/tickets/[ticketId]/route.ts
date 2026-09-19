@@ -50,7 +50,7 @@ export async function GET(
 
     if (!response.ok) {
       return NextResponse.json(
-        { message: data?.message || 'Failed to fetch ticket details.' },
+        { message: data?.message || 'Failed to fetch lead details.' },
         { status: response.status },
       );
     }
@@ -58,7 +58,7 @@ export async function GET(
     return NextResponse.json(data, { status: 200 });
   } catch {
     return NextResponse.json(
-      { message: 'Something went wrong while fetching the ticket details.' },
+      { message: 'Something went wrong while fetching the lead details.' },
       { status: 500 },
     );
   }
@@ -117,7 +117,7 @@ export async function PATCH(
 
     if (!response.ok) {
       return NextResponse.json(
-        { message: data?.message || 'Failed to update ticket.' },
+        { message: data?.message || 'Failed to update lead.' },
         { status: response.status },
       );
     }
@@ -125,7 +125,7 @@ export async function PATCH(
     return NextResponse.json(data, { status: response.status });
   } catch {
     return NextResponse.json(
-      { message: 'Something went wrong while updating the ticket.' },
+      { message: 'Something went wrong while updating the lead.' },
       { status: 500 },
     );
   }

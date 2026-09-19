@@ -116,11 +116,11 @@ const NOTIFICATION_GROUPS = [
   },
   {
     category: 'tickets',
-    label: 'Tickets',
+    label: 'Leads',
   },
   {
     category: 'ticket_replies',
-    label: 'Ticket Replies',
+    label: 'Lead Replies',
   },
 ] as const;
 

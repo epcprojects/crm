@@ -64,7 +64,7 @@ export async function createTicket(payload: CreateTicketPayload) {
     const message =
       Array.isArray(data?.message) && data.message.length
         ? data.message.join(', ')
-        : data?.message || 'Failed to create ticket.';
+        : data?.message || 'Failed to create lead.';
 
     throw new Error(message);
   }
@@ -111,8 +111,8 @@ export async function fetchTicketReporters(
   if (!response.ok || !Array.isArray(payload)) {
     throw new Error(
       !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket creators.'
-        : 'Failed to fetch ticket creators.',
+        ? payload?.message || 'Failed to fetch lead creators.'
+        : 'Failed to fetch lead creators.',
     );
   }
 
@@ -141,8 +141,8 @@ export async function fetchProjectTicketReporters(
   if (!response.ok || !Array.isArray(payload)) {
     throw new Error(
       !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket creators.'
-        : 'Failed to fetch ticket creators.',
+        ? payload?.message || 'Failed to fetch lead creators.'
+        : 'Failed to fetch lead creators.',
     );
   }
 
@@ -188,8 +188,8 @@ export async function fetchTicketAssignees(
   if (!response.ok || !Array.isArray(payload)) {
     throw new Error(
       !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket agents.'
-        : 'Failed to fetch ticket agents.',
+        ? payload?.message || 'Failed to fetch lead agents.'
+        : 'Failed to fetch lead agents.',
     );
   }
 
@@ -218,8 +218,8 @@ export async function fetchProjectTicketAssignees(
   if (!response.ok || !Array.isArray(payload)) {
     throw new Error(
       !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket agents.'
-        : 'Failed to fetch ticket agents.',
+        ? payload?.message || 'Failed to fetch lead agents.'
+        : 'Failed to fetch lead agents.',
     );
   }
 

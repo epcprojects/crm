@@ -49,7 +49,7 @@ export async function GET() {
 
     if (!response.ok) {
       return NextResponse.json(
-        { message: data?.message || 'Failed to fetch ticket priorities.' },
+        { message: data?.message || 'Failed to fetch lead priorities.' },
         { status: response.status },
       );
     }
@@ -57,7 +57,7 @@ export async function GET() {
     return NextResponse.json(Array.isArray(data) ? data : [], { status: 200 });
   } catch {
     return NextResponse.json(
-      { message: 'Something went wrong while fetching ticket priorities.' },
+      { message: 'Something went wrong while fetching lead priorities.' },
       { status: 500 },
     );
   }
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
 
     if (!response.ok) {
       return NextResponse.json(
-        { message: data?.message || 'Failed to create ticket priority.' },
+        { message: data?.message || 'Failed to create lead priority.' },
         { status: response.status },
       );
     }
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
     return NextResponse.json(data, { status: response.status });
   } catch {
     return NextResponse.json(
-      { message: 'Something went wrong while creating the ticket priority.' },
+      { message: 'Something went wrong while creating the lead priority.' },
       { status: 500 },
     );
   }

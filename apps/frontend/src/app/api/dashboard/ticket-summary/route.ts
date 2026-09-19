@@ -42,7 +42,7 @@ export async function GET() {
 
     if (!response.ok) {
       return NextResponse.json(
-        { message: data?.message || 'Failed to fetch ticket summary.' },
+        { message: data?.message || 'Failed to fetch lead summary.' },
         { status: response.status },
       );
     }
@@ -50,7 +50,7 @@ export async function GET() {
     return NextResponse.json(data, { status: 200 });
   } catch {
     return NextResponse.json(
-      { message: 'Something went wrong while fetching ticket summary.' },
+      { message: 'Something went wrong while fetching lead summary.' },
       { status: 500 },
     );
   }

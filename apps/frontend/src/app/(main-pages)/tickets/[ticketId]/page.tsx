@@ -2703,8 +2703,8 @@ async function fetchTicketDetail(projectId: string, ticketId: string) {
   if (!response.ok || !isApiTicketDetail(payload)) {
     const message =
       payload && typeof payload === 'object' && 'message' in payload
-        ? payload.message || 'Failed to fetch ticket details.'
-        : 'Failed to fetch ticket details.';
+        ? payload.message || 'Failed to fetch lead details.'
+        : 'Failed to fetch lead details.';
     throw new Error(message);
   }
 
@@ -2753,8 +2753,8 @@ async function fetchTicketStatuses() {
   if (!response.ok || !Array.isArray(payload)) {
     throw new Error(
       !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket statuses.'
-        : 'Failed to fetch ticket statuses.',
+        ? payload?.message || 'Failed to fetch lead statuses.'
+        : 'Failed to fetch lead statuses.',
     );
   }
 
@@ -2802,7 +2802,7 @@ async function fetchTicketReplies(
 
   if (!response.ok || !normalizedPayload) {
     throw new Error(
-      normalizedPayload?.message || 'Failed to fetch ticket replies.',
+      normalizedPayload?.message || 'Failed to fetch lead replies.',
     );
   }
 
@@ -2830,7 +2830,7 @@ function normalizeTicketRepliesResponse(
   if (!isApiTicketRepliesResponse(payload)) {
     return payload && 'message' in payload
       ? {
-          message: payload.message || 'Failed to fetch ticket replies.',
+          message: payload.message || 'Failed to fetch lead replies.',
           messages: [],
           cursor: null,
           hasMore: false,
@@ -2912,8 +2912,8 @@ async function fetchTicketTimeline(projectId: string, ticketId: string) {
   if (!response.ok || !Array.isArray(payload)) {
     throw new Error(
       !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket timeline.'
-        : 'Failed to fetch ticket timeline.',
+        ? payload?.message || 'Failed to fetch lead timeline.'
+        : 'Failed to fetch lead timeline.',
     );
   }
 

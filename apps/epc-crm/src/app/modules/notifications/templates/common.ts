@@ -945,7 +945,7 @@ export function renderNotificationEmail(
                             font-weight:400;
                             color:#374151;
                         ">
-                                                                                                                                    Open this ticket in EPC CRM to view the complete discussion and latest updates.
+                                                                                                                                    Open this lead in EPC CRM to view the complete discussion and latest updates.
 
                                                                                                                                 </span>
                                                                                                                             </td>
@@ -1211,7 +1211,7 @@ ${replyCalloutHtml}
         ">
                                                     EPC CRM
                                                     <span style="color:#9CA3AF;">&nbsp;&bull;&nbsp;</span>
-                                                    All your tickets. One place.
+                                                    All your leads. One place.
                                                 </td>
                                             </tr>
                                         </tbody>
@@ -1227,7 +1227,7 @@ export function buildTicketReplyEmail(
   appUrl: string,
 ): { subject: string; html: string } {
   const rows: DataRow[] = [
-    { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
+    { label: 'Lead', value: `${p.ticketNumber} - ${p.ticketTitle}` },
     { label: 'Project', value: p.projectName },
     { label: 'Replied by', value: p.postedBy.name },
     { label: 'Preview', value: p.replyContent ?? '' },
@@ -1236,12 +1236,12 @@ export function buildTicketReplyEmail(
   const html = renderNotificationEmail({
     appUrl,
     iconFileName: 'NewReplyOnTicketIcon.png',
-    title: p.isInternal ? 'New Internal Note' : 'New Reply on Ticket',
+    title: p.isInternal ? 'New Internal Note' : 'New Reply on Lead',
     subheading: p.isInternal
-      ? 'A new internal note has been added to a ticket.'
-      : "A new reply has been added to a ticket you're following.",
+      ? 'A new internal note has been added to a lead.'
+      : "A new reply has been added to a lead you're following.",
     rows,
-    buttonText: 'View Ticket',
+    buttonText: 'View Lead',
     buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}`,
     showReplyCallout: !p.isInternal, // "reply by email" doesn't make sense for internal-only notes
     // attachments: p.attachments, // NEW
@@ -1261,7 +1261,7 @@ export function buildTicketReplyMentionedEmail(
   appUrl: string,
 ): { subject: string; html: string } {
   const rows: DataRow[] = [
-    { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
+    { label: 'Lead', value: `${p.ticketNumber} - ${p.ticketTitle}` },
     { label: 'Project', value: p.projectName },
     { label: 'Mentioned by', value: p.mentionedBy.name },
     { label: 'Preview', value: p.replyContent ?? '' },
@@ -1273,7 +1273,7 @@ export function buildTicketReplyMentionedEmail(
     title: 'You Were Mentioned',
     subheading: `${p.mentionedBy.name} mentioned you in a reply on ticket ${p.ticketNumber}.`,
     rows,
-    buttonText: 'View Ticket',
+    buttonText: 'View Lead',
     buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}`,
     showReplyCallout: true,
     internalNote: false,
@@ -1290,7 +1290,7 @@ export function buildTicketInternalMessageEmail(
   appUrl: string,
 ): { subject: string; html: string } {
   const rows: DataRow[] = [
-    { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
+    { label: 'Lead', value: `${p.ticketNumber} - ${p.ticketTitle}` },
     { label: 'Project', value: p.projectName },
     { label: 'Replied by', value: p.postedBy.name },
     { label: 'Preview', value: p.replyContent ?? '' },
@@ -1299,12 +1299,12 @@ export function buildTicketInternalMessageEmail(
   const html = renderNotificationEmail({
     appUrl,
     iconFileName: 'NewReplyOnTicketIcon.png',
-    title: p.isInternal ? 'New Internal Note' : 'New Reply on Ticket',
+    title: p.isInternal ? 'New Internal Note' : 'New Reply on Lead',
     subheading: p.isInternal
-      ? 'A new internal note has been added to a ticket.'
-      : "A new reply has been added to a ticket you're following.",
+      ? 'A new internal note has been added to a lead.'
+      : "A new reply has been added to a lead you're following.",
     rows,
-    buttonText: 'View Ticket',
+    buttonText: 'View Lead',
     buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}&internal=true`,
     showReplyCallout: !p.isInternal, // "reply by email" doesn't make sense for internal-only notes
     // attachments: p.attachments, // NEW
@@ -1324,7 +1324,7 @@ export function buildTicketInternalMessageMentionedEmail(
   appUrl: string,
 ): { subject: string; html: string } {
   const rows: DataRow[] = [
-    { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
+    { label: 'Lead', value: `${p.ticketNumber} - ${p.ticketTitle}` },
     { label: 'Project', value: p.projectName },
     { label: 'Mentioned by', value: p.mentionedBy.name },
     { label: 'Preview', value: p.replyContent ?? '' },
@@ -1336,7 +1336,7 @@ export function buildTicketInternalMessageMentionedEmail(
     title: 'You Were Mentioned',
     subheading: `${p.mentionedBy.name} mentioned you in an internal note on ticket ${p.ticketNumber}.`,
     rows,
-    buttonText: 'View Ticket',
+    buttonText: 'View Lead',
     buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}&internal=true`,
     showReplyCallout: false,
     internalNote: true,
@@ -1384,7 +1384,7 @@ export function buildTicketCreatedEmail(
   appUrl: string,
 ): { subject: string; html: string } {
   const rows: DataRow[] = [
-    { label: 'Ticket', value: `${p.ticketNumber} - ${p.title}` },
+    { label: 'Lead', value: `${p.ticketNumber} - ${p.title}` },
     { label: 'Project', value: p.projectName },
     {
       label: 'Status',
@@ -1415,17 +1415,17 @@ export function buildTicketCreatedEmail(
   const html = renderNotificationEmail({
     appUrl,
     iconFileName: 'TicketCreatedIcon.png',
-    title: 'New Ticket Created',
-    subheading: `${p.createdBy.name} opened a new ticket on ${p.projectName}.`,
+    title: 'New Lead Created',
+    subheading: `${p.createdBy.name} opened a new lead on ${p.projectName}.`,
     rows,
-    buttonText: 'View Ticket',
+    buttonText: 'View Lead',
     buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}`,
     showReplyCallout: false,
     // attachments: p.attachments, // NEW
   });
 
   return {
-    subject: `[${p.ticketNumber}] New ticket: ${truncateSubject(p.title)}`,
+    subject: `[${p.ticketNumber}] New lead: ${truncateSubject(p.title)}`,
     html,
   };
 }
@@ -1435,7 +1435,7 @@ export function buildStatusUpdatedEmail(
   appUrl: string,
 ): { subject: string; html: string } {
   const rows: DataRow[] = [
-    { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
+    { label: 'Lead', value: `${p.ticketNumber} - ${p.ticketTitle}` },
     { label: 'Project', value: p.projectName },
     { label: 'Updated by', value: p.updatedBy.name },
     {
@@ -1452,10 +1452,10 @@ export function buildStatusUpdatedEmail(
   const html = renderNotificationEmail({
     appUrl,
     iconFileName: 'TicketUpdatedIcon.png',
-    title: 'Ticket Updated',
+    title: 'Lead Updated',
     subheading: `Ticket ${p.ticketNumber} Status has been updated.`,
     rows,
-    buttonText: 'View Ticket',
+    buttonText: 'View Lead',
     buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}`,
     showReplyCallout: false,
   });
@@ -1471,7 +1471,7 @@ export function buildTypeUpdatedEmail(
   appUrl: string,
 ): { subject: string; html: string } {
   const rows: DataRow[] = [
-    { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
+    { label: 'Lead', value: `${p.ticketNumber} - ${p.ticketTitle}` },
     { label: 'Project', value: p.projectName },
     { label: 'Updated by', value: p.updatedBy.name },
     {
@@ -1488,10 +1488,10 @@ export function buildTypeUpdatedEmail(
   const html = renderNotificationEmail({
     appUrl,
     iconFileName: 'TicketUpdatedIcon.png',
-    title: 'Ticket Updated',
+    title: 'Lead Updated',
     subheading: `Ticket ${p.ticketNumber} Type has been updated.`,
     rows,
-    buttonText: 'View Ticket',
+    buttonText: 'View Lead',
     buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}`,
     showReplyCallout: false,
   });
@@ -1509,7 +1509,7 @@ export function buildDueDateUpdatedEmail(
   console.debug('INSIDE BUILD DUE DATE UPDATED payload:', p);
   const formattedDueDate = new Date(p.newDueDate).toDateString();
   const rows: DataRow[] = [
-    { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
+    { label: 'Lead', value: `${p.ticketNumber} - ${p.ticketTitle}` },
     { label: 'Project', value: p.projectName },
     { label: 'Updated by', value: p.updatedBy.name },
     {
@@ -1526,10 +1526,10 @@ export function buildDueDateUpdatedEmail(
   const html = renderNotificationEmail({
     appUrl,
     iconFileName: 'TicketUpdatedIcon.png',
-    title: 'Ticket Updated',
+    title: 'Lead Updated',
     subheading: `Ticket ${p.ticketNumber} Due Date has been updated.`,
     rows,
-    buttonText: 'View Ticket',
+    buttonText: 'View Lead',
     buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}`,
     showReplyCallout: false,
   });
@@ -1545,7 +1545,7 @@ export function buildPriorityUpdatedEmail(
   appUrl: string,
 ): { subject: string; html: string } {
   const rows: DataRow[] = [
-    { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
+    { label: 'Lead', value: `${p.ticketNumber} - ${p.ticketTitle}` },
     { label: 'Project', value: p.projectName },
     { label: 'Updated by', value: p.updatedBy.name },
     {
@@ -1565,7 +1565,7 @@ export function buildPriorityUpdatedEmail(
     title: 'Priority Updated',
     subheading: `Ticket ${p.ticketNumber} priority has been updated.`,
     rows,
-    buttonText: 'View Ticket',
+    buttonText: 'View Lead',
     buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}`,
     showReplyCallout: false,
   });
@@ -1581,7 +1581,7 @@ export function buildAssigneeUpdatedEmail(
   appUrl: string,
 ): { subject: string; html: string } {
   const rows: DataRow[] = [
-    { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
+    { label: 'Lead', value: `${p.ticketNumber} - ${p.ticketTitle}` },
     { label: 'Project', value: p.projectName },
     { label: 'Agent', value: p.newAssignee.name },
     // ...(p.priority
@@ -1600,16 +1600,16 @@ export function buildAssigneeUpdatedEmail(
   const html = renderNotificationEmail({
     appUrl,
     iconFileName: 'NewTicketAssignedIcon.png',
-    title: 'Ticket Reassigned',
-    subheading: 'This ticket has been reassigned.',
+    title: 'Lead Reassigned',
+    subheading: 'This lead has been reassigned.',
     rows,
-    buttonText: 'View Ticket',
+    buttonText: 'View Lead',
     buttonUrl: `${appUrl}/tickets/${p.ticketId}?projectId=${p.projectId}`,
     showReplyCallout: false,
   });
 
   return {
-    subject: `[${p.ticketNumber}] Ticket assigned to ${p.newAssignee.name}`,
+    subject: `[${p.ticketNumber}] Lead assigned to ${p.newAssignee.name}`,
     html,
   };
 }
@@ -1619,7 +1619,7 @@ export function buildAssigneeUpdatedEmail(
 //   appUrl: string,
 // ): { subject: string; html: string } {
 //   const rows: DataRow[] = [
-//     { label: 'Ticket', value: `${p.ticketNumber} - ${p.ticketTitle}` },
+//     { label: 'Lead', value: `${p.ticketNumber} - ${p.ticketTitle}` },
 //     { label: 'Project', value: p.projectName },
 //     { label: 'Uploaded by', value: p.uploadedBy.name },
 //     { label: 'File name', value: p.fileName },

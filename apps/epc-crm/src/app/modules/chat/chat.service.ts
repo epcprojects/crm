@@ -87,7 +87,7 @@ export class ChatMessagesService {
       .exists({ where: { id: ticketId, reporterId: userId } });
 
     if (!owns) {
-      throw new ForbiddenException('Access denied to this ticket');
+      throw new ForbiddenException('Access denied to this lead');
     }
   }
 
@@ -274,7 +274,7 @@ export class ChatMessagesService {
       entityType: NotificationEntityType.INTERNAL_MESSAGE,
       entityId: saved.id,
       ticketId: ticketId,
-      title: `New Internal Message in ticket "${ticketRefNo}" from ${fullname}`,
+      title: `New Internal Message in lead "${ticketRefNo}" from ${fullname}`,
       message: '',
       // requiredClaimValue: dto.isInternal ? 'view_internal_replies' : undefined,
     });
@@ -287,7 +287,7 @@ export class ChatMessagesService {
         entityType: NotificationEntityType.INTERNAL_MESSAGE,
         entityId: saved.id,
         ticketId: ticketId,
-        title: `You were mentioned in an Internal Message in ticket "${ticketRefNo}" from ${fullname}`,
+        title: `You were mentioned in an Internal Message in lead "${ticketRefNo}" from ${fullname}`,
         message: '',
         explicitRecipientIds: mentionedUserIds,
       });
@@ -366,7 +366,7 @@ export class ChatMessagesService {
         entityType: NotificationEntityType.INTERNAL_MESSAGE,
         entityId: updated.id,
         ticketId: updated.ticketId,
-        title: `You were mentioned in an Internal Message in ticket "${ticketRefNo}" from ${fullname}`,
+        title: `You were mentioned in an Internal Message in lead "${ticketRefNo}" from ${fullname}`,
         message: '',
         explicitRecipientIds: newlyMentionedUserIds,
       });
@@ -589,7 +589,7 @@ export class ChatMessagesService {
       });
 
     if (!ticket) {
-      throw new NotFoundException('Ticket not found');
+      throw new NotFoundException('Lead not found');
     }
 
     const message = await this.repo(channel).findOne({
@@ -627,7 +627,7 @@ export class ChatMessagesService {
         entityType: NotificationEntityType.INTERNAL_MESSAGE,
         entityId: updated.id,
 
-        title: `${user.fullName} reacted to your Message in Internal Chat, ticket "${ticket.ticketRefNo}"`,
+        title: `${user.fullName} reacted to your Message in Internal Chat, lead "${ticket.ticketRefNo}"`,
         message: emoji,
       });
     }
@@ -666,7 +666,7 @@ export class ChatMessagesService {
       });
 
     if (!ticket) {
-      throw new NotFoundException('Ticket not found');
+      throw new NotFoundException('Lead not found');
     }
 
     const message = await this.repo(channel).findOne({

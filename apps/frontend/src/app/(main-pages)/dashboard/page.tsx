@@ -2432,8 +2432,8 @@ async function fetchTicketStatuses(): Promise<ApiTicketSetting[]> {
   if (!response.ok || !Array.isArray(payload)) {
     throw new Error(
       !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket statuses.'
-        : 'Failed to fetch ticket statuses.',
+        ? payload?.message || 'Failed to fetch lead statuses.'
+        : 'Failed to fetch lead statuses.',
     );
   }
 
@@ -2457,8 +2457,8 @@ async function fetchTicketPriorities(): Promise<ApiTicketSetting[]> {
   if (!response.ok || !Array.isArray(payload)) {
     throw new Error(
       !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket priorities.'
-        : 'Failed to fetch ticket priorities.',
+        ? payload?.message || 'Failed to fetch lead priorities.'
+        : 'Failed to fetch lead priorities.',
     );
   }
 
@@ -2509,8 +2509,8 @@ async function fetchTicketSummary(): Promise<TicketSummary> {
   if (!response.ok || !isTicketSummary(payload)) {
     throw new Error(
       !isTicketSummary(payload)
-        ? payload?.message || 'Failed to fetch ticket summary.'
-        : 'Failed to fetch ticket summary.',
+        ? payload?.message || 'Failed to fetch lead summary.'
+        : 'Failed to fetch lead summary.',
     );
   }
 
@@ -2616,8 +2616,8 @@ async function fetchUpcomingTickets(
   if (!response.ok || !isApiDashboardTicketsResponse(payload)) {
     throw new Error(
       !isApiDashboardTicketsResponse(payload)
-        ? payload?.message || 'Failed to fetch upcoming tickets.'
-        : 'Failed to fetch upcoming tickets.',
+        ? payload?.message || 'Failed to fetch upcoming leads.'
+        : 'Failed to fetch upcoming leads.',
     );
   }
 
@@ -2784,8 +2784,8 @@ async function fetchDashboardTickets({
   if (!response.ok || !isApiDashboardTicketsResponse(payload)) {
     throw new Error(
       payload && typeof payload === 'object' && 'message' in payload
-        ? payload.message || 'Failed to fetch recent tickets.'
-        : 'Failed to fetch recent tickets.',
+        ? payload.message || 'Failed to fetch recent leads.'
+        : 'Failed to fetch recent leads.',
     );
   }
 

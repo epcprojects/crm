@@ -31,7 +31,7 @@ export class TicketPrioritiesService {
         (error as any).driverError?.code === '23505'
       ) {
         throw new BadRequestException(
-          `Ticket priority '${dto.key}' already exists`,
+          `Lead priority '${dto.key}' already exists`,
         );
       }
 
@@ -54,7 +54,7 @@ export class TicketPrioritiesService {
     });
 
     if (!priority) {
-      throw new NotFoundException('Ticket priority not found');
+      throw new NotFoundException('Lead priority not found');
     }
 
     return priority;
@@ -85,7 +85,7 @@ export class TicketPrioritiesService {
 
   //   if (ticketsUsingPriority > 0) {
   //     throw new BadRequestException(
-  //       `Priority '${priority.key}' is already being used by ${ticketsUsingPriority} ticket(s) and cannot be deleted.`,
+  //       `Priority '${priority.key}' is already being used by ${ticketsUsingPriority} lead(s) and cannot be deleted.`,
   //     );
   //   }
 
@@ -113,7 +113,7 @@ export class TicketPrioritiesService {
 
     if (ticketsUsingPriority > 0) {
       throw new BadRequestException(
-        `Priority '${priority.key}' is already being used by ${ticketsUsingPriority} ticket(s) and cannot be deleted.`,
+        `Priority '${priority.key}' is already being used by ${ticketsUsingPriority} lead(s) and cannot be deleted.`,
       );
     }
 

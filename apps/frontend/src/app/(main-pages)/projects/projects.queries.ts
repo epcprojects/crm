@@ -1183,7 +1183,7 @@ async function deleteTicket(projectId: string, ticketId: string) {
   const payload = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(payload?.message || 'Failed to delete ticket.');
+    throw new Error(payload?.message || 'Failed to delete lead.');
   }
 
   return payload;
@@ -1582,8 +1582,8 @@ async function fetchProjectTickets(
   if (!response.ok || !isApiProjectTicketsResponse(payload)) {
     throw new Error(
       isProjectErrorPayload(payload)
-        ? payload.message || 'Failed to fetch project tickets.'
-        : 'Failed to fetch project tickets.',
+        ? payload.message || 'Failed to fetch project leads.'
+        : 'Failed to fetch project leads.',
     );
   }
 
@@ -1632,8 +1632,8 @@ async function fetchProjectTicketsKanban(
   if (!response.ok || !isApiProjectTicketsKanbanResponse(payload)) {
     throw new Error(
       isProjectErrorPayload(payload)
-        ? payload.message || 'Failed to fetch project Kanban tickets.'
-        : 'Failed to fetch project Kanban tickets.',
+        ? payload.message || 'Failed to fetch project Kanban leads.'
+        : 'Failed to fetch project Kanban leads.',
     );
   }
 

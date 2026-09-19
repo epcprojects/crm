@@ -61,7 +61,7 @@ export async function GET(
 
     if (!response.ok) {
       return NextResponse.json(
-        { message: data?.message || 'Failed to fetch project tickets.' },
+        { message: data?.message || 'Failed to fetch project leads.' },
         { status: response.status },
       );
     }
@@ -69,7 +69,7 @@ export async function GET(
     return NextResponse.json(data, { status: 200 });
   } catch {
     return NextResponse.json(
-      { message: 'Something went wrong while fetching the project tickets.' },
+      { message: 'Something went wrong while fetching the project leads.' },
       { status: 500 },
     );
   }
@@ -180,7 +180,7 @@ export async function POST(
 
     if (!response.ok) {
       return NextResponse.json(
-        { message: data?.message || 'Failed to create ticket.' },
+        { message: data?.message || 'Failed to create lead.' },
         { status: response.status },
       );
     }
@@ -188,7 +188,7 @@ export async function POST(
     return NextResponse.json(data, { status: response.status });
   } catch {
     return NextResponse.json(
-      { message: 'Something went wrong while creating the ticket.' },
+      { message: 'Something went wrong while creating the lead.' },
       { status: 500 },
     );
   }

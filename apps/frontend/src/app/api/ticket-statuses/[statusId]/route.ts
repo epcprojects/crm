@@ -47,7 +47,7 @@ export async function GET(
 
     if (!response.ok) {
       return NextResponse.json(
-        { message: data?.message || 'Failed to fetch ticket status.' },
+        { message: data?.message || 'Failed to fetch lead status.' },
         { status: response.status },
       );
     }
@@ -55,7 +55,7 @@ export async function GET(
     return NextResponse.json(data, { status: response.status });
   } catch {
     return NextResponse.json(
-      { message: 'Something went wrong while fetching the ticket status.' },
+      { message: 'Something went wrong while fetching the lead status.' },
       { status: 500 },
     );
   }
@@ -99,7 +99,7 @@ export async function PATCH(
 
     if (!response.ok) {
       return NextResponse.json(
-        { message: data?.message || 'Failed to update ticket status.' },
+        { message: data?.message || 'Failed to update lead status.' },
         { status: response.status },
       );
     }
@@ -107,7 +107,7 @@ export async function PATCH(
     return NextResponse.json(data, { status: response.status });
   } catch {
     return NextResponse.json(
-      { message: 'Something went wrong while updating the ticket status.' },
+      { message: 'Something went wrong while updating the lead status.' },
       { status: 500 },
     );
   }
@@ -148,7 +148,7 @@ export async function DELETE(
 
     if (!response.ok) {
       return NextResponse.json(
-        { message: data?.message || 'Failed to delete ticket status.' },
+        { message: data?.message || 'Failed to delete lead status.' },
         { status: response.status },
       );
     }
@@ -160,7 +160,7 @@ export async function DELETE(
     return NextResponse.json(data, { status: response.status });
   } catch {
     return NextResponse.json(
-      { message: 'Something went wrong while deleting the ticket status.' },
+      { message: 'Something went wrong while deleting the lead status.' },
       { status: 500 },
     );
   }

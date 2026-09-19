@@ -593,7 +593,7 @@ export function forgotPasswordTemplate({
         ">
                                                     EPC CRM
                                                     <span style="color:#9CA3AF;">&nbsp;&bull;&nbsp;</span>
-                                                    All your tickets. One place.
+                                                    All your leads. One place.
                                                 </td>
                                             </tr>
                                         </tbody>

@@ -37,7 +37,7 @@ export class TicketStatusesService {
         (error as any).driverError?.code === '23505'
       ) {
         throw new BadRequestException(
-          `Ticket status '${dto.key}' already exists`,
+          `Lead status '${dto.key}' already exists`,
         );
       }
 
@@ -94,7 +94,7 @@ export class TicketStatusesService {
       );
 
       if (currentIndex === -1) {
-        throw new NotFoundException('Ticket status not found.');
+        throw new NotFoundException('Lead status not found.');
       }
 
       const [movedStatus] = userSorting.splice(currentIndex, 1);
@@ -162,7 +162,7 @@ export class TicketStatusesService {
     });
 
     if (!status) {
-      throw new NotFoundException('Ticket status not found');
+      throw new NotFoundException('Lead status not found');
     }
 
     return status;
@@ -188,7 +188,7 @@ export class TicketStatusesService {
 
   //   if (ticketsUsingStatus > 0) {
   //     throw new BadRequestException(
-  //       `Status '${status.key}' is already being used by ${ticketsUsingStatus} ticket(s) and cannot be deleted.`,
+  //       `Status '${status.key}' is already being used by ${ticketsUsingStatus} lead(s) and cannot be deleted.`,
   //     );
   //   }
 
@@ -213,7 +213,7 @@ export class TicketStatusesService {
 
     if (ticketsUsingStatus > 0) {
       throw new BadRequestException(
-        `Status '${status.key}' is already being used by ${ticketsUsingStatus} ticket(s) and cannot be deleted.`,
+        `Status '${status.key}' is already being used by ${ticketsUsingStatus} lead(s) and cannot be deleted.`,
       );
     }
 

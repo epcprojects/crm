@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
 
     if (!response.ok) {
       return NextResponse.json(
-        { message: data?.message || 'Failed to fetch tickets for export.' },
+        { message: data?.message || 'Failed to fetch leads for export.' },
         { status: response.status },
       );
     }
@@ -180,7 +180,7 @@ export async function GET(request: NextRequest) {
     });
   } catch {
     return NextResponse.json(
-      { message: 'Something went wrong while exporting tickets.' },
+      { message: 'Something went wrong while exporting leads.' },
       { status: 500 },
     );
   }

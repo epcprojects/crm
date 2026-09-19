@@ -768,8 +768,8 @@ async function fetchTicketStatuses() {
   if (!response.ok || !Array.isArray(payload)) {
     throw new Error(
       !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket statuses.'
-        : 'Failed to fetch ticket statuses.',
+        ? payload?.message || 'Failed to fetch lead statuses.'
+        : 'Failed to fetch lead statuses.',
     );
   }
 

@@ -50,7 +50,7 @@ export async function PATCH(request: Request) {
 
         if (!response.ok) {
             return NextResponse.json(
-                { message: data?.message || 'Failed to reorder ticket statuses.' },
+                { message: data?.message || 'Failed to reorder lead statuses.' },
                 { status: response.status },
             );
         }
@@ -58,7 +58,7 @@ export async function PATCH(request: Request) {
         return NextResponse.json(data, { status: response.status });
     } catch {
         return NextResponse.json(
-            { message: 'Something went wrong while reordering ticket statuses.' },
+            { message: 'Something went wrong while reordering lead statuses.' },
             { status: 500 },
         );
     }

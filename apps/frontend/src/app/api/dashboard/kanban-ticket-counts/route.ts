@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
     if (!response.ok) {
       return NextResponse.json(
         {
-          message: data?.message || 'Failed to fetch Kanban ticket counts.',
+          message: data?.message || 'Failed to fetch Kanban lead counts.',
         },
         { status: response.status },
       );

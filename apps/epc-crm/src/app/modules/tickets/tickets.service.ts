@@ -279,7 +279,7 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `New ticket: "${ticket.title}" created in project "${ticket.project.name}" by ${fullname}`,
+        title: `New lead: "${ticket.title}" created in project "${ticket.project.name}" by ${fullname}`,
         message: ticket.ticketRefNo ?? undefined,
       });
     } catch (err) {
@@ -913,7 +913,7 @@ export class TicketsService {
   //     .getOne();
 
   //   if (!ticket) {
-  //     throw new NotFoundException('Ticket not found');
+  //     throw new NotFoundException('Lead not found');
   //   }
 
   //   const attachments = await this.filesService.findBySource(
@@ -936,7 +936,7 @@ export class TicketsService {
       .getExists();
 
     if (!isMember) {
-      throw new ForbiddenException('You do not have access to this ticket');
+      throw new ForbiddenException('You do not have access to this lead');
     }
 
     const ticket = await this.ticketRepo
@@ -967,7 +967,7 @@ export class TicketsService {
       .getOne();
 
     if (!ticket) {
-      throw new NotFoundException('Ticket not found');
+      throw new NotFoundException('Lead not found');
     }
 
     const [attachments, createdByUser] = await Promise.all([
@@ -1015,7 +1015,7 @@ export class TicketsService {
     });
 
     if (!ticket) {
-      throw new NotFoundException('Ticket not found');
+      throw new NotFoundException('Lead not found');
     }
 
     if (dto.contactId) {
@@ -1090,7 +1090,7 @@ export class TicketsService {
     });
 
     if (!updatedTicket) {
-      throw new NotFoundException('Ticket not found');
+      throw new NotFoundException('Lead not found');
     }
     const updatedBy = await this.userRepo.findOne({
       where: { id: userId },
@@ -1196,7 +1196,7 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `"Ticket: "${ticket.ticketRefNo}" status changed to ${ticket.status.label} by ${fullname}`,
+        title: `"Lead: "${ticket.ticketRefNo}" status changed to ${ticket.status.label} by ${fullname}`,
         message: `${oldStatus.label} to ${dto.statusKey}`,
         // explicitRecipientIds: [...new Set(recipients)],
       });
@@ -1240,7 +1240,7 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `"Ticket: "${ticket.ticketRefNo}" due date changed to ${newDueDateStr} by ${fullname}`,
+        title: `"Lead: "${ticket.ticketRefNo}" due date changed to ${newDueDateStr} by ${fullname}`,
         message: message,
         // explicitRecipientIds: [...new Set(recipients)],
       });
@@ -1274,7 +1274,7 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `Ticket: "${ticket.ticketRefNo}" priority changed to ${ticket.priority.label} by ${fullname}`,
+        title: `Lead: "${ticket.ticketRefNo}" priority changed to ${ticket.priority.label} by ${fullname}`,
         message: `${oldPriority.label} to ${dto.priorityKey}`,
         // explicitRecipientIds: [...new Set(recipients)],
       });
@@ -1310,7 +1310,7 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `Ticket: "${ticket.ticketRefNo}" type changed to ${getTicketTypeLabel(ticket.ticketType)} by ${fullname}`,
+        title: `Lead: "${ticket.ticketRefNo}" type changed to ${getTicketTypeLabel(ticket.ticketType)} by ${fullname}`,
         message: `${getTicketTypeLabel(oldTicket.ticketType)} to ${getTicketTypeLabel(dto.ticketType)}`,
       });
       await this.notificationsService.dispatch({
@@ -1350,7 +1350,7 @@ export class TicketsService {
         title: dto.assigneeId
           ? // ? `"${user.fullName || 'Someone'}" was assigned to ticket: "${ticket.ticketRefNo}"`
             `"${ticket.ticketRefNo} is assigned to ${user.fullName} by ${fullname}"`
-          : `Ticket: "${ticket.ticketRefNo}" is now unassigned`,
+          : `Lead: "${ticket.ticketRefNo}" is now unassigned`,
         // explicitRecipientIds: [...new Set(recipients)],
       });
       // Email only when assigning to someone.
@@ -1402,7 +1402,7 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `Ticket: "${ticket.ticketRefNo}" renamed to "${dto.title}" by ${fullname}`,
+        title: `Lead: "${ticket.ticketRefNo}" renamed to "${dto.title}" by ${fullname}`,
         message: `Previously: "${oldTicket.title}"`,
         // explicitRecipientIds: [...new Set(recipients)],
       });
@@ -1416,7 +1416,7 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `Ticket: "${ticket.ticketRefNo}" description was updated by ${fullname}`,
+        title: `Lead: "${ticket.ticketRefNo}" description was updated by ${fullname}`,
         // explicitRecipientIds: [...new Set(recipients)],
       });
     }
@@ -1452,7 +1452,7 @@ export class TicketsService {
       entityType: NotificationEntityType.TICKET,
       entityId: ticket.id,
       ticketId: ticket.id,
-      title: `Ticket # "${ticket.ticketRefNo}" deleted by ${fullname}`,
+      title: `Lead # "${ticket.ticketRefNo}" deleted by ${fullname}`,
     });
 
     return { success: true };
@@ -1626,7 +1626,7 @@ export class TicketsService {
       .getExists();
 
     if (!isMember) {
-      throw new ForbiddenException('You do not have access to this ticket');
+      throw new ForbiddenException('You do not have access to this lead');
     }
 
     const ticket = await this.ticketRepo.findOne({
@@ -1637,7 +1637,7 @@ export class TicketsService {
       },
     });
 
-    if (!ticket) throw new NotFoundException('Ticket not found');
+    if (!ticket) throw new NotFoundException('Lead not found');
 
     return ticket;
   }

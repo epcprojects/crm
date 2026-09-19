@@ -186,8 +186,8 @@ export async function GET(request: NextRequest) {
       if (!response.ok) {
         const message =
           data && 'message' in data
-            ? data.message || 'Failed to fetch tickets for export.'
-            : 'Failed to fetch tickets for export.';
+            ? data.message || 'Failed to fetch leads for export.'
+            : 'Failed to fetch leads for export.';
         return NextResponse.json({ message }, { status: response.status });
       }
 
@@ -225,7 +225,7 @@ export async function GET(request: NextRequest) {
     });
   } catch {
     return NextResponse.json(
-      { message: 'Something went wrong while exporting tickets.' },
+      { message: 'Something went wrong while exporting leads.' },
       { status: 500 },
     );
   }
