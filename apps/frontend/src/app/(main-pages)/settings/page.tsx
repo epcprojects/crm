@@ -576,9 +576,7 @@ export default function Page() {
       hasPermission('tickets.view_detail') ||
       hasPermission('tickets.create') ||
       hasPermission('tickets.edit_status') ||
-      hasPermission('tickets.edit_priority') ||
       hasPermission('tickets.edit_assignee') ||
-      hasPermission('tickets.edit_due_date') ||
       hasPermission('tickets.edit_title_description'),
   };
   const emailPreferenceGroups = buildEmailPreferenceGroups(

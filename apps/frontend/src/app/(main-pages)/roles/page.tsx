@@ -25,6 +25,7 @@ import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanne
 import ThemeButton from '../../../components/ui/ThemeButton';
 import EmptyState from '../../../components/EmptyState';
 import { useDebouncedValue } from '../../../components/hooks/useDebouncedValue';
+import { isHiddenRolePermission, toLeadWording } from '../../../lib/role-permissions';
 
 export default function RolesPage() {
   const { setHeaderActionOverride } = useDashboardHeaderAction();
@@ -479,7 +480,9 @@ async function fetchPermissionCatalog() {
 
   return payload.map((item) => ({
     module: getString(item.module) ?? '',
-    label: getString(item.label) ?? getString(item.module) ?? 'Unknown',
+    label: toLeadWording(
+      getString(item.label) ?? getString(item.module) ?? 'Unknown',
+    ),
     permissions: Array.isArray(item.permissions)
       ? item.permissions
           .filter(
@@ -487,6 +490,7 @@ async function fetchPermissionCatalog() {
               typeof permission === 'string',
           )
           .map(normalizePermission)
+          .filter((permission) => !isHiddenRolePermission(permission))
       : [],
   }));
 }

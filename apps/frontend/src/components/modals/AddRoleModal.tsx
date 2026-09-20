@@ -7,6 +7,7 @@ import AppModal, { ModalPosition } from './AppModal';
 import ThemeInput from '../ui/ThemeInput';
 import { useAppLoader } from '../../app/providers/AppLoaderProvider';
 import { CheckedBoxIcon, UncheckedBoxIcon } from '../../../public/icons';
+import { toLeadWording } from '../../lib/role-permissions';
 
 export type AddRoleFormValues = {
   name: string;
@@ -347,11 +348,13 @@ function togglePermission(
 function formatPermissionLabel(permission: string) {
   const permissionName = permission.split('.').pop() ?? permission;
 
-  return permissionName
-    .split('_')
-    .map((word) => (word === 'assignee' ? 'agent' : word))
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
+  return toLeadWording(
+    permissionName
+      .split('_')
+      .map((word) => (word === 'assignee' ? 'agent' : word))
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' '),
+  );
 }
 
 function normalizePermission(permission: string) {
