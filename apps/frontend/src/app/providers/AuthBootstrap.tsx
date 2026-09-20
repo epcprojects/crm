@@ -1,6 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  getLoginPathWithReturnUrl,
+  isPublicRoute,
+} from '../../lib/auth/return-url';
 import { clearPersistedSession, useAppDispatch } from '../Redux/store';
 import { fetchMyProfileThunk } from '../Redux/slices/auth/authThunks';
 import {
@@ -21,6 +26,7 @@ function isAuthFailure(message?: string) {
 
 export default function AuthBootstrap({ children }: { children: ReactNode }) {
   const dispatch = useAppDispatch();
+  const router = useRouter();
   const hasRunRef = useRef(false);
   const [isReady, setIsReady] = useState(false);
 
@@ -42,12 +48,19 @@ export default function AuthBootstrap({ children }: { children: ReactNode }) {
       if (isAuthFailure(result.payload)) {
         dispatch(clearAuthState());
         await clearPersistedSession().catch(() => undefined);
+
+        // Session is gone (expired, or the API is unreachable): go to login.
+        const { pathname, search } = window.location;
+
+        if (!isPublicRoute(pathname)) {
+          router.replace(getLoginPathWithReturnUrl(pathname, search));
+        }
       }
       setIsReady(true);
     };
 
     void syncSession();
-  }, [dispatch]);
+  }, [dispatch, router]);
 
   return isReady ? <>{children}</> : null;
 }

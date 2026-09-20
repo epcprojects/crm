@@ -13,6 +13,8 @@ import {
   ALLOWED_ATTACHMENT_ACCEPT,
   validateAttachments,
 } from '../../lib/attachments';
+import { isVoiceNoteFile } from '../../lib/voice-notes';
+import VoiceRecorderButton, { VoiceNotePreview } from './VoiceRecorderButton';
 import {
   EmptyRepliesIcon,
   FileTypePlaceholder,
@@ -142,6 +144,7 @@ export default function TicketRepliesPanel({
   const [mentionedUserIds, setMentionedUserIds] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [attachmentError, setAttachmentError] = useState('');
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [attachmentToDelete, setAttachmentToDelete] =
     useState<DiscussionAttachment | null>(null);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
@@ -257,6 +260,7 @@ export default function TicketRepliesPanel({
         ? !trimmedMessage
         : !trimmedMessage && !attachments.length) ||
       isSubmittingReply ||
+      isRecordingVoice ||
       !onSubmitReply
     ) {
       return;
@@ -328,6 +332,20 @@ export default function TicketRepliesPanel({
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    focusComposer();
+  };
+
+  const handleVoiceNoteRecorded = (file: File) => {
+    const nextAttachments = mergeAttachmentFiles(attachments, [file]);
+    const validationError = validateAttachments(nextAttachments);
+
+    if (validationError) {
+      setAttachmentError(validationError);
+      return;
+    }
+
+    setAttachments(nextAttachments);
+    setAttachmentError('');
     focusComposer();
   };
 
@@ -1275,7 +1293,11 @@ export default function TicketRepliesPanel({
                       key={`${attachment.name}-${attachment.size}-${attachment.lastModified}`}
                       className="flex min-w-0 items-center gap-3 max-w-48 rounded-lg border border-gray-200 bg-gray-50 py-0.5 pr-2 pl-0.5"
                     >
-                      <LocalAttachmentPreview file={attachment} />
+                      {isVoiceNoteFile(attachment) ? (
+                            <VoiceNotePreview file={attachment} />
+                          ) : (
+                            <>
+                              <LocalAttachmentPreview file={attachment} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-gray-700">
                           {attachment.name}
@@ -1284,6 +1306,8 @@ export default function TicketRepliesPanel({
                           {formatAttachmentSize(attachment.size)}
                         </p>
                       </div>
+                            </>
+                          )}
                       <button
                         type="button"
                         onClick={() => {
@@ -1319,7 +1343,11 @@ export default function TicketRepliesPanel({
                         key={`${attachment.name}-${attachment.size}-${attachment.lastModified}`}
                         className="flex min-w-0 items-center gap-3 max-w-48 rounded-lg border border-gray-200 bg-gray-50 py-0.5 pr-2 pl-0.5"
                       >
-                        <LocalAttachmentPreview file={attachment} />
+                        {isVoiceNoteFile(attachment) ? (
+                            <VoiceNotePreview file={attachment} />
+                          ) : (
+                            <>
+                              <LocalAttachmentPreview file={attachment} />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium text-gray-700">
                             {attachment.name}
@@ -1328,6 +1356,8 @@ export default function TicketRepliesPanel({
                             {formatAttachmentSize(attachment.size)}
                           </p>
                         </div>
+                            </>
+                          )}
                         <button
                           type="button"
                           onClick={() => {
@@ -1375,6 +1405,13 @@ export default function TicketRepliesPanel({
                         <PaperclipIcon width="20" height="20" />
                       </button>
                     ) : null}
+                    {canAttachFile ? (
+                      <VoiceRecorderButton
+                        disabled={isSubmittingReply}
+                        onRecorded={handleVoiceNoteRecorded}
+                        onRecordingChange={setIsRecordingVoice}
+                      />
+                    ) : null}
                     <button
                       type="button"
                       onClick={handleSubmit}
@@ -1384,7 +1421,8 @@ export default function TicketRepliesPanel({
                           : !messagePlainText.trim() && !attachments.length) ||
                         messagePlainText.trim().length >
                           MAX_DISCUSSION_MESSAGE_LENGTH ||
-                        isSubmittingReply
+                        isSubmittingReply ||
+                        isRecordingVoice
                       }
                       className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#10175A] text-white disabled:cursor-not-allowed disabled:opacity-60"
                       aria-label={

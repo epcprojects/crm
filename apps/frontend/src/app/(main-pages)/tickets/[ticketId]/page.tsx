@@ -67,6 +67,7 @@ import { NotificationItem } from '@epc-crm/interfaces';
 import { NotificationEntityType } from '@epc-crm/types';
 import { eventEmitter } from '../../../../lib/event-emitter';
 import { uploadFilesDirectly } from '../../../../lib/attachments';
+import { isVoiceNoteFile } from '../../../../lib/voice-notes';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import RichTextEditor from 'apps/frontend/src/components/RichTextEditor';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -1258,9 +1259,13 @@ export default function TicketDetailPage() {
           await sendMessage({
             message:
               trimmedMessage ||
-              `Sent ${attachmentUrls.length} attachment${
-                attachmentUrls.length === 1 ? '' : 's'
-              }`,
+              (attachments.every(isVoiceNoteFile)
+                ? attachmentUrls.length === 1
+                  ? 'Sent a voice note'
+                  : `Sent ${attachmentUrls.length} voice notes`
+                : `Sent ${attachmentUrls.length} attachment${
+                    attachmentUrls.length === 1 ? '' : 's'
+                  }`),
             messageType: 'attachment',
             attachmentUrls,
             mentionedUserIds,

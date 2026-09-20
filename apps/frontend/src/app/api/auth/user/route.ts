@@ -15,12 +15,25 @@ export async function GET() {
     );
   }
 
-  const response = await fetch(`${process.env.API_BASE_URL}/users/myself`, {
-    cache: 'no-store',
-    headers: {
-      Authorization: `Bearer ${token.value}`,
-    },
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${process.env.API_BASE_URL}/users/myself`, {
+      cache: 'no-store',
+      headers: {
+        Authorization: `Bearer ${token.value}`,
+      },
+    });
+  } catch {
+    // Backend unreachable: drop the session so the user is sent to the login screen.
+    cookieStore.delete('access_token');
+    return NextResponse.json(
+      { authenticated: false, message: 'Unable to reach the server.' },
+      {
+        headers: { 'Cache-Control': 'no-store' },
+      },
+    );
+  }
 
   if (response.status === 401) {
     cookieStore.delete('access_token');
