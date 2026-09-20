@@ -411,8 +411,11 @@ export default function ProjectsPage() {
         count: projectSummary?.totalLeads ?? 0,
         color: '#17B26A',
       },
-      ...toStatusStats(projectSummary),
     ],
+    [projectSummary],
+  );
+  const projectStatusStats = useMemo(
+    () => toStatusStats(projectSummary),
     [projectSummary],
   );
   const isProjectSummaryLoading =
@@ -478,6 +481,8 @@ export default function ProjectsPage() {
                 imageAlt="Projects"
                 title="Projects"
                 stats={projectSummaryStats}
+                extraStats={projectStatusStats}
+                extraStatsTitle="Leads by status"
               />
             )}
           </div>

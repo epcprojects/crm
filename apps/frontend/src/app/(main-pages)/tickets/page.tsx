@@ -40,6 +40,7 @@ import {
   createTicket,
   fetchTicketAssignees,
   fetchTicketReporters,
+  toLeadOverviewStats,
   toStatusStats,
   type LeadStatusSummary,
 } from '../../../lib/tickets';
@@ -302,14 +303,17 @@ export default function Page() {
     [kanbanBoardQuery.data?.items],
   );
 
+  const ticketSummary =
+    viewMode === 'kanban'
+      ? kanbanBoardQuery.data?.summary
+      : ticketsQuery.data?.summary;
+  const ticketOverviewStats = useMemo(
+    () => toLeadOverviewStats(ticketSummary),
+    [ticketSummary],
+  );
   const ticketSummaryStats = useMemo(
-    () =>
-      toStatusStats(
-        viewMode === 'kanban'
-          ? kanbanBoardQuery.data?.summary
-          : ticketsQuery.data?.summary,
-      ),
-    [viewMode, ticketsQuery.data, kanbanBoardQuery.data],
+    () => toStatusStats(ticketSummary),
+    [ticketSummary],
   );
   const projectOptions = useMemo(
     () => createTicketProjectOptions(projectsQuery.data ?? []),
@@ -1368,7 +1372,9 @@ export default function Page() {
                 imageSrc="/images/TicketsIcon.svg"
                 imageAlt="Leads"
                 title="Leads"
-                stats={ticketSummaryStats}
+                stats={ticketOverviewStats}
+                extraStats={ticketSummaryStats}
+                extraStatsTitle="Leads by status"
               />
             )}
           </div>

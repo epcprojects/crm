@@ -15,6 +15,20 @@ export type LeadStatusSummary = {
   statuses: LeadStatusCount[];
 };
 
+// Headline stats: all leads, those still active and those in a closed status.
+export function toLeadOverviewStats(summary?: LeadStatusSummary | null) {
+  const total = summary?.total ?? 0;
+  const closed = (summary?.statuses ?? [])
+    .filter((status) => status.isClosed)
+    .reduce((sum, status) => sum + status.count, 0);
+
+  return [
+    { title: 'Total Leads', count: total, color: '#17B26A' },
+    { title: 'Active Leads', count: total - closed, color: '#F79009' },
+    { title: 'Closed Leads', count: closed, color: '#667085' },
+  ];
+}
+
 // Banner stat items, one per configured status.
 export function toStatusStats(
   summary?: { statuses?: LeadStatusCount[] | null } | null,
