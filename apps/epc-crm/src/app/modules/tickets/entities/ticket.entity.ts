@@ -54,8 +54,10 @@ export class Ticket extends BaseEntity {
   })
   statusKey: string;
 
+  // Keys are editable identifiers: a key rename in ticket_statuses follows into tickets.
   @ManyToOne(() => TicketStatus, {
     nullable: false,
+    onUpdate: 'CASCADE',
   })
   @JoinColumn({
     name: 'statusKey',
@@ -79,6 +81,7 @@ export class Ticket extends BaseEntity {
 
   @ManyToOne(() => TicketPriority, {
     nullable: true,
+    onUpdate: 'CASCADE',
   })
   @JoinColumn({
     name: 'priorityKey',
