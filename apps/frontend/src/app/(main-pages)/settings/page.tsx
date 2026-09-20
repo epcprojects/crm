@@ -27,6 +27,7 @@ type ApiTicketStatus = {
   label: string;
   color: string;
   sortOrder: number;
+  isClosed?: boolean;
 };
 
 type ApiTicketPriority = ApiTicketStatus;
@@ -230,7 +231,10 @@ export default function Page() {
     mutationFn: async ({
       body,
     }: {
-      body: Pick<ApiTicketStatus, 'key' | 'label' | 'color' | 'sortOrder'>;
+      body: Pick<
+        ApiTicketStatus,
+        'key' | 'label' | 'color' | 'sortOrder' | 'isClosed'
+      >;
     }) => {
       const response = await fetch('/api/ticket-statuses', {
         method: 'POST',
@@ -284,7 +288,7 @@ export default function Page() {
       body,
     }: {
       statusId: string;
-      body: Pick<ApiTicketStatus, 'label' | 'color'>;
+      body: Pick<ApiTicketStatus, 'label' | 'color' | 'isClosed'>;
     }) => {
       const response = await fetch(`/api/ticket-statuses/${statusId}`, {
         method: 'PATCH',
@@ -380,6 +384,7 @@ export default function Page() {
           key: values.value,
           label: values.label,
           color: values.colorHex,
+          isClosed: Boolean(values.isClosed),
           sortOrder: statusItems.length,
         },
       });
@@ -401,6 +406,7 @@ export default function Page() {
         body: {
           label: values.label,
           color: values.colorHex,
+          isClosed: Boolean(values.isClosed),
         },
       });
 
@@ -721,6 +727,7 @@ export default function Page() {
                     label: editingStatus.label,
                     value: editingStatus.value,
                     colorHex: editingStatus.colorHex ?? '#17B26A',
+                    isClosed: editingStatus.isClosed,
                   }
                 : undefined
             : undefined
@@ -1174,6 +1181,7 @@ function mapTicketStatusToSettingsItem(
     value: status.key,
     countLabel: status.key,
     colorHex: status.color,
+    isClosed: status.isClosed,
   };
 }
 
@@ -1196,6 +1204,7 @@ function mapTicketStatusDetailToFormValues(
     label: status.label,
     value: status.key,
     colorHex: status.color,
+    isClosed: status.isClosed,
   };
 }
 

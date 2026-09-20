@@ -134,6 +134,7 @@ export class TicketStatusesService {
       key: status.key,
       label: status.label,
       color: status.color,
+      isClosed: status.isClosed,
       sortOrder,
     }));
 
@@ -150,6 +151,7 @@ export class TicketStatusesService {
       key: status.key,
       label: status.label,
       color: status.color,
+      isClosed: status.isClosed,
       sortOrder: nextSortOrder++,
     }));
 

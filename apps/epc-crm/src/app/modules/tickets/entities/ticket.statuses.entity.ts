@@ -14,4 +14,8 @@ export class TicketStatus extends TimestampEntityWithSoftDelete {
 
   @Column({ default: 0 })
   sortOrder: number;
+
+  // Closed statuses (won/lost/...) are excluded from the "Active" lead filter.
+  @Column({ default: false })
+  isClosed: boolean;
 }

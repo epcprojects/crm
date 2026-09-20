@@ -78,6 +78,40 @@ export class TicketsService {
     }
   }
 
+  // Lead count per configured status (zero-count statuses included), for the
+  // stat cards. Driven by the statuses table so new/renamed statuses just work.
+  private async buildStatusSummary(qb: SelectQueryBuilder<Ticket>) {
+    const [rows, statuses] = await Promise.all([
+      qb
+        .clone()
+        .select('t.statusKey', 'statusKey')
+        .addSelect('COUNT(t.id)', 'count')
+        .groupBy('t.statusKey')
+        .getRawMany<{ statusKey?: string; statuskey?: string; count: string }>(),
+      this.statusRepo.find({ order: { sortOrder: 'ASC', createdAt: 'ASC' } }),
+    ]);
+
+    const countByKey = new Map<string, number>();
+    let total = 0;
+    for (const row of rows) {
+      const count = Number(row.count);
+      countByKey.set(row.statusKey ?? row.statuskey ?? '', count);
+      total += count;
+    }
+
+    return {
+      total,
+      statuses: statuses.map((status) => ({
+        key: status.key,
+        label: status.label,
+        color: status.color,
+        sortOrder: status.sortOrder,
+        isClosed: status.isClosed,
+        count: countByKey.get(status.key) ?? 0,
+      })),
+    };
+  }
+
   // Every new lead is created as Critical unless a priority is passed in.
   private async getDefaultPriorityKey(): Promise<string | undefined> {
     const priority = await this.priorityRepo.findOne({
@@ -375,7 +409,7 @@ export class TicketsService {
         query.statusKey.toLowerCase() === 'active' ||
         query.statusKey === ACTIVE_STATUS_SENTINEL
       ) {
-        qb.andWhere('t.statusKey != :closedKey', { closedKey: 'Closed' });
+        qb.andWhere('COALESCE(s.isClosed, false) = false');
       } else {
         qb.andWhere('t.statusKey = :statusKey', {
           statusKey: query.statusKey,
@@ -584,7 +618,7 @@ export class TicketsService {
         query.statusKey.toLowerCase() === 'active' ||
         query.statusKey === ACTIVE_STATUS_SENTINEL
       ) {
-        qb.andWhere('t.statusKey != :closedKey', { closedKey: 'Closed' });
+        qb.andWhere('COALESCE(s.isClosed, false) = false');
       } else {
         qb.andWhere('t.statusKey = :statusKey', {
           statusKey: query.statusKey,
@@ -686,76 +720,8 @@ export class TicketsService {
       countPerStatus[key] = countsByStatusKey[key] ?? 0;
     }
 
-    /*
-     * Clone the filtered query before adding pagination and item selection.
-     * The summary will represent all matching tickets, not only the current page.
-     */
-    const summaryQuery = qb.clone();
-
-    const summaryResult = await summaryQuery
-      .select([
-        `
-      COALESCE(
-        SUM(
-          CASE
-            WHEN UPPER(t.statusKey) = 'OPEN'
-            THEN 1
-            ELSE 0
-          END
-        ),
-        0
-      ) AS open
-      `,
-        `
-      COALESCE(
-        SUM(
-          CASE
-            WHEN UPPER(t.statusKey) = 'INPROGRESS'
-            THEN 1
-            ELSE 0
-          END
-        ),
-        0
-      ) AS inprogress
-      `,
-        `
-      COALESCE(
-        SUM(
-          CASE
-            WHEN UPPER(t.statusKey) = 'CLOSED'
-            THEN 1
-            ELSE 0
-          END
-        ),
-        0
-      ) AS closed
-      `,
-        `
-      COALESCE(
-        SUM(
-          CASE
-            WHEN UPPER(t.statusKey) = 'RESOLVED'
-            THEN 1
-            ELSE 0
-          END
-        ),
-        0
-      ) AS resolved
-      `,
-        `
-      COALESCE(
-        SUM(
-          CASE
-            WHEN UPPER(t.priorityKey) = 'CRITICAL'
-            THEN 1
-            ELSE 0
-          END
-        ),
-        0
-      ) AS critical
-      `,
-      ])
-      .getRawOne();
+    // Summary covers all matching leads, not only the current page.
+    const summary = await this.buildStatusSummary(qb);
 
     qb.select([
       't.id',
@@ -824,14 +790,7 @@ export class TicketsService {
     return {
       items,
 
-      summary: {
-        open: Number(summaryResult?.open ?? 0),
-        inProgress: Number(summaryResult?.inprogress ?? 0),
-        closed: Number(summaryResult?.closed ?? 0),
-        resolved: Number(summaryResult?.resolved ?? 0),
-        critical: Number(summaryResult?.critical ?? 0),
-
-      },
+      summary,
       countPerStatus,
       meta: {
         page: query.page,
@@ -1459,58 +1418,27 @@ export class TicketsService {
   }
 
   // ---------------- TICKET'S SUMMARY -------------------
-  // TODO: needs to re-think on how we manage these? as statuses and priorities are dynamic
-
   async getTicketSummary(projectId: string) {
     const project = await this.projectRepo.findOne({
       where: { id: projectId },
     });
     if (!project) throw new NotFoundException('Project not found');
-    const result = await this.ticketRepo
-      .createQueryBuilder('t')
-      .select([
-        `SUM(CASE WHEN UPPER(t.statusKey) = 'OPEN' THEN 1 ELSE 0 END) AS open`,
-        `SUM(CASE WHEN UPPER(t.statusKey) = 'INPROGRESS' THEN 1 ELSE 0 END) AS inprogress`,
-        `SUM(CASE WHEN UPPER(t.statusKey) = 'CLOSED' THEN 1 ELSE 0 END) AS closed`,
-        `SUM(CASE WHEN UPPER(t.statusKey) = 'RESOLVED' THEN 1 ELSE 0 END) AS resolved`,
-        `SUM(CASE WHEN UPPER(t.priorityKey) = 'CRITICAL' THEN 1 ELSE 0 END) AS critical`,
-      ])
-      .where('t.projectId = :projectId', { projectId })
-      .getRawOne();
-
-    return {
-      open: Number(result.open),
-      inProgress: Number(result.inProgress),
-      closed: Number(result.closed),
-      resolved: Number(result.resolved),
-      critical: Number(result.critical),
-    };
+    return this.buildStatusSummary(
+      this.ticketRepo
+        .createQueryBuilder('t')
+        .where('t.projectId = :projectId', { projectId }),
+    );
   }
 
   async getGlobalTicketSummary(user) {
-    const result = await this.ticketRepo
-      .createQueryBuilder('t')
-      .leftJoin('t.project', 'p')
-      .innerJoin('p.members', 'u', 'u.id = :userId', {
-        userId: user.id,
-      })
-      .select([
-        `SUM(CASE WHEN UPPER(t.statusKey) = 'OPEN' THEN 1 ELSE 0 END) AS open`,
-        `SUM(CASE WHEN UPPER(t.statusKey) = 'INPROGRESS' THEN 1 ELSE 0 END) AS inprogress`,
-        `SUM(CASE WHEN UPPER(t.statusKey) = 'CLOSED' THEN 1 ELSE 0 END) AS closed`,
-
-        `SUM(CASE WHEN UPPER(t.statusKey) = 'RESOLVED' THEN 1 ELSE 0 END) AS resolved`,
-        `SUM(CASE WHEN UPPER(t.priorityKey) = 'CRITICAL' THEN 1 ELSE 0 END) AS critical`,
-      ])
-      .getRawOne();
-
-    return {
-      open: Number(result.open),
-      inProgress: Number(result.inprogress),
-      closed: Number(result.closed),
-      resolved: Number(result.resolved),
-      critical: Number(result.critical),
-    };
+    return this.buildStatusSummary(
+      this.ticketRepo
+        .createQueryBuilder('t')
+        .leftJoin('t.project', 'p')
+        .innerJoin('p.members', 'u', 'u.id = :userId', {
+          userId: user.id,
+        }),
+    );
   }
 
   // ---------------- UPCOMING TICKETS -------------
@@ -1533,7 +1461,7 @@ export class TicketsService {
       })
       .leftJoin('t.status', 's')
       .leftJoin('t.priority', 'pr')
-      .where('t.statusKey != :statusKey', { statusKey: 'Closed' })
+      .where('COALESCE(s.isClosed, false) = false')
       .andWhere(
         '(t.dueDate IS NULL OR t.dueDate BETWEEN :today AND :upperBound)',
         {
@@ -2139,24 +2067,8 @@ export class TicketsService {
 
     return { items, hasMore, summary };
   }
-  private async computeSummary(qb: SelectQueryBuilder<Ticket>) {
-    const summaryResult = await qb
-      .select([
-        `COALESCE(SUM(CASE WHEN UPPER(t.statusKey) = 'OPEN' THEN 1 ELSE 0 END), 0) AS open`,
-        `COALESCE(SUM(CASE WHEN UPPER(t.statusKey) = 'INPROGRESS' THEN 1 ELSE 0 END), 0) AS inprogress`,
-        `COALESCE(SUM(CASE WHEN UPPER(t.statusKey) = 'CLOSED' THEN 1 ELSE 0 END), 0) AS closed`,
-        `COALESCE(SUM(CASE WHEN UPPER(t.statusKey) = 'RESOLVED' THEN 1 ELSE 0 END), 0) AS resolved`,
-        `COALESCE(SUM(CASE WHEN UPPER(t.priorityKey) = 'CRITICAL' THEN 1 ELSE 0 END), 0) AS critical`,
-      ])
-      .getRawOne();
-
-    return {
-      open: Number(summaryResult?.open ?? 0),
-      inProgress: Number(summaryResult?.inprogress ?? 0),
-      closed: Number(summaryResult?.closed ?? 0),
-      resolved: Number(summaryResult?.resolved ?? 0),
-      critical: Number(summaryResult?.critical ?? 0),
-    };
+  private computeSummary(qb: SelectQueryBuilder<Ticket>) {
+    return this.buildStatusSummary(qb);
   }
 }
 

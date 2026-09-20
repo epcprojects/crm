@@ -1,5 +1,31 @@
 import { uploadFilesDirectly } from './attachments';
 
+// Lead count per configured status, as returned by the summary endpoints.
+export type LeadStatusCount = {
+  key: string;
+  label: string;
+  color: string;
+  sortOrder: number;
+  isClosed: boolean;
+  count: number;
+};
+
+export type LeadStatusSummary = {
+  total: number;
+  statuses: LeadStatusCount[];
+};
+
+// Banner stat items, one per configured status.
+export function toStatusStats(
+  summary?: { statuses?: LeadStatusCount[] | null } | null,
+) {
+  return (summary?.statuses ?? []).map((status) => ({
+    title: status.label,
+    count: status.count,
+    color: status.color,
+  }));
+}
+
 export type CreateTicketPayload = {
   projectId: string;
   title: string;
@@ -19,7 +45,10 @@ export async function createTicket(payload: CreateTicketPayload) {
   );
 
   const uploadedAttachments = validAttachments.length
-    ? await uploadFilesDirectly(validAttachments, `projects/${payload.projectId}/tickets/creation`)
+    ? await uploadFilesDirectly(
+        validAttachments,
+        `projects/${payload.projectId}/tickets/creation`,
+      )
     : [];
 
   const body: Record<string, unknown> = {

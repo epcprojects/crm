@@ -11,9 +11,7 @@ import StatusCard from '../../../components/dashboard/StatusCard';
 import { RecentTicketsTableSkeleton } from '../../../components/tables/RecentTicketsTableSkeleton';
 import { getInitials } from '../../../lib/format';
 import {
-  AlertIcon,
   ChatIcon,
-  CheckMarkCircleIcon,
   ClockIcon,
   CloseIcon,
   DownloadIcon,
@@ -48,6 +46,7 @@ import {
   createTicket,
   fetchTicketAssignees,
   fetchTicketReporters,
+  type LeadStatusSummary,
 } from '../../../lib/tickets';
 import type { ProjectRecord } from '../projects/projects.data';
 import {
@@ -59,7 +58,6 @@ import {
   useUpdateProjectMutation,
   useCreateProjectMutation,
 } from '../projects/projects.queries';
-import { useIsMobile } from '../../../components/hooks/useIsMobile';
 import { useDebouncedValue } from '../../../components/hooks/useDebouncedValue';
 import {
   PermissionGuard,
@@ -79,13 +77,7 @@ import { getNotificationNavigationPath } from '../../../lib/notification-navigat
 import { EmojiSmileIcon } from '../../../components/discussion/EmojiPickerButton';
 import { PaperclipIcon } from '../../../components/discussion/ProjectThreadPanel';
 
-type TicketSummary = {
-  open: number | null;
-  inProgress: number | null;
-  resolved: number | null;
-  critical: number | null;
-  closed: number | null;
-};
+type TicketSummary = LeadStatusSummary;
 
 type DashboardProjectPanelTabKey = 'projects' | 'threads' | 'activity';
 
@@ -1028,7 +1020,6 @@ export default function Page() {
     };
   }, []);
 
-  const isMobile = useIsMobile();
   const ticketSummary = ticketSummaryQuery.data;
   const isStatsLoading = canViewStats && ticketSummaryQuery.isLoading;
   const isRecentTicketsLoading =
@@ -1224,64 +1215,14 @@ export default function Page() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-1.5 xl:grid-cols-3 2xl:grid-cols-5 xl:gap-5">
-                  <StatusCard
-                    title="Open"
-                    count={formatSummaryCount(ticketSummary?.open)}
-                    icon={
-                      <FolderIcon
-                        width={isMobile ? '12' : '20'}
-                        height={isMobile ? '12' : '20'}
-                        fill="white"
-                      />
-                    }
-                  />
-
-                  <StatusCard
-                    title="In Progress"
-                    count={formatSummaryCount(ticketSummary?.inProgress)}
-                    icon={
-                      <ClockIcon
-                        width={isMobile ? '12' : '20'}
-                        height={isMobile ? '12' : '20'}
-                        fill="white"
-                      />
-                    }
-                  />
-
-                  <StatusCard
-                    title="Resolved"
-                    count={formatSummaryCount(ticketSummary?.resolved)}
-                    icon={
-                      <CheckMarkCircleIcon
-                        width={isMobile ? '12' : '20'}
-                        height={isMobile ? '12' : '20'}
-                        fill="white"
-                      />
-                    }
-                  />
-
-                  <StatusCard
-                    title="Critical"
-                    count={formatSummaryCount(ticketSummary?.critical)}
-                    icon={
-                      <AlertIcon
-                        width={isMobile ? '12' : '20'}
-                        height={isMobile ? '12' : '20'}
-                        fill="white"
-                      />
-                    }
-                  />
-                  <StatusCard
-                    title="Closed"
-                    count={formatSummaryCount(ticketSummary?.closed)}
-                    icon={
-                      <CheckMarkCircleIcon
-                        width={isMobile ? '12' : '20'}
-                        height={isMobile ? '12' : '20'}
-                        fill="white"
-                      />
-                    }
-                  />
+                  {(ticketSummary?.statuses ?? []).map((status) => (
+                    <StatusCard
+                      key={status.key}
+                      title={status.label}
+                      count={status.count}
+                      color={status.color}
+                    />
+                  ))}
                 </div>
               </div>
             )}
@@ -1848,8 +1789,7 @@ export default function Page() {
                         name={project.name}
                         category={project.category}
                         totalCount={project.totalCount}
-                        openCount={project.openCount}
-                        criticalCount={project.criticalCount}
+                        statusCounts={project.statusCounts}
                         colorHex={project.colorHex}
                         href={
                           canViewProjectDetail
@@ -2521,15 +2461,8 @@ function isTicketSummary(value: unknown): value is TicketSummary {
   return Boolean(
     value &&
       typeof value === 'object' &&
-      'open' in value &&
-      'inProgress' in value &&
-      'resolved' in value &&
-      'critical' in value,
+      Array.isArray((value as TicketSummary).statuses),
   );
-}
-
-function formatSummaryCount(value: number | null | undefined) {
-  return value ?? 0;
 }
 
 type DashboardTicketsResponse = {

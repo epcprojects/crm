@@ -9,6 +9,7 @@ import {
   EyeOpenedIcon,
 } from '../../../public/icons';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
+import type { LeadStatusCount } from '../../lib/tickets';
 
 type ProjectCardProps = {
   id?: string;
@@ -16,8 +17,7 @@ type ProjectCardProps = {
   name: string;
   category: string;
   totalCount: number;
-  openCount: number;
-  criticalCount: number;
+  statusCounts?: LeadStatusCount[];
   colorHex?: string;
   onClick?: () => void;
   href?: string;
@@ -39,7 +39,7 @@ function ProjectMetric({
   tone: string;
 }) {
   return (
-    <div className="flex  items-center justify-center min-w-21.75 gap-1.5 md:gap-2">
+    <div className="flex items-center gap-1.5 md:gap-2">
       <p className="truncate text-xs text-gray-600 ">{label}</p>
 
       <span
@@ -57,8 +57,7 @@ export default function ProjectCard({
   name,
   category,
   totalCount,
-  openCount,
-  criticalCount,
+  statusCounts = [],
   colorHex = '#A855F7',
   onClick,
   href,
@@ -311,16 +310,37 @@ export default function ProjectCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 divide-x divide-gray-200 gap-2 bg-white p-2.5">
-        <ProjectMetric label="Total" value={totalCount} tone="bg-[#AAEFC6]" />
-
-        <ProjectMetric label="Open" value={openCount} tone="bg-warning-200" />
-
+      <div className="flex flex-col gap-2 bg-white p-2.5">
         <ProjectMetric
-          label="Critical"
-          value={criticalCount}
-          tone="bg-[#FECDCA]"
+          label="Total Leads"
+          value={totalCount}
+          tone="bg-[#AAEFC6]"
         />
+
+        {statusCounts.some((status) => status.count > 0) ? (
+          <div className="flex flex-wrap gap-x-3 gap-y-1.5 border-t border-gray-200 pt-2">
+            {statusCounts
+              .filter((status) => status.count > 0)
+              .map((status) => (
+                <div
+                  key={status.key}
+                  className="flex min-w-0 items-center gap-1.5"
+                  title={status.label}
+                >
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: status.color }}
+                  />
+                  <p className="max-w-32 truncate text-xs text-gray-600">
+                    {status.label}
+                  </p>
+                  <span className="text-xs font-semibold text-gray-900">
+                    {status.count}
+                  </span>
+                </div>
+              ))}
+          </div>
+        ) : null}
       </div>
     </>
   );

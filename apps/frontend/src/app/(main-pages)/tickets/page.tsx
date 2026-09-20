@@ -40,6 +40,8 @@ import {
   createTicket,
   fetchTicketAssignees,
   fetchTicketReporters,
+  toStatusStats,
+  type LeadStatusSummary,
 } from '../../../lib/tickets';
 import {
   projectsQueryKey,
@@ -62,13 +64,7 @@ import { NotificationEntityType } from '@epc-crm/types';
 import DashboardSummaryBannerSkeleton from 'apps/frontend/src/components/ui/DashboardSummaryBannerSkeleton';
 import ConfirmActionModal from 'apps/frontend/src/components/modals/ConfirmActionModal';
 
-type TicketSummary = {
-  open: number | null;
-  inProgress: number | null;
-  resolved: number | null;
-  critical: number | null;
-  closed: number | null;
-};
+type TicketSummary = LeadStatusSummary;
 
 const TICKETS_VIEW_QUERY_PARAM = 'view';
 const TICKETS_SEARCH_QUERY_PARAM = 'search';
@@ -307,49 +303,13 @@ export default function Page() {
   );
 
   const ticketSummaryStats = useMemo(
-    () => [
-      {
-        title: 'Open',
-        count:
-          viewMode === 'kanban'
-            ? (kanbanBoardQuery.data?.summary?.open ?? 0)
-            : (ticketsQuery.data?.summary?.open ?? 0),
-        color: '#F04438',
-      },
-      {
-        title: 'InProgress',
-        count:
-          viewMode === 'kanban'
-            ? (kanbanBoardQuery.data?.summary?.inProgress ?? 0)
-            : (ticketsQuery.data?.summary?.inProgress ?? 0),
-        color: '#F79009',
-      },
-      {
-        title: 'Resolved',
-        count:
-          viewMode === 'kanban'
-            ? (kanbanBoardQuery.data?.summary?.resolved ?? 0)
-            : (ticketsQuery.data?.summary?.resolved ?? 0),
-        color: '#17B26A',
-      },
-      {
-        title: 'Critical',
-        count:
-          viewMode === 'kanban'
-            ? (kanbanBoardQuery.data?.summary?.critical ?? 0)
-            : (ticketsQuery.data?.summary?.critical ?? 0),
-        color: '#7A5AF8',
-      },
-      {
-        title: 'Closed',
-        count:
-          viewMode === 'kanban'
-            ? (kanbanBoardQuery.data?.summary?.closed ?? 0)
-            : (ticketsQuery.data?.summary?.closed ?? 0),
-        color: 'gray',
-      },
-    ],
-    [ticketsQuery.data, kanbanBoardQuery.data],
+    () =>
+      toStatusStats(
+        viewMode === 'kanban'
+          ? kanbanBoardQuery.data?.summary
+          : ticketsQuery.data?.summary,
+      ),
+    [viewMode, ticketsQuery.data, kanbanBoardQuery.data],
   );
   const projectOptions = useMemo(
     () => createTicketProjectOptions(projectsQuery.data ?? []),
@@ -2846,39 +2806,6 @@ function isApiDashboardTicketsResponse(
 //       typeof (value as ApiDashboardKanbanResponse).items === 'object',
 //   );
 // }
-
-function createKanbanTicketSummary(
-  tickets: ApiDashboardTicket[],
-): TicketSummary {
-  return tickets.reduce<{
-    open: number;
-    inProgress: number;
-    resolved: number;
-    critical: number;
-    closed: number;
-  }>(
-    (summary, ticket) => {
-      switch (ticket.status?.key.toLowerCase()) {
-        case 'open':
-          summary.open += 1;
-          break;
-        case 'inprogress':
-          summary.inProgress += 1;
-          break;
-        case 'resolved':
-          summary.resolved += 1;
-          break;
-      }
-
-      if (ticket.priority?.key.toLowerCase() === 'critical') {
-        summary.critical += 1;
-      }
-
-      return summary;
-    },
-    { open: 0, inProgress: 0, resolved: 0, critical: 0, closed: 0 },
-  );
-}
 
 function mapApiDashboardTicketToRecentTicket(
   ticket: ApiDashboardTicket,

@@ -26,6 +26,9 @@ export default function DashboardSummaryBanner({
   badge,
   badgeClr,
 }: DashboardSummaryBannerProps) {
+  // Statuses are configurable, so a long list wraps into rows instead of one line.
+  const hasManyStats = (stats?.length ?? 0) > 5;
+
   return (
     <div
       style={{
@@ -103,17 +106,27 @@ export default function DashboardSummaryBanner({
           )}
         </div>
         {stats?.length ? (
-          <div className="grid grid-cols-2 gap-2  sm:w-fit rounded-xl border border-white/12 bg-white/10 p-2 backdrop-blur-3xl drop-shadow-[0_14px_44px_0_rgb(0_0_0/0.45)] xl:flex xl:max-w-full xl:flex-row xl:items-center xl:gap-5.5 xl:px-4">
+          <div
+            className={
+              hasManyStats
+                ? 'grid grid-cols-2 gap-x-6 gap-y-2.5 rounded-xl border border-white/12 bg-white/10 p-3 backdrop-blur-3xl drop-shadow-[0_14px_44px_0_rgb(0_0_0/0.45)] sm:grid-cols-3 xl:max-w-4xl xl:grid-cols-4 xl:px-4 2xl:max-w-6xl 2xl:grid-cols-5'
+                : 'grid grid-cols-2 gap-2  sm:w-fit rounded-xl border border-white/12 bg-white/10 p-2 backdrop-blur-3xl drop-shadow-[0_14px_44px_0_rgb(0_0_0/0.45)] xl:flex xl:max-w-full xl:flex-row xl:items-center xl:gap-5.5 xl:px-4'
+            }
+          >
             {stats.map((item, index) => (
               <Fragment key={`${item.title}-${index}`}>
-                {index > 0 ? (
+                {index > 0 && !hasManyStats ? (
                   <div
                     className="hidden h-5.25 w-0.5 shrink-0 bg-linear-to-b from-white/0 via-white/80 to-white/0 xl:block"
                     aria-hidden="true"
                   />
                 ) : null}
 
-                <div className="flex min-w-0 items-center justify-between gap-2 xl:shrink-0 xl:justify-start xl:gap-4">
+                <div
+                  className={`flex min-w-0 items-center justify-between gap-2 xl:justify-start xl:gap-4 ${
+                    hasManyStats ? '' : 'xl:shrink-0'
+                  }`}
+                >
                   <div className="flex min-w-0 items-center gap-2">
                     <div className="relative flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-white/40">
                       <span

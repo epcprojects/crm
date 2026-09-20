@@ -23,7 +23,7 @@ import {
   PermissionGuard,
   usePermissions,
 } from '../../providers/PermissionProvider';
-import { createTicket } from '../../../lib/tickets';
+import { createTicket, toStatusStats } from '../../../lib/tickets';
 import {
   useCreateProjectMutation,
   useDeleteProjectMutation,
@@ -407,20 +407,11 @@ export default function ProjectsPage() {
         color: '#F79009',
       },
       {
-        title: 'Open Leads',
-        count: projectSummary?.openTickets ?? 0,
+        title: 'Total Leads',
+        count: projectSummary?.totalLeads ?? 0,
         color: '#17B26A',
       },
-      {
-        title: 'Critical Issues',
-        count: projectSummary?.criticalIssues ?? 0,
-        color: '#7A5AF8',
-      },
-      {
-        title: 'Closed Leads',
-        count: projectSummary?.closedTickets ?? 0,
-        color: 'gray',
-      },
+      ...toStatusStats(projectSummary),
     ],
     [projectSummary],
   );
@@ -567,8 +558,7 @@ export default function ProjectsPage() {
                           name={project.name}
                           category={project.category}
                           totalCount={project.totalCount}
-                          openCount={project.openCount}
-                          criticalCount={project.criticalCount}
+                          statusCounts={project.statusCounts}
                           colorHex={project.colorHex}
                           href={
                             canViewProjectDetail

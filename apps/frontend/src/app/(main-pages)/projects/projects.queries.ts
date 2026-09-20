@@ -26,6 +26,7 @@ import type {
   TicketStatus,
 } from '../../../components/tables/RecentTicketsTable';
 import { uploadFilesDirectly } from '../../../lib/attachments';
+import type { LeadStatusCount } from '../../../lib/tickets';
 
 export const projectsQueryKey = ['projects'];
 export const dashboardTicketsQueryKey = ['dashboard-project-tickets'];
@@ -64,9 +65,8 @@ type ProjectsQueryOptions = {
 type ProjectSummary = {
   totalProjects: number | null;
   activeProjects: number | null;
-  openTickets: number | null;
-  criticalIssues: number | null;
-  closedTickets: number | null;
+  totalLeads: number | null;
+  statuses: LeadStatusCount[];
 };
 
 type ProjectsPaginationMeta = {
@@ -674,9 +674,8 @@ function normalizeProjectsResponse(
       summary: {
         totalProjects: payload.length,
         activeProjects: payload.length,
-        openTickets: 0,
-        criticalIssues: 0,
-        closedTickets: 0,
+        totalLeads: 0,
+        statuses: [],
       },
       meta: {
         page,
@@ -707,10 +706,9 @@ function normalizeProjectsResponse(
 
       activeProjects: payload.summary?.activeProjects ?? 0,
 
-      openTickets: payload.summary?.openTickets ?? 0,
+      totalLeads: payload.summary?.totalLeads ?? 0,
 
-      criticalIssues: payload.summary?.criticalIssues ?? 0,
-      closedTickets: payload.summary?.closedTickets ?? 0,
+      statuses: payload.summary?.statuses ?? [],
     },
     meta: {
       page: payload.meta?.page ?? page,

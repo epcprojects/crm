@@ -1,4 +1,5 @@
 import { ticketsData } from '../tickets/tickets.data';
+import type { LeadStatusCount } from '../../../lib/tickets';
 
 export type ProjectRecord = {
   id: string;
@@ -6,8 +7,7 @@ export type ProjectRecord = {
   name: string;
   category: string;
   totalCount: number;
-  openCount: number;
-  criticalCount: number;
+  statusCounts: LeadStatusCount[];
   colorHex: string;
   threadPosts: number;
   filesCount: number;
@@ -26,8 +26,7 @@ export type ApiProjectRecord = {
   logoLetter?: string;
   stats?: {
     tickets?: number;
-    openTickets?: number;
-    criticalTickets?: number;
+    statuses?: LeadStatusCount[];
   };
   createdAt?: string;
   updatedAt?: string;
@@ -59,8 +58,7 @@ export const baseProjects: ProjectRecord[] = [
     name: 'Acme Corp',
     category: 'Marketing',
     totalCount: 2,
-    openCount: 1,
-    criticalCount: 0,
+    statusCounts: [],
     colorHex: '#F79009',
     threadPosts: 2,
     filesCount: 5,
@@ -71,8 +69,7 @@ export const baseProjects: ProjectRecord[] = [
     name: 'Stellar Tech',
     category: 'Technology',
     totalCount: 2,
-    openCount: 1,
-    criticalCount: 0,
+    statusCounts: [],
     colorHex: '#6172F3',
     threadPosts: 2,
     filesCount: 4,
@@ -83,8 +80,7 @@ export const baseProjects: ProjectRecord[] = [
     name: 'GreenLeaf Co',
     category: 'Agriculture',
     totalCount: 2,
-    openCount: 1,
-    criticalCount: 0,
+    statusCounts: [],
     colorHex: '#17B26A',
     threadPosts: 1,
     filesCount: 3,
@@ -153,12 +149,7 @@ export function mapApiProjectToProjectRecord(
 ): ProjectRecord {
   const projectTickets = getProjectTickets(project.name);
   const totalCount = project.stats?.tickets ?? projectTickets.length;
-  const openCount =
-    project.stats?.openTickets ??
-    projectTickets.filter((ticket) => ticket.status === 'Open').length;
-  const criticalCount =
-    project.stats?.criticalTickets ??
-    projectTickets.filter((ticket) => ticket.priority === 'Critical').length;
+  const statusCounts = project.stats?.statuses ?? [];
 
   return {
     id: project.id,
@@ -166,8 +157,7 @@ export function mapApiProjectToProjectRecord(
     name: project.name,
     category: toTitleCase(project.category),
     totalCount,
-    openCount,
-    criticalCount,
+    statusCounts,
     colorHex: project.brandColor ?? '#6172F3',
     threadPosts: 0,
     filesCount: getProjectFiles(project.id, project.name).length,

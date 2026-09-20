@@ -18,6 +18,7 @@ import {
   UserType,
 } from '@epc-crm/types';
 import { Ticket } from '../tickets/entities/ticket.entity';
+import { TicketStatus } from '../tickets/entities/ticket.statuses.entity';
 import { GetProjectsQueryDto } from './dto/get-projects-query.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { GetMembersQueryDto } from './dto/get-members-query.dto';
@@ -124,6 +125,21 @@ export class ProjectsService {
     };
   }
 
+  // Lead count per configured status (zero-count statuses included).
+  private buildStatusBreakdown(
+    statuses: TicketStatus[],
+    countByKey: Map<string, number>,
+  ) {
+    return statuses.map((status) => ({
+      key: status.key,
+      label: status.label,
+      color: status.color,
+      sortOrder: status.sortOrder,
+      isClosed: status.isClosed,
+      count: countByKey.get(status.key) ?? 0,
+    }));
+  }
+
   async findAll(query: GetProjectsQueryDto, user: { id: string }) {
     const { page = 1, limit = 10, search } = query;
     const searchTerm = search?.trim();
@@ -157,42 +173,31 @@ export class ProjectsService {
       .clone()
       .select([
         `COUNT(DISTINCT p.id) AS total`,
-        `
-      COUNT(
-        DISTINCT CASE
-          WHEN p.isActive = true THEN p.id
-        END
-      ) AS active
-      `,
-        `
-      COUNT(
-        CASE
-          WHEN UPPER(t.statusKey) = 'OPEN' THEN 1
-        END
-      ) AS open
-      `,
-        `
-      COUNT(
-        CASE
-          WHEN UPPER(t.statusKey) = 'CLOSED' THEN 1
-        END
-      ) AS closed
-      `,
-        `
-      COUNT(
-        CASE
-          WHEN UPPER(t.priorityKey) = 'CRITICAL' THEN 1
-        END
-      ) AS critical
-      `,
+        `COUNT(DISTINCT CASE WHEN p.isActive = true THEN p.id END) AS active`,
       ])
       .getRawOne<{
         total: string;
         active: string;
-        open: string;
-        closed: string;
-        critical: string;
       }>();
+
+    const statuses = await this.dataSource
+      .getRepository(TicketStatus)
+      .find({ order: { sortOrder: 'ASC', createdAt: 'ASC' } });
+
+    // Lead counts per status across every matching project.
+    const summaryStatusRows = await baseQuery
+      .clone()
+      .select('t.statusKey', 'statusKey')
+      .addSelect('COUNT(t.id)', 'count')
+      .groupBy('t.statusKey')
+      .getRawMany<{ statusKey: string | null; count: string }>();
+    const summaryCounts = new Map<string, number>();
+    let totalLeads = 0;
+    for (const row of summaryStatusRows) {
+      const count = Number(row.count);
+      totalLeads += count;
+      if (row.statusKey) summaryCounts.set(row.statusKey, count);
+    }
 
     /*
      * Fetch paginated project cards with their individual ticket stats.
@@ -208,26 +213,6 @@ export class ProjectsService {
         'p.logoLetter AS "logoLetter"',
       ])
       .addSelect('COUNT(t.id)', 'ticketCount')
-      .addSelect(
-        `
-      COUNT(
-        CASE
-          WHEN UPPER(t.statusKey) = 'OPEN' THEN 1
-        END
-      )
-      `,
-        'openTicketCount',
-      )
-      .addSelect(
-        `
-      COUNT(
-        CASE
-          WHEN UPPER(t.priorityKey) = 'CRITICAL' THEN 1
-        END
-      )
-      `,
-        'criticalTicketCount',
-      )
       .groupBy('p.id')
       .addGroupBy('p.name')
       .addGroupBy('p.category')
@@ -241,6 +226,25 @@ export class ProjectsService {
 
     const total = Number(summaryResult?.total ?? 0);
 
+    const projectIds = projects.map((project) => project.id);
+    const projectStatusRows = projectIds.length
+      ? await this.ticketRepo
+          .createQueryBuilder('t')
+          .select('t.projectId', 'projectId')
+          .addSelect('t.statusKey', 'statusKey')
+          .addSelect('COUNT(t.id)', 'count')
+          .where('t.projectId IN (:...projectIds)', { projectIds })
+          .groupBy('t.projectId')
+          .addGroupBy('t.statusKey')
+          .getRawMany<{ projectId: string; statusKey: string; count: string }>()
+      : [];
+    const projectCounts = new Map<string, Map<string, number>>();
+    for (const row of projectStatusRows) {
+      const counts = projectCounts.get(row.projectId) ?? new Map();
+      counts.set(row.statusKey, Number(row.count));
+      projectCounts.set(row.projectId, counts);
+    }
+
     return {
       items: projects.map((project) => ({
         id: project.id,
@@ -252,17 +256,18 @@ export class ProjectsService {
 
         stats: {
           tickets: Number(project.ticketCount ?? 0),
-          openTickets: Number(project.openTicketCount ?? 0),
-          criticalTickets: Number(project.criticalTicketCount ?? 0),
+          statuses: this.buildStatusBreakdown(
+            statuses,
+            projectCounts.get(project.id) ?? new Map(),
+          ),
         },
       })),
 
       summary: {
         totalProjects: total,
         activeProjects: Number(summaryResult?.active ?? 0),
-        openTickets: Number(summaryResult?.open ?? 0),
-        closedTickets: Number(summaryResult?.closed ?? 0),
-        criticalIssues: Number(summaryResult?.critical ?? 0),
+        totalLeads,
+        statuses: this.buildStatusBreakdown(statuses, summaryCounts),
       },
 
       meta: {
@@ -317,25 +322,45 @@ export class ProjectsService {
   // function for having summary of project section, return total project, active proejcts, open tickets and critical issues:
 
   async getGlobalProjectSummary(user) {
-    const result = await this.projectRepo
+    const baseQuery = this.projectRepo
       .createQueryBuilder('p')
       .innerJoin('p.members', 'u', 'u.id = :userId', {
         userId: user.id,
       })
-      .leftJoin('tickets', 't', 't."projectId" = p.id')
-      .select([
-        `COUNT(DISTINCT p.id) AS total`,
-        `COUNT(DISTINCT CASE WHEN p.isActive = true THEN p.id END) AS active`,
-        `COUNT(CASE WHEN UPPER(t."statusKey") = 'OPEN' THEN 1 END) AS open`,
-        `COUNT(CASE WHEN UPPER(t."priorityKey") = 'CRITICAL' THEN 1 END) AS critical`,
-      ])
-      .getRawOne();
+      .leftJoin('tickets', 't', 't."projectId" = p.id');
+
+    const [result, statuses, statusRows] = await Promise.all([
+      baseQuery
+        .clone()
+        .select([
+          `COUNT(DISTINCT p.id) AS total`,
+          `COUNT(DISTINCT CASE WHEN p.isActive = true THEN p.id END) AS active`,
+        ])
+        .getRawOne(),
+      this.dataSource
+        .getRepository(TicketStatus)
+        .find({ order: { sortOrder: 'ASC', createdAt: 'ASC' } }),
+      baseQuery
+        .clone()
+        .select('t."statusKey"', 'statusKey')
+        .addSelect('COUNT(t.id)', 'count')
+        .groupBy('t."statusKey"')
+        .getRawMany<{ statusKey: string | null; count: string }>(),
+    ]);
+
+    const counts = new Map<string, number>();
+    let totalLeads = 0;
+    for (const row of statusRows) {
+      const count = Number(row.count);
+      totalLeads += count;
+      if (row.statusKey) counts.set(row.statusKey, count);
+    }
 
     return {
       totalProjects: Number(result.total ?? 0),
       activeProjects: Number(result.active ?? 0),
-      openTickets: Number(result.open ?? 0),
-      criticalIssues: Number(result.critical ?? 0),
+      totalLeads,
+      statuses: this.buildStatusBreakdown(statuses, counts),
     };
   }
 

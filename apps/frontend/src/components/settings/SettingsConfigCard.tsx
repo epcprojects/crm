@@ -10,6 +10,7 @@ export type SettingsConfigItem = {
   value: string;
   countLabel: string;
   colorHex?: string;
+  isClosed?: boolean;
 };
 
 type SettingsConfigCardProps = {
