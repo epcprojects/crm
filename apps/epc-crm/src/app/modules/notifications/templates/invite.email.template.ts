@@ -312,7 +312,7 @@ export function adminInviteTemplate({
                             display:inline-block;
                             text-decoration:none;
                         ">
-                                                    <img src="${appUrl}/images/Banners/HarperLogo.png" width="30"
+                                                    <img src="${appUrl}/images/Banners/ZarrarLogo.png" width="30"
                                                         alt="" style="
                                 display:block;
                                 width:30px;

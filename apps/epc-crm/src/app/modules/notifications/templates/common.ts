@@ -880,7 +880,7 @@ export function renderNotificationEmail(
     // attachments = [],
   } = params;
 
-  const logoUrl = iconUrl(appUrl, 'HarperLogo.png');
+  const logoUrl = iconUrl(appUrl, 'ZarrarLogo.png');
   const bannerIconUrl = iconUrl(appUrl, iconFileName);
   const notificationIconUrl = iconUrl(appUrl, 'EmailNotificationIcon.png');
 
