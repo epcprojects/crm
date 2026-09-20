@@ -30,16 +30,6 @@ export type ContactRecord = {
   createdAt: string;
 };
 
-function formatLocation(contact: ContactRecord) {
-  if (contact.territory) {
-    return contact.territory.parent
-      ? `${contact.territory.name}, ${contact.territory.parent.name}`
-      : contact.territory.name;
-  }
-
-  return contact.city || '—';
-}
-
 export type ContactsMeta = {
   page: number;
   limit: number;
@@ -207,16 +197,7 @@ export default function ContactsTable({
                 </div>
               </div>
 
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                    Location
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-gray-900">
-                    {formatLocation(contact)}
-                  </p>
-                </div>
-
+              <div className="flex items-center justify-end gap-3">
                 {renderContactActions(contact, onEdit, onDelete, onCreateLead, onViewLeads)}
               </div>
             </div>
@@ -228,7 +209,7 @@ export default function ContactsTable({
         <table className="w-full min-w-215 text-left">
           <thead className="bg-gray-50">
             <tr>
-              {['Name', 'Phone', 'Email', 'Location', 'Source', 'Actions'].map(
+              {['Name', 'Phone', 'Email', 'Source', 'Actions'].map(
                 (header) => (
                   <th
                     key={header}
@@ -254,9 +235,6 @@ export default function ContactsTable({
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-800">
                   {contact.email || '—'}
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-800">
-                  {formatLocation(contact)}
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-800">
                   {contact.source || '—'}
@@ -340,7 +318,7 @@ export default function ContactsTable({
 }
 
 export function ContactsTableSkeleton() {
-  const headers = ['Name', 'Phone', 'Email', 'Location', 'Source', 'Actions'];
+  const headers = ['Name', 'Phone', 'Email', 'Source', 'Actions'];
 
   return (
     <div

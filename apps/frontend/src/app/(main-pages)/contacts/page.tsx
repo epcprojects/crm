@@ -385,7 +385,6 @@ export default function ContactsPage() {
               ? `${creatingLeadForContact.fullName} (${creatingLeadForContact.phone})`
               : creatingLeadForContact.phone
           }
-          disableContactSelection
         />
       ) : null}
 
