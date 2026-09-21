@@ -659,16 +659,6 @@ export default function TicketsKanbanView({
                                     </span>
                                   </div>
                                 ) : null}
-
-                                <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
-                                  <span className="text-sm text-gray-900">
-                                    Priority:
-                                  </span>
-
-                                  <div className="flex justify-end">
-                                    {renderPriorityBadge(ticket)}
-                                  </div>
-                                </div>
                               </div>
                             </div>
                           </button>
@@ -778,12 +768,6 @@ export function TicketsKanbanSkeleton() {
                         <div className="h-3 w-16 rounded bg-purple-100" />
                       </div>
                     </div>
-
-                    {/* Priority */}
-                    <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
-                      <div className="h-3 w-12 rounded bg-gray-100" />
-                      <div className="ml-auto h-6 w-20 rounded-lg bg-gray-200" />
-                    </div>
                   </div>
                 </div>
               ))}
@@ -860,40 +844,6 @@ function KanbanLoadMoreTrigger({
     </div>
   );
 }
-function renderPriorityBadge(ticket: RecentTicket) {
-  return (
-    <span className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-2 py-0.5 text-sm font-medium text-gray-700 shadow-xs">
-      <span
-        className="h-1.5 min-w-1.5 rounded-full"
-        style={{
-          backgroundColor: ticket.priorityColor ?? getPriorityDotColor(ticket),
-        }}
-      />
-
-      {ticket.priority ?? 'No Priority'}
-    </span>
-  );
-}
-
-function getPriorityDotColor(ticket: RecentTicket) {
-  switch (ticket.priority) {
-    case 'High':
-      return '#f04438';
-
-    case 'Medium':
-      return '#f79009';
-
-    case 'Low':
-      return '#22c55e';
-
-    case 'Critical':
-      return '#7c3aed';
-
-    default:
-      return '#9ca3af';
-  }
-}
-
 function getStatusTone(color?: string) {
   if (!color) {
     return defaultStatusTone;
