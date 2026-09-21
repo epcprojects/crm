@@ -25,6 +25,11 @@ export function environment() {
       apiKey: process.env.SENDGRID_API_KEY,
       fromEmail: process.env.SENDGRID_FROM_EMAIL,
     },
+    push: {
+      vapidPublicKey: process.env.VAPID_PUBLIC_KEY,
+      vapidPrivateKey: process.env.VAPID_PRIVATE_KEY,
+      vapidSubject: process.env.VAPID_SUBJECT,
+    },
     aws: {
       region: process.env.AWS_REGION || 'us-east-1',
       sqs: {

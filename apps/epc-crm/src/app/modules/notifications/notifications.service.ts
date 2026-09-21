@@ -54,6 +54,7 @@ import { SqsNotificationQueueService } from './queue/sqs-notification-queue.serv
 import { Brackets, DataSource, Repository, SelectQueryBuilder } from 'typeorm';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { NotificationsGateway } from './gateway/notifications.gateway';
+import { PushService } from './push/push.service';
 import { NotifyProjectMembersDto } from './dto/create-notification.dto';
 import { Notification } from './entities/notification.entity';
 import { ActivityLogService } from '../activity/activity-log.service';
@@ -159,6 +160,7 @@ export class NotificationsService {
     @InjectDataSource()
     private readonly dataSource: DataSource,
     private readonly gateway: NotificationsGateway,
+    private readonly pushService: PushService,
   ) {
     sgMail.setApiKey(this.configService.get<string>('sendgrid.apiKey'));
 
@@ -606,6 +608,10 @@ export class NotificationsService {
         unreadCounts.get(notification.recipientId) ?? 0,
       );
     }
+
+    // Web Push for devices where the app is closed. Fire-and-forget: it never
+    // throws and must not delay or fail the notification flow.
+    this.pushService.sendForNotifications(saved, unreadCounts);
 
     // Create activity
     if (

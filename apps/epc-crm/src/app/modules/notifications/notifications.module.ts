@@ -11,16 +11,25 @@ import { ActivityModule } from '../activity/activity-log.module';
 import { EmailNotificationPreference } from './entities/email-notification-preference.entity';
 import { RoleClaim } from '../roles/entities/role.claim.entity';
 import { UserRole } from '../users/entities/user.roles.entity';
+import { PushSubscription } from './push/entities/push-subscription.entity';
+import { PushController } from './push/push.controller';
+import { PushService } from './push/push.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Notification, EmailNotificationPreference, UserRole, RoleClaim]),
+    TypeOrmModule.forFeature([
+      Notification,
+      EmailNotificationPreference,
+      UserRole,
+      RoleClaim,
+      PushSubscription,
+    ]),
     SqsNotificationQueueModule,
     ActivityModule,
     JwtModule
   ],
-  controllers: [NotificationsController],
-  providers: [NotificationsService, NotificationsGateway, WsJwtGuard],
+  controllers: [NotificationsController, PushController],
+  providers: [NotificationsService, NotificationsGateway, WsJwtGuard, PushService],
   exports: [NotificationsService, NotificationsGateway],
 })
 export class NotificationsModule {}

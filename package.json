@@ -63,6 +63,7 @@
         "socket.io": "^4.8.3",
         "socket.io-client": "^4.8.3",
         "typeorm": "^1.0.0",
+        "web-push": "^3.6.7",
         "yup": "^1.7.1"
     },
     "devDependencies": {
@@ -92,6 +93,7 @@
         "@types/node": "20.19.9",
         "@types/react": "^19.0.0",
         "@types/react-dom": "^19.0.0",
+        "@types/web-push": "^3.6.4",
         "esbuild": "^0.28.1",
         "eslint": "^9.8.0",
         "eslint-config-next": "^16.1.6",

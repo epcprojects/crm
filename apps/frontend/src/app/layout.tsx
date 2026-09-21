@@ -8,6 +8,7 @@ import IdleLogout from './providers/IdleLogout';
 import PermissionProvider from './providers/PermissionProvider';
 import { AppToastProvider } from '../components/toast/AppToast';
 import { NotificationsSocketProvider } from './providers/NotificationsSocketProvider';
+import { PushNotificationsManager } from './providers/PushNotificationsManager';
 
 export const metadata = {
   title: 'EPC CRM',
@@ -52,8 +53,8 @@ export default function RootLayout({
           sizes="180x180"
           href="/images/favicon/apple-touch-icon.png"
         />
-        <meta name="apple-mobile-web-app-title" content="MyWebSite" />
-        <link rel="manifest" href="images/favicon/site.webmanifest" />
+        <meta name="apple-mobile-web-app-title" content="EPC CRM" />
+        <link rel="manifest" href="/images/favicon/site.webmanifest" />
       </head>
       <body className={`${poppins.variable} bg-white min-h-dvh`}>
         <StoreProvider>
@@ -64,6 +65,7 @@ export default function RootLayout({
                   <IdleLogout />
                   <NotificationsSocketProvider>
                     {children}
+                    <PushNotificationsManager />
                   </NotificationsSocketProvider>
                   <AppToastProvider />
                 </PermissionProvider>

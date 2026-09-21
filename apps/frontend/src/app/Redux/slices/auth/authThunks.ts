@@ -1,4 +1,5 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
+import { disablePushForThisDevice } from '../../../../lib/push/client';
 import type {
   registerRequest,
   SignInRequest,
@@ -139,6 +140,9 @@ export const logoutThunk = createAsyncThunk<
   { rejectValue: string }
 >('auth/logout', async (_, { rejectWithValue }) => {
   try {
+    // Needs the session cookie, so it must run before the logout request.
+    await disablePushForThisDevice();
+
     const res = await fetch('/api/auth/logout', {
       method: 'POST',
       credentials: 'include',
