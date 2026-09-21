@@ -19,12 +19,11 @@ export function RecentTicketsTableSkeleton() {
                 }`}
               />
 
-              {/* Reference, status and priority */}
+              {/* Reference and status */}
               <div className="flex items-center gap-2">
                 <div className="h-3 w-14 rounded bg-gray-200" />
 
                 <div className="ml-auto h-5 w-14 rounded-full bg-gray-200" />
-                <div className="h-5 w-16 rounded-[5px] bg-gray-200" />
               </div>
             </div>
 
@@ -60,10 +59,10 @@ export function RecentTicketsTableSkeleton() {
         ))}
       </div>
 
-      {/* Desktop: actual 8-column table */}
+      {/* Desktop: actual 7-column table */}
       <div className="hidden min-h-0 flex-1 overflow-hidden xl:block">
-        <div className="grid grid-cols-[110px_1.5fr_1.2fr_100px_100px_1.2fr_110px_110px] gap-4 border-b border-gray-200 bg-gray-50 px-4 py-3">
-          {Array.from({ length: 8 }).map((_, index) => (
+        <div className="grid grid-cols-[110px_1.5fr_1.2fr_100px_100px_1.2fr_110px] gap-4 border-b border-gray-200 bg-gray-50 px-4 py-3">
+          {Array.from({ length: 7 }).map((_, index) => (
             <div key={index} className="h-4 rounded bg-gray-200" />
           ))}
         </div>
@@ -72,9 +71,9 @@ export function RecentTicketsTableSkeleton() {
           {Array.from({ length: 6 }).map((_, rowIndex) => (
             <div
               key={rowIndex}
-              className="grid grid-cols-[110px_1.5fr_1.2fr_100px_100px_1.2fr_110px_110px] items-center gap-4 border-b border-gray-200 px-4 py-4 last:border-b-0"
+              className="grid grid-cols-[110px_1.5fr_1.2fr_100px_100px_1.2fr_110px] items-center gap-4 border-b border-gray-200 px-4 py-4 last:border-b-0"
             >
-              {Array.from({ length: 8 }).map((_, cellIndex) => (
+              {Array.from({ length: 7 }).map((_, cellIndex) => (
                 <div
                   key={cellIndex}
                   className={`rounded bg-gray-100 ${

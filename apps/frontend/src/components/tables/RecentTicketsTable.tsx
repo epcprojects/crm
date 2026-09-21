@@ -93,13 +93,6 @@ const statusStyles: Record<string, string> = {
   Closed: 'border-sky-200 bg-sky-50 text-sky-600',
 };
 
-const priorityStyles: Record<string, string> = {
-  High: 'bg-red-500',
-  Medium: 'bg-warning-500',
-  Low: 'bg-green-500',
-  Critical: 'bg-primary',
-};
-
 const baseColumns: ColumnDef<RecentTicket>[] = [
   {
     id: 'id',
@@ -172,44 +165,6 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     header: 'Status',
     cell: ({ row }) => renderStatusBadge(row.original),
   },
-  {
-    id: 'priority',
-    accessorKey: 'priority',
-    header: 'Priority',
-    cell: ({ row }) => (
-      <span
-        className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full  border  text-white px-2 py-1 text-xs font-meidu shadow-xs"
-        style={
-          row.original.priorityColor
-            ? {
-                backgroundColor: row.original.priorityColor,
-                borderColor: row.original.priorityColor,
-              }
-            : {
-                backgroundColor: '#00000010',
-                borderColor: '#00000010',
-                color: '#00000080',
-                fontWeight: 'bolder',
-              }
-        }
-      >
-        {/* <span
-          className={`h-1.5 w-1.5 whitespace-nowrap rounded-full ${
-            row.original.priorityColor
-              ? ''
-              : (priorityStyles[row.original.priority ?? ''] ?? 'bg-gray-400')
-          }`}
-          style={
-            row.original.priorityColor
-              ? { backgroundColor: row.original.priorityColor }
-              : undefined
-          }
-        /> */}
-        {row.original.priority ?? 'No Priority'}
-      </span>
-    ),
-  },
-
   {
     id: 'Creater',
     accessorKey: 'reporter.fullname',
@@ -650,21 +605,6 @@ function TicketMobileCard({
               style={statusStyle}
             >
               {ticket.status}
-            </span>
-
-            <span
-              className={`inline-flex whitespace-nowrap rounded-[5px] px-2 py-0.5 text-xs font-medium text-white ${
-                ticket.priorityColor
-                  ? ''
-                  : (priorityStyles[ticket.priority ?? ''] ?? 'bg-gray-400')
-              }`}
-              style={
-                ticket.priorityColor
-                  ? { backgroundColor: ticket.priorityColor }
-                  : undefined
-              }
-            >
-              {ticket.priority ?? 'No Priority'}
             </span>
           </div>
         </div>
