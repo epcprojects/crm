@@ -33,4 +33,16 @@ export class PushController {
   ) {
     await this.pushService.unsubscribe(userId, dto.endpoint);
   }
+
+  /** null = never decided on any device -- lets the client tell "off" apart from "new". */
+  @Get('preference')
+  async getPreference(@GetUser('id') userId: string) {
+    return { enabled: await this.pushService.getPreference(userId) };
+  }
+
+  @Post('preference/disable')
+  @HttpCode(204)
+  async disablePreference(@GetUser('id') userId: string) {
+    await this.pushService.disableEverywhere(userId);
+  }
 }

@@ -44,16 +44,44 @@ function urlBase64ToUint8Array(base64: string) {
   return bytes;
 }
 
+/** Thrown by fetchVapidPublicKey when the session itself is the problem. */
+class PushAuthError extends Error {
+  constructor() {
+    super('AUTH');
+    this.name = 'AUTH';
+  }
+}
+
 /** Null when the server has no VAPID keys configured (push disabled). */
 export async function fetchVapidPublicKey(): Promise<string | null> {
+  const res = await fetch('/api/push/public-key', {
+    cache: 'no-store',
+    credentials: 'include',
+  });
+
+  // The session ended between mount and this call (e.g. idle logout) --
+  // distinct from push genuinely being unconfigured on the server.
+  if (res.status === 401) throw new PushAuthError();
+  if (!res.ok) return null;
+
+  const data = (await res.json()) as { publicKey?: string | null };
+  return data.publicKey ?? null;
+}
+
+/**
+ * The account-level switch (set via /push/subscribe, or the Settings toggle).
+ * null means the user has never decided on any device -- distinct from an
+ * explicit "off" -- so a brand-new device still shows the normal opt-in ask.
+ */
+export async function fetchPushPreference(): Promise<boolean | null> {
   try {
-    const res = await fetch('/api/push/public-key', {
+    const res = await fetch('/api/push/preference', {
       cache: 'no-store',
       credentials: 'include',
     });
     if (!res.ok) return null;
-    const data = (await res.json()) as { publicKey?: string | null };
-    return data.publicKey ?? null;
+    const data = (await res.json()) as { enabled?: boolean | null };
+    return data.enabled ?? null;
   } catch {
     return null;
   }
@@ -128,6 +156,9 @@ async function subscribeAndSave(): Promise<PushSetupResult> {
     await saveSubscription(subscription);
     return { ok: true };
   } catch (err) {
+    if (err instanceof PushAuthError) {
+      return { ok: false, step, error: 'AUTH' };
+    }
     return {
       ok: false,
       step,
@@ -191,6 +222,31 @@ export async function disablePushForThisDevice(): Promise<void> {
     await clearAppBadge();
   } catch {
     // Logout must never fail because of push cleanup.
+  }
+}
+
+/**
+ * The Settings-page "turn off" action: tells the server to drop every
+ * device's subscription, then best-effort cleans up this device's own
+ * browser-level subscription so it doesn't linger as an orphan.
+ */
+export async function disablePushEverywhere(): Promise<void> {
+  const res = await fetch('/api/push/preference/disable', {
+    method: 'POST',
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error(`Disable failed with HTTP ${res.status}.`);
+
+  if (!isPushSupported()) return;
+
+  try {
+    const registration = await navigator.serviceWorker.getRegistration(SW_PATH);
+    const subscription = await registration?.pushManager.getSubscription();
+    await subscription?.unsubscribe();
+    await clearAppBadge();
+  } catch {
+    // The server-side row is already gone, which is what actually stops
+    // delivery; local cleanup here is a tidiness best-effort.
   }
 }
 

@@ -16,6 +16,7 @@ import { useIsMobile } from '../../../components/hooks/useIsMobile';
 import { useAppLoader } from '../../providers/AppLoaderProvider';
 import { usePermissions } from '../../providers/PermissionProvider';
 import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
+import PushNotificationSettingsCard from '../../../components/settings/PushNotificationSettingsCard';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { PlusIcon } from 'apps/frontend/public/icons';
 
@@ -691,6 +692,8 @@ export default function Page() {
             isUpdating={updateEmailPreferenceMutation.isPending}
             onToggle={handleToggleEmailPreference}
           />
+
+          <PushNotificationSettingsCard />
         </div>
         {canCreateStatus ? (
           <button

@@ -12,6 +12,7 @@ import { EmailNotificationPreference } from './entities/email-notification-prefe
 import { RoleClaim } from '../roles/entities/role.claim.entity';
 import { UserRole } from '../users/entities/user.roles.entity';
 import { PushSubscription } from './push/entities/push-subscription.entity';
+import { PushPreference } from './push/entities/push-preference.entity';
 import { PushController } from './push/push.controller';
 import { PushService } from './push/push.service';
 
@@ -23,6 +24,7 @@ import { PushService } from './push/push.service';
       UserRole,
       RoleClaim,
       PushSubscription,
+      PushPreference,
     ]),
     SqsNotificationQueueModule,
     ActivityModule,

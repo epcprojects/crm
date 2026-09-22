@@ -5,6 +5,7 @@ import { In, Repository } from 'typeorm';
 import * as webPush from 'web-push';
 import { NotificationEntityType } from '@epc-crm/types';
 import { PushSubscription } from './entities/push-subscription.entity';
+import { PushPreference } from './entities/push-preference.entity';
 import { Notification } from '../entities/notification.entity';
 import { SubscribePushDto } from './dto/push-subscription.dto';
 
@@ -32,6 +33,8 @@ export class PushService implements OnModuleInit {
     private readonly configService: ConfigService,
     @InjectRepository(PushSubscription)
     private readonly subscriptionsRepo: Repository<PushSubscription>,
+    @InjectRepository(PushPreference)
+    private readonly preferenceRepo: Repository<PushPreference>,
   ) {}
 
   onModuleInit() {
@@ -86,10 +89,41 @@ export class PushService implements OnModuleInit {
       },
       ['endpoint'],
     );
+
+    // Subscribing a device is an explicit opt-in for the account. This is
+    // what lets a second device (e.g. mobile, after desktop) discover that
+    // push should be on and adopt it without the user asking twice.
+    await this.setPreference(userId, true);
   }
 
+  /**
+   * Removes one device's subscription. Used on manual logout, so a shared
+   * device stops receiving another account's notifications -- this never
+   * touches the account-level preference, or every logout would silently
+   * turn off push everywhere.
+   */
   async unsubscribe(userId: string, endpoint: string): Promise<void> {
     await this.subscriptionsRepo.delete({ userId, endpoint });
+  }
+
+  /** null = the user has never opted in or out on any device. */
+  async getPreference(userId: string): Promise<boolean | null> {
+    const row = await this.preferenceRepo.findOne({ where: { userId } });
+    return row?.enabled ?? null;
+  }
+
+  private async setPreference(userId: string, enabled: boolean): Promise<void> {
+    await this.preferenceRepo.upsert({ userId, enabled }, ['userId']);
+  }
+
+  /**
+   * The account-level "off" switch from the Notifications settings page:
+   * removes every device's subscription so push stops everywhere, not just
+   * on the device the user is looking at.
+   */
+  async disableEverywhere(userId: string): Promise<void> {
+    await this.setPreference(userId, false);
+    await this.subscriptionsRepo.delete({ userId });
   }
 
   /**
