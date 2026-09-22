@@ -7,6 +7,18 @@ export function sanitizePhoneForLink(phone: string) {
   return phone.replace(/[^\d+]/g, '');
 }
 
+// Pakistani mobile numbers are commonly entered in local format (03XXXXXXXXX).
+// WhatsApp links need the country code instead of the leading 0 (923XXXXXXXXX).
+export function toWhatsAppNumber(phone: string) {
+  const digitsOnly = phone.replace(/\D/g, '');
+
+  if (/^03\d{9}$/.test(digitsOnly)) {
+    return `92${digitsOnly.slice(1)}`;
+  }
+
+  return digitsOnly;
+}
+
 type PhoneActionsProps = {
   phone: string;
   size?: 'sm' | 'md';
@@ -43,7 +55,7 @@ export default function PhoneActions({
 
   const whatsApp = () => {
     window.open(
-      `https://wa.me/${sanitizedPhone.replace(/^\+/, '')}`,
+      `https://wa.me/${toWhatsAppNumber(sanitizedPhone)}`,
       '_blank',
       'noopener,noreferrer',
     );
