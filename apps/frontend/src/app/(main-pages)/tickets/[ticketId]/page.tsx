@@ -68,6 +68,7 @@ import { NotificationEntityType } from '@epc-crm/types';
 import { eventEmitter } from '../../../../lib/event-emitter';
 import { uploadFilesDirectly } from '../../../../lib/attachments';
 import { isVoiceNoteFile } from '../../../../lib/voice-notes';
+import { formatDateTime } from '../../../../lib/format';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import RichTextEditor from 'apps/frontend/src/components/RichTextEditor';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -3119,7 +3120,7 @@ function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
       name: assigneeName,
       initials: getInitials(assigneeName),
     },
-    date: formatTicketDate(ticket.createdAt),
+    date: formatDateTime(ticket.createdAt),
     description: ticket.description,
     assigneeId: ticket.assigneeId ?? '',
     reporterId: ticket.reporterId ?? '',
@@ -3660,22 +3661,6 @@ function getInitials(value: string) {
     .map((word) => word[0])
     .join('')
     .toUpperCase();
-}
-
-function formatTicketDate(value: string) {
-  const date = new Date(
-    /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value,
-  );
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(date);
 }
 
 type SocketTokenResponse = {

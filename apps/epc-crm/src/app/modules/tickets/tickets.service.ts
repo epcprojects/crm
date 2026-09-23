@@ -1598,6 +1598,8 @@ export class TicketsService {
       });
     }
 
+    this.applyKanbanPeopleFilters(qb, query);
+
     const search = query.search?.trim();
     if (search) {
       qb.andWhere(
@@ -2013,6 +2015,8 @@ export class TicketsService {
       });
     }
 
+    this.applyKanbanPeopleFilters(baseQb, query);
+
     const search = query.search?.trim();
     if (search) {
       baseQb.andWhere(
@@ -2069,6 +2073,35 @@ export class TicketsService {
   }
   private computeSummary(qb: SelectQueryBuilder<Ticket>) {
     return this.buildStatusSummary(qb);
+  }
+
+  // Agent / creator / contact filters shared by the Kanban board and its
+  // per-status counts, so both stay in sync with the table view's filters.
+  private applyKanbanPeopleFilters(
+    qb: SelectQueryBuilder<Ticket>,
+    query: { assigneeId?: string; reporterId?: string; contactId?: string },
+  ) {
+    if (query.assigneeId) {
+      if (query.assigneeId.toLowerCase() === 'unassigned') {
+        qb.andWhere('t.assigneeId IS NULL');
+      } else {
+        qb.andWhere('t.assigneeId = :assigneeId', {
+          assigneeId: query.assigneeId,
+        });
+      }
+    }
+
+    if (query.reporterId) {
+      qb.andWhere('t.reporterId = :reporterId', {
+        reporterId: query.reporterId,
+      });
+    }
+
+    if (query.contactId) {
+      qb.andWhere('t.contactId = :contactId', {
+        contactId: query.contactId,
+      });
+    }
   }
 }
 

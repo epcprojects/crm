@@ -26,6 +26,7 @@ import type {
   TicketStatus,
 } from '../../../components/tables/RecentTicketsTable';
 import { uploadFilesDirectly } from '../../../lib/attachments';
+import { formatDateTime } from '../../../lib/format';
 import type { LeadStatusCount } from '../../../lib/tickets';
 
 export const projectsQueryKey = ['projects'];
@@ -1667,11 +1668,17 @@ export async function fetchProjectKanbanCounts({
   priorityKey,
   ticketType,
   search,
+  contactId,
+  reporterId,
+  assigneeId,
 }: {
   projectId: string;
   priorityKey?: string;
   ticketType?: string;
   search?: string;
+  contactId?: string;
+  reporterId?: string;
+  assigneeId?: string;
 }) {
   const searchParams = new URLSearchParams();
 
@@ -1686,6 +1693,15 @@ export async function fetchProjectKanbanCounts({
   }
   if (search?.trim()) {
     searchParams.set('search', search.trim());
+  }
+  if (contactId) {
+    searchParams.set('contactId', contactId);
+  }
+  if (reporterId) {
+    searchParams.set('reporterId', reporterId);
+  }
+  if (assigneeId) {
+    searchParams.set('assigneeId', assigneeId);
   }
 
   const response = await fetch(
@@ -1720,6 +1736,9 @@ export async function fetchProjectKanbanBoard({
   ticketType,
   search,
   statusKey,
+  contactId,
+  reporterId,
+  assigneeId,
   page = 1,
   limit = 20,
 }: {
@@ -1728,6 +1747,9 @@ export async function fetchProjectKanbanBoard({
   ticketType?: string;
   search?: string;
   statusKey?: string;
+  contactId?: string;
+  reporterId?: string;
+  assigneeId?: string;
   page?: number;
   limit?: number;
 }): Promise<ProjectKanbanBoardData> {
@@ -1745,6 +1767,15 @@ export async function fetchProjectKanbanBoard({
   }
   if (search?.trim()) {
     searchParams.set('search', search.trim());
+  }
+  if (contactId) {
+    searchParams.set('contactId', contactId);
+  }
+  if (reporterId) {
+    searchParams.set('reporterId', reporterId);
+  }
+  if (assigneeId) {
+    searchParams.set('assigneeId', assigneeId);
   }
 
   // Initial request mein statusKey/page nahi jayega
@@ -2114,7 +2145,7 @@ function mapApiProjectTicketToRecentTicket(
       name: assigneeName,
       initials: getInitials(assigneeName),
     },
-    date: formatTicketDate(ticket.createdAt),
+    date: formatDateTime(ticket.createdAt),
     sortDate: ticket.dueDate ?? ticket.createdAt,
     reporter: {
       id: ticket.reporter?.id ?? '',
@@ -2232,22 +2263,6 @@ function getInitials(value: string) {
     .map((word) => word[0])
     .join('')
     .toUpperCase();
-}
-
-function formatTicketDate(value: string) {
-  const date = new Date(
-    /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value,
-  );
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(date);
 }
 
 function formatThreadDate(value: string) {

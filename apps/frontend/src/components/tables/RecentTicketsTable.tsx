@@ -160,6 +160,19 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     },
   },
   {
+    id: 'assignee',
+    accessorKey: 'assignee.name',
+    header: 'Agent',
+    cell: ({ row }) => (
+      <span className="inline-flex items-center gap-2 whitespace-nowrap text-gray-900 font-normal text-sm">
+        <span className="flex h-7.5 min-w-7.5 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-900">
+          {row.original.assignee.initials}
+        </span>
+        {row.original.assignee.name}
+      </span>
+    ),
+  },
+  {
     id: 'status',
     accessorKey: 'status',
     header: 'Status',
@@ -569,6 +582,7 @@ function TicketMobileCard({
   ticket,
   onClick,
   href,
+  showAssignee = true,
 }: {
   ticket: RecentTicket;
   onClick?: (ticket: RecentTicket) => void;
@@ -648,6 +662,21 @@ function TicketMobileCard({
             ) : null}
           </div>
         </div>
+        {showAssignee ? (
+          <div className="flex min-w-0 flex-col items-start gap-1">
+            <p className="text-[10px] text-gray-500">Agent</p>
+
+            <div className="flex min-w-0 flex-row items-center gap-1.25 py-0.5">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] leading-none font-medium text-gray-900">
+                {ticket.assignee.initials}
+              </span>
+
+              <p className="truncate text-xs text-gray-800">
+                {ticket.assignee.name}
+              </p>
+            </div>
+          </div>
+        ) : null}
         <div className="flex min-w-0 flex-col items-start gap-1">
           <p className="text-[10px] text-gray-500">Created by</p>
 

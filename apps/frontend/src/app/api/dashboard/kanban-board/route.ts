@@ -39,6 +39,9 @@ export async function GET(request: NextRequest) {
       'limit',
       'page',
       'statusKey',
+      'contactId',
+      'reporterId',
+      'assigneeId',
     ]) {
       const value = requestUrl.searchParams.get(key);
 
