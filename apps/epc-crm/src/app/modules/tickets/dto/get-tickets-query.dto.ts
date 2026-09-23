@@ -45,7 +45,7 @@ export class GetTicketsQueryDto {
     description: 'Filter tickets created by this user (the reporter).',
   })
   @IsOptional()
-  @IsUUID()
+  @IsUUID('loose')
   reporterId?: string;
 
   @ApiPropertyOptional({ type: [String], isArray: true })
@@ -59,7 +59,7 @@ export class GetTicketsQueryDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsUUID()
+  @IsUUID('loose')
   contactId?: string;
 
   @ApiPropertyOptional({

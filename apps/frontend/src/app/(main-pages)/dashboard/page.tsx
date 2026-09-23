@@ -9,7 +9,7 @@ import {
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import StatusCard from '../../../components/dashboard/StatusCard';
 import { RecentTicketsTableSkeleton } from '../../../components/tables/RecentTicketsTableSkeleton';
-import { getInitials } from '../../../lib/format';
+import { formatDateTime, getInitials } from '../../../lib/format';
 import {
   ChatIcon,
   ClockIcon,
@@ -2644,7 +2644,7 @@ function mapApiDashboardTicketToTicketListItem(
     id: ticket.id,
     projectId: ticket.project?.id,
     title: ticket.title,
-    date: formatTicketDate(ticket.createdAt),
+    date: formatDateTime(ticket.createdAt),
     owner: projectName,
     ownerColor: ticket.project?.brandColor
       ? ticket.project.brandColor
@@ -2736,7 +2736,7 @@ function mapApiDashboardTicketToRecentTicket(
       name: assigneeName,
       initials: getInitials(assigneeName),
     },
-    date: formatTicketDate(ticket.createdAt),
+    date: formatDateTime(ticket.createdAt),
     sortDate: ticket.createdAt,
     reporter: {
       id: ticket.reporter?.id ?? '',
@@ -2950,21 +2950,6 @@ function slugify(value: string) {
     .replace(/^_+|_+$/g, '');
 }
 
-function formatTicketDate(value: string) {
-  const date = new Date(
-    /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value,
-  );
-
-  if (Number.isNaN(date.getTime())) {
-    return '-';
-  }
-
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(date);
-}
 function getDashboardTicketTypeFilterValue(value: string | null) {
   if (value === 'bug' || value === 'feature_request') {
     return value;

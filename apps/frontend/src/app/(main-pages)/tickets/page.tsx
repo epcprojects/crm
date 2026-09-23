@@ -60,6 +60,7 @@ import ThemeButton from '../../../components/ui/ThemeButton';
 import { RecentTicketsTableSkeleton } from '../../../components/tables/RecentTicketsTableSkeleton';
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 import { eventEmitter } from '../../../lib/event-emitter';
+import { formatDateTime } from '../../../lib/format';
 import { NotificationItem } from '@epc-crm/interfaces';
 import { NotificationEntityType } from '@epc-crm/types';
 import DashboardSummaryBannerSkeleton from 'apps/frontend/src/components/ui/DashboardSummaryBannerSkeleton';
@@ -265,6 +266,12 @@ export default function Page() {
     projectIds: selectedProjectIds.length ? selectedProjectIds : undefined,
 
     search: debouncedSearchValue.trim() || undefined,
+
+    contactId: selectedContactId === 'all' ? undefined : selectedContactId,
+
+    reporterId: selectedCreatedBy === 'all' ? undefined : selectedCreatedBy,
+
+    assigneeId: selectedAssignedTo === 'all' ? undefined : selectedAssignedTo,
   };
 
   const kanbanBoardQueryKey = [
@@ -273,6 +280,9 @@ export default function Page() {
     selectedTicketType,
     selectedProjectIdsKey,
     debouncedSearchValue.trim(),
+    selectedContactId,
+    selectedCreatedBy,
+    selectedAssignedTo,
   ] as const;
 
   const kanbanBoardQuery = useQuery({
@@ -293,6 +303,9 @@ export default function Page() {
       selectedTicketType,
       selectedProjectIdsKey,
       debouncedSearchValue.trim(),
+      selectedContactId,
+      selectedCreatedBy,
+      selectedAssignedTo,
     ],
     queryFn: () => fetchDashboardKanbanTicketCounts(kanbanFilters),
     enabled: hasPermission('tickets.view_list') && viewMode === 'kanban',
@@ -1220,6 +1233,9 @@ export default function Page() {
           activeTicketType ?? 'all',
           selectedProjectIdsKey,
           activeSearch ?? '',
+          selectedContactId,
+          selectedCreatedBy,
+          selectedAssignedTo,
         ],
         queryFn: () =>
           fetchDashboardKanbanBoard({
@@ -1230,6 +1246,9 @@ export default function Page() {
             ticketType: activeTicketType,
             projectIds: activeProjectIds,
             search: activeSearch,
+            contactId: kanbanFilters.contactId,
+            reporterId: kanbanFilters.reporterId,
+            assigneeId: kanbanFilters.assigneeId,
           }),
       });
 
@@ -1505,38 +1524,38 @@ export default function Page() {
                                   />
                                 </div>
 
+                                <div className="relative w-full overflow-visible">
+                                  <Dropdown
+                                    options={createdByFilterOptions}
+                                    value={selectedCreatedBy}
+                                    onChange={(value) =>
+                                      updateTicketsPageFilters({
+                                        createdBy: value,
+                                      })
+                                    }
+                                    showSearch={true}
+                                    placeholder="All Creators"
+                                    maxMenuHeight={150}
+                                  />
+                                </div>
+
+                                <div className="relative w-full overflow-visible">
+                                  <Dropdown
+                                    options={assignedToFilterOptions}
+                                    value={selectedAssignedTo}
+                                    onChange={(value) =>
+                                      updateTicketsPageFilters({
+                                        assignedTo: value,
+                                      })
+                                    }
+                                    showSearch={true}
+                                    placeholder="All Agents"
+                                    maxMenuHeight={150}
+                                  />
+                                </div>
+
                                 {viewMode === 'table' ? (
                                   <>
-                                    <div className="relative w-full overflow-visible">
-                                      <Dropdown
-                                        options={createdByFilterOptions}
-                                        value={selectedCreatedBy}
-                                        onChange={(value) =>
-                                          updateTicketsPageFilters({
-                                            createdBy: value,
-                                          })
-                                        }
-                                        showSearch={true}
-                                        placeholder="All Creators"
-                                        maxMenuHeight={150}
-                                      />
-                                    </div>
-
-                                    <div className="relative w-full overflow-visible">
-                                      <Dropdown
-                                        options={assignedToFilterOptions}
-                                        value={selectedAssignedTo}
-                                        onChange={(value) =>
-                                          updateTicketsPageFilters({
-                                            assignedTo: value,
-                                          })
-                                        }
-                                        showSearch={true}
-                                        placeholder="All Agents"
-                                        maxMenuHeight={150}
-                                      />
-                                    </div>
-
                                     <div className="flex items-center gap-2">
                                       <ThemeInput
                                         type="date"
@@ -1666,38 +1685,38 @@ export default function Page() {
                                   />
                                 </div>
 
+                                <div className="relative w-full overflow-visible">
+                                  <Dropdown
+                                    options={createdByFilterOptions}
+                                    value={selectedCreatedBy}
+                                    onChange={(value) =>
+                                      updateTicketsPageFilters({
+                                        createdBy: value,
+                                      })
+                                    }
+                                    showSearch={true}
+                                    placeholder="All Creators"
+                                    maxMenuHeight={150}
+                                  />
+                                </div>
+
+                                <div className="relative w-full overflow-visible">
+                                  <Dropdown
+                                    options={assignedToFilterOptions}
+                                    value={selectedAssignedTo}
+                                    onChange={(value) =>
+                                      updateTicketsPageFilters({
+                                        assignedTo: value,
+                                      })
+                                    }
+                                    showSearch={true}
+                                    placeholder="All Agents"
+                                    maxMenuHeight={150}
+                                  />
+                                </div>
+
                                 {viewMode === 'table' ? (
                                   <>
-                                    <div className="relative w-full overflow-visible">
-                                      <Dropdown
-                                        options={createdByFilterOptions}
-                                        value={selectedCreatedBy}
-                                        onChange={(value) =>
-                                          updateTicketsPageFilters({
-                                            createdBy: value,
-                                          })
-                                        }
-                                        showSearch={true}
-                                        placeholder="All Creators"
-                                        maxMenuHeight={150}
-                                      />
-                                    </div>
-
-                                    <div className="relative w-full overflow-visible">
-                                      <Dropdown
-                                        options={assignedToFilterOptions}
-                                        value={selectedAssignedTo}
-                                        onChange={(value) =>
-                                          updateTicketsPageFilters({
-                                            assignedTo: value,
-                                          })
-                                        }
-                                        showSearch={true}
-                                        placeholder="All Agents"
-                                        maxMenuHeight={150}
-                                      />
-                                    </div>
-
                                     <div className="flex items-center gap-2">
                                       <ThemeInput
                                         type="date"
@@ -1963,35 +1982,31 @@ export default function Page() {
                         />
                       </div>
 
-                      {viewMode === 'table' && (
-                        <div className="w-full max-w-52">
-                          <Dropdown
-                            options={createdByFilterOptions}
-                            value={selectedCreatedBy}
-                            onChange={(value) =>
-                              updateTicketsPageFilters({ createdBy: value })
-                            }
-                            showSearch={true}
-                            placeholder="All Creators"
-                            maxMenuHeight={320}
-                          />
-                        </div>
-                      )}
+                      <div className="w-full max-w-52">
+                        <Dropdown
+                          options={createdByFilterOptions}
+                          value={selectedCreatedBy}
+                          onChange={(value) =>
+                            updateTicketsPageFilters({ createdBy: value })
+                          }
+                          showSearch={true}
+                          placeholder="All Creators"
+                          maxMenuHeight={320}
+                        />
+                      </div>
 
-                      {viewMode === 'table' && (
-                        <div className="w-full max-w-52">
-                          <Dropdown
-                            options={assignedToFilterOptions}
-                            value={selectedAssignedTo}
-                            onChange={(value) =>
-                              updateTicketsPageFilters({ assignedTo: value })
-                            }
-                            showSearch={true}
-                            placeholder="All Agents"
-                            maxMenuHeight={320}
-                          />
-                        </div>
-                      )}
+                      <div className="w-full max-w-52">
+                        <Dropdown
+                          options={assignedToFilterOptions}
+                          value={selectedAssignedTo}
+                          onChange={(value) =>
+                            updateTicketsPageFilters({ assignedTo: value })
+                          }
+                          showSearch={true}
+                          placeholder="All Agents"
+                          maxMenuHeight={320}
+                        />
+                      </div>
 
                       {viewMode === 'table' && (
                         <div className="flex items-center gap-2">
@@ -2397,7 +2412,7 @@ function mapApiKanbanTicketToRecentTicket(
       email: '',
       fullName: 'Unknown',
     },
-    date: createdAt ? formatTicketDate(createdAt) : '--',
+    date: createdAt ? formatDateTime(createdAt) : '--',
     sortDate: createdAt,
   };
 }
@@ -2512,11 +2527,17 @@ async function fetchDashboardKanbanTicketCounts({
   ticketType,
   projectIds,
   search,
+  contactId,
+  reporterId,
+  assigneeId,
 }: {
   priorityKey?: string;
   ticketType?: string;
   projectIds?: string[];
   search?: string;
+  contactId?: string;
+  reporterId?: string;
+  assigneeId?: string;
 }): Promise<Record<string, number>> {
   const searchParams = new URLSearchParams();
 
@@ -2528,6 +2549,15 @@ async function fetchDashboardKanbanTicketCounts({
   }
   if (search) {
     searchParams.set('search', search);
+  }
+  if (contactId) {
+    searchParams.set('contactId', contactId);
+  }
+  if (reporterId) {
+    searchParams.set('reporterId', reporterId);
+  }
+  if (assigneeId) {
+    searchParams.set('assigneeId', assigneeId);
   }
 
   projectIds?.forEach((projectId) => {
@@ -2569,6 +2599,9 @@ async function fetchDashboardKanbanBoard({
   projectIds,
   search,
   statusKey,
+  contactId,
+  reporterId,
+  assigneeId,
   page = 1,
   limit = KANBAN_PAGE_SIZE,
 }: {
@@ -2577,6 +2610,9 @@ async function fetchDashboardKanbanBoard({
   projectIds?: string[];
   search?: string;
   statusKey?: string;
+  contactId?: string;
+  reporterId?: string;
+  assigneeId?: string;
   page?: number;
   limit?: number;
 }): Promise<KanbanBoardData> {
@@ -2604,6 +2640,15 @@ async function fetchDashboardKanbanBoard({
   }
   if (search) {
     searchParams.set('search', search);
+  }
+  if (contactId) {
+    searchParams.set('contactId', contactId);
+  }
+  if (reporterId) {
+    searchParams.set('reporterId', reporterId);
+  }
+  if (assigneeId) {
+    searchParams.set('assigneeId', assigneeId);
   }
 
   projectIds?.forEach((projectId) => {
@@ -2846,7 +2891,7 @@ function mapApiDashboardTicketToRecentTicket(
       email: ticket.reporter?.email ?? '',
       fullName: ticket.reporter?.fullName ?? 'Unknown',
     },
-    date: formatTicketDate(ticket.createdAt),
+    date: formatDateTime(ticket.createdAt),
     sortDate: ticket.createdAt,
   };
 }
@@ -2967,22 +3012,6 @@ function getTicketsProjectFilterValues(
         .filter((value) => value && value !== 'all'),
     ),
   );
-}
-
-function formatTicketDate(value: string) {
-  const date = new Date(
-    /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value,
-  );
-
-  if (Number.isNaN(date.getTime())) {
-    return '-';
-  }
-
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(date);
 }
 
 function slugify(value: string) {
