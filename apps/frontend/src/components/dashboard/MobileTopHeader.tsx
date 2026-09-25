@@ -2,7 +2,9 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
+import { BackIcon } from '../../../public/icons';
 import { Images } from '../../app/ui/images';
 import { NotificationBellIcon } from './NotificationTray';
 
@@ -11,6 +13,11 @@ type MobileTopHeaderProps = {
   onNotificaitonClick: () => void;
   unreadNotificationsCount: number;
   showNotifications?: boolean;
+  ticketDetail?: {
+    title: string;
+    id: string;
+    onBack?: () => void;
+  };
 };
 
 export default function MobileTopHeader({
@@ -18,26 +25,54 @@ export default function MobileTopHeader({
   onNotificaitonClick,
   unreadNotificationsCount,
   showNotifications = true,
+  ticketDetail,
 }: MobileTopHeaderProps) {
+  const router = useRouter();
+
   return (
-    <header className="flex shrink-0 items-center justify-between bg-gray-200 px-4 pt-4  xl:hidden">
-      <Link
-        href="/dashboard"
-        className="inline-flex items-center"
-        aria-label="Go to dashboard"
-      >
-        <Image
-          src={Images.auth.NewLogo}
-          alt="Zarrar.pk"
-          priority
-          className="h-8 w-auto"
-        />
-      </Link>
+    <header className="flex shrink-0 items-center justify-between bg-white px-3 py-3 drop-shadow-2xl xl:hidden">
+      {ticketDetail ? (
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+          <button
+            aria-label="Go back"
+            className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-gray-100"
+            onClick={() => {
+              if (ticketDetail.onBack) {
+                ticketDetail.onBack();
+              } else {
+                router.back();
+              }
+            }}
+            type="button"
+          >
+            <BackIcon />
+          </button>
+          <div className="flex min-w-0 flex-col gap-0.75">
+            <p className="max-w-34 truncate text-base font-semibold text-gray-900">
+              {ticketDetail.title}
+            </p>
+            <p className="truncate text-xs text-gray-700">{ticketDetail.id}</p>
+          </div>
+        </div>
+      ) : (
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center"
+          aria-label="Go to dashboard"
+        >
+          <Image
+            src={Images.auth.NewLogo}
+            alt="Zarrar.pk"
+            priority
+            className="h-8 w-auto"
+          />
+        </Link>
+      )}
 
       <div className="flex items-center gap-2">
         {showNotifications ? (
           <button
-            className="h-9 w-9 bg-white relative rounded-full flex items-center justify-center"
+            className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100"
             onClick={onNotificaitonClick}
             type="button"
           >

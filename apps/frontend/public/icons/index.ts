@@ -62,7 +62,17 @@ import CalendarTabIcon from './CalendarTabIcon';
 import NotesTabIcon from './NotesTabIcon';
 import TableViewIcon from './TableViewIcon';
 import KanbanViewIcon from './KanbanViewIcon';
+import BackIcon from './BackIcon';
+import AttachmentFileIcon from './AttachmentFileIcon';
+import PeopleIcon from './PeopleIcon';
+import RepliesArrowIcon from './RepliesArrowIcon';
+import TimelineClockIcon from './TimelineClockIcon';
 export {
+  AttachmentFileIcon,
+  BackIcon,
+  PeopleIcon,
+  RepliesArrowIcon,
+  TimelineClockIcon,
   CallIcon,
   WhatsAppIcon,
   BoldIcon,

@@ -585,16 +585,17 @@ export default function Page() {
   );
 
   return (
-    <div className="relative z-100 xl:h-dvh h-full overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0">
+    <div className="relative z-100 h-full overflow-hidden pb-0 xl:h-dvh xl:px-0 xl:py-5 xl:pr-5">
       <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
         <div className="shrink-0">
           <DashboardSummaryBanner
             imageSrc="/images/settingsPageIcon.svg"
             title="Settings"
+            showMobileHeading
             // stats={projectSummaryStats}
           />
         </div>
-        <div className="hidden shrink-0 xl:flex-row flex-col  items-center gap-3 rounded-[10px] xl:rounded-full border border-warning-200 bg-[#FFFAEB] p-1 text-[#69410A]">
+        <div className="mx-4 hidden shrink-0 flex-col items-center gap-3 rounded-[10px] border border-warning-200 bg-[#FFFAEB] p-1 text-[#69410A] xl:mx-0 xl:flex-row xl:rounded-full">
           <span className=" bg-white hidden xl:flex items-center justify-center  drop-shadow rounded-full   h-10 min-w-10 ">
             <TipIcon />
           </span>
@@ -613,7 +614,7 @@ export default function Page() {
           </p>
         </div>
         <div
-          className={`grid h-auto min-h-0 flex-none auto-rows-max grid-cols-1 gap-2 overflow-visible scrollbar-hide md:gap-4 xl:h-full xl:flex-1 xl:auto-rows-fr ${settingsGridColumnsClass} xl:overflow-hidden`}
+          className={`mx-4 grid h-auto min-h-0 flex-none auto-rows-max grid-cols-1 gap-2 overflow-visible scrollbar-hide md:gap-4 xl:mx-0 xl:h-full xl:flex-1 xl:auto-rows-fr ${settingsGridColumnsClass} xl:overflow-hidden`}
         >
           {canAccessStatuses ? (
             <SettingsConfigCard

@@ -1075,10 +1075,10 @@ export default function Page() {
   );
 
   return (
-    <div className="xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 z-100 h-full xl:h-dvh relative">
+    <div className="relative z-100 h-full pb-0 xl:h-dvh xl:px-0 xl:py-5 xl:pr-5">
       <div className="flex h-full min-h-0 flex-col gap-3 xl:overflow-hidden  overflow-y-auto overscroll-contain scrollbar-hide xl:rounded-2xl  bg-gray-200 xl:flex-row xl:border xl:border-white xl:bg-white/40 xl:p-3">
         <PermissionGuard permission="dashboard.view_upcoming">
-          <div className="order-2 min-h-0 flex-none overflow-visible rounded-[10px] bg-white py-2 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] xl:hidden">
+          <div className="order-2 mx-4 min-h-0 flex-none overflow-visible rounded-[10px] bg-white py-2 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] xl:hidden">
             <p className="px-4.5 py-2 text-base font-semibold text-gray-900">
               Upcoming
             </p>
@@ -1094,7 +1094,7 @@ export default function Page() {
             {isStatsLoading ? (
               <DashboardStatsSkeleton />
             ) : (
-              <div className="flex w-full flex-col justify-between gap-2  rounded-[10px] xl:rounded-xl bg-[url('/images/DashboardComponentBgImage.jpg')]  bg-cover bg-center bg-no-repeat p-4 sm:p-5 xl:gap-8.5 xl:p-7.5">
+              <div className="flex w-full flex-col justify-between gap-2 rounded-none bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat p-4 sm:p-5 xl:gap-8.5 xl:rounded-xl xl:p-7.5">
                 <div className="flex flex-col items-start gap-2 xl:flex-row xl:gap-6">
                   <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                     <p className="text-2xl text-white font-semibold sm:text-[32px]">
@@ -1986,7 +1986,7 @@ function DashboardThreadRowSkeleton() {
 function DashboardStatsSkeleton() {
   return (
     <div
-      className="flex w-full animate-pulse flex-col justify-between gap-2 rounded-[10px] bg-[linear-gradient(to_right,#335C94_0%,#665932_25%,#7B398E_50%,#003F89_75%,#070922_100%)] p-4 sm:p-5 xl:gap-8.5 xl:rounded-xl xl:p-7.5"
+      className="flex w-full animate-pulse flex-col justify-between gap-2 rounded-none bg-[linear-gradient(to_right,#335C94_0%,#665932_25%,#7B398E_50%,#003F89_75%,#070922_100%)] p-4 sm:p-5 xl:gap-8.5 xl:rounded-xl xl:p-7.5"
       aria-hidden="true"
     >
       {/* Header */}

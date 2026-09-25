@@ -39,6 +39,7 @@ import { usePermissions } from '../../../providers/PermissionProvider';
 import { useAppSelector } from '../../../Redux/store';
 import {
   BugIcon,
+  AttachmentFileIcon,
   CalendarTabIcon,
   ChatIcon,
   DownloadIcon,
@@ -48,8 +49,11 @@ import {
   FilesTabIcon,
   FileTypePlaceholder,
   NotesTabIcon,
+  PeopleIcon,
   ProjectsIcon,
+  RepliesArrowIcon,
   ThreedotIcon,
+  TimelineClockIcon,
   TrashIcon,
 } from '../../../../../public/icons';
 import { getFileUrl } from '../../../../components/projects/ProjectFilesPanel';
@@ -73,6 +77,8 @@ import { formatDateTime } from '../../../../lib/format';
 import RichTextEditor from 'apps/frontend/src/components/RichTextEditor';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import TicketDescriptionModal from 'apps/frontend/src/components/modals/TicketDescriptionModal';
+import { useDashboardHeaderAction } from '../../../../components/dashboard/dashboard-shell';
+import { useIsMobile } from '../../../../components/hooks/useIsMobile';
 import { Span } from 'next/dist/trace';
 const MAX_DESCRIPTION_LENGTH = 4000;
 const TICKET_REPLIES_PAGE_SIZE = 30;
@@ -473,6 +479,48 @@ export default function TicketDetailPage() {
   });
 
   const ticket = ticketDetailQuery.data ?? fallbackTicket;
+  const isMobileDetailLayout = useIsMobile(1024);
+  const [mobileSection, setMobileSection] = useState<
+    'replies' | 'timeline' | 'attachments' | 'people' | 'actions' | null
+  >(null);
+  const showMobileSection = isMobileDetailLayout && mobileSection !== null;
+  const mobileSectionClass = (
+    section: NonNullable<typeof mobileSection>,
+    desktopClass: string,
+  ) => {
+    if (!showMobileSection) return desktopClass;
+
+    return mobileSection === section
+      ? 'flex h-full min-h-0 min-w-0 flex-col overflow-y-auto rounded-xl border border-gray-200 bg-white'
+      : 'hidden';
+  };
+  const { setMobileTicketHeader } = useDashboardHeaderAction();
+  const mobileHeaderTitle = canViewTicketDetail
+    ? (ticket?.title ?? 'Lead details')
+    : 'Lead details';
+  const mobileHeaderId = canViewTicketDetail
+    ? String(ticket?.ticketRefNo ?? ticket?.id ?? '')
+    : '';
+
+  useEffect(() => {
+    setMobileTicketHeader({
+      pathname,
+      title: mobileHeaderTitle,
+      id: mobileHeaderId,
+      onBack: showMobileSection ? () => setMobileSection(null) : undefined,
+    });
+
+    return () => {
+      setMobileTicketHeader(null);
+    };
+  }, [
+    mobileHeaderId,
+    mobileHeaderTitle,
+    pathname,
+    setMobileTicketHeader,
+    showMobileSection,
+  ]);
+
   const ticketTimelineItems = useMemo(
     () =>
       mapApiTicketTimelineToItems(
@@ -1622,16 +1670,31 @@ export default function TicketDetailPage() {
   };
 
   return (
-    <div className="relative z-100 h-full xl:h-dvh overflow-hidden py-4 xl:py-5 xl:pr-5 px-3 xl:px-0 pt-2 pb-0">
-      <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
-        <div className="relative shrink-0 flex w-full flex-col gap-2 overflow-hidden rounded-xl bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat px-4 pt-4 pb-2 xl:flex-row xl:items-center xl:gap-4  xl:px-7.5 xl:py-6">
+    <div className="relative z-100 h-full overflow-hidden pb-0 xl:h-dvh xl:px-0 xl:py-5 xl:pr-5">
+      <div
+        className={
+          showMobileSection
+            ? 'flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-3 pt-3'
+            : 'flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3'
+        }
+      >
+        <div
+          className={
+            showMobileSection
+              ? 'hidden'
+              : "relative flex w-full shrink-0 flex-col gap-2 overflow-hidden rounded-none bg-[url('/images/DashboardComponentBgImage.jpg')] bg-cover bg-center bg-no-repeat px-4 pt-4 pb-2 xl:flex-row xl:items-center xl:gap-4 xl:rounded-xl xl:px-7.5 xl:py-6"
+          }
+        >
           {/* Background overlay */}
           <div
             className="absolute inset-0 bg-black/30 z-10"
             aria-hidden="true"
           />
           <div className="relative flex xl:flex-row xl:items-center items-start flex-col min-w-0  gap-3  z-20  w-full">
-            <button className="mr-3" onClick={() => router.back()}>
+            <button
+              className="mr-3 hidden lg:block"
+              onClick={() => router.back()}
+            >
               <Image
                 alt={''}
                 src="/images/bannerBackBtn.svg"
@@ -1671,10 +1734,7 @@ export default function TicketDetailPage() {
                 }
                 actions={
                   ticket.contact ? (
-                    <PhoneActions
-                      phone={ticket.contact.phone}
-                      variant="dark"
-                    />
+                    <PhoneActions phone={ticket.contact.phone} variant="dark" />
                   ) : undefined
                 }
               />
@@ -1723,10 +1783,36 @@ export default function TicketDetailPage() {
           </div>
         </div>
 
-        <div className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden">
-          <div className="grid h-auto min-h-0 min-w-0 grid-cols-1 gap-4 overflow-visible xl:h-full xl:grid-cols-12 xl:grid-rows-[minmax(0,1fr)] xl:overflow-hidden">
-            <div className="flex h-auto min-w-0 flex-col space-y-4 overflow-visible xl:col-span-9 xl:h-full xl:min-h-0 xl:overflow-hidden">
-              <section className="rounded-xl border border-gray-200 bg-white p-3  md:p-5">
+        <div
+          className={
+            showMobileSection
+              ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden'
+              : 'min-h-0 min-w-0 flex-none hidden overflow-visible lg:block xl:flex-1 xl:overflow-hidden'
+          }
+        >
+          <div
+            className={
+              showMobileSection
+                ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden'
+                : 'grid h-auto min-h-0 min-w-0 grid-cols-1 gap-4 overflow-visible xl:h-full xl:grid-cols-12 xl:grid-rows-[minmax(0,1fr)] xl:overflow-hidden'
+            }
+          >
+            <div
+              className={
+                showMobileSection
+                  ? mobileSection === 'replies'
+                    ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden'
+                    : 'hidden'
+                  : 'flex h-auto min-w-0 flex-col space-y-4 overflow-visible xl:col-span-9 xl:h-full xl:min-h-0 xl:overflow-hidden'
+              }
+            >
+              <section
+                className={
+                  showMobileSection
+                    ? 'hidden'
+                    : 'rounded-xl border border-gray-200 bg-white p-3 md:p-5'
+                }
+              >
                 <div className=" relative">
                   <div className="mb-2 flex absolute top-0 inset-e-0 items-start justify-end">
                     {canEditTitleDescription ? (
@@ -1774,7 +1860,13 @@ export default function TicketDetailPage() {
                   </div>
                 </div>
               </section>
-              <div className="h-auto min-h-0 flex-none overflow-visible xl:h-full xl:flex-1 xl:overflow-hidden">
+              <div
+                className={
+                  showMobileSection
+                    ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden'
+                    : 'h-auto min-h-0 flex-none overflow-visible xl:h-full xl:flex-1 xl:overflow-hidden'
+                }
+              >
                 {canViewReplies || canViewInternalChatBtn ? (
                   <TicketRepliesPanel
                     title={
@@ -1961,8 +2053,21 @@ export default function TicketDetailPage() {
                 ) : null}
               </div>
             </div>
-            <aside className="h-auto min-h-0 min-w-0 space-y-4 overflow-visible scrollbar-hide xl:col-span-3 xl:h-full xl:overflow-y-auto">
-              <section className="rounded-xl border border-gray-200 bg-white">
+            <aside
+              className={
+                showMobileSection
+                  ? mobileSection === 'replies'
+                    ? 'hidden'
+                    : 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden'
+                  : 'h-auto min-h-0 min-w-0 space-y-4 overflow-visible scrollbar-hide xl:col-span-3 xl:h-full xl:overflow-y-auto'
+              }
+            >
+              <section
+                className={mobileSectionClass(
+                  'actions',
+                  'rounded-xl border border-gray-200 bg-white',
+                )}
+              >
                 <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 md:text-base">
                   Actions
                 </h3>
@@ -1998,7 +2103,17 @@ export default function TicketDetailPage() {
                   </div>
                 </div>
               </section>
-              {projectId && canViewProjectDetail ? (
+              {isMobileDetailLayout ? (
+                <section className={mobileSectionClass('timeline', 'hidden')}>
+                  <h3 className="shrink-0 border-b border-gray-200 px-4 py-3 text-base font-medium text-gray-900">
+                    Lead Timeline
+                  </h3>
+
+                  <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+                    <TicketTimeline items={ticketTimelineItems} />
+                  </div>
+                </section>
+              ) : projectId && canViewProjectDetail ? (
                 <section className="rounded-xl border border-gray-200 bg-white">
                   <div className=" px-3 py-3">
                     <div className="relative grid w-full grid-cols-2 gap-1 rounded-full border border-gray-200 bg-gray-50 p-1 shadow-[inset_0_1px_3px_rgba(15,23,42,0.06)]">
@@ -2132,7 +2247,12 @@ export default function TicketDetailPage() {
                 </section>
               )}
 
-              <section className="rounded-xl border border-gray-200 bg-white ">
+              <section
+                className={mobileSectionClass(
+                  'attachments',
+                  'rounded-xl border border-gray-200 bg-white',
+                )}
+              >
                 <h3 className="border-b border-gray-200 px-3 py-3 text-sm font-semibold text-gray-900 sm:px-4 md:text-base">
                   Attachments
                 </h3>
@@ -2271,7 +2391,12 @@ export default function TicketDetailPage() {
               </section>
 
               {!isExternalUser ? (
-                <section className="rounded-xl border border-gray-200 overflow-hidden bg-white">
+                <section
+                  className={mobileSectionClass(
+                    'people',
+                    'rounded-xl border border-gray-200 overflow-hidden bg-white',
+                  )}
+                >
                   <h3 className="border-b border-gray-200 px-3 py-2 md:py-3 text-sm font-semibold text-gray-900 sm:px-4 md:text-base">
                     People
                   </h3>
@@ -2286,6 +2411,179 @@ export default function TicketDetailPage() {
                 </section>
               ) : null}
             </aside>
+          </div>
+        </div>
+        <div
+          className={
+            showMobileSection
+              ? 'hidden'
+              : 'flex min-h-0 min-w-0 flex-col px-3 lg:hidden'
+          }
+        >
+          <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-2">
+              <section className="flex items-center gap-3 rounded-xl bg-white p-3">
+                <div className="min-w-0 flex-1">
+                  <h2 className="wrap-break-word text-base font-semibold text-gray-900">
+                    {ticket.title}
+                  </h2>
+                </div>
+
+                {canEditTitleDescription ? (
+                  <button
+                    type="button"
+                    aria-label="View lead details"
+                    className="shrink-0 text-gray-900"
+                    onClick={handleStartEditingContent}
+                  >
+                    <ChevronRightSmallIcon />
+                  </button>
+                ) : null}
+              </section>
+
+              <div className="overflow-hidden rounded-xl bg-white">
+                {canViewReplies || canViewInternalChatBtn ? (
+                  <button
+                    type="button"
+                    onClick={() => setMobileSection('replies')}
+                    className="flex w-full items-center gap-3 border-b border-gray-200 px-3 py-2 text-left"
+                  >
+                    <span className="flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-full bg-gray-200">
+                      <RepliesArrowIcon />
+                    </span>
+                    <span className="flex-1 text-sm font-semibold text-gray-900">
+                      Replies
+                    </span>
+                    <ChevronRightSmallIcon />
+                  </button>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTicketSidebarTab('timeline');
+                    setMobileSection('timeline');
+                  }}
+                  className="flex w-full items-center gap-3 border-b border-gray-200 px-3 py-2 text-left"
+                >
+                  <span className="flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-full bg-gray-200">
+                    <TimelineClockIcon />
+                  </span>
+                  <span className="flex-1 text-sm font-semibold text-gray-900">
+                    Lead Timeline
+                  </span>
+                  <ChevronRightSmallIcon />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMobileSection('attachments')}
+                  className="flex w-full items-center gap-3 border-b border-gray-200 px-3 py-2 text-left"
+                >
+                  <span className="flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-full bg-gray-200">
+                    <AttachmentFileIcon />
+                  </span>
+                  <span className="flex-1 text-sm font-semibold text-gray-900">
+                    Attachments
+                  </span>
+                  <ChevronRightSmallIcon />
+                </button>
+
+                {!isExternalUser ? (
+                  <button
+                    type="button"
+                    onClick={() => setMobileSection('people')}
+                    className="flex w-full items-center gap-3 border-b border-gray-200 px-3 py-2 text-left"
+                  >
+                    <span className="flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-full bg-gray-200">
+                      <PeopleIcon />
+                    </span>
+                    <span className="flex-1 text-sm font-semibold text-gray-900">
+                      People
+                    </span>
+                    <ChevronRightSmallIcon />
+                  </button>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={() => setMobileSection('actions')}
+                  className="flex w-full items-center gap-3 px-3 py-2 text-left"
+                >
+                  <span className="flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-full bg-gray-200">
+                    <PeopleIcon />
+                  </span>
+                  <span className="flex-1 text-sm font-semibold text-gray-900">
+                    Actions
+                  </span>
+                  <ChevronRightSmallIcon />
+                </button>
+              </div>
+            </div>
+
+            {projectId && canViewProjectDetail ? (
+              <div className="flex flex-col gap-2">
+                <p className="text-sm text-gray-700">Quick Links</p>
+
+                <div className="overflow-hidden rounded-xl bg-white">
+                  <QuickLinkButton
+                    label="Go to Project"
+                    iconBg="bg-blue-500"
+                    icon={
+                      <ProjectsIcon
+                        opacity="0"
+                        fill="white"
+                        width="16"
+                        height="16"
+                      />
+                    }
+                    onClick={() => handleOpenProjectQuickLink()}
+                  />
+
+                  {canViewProjectThread ? (
+                    <QuickLinkButton
+                      label="Thread"
+                      iconBg="bg-purple-500"
+                      icon={<ChatIcon fill="white" width="16" height="16" />}
+                      onClick={() => handleOpenProjectQuickLink('thread')}
+                    />
+                  ) : null}
+
+                  {canViewProjectFiles ? (
+                    <QuickLinkButton
+                      label="Files"
+                      iconBg="bg-warning-500"
+                      icon={
+                        <FilesTabIcon fill="white" width="16" height="16" />
+                      }
+                      onClick={() => handleOpenProjectQuickLink('files')}
+                    />
+                  ) : null}
+
+                  {canViewProjectCalendar ? (
+                    <QuickLinkButton
+                      label="Calendar"
+                      iconBg="bg-green-500"
+                      icon={
+                        <CalendarTabIcon fill="white" width="16" height="16" />
+                      }
+                      onClick={() => handleOpenProjectQuickLink('calendar')}
+                    />
+                  ) : null}
+
+                  {canViewProjectNotes ? (
+                    <QuickLinkButton
+                      label="Notes"
+                      iconBg="bg-rose-500"
+                      icon={
+                        <NotesTabIcon fill="white" width="16" height="16" />
+                      }
+                      onClick={() => handleOpenProjectQuickLink('notes')}
+                    />
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
@@ -3888,9 +4186,9 @@ function MetaItem({
 
 function TicketDetailHeaderSkeleton() {
   return (
-    <div className="relative flex w-full shrink-0 flex-col gap-2 overflow-hidden rounded-xl bg-[linear-gradient(to_right,#335C94_0%,#665932_25%,#7B398E_50%,#003F89_75%,#070922_100%)] px-4 pt-4 pb-2 xl:flex-row xl:items-center xl:gap-4 xl:px-7.5 xl:py-6">
+    <div className="relative flex w-full shrink-0 flex-col gap-2 overflow-hidden rounded-none bg-[linear-gradient(to_right,#335C94_0%,#665932_25%,#7B398E_50%,#003F89_75%,#070922_100%)] px-4 pt-4 pb-2 xl:flex-row xl:items-center xl:gap-4 xl:rounded-xl xl:px-7.5 xl:py-6">
       <div className="relative z-20 flex w-full min-w-0 flex-col items-start gap-3 xl:flex-row xl:items-center">
-        <div className="h-10 w-10 shrink-0 rounded-full bg-white/20 xl:h-12 xl:w-12" />
+        <div className="hidden h-10 w-10 shrink-0 rounded-full bg-white/20 lg:block xl:h-12 xl:w-12" />
 
         <div className="hidden w-full grid-cols-5 gap-4 xl:grid">
           {Array.from({ length: 5 }).map((_, index) => (
@@ -4127,13 +4425,13 @@ function TicketReplyBubbleSkeleton({ align }: { align: 'left' | 'right' }) {
 function TicketDetailSkeleton() {
   return (
     <div
-      className="relative z-100 h-full overflow-hidden px-3 pt-2 pb-0 xl:h-dvh xl:px-0 xl:py-5 xl:pr-5"
+      className="relative z-100 h-full overflow-hidden pb-0 xl:h-dvh xl:px-0 xl:py-5 xl:pr-5"
       aria-hidden="true"
     >
       <div className="flex h-full min-h-0 min-w-0 animate-pulse flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
         <TicketDetailHeaderSkeleton />
 
-        <div className="min-h-0 min-w-0 flex-none overflow-visible xl:flex-1 xl:overflow-hidden">
+        <div className="min-h-0 min-w-0 flex-none overflow-visible px-3 xl:flex-1 xl:overflow-hidden xl:px-0">
           <div className="grid h-auto min-h-0 min-w-0 grid-cols-1 gap-4 overflow-visible xl:h-full xl:grid-cols-12 xl:grid-rows-[minmax(0,1fr)] xl:overflow-hidden">
             {/* Main content */}
             <div className="flex h-auto min-w-0 flex-col space-y-4 overflow-visible xl:col-span-9 xl:h-full xl:min-h-0 xl:overflow-hidden">
@@ -4205,10 +4503,10 @@ function QuickLinkButton({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 border-t border-gray-200 px-3 md:px-4 py-3 text-left transition last:border-b-0 hover:bg-gray-50"
+      className="flex w-full items-center gap-3 border-t border-gray-200 px-3 py-2 text-left transition last:border-b-0 hover:bg-gray-50 md:px-4 md:py-3"
     >
       <span
-        className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconBg}`}
+        className={`inline-flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-full md:h-8 md:w-8 ${iconBg}`}
       >
         {icon}
       </span>

@@ -13,9 +13,9 @@ export default function DashboardSummaryBannerSkeleton({
     <div
       className={`
         relative flex w-full animate-pulse flex-col gap-2
-        overflow-hidden rounded-xl bg-cover bg-center bg-no-repeat
+        overflow-hidden rounded-none bg-cover bg-center bg-no-repeat
         px-4 py-4
-        xl:flex-row xl:gap-4 xl:px-7.5 xl:py-6
+        xl:flex-row xl:gap-4 xl:rounded-xl xl:px-7.5 xl:py-6
         ${showBadge ? 'items-start' : 'xl:items-center'}
       `}
       style={{
@@ -36,7 +36,7 @@ export default function DashboardSummaryBannerSkeleton({
       {/* Same overlay used by DashboardSummaryBanner */}
       <div className="absolute inset-0 bg-black/30" />
 
-      <div className="relative flex min-w-0 items-center gap-3 xl:contents">
+      <div className="relative hidden min-w-0 items-center gap-3 xl:contents">
         {/* Page icon/back button */}
         <div className="h-10 w-10 shrink-0 rounded-full bg-white/20 backdrop-blur-3xl xl:h-12 xl:w-12" />
 

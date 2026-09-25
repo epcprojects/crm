@@ -295,7 +295,7 @@ export default function ContactsPage() {
 
   return (
     <>
-      <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 px-4 xl:px-0 pt-2 pb-0 xl:pr-5">
+      <div className="relative z-100 h-full overflow-hidden pb-0 xl:h-dvh xl:px-0 xl:py-5 xl:pr-5">
         <div
           ref={mobileScrollContainerRef}
           onScroll={(event) => {
@@ -312,10 +312,11 @@ export default function ContactsPage() {
               imageAlt="Contacts"
               title="Contacts"
               stats={[]}
+              showMobileHeading
             />
           </div>
 
-          <div className="flex h-auto min-h-0 flex-none flex-col gap-4 overflow-visible rounded-xl bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5 xl:h-full xl:flex-1 xl:overflow-hidden">
+          <div className="mx-3 flex h-auto min-h-0 flex-none flex-col gap-4 overflow-visible rounded-xl bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5 xl:mx-0 xl:h-full xl:flex-1 xl:overflow-hidden">
             <PermissionGuard
               permission="contacts.view_list"
               fallback={
@@ -336,7 +337,9 @@ export default function ContactsPage() {
                         <input
                           type="text"
                           value={searchValue}
-                          onChange={(event) => setSearchValue(event.target.value)}
+                          onChange={(event) =>
+                            setSearchValue(event.target.value)
+                          }
                           placeholder="Search by name, phone, or email"
                           className="min-w-0 flex-1 bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400"
                         />
@@ -381,9 +384,7 @@ export default function ContactsPage() {
                       onPageChange={handlePageChange}
                       pageSizeOptions={PAGE_SIZE_OPTIONS}
                       onPageSizeChange={handlePageSizeChange}
-                      scrollRestorationKey={
-                        CONTACTS_TABLE_SCROLL_STORAGE_KEY
-                      }
+                      scrollRestorationKey={CONTACTS_TABLE_SCROLL_STORAGE_KEY}
                       searchActive={Boolean(debouncedSearchValue.trim())}
                       onEdit={
                         canEditContact
@@ -480,7 +481,9 @@ export default function ContactsPage() {
           ''
         }
         contactSubtitle={
-          viewingLeadsForContact?.fullName ? viewingLeadsForContact.phone : undefined
+          viewingLeadsForContact?.fullName
+            ? viewingLeadsForContact.phone
+            : undefined
         }
         leads={contactLeadsQuery.data ?? []}
         isLoading={contactLeadsQuery.isLoading}
@@ -518,15 +521,14 @@ async function fetchContacts(page: number, limit: number, search?: string) {
 
   return {
     items: payload?.items ?? [],
-    meta:
-      payload?.meta ?? {
-        page,
-        limit,
-        total: 0,
-        totalPages: 0,
-        hasNext: false,
-        hasPrevious: false,
-      },
+    meta: payload?.meta ?? {
+      page,
+      limit,
+      total: 0,
+      totalPages: 0,
+      hasNext: false,
+      hasPrevious: false,
+    },
   };
 }
 
@@ -597,7 +599,8 @@ async function fetchContactLeads(contactId: string): Promise<RecentTicket[]> {
     const assigneeName =
       ticket.assignee?.fullName ?? ticket.assignee?.name ?? 'Unassigned';
     const statusLabel = ticket.status?.label ?? ticket.status?.key ?? 'Unknown';
-    const priorityLabel = ticket.priority?.label ?? ticket.priority?.key ?? null;
+    const priorityLabel =
+      ticket.priority?.label ?? ticket.priority?.key ?? null;
 
     return {
       id: ticket.id,

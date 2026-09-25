@@ -21,6 +21,7 @@ type DashboardSummaryBannerProps = {
   onBack?: () => void;
   badge?: string;
   badgeClr?: string;
+  showMobileHeading?: boolean;
 };
 
 function StatsIcon() {
@@ -66,6 +67,7 @@ export default function DashboardSummaryBanner({
   onBack,
   badge,
   badgeClr,
+  showMobileHeading = false,
 }: DashboardSummaryBannerProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const panelId = useId();
@@ -86,7 +88,11 @@ export default function DashboardSummaryBanner({
       )
     `,
       }}
-      className="relative w-full overflow-hidden rounded-xl bg-cover bg-center bg-no-repeat px-4 py-4 xl:px-7.5 xl:py-6"
+      className={`relative w-full overflow-hidden rounded-none bg-cover bg-center bg-no-repeat px-4 py-4 xl:rounded-xl xl:px-7.5 xl:py-6 ${
+        !showMobileHeading && !stats?.length && !hasExtraStats
+          ? 'hidden xl:block'
+          : ''
+      }`}
     >
       {/* Background overlay */}
       <div className="absolute inset-0 bg-black/30" aria-hidden="true" />
@@ -97,7 +103,11 @@ export default function DashboardSummaryBanner({
         } relative flex w-full flex-col gap-2 xl:flex-row xl:gap-4`}
       >
         {/* Mobile icon and title */}
-        <div className="relative flex min-w-0 items-center gap-3 xl:contents">
+        <div
+          className={`relative min-w-0 items-center gap-3 xl:contents ${
+            showMobileHeading ? 'flex' : 'hidden'
+          }`}
+        >
           {onBack ? (
             <button onClick={() => onBack()}>
               <Image
@@ -137,14 +147,14 @@ export default function DashboardSummaryBanner({
           className={`${badge ? 'flex-wrap' : 'xl:flex-row xl:items-center'} relative flex min-w-0 flex-1 w-full  flex-col md:flex-row gap-3   xl:justify-between xl:gap-4`}
         >
           {/* Desktop title */}
-          <div className="flex items-center gap-4">
-            <p className="hidden text-[32px] text-white xl:block">{title}</p>
+          <div className="hidden items-center gap-4 xl:flex">
+            <p className="text-[32px] text-white">{title}</p>
             {badge && (
               <span
                 style={{
                   backgroundColor: `${badgeClr}`,
                 }}
-                className="rounded-full xl:block hidden  bg-green-50 px-2.5 py-0.5 text-xs font-medium text-white sm:text-sm"
+                className="rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-white sm:text-sm"
               >
                 {badge}
               </span>

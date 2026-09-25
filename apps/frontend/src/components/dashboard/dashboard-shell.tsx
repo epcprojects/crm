@@ -82,9 +82,17 @@ type PageHeaderConfig = {
 
 type UserRole = 'admin' | 'developer' | 'pm' | 'external';
 
+type MobileTicketHeader = {
+  pathname: string;
+  title: string;
+  id: string;
+  onBack?: () => void;
+};
+
 type DashboardHeaderActionContextValue = {
   setHeaderActionOverride: (action: (() => void) | null) => void;
   setHeaderCountOverride: (count: number | null) => void;
+  setMobileTicketHeader: (header: MobileTicketHeader | null) => void;
 };
 
 type NotificationCategoryCounts = Record<NotificationGroupCategory, number>;
@@ -329,6 +337,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const [headerCountOverride, setHeaderCountOverrideState] = useState<
     number | null
   >(null);
+  const [mobileTicketHeader, setMobileTicketHeader] =
+    useState<MobileTicketHeader | null>(null);
   const [isNotificationTrayOpen, setIsNotificationTrayOpen] = useState(false);
   const [notificationSearchValue, setNotificationSearchValue] = useState('');
   const debouncedNotificationSearchValue = useDebouncedValue(
@@ -549,6 +559,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     () => ({
       setHeaderActionOverride,
       setHeaderCountOverride,
+      setMobileTicketHeader,
     }),
     [],
   );
@@ -1147,6 +1158,11 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             }
             showNotifications={canShowNotificationEntry}
             unreadNotificationsCount={unreadNotificationsCount}
+            ticketDetail={
+              mobileTicketHeader?.pathname === pathname
+                ? mobileTicketHeader
+                : undefined
+            }
           />
           {!shouldHideHeader ? (
             <header className="sticky top-0 z-20 border-b border-gray-200 bg-white w-full backdrop-blur">

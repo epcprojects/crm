@@ -568,12 +568,11 @@ export default function TicketRepliesPanel({
   return (
     <>
       <section
-        // className={`flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl  border border-gray-200 bg-white ${className}`}
-        className={`flex h-[calc(100dvh-132px)] min-h-0 flex-none flex-col overflow-hidden rounded-xl ${
+        className={`flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl ${
           showBorderTop
             ? 'border border-gray-200'
             : 'border-t-0 border border-gray-200'
-        } bg-white xl:h-full xl:flex-1 ${className}`}
+        } bg-white ${className}`}
       >
         <TopLoadingBar visible={isSubmittingReply} />
         {!hideHeader && (

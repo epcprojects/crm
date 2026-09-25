@@ -470,7 +470,7 @@ export default function Page() {
 
   return (
     <>
-      <div className="relative z-100 h-full overflow-hidden py-4 xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 xl:h-dvh">
+      <div className="relative z-100 h-full overflow-hidden pb-0 xl:h-dvh xl:px-0 xl:py-5 xl:pr-5">
         <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <div className="shrink-0">
             {isUserSummaryLoading ? (
@@ -488,7 +488,7 @@ export default function Page() {
             )}
           </div>
 
-          <div className="flex h-auto min-h-0 flex-none flex-col gap-4 overflow-visible rounded-xl bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5 xl:h-full xl:flex-1 xl:overflow-hidden">
+          <div className="mx-3 flex h-auto min-h-0 flex-none flex-col gap-4 overflow-visible rounded-xl bg-white p-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:p-5 xl:mx-0 xl:h-full xl:flex-1 xl:overflow-hidden">
             <PermissionGuard
               permission="users.view_list"
               fallback={

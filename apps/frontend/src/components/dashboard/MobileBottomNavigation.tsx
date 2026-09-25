@@ -18,11 +18,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react';
-import {
-  ArrowRightIcon,
-  CrossIcon,
-  MoreIcon,
-} from '../../../public/icons';
+import { ArrowRightIcon, CrossIcon, MoreIcon } from '../../../public/icons';
 
 export type MobileNavigationItem = {
   href: string;
@@ -53,9 +49,7 @@ export default function MobileBottomNavigation({
   const itemRefs = useRef<Array<NavigationElement | null>>([]);
 
   const [isMoreOpen, setIsMoreOpen] = useState(false);
-  const [selectedMoreHref, setSelectedMoreHref] = useState<string | null>(
-    null,
-  );
+  const [selectedMoreHref, setSelectedMoreHref] = useState<string | null>(null);
 
   const hasMoreItems = items.length > 4;
   const visibleItems = hasMoreItems ? items.slice(0, 3) : items;
@@ -75,9 +69,7 @@ export default function MobileBottomNavigation({
     isItemActive(item.href),
   );
 
-  const isMoreActive = moreItems.some((item) =>
-    isItemActive(item.href),
-  );
+  const isMoreActive = moreItems.some((item) => isItemActive(item.href));
 
   const isMoreSelectionPending = selectedMoreHref !== null;
 
@@ -167,7 +159,7 @@ export default function MobileBottomNavigation({
 
   return (
     <nav
-      className="relative z-40 shrink-0 px-4 py-2 xl:hidden"
+      className="relative z-40 shrink-0 px-3 py-2 xl:hidden"
       aria-label="Mobile navigation"
     >
       <div
@@ -355,11 +347,7 @@ const MobileNavigationLink = forwardRef<
       aria-current={isActive ? 'page' : undefined}
       className="relative z-10 flex w-full min-w-0 flex-col items-center gap-0.5 rounded-full px-4 py-1 outline-none"
     >
-      {renderMobileIcon(
-        item,
-        isActive,
-        isActive ? '#3165F6' : '#374151',
-      )}
+      {renderMobileIcon(item, isActive, isActive ? '#3165F6' : '#374151')}
 
       <p
         className={`text-[11px] font-medium transition-colors duration-300 ${
@@ -401,7 +389,7 @@ function renderMobileIcon(
 function MobileBottomNavigationSkeleton() {
   return (
     <div
-      className="relative z-40 shrink-0 px-4 py-2 xl:hidden"
+      className="relative z-40 shrink-0 px-3 py-2 xl:hidden"
       aria-hidden="true"
     >
       <div className="grid w-full grid-cols-4 gap-2 rounded-full bg-white/20 p-1 shadow-[0_0_36px_-3px_rgb(0_0_0/0.20)] backdrop-blur-3xl">

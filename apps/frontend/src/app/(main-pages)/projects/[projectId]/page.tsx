@@ -2428,7 +2428,7 @@ export default function ProjectDetailPage() {
   ];
   return (
     <>
-      <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 py-4">
+      <div className="relative z-100 h-full overflow-hidden pb-0 xl:h-dvh xl:px-0 xl:py-5 xl:pr-5">
         <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
           <div className="shrink-0">
             <DashboardSummaryBanner
@@ -2442,7 +2442,7 @@ export default function ProjectDetailPage() {
             />
           </div>
 
-          <div className="flex h-auto min-h-0 min-w-0 flex-none flex-col gap-4 overflow-visible rounded-xl bg-white p-3 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:px-5 md:pt-4 xl:h-full xl:flex-1 xl:overflow-hidden">
+          <div className="mx-4 flex h-auto min-h-0 min-w-0 flex-none flex-col gap-4 overflow-visible rounded-xl bg-white p-3 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] md:px-5 md:pt-4 xl:mx-0 xl:h-full xl:flex-1 xl:overflow-hidden">
             <TabGroup
               key={`${projectId}-${searchParams.get('t') ?? '0'}`}
               defaultIndex={defaultProjectTabIndex}
@@ -4402,7 +4402,7 @@ function ProjectDetailSkeleton({ activeTab }: ProjectDetailSkeletonProps) {
     <div
       className="
         relative z-100 h-auto min-h-dvh overflow-visible
-        px-4 pt-2 pb-4
+        pb-4
         xl:h-dvh xl:overflow-hidden xl:px-0 xl:py-5 xl:pr-5
       "
       aria-hidden="true"
@@ -4418,11 +4418,11 @@ function ProjectDetailSkeleton({ activeTab }: ProjectDetailSkeletonProps) {
 
         <div
           className="
-            flex h-auto min-h-0 min-w-0 flex-none flex-col gap-4
+            mx-4 flex h-auto min-h-0 min-w-0 flex-none flex-col gap-4
             overflow-visible rounded-xl bg-white p-3
             shadow-[0_0_35px_0_rgb(0_0_0/0.04)]
             md:px-5 md:pt-4
-            xl:h-full xl:flex-1 xl:overflow-hidden
+            xl:mx-0 xl:h-full xl:flex-1 xl:overflow-hidden
           "
         >
           <ProjectTabsSkeleton />
@@ -4542,7 +4542,8 @@ function ProjectSummarySkeleton() {
       className="
         relative flex w-full shrink-0 animate-pulse
         flex-col items-start gap-2 overflow-hidden
-        rounded-xl px-4 py-4
+        rounded-none px-4 py-4
+        xl:rounded-xl
         xl:flex-row xl:items-start xl:gap-4
         xl:px-7.5 xl:py-6
       "
@@ -4567,7 +4568,7 @@ function ProjectSummarySkeleton() {
       <div className="absolute inset-0 bg-black/30" />
 
       {/* Back button, mobile title and category */}
-      <div className="relative flex min-w-0 items-center gap-3 xl:contents">
+      <div className="relative hidden min-w-0 items-center gap-3 xl:contents">
         <div className="h-10 w-10 shrink-0 rounded-full bg-white/15 backdrop-blur-3xl xl:h-12 xl:w-12">
           <div className="flex h-full w-full items-center justify-center">
             <div className="h-3 w-3 rotate-45 border-b-2 border-l-2 border-white/60" />
