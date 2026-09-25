@@ -31,6 +31,7 @@ type TicketsKanbanViewProps = {
   canDragTickets?: boolean;
   movingTicketId?: string | null;
   canDragColumns?: boolean;
+  scrollRestorationKey?: string;
 };
 
 type DropPosition = 'before' | 'after';
@@ -58,8 +59,11 @@ export default function TicketsKanbanView({
   canDragTickets = false,
   movingTicketId = null,
   canDragColumns = true,
+  scrollRestorationKey,
 }: TicketsKanbanViewProps) {
   const { hasPermission } = usePermissions();
+  const horizontalScrollRef = useRef<HTMLDivElement | null>(null);
+  const columnScrollRefs = useRef(new Map<string, HTMLDivElement>());
   const [draggingTicketId, setDraggingTicketId] = useState<string | null>(null);
 
   const [hoveredColumnKey, setHoveredColumnKey] = useState<string | null>(null);
@@ -151,6 +155,54 @@ export default function TicketsKanbanView({
     () => [...orderedRealColumns, ...customColumns],
     [orderedRealColumns, customColumns],
   );
+
+  useEffect(() => {
+    if (!scrollRestorationKey || !columns.length) return;
+
+    const storedPosition = sessionStorage.getItem(scrollRestorationKey);
+
+    if (storedPosition === null) return;
+
+    const scrollLeft = Number(storedPosition);
+
+    if (!Number.isFinite(scrollLeft) || scrollLeft < 0) {
+      sessionStorage.removeItem(scrollRestorationKey);
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      horizontalScrollRef.current?.scrollTo({ left: scrollLeft });
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [columns.length, scrollRestorationKey]);
+
+  useEffect(() => {
+    if (!scrollRestorationKey || !columns.length) return;
+
+    const frameId = window.requestAnimationFrame(() => {
+      columns.forEach((column) => {
+        const storedPosition = sessionStorage.getItem(
+          `${scrollRestorationKey}.column.${column.key}`,
+        );
+
+        if (storedPosition === null) return;
+
+        const scrollTop = Number(storedPosition);
+
+        if (!Number.isFinite(scrollTop) || scrollTop < 0) {
+          sessionStorage.removeItem(
+            `${scrollRestorationKey}.column.${column.key}`,
+          );
+          return;
+        }
+
+        columnScrollRefs.current.get(column.key)?.scrollTo({ top: scrollTop });
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [columns, scrollRestorationKey]);
 
   const resetColumnDrag = () => {
     setDraggingColumnKey(null);
@@ -263,7 +315,18 @@ export default function TicketsKanbanView({
   }
 
   return (
-    <div className="h-full max-h-full min-h-0 w-full min-w-0 overflow-x-auto overflow-y-hidden overscroll-contain scrollbar-thin">
+    <div
+      ref={horizontalScrollRef}
+      onScroll={(event) => {
+        if (!scrollRestorationKey) return;
+
+        sessionStorage.setItem(
+          scrollRestorationKey,
+          String(event.currentTarget.scrollLeft),
+        );
+      }}
+      className="h-full max-h-full min-h-0 w-full min-w-0 overflow-x-auto overflow-y-hidden overscroll-contain scrollbar-thin"
+    >
       <div className="flex h-full min-h-0 min-w-max items-stretch gap-3 pb-2">
         {columns.map((column) => {
           const tone = getStatusTone(column.color);
@@ -536,6 +599,21 @@ export default function TicketsKanbanView({
                   </div>
 
                   <div
+                    ref={(element) => {
+                      if (element) {
+                        columnScrollRefs.current.set(column.key, element);
+                      } else {
+                        columnScrollRefs.current.delete(column.key);
+                      }
+                    }}
+                    onScroll={(event) => {
+                      if (!scrollRestorationKey) return;
+
+                      sessionStorage.setItem(
+                        `${scrollRestorationKey}.column.${column.key}`,
+                        String(event.currentTarget.scrollTop),
+                      );
+                    }}
                     className={`mt-3.5 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-xl transition scrollbar-hide ${
                       hoveredColumnKey === column.key && !draggingColumnKey
                         ? 'border border-dashed border-gray-200 bg-primary/5'

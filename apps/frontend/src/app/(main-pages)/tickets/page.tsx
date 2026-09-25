@@ -80,6 +80,7 @@ const TICKETS_DATE_FROM_QUERY_PARAM = 'dateFrom';
 const TICKETS_DATE_TO_QUERY_PARAM = 'dateTo';
 const TICKETS_CREATED_BY_QUERY_PARAM = 'reporterId';
 const TICKETS_ASSIGNED_TO_QUERY_PARAM = 'assigneeId';
+const TICKETS_PAGE_QUERY_PARAM = 'page';
 const TICKETS_PAGE_SIZE_QUERY_PARAM = 'size';
 const ALLOWED_TICKETS_PAGE_SIZES = [10, 25, 50, 100];
 const KANBAN_PAGE_SIZE = 20;
@@ -107,18 +108,24 @@ export default function Page() {
       url.searchParams.delete(TICKETS_SEARCH_QUERY_PARAM);
     }
 
+    url.searchParams.set(TICKETS_PAGE_QUERY_PARAM, '1');
+
     // Persist immediately so opening a ticket before the debounce finishes
     // still preserves the search when navigating back.
     window.history.replaceState(null, '', url.pathname + url.search + url.hash);
   };
   const debouncedSearchValue = useDebouncedValue(searchValue);
   const [pagination, setPagination] = useState<PaginationState>(() => {
+    const requestedPage = Number(searchParams.get(TICKETS_PAGE_QUERY_PARAM));
     const requestedPageSize = Number(
       searchParams.get(TICKETS_PAGE_SIZE_QUERY_PARAM),
     );
 
     return {
-      pageIndex: 0,
+      pageIndex:
+        Number.isInteger(requestedPage) && requestedPage > 0
+          ? requestedPage - 1
+          : 0,
       pageSize: ALLOWED_TICKETS_PAGE_SIZES.includes(requestedPageSize)
         ? requestedPageSize
         : 10,
@@ -129,6 +136,10 @@ export default function Page() {
 
     const params = new URLSearchParams(searchParams.toString());
 
+    params.set(
+      TICKETS_PAGE_QUERY_PARAM,
+      String(nextPagination.pageIndex + 1),
+    );
     params.set(TICKETS_PAGE_SIZE_QUERY_PARAM, String(nextPagination.pageSize));
 
     router.replace(`${pathname}?${params.toString()}`, {
@@ -186,6 +197,26 @@ export default function Page() {
     Record<string, boolean>
   >({});
   const loadingKanbanStatusesRef = useRef<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const requestedPage = Number(searchParams.get(TICKETS_PAGE_QUERY_PARAM));
+    const requestedPageSize = Number(
+      searchParams.get(TICKETS_PAGE_SIZE_QUERY_PARAM),
+    );
+    const nextPageIndex =
+      Number.isInteger(requestedPage) && requestedPage > 0
+        ? requestedPage - 1
+        : 0;
+    const nextPageSize = ALLOWED_TICKETS_PAGE_SIZES.includes(requestedPageSize)
+      ? requestedPageSize
+      : 10;
+
+    setPagination((current) =>
+      current.pageIndex === nextPageIndex && current.pageSize === nextPageSize
+        ? current
+        : { pageIndex: nextPageIndex, pageSize: nextPageSize },
+    );
+  }, [searchParams]);
 
   const ticketStatusesQuery = useQuery({
     queryKey: ['ticket-statuses'],
@@ -924,24 +955,6 @@ export default function Page() {
     };
   }, [canCreateTicket, setHeaderActionOverride]);
 
-  useEffect(() => {
-    setPagination((current) => ({
-      ...current,
-      pageIndex: 0,
-    }));
-  }, [
-    searchValue,
-    selectedPriority,
-    selectedTicketType,
-    selectedProjectIdsKey,
-    selectedStatus,
-    selectedContactId,
-    dateFromValue,
-    dateToValue,
-    selectedCreatedBy,
-    selectedAssignedTo,
-  ]);
-
   const hasActiveTicketFilters =
     Boolean(searchValue.trim()) ||
     selectedStatus !== DEFAULT_TICKETS_STATUS_FILTER ||
@@ -1063,6 +1076,8 @@ export default function Page() {
       nextSearchParams.append(TICKETS_PROJECT_QUERY_PARAM, projectId);
     });
 
+    nextSearchParams.set(TICKETS_PAGE_QUERY_PARAM, '1');
+
     const nextQueryString = nextSearchParams.toString();
 
     const currentQueryString = searchParams.toString();
@@ -1168,6 +1183,13 @@ export default function Page() {
       ...current,
       pageIndex: 0,
     }));
+
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+
+    nextSearchParams.set(TICKETS_PAGE_QUERY_PARAM, '1');
+    router.replace(`${pathname}?${nextSearchParams.toString()}`, {
+      scroll: false,
+    });
   };
 
   const handleTicketClick = (ticket: RecentTicket) => {
@@ -2087,6 +2109,7 @@ export default function Page() {
                         void handleMoveTicket(ticket, nextStatusKey);
                       }}
                       onReorderColumn={handleReorderStatusColumn}
+                      scrollRestorationKey="tickets.kanban-scroll-position"
                       canDragTickets={canEditTicketStatus}
                       canDragColumns
                       movingTicketId={
@@ -2112,6 +2135,7 @@ export default function Page() {
                       manualPagination
                       sortState={sortState}
                       onSortChange={handleSortChange}
+                      scrollRestorationKey="tickets.table-scroll-position"
                       getRowHref={
                         canViewTicketDetail
                           ? (ticket) =>

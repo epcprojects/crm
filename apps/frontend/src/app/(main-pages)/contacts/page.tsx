@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useDashboardHeaderAction } from '../../../components/dashboard/dashboard-shell';
 import AddContactModal, {
   type AddContactFormValues,
@@ -34,8 +35,16 @@ import { getInitials } from '../../../lib/format';
 
 const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+const CONTACTS_PAGE_QUERY_PARAM = 'page';
+const CONTACTS_PAGE_SIZE_QUERY_PARAM = 'size';
+const CONTACTS_SEARCH_QUERY_PARAM = 'search';
+const CONTACTS_TABLE_SCROLL_STORAGE_KEY = 'contacts.table-scroll-position';
+const CONTACTS_PAGE_SCROLL_STORAGE_KEY = 'contacts.page-scroll-position';
 
 export default function ContactsPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { setHeaderActionOverride } = useDashboardHeaderAction();
   const queryClient = useQueryClient();
   const { hasPermission } = usePermissions();
@@ -58,14 +67,57 @@ export default function ContactsPage() {
     useState<ContactRecord | null>(null);
   const [viewingLeadsForContact, setViewingLeadsForContact] =
     useState<ContactRecord | null>(null);
-  const [searchValue, setSearchValue] = useState('');
+  const searchValue = searchParams.get(CONTACTS_SEARCH_QUERY_PARAM) ?? '';
   const debouncedSearchValue = useDebouncedValue(searchValue);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const requestedPage = Number(searchParams.get(CONTACTS_PAGE_QUERY_PARAM));
+  const requestedPageSize = Number(
+    searchParams.get(CONTACTS_PAGE_SIZE_QUERY_PARAM),
+  );
+  const page =
+    Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const pageSize = PAGE_SIZE_OPTIONS.includes(requestedPageSize)
+    ? requestedPageSize
+    : DEFAULT_PAGE_SIZE;
+  const mobileScrollContainerRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearchValue, pageSize]);
+  const clearContactScrollPositions = () => {
+    sessionStorage.removeItem(CONTACTS_TABLE_SCROLL_STORAGE_KEY);
+    sessionStorage.removeItem(CONTACTS_PAGE_SCROLL_STORAGE_KEY);
+  };
+
+  const setSearchValue = (value: string) => {
+    clearContactScrollPositions();
+
+    const url = new URL(window.location.href);
+
+    if (value) {
+      url.searchParams.set(CONTACTS_SEARCH_QUERY_PARAM, value);
+    } else {
+      url.searchParams.delete(CONTACTS_SEARCH_QUERY_PARAM);
+    }
+
+    url.searchParams.set(CONTACTS_PAGE_QUERY_PARAM, '1');
+    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+  };
+
+  const updatePaginationQuery = (nextPage: number, nextPageSize: number) => {
+    clearContactScrollPositions();
+
+    const params = new URLSearchParams(searchParams.toString());
+
+    params.set(CONTACTS_PAGE_QUERY_PARAM, String(nextPage));
+    params.set(CONTACTS_PAGE_SIZE_QUERY_PARAM, String(nextPageSize));
+
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  const handlePageChange = (nextPage: number) => {
+    updatePaginationQuery(nextPage, pageSize);
+  };
+
+  const handlePageSizeChange = (nextPageSize: number) => {
+    updatePaginationQuery(1, nextPageSize);
+  };
 
   const contactsQuery = useQuery({
     queryKey: ['contacts', page, pageSize, debouncedSearchValue.trim()],
@@ -212,6 +264,25 @@ export default function ContactsPage() {
     hasPrevious: false,
   };
 
+  useEffect(() => {
+    if (contactsQuery.isLoading) return;
+
+    const storedPosition = Number(
+      sessionStorage.getItem(CONTACTS_PAGE_SCROLL_STORAGE_KEY),
+    );
+
+    if (!Number.isFinite(storedPosition) || storedPosition < 0) {
+      sessionStorage.removeItem(CONTACTS_PAGE_SCROLL_STORAGE_KEY);
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      mobileScrollContainerRef.current?.scrollTo({ top: storedPosition });
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [contactsQuery.isLoading]);
+
   const editInitialValues = editingContact
     ? {
         fullName: editingContact.fullName ?? '',
@@ -225,7 +296,16 @@ export default function ContactsPage() {
   return (
     <>
       <div className="relative z-100 h-full xl:h-dvh overflow-hidden xl:py-5 px-4 xl:px-0 pt-2 pb-0 xl:pr-5">
-        <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
+        <div
+          ref={mobileScrollContainerRef}
+          onScroll={(event) => {
+            sessionStorage.setItem(
+              CONTACTS_PAGE_SCROLL_STORAGE_KEY,
+              String(event.currentTarget.scrollTop),
+            );
+          }}
+          className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain scrollbar-hide xl:overflow-hidden xl:rounded-2xl xl:border xl:border-white xl:bg-white/40 xl:p-3"
+        >
           <div className="shrink-0">
             <DashboardSummaryBanner
               imageSrc="/images/ContactsIconImage.svg"
@@ -298,9 +378,12 @@ export default function ContactsPage() {
                     <ContactsTable
                       contacts={contacts}
                       meta={meta}
-                      onPageChange={setPage}
+                      onPageChange={handlePageChange}
                       pageSizeOptions={PAGE_SIZE_OPTIONS}
-                      onPageSizeChange={setPageSize}
+                      onPageSizeChange={handlePageSizeChange}
+                      scrollRestorationKey={
+                        CONTACTS_TABLE_SCROLL_STORAGE_KEY
+                      }
                       searchActive={Boolean(debouncedSearchValue.trim())}
                       onEdit={
                         canEditContact

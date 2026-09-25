@@ -136,6 +136,7 @@ const projectTabQueryParamMap: Record<
 };
 const PROJECT_TICKETS_STATUS_QUERY_PARAM = 'ticketStatus';
 const PROJECT_TICKETS_PRIORITY_QUERY_PARAM = 'ticketPriority';
+const PROJECT_TICKETS_PAGE_QUERY_PARAM = 'page';
 const PROJECT_TICKETS_PAGE_SIZE_QUERY_PARAM = 'size';
 const PROJECT_TICKETS_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 const PROJECT_TICKETS_VIEW_QUERY_PARAM = 'ticketView';
@@ -232,12 +233,18 @@ export default function ProjectDetailPage() {
   const [threadSocketToken, setThreadSocketToken] =
     useState<SocketTokenResponse | null>(null);
   const [ticketsPagination, setTicketsPagination] = useState(() => {
+    const requestedPage = Number(
+      searchParams.get(PROJECT_TICKETS_PAGE_QUERY_PARAM),
+    );
     const requestedPageSize = Number(
       searchParams.get(PROJECT_TICKETS_PAGE_SIZE_QUERY_PARAM),
     );
 
     return {
-      pageIndex: 0,
+      pageIndex:
+        Number.isInteger(requestedPage) && requestedPage > 0
+          ? requestedPage - 1
+          : 0,
       pageSize: PROJECT_TICKETS_PAGE_SIZE_OPTIONS.includes(requestedPageSize)
         ? requestedPageSize
         : 10,
@@ -250,6 +257,10 @@ export default function ProjectDetailPage() {
 
     const nextSearchParams = new URLSearchParams(searchParams.toString());
 
+    nextSearchParams.set(
+      PROJECT_TICKETS_PAGE_QUERY_PARAM,
+      String(nextPagination.pageIndex + 1),
+    );
     nextSearchParams.set(
       PROJECT_TICKETS_PAGE_SIZE_QUERY_PARAM,
       String(nextPagination.pageSize),
@@ -265,6 +276,46 @@ export default function ProjectDetailPage() {
     );
   };
   const projectId = String(params?.projectId ?? '');
+
+  useEffect(() => {
+    const requestedPage = Number(
+      searchParams.get(PROJECT_TICKETS_PAGE_QUERY_PARAM),
+    );
+    const requestedPageSize = Number(
+      searchParams.get(PROJECT_TICKETS_PAGE_SIZE_QUERY_PARAM),
+    );
+    const nextPageIndex =
+      Number.isInteger(requestedPage) && requestedPage > 0
+        ? requestedPage - 1
+        : 0;
+    const nextPageSize = PROJECT_TICKETS_PAGE_SIZE_OPTIONS.includes(
+      requestedPageSize,
+    )
+      ? requestedPageSize
+      : 10;
+
+    setTicketsPagination((current) =>
+      current.pageIndex === nextPageIndex && current.pageSize === nextPageSize
+        ? current
+        : { pageIndex: nextPageIndex, pageSize: nextPageSize },
+    );
+  }, [searchParams]);
+
+  const handleProjectTicketSearchChange = (value: string) => {
+    setSearchValue(value);
+
+    if (ticketsPagination.pageIndex === 0) return;
+
+    setTicketsPagination((current) => ({ ...current, pageIndex: 0 }));
+
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+
+    nextSearchParams.set(PROJECT_TICKETS_PAGE_QUERY_PARAM, '1');
+    router.replace(`${pathname}?${nextSearchParams.toString()}`, {
+      scroll: false,
+    });
+  };
+
   const selectedStatus = getDashboardStatusFilterValue(
     searchParams.get(PROJECT_TICKETS_STATUS_QUERY_PARAM),
   );
@@ -1254,10 +1305,6 @@ export default function ProjectDetailPage() {
   );
 
   useEffect(() => {
-    setTicketsPagination((current) => ({
-      ...current,
-      pageIndex: 0,
-    }));
     setUploadedFilesState([]);
     setSelectedThreadMessageId('');
     setSearchValue('');
@@ -1373,6 +1420,9 @@ export default function ProjectDetailPage() {
       );
     }
 
+    nextSearchParams.set(PROJECT_TICKETS_PAGE_QUERY_PARAM, '1');
+    setTicketsPagination((current) => ({ ...current, pageIndex: 0 }));
+
     const nextQueryString = nextSearchParams.toString();
 
     const currentQueryString = searchParams.toString();
@@ -1421,6 +1471,8 @@ export default function ProjectDetailPage() {
 
       nextSearchParams.delete(PROJECT_TICKETS_STATUS_QUERY_PARAM);
     }
+
+    nextSearchParams.set(PROJECT_TICKETS_PAGE_QUERY_PARAM, '1');
 
     setTicketsPagination((current) => ({
       ...current,
@@ -2436,7 +2488,9 @@ export default function ProjectDetailPage() {
                                 type="text"
                                 value={searchValue}
                                 onChange={(event) =>
-                                  setSearchValue(event.target.value)
+                                  handleProjectTicketSearchChange(
+                                    event.target.value,
+                                  )
                                 }
                                 placeholder="Search"
                                 className="min-w-0 flex-1 bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400"
@@ -2444,7 +2498,9 @@ export default function ProjectDetailPage() {
 
                               <button
                                 type="button"
-                                onClick={() => setSearchValue('')}
+                                onClick={() =>
+                                  handleProjectTicketSearchChange('')
+                                }
                                 disabled={!searchValue}
                                 tabIndex={searchValue ? 0 : -1}
                                 className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
@@ -2828,6 +2884,7 @@ export default function ProjectDetailPage() {
                             void handleMoveProjectTicket(ticket, nextStatusKey);
                           }}
                           onReorderColumn={handleReorderProjectStatusColumn}
+                          scrollRestorationKey={`projects.${projectId}.tickets-kanban-scroll-position`}
                           canDragTickets={canEditTicketStatus}
                           canDragColumns
                           movingTicketId={
@@ -2851,6 +2908,7 @@ export default function ProjectDetailPage() {
                           }
                           totalRows={projectTicketsQuery.data?.meta.total ?? 0}
                           manualPagination
+                          scrollRestorationKey={`projects.${projectId}.tickets-table-scroll-position`}
                           getRowHref={
                             canViewTicketDetail
                               ? (ticket) =>

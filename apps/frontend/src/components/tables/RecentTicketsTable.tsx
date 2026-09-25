@@ -9,7 +9,13 @@ import {
   type PaginationState,
   type ColumnDef,
 } from '@tanstack/react-table';
-import { useState, type MouseEvent, type ReactNode } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+} from 'react';
 import Link from 'next/link';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import ThemeButton from '../ui/ThemeButton';
@@ -221,6 +227,7 @@ type RecentTicketsTableProps = {
   onEmptyButtonClick?: () => void;
   getQuickLinkItems?: (ticket: RecentTicket) => RecentTicketQuickLinkItem[];
   onDeleteTickets?: (ticket: RecentTicket) => void;
+  scrollRestorationKey?: string;
   // internalScrollEnabled?: boolean;
 };
 
@@ -242,8 +249,10 @@ export default function RecentTicketsTable({
   onSortChange,
   getQuickLinkItems,
   onDeleteTickets,
+  scrollRestorationKey,
   // internalScrollEnabled = true,
 }: RecentTicketsTableProps) {
+  const desktopScrollContainerRef = useRef<HTMLDivElement | null>(null);
   const userType = useAppSelector((state) => state.auth.user?.userType);
   const isExternalUser = userType === 'EXTERNAL';
   const columns = baseColumns.filter((column) => {
@@ -320,6 +329,49 @@ export default function RecentTicketsTable({
       )
     : totalRows;
   const visiblePages = getVisiblePageNumbers(currentPage, totalPages);
+
+  useEffect(() => {
+    if (!scrollRestorationKey || !tickets.length) return;
+
+    const storedPosition = sessionStorage.getItem(scrollRestorationKey);
+
+    if (!storedPosition) return;
+
+    let parsedPosition: { top?: unknown; left?: unknown };
+
+    try {
+      parsedPosition = JSON.parse(storedPosition) as {
+        top?: unknown;
+        left?: unknown;
+      };
+    } catch {
+      sessionStorage.removeItem(scrollRestorationKey);
+      return;
+    }
+
+    const top = typeof parsedPosition.top === 'number' ? parsedPosition.top : 0;
+    const left =
+      typeof parsedPosition.left === 'number' ? parsedPosition.left : 0;
+
+    const frameId = window.requestAnimationFrame(() => {
+      desktopScrollContainerRef.current?.scrollTo({ top, left });
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [scrollRestorationKey, tickets.length]);
+
+  const saveScrollPosition = () => {
+    if (!scrollRestorationKey || !desktopScrollContainerRef.current) return;
+
+    sessionStorage.setItem(
+      scrollRestorationKey,
+      JSON.stringify({
+        top: desktopScrollContainerRef.current.scrollTop,
+        left: desktopScrollContainerRef.current.scrollLeft,
+      }),
+    );
+  };
+
   if (tickets.length === 0) {
     return (
       <EmptyState
@@ -353,6 +405,7 @@ export default function RecentTicketsTable({
       return;
     }
 
+    saveScrollPosition();
     onRowClick(ticket);
   };
 
@@ -394,7 +447,21 @@ export default function RecentTicketsTable({
         )}
       </div>
 
-      <div className="hidden min-h-0 flex-1 overflow-x-auto overflow-y-auto scrollbar-thin xl:block">
+      <div
+        ref={desktopScrollContainerRef}
+        onScroll={(event) => {
+          if (!scrollRestorationKey) return;
+
+          sessionStorage.setItem(
+            scrollRestorationKey,
+            JSON.stringify({
+              top: event.currentTarget.scrollTop,
+              left: event.currentTarget.scrollLeft,
+            }),
+          );
+        }}
+        className="hidden min-h-0 flex-1 overflow-x-auto overflow-y-auto scrollbar-thin xl:block"
+      >
         <table className="w-full  min-w-220 text-left">
           <thead className="bg-gray-50">
             {table.getHeaderGroups().map((headerGroup) => (
@@ -452,7 +519,10 @@ export default function RecentTicketsTable({
                       ) : (
                         <button
                           type="button"
-                          onClick={() => onRowClick?.(row.original)}
+                          onClick={() => {
+                            saveScrollPosition();
+                            onRowClick?.(row.original);
+                          }}
                           className="block w-full -mx-4 -my-3 px-4 py-3 text-left"
                         >
                           {flexRender(
@@ -469,6 +539,7 @@ export default function RecentTicketsTable({
                         <TicketQuickLinksPopover
                           ticket={row.original}
                           getQuickLinkItems={getQuickLinkItems}
+                          onNavigate={saveScrollPosition}
                           deleteTicket={
                             hasPermission('tickets.delete')
                               ? onDeleteTickets
@@ -501,7 +572,10 @@ export default function RecentTicketsTable({
             <select
               value={activePagination.pageSize}
               onChange={(event) =>
-                table.setPageSize(Number(event.target.value))
+                handlePaginationChange({
+                  pageIndex: 0,
+                  pageSize: Number(event.target.value),
+                })
               }
               className="rounded-md border border-gray-200 bg-white px-2 py-1 text-sm text-gray-900 outline-none"
             >
@@ -764,10 +838,12 @@ function TicketQuickLinksPopover({
   ticket,
   getQuickLinkItems,
   deleteTicket,
+  onNavigate,
 }: {
   ticket: RecentTicket;
   getQuickLinkItems?: (ticket: RecentTicket) => RecentTicketQuickLinkItem[];
   deleteTicket?: (ticket: RecentTicket) => void;
+  onNavigate?: () => void;
 }) {
   const quickLinkItems = getQuickLinkItems?.(ticket) ?? [];
 
@@ -801,6 +877,17 @@ function TicketQuickLinksPopover({
                   href={item.href}
                   onClick={(event) => {
                     event.stopPropagation();
+
+                    if (
+                      event.button === 0 &&
+                      !event.metaKey &&
+                      !event.ctrlKey &&
+                      !event.shiftKey &&
+                      !event.altKey
+                    ) {
+                      onNavigate?.();
+                    }
+
                     close();
                   }}
                   className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm font-medium text-gray-700 outline-none transition data-focus:bg-gray-100"

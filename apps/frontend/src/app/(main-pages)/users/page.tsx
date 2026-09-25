@@ -45,6 +45,7 @@ import DashboardSummaryBannerSkeleton from 'apps/frontend/src/components/ui/Dash
 const USERS_INVITATION_STATUS_QUERY_PARAM = 'invitationStatus';
 const USERS_PROJECT_QUERY_PARAM = 'project';
 const USERS_ROLE_QUERY_PARAM = 'role';
+const USERS_SEARCH_QUERY_PARAM = 'search';
 const MEMBER_NOTIFICATION_ENTITY_TYPE = 'member';
 const MEMBER_JOINED_NOTIFICATION_TYPE = 'member_joined';
 
@@ -57,7 +58,18 @@ export default function Page() {
   const queryClient = useQueryClient();
   const { setLoading } = useAppLoader();
   const [addUserOpen, setAddUserOpen] = useState(false);
-  const [searchValue, setSearchValue] = useState('');
+  const searchValue = searchParams.get(USERS_SEARCH_QUERY_PARAM) ?? '';
+  const setSearchValue = (value: string) => {
+    const url = new URL(window.location.href);
+
+    if (value) {
+      url.searchParams.set(USERS_SEARCH_QUERY_PARAM, value);
+    } else {
+      url.searchParams.delete(USERS_SEARCH_QUERY_PARAM);
+    }
+
+    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+  };
   const debouncedSearchValue = useDebouncedValue(searchValue);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
@@ -245,10 +257,12 @@ export default function Page() {
   }, [queryClient]);
 
   const updateUsersPageFilters = ({
+    search,
     invitationStatus,
     project,
     roleId,
   }: {
+    search?: string;
     invitationStatus?: 'all' | 'accepted' | 'pending';
     project?: string[];
     roleId?: string;
@@ -257,6 +271,14 @@ export default function Page() {
     const nextInvitationStatus = invitationStatus ?? selectedInvitationStatus;
     const nextProjectIds = project ?? selectedProjectIds;
     const nextRoleId = roleId ?? selectedRoleId;
+
+    if (search !== undefined) {
+      if (search) {
+        nextSearchParams.set(USERS_SEARCH_QUERY_PARAM, search);
+      } else {
+        nextSearchParams.delete(USERS_SEARCH_QUERY_PARAM);
+      }
+    }
 
     if (nextInvitationStatus === 'all') {
       nextSearchParams.delete(USERS_INVITATION_STATUS_QUERY_PARAM);
@@ -439,6 +461,7 @@ export default function Page() {
   const clearUsersFilters = () => {
     setSearchValue('');
     updateUsersPageFilters({
+      search: '',
       invitationStatus: 'all',
       roleId: 'all',
       project: [],

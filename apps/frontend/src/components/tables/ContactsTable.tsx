@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import {
   EditIcon,
@@ -51,6 +52,7 @@ type ContactsTableProps = {
   onViewLeads?: (contact: ContactRecord) => void;
   onAddContact?: () => void;
   searchActive?: boolean;
+  scrollRestorationKey?: string;
 };
 
 function renderContactActions(
@@ -145,10 +147,42 @@ export default function ContactsTable({
   onViewLeads,
   onAddContact,
   searchActive,
+  scrollRestorationKey,
 }: ContactsTableProps) {
+  const desktopScrollContainerRef = useRef<HTMLDivElement | null>(null);
   const startRow = meta.total === 0 ? 0 : (meta.page - 1) * meta.limit + 1;
   const endRow = Math.min(meta.page * meta.limit, meta.total);
   const visiblePages = getVisiblePageNumbers(meta.page, meta.totalPages);
+
+  useEffect(() => {
+    if (!scrollRestorationKey) return;
+
+    const storedPosition = sessionStorage.getItem(scrollRestorationKey);
+
+    if (!storedPosition) return;
+
+    let parsedPosition: { top?: unknown; left?: unknown };
+
+    try {
+      parsedPosition = JSON.parse(storedPosition) as {
+        top?: unknown;
+        left?: unknown;
+      };
+    } catch {
+      sessionStorage.removeItem(scrollRestorationKey);
+      return;
+    }
+
+    const top = typeof parsedPosition.top === 'number' ? parsedPosition.top : 0;
+    const left =
+      typeof parsedPosition.left === 'number' ? parsedPosition.left : 0;
+
+    const frameId = window.requestAnimationFrame(() => {
+      desktopScrollContainerRef.current?.scrollTo({ top, left });
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [scrollRestorationKey]);
 
   if (contacts.length === 0) {
     return (
@@ -205,7 +239,21 @@ export default function ContactsTable({
         ))}
       </div>
 
-      <div className="hidden min-h-0 flex-1 overflow-x-auto overflow-y-auto xl:block">
+      <div
+        ref={desktopScrollContainerRef}
+        onScroll={(event) => {
+          if (!scrollRestorationKey) return;
+
+          sessionStorage.setItem(
+            scrollRestorationKey,
+            JSON.stringify({
+              top: event.currentTarget.scrollTop,
+              left: event.currentTarget.scrollLeft,
+            }),
+          );
+        }}
+        className="hidden min-h-0 flex-1 overflow-x-auto overflow-y-auto xl:block"
+      >
         <table className="w-full min-w-215 text-left">
           <thead className="bg-gray-50">
             <tr>

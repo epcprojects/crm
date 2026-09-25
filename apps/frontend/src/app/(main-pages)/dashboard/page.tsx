@@ -1595,6 +1595,7 @@ export default function Page() {
                     onDeleteTickets={
                       canDeleteTicket ? setTicketToDelete : undefined
                     }
+                    scrollRestorationKey="dashboard.recent-leads-scroll-position"
                   />
                 )}
               </div>
