@@ -95,4 +95,11 @@ export class FileRecord extends AuditableEntity {
     nullable: true,
   })
   sourceId?: string;
+
+  
+  @Column({
+    type: 'boolean',
+    default: false,
+  })
+  fromDescription: boolean;
 }

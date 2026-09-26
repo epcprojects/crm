@@ -5,8 +5,12 @@ import {
   IsOptional,
   IsEnum,
   IsUUID,
+  ValidateNested,
+  IsArray,
 } from 'class-validator';
 import { TicketType } from '../enum/ticket-type.enum';
+import { UploadedFileDto } from '../../files/dto/uploaded-file.dto';
+import { Type } from 'class-transformer';
 
 export class UpdateTicketDto {
   @ApiPropertyOptional()
@@ -48,4 +52,14 @@ export class UpdateTicketDto {
   @IsOptional()
   @IsUUID()
   contactId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Metadata for files already uploaded directly to S3',
+    type: [UploadedFileDto],
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => UploadedFileDto)
+  attachments?: UploadedFileDto[];
 }

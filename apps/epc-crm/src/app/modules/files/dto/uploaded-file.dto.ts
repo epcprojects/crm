@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsInt, Min, IsMimeType } from 'class-validator';
+import { IsString, IsNotEmpty, IsInt, Min, IsMimeType, IsOptional, IsBoolean } from 'class-validator';
 
 export class UploadedFileDto {
   @IsString()
@@ -15,4 +15,8 @@ export class UploadedFileDto {
   @IsInt()
   @Min(1)
   sizeBytes: number;
+
+  @IsBoolean()
+  @IsOptional()
+  fromDescription?: boolean;
 }

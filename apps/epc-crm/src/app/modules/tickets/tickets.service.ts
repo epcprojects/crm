@@ -984,7 +984,7 @@ export class TicketsService {
     const oldTicket = { ...ticket };
     const oldStatus = ticket.status;
     const oldPriority = ticket.priority;
-    const { statusKey, priorityKey, ...rest } = dto;
+    const { statusKey, priorityKey, attachments, ...rest } = dto;
 
     Object.assign(ticket, {
       ...rest,
@@ -1031,6 +1031,13 @@ export class TicketsService {
       }
     }
     await this.ticketRepo.save(ticket);
+    
+    await this.filesService.syncTicketAttachments(
+      FileSource.TICKET,
+      ticket.id,
+      attachments,
+      { projectId, uploadedBy: userId },
+    );
     // Re-fetch updated ticket with all relations required by email notifications
     const updatedTicket = await this.ticketRepo.findOne({
       where: {
@@ -1367,7 +1374,7 @@ export class TicketsService {
       });
     }
 
-    if (dto.title !== undefined &&oldTicket.description !== dto.description) {
+    if (dto.title !== undefined && oldTicket.description !== dto.description) {
       await this.notificationsService.notifyProjectMembers({
         projectId: ticket.projectId,
         actorId: userId,

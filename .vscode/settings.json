@@ -1,3 +1,38 @@
 {
-    "js/ts.tsdk.path": "node_modules/typescript/lib"
+    "js/ts.tsdk.path": "node_modules/typescript/lib",
+
+    "workbench.colorCustomizations": {
+        // ── Window / Title Bar ─────────────────────
+        "titleBar.activeBackground": "#3A2415",
+        "titleBar.activeForeground": "#FFD7B0",
+        "titleBar.inactiveBackground": "#241B16",
+        "titleBar.inactiveForeground": "#A89585",
+
+        // ── Status Bar / Footer ───────────────────
+        "statusBar.background": "#B85C00",
+        "statusBar.foreground": "#FFFFFF",
+        "statusBar.noFolderBackground": "#8F4700",
+        "statusBar.debuggingBackground": "#D97706",
+
+        // ── Borders ───────────────────────────────
+        "focusBorder": "#FF8C42",
+        "contrastBorder": "#FF8C42",
+        "contrastActiveBorder": "#FFA45B",
+
+        "activityBar.border": "#FF8C42",
+        "sideBar.border": "#FF8C42",
+        "panel.border": "#FF8C42",
+        "editorGroup.border": "#FF8C42",
+
+        // ── Tabs ──────────────────────────────────
+        "tab.activeBorderTop": "#FF8C42",
+        "tab.activeBorder": "#FF8C42",
+        "editorGroupHeader.tabsBorder": "#FF8C42",
+
+        // ── Inputs / Selection ────────────────────
+        "input.border": "#FF8C42",
+        "inputOption.activeBorder": "#FF8C42",
+        "list.activeSelectionBackground": "#3A2A20",
+        "list.activeSelectionForeground": "#FFB37A"
+    }
 }
