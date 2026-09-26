@@ -42,7 +42,6 @@ export type RecentTicket = {
     name: string;
     brandColor: string;
   };
-  dueDate: string;
   status: TicketStatus;
   statusColor?: string;
   priority: TicketPriority | null;
@@ -92,13 +91,6 @@ const statusStyles: Record<string, string> = {
   'In Progress': 'border-warning-200 bg-warning-50 text-warning-500',
   Resolved: 'border-green-200 bg-green-50 text-green-600',
   Closed: 'border-sky-200 bg-sky-50 text-sky-600',
-};
-
-const priorityStyles: Record<string, string> = {
-  High: 'bg-red-500',
-  Medium: 'bg-warning-500',
-  Low: 'bg-green-500',
-  Critical: 'bg-primary',
 };
 
 const baseColumns: ColumnDef<RecentTicket>[] = [
@@ -168,49 +160,24 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     },
   },
   {
+    id: 'assignee',
+    accessorKey: 'assignee.name',
+    header: 'Agent',
+    cell: ({ row }) => (
+      <span className="inline-flex items-center gap-2 whitespace-nowrap text-gray-900 font-normal text-sm">
+        <span className="flex h-7.5 min-w-7.5 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-900">
+          {row.original.assignee.initials}
+        </span>
+        {row.original.assignee.name}
+      </span>
+    ),
+  },
+  {
     id: 'status',
     accessorKey: 'status',
     header: 'Status',
     cell: ({ row }) => renderStatusBadge(row.original),
   },
-  {
-    id: 'priority',
-    accessorKey: 'priority',
-    header: 'Priority',
-    cell: ({ row }) => (
-      <span
-        className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full  border  text-white px-2 py-1 text-xs font-meidu shadow-xs"
-        style={
-          row.original.priorityColor
-            ? {
-                backgroundColor: row.original.priorityColor,
-                borderColor: row.original.priorityColor,
-              }
-            : {
-                backgroundColor: '#00000010',
-                borderColor: '#00000010',
-                color: '#00000080',
-                fontWeight: 'bolder',
-              }
-        }
-      >
-        {/* <span
-          className={`h-1.5 w-1.5 whitespace-nowrap rounded-full ${
-            row.original.priorityColor
-              ? ''
-              : (priorityStyles[row.original.priority ?? ''] ?? 'bg-gray-400')
-          }`}
-          style={
-            row.original.priorityColor
-              ? { backgroundColor: row.original.priorityColor }
-              : undefined
-          }
-        /> */}
-        {row.original.priority ?? 'No Priority'}
-      </span>
-    ),
-  },
-
   {
     id: 'Creater',
     accessorKey: 'reporter.fullname',
@@ -231,16 +198,6 @@ const baseColumns: ColumnDef<RecentTicket>[] = [
     cell: ({ row }) => (
       <span className="text-gray-900 text-sm  whitespace-nowrap">
         {row.original.date !== null ? row.original.date : '-'}
-      </span>
-    ),
-  },
-  {
-    id: 'dueDate',
-    accessorKey: 'dueDate',
-    header: 'Due Date',
-    cell: ({ row }) => (
-      <span className="text-gray-900 text-sm  whitespace-nowrap">
-        {row.original.dueDate !== null ? row.original.dueDate : '-'}
       </span>
     ),
   },
@@ -625,6 +582,7 @@ function TicketMobileCard({
   ticket,
   onClick,
   href,
+  showAssignee = true,
 }: {
   ticket: RecentTicket;
   onClick?: (ticket: RecentTicket) => void;
@@ -661,21 +619,6 @@ function TicketMobileCard({
               style={statusStyle}
             >
               {ticket.status}
-            </span>
-
-            <span
-              className={`inline-flex whitespace-nowrap rounded-[5px] px-2 py-0.5 text-xs font-medium text-white ${
-                ticket.priorityColor
-                  ? ''
-                  : (priorityStyles[ticket.priority ?? ''] ?? 'bg-gray-400')
-              }`}
-              style={
-                ticket.priorityColor
-                  ? { backgroundColor: ticket.priorityColor }
-                  : undefined
-              }
-            >
-              {ticket.priority ?? 'No Priority'}
             </span>
           </div>
         </div>
@@ -719,6 +662,21 @@ function TicketMobileCard({
             ) : null}
           </div>
         </div>
+        {showAssignee ? (
+          <div className="flex min-w-0 flex-col items-start gap-1">
+            <p className="text-[10px] text-gray-500">Agent</p>
+
+            <div className="flex min-w-0 flex-row items-center gap-1.25 py-0.5">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] leading-none font-medium text-gray-900">
+                {ticket.assignee.initials}
+              </span>
+
+              <p className="truncate text-xs text-gray-800">
+                {ticket.assignee.name}
+              </p>
+            </div>
+          </div>
+        ) : null}
         <div className="flex min-w-0 flex-col items-start gap-1">
           <p className="text-[10px] text-gray-500">Created by</p>
 
@@ -736,12 +694,6 @@ function TicketMobileCard({
         <div className="flex flex-col items-start gap-1">
           <p className="text-[10px] text-gray-500">Created On</p>
           <p className="text-xs text-gray-800">{ticket.date}</p>
-        </div>
-        <div className="flex flex-col items-start gap-1">
-          <p className="text-[10px] text-gray-500">Due Date</p>
-          <p className="text-xs text-gray-800">
-            {ticket.dueDate || 'No due date'}
-          </p>
         </div>
       </div>
     </>

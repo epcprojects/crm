@@ -110,7 +110,7 @@ export const EMAIL_NOTIFICATION_METADATA : Record<EmailEventType, { entityType: 
 
   [EmailEventType.TICKET_ASSIGNEE_UPDATED]: {
     entityType: EmailNotificationEntityType.TICKET,
-    label: 'Assignee updated',
+    label: 'Agent updated',
   },
 
   // [EmailEventType.TICKET_ATTACHMENT_ADDED]: {

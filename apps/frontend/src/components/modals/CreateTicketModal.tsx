@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFormik } from 'formik';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as yup from 'yup';
 import AppModal from './AppModal';
 import ThemeInput from '../ui/ThemeInput';
@@ -10,6 +10,7 @@ import Dropdown from '../ui/ThemeDropDown';
 import { type CreateTicketDropdownOption } from './create-ticket-modal.data';
 import { CloseIcon, FileTypePlaceholder } from '../../../public/icons';
 import { useAppSelector } from '../../app/Redux/store';
+import { usePermissions } from '../../app/providers/PermissionProvider';
 import { appToast } from '../toast/AppToast';
 import {
   ALLOWED_ATTACHMENT_ACCEPT,
@@ -17,17 +18,33 @@ import {
   validateAttachments,
 } from '../../lib/attachments';
 import { useIsMobile } from '../hooks/useIsMobile';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { fetchProjectMembers } from '../../lib/project-members';
+import {
+  createContact,
+  findContactByPhone,
+  updateContact,
+  isValidContactPhone,
+  normalizeContactPhone,
+  type LookedUpContact,
+} from '../../lib/contacts';
 import RichTextEditor from '../RichTextEditor';
 
 export type CreateTicketFormValues = {
   project: string;
+  // Resolved on submit: an existing contact is linked, otherwise the contact
+  // details below are saved as a new contact first.
   contactId: string;
+  contactPhone: string;
+  contactName: string;
+  contactEmail: string;
+  contactSource: string;
+  contactNotes: string;
   title: string;
   description: string;
   status: string;
-  priority: string;
+  assigneeId: string;
   ticketType: 'feature_request' | 'bug' | '';
-  dueDate: string;
   attachments: File[];
 };
 
@@ -58,6 +75,24 @@ function getRichTextPlainText(value?: string) {
     .replace(/&#39;/gi, "'");
 }
 
+function haveContactDetailsChanged(
+  contact: LookedUpContact,
+  values: Pick<
+    CreateTicketFormValues,
+    'contactName' | 'contactEmail' | 'contactSource' | 'contactNotes'
+  >,
+) {
+  const same = (a: string | null | undefined, b: string) =>
+    (a ?? '').trim() === b.trim();
+
+  return !(
+    same(contact.fullName, values.contactName) &&
+    same(contact.email, values.contactEmail) &&
+    same(contact.source, values.contactSource) &&
+    same(contact.notes, values.contactNotes)
+  );
+}
+
 type CreateTicketModalProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -67,7 +102,6 @@ type CreateTicketModalProps = {
   disableProjectSelection?: boolean;
   preselectedContactId?: string;
   preselectedContactLabel?: string;
-  disableContactSelection?: boolean;
 };
 
 export default function CreateTicketModal({
@@ -79,18 +113,40 @@ export default function CreateTicketModal({
   disableProjectSelection = false,
   preselectedContactId,
   preselectedContactLabel,
-  disableContactSelection = false,
 }: CreateTicketModalProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // The existing contact whose details were last loaded into the form.
+  const pulledContactRef = useRef<LookedUpContact | null>(null);
+  const queryClient = useQueryClient();
+  const { hasPermission } = usePermissions();
+  const canCreateContact = hasPermission('contacts.create');
+  const canEditAssignee = hasPermission('tickets.edit_assignee');
   const userType = useAppSelector((state) => state.auth.user?.userType);
   const isExternalUser = userType === 'EXTERNAL';
   const [isDragOver, setIsDragOver] = useState(false);
   const [attachmentError, setAttachmentError] = useState('');
+  const hasPreselectedContact = Boolean(preselectedContactId);
   const createTicketSchema = useMemo(
     () =>
       yup.object({
         project: yup.string().required('Project is required'),
-        contactId: yup.string().required('Contact is required'),
+        contactId: yup.string().optional(),
+        contactPhone: yup.string().when('contactId', {
+          is: (contactId?: string) => !contactId,
+          then: (schema) =>
+            schema
+              .required('Contact phone number is required')
+              .test(
+                'contact-phone-format',
+                'Enter a valid phone number',
+                (value) => isValidContactPhone(value ?? ''),
+              ),
+          otherwise: (schema) => schema.optional(),
+        }),
+        contactName: yup.string().max(150).optional(),
+        contactEmail: yup.string().email('Enter a valid email').optional(),
+        contactSource: yup.string().max(100).optional(),
+        contactNotes: yup.string().optional(),
         title: yup
           .string()
           .max(
@@ -112,15 +168,7 @@ export default function CreateTicketModal({
               getRichTextPlainText(value).length <= MAX_DESCRIPTION_LENGTH,
           ),
         status: yup.string().required('Status is required'),
-        priority: yup.string().optional(),
-        dueDate: yup
-          .string()
-          .test(
-            'not-in-past',
-            'Due date cannot be less than current date',
-            (value) => !value || value >= getTodayInputValue(),
-          )
-          .optional(),
+        assigneeId: yup.string().optional(),
       }),
     [isExternalUser],
   );
@@ -129,58 +177,134 @@ export default function CreateTicketModal({
     initialValues: {
       project: preselectedProjectId ?? projectOptions[0]?.value ?? '',
       contactId: preselectedContactId ?? '',
+      contactPhone: '',
+      contactName: '',
+      contactEmail: '',
+      contactSource: '',
+      contactNotes: '',
       title: '',
       description: '',
       status: '',
-      priority: '',
+      assigneeId: '',
       ticketType: DEFAULT_TICKET_TYPE,
-      dueDate: '',
       attachments: [],
     },
     enableReinitialize: true,
     validationSchema: createTicketSchema,
-    onSubmit: async (values, { resetForm }) => {
-      await onConfirm?.(values);
+    onSubmit: async (values, { resetForm, setFieldError }) => {
+      let contactId = values.contactId;
+
+      if (!hasPreselectedContact) {
+        try {
+          // Resolve the contact by phone right before saving so the result
+          // reflects the number as it is now, not the last debounced lookup.
+          const existingContact = await findContactByPhone(
+            values.contactPhone,
+          ).catch(() => null);
+          const contactDetails = {
+            fullName: values.contactName,
+            phone: values.contactPhone,
+            email: values.contactEmail,
+            source: values.contactSource,
+            notes: values.contactNotes,
+          };
+
+          if (existingContact) {
+            // Same number as an existing contact: link it, and save any
+            // details the user edited against that contact.
+            contactId = existingContact.id;
+
+            const detailsWereLoaded =
+              pulledContactRef.current?.id === existingContact.id;
+
+            if (
+              detailsWereLoaded &&
+              haveContactDetailsChanged(existingContact, values)
+            ) {
+              if (hasPermission('contacts.edit')) {
+                await updateContact(existingContact.id, contactDetails);
+                appToast.success('Contact updated successfully.');
+                void queryClient.invalidateQueries({ queryKey: ['contacts'] });
+                void queryClient.invalidateQueries({
+                  queryKey: ['contact-lookup'],
+                });
+              } else {
+                appToast.info(
+                  'You do not have permission to edit contacts. The lead was linked without updating the contact.',
+                );
+              }
+            }
+          } else if (!canCreateContact) {
+            setFieldError(
+              'contactPhone',
+              'No contact found with this number, and you do not have permission to create one.',
+            );
+            return;
+          } else {
+            const contact = await createContact(contactDetails);
+
+            contactId = contact.id;
+            appToast.success('Contact created successfully.');
+            void queryClient.invalidateQueries({ queryKey: ['contacts'] });
+            void queryClient.invalidateQueries({
+              queryKey: ['contact-lookup'],
+            });
+          }
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : 'Failed to save contact.';
+
+          if (/already exists/i.test(message)) {
+            setFieldError('contactPhone', message);
+          } else {
+            appToast.error(message);
+          }
+
+          return;
+        }
+      }
+
+      await onConfirm?.({ ...values, contactId });
       resetForm();
       onClose();
     },
   });
 
+  const normalizedContactPhone = normalizeContactPhone(
+    formik.values.contactPhone,
+  );
+  const debouncedContactPhone = useDebouncedValue(normalizedContactPhone, 400);
+  const canLookupContact =
+    isOpen &&
+    !hasPreselectedContact &&
+    isValidContactPhone(debouncedContactPhone);
+  const contactLookupQuery = useQuery({
+    queryKey: ['contact-lookup', debouncedContactPhone],
+    queryFn: () => findContactByPhone(debouncedContactPhone),
+    enabled: canLookupContact,
+    staleTime: 0,
+    retry: false,
+  });
+  const isContactLookupPending =
+    !hasPreselectedContact &&
+    isValidContactPhone(normalizedContactPhone) &&
+    (debouncedContactPhone !== normalizedContactPhone ||
+      contactLookupQuery.isFetching);
+  const matchedContact =
+    canLookupContact && debouncedContactPhone === normalizedContactPhone
+      ? (contactLookupQuery.data ?? null)
+      : null;
+  const matchedContactId = matchedContact?.id ?? '';
+
   const ticketStatusesQuery = useQuery({
     queryKey: ['ticket-statuses'],
     queryFn: fetchTicketStatuses,
   });
-  const ticketPrioritiesQuery = useQuery({
-    queryKey: ['ticket-priorities'],
-    queryFn: fetchTicketPriorities,
+  const membersQuery = useQuery({
+    queryKey: ['project-members', formik.values.project],
+    queryFn: () => fetchProjectMembers(formik.values.project),
+    enabled: isOpen && Boolean(formik.values.project),
   });
-  const contactsQuery = useQuery({
-    queryKey: ['contacts', 'picker'],
-    queryFn: fetchContactOptions,
-    enabled: isOpen,
-    staleTime: 60 * 1000,
-  });
-
-  const contactOptions = useMemo(() => {
-    const options = (contactsQuery.data ?? []).map((contact) => ({
-      label: contact.fullName
-        ? `${contact.fullName} (${contact.phone})`
-        : contact.phone,
-      value: contact.id,
-    }));
-
-    if (
-      preselectedContactId &&
-      !options.some((option) => option.value === preselectedContactId)
-    ) {
-      options.unshift({
-        label: preselectedContactLabel ?? 'Selected contact',
-        value: preselectedContactId,
-      });
-    }
-
-    return options;
-  }, [contactsQuery.data, preselectedContactId, preselectedContactLabel]);
 
   const statusOptions = useMemo(
     () =>
@@ -208,19 +332,15 @@ export default function CreateTicketModal({
     [statusOptions],
   );
 
-  const priorityOptions = useMemo(
-    () =>
-      (ticketPrioritiesQuery.data ?? []).map((priority) => ({
-        label: priority.label,
-        value: priority.key,
-        icon: (
-          <span
-            className="inline-block h-2.5 w-2.5 rounded-full"
-            style={{ backgroundColor: priority.color }}
-          />
-        ),
+  const assigneeOptions = useMemo(
+    () => [
+      { label: 'Unassigned', value: '' },
+      ...(membersQuery.data ?? []).map((member) => ({
+        label: member.fullName,
+        value: member.id,
       })),
-    [ticketPrioritiesQuery.data],
+    ],
+    [membersQuery.data],
   );
 
   useEffect(() => {
@@ -228,8 +348,37 @@ export default function CreateTicketModal({
       formik.resetForm();
       setIsDragOver(false);
       setAttachmentError('');
+      pulledContactRef.current = null;
     }
   }, [isOpen]);
+
+  // Link (or unlink) the lead's contact as the typed number resolves to an
+  // existing contact, and load that contact's details into the form so they
+  // can be reviewed and edited.
+  useEffect(() => {
+    if (hasPreselectedContact) {
+      return;
+    }
+
+    if (formik.values.contactId !== matchedContactId) {
+      void formik.setFieldValue('contactId', matchedContactId);
+    }
+  }, [formik.values.contactId, hasPreselectedContact, matchedContactId]);
+
+  useEffect(() => {
+    if (!matchedContact || pulledContactRef.current?.id === matchedContact.id) {
+      return;
+    }
+
+    pulledContactRef.current = matchedContact;
+    void formik.setValues((current) => ({
+      ...current,
+      contactName: matchedContact.fullName ?? '',
+      contactEmail: matchedContact.email ?? '',
+      contactSource: matchedContact.source ?? '',
+      contactNotes: matchedContact.notes ?? '',
+    }));
+  }, [matchedContact]);
 
   useEffect(() => {
     if (preselectedProjectId) {
@@ -247,10 +396,6 @@ export default function CreateTicketModal({
     if (isExternalUser) {
       if (formik.values.status !== openStatusValue) {
         formik.setFieldValue('status', openStatusValue);
-      }
-
-      if (formik.values.priority) {
-        formik.setFieldValue('priority', '');
       }
 
       return;
@@ -305,79 +450,165 @@ export default function CreateTicketModal({
     formik.setFieldValue('attachments', nextAttachments);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
+
   const isMobile = useIsMobile();
   return (
-    <AppModal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Create Lead"
-      showFooter
-      confirmLabel="Create Lead"
-      cancelLabel="Cancel"
-      onCancel={onClose}
-      onConfirm={() => formik.submitForm()}
-      confimBtnDisable={formik.isSubmitting}
-      roundedCustom
-      outSideClickClose={false}
-      size="extraLarge"
-      scrollNeeded={true}
-    >
-      {/* space-y-4 p-4 md:p-5 */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 divide-x divide-gray-200">
-        <div className="space-y-4 p-4 md:p-5">
-          <Dropdown
-            label="Project"
-            required
-            options={projectOptions}
-            showSearch={true}
-            value={formik.values.project}
-            onChange={(value) => formik.setFieldValue('project', value)}
-            error={Boolean(formik.touched.project && formik.errors.project)}
-            errorMessage={formik.touched.project ? formik.errors.project : ''}
-            disabled={disableProjectSelection}
-          />
+    <>
+      <AppModal
+        isOpen={isOpen}
+        onClose={onClose}
+        title="Create Lead"
+        showFooter
+        confirmLabel="Create Lead"
+        cancelLabel="Cancel"
+        onCancel={onClose}
+        onConfirm={() => formik.submitForm()}
+        confimBtnDisable={formik.isSubmitting}
+        roundedCustom
+        outSideClickClose={false}
+        size="extraLarge"
+        scrollNeeded={true}
+      >
+        {/* Row 1: contact details. Row 2: lead form + attachments. */}
+        <div className="border-b border-gray-200 p-4 md:p-5">
+          {hasPreselectedContact ? (
+            <ThemeInput
+              label="Contact"
+              value={preselectedContactLabel ?? 'Selected contact'}
+              disabled
+              readOnly
+            />
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <ThemeInput
+                  label="Contact Phone"
+                  required
+                  autoFocus
+                  name="contactPhone"
+                  type="text"
+                  value={formik.values.contactPhone}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  errorText={
+                    formik.touched.contactPhone
+                      ? formik.errors.contactPhone
+                      : ''
+                  }
+                  helperText={
+                    isContactLookupPending
+                      ? 'Looking up contact...'
+                      : matchedContact
+                        ? 'Existing contact found. Edit its details to update it, or change the number to save a new contact.'
+                        : isValidContactPhone(normalizedContactPhone)
+                          ? 'New contact. It will be saved with this lead.'
+                          : 'Enter a number to find or add a contact.'
+                  }
+                  placeholder="Enter phone number"
+                />
 
-          <Dropdown
-            label="Contact"
-            required
-            options={contactOptions}
-            showSearch={true}
-            value={formik.values.contactId}
-            onChange={(value) => formik.setFieldValue('contactId', value)}
-            error={Boolean(formik.touched.contactId && formik.errors.contactId)}
-            errorMessage={
-              formik.touched.contactId ? formik.errors.contactId : ''
-            }
-            placeholder={contactsQuery.isLoading ? 'Loading...' : 'Select contact'}
-            disabled={disableContactSelection}
-          />
+                <ThemeInput
+                  label="Full Name"
+                  name="contactName"
+                  value={formik.values.contactName}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  errorText={
+                    formik.touched.contactName ? formik.errors.contactName : ''
+                  }
+                  placeholder="Enter full name"
+                />
 
-          <ThemeInput
-            label="Title"
-            required
-            autoFocus
-            name="title"
-            value={formik.values.title}
-            maxLength={MAX_TITLE_LENGTH}
-            onChange={(event) => {
-              void formik.setFieldValue(
-                'title',
-                event.target.value.slice(0, MAX_TITLE_LENGTH),
-              );
-            }}
-            onBlur={formik.handleBlur}
-            errorText={formik.touched.title ? formik.errors.title : ''}
-            placeholder="Enter lead title"
-          />
-          <div
-            className={`${formik.touched.title ? '-mt-8' : '-mt-3'} flex items-center justify-end`}
-          >
-            <p className="shrink-0 text-xs text-gray-500">
-              {formik.values.title.length}/{MAX_TITLE_LENGTH}
-            </p>
-          </div>
+                <ThemeInput
+                  label="Email"
+                  name="contactEmail"
+                  type="email"
+                  value={formik.values.contactEmail}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  errorText={
+                    formik.touched.contactEmail
+                      ? formik.errors.contactEmail
+                      : ''
+                  }
+                  placeholder="Enter email address"
+                />
 
-          {/* <div className="w-full">
+                <ThemeInput
+                  label="Source"
+                  name="contactSource"
+                  value={formik.values.contactSource}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  errorText={
+                    formik.touched.contactSource
+                      ? formik.errors.contactSource
+                      : ''
+                  }
+                  placeholder="e.g. Referral, Walk-in"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-normal text-gray-800 md:text-base">
+                  Notes
+                </label>
+                <textarea
+                  name="contactNotes"
+                  value={formik.values.contactNotes}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  placeholder="Any additional notes"
+                  rows={2}
+                  className="w-full rounded-lg border border-gray-200 bg-transparent px-3.5 py-2 text-sm font-medium text-gray-700 outline-none placeholder:text-gray-300 focus:border-gray-400 md:text-base"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-2 divide-x divide-gray-200">
+          <div className="space-y-4 p-4 md:p-5">
+            <Dropdown
+              label="Project"
+              required
+              options={projectOptions}
+              showSearch={true}
+              value={formik.values.project}
+              onChange={(value) => {
+                void formik.setFieldValue('project', value);
+                void formik.setFieldValue('assigneeId', '');
+              }}
+              error={Boolean(formik.touched.project && formik.errors.project)}
+              errorMessage={formik.touched.project ? formik.errors.project : ''}
+              disabled={disableProjectSelection}
+            />
+
+            <ThemeInput
+              label="Title"
+              required
+              name="title"
+              value={formik.values.title}
+              maxLength={MAX_TITLE_LENGTH}
+              onChange={(event) => {
+                void formik.setFieldValue(
+                  'title',
+                  event.target.value.slice(0, MAX_TITLE_LENGTH),
+                );
+              }}
+              onBlur={formik.handleBlur}
+              errorText={formik.touched.title ? formik.errors.title : ''}
+              placeholder="Enter lead title"
+            />
+            <div
+              className={`${formik.touched.title ? '-mt-8' : '-mt-3'} flex items-center justify-end`}
+            >
+              <p className="shrink-0 text-xs text-gray-500">
+                {formik.values.title.length}/{MAX_TITLE_LENGTH}
+              </p>
+            </div>
+
+            {/* <div className="w-full">
             <label className="mb-1.5 block text-sm font-normal text-gray-800 md:text-base">
               Description
             </label>
@@ -402,147 +633,108 @@ export default function CreateTicketModal({
               </p>
             </div>
           </div> */}
-          <RichTextEditor
-            name="description"
-            label="Description"
-            required
-            value={formik.values.description}
-            onChange={(value) => {
-              void formik.setFieldValue('description', value);
-            }}
-            onBlur={() => {
-              void formik.setFieldTouched('description', true);
-            }}
-            placeholder="Describe the issue in detail..."
-            maxLength={MAX_DESCRIPTION_LENGTH}
-            errorText={
-              formik.touched.description && formik.errors.description
-                ? formik.errors.description
-                : ''
-            }
-          />
-
-          <div
-            className={`grid grid-cols-1 items-center gap-4 md:grid-cols-2 `}
-          >
-            {isExternalUser ? null : (
-              <Dropdown
-                label="Status"
-                required
-                options={statusOptions}
-                value={formik.values.status}
-                onChange={(value) => formik.setFieldValue('status', value)}
-                error={Boolean(formik.touched.status && formik.errors.status)}
-                errorMessage={formik.touched.status ? formik.errors.status : ''}
-              />
-            )}
-
-            {/* {isExternalUser ? null : ( */}
-            <Dropdown
-              label="Priority"
-              options={priorityOptions}
-              value={formik.values.priority}
-              onChange={(value) => formik.setFieldValue('priority', value)}
-              error={Boolean(formik.touched.priority && formik.errors.priority)}
-              errorMessage={
-                formik.touched.priority ? formik.errors.priority : ''
+            <RichTextEditor
+              name="description"
+              label="Description"
+              required
+              value={formik.values.description}
+              onChange={(value) => {
+                void formik.setFieldValue('description', value);
+              }}
+              onBlur={() => {
+                void formik.setFieldTouched('description', true);
+              }}
+              placeholder="Describe the issue in detail..."
+              maxLength={MAX_DESCRIPTION_LENGTH}
+              errorText={
+                formik.touched.description && formik.errors.description
+                  ? formik.errors.description
+                  : ''
               }
-              placeholder="Select priority"
             />
-            {/* )} */}
 
-            <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-1 col-span-2">
-              {/* <div className="min-w-0 w-full">
+            <div
+              className={`grid grid-cols-1 items-center gap-4 md:grid-cols-2 `}
+            >
+              {isExternalUser ? null : (
                 <Dropdown
-                  label="Ticket Type"
+                  label="Status"
                   required
-                  options={ticketTypeOptions}
-                  value={formik.values.ticketType}
-                  onChange={(value) =>
-                    void formik.setFieldValue(
-                      'ticketType',
-                      value as CreateTicketFormValues['ticketType'],
-                    )
-                  }
-                  error={Boolean(
-                    formik.touched.ticketType && formik.errors.ticketType,
-                  )}
+                  options={statusOptions}
+                  value={formik.values.status}
+                  onChange={(value) => formik.setFieldValue('status', value)}
+                  error={Boolean(formik.touched.status && formik.errors.status)}
                   errorMessage={
-                    formik.touched.ticketType ? formik.errors.ticketType : ''
+                    formik.touched.status ? formik.errors.status : ''
                   }
-                  placeholder="Select type"
                 />
-              </div> */}
-              <div className="min-w-0 w-full">
-                <ThemeInput
-                  label="Due Date (optional)"
-                  type="date"
-                  name="dueDate"
-                  value={formik.values.dueDate}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  min={getTodayInputValue()}
-                  errorText={
-                    formik.touched.dueDate ? formik.errors.dueDate : ''
-                  }
-                  className="w-full"
-                />
-              </div>
+              )}
+
+              <Dropdown
+                label="Agent"
+                options={assigneeOptions}
+                showSearch
+                value={formik.values.assigneeId}
+                onChange={(value) => formik.setFieldValue('assigneeId', value)}
+                placeholder={
+                  membersQuery.isLoading ? 'Loading...' : 'Select agent'
+                }
+                disabled={!canEditAssignee}
+              />
             </div>
           </div>
-        </div>
-        <div className="w-full p-5 space-y-3">
-          <label className="mb-1.5 block text-sm font-normal text-gray-800 md:text-base">
-            Attachments (optional)
-          </label>
-          <input
-            ref={fileInputRef}
-            type="file"
-            className="hidden"
-            multiple
-            accept={ALLOWED_ATTACHMENT_ACCEPT}
-            onChange={(event) => {
-              if (event.target.files) setAttachments(event.target.files);
-            }}
-          />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            onDragOver={(event) => {
-              event.preventDefault();
-              setIsDragOver(true);
-            }}
-            onDragLeave={() => setIsDragOver(false)}
-            onDrop={(event) => {
-              event.preventDefault();
-              setIsDragOver(false);
-              if (event.dataTransfer.files?.length) {
-                setAttachments(event.dataTransfer.files);
-              }
-            }}
-            className={`flex min-h-28 w-full flex-col items-center justify-center rounded-xl border border-dashed px-4 py-5 text-center transition ${
-              isDragOver
-                ? 'border-primary-dark bg-violet-50'
-                : 'border-gray-200 bg-white hover:border-gray-300'
-            }`}
-          >
-            <span className="mb-3 flex h-8.5 w-8.5 md:h-10 md:w-10 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500">
-              <UploadIcon />
-            </span>
-            <div>
-              <span className="text-sm font-bold text-primary">
-                Click to upload
+          <div className="w-full p-5 space-y-3">
+            <label className="mb-1.5 block text-sm font-normal text-gray-800 md:text-base">
+              Attachments (optional)
+            </label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              multiple
+              accept={ALLOWED_ATTACHMENT_ACCEPT}
+              onChange={(event) => {
+                if (event.target.files) setAttachments(event.target.files);
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(event) => {
+                event.preventDefault();
+                setIsDragOver(true);
+              }}
+              onDragLeave={() => setIsDragOver(false)}
+              onDrop={(event) => {
+                event.preventDefault();
+                setIsDragOver(false);
+                if (event.dataTransfer.files?.length) {
+                  setAttachments(event.dataTransfer.files);
+                }
+              }}
+              className={`flex min-h-28 w-full flex-col items-center justify-center rounded-xl border border-dashed px-4 py-5 text-center transition ${
+                isDragOver
+                  ? 'border-primary-dark bg-violet-50'
+                  : 'border-gray-200 bg-white hover:border-gray-300'
+              }`}
+            >
+              <span className="mb-3 flex h-8.5 w-8.5 md:h-10 md:w-10 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500">
+                <UploadIcon />
               </span>
-              <span className="text-sm text-gray-500 ps-2">
-                or drag and drop
+              <div>
+                <span className="text-sm font-bold text-primary">
+                  Click to upload
+                </span>
+                <span className="text-sm text-gray-500 ps-2">
+                  or drag and drop
+                </span>
+              </div>
+              <span className="mt-1 text-xs text-gray-700">
+                {ALLOWED_ATTACHMENT_HELPER_TEXT}
               </span>
-            </div>
-            <span className="mt-1 text-xs text-gray-700">
-              {ALLOWED_ATTACHMENT_HELPER_TEXT}
-            </span>
-          </button>
+            </button>
 
-          {/* {formik.values.attachments.length ? (
+            {/* {formik.values.attachments.length ? (
             <div className="mt-3  grid grid-cols-2 gap-2">
               {formik.values.attachments.map((file) => (
                 <div
@@ -562,44 +754,45 @@ export default function CreateTicketModal({
               ))}
             </div>
           ) : null} */}
-          {formik.values.attachments.length ? (
-            <div className="mt-3 grid max-h-103 min-h-0 grid-cols-1 gap-2 overflow-y-auto overscroll-contain pr-1 scrollbar-hide sm:grid-cols-2">
-              {formik.values.attachments.map((file) => (
-                <div
-                  key={`${file.name}-${file.size}-${file.lastModified}`}
-                  className="flex min-w-0 items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 py-0.5 pr-2 pl-0.5"
-                >
-                  <LocalAttachmentPreview file={file} />
-
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-gray-700">
-                      {file.name}
-                    </p>
-
-                    <p className="text-xs text-gray-500">
-                      {formatAttachmentSize(file.size)}
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveAttachment(file.name)}
-                    className="flex h-3 w-3 shrink-0 items-center justify-center rounded-full transition hover:bg-gray-100"
-                    aria-label={`Remove ${file.name}`}
+            {formik.values.attachments.length ? (
+              <div className="mt-3 grid max-h-103 min-h-0 grid-cols-1 gap-2 overflow-y-auto overscroll-contain pr-1 scrollbar-hide sm:grid-cols-2">
+                {formik.values.attachments.map((file) => (
+                  <div
+                    key={`${file.name}-${file.size}-${file.lastModified}`}
+                    className="flex min-w-0 items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 py-0.5 pr-2 pl-0.5"
                   >
-                    <CloseIcon />
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : null}
+                    <LocalAttachmentPreview file={file} />
 
-          {attachmentError ? (
-            <p className="mt-2 text-xs text-red-600">{attachmentError}</p>
-          ) : null}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-gray-700">
+                        {file.name}
+                      </p>
+
+                      <p className="text-xs text-gray-500">
+                        {formatAttachmentSize(file.size)}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveAttachment(file.name)}
+                      className="flex h-3 w-3 shrink-0 items-center justify-center rounded-full transition hover:bg-gray-100"
+                      aria-label={`Remove ${file.name}`}
+                    >
+                      <CloseIcon />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            {attachmentError ? (
+              <p className="mt-2 text-xs text-red-600">{attachmentError}</p>
+            ) : null}
+          </div>
         </div>
-      </div>
-    </AppModal>
+      </AppModal>
+    </>
   );
 }
 
@@ -610,9 +803,6 @@ type ApiTicketStatus = {
   color: string;
 };
 
-type ApiTicketPriority = ApiTicketStatus & {
-  sortOrder: number;
-};
 function AttachmentFileIcon({ extension }: { extension?: string }) {
   const label = normalizeAttachmentExtension(extension);
   const badgeClassName = getAttachmentBadgeClassName(label);
@@ -721,33 +911,6 @@ function LocalAttachmentPreview({ file }: { file: File }) {
     <AttachmentFileIcon extension={getFileExtension(file.name, file.type)} />
   );
 }
-type ApiContactOption = {
-  id: string;
-  fullName: string | null;
-  phone: string;
-};
-
-async function fetchContactOptions() {
-  const response = await fetch('/api/contacts?limit=200', {
-    method: 'GET',
-    headers: {
-      Accept: 'application/json',
-    },
-    cache: 'no-store',
-  });
-
-  const payload = (await response.json().catch(() => null)) as {
-    items?: ApiContactOption[];
-    message?: string;
-  } | null;
-
-  if (!response.ok || !Array.isArray(payload?.items)) {
-    throw new Error(payload?.message || 'Failed to fetch contacts.');
-  }
-
-  return payload.items;
-}
-
 async function fetchTicketStatuses() {
   const response = await fetch('/api/ticket-statuses', {
     method: 'GET',
@@ -765,39 +928,12 @@ async function fetchTicketStatuses() {
   if (!response.ok || !Array.isArray(payload)) {
     throw new Error(
       !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket statuses.'
-        : 'Failed to fetch ticket statuses.',
+        ? payload?.message || 'Failed to fetch lead statuses.'
+        : 'Failed to fetch lead statuses.',
     );
   }
 
   return payload;
-}
-
-async function fetchTicketPriorities() {
-  const response = await fetch('/api/ticket-priorities', {
-    method: 'GET',
-    headers: {
-      Accept: 'application/json',
-    },
-    cache: 'no-store',
-  });
-
-  const payload = (await response.json().catch(() => null)) as
-    | ApiTicketPriority[]
-    | { message?: string }
-    | null;
-
-  if (!response.ok || !Array.isArray(payload)) {
-    throw new Error(
-      !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket priorities.'
-        : 'Failed to fetch ticket priorities.',
-    );
-  }
-
-  return payload
-    .slice()
-    .sort((first, second) => first.sortOrder - second.sortOrder);
 }
 
 export function UploadIcon() {
@@ -819,10 +955,6 @@ export function UploadIcon() {
       />
     </svg>
   );
-}
-
-function getTodayInputValue() {
-  return new Date().toISOString().slice(0, 10);
 }
 
 function mergeAttachmentFiles(currentFiles: File[], newFiles: File[]) {

@@ -13,6 +13,7 @@ export type SettingsItemFormValues = {
   label: string;
   value: string;
   colorHex: string;
+  isClosed?: boolean;
 };
 
 type SettingsItemModalProps = {
@@ -59,6 +60,7 @@ export default function SettingsItemModal({
       label: '',
       value: '',
       colorHex: '#17B26A',
+      isClosed: false,
     },
     enableReinitialize: true,
     validationSchema: settingsItemSchema,
@@ -224,6 +226,26 @@ export default function SettingsItemModal({
             <p className="text-xs text-red-600">{formik.errors.colorHex}</p>
           ) : null}
         </div>
+
+        {kind === 'status' ? (
+          <label className="flex cursor-pointer items-start gap-2.5">
+            <input
+              type="checkbox"
+              checked={Boolean(formik.values.isClosed)}
+              onChange={(event) =>
+                formik.setFieldValue('isClosed', event.target.checked)
+              }
+              className="mt-1 h-4 w-4 shrink-0 accent-primary"
+            />
+            <span className="text-sm text-gray-800">
+              Closed status
+              <span className="block text-xs text-gray-500">
+                Leads in a closed status (won, lost, ...) are not counted as
+                Active.
+              </span>
+            </span>
+          </label>
+        ) : null}
 
         <div className="space-y-2">
           <label className="block text-sm font-normal text-gray-800 md:text-base">

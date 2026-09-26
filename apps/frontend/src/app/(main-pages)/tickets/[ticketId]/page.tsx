@@ -67,6 +67,8 @@ import { NotificationItem } from '@epc-crm/interfaces';
 import { NotificationEntityType } from '@epc-crm/types';
 import { eventEmitter } from '../../../../lib/event-emitter';
 import { uploadFilesDirectly } from '../../../../lib/attachments';
+import { isVoiceNoteFile } from '../../../../lib/voice-notes';
+import { formatDateTime } from '../../../../lib/format';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import RichTextEditor from 'apps/frontend/src/components/RichTextEditor';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -134,8 +136,6 @@ export default function TicketDetailPage() {
   const canEditAssignee = hasPermission('tickets.edit_assignee');
   const canAttachReplyFiles = hasPermission('ticket_replies.attach_file');
   const canEditStatus = hasPermission('tickets.edit_status');
-  const canEditPriority = hasPermission('tickets.edit_priority');
-  const canEditDueDate = hasPermission('tickets.edit_due_date');
   const canViewInternalChatBtn = hasPermission('tickets.internal_chat');
   const canViewProjectDetail = hasPermission('projects.view_detail');
   const canViewProjectThread = hasPermission('thread.view');
@@ -185,11 +185,6 @@ export default function TicketDetailPage() {
   const statusListQuery = useQuery({
     queryKey: ['ticket-statuses'],
     queryFn: fetchTicketStatuses,
-    enabled: !isExternalUser,
-  });
-  const priorityListQuery = useQuery({
-    queryKey: ['ticket-priorities'],
-    queryFn: fetchTicketPriorities,
     enabled: !isExternalUser,
   });
 
@@ -550,9 +545,7 @@ export default function TicketDetailPage() {
     !ticket;
   const [selectedStatus, setSelectedStatus] = useState('Open');
   const [selectedTicketType, setSelectedTicketType] = useState('Open');
-  const [selectedPriority, setSelectedPriority] = useState('');
   const [selectedAssignee, setSelectedAssignee] = useState('');
-  const [selectedDueDate, setSelectedDueDate] = useState('');
   const [ticketSidebarTab, setTicketSidebarTab] =
     useState<TicketSidebarTabKey>('quick-links');
   const [isEditContentModalOpen, setIsEditContentModalOpen] = useState(false);
@@ -585,11 +578,6 @@ export default function TicketDetailPage() {
 
   const [titleDraft, setTitleDraft] = useState('');
   const [descriptionDraft, setDescriptionDraft] = useState('');
-  const todayInputValue = getTodayInputValue();
-  const minimumDueDate = getTomorrowInputValue();
-  const isDueDateOverdue = Boolean(
-    selectedDueDate && selectedDueDate < todayInputValue,
-  );
 
   useEffect(() => {
     if (!canViewReplies || !projectId || !ticketId) {
@@ -680,20 +668,6 @@ export default function TicketDetailPage() {
         value: member.id,
       })),
     [membersQuery.data],
-  );
-  const priorityOptions = useMemo(
-    () =>
-      (priorityListQuery.data ?? []).map((priority) => ({
-        label: priority.label,
-        value: priority.key,
-        icon: (
-          <span
-            className="inline-block h-2.5 w-2.5 rounded-full"
-            style={{ backgroundColor: priority.color }}
-          />
-        ),
-      })),
-    [priorityListQuery.data],
   );
 
   const selectedAssigneeId = useMemo(() => {
@@ -806,9 +780,7 @@ export default function TicketDetailPage() {
 
     setSelectedStatus(ticket.status);
     setSelectedTicketType(ticket.ticketType ?? '');
-    setSelectedPriority(ticket.priorityKey ?? '');
     setSelectedAssignee(ticket.assigneeDetail?.name ?? '');
-    setSelectedDueDate(toDateInputValue(ticket.dueDateValue ?? ''));
     setTitleDraft(ticket.title);
     setDescriptionDraft(ticket.description ?? '');
   }, [ticket]);
@@ -1138,29 +1110,7 @@ export default function TicketDetailPage() {
         description: ticket.description,
         statusKey: value,
         ticketType: selectedTicketType,
-        priorityKey: selectedPriority,
         assigneeId: selectedAssigneeId,
-        dueDate: selectedDueDate,
-      }),
-    );
-  };
-
-  const handlePriorityChange = async (value: string) => {
-    if (!canEditPriority) {
-      return;
-    }
-
-    setSelectedPriority(value);
-
-    await updateTicketMutation.mutateAsync(
-      buildUpdateTicketPayload({
-        title: ticket.title,
-        description: ticket.description,
-        statusKey: selectedStatus,
-        ticketType: selectedTicketType,
-        priorityKey: value,
-        assigneeId: selectedAssigneeId,
-        dueDate: selectedDueDate,
       }),
     );
   };
@@ -1181,33 +1131,7 @@ export default function TicketDetailPage() {
         description: ticket.description,
         statusKey: selectedStatus,
         ticketType: selectedTicketType,
-        priorityKey: selectedPriority,
         assigneeId: value,
-        dueDate: selectedDueDate,
-      }),
-    );
-  };
-
-  const handleDueDateChange = async (value: string) => {
-    if (!canEditDueDate) {
-      return;
-    }
-
-    if (value && value < minimumDueDate) {
-      return;
-    }
-
-    setSelectedDueDate(value);
-
-    await updateTicketMutation.mutateAsync(
-      buildUpdateTicketPayload({
-        title: ticket.title,
-        description: ticket.description,
-        statusKey: selectedStatus,
-        ticketType: selectedTicketType,
-        priorityKey: selectedPriority,
-        assigneeId: selectedAssigneeId,
-        dueDate: value,
       }),
     );
   };
@@ -1336,9 +1260,13 @@ export default function TicketDetailPage() {
           await sendMessage({
             message:
               trimmedMessage ||
-              `Sent ${attachmentUrls.length} attachment${
-                attachmentUrls.length === 1 ? '' : 's'
-              }`,
+              (attachments.every(isVoiceNoteFile)
+                ? attachmentUrls.length === 1
+                  ? 'Sent a voice note'
+                  : `Sent ${attachmentUrls.length} voice notes`
+                : `Sent ${attachmentUrls.length} attachment${
+                    attachmentUrls.length === 1 ? '' : 's'
+                  }`),
             messageType: 'attachment',
             attachmentUrls,
             mentionedUserIds,
@@ -1412,9 +1340,7 @@ export default function TicketDetailPage() {
         description: nextDescription,
         statusKey: selectedStatus,
         ticketType: selectedTicketType,
-        priorityKey: selectedPriority,
         assigneeId: selectedAssigneeId,
-        dueDate: selectedDueDate,
       }),
     );
 
@@ -1752,28 +1678,6 @@ export default function TicketDetailPage() {
                   ) : undefined
                 }
               />
-
-              {ticket.dueDate ? (
-                <div>
-                  <span className="block text-sm text-gray-300">Due Date</span>
-
-                  <div
-                    className={`flex h-fit items-start gap-2 rounded-lg pt-2 text-white`}
-                  >
-                    <div className="flex w-full items-center gap-3">
-                      <p className="pt-px text-sm font-medium">
-                        {ticket.dueDate}
-                      </p>
-
-                      {isDueDateOverdue ? (
-                        <p className="rounded-full bg-[#F04438] px-2.5 py-0.5 text-sm font-medium text-white">
-                          Overdue
-                        </p>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              ) : null}
             </div>
             <div className="xl:hidden  flex flex-col gap-4 w-full">
               <div className="grid grid-cols-3 gap-4">
@@ -1814,30 +1718,6 @@ export default function TicketDetailPage() {
                     ) : undefined
                   }
                 />
-
-                {ticket.dueDate ? (
-                  <div className="flex flex-col">
-                    <span className="block text-sm text-gray-300 leading-none">
-                      Due Date
-                    </span>
-
-                    <div
-                      className={`flex h-fit items-start gap-2 rounded-lg  text-white`}
-                    >
-                      <div className="flex w-full items-center gap-3">
-                        <p className="pt-px text-sm font-medium ">
-                          {ticket.dueDate}
-                        </p>
-
-                        {isDueDateOverdue ? (
-                          <p className="rounded-full bg-[#F04438] px-2.5 py-0.5 text-sm font-medium text-white">
-                            Overdue
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
               </div>
             </div>
           </div>
@@ -2104,21 +1984,7 @@ export default function TicketDetailPage() {
                   </div>
                   <div className="grid items-center grid-cols-[60px_minmax(0,1fr)] 2xl:grid-cols-2 gap-2 2xl:gap-4">
                     <span className="text-sm text-black font-normal">
-                      Priority
-                    </span>
-                    <Dropdown
-                      options={priorityOptions}
-                      value={selectedPriority}
-                      disabled={
-                        updateTicketMutation.isPending || !canEditPriority
-                      }
-                      onChange={handlePriorityChange}
-                      applyHeight={false}
-                    />
-                  </div>
-                  <div className="grid items-center grid-cols-[60px_minmax(0,1fr)] 2xl:grid-cols-2 gap-2 2xl:gap-4">
-                    <span className="text-sm text-black font-normal">
-                      Assignee
+                      Agent
                     </span>
 
                     <Dropdown
@@ -2130,28 +1996,6 @@ export default function TicketDetailPage() {
                       onChange={handleAssigneeChange}
                     />
                   </div>
-                  <section className="grid w-full grid-cols-[60px_minmax(0,1fr)] items-center gap-2 2xl:grid-cols-2 2xl:gap-4">
-                    <span className="whitespace-nowrap text-sm font-normal text-black">
-                      Due Date
-                    </span>
-
-                    <div className="min-w-0 xl:w-[calc(100%+0.5rem)] 2xl:w-full">
-                      <label className="flex w-full min-w-0 items-center justify-between rounded-lg border border-gray-200 px-3 py-1.5">
-                        <input
-                          type="date"
-                          value={selectedDueDate}
-                          min={minimumDueDate}
-                          disabled={
-                            updateTicketMutation.isPending || !canEditDueDate
-                          }
-                          onChange={(event) =>
-                            handleDueDateChange(event.target.value)
-                          }
-                          className="w-full min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none disabled:cursor-not-allowed disabled:text-gray-400"
-                        />
-                      </label>
-                    </div>
-                  </section>
                 </div>
               </section>
               {projectId && canViewProjectDetail ? (
@@ -2865,8 +2709,8 @@ async function fetchTicketDetail(projectId: string, ticketId: string) {
   if (!response.ok || !isApiTicketDetail(payload)) {
     const message =
       payload && typeof payload === 'object' && 'message' in payload
-        ? payload.message || 'Failed to fetch ticket details.'
-        : 'Failed to fetch ticket details.';
+        ? payload.message || 'Failed to fetch lead details.'
+        : 'Failed to fetch lead details.';
     throw new Error(message);
   }
 
@@ -2915,39 +2759,12 @@ async function fetchTicketStatuses() {
   if (!response.ok || !Array.isArray(payload)) {
     throw new Error(
       !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket statuses.'
-        : 'Failed to fetch ticket statuses.',
+        ? payload?.message || 'Failed to fetch lead statuses.'
+        : 'Failed to fetch lead statuses.',
     );
   }
 
   return payload;
-}
-
-async function fetchTicketPriorities() {
-  const response = await fetch('/api/ticket-priorities', {
-    method: 'GET',
-    headers: {
-      Accept: 'application/json',
-    },
-    cache: 'no-store',
-  });
-
-  const payload = (await response.json().catch(() => null)) as
-    | ApiTicketPriority[]
-    | { message?: string }
-    | null;
-
-  if (!response.ok || !Array.isArray(payload)) {
-    throw new Error(
-      !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket priorities.'
-        : 'Failed to fetch ticket priorities.',
-    );
-  }
-
-  return payload
-    .slice()
-    .sort((first, second) => first.sortOrder - second.sortOrder);
 }
 
 async function fetchTicketReplies(
@@ -2991,7 +2808,7 @@ async function fetchTicketReplies(
 
   if (!response.ok || !normalizedPayload) {
     throw new Error(
-      normalizedPayload?.message || 'Failed to fetch ticket replies.',
+      normalizedPayload?.message || 'Failed to fetch lead replies.',
     );
   }
 
@@ -3019,7 +2836,7 @@ function normalizeTicketRepliesResponse(
   if (!isApiTicketRepliesResponse(payload)) {
     return payload && 'message' in payload
       ? {
-          message: payload.message || 'Failed to fetch ticket replies.',
+          message: payload.message || 'Failed to fetch lead replies.',
           messages: [],
           cursor: null,
           hasMore: false,
@@ -3101,8 +2918,8 @@ async function fetchTicketTimeline(projectId: string, ticketId: string) {
   if (!response.ok || !Array.isArray(payload)) {
     throw new Error(
       !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket timeline.'
-        : 'Failed to fetch ticket timeline.',
+        ? payload?.message || 'Failed to fetch lead timeline.'
+        : 'Failed to fetch lead timeline.',
     );
   }
 
@@ -3141,10 +2958,6 @@ type ApiTicketStatus = {
   key: string;
   label: string;
   color: string;
-};
-
-type ApiTicketPriority = ApiTicketStatus & {
-  sortOrder: number;
 };
 
 type ApiTicketReply = {
@@ -3245,7 +3058,6 @@ type UpdateTicketRequest = Partial<{
   priorityKey: string;
   ticketType: string;
   assigneeId: string;
-  dueDate: string;
 }>;
 
 type UpdateTicketPayloadInput = {
@@ -3256,7 +3068,6 @@ type UpdateTicketPayloadInput = {
   assigneeId?: string | null;
   ticketType: string;
   reporterId?: string | null;
-  dueDate?: string | null;
 };
 
 function buildUpdateTicketPayload(
@@ -3309,12 +3120,8 @@ function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
       name: assigneeName,
       initials: getInitials(assigneeName),
     },
-    date: formatTicketDate(ticket.createdAt),
+    date: formatDateTime(ticket.createdAt),
     description: ticket.description,
-    dueDate: ticket.dueDate
-      ? formatTicketDate(toDateInputValue(ticket.dueDate))
-      : null,
-    dueDateValue: ticket.dueDate ?? '',
     assigneeId: ticket.assigneeId ?? '',
     reporterId: ticket.reporterId ?? '',
     priorityKey: ticket.priorityKey,
@@ -3332,7 +3139,7 @@ function mapApiTicketDetailToRecord(ticket: ApiTicketDetail) {
     },
     assigneeDetail: ticket.assignee
       ? {
-          role: 'Assignee',
+          role: 'Agent',
           name: assigneeName,
           initials: getInitials(assigneeName),
         }
@@ -3856,22 +3663,6 @@ function getInitials(value: string) {
     .toUpperCase();
 }
 
-function formatTicketDate(value: string) {
-  const date = new Date(
-    /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value,
-  );
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(date);
-}
-
 type SocketTokenResponse = {
   accessToken: string;
   socketUrl: string;
@@ -3968,31 +3759,6 @@ async function fetchUnreadIndicator(
   }
 
   return false;
-}
-
-function toDateInputValue(value: string) {
-  if (!value) {
-    return '';
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toISOString().slice(0, 10);
-}
-
-function getTomorrowInputValue() {
-  const date = new Date();
-  date.setDate(date.getDate() + 1);
-
-  return date.toISOString().slice(0, 10);
-}
-
-function getTodayInputValue() {
-  return new Date().toISOString().slice(0, 10);
 }
 
 function formatReplyDate(value: string) {

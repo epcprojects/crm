@@ -32,7 +32,14 @@ export async function GET(request: NextRequest) {
     const requestUrl = new URL(request.url);
     const upstreamUrl = new URL(`${apiBaseUrl}/dashboard/kanban-ticket-counts`);
 
-    for (const key of ['search', 'priorityKey','ticketType',]) {
+    for (const key of [
+      'search',
+      'priorityKey',
+      'ticketType',
+      'contactId',
+      'reporterId',
+      'assigneeId',
+    ]) {
       const value = requestUrl.searchParams.get(key);
 
       if (value) {
@@ -71,7 +78,7 @@ export async function GET(request: NextRequest) {
     if (!response.ok) {
       return NextResponse.json(
         {
-          message: data?.message || 'Failed to fetch Kanban ticket counts.',
+          message: data?.message || 'Failed to fetch Kanban lead counts.',
         },
         { status: response.status },
       );

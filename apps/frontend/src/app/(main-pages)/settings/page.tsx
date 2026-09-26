@@ -27,6 +27,7 @@ type ApiTicketStatus = {
   label: string;
   color: string;
   sortOrder: number;
+  isClosed?: boolean;
 };
 
 type ApiTicketPriority = ApiTicketStatus;
@@ -230,7 +231,10 @@ export default function Page() {
     mutationFn: async ({
       body,
     }: {
-      body: Pick<ApiTicketStatus, 'key' | 'label' | 'color' | 'sortOrder'>;
+      body: Pick<
+        ApiTicketStatus,
+        'key' | 'label' | 'color' | 'sortOrder' | 'isClosed'
+      >;
     }) => {
       const response = await fetch('/api/ticket-statuses', {
         method: 'POST',
@@ -284,7 +288,7 @@ export default function Page() {
       body,
     }: {
       statusId: string;
-      body: Pick<ApiTicketStatus, 'label' | 'color'>;
+      body: Pick<ApiTicketStatus, 'label' | 'color' | 'isClosed'>;
     }) => {
       const response = await fetch(`/api/ticket-statuses/${statusId}`, {
         method: 'PATCH',
@@ -380,6 +384,7 @@ export default function Page() {
           key: values.value,
           label: values.label,
           color: values.colorHex,
+          isClosed: Boolean(values.isClosed),
           sortOrder: statusItems.length,
         },
       });
@@ -401,6 +406,7 @@ export default function Page() {
         body: {
           label: values.label,
           color: values.colorHex,
+          isClosed: Boolean(values.isClosed),
         },
       });
 
@@ -570,9 +576,7 @@ export default function Page() {
       hasPermission('tickets.view_detail') ||
       hasPermission('tickets.create') ||
       hasPermission('tickets.edit_status') ||
-      hasPermission('tickets.edit_priority') ||
       hasPermission('tickets.edit_assignee') ||
-      hasPermission('tickets.edit_due_date') ||
       hasPermission('tickets.edit_title_description'),
   };
   const emailPreferenceGroups = buildEmailPreferenceGroups(
@@ -721,6 +725,7 @@ export default function Page() {
                     label: editingStatus.label,
                     value: editingStatus.value,
                     colorHex: editingStatus.colorHex ?? '#17B26A',
+                    isClosed: editingStatus.isClosed,
                   }
                 : undefined
             : undefined
@@ -961,7 +966,7 @@ async function fetchTicketStatuses() {
     throw new Error(
       !Array.isArray(payload)
         ? payload?.message
-        : 'Failed to fetch ticket statuses.',
+        : 'Failed to fetch lead statuses.',
     );
   }
 
@@ -988,8 +993,8 @@ async function fetchTicketStatusDetail(statusId: string) {
   if (!response.ok || !isApiTicketStatus(payload)) {
     throw new Error(
       isErrorPayload(payload)
-        ? payload.message || 'Failed to fetch ticket status.'
-        : 'Failed to fetch ticket status.',
+        ? payload.message || 'Failed to fetch lead status.'
+        : 'Failed to fetch lead status.',
     );
   }
 
@@ -1014,7 +1019,7 @@ async function fetchTicketPriorities() {
     throw new Error(
       !Array.isArray(payload)
         ? payload?.message
-        : 'Failed to fetch ticket priorities.',
+        : 'Failed to fetch lead priorities.',
     );
   }
 
@@ -1041,8 +1046,8 @@ async function fetchTicketPriorityDetail(priorityId: string) {
   if (!response.ok || !isApiTicketPriority(payload)) {
     throw new Error(
       isErrorPayload(payload)
-        ? payload.message || 'Failed to fetch ticket priority.'
-        : 'Failed to fetch ticket priority.',
+        ? payload.message || 'Failed to fetch lead priority.'
+        : 'Failed to fetch lead priority.',
     );
   }
 
@@ -1174,6 +1179,7 @@ function mapTicketStatusToSettingsItem(
     value: status.key,
     countLabel: status.key,
     colorHex: status.color,
+    isClosed: status.isClosed,
   };
 }
 
@@ -1196,6 +1202,7 @@ function mapTicketStatusDetailToFormValues(
     label: status.label,
     value: status.key,
     colorHex: status.color,
+    isClosed: status.isClosed,
   };
 }
 

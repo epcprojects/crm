@@ -7,7 +7,7 @@ export class GetTicketAssigneesQueryDto {
     type: [String],
     isArray: true,
     description:
-      'Restrict to assignees of tickets in these projects (must still be projects the caller can see).',
+      'Restrict to agents of tickets in these projects (must still be projects the caller can see).',
   })
   @IsOptional()
   @Transform(({ value }) =>

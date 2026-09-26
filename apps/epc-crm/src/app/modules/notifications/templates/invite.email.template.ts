@@ -312,7 +312,7 @@ export function adminInviteTemplate({
                             display:inline-block;
                             text-decoration:none;
                         ">
-                                                    <img src="${appUrl}/images/Banners/HarperLogo.png" width="30"
+                                                    <img src="${appUrl}/images/Banners/ZarrarLogo.png" width="30"
                                                         alt="" style="
                                 display:block;
                                 width:30px;
@@ -443,7 +443,7 @@ export function adminInviteTemplate({
                                                                                                                     collaborate
                                                                                                                     and
                                                                                                                     manage
-                                                                                                                    tickets
+                                                                                                                    leads
                                                                                                                     across
                                                                                                                     our
                                                                                                                     companies.
@@ -663,7 +663,7 @@ export function adminInviteTemplate({
         ">
                                                     EPC CRM
                                                     <span style="color:#9CA3AF;">&nbsp;&bull;&nbsp;</span>
-                                                    All your tickets. One place.
+                                                    All your leads. One place.
                                                 </td>
                                             </tr>
                                         </tbody>

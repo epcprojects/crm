@@ -35,7 +35,7 @@ export class GetTicketsQueryDto {
 
   @ApiPropertyOptional({
     description:
-      'Filter tickets by assignee id, or "unassigned" for tickets with no assignee.',
+      'Filter tickets by agent id, or "unassigned" for tickets with no agent.',
   })
   @IsOptional()
   @IsString()
@@ -45,7 +45,7 @@ export class GetTicketsQueryDto {
     description: 'Filter tickets created by this user (the reporter).',
   })
   @IsOptional()
-  @IsUUID()
+  @IsUUID('loose')
   reporterId?: string;
 
   @ApiPropertyOptional({ type: [String], isArray: true })
@@ -59,7 +59,7 @@ export class GetTicketsQueryDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsUUID()
+  @IsUUID('loose')
   contactId?: string;
 
   @ApiPropertyOptional({

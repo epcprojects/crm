@@ -26,6 +26,8 @@ import type {
   TicketStatus,
 } from '../../../components/tables/RecentTicketsTable';
 import { uploadFilesDirectly } from '../../../lib/attachments';
+import { formatDateTime } from '../../../lib/format';
+import type { LeadStatusCount } from '../../../lib/tickets';
 
 export const projectsQueryKey = ['projects'];
 export const dashboardTicketsQueryKey = ['dashboard-project-tickets'];
@@ -64,9 +66,8 @@ type ProjectsQueryOptions = {
 type ProjectSummary = {
   totalProjects: number | null;
   activeProjects: number | null;
-  openTickets: number | null;
-  criticalIssues: number | null;
-  closedTickets: number | null;
+  totalLeads: number | null;
+  statuses: LeadStatusCount[];
 };
 
 type ProjectsPaginationMeta = {
@@ -674,9 +675,8 @@ function normalizeProjectsResponse(
       summary: {
         totalProjects: payload.length,
         activeProjects: payload.length,
-        openTickets: 0,
-        criticalIssues: 0,
-        closedTickets: 0,
+        totalLeads: 0,
+        statuses: [],
       },
       meta: {
         page,
@@ -707,10 +707,9 @@ function normalizeProjectsResponse(
 
       activeProjects: payload.summary?.activeProjects ?? 0,
 
-      openTickets: payload.summary?.openTickets ?? 0,
+      totalLeads: payload.summary?.totalLeads ?? 0,
 
-      criticalIssues: payload.summary?.criticalIssues ?? 0,
-      closedTickets: payload.summary?.closedTickets ?? 0,
+      statuses: payload.summary?.statuses ?? [],
     },
     meta: {
       page: payload.meta?.page ?? page,
@@ -1183,7 +1182,7 @@ async function deleteTicket(projectId: string, ticketId: string) {
   const payload = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(payload?.message || 'Failed to delete ticket.');
+    throw new Error(payload?.message || 'Failed to delete lead.');
   }
 
   return payload;
@@ -1582,8 +1581,8 @@ async function fetchProjectTickets(
   if (!response.ok || !isApiProjectTicketsResponse(payload)) {
     throw new Error(
       isProjectErrorPayload(payload)
-        ? payload.message || 'Failed to fetch project tickets.'
-        : 'Failed to fetch project tickets.',
+        ? payload.message || 'Failed to fetch project leads.'
+        : 'Failed to fetch project leads.',
     );
   }
 
@@ -1632,8 +1631,8 @@ async function fetchProjectTicketsKanban(
   if (!response.ok || !isApiProjectTicketsKanbanResponse(payload)) {
     throw new Error(
       isProjectErrorPayload(payload)
-        ? payload.message || 'Failed to fetch project Kanban tickets.'
-        : 'Failed to fetch project Kanban tickets.',
+        ? payload.message || 'Failed to fetch project Kanban leads.'
+        : 'Failed to fetch project Kanban leads.',
     );
   }
 
@@ -1669,11 +1668,17 @@ export async function fetchProjectKanbanCounts({
   priorityKey,
   ticketType,
   search,
+  contactId,
+  reporterId,
+  assigneeId,
 }: {
   projectId: string;
   priorityKey?: string;
   ticketType?: string;
   search?: string;
+  contactId?: string;
+  reporterId?: string;
+  assigneeId?: string;
 }) {
   const searchParams = new URLSearchParams();
 
@@ -1688,6 +1693,15 @@ export async function fetchProjectKanbanCounts({
   }
   if (search?.trim()) {
     searchParams.set('search', search.trim());
+  }
+  if (contactId) {
+    searchParams.set('contactId', contactId);
+  }
+  if (reporterId) {
+    searchParams.set('reporterId', reporterId);
+  }
+  if (assigneeId) {
+    searchParams.set('assigneeId', assigneeId);
   }
 
   const response = await fetch(
@@ -1722,6 +1736,9 @@ export async function fetchProjectKanbanBoard({
   ticketType,
   search,
   statusKey,
+  contactId,
+  reporterId,
+  assigneeId,
   page = 1,
   limit = 20,
 }: {
@@ -1730,6 +1747,9 @@ export async function fetchProjectKanbanBoard({
   ticketType?: string;
   search?: string;
   statusKey?: string;
+  contactId?: string;
+  reporterId?: string;
+  assigneeId?: string;
   page?: number;
   limit?: number;
 }): Promise<ProjectKanbanBoardData> {
@@ -1747,6 +1767,15 @@ export async function fetchProjectKanbanBoard({
   }
   if (search?.trim()) {
     searchParams.set('search', search.trim());
+  }
+  if (contactId) {
+    searchParams.set('contactId', contactId);
+  }
+  if (reporterId) {
+    searchParams.set('reporterId', reporterId);
+  }
+  if (assigneeId) {
+    searchParams.set('assigneeId', assigneeId);
   }
 
   // Initial request mein statusKey/page nahi jayega
@@ -2116,12 +2145,7 @@ function mapApiProjectTicketToRecentTicket(
       name: assigneeName,
       initials: getInitials(assigneeName),
     },
-    date: formatTicketDate(ticket.createdAt),
-    dueDate: formatTicketDate(
-      (ticket.dueDate ?? ticket.createdAt).split('T')[0] ??
-        ticket.dueDate ??
-        ticket.createdAt,
-    ),
+    date: formatDateTime(ticket.createdAt),
     sortDate: ticket.dueDate ?? ticket.createdAt,
     reporter: {
       id: ticket.reporter?.id ?? '',
@@ -2239,22 +2263,6 @@ function getInitials(value: string) {
     .map((word) => word[0])
     .join('')
     .toUpperCase();
-}
-
-function formatTicketDate(value: string) {
-  const date = new Date(
-    /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value,
-  );
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(date);
 }
 
 function formatThreadDate(value: string) {

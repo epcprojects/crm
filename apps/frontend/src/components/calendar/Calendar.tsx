@@ -51,10 +51,11 @@ export default function Calendar({ projectId }: CalendarProps) {
         const isTicket = cal.tickets.some((ticket) => ticket.id === rawId);
 
         if (isTicket) {
-          await cal.updateTicket(rawId, { dueDate: newDate });
-        } else {
-          await cal.updateEventDate(id, newDate);
+          // Leads stay on the day they were created.
+          return;
         }
+
+        await cal.updateEventDate(id, newDate);
       } catch (error) {
         console.error('Drag update failed:', error);
         cal.refetch();

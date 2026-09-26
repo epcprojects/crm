@@ -28,7 +28,7 @@ export default function MobileTopHeader({
       >
         <Image
           src={Images.auth.NewLogo}
-          alt="EPC CRM"
+          alt="Zarrar.pk"
           priority
           className="h-8 w-auto"
         />

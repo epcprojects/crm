@@ -25,10 +25,9 @@ import {
   usePermissions,
 } from '../../providers/PermissionProvider';
 import ThemeButton from '../../../components/ui/ThemeButton';
-import Dropdown from '../../../components/ui/ThemeDropDown';
 import DashboardSummaryBanner from '../../../components/ui/DashboardSummaryBanner';
 import { useDebouncedValue } from '../../../components/hooks/useDebouncedValue';
-import { fetchCitiesByProvince, fetchProvinces } from '../../../lib/territories';
+import { createContact, toContactPayload } from '../../../lib/contacts';
 import { createTicket } from '../../../lib/tickets';
 import { useProjectNamesQuery } from '../projects/projects.queries';
 import { getInitials } from '../../../lib/format';
@@ -63,41 +62,14 @@ export default function ContactsPage() {
   const debouncedSearchValue = useDebouncedValue(searchValue);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
-  const [filterProvinceId, setFilterProvinceId] = useState('');
-  const [filterTerritoryId, setFilterTerritoryId] = useState('');
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearchValue, filterProvinceId, filterTerritoryId, pageSize]);
-
-  const provincesQuery = useQuery({
-    queryKey: ['territories', 'provinces'],
-    queryFn: fetchProvinces,
-    enabled: canViewContacts,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const filterCitiesQuery = useQuery({
-    queryKey: ['territories', 'cities', filterProvinceId],
-    queryFn: () => fetchCitiesByProvince(filterProvinceId),
-    enabled: canViewContacts && Boolean(filterProvinceId),
-    staleTime: 5 * 60 * 1000,
-  });
+  }, [debouncedSearchValue, pageSize]);
 
   const contactsQuery = useQuery({
-    queryKey: [
-      'contacts',
-      page,
-      pageSize,
-      debouncedSearchValue.trim(),
-      filterProvinceId,
-      filterTerritoryId,
-    ],
-    queryFn: () =>
-      fetchContacts(page, pageSize, debouncedSearchValue.trim(), {
-        provinceId: filterProvinceId,
-        territoryId: filterTerritoryId,
-      }),
+    queryKey: ['contacts', page, pageSize, debouncedSearchValue.trim()],
+    queryFn: () => fetchContacts(page, pageSize, debouncedSearchValue.trim()),
     enabled: canViewContacts,
   });
 
@@ -108,24 +80,7 @@ export default function ContactsPage() {
   });
 
   const createContactMutation = useMutation({
-    mutationFn: async (values: AddContactFormValues) => {
-      const response = await fetch('/api/contacts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify(toContactPayload(values)),
-      });
-
-      const payload = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        throw new Error(payload?.message || 'Failed to create contact.');
-      }
-
-      return payload;
-    },
+    mutationFn: (values: AddContactFormValues) => createContact(values),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['contacts'] });
     },
@@ -233,9 +188,8 @@ export default function ContactsPage() {
         title: values.title,
         description: values.description,
         statusKey: values.status,
-        priorityKey: values.priority,
+        assigneeId: values.assigneeId || undefined,
         ticketType: values.ticketType,
-        dueDate: values.dueDate,
         contactId: creatingLeadForContact.id,
         attachments: values.attachments,
       });
@@ -258,28 +212,11 @@ export default function ContactsPage() {
     hasPrevious: false,
   };
 
-  const provinceFilterOptions = [
-    { label: 'All Provinces', value: '' },
-    ...(provincesQuery.data ?? []).map((province) => ({
-      label: province.name,
-      value: province.id,
-    })),
-  ];
-  const cityFilterOptions = [
-    { label: 'All Cities', value: '' },
-    ...(filterCitiesQuery.data ?? []).map((city) => ({
-      label: city.name,
-      value: city.id,
-    })),
-  ];
-
   const editInitialValues = editingContact
     ? {
         fullName: editingContact.fullName ?? '',
         phone: editingContact.phone,
         email: editingContact.email ?? '',
-        provinceId: editingContact.territory?.parent?.id ?? '',
-        territoryId: editingContact.territoryId ?? '',
         source: editingContact.source ?? '',
         notes: editingContact.notes ?? '',
       }
@@ -340,32 +277,6 @@ export default function ContactsPage() {
                         </button>
                       </div>
                     </div>
-
-                    <div className="w-full sm:w-44">
-                      <Dropdown
-                        options={provinceFilterOptions}
-                        value={filterProvinceId}
-                        onChange={(value) => {
-                          setFilterProvinceId(value);
-                          setFilterTerritoryId('');
-                        }}
-                        placeholder="All Provinces"
-                        showSearch
-                        applyHeight={false}
-                      />
-                    </div>
-
-                    <div className="w-full sm:w-44">
-                      <Dropdown
-                        options={cityFilterOptions}
-                        value={filterTerritoryId}
-                        onChange={setFilterTerritoryId}
-                        placeholder="All Cities"
-                        disabled={!filterProvinceId}
-                        showSearch
-                        applyHeight={false}
-                      />
-                    </div>
                   </div>
 
                   {canCreateContact ? (
@@ -390,11 +301,7 @@ export default function ContactsPage() {
                       onPageChange={setPage}
                       pageSizeOptions={PAGE_SIZE_OPTIONS}
                       onPageSizeChange={setPageSize}
-                      searchActive={Boolean(
-                        debouncedSearchValue.trim() ||
-                          filterProvinceId ||
-                          filterTerritoryId,
-                      )}
+                      searchActive={Boolean(debouncedSearchValue.trim())}
                       onEdit={
                         canEditContact
                           ? (contact) => setEditingContact(contact)
@@ -478,7 +385,6 @@ export default function ContactsPage() {
               ? `${creatingLeadForContact.fullName} (${creatingLeadForContact.phone})`
               : creatingLeadForContact.phone
           }
-          disableContactSelection
         />
       ) : null}
 
@@ -501,23 +407,7 @@ export default function ContactsPage() {
   );
 }
 
-function toContactPayload(values: AddContactFormValues) {
-  return {
-    fullName: values.fullName?.trim() || undefined,
-    phone: values.phone.trim(),
-    email: values.email?.trim() || undefined,
-    territoryId: values.territoryId || undefined,
-    source: values.source?.trim() || undefined,
-    notes: values.notes?.trim() || undefined,
-  };
-}
-
-async function fetchContacts(
-  page: number,
-  limit: number,
-  search?: string,
-  filters?: { provinceId?: string; territoryId?: string },
-) {
+async function fetchContacts(page: number, limit: number, search?: string) {
   const searchParams = new URLSearchParams({
     page: String(page),
     limit: String(limit),
@@ -525,12 +415,6 @@ async function fetchContacts(
 
   if (search) {
     searchParams.set('search', search);
-  }
-
-  if (filters?.territoryId) {
-    searchParams.set('territoryId', filters.territoryId);
-  } else if (filters?.provinceId) {
-    searchParams.set('provinceId', filters.provinceId);
   }
 
   const response = await fetch(`/api/contacts?${searchParams}`, {
@@ -652,7 +536,6 @@ async function fetchContactLeads(contactId: string): Promise<RecentTicket[]> {
         initials: getInitials(assigneeName),
       },
       date: ticket.createdAt,
-      dueDate: ticket.dueDate ?? '--',
       sortDate: ticket.createdAt,
       reporter: {
         id: ticket.reporter?.id ?? '',

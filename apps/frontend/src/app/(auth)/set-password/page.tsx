@@ -101,7 +101,9 @@ const Page = () => {
     <div className="grid grid-cols-1 md:grid-cols-2 p-3 bg-white flex-1 md:min-h-[calc(100dvh-32px)] min-h-[calc(100dvh-16px)] rounded-3xl md:rounded-4xl">
       <div className="md:p-8 flex flex-col relative items-center justify-center w-full">
         <Image
-          alt="EPC CRM logo"
+          alt="Zarrar.pk logo"
+          width={64}
+          height={64}
           className="md:absolute mb-4 top-2 left-2 md:left-4 md:top-4"
           src={Images.auth.NewLogo}
         />

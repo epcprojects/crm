@@ -2,6 +2,7 @@
 
 import AppModal from './AppModal';
 import type { RoleClaimRecord, RoleRecord } from '../tables/RolesTable';
+import { isHiddenRolePermission, toLeadWording } from '../../lib/role-permissions';
 
 type RoleClaimsModalProps = {
   isOpen: boolean;
@@ -67,7 +68,7 @@ function groupClaimsByModule(claims: RoleClaimRecord[]) {
   claims.forEach((claim) => {
     const permission = getPermissionValue(claim);
 
-    if (!permission) {
+    if (!permission || isHiddenRolePermission(permission)) {
       return;
     }
 
@@ -104,13 +105,17 @@ function getPermissionValue(claim: RoleClaimRecord) {
 }
 
 function formatModuleTitle(module: string) {
-  return toTitleCase(module.replace(/_/g, ' '));
+  return toLeadWording(toTitleCase(module.replace(/_/g, ' ')));
 }
 
 function formatPermissionLabel(permission: string) {
   const permissionName = permission.split('.').slice(1).join(' ');
 
-  return toTitleCase(permissionName.replace(/_/g, ' '));
+  return toLeadWording(
+    toTitleCase(
+      permissionName.replace(/_/g, ' ').replace(/\bassignee\b/g, 'agent'),
+    ),
+  );
 }
 
 function normalizePermission(permission: string) {

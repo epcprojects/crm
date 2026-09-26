@@ -1,5 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsHexColor, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsHexColor,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 export class CreateTicketStatusDto {
   @ApiProperty()
@@ -20,4 +26,11 @@ export class CreateTicketStatusDto {
     @ApiPropertyOptional()
   @IsOptional()
   sortOrder?: number;
+
+  @ApiPropertyOptional({
+    description: 'Leads in a closed status are not counted as Active',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isClosed?: boolean;
 }

@@ -1,5 +1,45 @@
 import { uploadFilesDirectly } from './attachments';
 
+// Lead count per configured status, as returned by the summary endpoints.
+export type LeadStatusCount = {
+  key: string;
+  label: string;
+  color: string;
+  sortOrder: number;
+  isClosed: boolean;
+  count: number;
+};
+
+export type LeadStatusSummary = {
+  total: number;
+  statuses: LeadStatusCount[];
+};
+
+// Headline stats: all leads, those still active and those in a closed status.
+export function toLeadOverviewStats(summary?: LeadStatusSummary | null) {
+  const total = summary?.total ?? 0;
+  const closed = (summary?.statuses ?? [])
+    .filter((status) => status.isClosed)
+    .reduce((sum, status) => sum + status.count, 0);
+
+  return [
+    { title: 'Total Leads', count: total, color: '#17B26A' },
+    { title: 'Active Leads', count: total - closed, color: '#F79009' },
+    { title: 'Closed Leads', count: closed, color: '#667085' },
+  ];
+}
+
+// Banner stat items, one per configured status.
+export function toStatusStats(
+  summary?: { statuses?: LeadStatusCount[] | null } | null,
+) {
+  return (summary?.statuses ?? []).map((status) => ({
+    title: status.label,
+    count: status.count,
+    color: status.color,
+  }));
+}
+
 export type CreateTicketPayload = {
   projectId: string;
   title: string;
@@ -19,7 +59,10 @@ export async function createTicket(payload: CreateTicketPayload) {
   );
 
   const uploadedAttachments = validAttachments.length
-    ? await uploadFilesDirectly(validAttachments, `projects/${payload.projectId}/tickets/creation`)
+    ? await uploadFilesDirectly(
+        validAttachments,
+        `projects/${payload.projectId}/tickets/creation`,
+      )
     : [];
 
   const body: Record<string, unknown> = {
@@ -64,7 +107,7 @@ export async function createTicket(payload: CreateTicketPayload) {
     const message =
       Array.isArray(data?.message) && data.message.length
         ? data.message.join(', ')
-        : data?.message || 'Failed to create ticket.';
+        : data?.message || 'Failed to create lead.';
 
     throw new Error(message);
   }
@@ -111,8 +154,8 @@ export async function fetchTicketReporters(
   if (!response.ok || !Array.isArray(payload)) {
     throw new Error(
       !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket creators.'
-        : 'Failed to fetch ticket creators.',
+        ? payload?.message || 'Failed to fetch lead creators.'
+        : 'Failed to fetch lead creators.',
     );
   }
 
@@ -141,8 +184,8 @@ export async function fetchProjectTicketReporters(
   if (!response.ok || !Array.isArray(payload)) {
     throw new Error(
       !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket creators.'
-        : 'Failed to fetch ticket creators.',
+        ? payload?.message || 'Failed to fetch lead creators.'
+        : 'Failed to fetch lead creators.',
     );
   }
 
@@ -155,7 +198,7 @@ export type TicketAssignee = {
 };
 
 // Distinct users who actually have a ticket assigned to them in the given
-// projects — used for the Assigned To filter, as opposed to every member.
+// projects — used for the Agent filter, as opposed to every member.
 export async function fetchTicketAssignees(
   projectIds: string[] = [],
 ): Promise<TicketAssignee[]> {
@@ -188,8 +231,8 @@ export async function fetchTicketAssignees(
   if (!response.ok || !Array.isArray(payload)) {
     throw new Error(
       !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket assignees.'
-        : 'Failed to fetch ticket assignees.',
+        ? payload?.message || 'Failed to fetch lead agents.'
+        : 'Failed to fetch lead agents.',
     );
   }
 
@@ -218,8 +261,8 @@ export async function fetchProjectTicketAssignees(
   if (!response.ok || !Array.isArray(payload)) {
     throw new Error(
       !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket assignees.'
-        : 'Failed to fetch ticket assignees.',
+        ? payload?.message || 'Failed to fetch lead agents.'
+        : 'Failed to fetch lead agents.',
     );
   }
 

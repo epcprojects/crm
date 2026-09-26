@@ -20,4 +20,24 @@ export class GetKanbanTicketCountsDto {
   @IsArray()
   @IsUUID('4', { each: true })
   projectIds?: string[];
+
+  @ApiPropertyOptional({
+    description:
+      'Filter tickets by agent id, or "unassigned" for tickets with no agent.',
+  })
+  @IsOptional()
+  @IsString()
+  assigneeId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter tickets created by this user (the reporter).',
+  })
+  @IsOptional()
+  @IsUUID('loose')
+  reporterId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID('loose')
+  contactId?: string;
 }

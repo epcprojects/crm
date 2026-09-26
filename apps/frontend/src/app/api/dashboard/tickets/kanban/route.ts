@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
 
     if (!response.ok) {
       return NextResponse.json(
-        { message: data?.message || 'Failed to fetch Kanban tickets.' },
+        { message: data?.message || 'Failed to fetch Kanban leads.' },
         { status: response.status },
       );
     }
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(data, { status: 200 });
   } catch {
     return NextResponse.json(
-      { message: 'Something went wrong while fetching Kanban tickets.' },
+      { message: 'Something went wrong while fetching Kanban leads.' },
       { status: 500 },
     );
   }

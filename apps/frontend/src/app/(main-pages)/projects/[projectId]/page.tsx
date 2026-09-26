@@ -404,12 +404,21 @@ export default function ProjectDetailPage() {
 
   const projectKanbanSearch = debouncedSearchValue.trim() || undefined;
 
+  const projectKanbanPeopleFilters = {
+    contactId: selectedContactId === 'all' ? undefined : selectedContactId,
+    reporterId: selectedCreatedBy === 'all' ? undefined : selectedCreatedBy,
+    assigneeId: selectedAssignedTo === 'all' ? undefined : selectedAssignedTo,
+  };
+
   const projectKanbanBoardQueryKey = [
     'project-kanban-board',
     projectId,
     projectKanbanPriorityKey ?? 'all',
     projectKanbanTicketType ?? 'all',
     projectKanbanSearch ?? '',
+    selectedContactId,
+    selectedCreatedBy,
+    selectedAssignedTo,
   ] as const;
 
   const projectKanbanBoardQuery = useQuery({
@@ -420,6 +429,7 @@ export default function ProjectDetailPage() {
         priorityKey: projectKanbanPriorityKey,
         ticketType: projectKanbanTicketType,
         search: projectKanbanSearch,
+        ...projectKanbanPeopleFilters,
         limit: PROJECT_KANBAN_PAGE_SIZE,
       }),
     enabled:
@@ -435,6 +445,9 @@ export default function ProjectDetailPage() {
       projectKanbanPriorityKey ?? 'all',
       projectKanbanTicketType ?? 'all',
       projectKanbanSearch ?? '',
+      selectedContactId,
+      selectedCreatedBy,
+      selectedAssignedTo,
     ],
     queryFn: () =>
       fetchProjectKanbanCounts({
@@ -442,6 +455,7 @@ export default function ProjectDetailPage() {
         priorityKey: projectKanbanPriorityKey,
         ticketType: projectKanbanTicketType,
         search: projectKanbanSearch,
+        ...projectKanbanPeopleFilters,
       }),
     enabled:
       Boolean(projectId) &&
@@ -498,6 +512,9 @@ export default function ProjectDetailPage() {
           projectKanbanPriorityKey ?? 'all',
           projectKanbanTicketType ?? 'all',
           projectKanbanSearch ?? '',
+          selectedContactId,
+          selectedCreatedBy,
+          selectedAssignedTo,
         ],
         queryFn: () =>
           fetchProjectKanbanBoard({
@@ -508,6 +525,7 @@ export default function ProjectDetailPage() {
             priorityKey: projectKanbanPriorityKey,
             ticketType: projectKanbanTicketType,
             search: projectKanbanSearch,
+            ...projectKanbanPeopleFilters,
           }),
       });
 
@@ -1835,9 +1853,8 @@ export default function ProjectDetailPage() {
         title: values.title,
         description: values.description,
         statusKey: values.status,
-        priorityKey: values.priority,
+        assigneeId: values.assigneeId || undefined,
         ticketType: values.ticketType,
-        dueDate: values.dueDate,
         contactId: values.contactId || undefined,
         attachments: values.attachments,
       });
@@ -2530,7 +2547,7 @@ export default function ProjectDetailPage() {
                                         })
                                       }
                                       showSearch={true}
-                                      placeholder="All Assignees"
+                                      placeholder="All Agents"
                                       maxMenuHeight={150}
                                     />
                                   </div>
@@ -2699,39 +2716,35 @@ export default function ProjectDetailPage() {
                               />
                             </div>
 
-                            {projectTicketsViewMode === 'table' ? (
-                              <div className="w-full max-w-52">
-                                <Dropdown
-                                  options={createdByFilterOptions}
-                                  value={selectedCreatedBy}
-                                  onChange={(value) =>
-                                    updateProjectTicketFilters({
-                                      createdBy: value,
-                                    })
-                                  }
-                                  showSearch={true}
-                                  placeholder="All Creators"
-                                  maxMenuHeight={320}
-                                />
-                              </div>
-                            ) : null}
+                            <div className="w-full max-w-52">
+                              <Dropdown
+                                options={createdByFilterOptions}
+                                value={selectedCreatedBy}
+                                onChange={(value) =>
+                                  updateProjectTicketFilters({
+                                    createdBy: value,
+                                  })
+                                }
+                                showSearch={true}
+                                placeholder="All Creators"
+                                maxMenuHeight={320}
+                              />
+                            </div>
 
-                            {projectTicketsViewMode === 'table' ? (
-                              <div className="w-full max-w-52">
-                                <Dropdown
-                                  options={assignedToFilterOptions}
-                                  value={selectedAssignedTo}
-                                  onChange={(value) =>
-                                    updateProjectTicketFilters({
-                                      assignedTo: value,
-                                    })
-                                  }
-                                  showSearch={true}
-                                  placeholder="All Assignees"
-                                  maxMenuHeight={320}
-                                />
-                              </div>
-                            ) : null}
+                            <div className="w-full max-w-52">
+                              <Dropdown
+                                options={assignedToFilterOptions}
+                                value={selectedAssignedTo}
+                                onChange={(value) =>
+                                  updateProjectTicketFilters({
+                                    assignedTo: value,
+                                  })
+                                }
+                                showSearch={true}
+                                placeholder="All Agents"
+                                maxMenuHeight={320}
+                              />
+                            </div>
 
                             {projectTicketsViewMode === 'table' ? (
                               <div className="flex items-center gap-2">
@@ -4046,8 +4059,8 @@ async function fetchTicketStatuses() {
   if (!response.ok || !Array.isArray(payload)) {
     throw new Error(
       !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket statuses.'
-        : 'Failed to fetch ticket statuses.',
+        ? payload?.message || 'Failed to fetch lead statuses.'
+        : 'Failed to fetch lead statuses.',
     );
   }
 
@@ -4071,8 +4084,8 @@ async function fetchTicketPriorities() {
   if (!response.ok || !Array.isArray(payload)) {
     throw new Error(
       !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket priorities.'
-        : 'Failed to fetch ticket priorities.',
+        ? payload?.message || 'Failed to fetch lead priorities.'
+        : 'Failed to fetch lead priorities.',
     );
   }
 

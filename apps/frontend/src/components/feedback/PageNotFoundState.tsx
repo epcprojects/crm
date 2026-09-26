@@ -42,7 +42,7 @@ export default function PageNotFoundState({
         <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
           <div className="relative mb-8 flex items-center justify-center">
             <Image
-              alt="EPC CRM logo"
+              alt="Zarrar.pk logo"
               className=""
               src={'/images/404Logo.svg'}
               width={4000}

@@ -874,8 +874,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               >
                 <Image
                   src={Images.index.logoIconImage}
-                  className="2xl:h-9 h-6 w-6 "
-                  alt={'LOGO'}
+                  className="h-full w-full rounded-full object-cover"
+                  alt={'Zarrar.pk logo'}
                 />
               </button>
               <div className="flex flex-col h-full  min-h-0 flex-1  justify-between">

@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
 
     if (!response.ok) {
       return NextResponse.json(
-        { message: data?.message || 'Failed to fetch tickets.' },
+        { message: data?.message || 'Failed to fetch leads.' },
         { status: response.status },
       );
     }
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(data, { status: 200 });
   } catch {
     return NextResponse.json(
-      { message: 'Something went wrong while fetching tickets.' },
+      { message: 'Something went wrong while fetching leads.' },
       { status: 500 },
     );
   }

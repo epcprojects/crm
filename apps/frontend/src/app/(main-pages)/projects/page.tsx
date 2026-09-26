@@ -23,7 +23,7 @@ import {
   PermissionGuard,
   usePermissions,
 } from '../../providers/PermissionProvider';
-import { createTicket } from '../../../lib/tickets';
+import { createTicket, toStatusStats } from '../../../lib/tickets';
 import {
   useCreateProjectMutation,
   useDeleteProjectMutation,
@@ -300,9 +300,9 @@ export default function ProjectsPage() {
         title: values.title,
         description: values.description,
         statusKey: values.status,
-        priorityKey: values.priority,
+        assigneeId: values.assigneeId || undefined,
         ticketType: values.ticketType,
-        dueDate: values.dueDate,
+        contactId: values.contactId || undefined,
         attachments: values.attachments,
       });
       await Promise.all([
@@ -407,21 +407,15 @@ export default function ProjectsPage() {
         color: '#F79009',
       },
       {
-        title: 'Open Leads',
-        count: projectSummary?.openTickets ?? 0,
+        title: 'Total Leads',
+        count: projectSummary?.totalLeads ?? 0,
         color: '#17B26A',
       },
-      {
-        title: 'Critical Issues',
-        count: projectSummary?.criticalIssues ?? 0,
-        color: '#7A5AF8',
-      },
-      {
-        title: 'Closed Leads',
-        count: projectSummary?.closedTickets ?? 0,
-        color: 'gray',
-      },
     ],
+    [projectSummary],
+  );
+  const projectStatusStats = useMemo(
+    () => toStatusStats(projectSummary),
     [projectSummary],
   );
   const isProjectSummaryLoading =
@@ -487,6 +481,8 @@ export default function ProjectsPage() {
                 imageAlt="Projects"
                 title="Projects"
                 stats={projectSummaryStats}
+                extraStats={projectStatusStats}
+                extraStatsTitle="Leads by status"
               />
             )}
           </div>
@@ -567,8 +563,7 @@ export default function ProjectsPage() {
                           name={project.name}
                           category={project.category}
                           totalCount={project.totalCount}
-                          openCount={project.openCount}
-                          criticalCount={project.criticalCount}
+                          statusCounts={project.statusCounts}
                           colorHex={project.colorHex}
                           href={
                             canViewProjectDetail

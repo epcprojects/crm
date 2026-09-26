@@ -63,7 +63,8 @@ export class TicketsController {
     summary: 'Get tickets by calendar view (returns title + dueDate)',
     description: `
 Returns tickets whose dueDate falls within the range for the requested view.
-Response is scoped to: **id, title, dueDate, priority, status**.
+Response is scoped to: **id, title, createdAt, priority, status**.
+Leads are placed on the calendar by the day they were created.
 
 View ranges:
 - **day**   -> single date only
@@ -86,20 +87,20 @@ View ranges:
   })
   @ApiResponse({
     status: 200,
-    description: 'Tickets with dueDate in the requested range',
+    description: 'Tickets created in the requested range',
     schema: {
       example: [
         {
           id: '550e8400-e29b-41d4-a716-446655440000',
           title: 'Fix login crash on iOS',
-          dueDate: '2026-06-20',
+          createdAt: '2026-06-20T09:30:00.000Z',
           priority: 'critical',
           status: 'in_progress',
         },
         {
           id: '6ba7b810-9dad-11d1-80b4-00c04fd430c8',
           title: 'Implement bulk lead export',
-          dueDate: '2026-06-25',
+          createdAt: '2026-06-25T14:05:00.000Z',
           priority: 'high',
           status: 'open',
         },
@@ -124,7 +125,7 @@ View ranges:
   @Get('assignees')
   @ApiOperation({
     summary:
-      'Get distinct users who have a ticket assigned to them in this project (for the Assigned To filter).',
+      'Get distinct users who have a ticket assigned to them in this project (for the Agent filter).',
   })
   getProjectAssignees(@Param('pid', ParseUUIDPipe) pid: string) {
     return this.ticketsService.getProjectAssignees(pid);
@@ -153,6 +154,11 @@ View ranges:
         },
         priorityKey: {
           type: 'string',
+        },
+        assigneeId: {
+          type: 'string',
+          format: 'uuid',
+          nullable: true,
         },
         dueDate: {
           type: 'string',
@@ -274,7 +280,7 @@ export class DashboardController {
   @Get('tickets/assignees')
   @ApiOperation({
     summary:
-      'Get distinct users who have a ticket assigned to them across the caller\'s accessible projects (for the Assigned To filter).',
+      'Get distinct users who have a ticket assigned to them across the caller\'s accessible projects (for the Agent filter).',
   })
   getAssignees(
     @Query() query: GetTicketAssigneesQueryDto,

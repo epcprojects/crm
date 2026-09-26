@@ -9,11 +9,9 @@ import {
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import StatusCard from '../../../components/dashboard/StatusCard';
 import { RecentTicketsTableSkeleton } from '../../../components/tables/RecentTicketsTableSkeleton';
-import { getInitials } from '../../../lib/format';
+import { formatDateTime, getInitials } from '../../../lib/format';
 import {
-  AlertIcon,
   ChatIcon,
-  CheckMarkCircleIcon,
   ClockIcon,
   CloseIcon,
   DownloadIcon,
@@ -24,10 +22,9 @@ import {
   ThreadIcon,
   TicketIcon2,
 } from '../../../../public/icons';
-import TicketsTabs, {
-  type TicketTab,
-  type TicketTabKey,
-} from '../../../components/dashboard/TicketsTabs';
+import UpcomingLeadsList, {
+  type TicketListItem,
+} from '../../../components/dashboard/UpcomingLeadsList';
 import { useDashboardHeaderAction } from '../../../components/dashboard/dashboard-shell';
 import CreateTicketModal, {
   type CreateTicketFormValues,
@@ -48,6 +45,7 @@ import {
   createTicket,
   fetchTicketAssignees,
   fetchTicketReporters,
+  type LeadStatusSummary,
 } from '../../../lib/tickets';
 import type { ProjectRecord } from '../projects/projects.data';
 import {
@@ -59,7 +57,6 @@ import {
   useUpdateProjectMutation,
   useCreateProjectMutation,
 } from '../projects/projects.queries';
-import { useIsMobile } from '../../../components/hooks/useIsMobile';
 import { useDebouncedValue } from '../../../components/hooks/useDebouncedValue';
 import {
   PermissionGuard,
@@ -79,15 +76,13 @@ import { getNotificationNavigationPath } from '../../../lib/notification-navigat
 import { EmojiSmileIcon } from '../../../components/discussion/EmojiPickerButton';
 import { PaperclipIcon } from '../../../components/discussion/ProjectThreadPanel';
 
-type TicketSummary = {
-  open: number | null;
-  inProgress: number | null;
-  resolved: number | null;
-  critical: number | null;
-  closed: number | null;
-};
+type TicketSummary = LeadStatusSummary;
 
-type DashboardProjectPanelTabKey = 'projects' | 'threads' | 'activity';
+type DashboardProjectPanelTabKey =
+  | 'projects'
+  | 'threads'
+  | 'activity'
+  | 'upcoming';
 
 type ApiDashboardProjectThreadAttachment = {
   id: string;
@@ -166,19 +161,6 @@ type ApiDashboardActivityItem = {
   } | null;
 };
 
-const ticketTabs: TicketTab[] = [
-  {
-    key: 'upcoming',
-    label: 'Upcoming',
-    tickets: [],
-  },
-  {
-    key: 'critical',
-    label: 'Critical',
-    tickets: [],
-  },
-];
-
 type ApiTicketSetting = {
   id: string;
   key: string;
@@ -197,10 +179,8 @@ const RECENT_TICKETS_DATE_TO_QUERY_PARAM = 'dateTo';
 const RECENT_TICKETS_CREATED_BY_QUERY_PARAM = 'reporterId';
 const RECENT_TICKETS_ASSIGNED_TO_QUERY_PARAM = 'assigneeId';
 const TICKETS_PROJECT_QUERY_PARAM = 'project';
-const DASHBOARD_TABS_QUERY_PARAM = 'dashboardTab';
 const DASHBOARD_ACTIVITY_PAGE_SIZE = 20;
 const DASHBOARD_UPCOMING_TICKETS_PAGE_SIZE = 50;
-const DASHBOARD_CRITICAL_TICKETS_PAGE_SIZE = 50;
 const DASHBOARD_PROJECT_THREAD_FALLBACK_COLORS = [
   '#4F7CFF',
   '#EF4444',
@@ -313,13 +293,11 @@ export default function Page() {
   const selectedAssignedTo = getDashboardPriorityFilterValue(
     searchParams.get(RECENT_TICKETS_ASSIGNED_TO_QUERY_PARAM),
   );
-  const selectedDashboardTab = getDashboardTabValue(
-    searchParams.get(DASHBOARD_TABS_QUERY_PARAM),
-  );
   const projectPanelTabs: DashboardProjectPanelTabKey[] = [
     ...(canViewProjectCards ? (['projects'] as const) : []),
     ...(canViewThreads ? (['threads'] as const) : []),
     'activity',
+    ...(canViewUpcoming ? (['upcoming'] as const) : []),
   ];
 
   const selectedProjectIds = getTicketsProjectFilterValues(
@@ -518,20 +496,6 @@ export default function Page() {
 
     enabled: canViewRecentTickets,
   });
-  const criticalTicketsQuery = useInfiniteQuery({
-    queryKey: ['dashboard', 'critical-tickets'],
-    queryFn: ({ pageParam }) =>
-      fetchDashboardTickets({
-        page: Number(pageParam ?? 1),
-        limit: DASHBOARD_CRITICAL_TICKETS_PAGE_SIZE,
-        priorityKey: 'Critical',
-        statusKey: 'Active',
-      }),
-    initialPageParam: 1,
-    getNextPageParam: (lastPage) =>
-      lastPage.meta.hasNext ? lastPage.meta.page + 1 : undefined,
-    enabled: canViewUpcoming,
-  });
   const upcomingTicketsQuery = useInfiniteQuery({
     queryKey: ['dashboard', 'upcoming'],
     queryFn: ({ pageParam }) =>
@@ -552,35 +516,15 @@ export default function Page() {
     () => createTicketProjectOptions(projectNamesQuery.data ?? []),
     [projectNamesQuery.data],
   );
-  const criticalTickets = useMemo(
-    () =>
-      (criticalTicketsQuery.data?.pages ?? []).flatMap((page) => page.items),
-    [criticalTicketsQuery.data?.pages],
-  );
   const upcomingTickets = useMemo(
     () =>
       (upcomingTicketsQuery.data?.pages ?? []).flatMap((page) => page.items),
     [upcomingTicketsQuery.data?.pages],
   );
 
-  const dashboardTicketTabs = useMemo<TicketTab[]>(
-    () =>
-      ticketTabs.map((tab) =>
-        tab.key === 'upcoming'
-          ? {
-              ...tab,
-              tickets: upcomingTickets.map(
-                mapApiDashboardTicketToTicketListItem,
-              ),
-            }
-          : tab.key === 'critical'
-            ? {
-                ...tab,
-                tickets: criticalTickets.map(mapRecentTicketToTicketListItem),
-              }
-            : tab,
-      ),
-    [criticalTickets, upcomingTickets],
+  const upcomingTicketItems = useMemo<TicketListItem[]>(
+    () => upcomingTickets.map(mapApiDashboardTicketToTicketListItem),
+    [upcomingTickets],
   );
 
   const updateRecentTicketsFilters = ({
@@ -689,27 +633,6 @@ export default function Page() {
     });
   };
 
-  const updateDashboardTab = (tabKey: TicketTabKey) => {
-    const nextSearchParams = new URLSearchParams(searchParams.toString());
-
-    if (tabKey === 'upcoming') {
-      nextSearchParams.delete(DASHBOARD_TABS_QUERY_PARAM);
-    } else {
-      nextSearchParams.set(DASHBOARD_TABS_QUERY_PARAM, tabKey);
-    }
-
-    const nextQueryString = nextSearchParams.toString();
-    const currentQueryString = searchParams.toString();
-
-    if (nextQueryString === currentQueryString) {
-      return;
-    }
-
-    router.push(nextQueryString ? `${pathname}?${nextQueryString}` : pathname, {
-      scroll: false,
-    });
-  };
-
   const handleExportTickets = async () => {
     if (!canExportTickets || isExportingTickets) {
       return;
@@ -791,7 +714,7 @@ export default function Page() {
           (option) => option.value === selectedAssignedTo,
         )?.label;
         filenameParts.push(
-          `assignedto_${slugify(assignedToLabel ?? selectedAssignedTo)}`,
+          `agent_${slugify(assignedToLabel ?? selectedAssignedTo)}`,
         );
       }
 
@@ -849,10 +772,6 @@ export default function Page() {
         refetchType: 'all',
       }),
       queryClient.invalidateQueries({
-        queryKey: ['dashboard', 'critical-tickets'],
-        refetchType: 'all',
-      }),
-      queryClient.invalidateQueries({
         queryKey: ['dashboard-project-tickets'],
         refetchType: 'all',
       }),
@@ -906,9 +825,8 @@ export default function Page() {
         title: values.title,
         description: values.description,
         statusKey: values.status,
-        priorityKey: values.priority,
+        assigneeId: values.assigneeId || undefined,
         ticketType: values.ticketType,
-        dueDate: values.dueDate,
         contactId: values.contactId || undefined,
         attachments: values.attachments,
       });
@@ -1029,14 +947,12 @@ export default function Page() {
     };
   }, []);
 
-  const isMobile = useIsMobile();
   const ticketSummary = ticketSummaryQuery.data;
   const isStatsLoading = canViewStats && ticketSummaryQuery.isLoading;
   const isRecentTicketsLoading =
     canViewRecentTickets && recentTicketsQuery.isLoading;
   const isUpcomingTicketsLoading =
-    canViewUpcoming &&
-    (upcomingTicketsQuery.isLoading || criticalTicketsQuery.isLoading);
+    canViewUpcoming && upcomingTicketsQuery.isLoading;
   const user = useAppSelector((state) => state.auth.user);
   const currentUserId = user?.id ?? '';
   const currentUserName = user?.fullName || 'Admin';
@@ -1137,64 +1053,43 @@ export default function Page() {
     ],
   );
 
+  const upcomingLeadsList = (
+    <UpcomingLeadsList
+      tickets={upcomingTicketItems}
+      hasNextPage={Boolean(upcomingTicketsQuery.hasNextPage)}
+      isFetchingNextPage={upcomingTicketsQuery.isFetchingNextPage}
+      onLoadMore={() => {
+        void upcomingTicketsQuery.fetchNextPage();
+      }}
+      onTicketClick={
+        canViewTicketDetail
+          ? (ticket) =>
+              router.push(
+                `/tickets/${ticket.id}${
+                  ticket.projectId ? `?projectId=${ticket.projectId}` : ''
+                }`,
+              )
+          : undefined
+      }
+    />
+  );
+
   return (
     <div className="xl:py-5 xl:pr-5 px-4 xl:px-0 pt-2 pb-0 z-100 h-full xl:h-dvh relative">
       <div className="flex h-full min-h-0 flex-col gap-3 xl:overflow-hidden  overflow-y-auto overscroll-contain scrollbar-hide xl:rounded-2xl  bg-gray-200 xl:flex-row xl:border xl:border-white xl:bg-white/40 xl:p-3">
         <PermissionGuard permission="dashboard.view_upcoming">
-          <div
-            className={`order-2 min-h-0 flex-none overflow-visible xl:order-0 xl:h-full xl:flex-none xl:overflow-hidden ${
-              canViewRecentTickets ? 'xl:w-82.5' : 'xl:flex-1'
-            }`}
-          >
+          <div className="order-2 min-h-0 flex-none overflow-visible rounded-[10px] bg-white py-2 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] xl:hidden">
+            <p className="px-4.5 py-2 text-base font-semibold text-gray-900">
+              Upcoming
+            </p>
             {isUpcomingTicketsLoading ? (
-              <DashboardTabsSkeleton />
+              <UpcomingLeadsSkeleton />
             ) : (
-              <TicketsTabs
-                tabs={dashboardTicketTabs}
-                activeTabKey={selectedDashboardTab}
-                onActiveTabChange={updateDashboardTab}
-                hasNextPage={
-                  selectedDashboardTab === 'upcoming'
-                    ? Boolean(upcomingTicketsQuery.hasNextPage)
-                    : selectedDashboardTab === 'critical'
-                      ? Boolean(criticalTicketsQuery.hasNextPage)
-                      : false
-                }
-                isFetchingNextPage={
-                  selectedDashboardTab === 'upcoming'
-                    ? upcomingTicketsQuery.isFetchingNextPage
-                    : selectedDashboardTab === 'critical'
-                      ? criticalTicketsQuery.isFetchingNextPage
-                      : false
-                }
-                onLoadMore={
-                  selectedDashboardTab === 'upcoming'
-                    ? () => {
-                        void upcomingTicketsQuery.fetchNextPage();
-                      }
-                    : selectedDashboardTab === 'critical'
-                      ? () => {
-                          void criticalTicketsQuery.fetchNextPage();
-                        }
-                      : undefined
-                }
-                onTicketClick={
-                  canViewTicketDetail
-                    ? (ticket) =>
-                        router.push(
-                          `/tickets/${ticket.id}${
-                            ticket.projectId
-                              ? `?projectId=${ticket.projectId}`
-                              : ''
-                          }`,
-                        )
-                    : undefined
-                }
-              />
+              upcomingLeadsList
             )}
           </div>
         </PermissionGuard>
-        <div className="order-1 flex shrink-0 min-w-0 flex-col gap-3 xl:order-2 xl:min-h-0 xl:flex-1 xl:shrink">
+        <div className="order-1 flex shrink-0 min-w-0 flex-col gap-3 xl:min-h-0 xl:flex-1 xl:shrink">
           <PermissionGuard permission="dashboard.view_stats">
             {isStatsLoading ? (
               <DashboardStatsSkeleton />
@@ -1225,69 +1120,19 @@ export default function Page() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-1.5 xl:grid-cols-3 2xl:grid-cols-5 xl:gap-5">
-                  <StatusCard
-                    title="Open"
-                    count={formatSummaryCount(ticketSummary?.open)}
-                    icon={
-                      <FolderIcon
-                        width={isMobile ? '12' : '20'}
-                        height={isMobile ? '12' : '20'}
-                        fill="white"
-                      />
-                    }
-                  />
-
-                  <StatusCard
-                    title="In Progress"
-                    count={formatSummaryCount(ticketSummary?.inProgress)}
-                    icon={
-                      <ClockIcon
-                        width={isMobile ? '12' : '20'}
-                        height={isMobile ? '12' : '20'}
-                        fill="white"
-                      />
-                    }
-                  />
-
-                  <StatusCard
-                    title="Resolved"
-                    count={formatSummaryCount(ticketSummary?.resolved)}
-                    icon={
-                      <CheckMarkCircleIcon
-                        width={isMobile ? '12' : '20'}
-                        height={isMobile ? '12' : '20'}
-                        fill="white"
-                      />
-                    }
-                  />
-
-                  <StatusCard
-                    title="Critical"
-                    count={formatSummaryCount(ticketSummary?.critical)}
-                    icon={
-                      <AlertIcon
-                        width={isMobile ? '12' : '20'}
-                        height={isMobile ? '12' : '20'}
-                        fill="white"
-                      />
-                    }
-                  />
-                  <StatusCard
-                    title="Closed"
-                    count={formatSummaryCount(ticketSummary?.closed)}
-                    icon={
-                      <CheckMarkCircleIcon
-                        width={isMobile ? '12' : '20'}
-                        height={isMobile ? '12' : '20'}
-                        fill="white"
-                      />
-                    }
-                  />
+                  {(ticketSummary?.statuses ?? []).map((status) => (
+                    <StatusCard
+                      key={status.key}
+                      title={status.label}
+                      count={status.count}
+                      color={status.color}
+                    />
+                  ))}
                 </div>
               </div>
             )}
           </PermissionGuard>
-          <div className="hidden min-h-0 flex-1 gap-3 xl:grid xl:grid-cols-[minmax(0,1fr)_300px] 2xl:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="hidden min-h-0 flex-1 gap-3 xl:grid xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_460px]">
             <PermissionGuard permission="dashboard.view_recent_tickets">
               <div
                 className={`bg-white shadow-[0_0_35px_0_rgb(0_0_0/0.04)]  flex flex-1 flex-col min-h-0 gap-3.5 rounded-xl p-3 h-full `}
@@ -1458,7 +1303,7 @@ export default function Page() {
                                     })
                                   }
                                   showSearch={true}
-                                  placeholder="All Assignees"
+                                  placeholder="All Agents"
                                   maxMenuHeight={150}
                                 />
                               </div>
@@ -1650,7 +1495,7 @@ export default function Page() {
                                 assignedTo: value,
                               })
                             }
-                            placeholder="All Assignees"
+                            placeholder="All Agents"
                           />
                         </div>
 
@@ -1779,7 +1624,9 @@ export default function Page() {
               <div className="flex flex-row justify-between items-center sticky w-full  z-10 top-0 px-4 pt-4 bg-white">
                 <div
                   className={`relative grid w-full gap-1 rounded-full border border-gray-200 bg-gray-50 p-1 shadow-[inset_0_1px_3px_rgba(15,23,42,0.06)] ${
-                    projectPanelTabs.length === 3
+                    projectPanelTabs.length === 4
+                      ? 'grid-cols-4'
+                      : projectPanelTabs.length === 3
                       ? 'grid-cols-3'
                       : projectPanelTabs.length === 2
                         ? 'grid-cols-2'
@@ -1802,7 +1649,7 @@ export default function Page() {
                       }}
                       type="button"
                       onClick={() => setProjectPanelTab(tab)}
-                      className={`relative z-10 w-full rounded-full px-4 py-1.25 text-sm font-medium transition-colors duration-300 ${
+                      className={`relative z-10 w-full rounded-full px-2 py-1.25 text-sm font-medium transition-colors duration-300 ${
                         projectPanelTab === tab
                           ? 'text-gray-950'
                           : 'text-gray-500 hover:text-gray-800'
@@ -1812,7 +1659,9 @@ export default function Page() {
                         ? 'Projects'
                         : tab === 'threads'
                           ? 'Threads'
-                          : 'Activity'}
+                          : tab === 'activity'
+                            ? 'Activity'
+                            : 'Upcoming'}
                     </button>
                   ))}
                 </div>
@@ -1849,8 +1698,7 @@ export default function Page() {
                         name={project.name}
                         category={project.category}
                         totalCount={project.totalCount}
-                        openCount={project.openCount}
-                        criticalCount={project.criticalCount}
+                        statusCounts={project.statusCounts}
                         colorHex={project.colorHex}
                         href={
                           canViewProjectDetail
@@ -1907,6 +1755,12 @@ export default function Page() {
                         />
                       ))}
                     </div>
+                  )
+                ) : projectPanelTab === 'upcoming' && canViewUpcoming ? (
+                  isUpcomingTicketsLoading ? (
+                    <UpcomingLeadsSkeleton />
+                  ) : (
+                    <div className="-mx-3">{upcomingLeadsList}</div>
                   )
                 ) : (
                   <div className="pr-1">
@@ -2173,53 +2027,33 @@ function DashboardStatsSkeleton() {
   );
 }
 
-function DashboardTabsSkeleton() {
+function UpcomingLeadsSkeleton() {
   return (
     <div
-      className="flex h-full min-w-0 w-full animate-pulse flex-col gap-3 rounded-[10px] bg-white py-4 shadow-[0_0_35px_0_rgb(0_0_0/0.04)] xl:min-w-81 xl:max-w-81 xl:rounded-[20px] 2xl:min-w-82.5 2xl:max-w-82.5"
+      className="flex min-h-0 flex-1 animate-pulse flex-col overflow-hidden px-1 sm:px-1.5"
       aria-hidden="true"
     >
-      {/* Pill-shaped tabs */}
-      <div className="shrink-0 px-3 sm:px-4.5">
-        <div className="grid w-full grid-cols-2 gap-1 rounded-full border border-gray-200 bg-gray-50 p-1">
-          <div className="h-7 rounded-full bg-white shadow-[0_0_25px_0_rgb(27_28_29/0.08)]" />
+      {Array.from({ length: 5 }).map((_, index) => (
+        <div
+          key={index}
+          className="flex items-start gap-3 border-b border-gray-200 py-3 last:border-b-0 sm:py-4"
+        >
+          <div className="h-9 w-9 shrink-0 rounded-full bg-gray-200 shadow-[0_0_35px_0_rgb(0_0_0/0.08)]" />
 
-          <div className="h-7 rounded-full bg-gray-100" />
-        </div>
-      </div>
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <div
+              className={`h-3.5 max-w-full rounded bg-gray-200 ${
+                index % 2 === 0 ? 'w-4/5' : 'w-2/3'
+              }`}
+            />
 
-      {/* Ticket rows */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 scrollbar-hide sm:px-4.5">
-        {Array.from({ length: 5 }).map((_, index) => (
-          <div
-            key={index}
-            className="flex items-start gap-3 border-b border-gray-200 py-3 last:border-b-0 sm:py-4"
-          >
-            {/* Project icon */}
-            <div className="h-9 w-9 shrink-0 rounded-full bg-gray-200 shadow-[0_0_35px_0_rgb(0_0_0/0.08)]" />
-
-            <div className="flex min-w-0 flex-1 flex-col gap-2">
-              {/* Ticket title */}
-              <div
-                className={`h-3.5 max-w-full rounded bg-gray-200 ${
-                  index % 2 === 0 ? 'w-4/5' : 'w-2/3'
-                }`}
-              />
-
-              {/* Date, owner and tag */}
-              <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
-                <div className="h-3 w-14 shrink-0 rounded bg-gray-100 sm:w-16" />
-
-                <div className="flex min-w-0 flex-wrap gap-1.5">
-                  <div className="h-4.5 w-12 rounded-full bg-gray-100 sm:w-14" />
-
-                  <div className="h-4.5 w-10 rounded-full bg-gray-100 sm:w-12" />
-                </div>
-              </div>
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
+              <div className="h-3 w-14 shrink-0 rounded bg-gray-100 sm:w-16" />
+              <div className="h-4.5 w-16 rounded-full bg-gray-100 sm:w-20" />
             </div>
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -2433,8 +2267,8 @@ async function fetchTicketStatuses(): Promise<ApiTicketSetting[]> {
   if (!response.ok || !Array.isArray(payload)) {
     throw new Error(
       !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket statuses.'
-        : 'Failed to fetch ticket statuses.',
+        ? payload?.message || 'Failed to fetch lead statuses.'
+        : 'Failed to fetch lead statuses.',
     );
   }
 
@@ -2458,8 +2292,8 @@ async function fetchTicketPriorities(): Promise<ApiTicketSetting[]> {
   if (!response.ok || !Array.isArray(payload)) {
     throw new Error(
       !Array.isArray(payload)
-        ? payload?.message || 'Failed to fetch ticket priorities.'
-        : 'Failed to fetch ticket priorities.',
+        ? payload?.message || 'Failed to fetch lead priorities.'
+        : 'Failed to fetch lead priorities.',
     );
   }
 
@@ -2510,8 +2344,8 @@ async function fetchTicketSummary(): Promise<TicketSummary> {
   if (!response.ok || !isTicketSummary(payload)) {
     throw new Error(
       !isTicketSummary(payload)
-        ? payload?.message || 'Failed to fetch ticket summary.'
-        : 'Failed to fetch ticket summary.',
+        ? payload?.message || 'Failed to fetch lead summary.'
+        : 'Failed to fetch lead summary.',
     );
   }
 
@@ -2522,15 +2356,8 @@ function isTicketSummary(value: unknown): value is TicketSummary {
   return Boolean(
     value &&
       typeof value === 'object' &&
-      'open' in value &&
-      'inProgress' in value &&
-      'resolved' in value &&
-      'critical' in value,
+      Array.isArray((value as TicketSummary).statuses),
   );
-}
-
-function formatSummaryCount(value: number | null | undefined) {
-  return value ?? 0;
 }
 
 type DashboardTicketsResponse = {
@@ -2617,8 +2444,8 @@ async function fetchUpcomingTickets(
   if (!response.ok || !isApiDashboardTicketsResponse(payload)) {
     throw new Error(
       !isApiDashboardTicketsResponse(payload)
-        ? payload?.message || 'Failed to fetch upcoming tickets.'
-        : 'Failed to fetch upcoming tickets.',
+        ? payload?.message || 'Failed to fetch upcoming leads.'
+        : 'Failed to fetch upcoming leads.',
     );
   }
 
@@ -2785,8 +2612,8 @@ async function fetchDashboardTickets({
   if (!response.ok || !isApiDashboardTicketsResponse(payload)) {
     throw new Error(
       payload && typeof payload === 'object' && 'message' in payload
-        ? payload.message || 'Failed to fetch recent tickets.'
-        : 'Failed to fetch recent tickets.',
+        ? payload.message || 'Failed to fetch recent leads.'
+        : 'Failed to fetch recent leads.',
     );
   }
 
@@ -2810,44 +2637,20 @@ function isApiDashboardTicketsResponse(
 
 function mapApiDashboardTicketToTicketListItem(
   ticket: ApiDashboardTicket,
-): TicketTab['tickets'][number] {
+): TicketListItem {
   const projectName = ticket.project?.name ?? 'No Project';
-  const priorityLabel =
-    ticket.priority?.label ?? ticket.priority?.key ?? 'No Priority';
 
   return {
     id: ticket.id,
     projectId: ticket.project?.id,
     title: ticket.title,
-    date: formatTicketDate(ticket.createdAt),
+    date: formatDateTime(ticket.createdAt),
     owner: projectName,
     ownerColor: ticket.project?.brandColor
       ? ticket.project.brandColor
       : '#df169c',
-    tag: priorityLabel,
     ticketType: ticket.ticketType ?? '',
-    tagClassName: getPriorityTagClassName(priorityLabel),
     icon: getInitials(projectName),
-    iconClassName: 'border-purple-200 bg-purple-50 text-purple-700',
-  };
-}
-
-function mapRecentTicketToTicketListItem(
-  ticket: RecentTicket,
-): TicketTab['tickets'][number] {
-  const priorityLabel = ticket.priority ?? 'No Priority';
-
-  return {
-    id: ticket.id,
-    projectId: ticket.project.id,
-    title: ticket.title,
-    date: ticket.date,
-    ticketType: ticket.ticketType ?? '',
-    owner: ticket.project.name,
-    ownerColor: 'border-purple-200 bg-purple-50 text-purple-700',
-    tag: priorityLabel,
-    tagClassName: getPriorityTagClassName(priorityLabel),
-    icon: ticket.project.initials,
     iconClassName: 'border-purple-200 bg-purple-50 text-purple-700',
   };
 }
@@ -2933,10 +2736,7 @@ function mapApiDashboardTicketToRecentTicket(
       name: assigneeName,
       initials: getInitials(assigneeName),
     },
-    date: formatTicketDate(ticket.createdAt),
-    dueDate: ticket.dueDate
-      ? formatTicketDate(ticket.dueDate.split('T')[0] ?? ticket.dueDate)
-      : '--',
+    date: formatDateTime(ticket.createdAt),
     sortDate: ticket.createdAt,
     reporter: {
       id: ticket.reporter?.id ?? '',
@@ -2944,28 +2744,6 @@ function mapApiDashboardTicketToRecentTicket(
       fullName: ticket.reporter?.fullName ?? '',
     },
   };
-}
-
-function getPriorityTagClassName(priority: string) {
-  const normalizedPriority = priority.trim().toLowerCase();
-
-  if (normalizedPriority === 'critical') {
-    return 'border-red-200 bg-red-50 text-red-600';
-  }
-
-  if (normalizedPriority === 'high') {
-    return 'border-orange-200 bg-orange-50 text-orange-600';
-  }
-
-  if (normalizedPriority === 'medium') {
-    return 'border-sky-200 bg-sky-50 text-sky-600';
-  }
-
-  if (normalizedPriority === 'low') {
-    return 'border-green-200 bg-green-50 text-green-600';
-  }
-
-  return 'border-gray-200 bg-gray-50 text-gray-600';
 }
 
 function getDashboardThreadColor(projectId: string) {
@@ -2992,14 +2770,6 @@ function getDashboardPriorityFilterValue(value: string | null) {
   }
 
   return value;
-}
-
-function getDashboardTabValue(value: string | null): TicketTabKey {
-  if (value === 'critical') {
-    return 'critical';
-  }
-
-  return 'upcoming';
 }
 
 function isDashboardActivityResponse(
@@ -3180,21 +2950,6 @@ function slugify(value: string) {
     .replace(/^_+|_+$/g, '');
 }
 
-function formatTicketDate(value: string) {
-  const date = new Date(
-    /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value,
-  );
-
-  if (Number.isNaN(date.getTime())) {
-    return '-';
-  }
-
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(date);
-}
 function getDashboardTicketTypeFilterValue(value: string | null) {
   if (value === 'bug' || value === 'feature_request') {
     return value;

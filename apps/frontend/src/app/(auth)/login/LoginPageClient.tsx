@@ -141,7 +141,9 @@ export default function LoginPageClient({
     <div className="grid h-full min-h-0 flex-1 grid-cols-1 gap-3 rounded-3xl xl:grid-cols-2 xl:rounded-4xl xl:border xl:border-white xl:bg-white/40 xl:p-3">
       <div className="xl:p-8 p-4 flex flex-col relative items-center justify-center w-full bg-white rounded-[20px]">
         <Image
-          alt="EPC CRM logo"
+          alt="Zarrar.pk logo"
+          width={64}
+          height={64}
           className="md:absolute mb-4 top-2 left-2 md:left-4 md:top-4"
           src={Images.auth.NewLogo}
         />

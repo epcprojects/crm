@@ -43,6 +43,7 @@ function ticketsToFCEvents(tickets: Ticket[]): EventInput[] {
     title: t.title,
     start: t.dueDate,
     allDay: true,
+    editable: false,
     extendedProps: {
       type: 'ticket',
       priority: t.priority,

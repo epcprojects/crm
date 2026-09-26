@@ -213,7 +213,7 @@ export async function fetchTicketsByView(
   const res = await fetch(`${API_BASE}/tickets?view=${view}&date=${date}`, {
     cache: 'no-store',
   });
-  if (!res.ok) throw new Error(`Failed to fetch tickets: ${res.status}`);
+  if (!res.ok) throw new Error(`Failed to fetch leads: ${res.status}`);
   return res.json();
 }
 
@@ -237,7 +237,7 @@ export async function fetchProjectTickets(
     { cache: 'no-store' },
   );
   if (!res.ok) {
-    throw new Error(`Failed to fetch project calendar tickets: ${res.status}`);
+    throw new Error(`Failed to fetch project calendar leads: ${res.status}`);
   }
 
   const data = await res.json().catch(() => null);
@@ -248,13 +248,10 @@ export async function fetchProjectTickets(
       : [];
 
   return items
-    .filter((ticket) => {
-      const dateValue =
-        (typeof ticket.dueDate === 'string' && ticket.dueDate.trim()) ||
-        (typeof ticket.createdAt === 'string' && ticket.createdAt.trim());
-
-      return Boolean(dateValue);
-    })
+    .filter(
+      (ticket) =>
+        typeof ticket.createdAt === 'string' && Boolean(ticket.createdAt.trim()),
+    )
     .map((ticket) => ({
       id: ticket.id,
       ticketRefNo:
@@ -265,10 +262,8 @@ export async function fetchProjectTickets(
           : undefined,
       title: ticket.title,
       description: ticket.description ?? undefined,
-      dueDate: toIsoDate(
-        (ticket.dueDate && ticket.dueDate.trim()) ||
-          (ticket.createdAt as string),
-      ),
+      // Leads sit on the calendar on the day they were created.
+      dueDate: toLocalIsoDate(ticket.createdAt as string),
       priority: normalizeTicketPriority(ticket.priority?.key),
       status: normalizeTicketStatus(ticket.status?.key),
     }));
@@ -298,6 +293,19 @@ function toIsoDate(value: string) {
   return value.split('T')[0];
 }
 
+function toLocalIsoDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return toIsoDate(value);
+  }
+
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
 export async function createTicket(
   data: Omit<ApiTicket, 'id'> & {
     description?: string;
@@ -312,7 +320,7 @@ export async function createTicket(
   });
   if (!res.ok) {
     const err = await res.json();
-    throw new Error(err.message || 'Failed to create ticket');
+    throw new Error(err.message || 'Failed to create lead');
   }
   return res.json();
 }
@@ -326,7 +334,7 @@ export async function updateTicket(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to update ticket');
+  if (!res.ok) throw new Error('Failed to update lead');
   return res.json();
 }
 
@@ -334,5 +342,5 @@ export async function deleteTicket(id: string): Promise<void> {
   const res = await fetch(`${API_BASE}/tickets/${id}`, {
     method: 'DELETE',
   });
-  if (!res.ok) throw new Error('Failed to delete ticket');
+  if (!res.ok) throw new Error('Failed to delete lead');
 }

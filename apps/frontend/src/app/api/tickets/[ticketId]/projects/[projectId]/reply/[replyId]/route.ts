@@ -94,7 +94,7 @@ export async function PUT(
 
     if (!response.ok) {
       return NextResponse.json(
-        { message: data?.message || 'Failed to update ticket reply.' },
+        { message: data?.message || 'Failed to update lead reply.' },
         { status: response.status },
       );
     }
@@ -102,7 +102,7 @@ export async function PUT(
     return NextResponse.json(data, { status: response.status });
   } catch {
     return NextResponse.json(
-      { message: 'Something went wrong while updating the ticket reply.' },
+      { message: 'Something went wrong while updating the lead reply.' },
       { status: 500 },
     );
   }
@@ -153,7 +153,7 @@ export async function DELETE(
 
     if (!response.ok) {
       return NextResponse.json(
-        { message: data?.message || 'Failed to delete ticket reply.' },
+        { message: data?.message || 'Failed to delete lead reply.' },
         { status: response.status },
       );
     }
@@ -161,7 +161,7 @@ export async function DELETE(
     return NextResponse.json(data ?? { success: true }, { status: response.status });
   } catch {
     return NextResponse.json(
-      { message: 'Something went wrong while deleting the ticket reply.' },
+      { message: 'Something went wrong while deleting the lead reply.' },
       { status: 500 },
     );
   }

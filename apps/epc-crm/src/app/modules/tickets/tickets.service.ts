@@ -8,7 +8,13 @@ import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Ticket } from './entities/ticket.entity';
-import { Between, DataSource, Repository, SelectQueryBuilder } from 'typeorm';
+import {
+  DataSource,
+  ILike,
+  Raw,
+  Repository,
+  SelectQueryBuilder,
+} from 'typeorm';
 import { FilesService } from '../files/files.service';
 import { UtilityService } from '../utility/utility.service';
 import { FileSource, FileStatus } from '@epc-crm/types';
@@ -72,6 +78,49 @@ export class TicketsService {
     }
   }
 
+  // Lead count per configured status (zero-count statuses included), for the
+  // stat cards. Driven by the statuses table so new/renamed statuses just work.
+  private async buildStatusSummary(qb: SelectQueryBuilder<Ticket>) {
+    const [rows, statuses] = await Promise.all([
+      qb
+        .clone()
+        .select('t.statusKey', 'statusKey')
+        .addSelect('COUNT(t.id)', 'count')
+        .groupBy('t.statusKey')
+        .getRawMany<{ statusKey?: string; statuskey?: string; count: string }>(),
+      this.statusRepo.find({ order: { sortOrder: 'ASC', createdAt: 'ASC' } }),
+    ]);
+
+    const countByKey = new Map<string, number>();
+    let total = 0;
+    for (const row of rows) {
+      const count = Number(row.count);
+      countByKey.set(row.statusKey ?? row.statuskey ?? '', count);
+      total += count;
+    }
+
+    return {
+      total,
+      statuses: statuses.map((status) => ({
+        key: status.key,
+        label: status.label,
+        color: status.color,
+        sortOrder: status.sortOrder,
+        isClosed: status.isClosed,
+        count: countByKey.get(status.key) ?? 0,
+      })),
+    };
+  }
+
+  // Every new lead is created as Critical unless a priority is passed in.
+  private async getDefaultPriorityKey(): Promise<string | undefined> {
+    const priority = await this.priorityRepo.findOne({
+      where: [{ key: ILike('critical') }, { label: ILike('critical') }],
+    });
+
+    return priority?.key;
+  }
+
   // ---------------- CREATE ----------------
   async createTicket(
     projectId: string,
@@ -95,6 +144,18 @@ export class TicketsService {
       await this.ensureContactExists(dto.contactId);
     }
 
+    if (dto.assigneeId) {
+      const assigneeExists = await this.userRepo.exists({
+        where: { id: dto.assigneeId },
+      });
+
+      if (!assigneeExists) {
+        throw new NotFoundException('Agent not found');
+      }
+    }
+
+    const priorityKey = dto.priorityKey ?? (await this.getDefaultPriorityKey());
+
     const saved = await this.dataSource
       .transaction(async (manager) => {
         const dateKey = format(new Date(), 'yyyyMMdd');
@@ -108,6 +169,7 @@ export class TicketsService {
 
         const ticket = manager.create(Ticket, {
           ...dto,
+          priorityKey,
           projectId,
           reporterId: userId,
           createdBy: userId,
@@ -251,7 +313,7 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `New ticket: "${ticket.title}" created in project "${ticket.project.name}" by ${fullname}`,
+        title: `New lead: "${ticket.title}" created in project "${ticket.project.name}" by ${fullname}`,
         message: ticket.ticketRefNo ?? undefined,
       });
     } catch (err) {
@@ -268,8 +330,8 @@ export class TicketsService {
   // READ calendar view
 
   /**
-   * Returns tickets whose dueDate falls within the range for the given view.
-   * Only returns title and dueDate (as specified).
+   * Returns tickets created within the range for the given view, so leads
+   * appear on the calendar on the day they were created.
    *
    * GET /tickets?view=month&date=2026-06-01
    * GET /tickets?view=week&date=2026-06-16
@@ -282,14 +344,18 @@ export class TicketsService {
   ): Promise<
     Pick<
       Ticket,
-      'id' | 'title' | 'dueDate' | 'priority' | 'status' | 'ticketRefNo'
+      'id' | 'title' | 'createdAt' | 'priority' | 'status' | 'ticketRefNo'
     >[]
   > {
     const { start, end } = getDateRange(query.view, query.date);
 
     return this.ticketRepo.find({
       where: {
-        dueDate: Between(start, end),
+        createdAt: Raw(
+          (alias) =>
+            `${alias} >= CAST(:start AS date) AND ${alias} < (CAST(:end AS date) + 1)`,
+          { start, end },
+        ),
         projectId: pid,
       },
       relations: {
@@ -299,7 +365,7 @@ export class TicketsService {
       select: {
         id: true,
         title: true,
-        dueDate: true,
+        createdAt: true,
         ticketRefNo: true,
         status: {
           id: true,
@@ -315,7 +381,7 @@ export class TicketsService {
         },
       },
       order: {
-        dueDate: 'ASC',
+        createdAt: 'ASC',
       },
     });
   }
@@ -343,7 +409,7 @@ export class TicketsService {
         query.statusKey.toLowerCase() === 'active' ||
         query.statusKey === ACTIVE_STATUS_SENTINEL
       ) {
-        qb.andWhere('t.statusKey != :closedKey', { closedKey: 'Closed' });
+        qb.andWhere('COALESCE(s.isClosed, false) = false');
       } else {
         qb.andWhere('t.statusKey = :statusKey', {
           statusKey: query.statusKey,
@@ -512,7 +578,7 @@ export class TicketsService {
   }
 
   // Distinct users who actually have a ticket assigned to them in this project —
-  // powers the Assigned To filter, as opposed to every project member.
+  // powers the Agent filter, as opposed to every project member.
   async getProjectAssignees(projectId: string) {
     const project = await this.projectRepo.findOne({
       where: { id: projectId },
@@ -552,7 +618,7 @@ export class TicketsService {
         query.statusKey.toLowerCase() === 'active' ||
         query.statusKey === ACTIVE_STATUS_SENTINEL
       ) {
-        qb.andWhere('t.statusKey != :closedKey', { closedKey: 'Closed' });
+        qb.andWhere('COALESCE(s.isClosed, false) = false');
       } else {
         qb.andWhere('t.statusKey = :statusKey', {
           statusKey: query.statusKey,
@@ -654,76 +720,8 @@ export class TicketsService {
       countPerStatus[key] = countsByStatusKey[key] ?? 0;
     }
 
-    /*
-     * Clone the filtered query before adding pagination and item selection.
-     * The summary will represent all matching tickets, not only the current page.
-     */
-    const summaryQuery = qb.clone();
-
-    const summaryResult = await summaryQuery
-      .select([
-        `
-      COALESCE(
-        SUM(
-          CASE
-            WHEN UPPER(t.statusKey) = 'OPEN'
-            THEN 1
-            ELSE 0
-          END
-        ),
-        0
-      ) AS open
-      `,
-        `
-      COALESCE(
-        SUM(
-          CASE
-            WHEN UPPER(t.statusKey) = 'INPROGRESS'
-            THEN 1
-            ELSE 0
-          END
-        ),
-        0
-      ) AS inprogress
-      `,
-        `
-      COALESCE(
-        SUM(
-          CASE
-            WHEN UPPER(t.statusKey) = 'CLOSED'
-            THEN 1
-            ELSE 0
-          END
-        ),
-        0
-      ) AS closed
-      `,
-        `
-      COALESCE(
-        SUM(
-          CASE
-            WHEN UPPER(t.statusKey) = 'RESOLVED'
-            THEN 1
-            ELSE 0
-          END
-        ),
-        0
-      ) AS resolved
-      `,
-        `
-      COALESCE(
-        SUM(
-          CASE
-            WHEN UPPER(t.priorityKey) = 'CRITICAL' AND UPPER(t.statusKey) != 'CLOSED'
-            THEN 1
-            ELSE 0
-          END
-        ),
-        0
-      ) AS critical
-      `,
-      ])
-      .getRawOne();
+    // Summary covers all matching leads, not only the current page.
+    const summary = await this.buildStatusSummary(qb);
 
     qb.select([
       't.id',
@@ -792,13 +790,7 @@ export class TicketsService {
     return {
       items,
 
-      summary: {
-        open: Number(summaryResult?.open ?? 0),
-        inProgress: Number(summaryResult?.inprogress ?? 0),
-        closed: Number(summaryResult?.closed ?? 0),
-        resolved: Number(summaryResult?.resolved ?? 0),
-        critical: Number(summaryResult?.critical ?? 0),
-      },
+      summary,
       countPerStatus,
       meta: {
         page: query.page,
@@ -880,7 +872,7 @@ export class TicketsService {
   //     .getOne();
 
   //   if (!ticket) {
-  //     throw new NotFoundException('Ticket not found');
+  //     throw new NotFoundException('Lead not found');
   //   }
 
   //   const attachments = await this.filesService.findBySource(
@@ -903,7 +895,7 @@ export class TicketsService {
       .getExists();
 
     if (!isMember) {
-      throw new ForbiddenException('You do not have access to this ticket');
+      throw new ForbiddenException('You do not have access to this lead');
     }
 
     const ticket = await this.ticketRepo
@@ -934,7 +926,7 @@ export class TicketsService {
       .getOne();
 
     if (!ticket) {
-      throw new NotFoundException('Ticket not found');
+      throw new NotFoundException('Lead not found');
     }
 
     const [attachments, createdByUser] = await Promise.all([
@@ -982,7 +974,7 @@ export class TicketsService {
     });
 
     if (!ticket) {
-      throw new NotFoundException('Ticket not found');
+      throw new NotFoundException('Lead not found');
     }
 
     if (dto.contactId) {
@@ -1030,7 +1022,7 @@ export class TicketsService {
           where: { id: dto.assigneeId },
         });
         if (!newAssigneeEntity)
-          throw new NotFoundException('Assignee not found');
+          throw new NotFoundException('Agent not found');
         ticket.assignee = newAssigneeEntity;
         ticket.assigneeId = dto.assigneeId;
       } else {
@@ -1064,7 +1056,7 @@ export class TicketsService {
     });
 
     if (!updatedTicket) {
-      throw new NotFoundException('Ticket not found');
+      throw new NotFoundException('Lead not found');
     }
     const updatedBy = await this.userRepo.findOne({
       where: { id: userId },
@@ -1170,7 +1162,7 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `"Ticket: "${ticket.ticketRefNo}" status changed to ${ticket.status.label} by ${fullname}`,
+        title: `"Lead: "${ticket.ticketRefNo}" status changed to ${ticket.status.label} by ${fullname}`,
         message: `${oldStatus.label} to ${dto.statusKey}`,
         // explicitRecipientIds: [...new Set(recipients)],
       });
@@ -1214,7 +1206,7 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `"Ticket: "${ticket.ticketRefNo}" due date changed to ${newDueDateStr} by ${fullname}`,
+        title: `"Lead: "${ticket.ticketRefNo}" due date changed to ${newDueDateStr} by ${fullname}`,
         message: message,
         // explicitRecipientIds: [...new Set(recipients)],
       });
@@ -1248,7 +1240,7 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `Ticket: "${ticket.ticketRefNo}" priority changed to ${ticket.priority.label} by ${fullname}`,
+        title: `Lead: "${ticket.ticketRefNo}" priority changed to ${ticket.priority.label} by ${fullname}`,
         message: `${oldPriority.label} to ${dto.priorityKey}`,
         // explicitRecipientIds: [...new Set(recipients)],
       });
@@ -1284,7 +1276,7 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `Ticket: "${ticket.ticketRefNo}" type changed to ${getTicketTypeLabel(ticket.ticketType)} by ${fullname}`,
+        title: `Lead: "${ticket.ticketRefNo}" type changed to ${getTicketTypeLabel(ticket.ticketType)} by ${fullname}`,
         message: `${getTicketTypeLabel(oldTicket.ticketType)} to ${getTicketTypeLabel(dto.ticketType)}`,
       });
       await this.notificationsService.dispatch({
@@ -1324,7 +1316,7 @@ export class TicketsService {
         title: dto.assigneeId
           ? // ? `"${user.fullName || 'Someone'}" was assigned to ticket: "${ticket.ticketRefNo}"`
             `"${ticket.ticketRefNo} is assigned to ${user.fullName} by ${fullname}"`
-          : `Ticket: "${ticket.ticketRefNo}" is now unassigned`,
+          : `Lead: "${ticket.ticketRefNo}" is now unassigned`,
         // explicitRecipientIds: [...new Set(recipients)],
       });
       // Email only when assigning to someone.
@@ -1376,7 +1368,7 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `Ticket: "${ticket.ticketRefNo}" renamed to "${dto.title}" by ${fullname}`,
+        title: `Lead: "${ticket.ticketRefNo}" renamed to "${dto.title}" by ${fullname}`,
         message: `Previously: "${oldTicket.title}"`,
         // explicitRecipientIds: [...new Set(recipients)],
       });
@@ -1390,7 +1382,7 @@ export class TicketsService {
         entityType: NotificationEntityType.TICKET,
         entityId: ticket.id,
         ticketId: ticket.id,
-        title: `Ticket: "${ticket.ticketRefNo}" description was updated by ${fullname}`,
+        title: `Lead: "${ticket.ticketRefNo}" description was updated by ${fullname}`,
         // explicitRecipientIds: [...new Set(recipients)],
       });
     }
@@ -1426,65 +1418,34 @@ export class TicketsService {
       entityType: NotificationEntityType.TICKET,
       entityId: ticket.id,
       ticketId: ticket.id,
-      title: `Ticket # "${ticket.ticketRefNo}" deleted by ${fullname}`,
+      title: `Lead # "${ticket.ticketRefNo}" deleted by ${fullname}`,
     });
 
     return { success: true };
   }
 
   // ---------------- TICKET'S SUMMARY -------------------
-  // TODO: needs to re-think on how we manage these? as statuses and priorities are dynamic
-
   async getTicketSummary(projectId: string) {
     const project = await this.projectRepo.findOne({
       where: { id: projectId },
     });
     if (!project) throw new NotFoundException('Project not found');
-    const result = await this.ticketRepo
-      .createQueryBuilder('t')
-      .select([
-        `SUM(CASE WHEN UPPER(t.statusKey) = 'OPEN' THEN 1 ELSE 0 END) AS open`,
-        `SUM(CASE WHEN UPPER(t.statusKey) = 'INPROGRESS' THEN 1 ELSE 0 END) AS inprogress`,
-        `SUM(CASE WHEN UPPER(t.statusKey) = 'CLOSED' THEN 1 ELSE 0 END) AS closed`,
-        `SUM(CASE WHEN UPPER(t.statusKey) = 'RESOLVED' THEN 1 ELSE 0 END) AS resolved`,
-        `SUM(CASE WHEN UPPER(t.priorityKey) = 'CRITICAL' AND UPPER(t.statusKey) != 'CLOSED' THEN 1 ELSE 0 END) AS critical`,
-      ])
-      .where('t.projectId = :projectId', { projectId })
-      .getRawOne();
-
-    return {
-      open: Number(result.open),
-      inProgress: Number(result.inProgress),
-      closed: Number(result.closed),
-      resolved: Number(result.resolved),
-      critical: Number(result.critical),
-    };
+    return this.buildStatusSummary(
+      this.ticketRepo
+        .createQueryBuilder('t')
+        .where('t.projectId = :projectId', { projectId }),
+    );
   }
 
   async getGlobalTicketSummary(user) {
-    const result = await this.ticketRepo
-      .createQueryBuilder('t')
-      .leftJoin('t.project', 'p')
-      .innerJoin('p.members', 'u', 'u.id = :userId', {
-        userId: user.id,
-      })
-      .select([
-        `SUM(CASE WHEN UPPER(t.statusKey) = 'OPEN' THEN 1 ELSE 0 END) AS open`,
-        `SUM(CASE WHEN UPPER(t.statusKey) = 'INPROGRESS' THEN 1 ELSE 0 END) AS inprogress`,
-        `SUM(CASE WHEN UPPER(t.statusKey) = 'CLOSED' THEN 1 ELSE 0 END) AS closed`,
-
-        `SUM(CASE WHEN UPPER(t.statusKey) = 'RESOLVED' THEN 1 ELSE 0 END) AS resolved`,
-        `SUM(CASE WHEN UPPER(t.priorityKey) = 'CRITICAL' AND UPPER(t.statusKey) != 'CLOSED' THEN 1 ELSE 0 END) AS critical`,
-      ])
-      .getRawOne();
-
-    return {
-      open: Number(result.open),
-      inProgress: Number(result.inprogress),
-      closed: Number(result.closed),
-      resolved: Number(result.resolved),
-      critical: Number(result.critical),
-    };
+    return this.buildStatusSummary(
+      this.ticketRepo
+        .createQueryBuilder('t')
+        .leftJoin('t.project', 'p')
+        .innerJoin('p.members', 'u', 'u.id = :userId', {
+          userId: user.id,
+        }),
+    );
   }
 
   // ---------------- UPCOMING TICKETS -------------
@@ -1507,7 +1468,7 @@ export class TicketsService {
       })
       .leftJoin('t.status', 's')
       .leftJoin('t.priority', 'pr')
-      .where('t.statusKey != :statusKey', { statusKey: 'Closed' })
+      .where('COALESCE(s.isClosed, false) = false')
       .andWhere(
         '(t.dueDate IS NULL OR t.dueDate BETWEEN :today AND :upperBound)',
         {
@@ -1600,7 +1561,7 @@ export class TicketsService {
       .getExists();
 
     if (!isMember) {
-      throw new ForbiddenException('You do not have access to this ticket');
+      throw new ForbiddenException('You do not have access to this lead');
     }
 
     const ticket = await this.ticketRepo.findOne({
@@ -1611,7 +1572,7 @@ export class TicketsService {
       },
     });
 
-    if (!ticket) throw new NotFoundException('Ticket not found');
+    if (!ticket) throw new NotFoundException('Lead not found');
 
     return ticket;
   }
@@ -1643,6 +1604,8 @@ export class TicketsService {
         ticketType: query.ticketType,
       });
     }
+
+    this.applyKanbanPeopleFilters(qb, query);
 
     const search = query.search?.trim();
     if (search) {
@@ -2059,6 +2022,8 @@ export class TicketsService {
       });
     }
 
+    this.applyKanbanPeopleFilters(baseQb, query);
+
     const search = query.search?.trim();
     if (search) {
       baseQb.andWhere(
@@ -2113,24 +2078,37 @@ export class TicketsService {
 
     return { items, hasMore, summary };
   }
-  private async computeSummary(qb: SelectQueryBuilder<Ticket>) {
-    const summaryResult = await qb
-      .select([
-        `COALESCE(SUM(CASE WHEN UPPER(t.statusKey) = 'OPEN' THEN 1 ELSE 0 END), 0) AS open`,
-        `COALESCE(SUM(CASE WHEN UPPER(t.statusKey) = 'INPROGRESS' THEN 1 ELSE 0 END), 0) AS inprogress`,
-        `COALESCE(SUM(CASE WHEN UPPER(t.statusKey) = 'CLOSED' THEN 1 ELSE 0 END), 0) AS closed`,
-        `COALESCE(SUM(CASE WHEN UPPER(t.statusKey) = 'RESOLVED' THEN 1 ELSE 0 END), 0) AS resolved`,
-        `SUM(CASE WHEN UPPER(t.priorityKey) = 'CRITICAL' AND UPPER(t.statusKey) != 'CLOSED' THEN 1 ELSE 0 END) AS critical`,
-      ])
-      .getRawOne();
+  private computeSummary(qb: SelectQueryBuilder<Ticket>) {
+    return this.buildStatusSummary(qb);
+  }
 
-    return {
-      open: Number(summaryResult?.open ?? 0),
-      inProgress: Number(summaryResult?.inprogress ?? 0),
-      closed: Number(summaryResult?.closed ?? 0),
-      resolved: Number(summaryResult?.resolved ?? 0),
-      critical: Number(summaryResult?.critical ?? 0),
-    };
+  // Agent / creator / contact filters shared by the Kanban board and its
+  // per-status counts, so both stay in sync with the table view's filters.
+  private applyKanbanPeopleFilters(
+    qb: SelectQueryBuilder<Ticket>,
+    query: { assigneeId?: string; reporterId?: string; contactId?: string },
+  ) {
+    if (query.assigneeId) {
+      if (query.assigneeId.toLowerCase() === 'unassigned') {
+        qb.andWhere('t.assigneeId IS NULL');
+      } else {
+        qb.andWhere('t.assigneeId = :assigneeId', {
+          assigneeId: query.assigneeId,
+        });
+      }
+    }
+
+    if (query.reporterId) {
+      qb.andWhere('t.reporterId = :reporterId', {
+        reporterId: query.reporterId,
+      });
+    }
+
+    if (query.contactId) {
+      qb.andWhere('t.contactId = :contactId', {
+        contactId: query.contactId,
+      });
+    }
   }
 }
 
